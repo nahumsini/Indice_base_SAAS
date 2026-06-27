@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode } from 'react';
+import { type PointerEvent, type ReactNode } from 'react';
 import { ImageIcon, MapPin } from 'lucide-react';
 import type { AttendanceCalendarDay } from '../../../../../../api/humanResources';
 import {
@@ -32,8 +32,9 @@ export function ControlCalendarDayCell({
   isMultiSelected = false,
   isSelected,
   locale,
-  onMouseDown,
-  onMouseEnter,
+  onPointerDown,
+  onPointerEnter,
+  onPointerMove,
   onSelect,
 }: {
   copy: AttendanceControlCopy;
@@ -42,14 +43,17 @@ export function ControlCalendarDayCell({
   isMultiSelected?: boolean;
   isSelected: boolean;
   locale: string;
-  onMouseDown?: (event: MouseEvent<HTMLButtonElement>) => void;
-  onMouseEnter?: () => void;
+  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerEnter?: () => void;
+  onPointerMove?: () => void;
   onSelect: () => void;
 }) {
   const statusTone = day ? dayTone(day) : null;
   const heatmapTone = day ? dayHeatmapTone(day) : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/40';
   const isLocked = day?.attendance_editable === false;
   const hasCorrection = Boolean(day?.corrected_status);
+  const statusLabel = day ? copy.statuses[resolvedDayStatus(day)] : copy.labels.noSchedule;
+  const dateLabel = day?.date ?? `${dayNumber}`;
   const attendanceTooltip = day
     ? [
         `${copy.labels.effectiveStatus}: ${copy.statuses[resolvedDayStatus(day)]}`,
@@ -66,10 +70,12 @@ export function ControlCalendarDayCell({
     <button
       type="button"
       onClick={onSelect}
-      onMouseDown={onMouseDown}
-      onMouseEnter={onMouseEnter}
+      onPointerDown={onPointerDown}
+      onPointerEnter={onPointerEnter}
+      onPointerMove={onPointerMove}
+      aria-label={copy.labels.calendarDayAriaLabel(dateLabel, statusLabel)}
       title={isLocked ? day?.edit_lock_reason ?? copy.labels.notModifiable : attendanceTooltip}
-      className={`group relative min-h-[76px] select-none overflow-hidden rounded-xl border p-2 text-left transition-all sm:min-h-[104px] sm:rounded-2xl sm:p-3 ${
+      className={`group relative min-h-[76px] touch-none select-none overflow-hidden rounded-lg border p-2 text-left transition-all sm:min-h-[104px] sm:p-3 ${
         isSelected
           ? 'border-[#59C3A5]/45 bg-white shadow-[0_1px_2px_rgba(89,195,165,0.10),0_0_0_4px_rgba(89,195,165,0.06)] dark:border-[#8FE0CA]/45 dark:bg-gray-900'
           : isMultiSelected
@@ -130,7 +136,7 @@ export function LegendOutline({ label }: { label: string }) {
 
 export function DayInfoStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2.5 dark:border-gray-800 dark:bg-gray-900/40">
+    <div className="rounded-lg border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2.5 dark:border-gray-800 dark:bg-gray-900/40">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
       <p className="mt-1.5 text-base font-semibold text-gray-900 dark:text-white">{value}</p>
     </div>
@@ -152,7 +158,7 @@ export function DayEvidenceCard({
 }) {
   if (compact) {
     return (
-      <div className="min-w-0 rounded-xl border border-[#59C3A5]/10 bg-[#f8fbff] p-3 dark:border-gray-800 dark:bg-gray-900/40">
+      <div className="min-w-0 rounded-lg border border-[#59C3A5]/10 bg-[#f8fbff] p-3 dark:border-gray-800 dark:bg-gray-900/40">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
         <div className="mt-2 flex items-center gap-2">
           {photoUrl ? (
@@ -181,7 +187,7 @@ export function DayEvidenceCard({
   }
 
   return (
-    <div className="rounded-xl border border-[#59C3A5]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-lg border border-[#59C3A5]/10 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
       {photoUrl ? (
         <img

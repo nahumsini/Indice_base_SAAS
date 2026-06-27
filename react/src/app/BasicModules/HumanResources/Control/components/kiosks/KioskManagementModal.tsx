@@ -201,7 +201,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
     >
       <DialogContent
         hideCloseButton
-        className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
+        className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-0 text-slate-950 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
       >
         <div className="shrink-0 bg-[#59C3A5] px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">

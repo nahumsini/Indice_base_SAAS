@@ -14,6 +14,7 @@ export function useAgendaTaskKiosks({ setAgendaError }: UseAgendaTaskKiosksOptio
   const [isTaskKioskModalOpen, setIsTaskKioskModalOpen] = useState(false);
   const [isTaskKioskSaving, setIsTaskKioskSaving] = useState(false);
   const [taskKiosks, setTaskKiosks] = useState<ProcessTaskKiosk[]>([]);
+  const [taskKioskPendingDeletion, setTaskKioskPendingDeletion] = useState<ProcessTaskKiosk | null>(null);
 
   const publicTaskKioskUrl = useCallback((kiosk: ProcessTaskKiosk) => {
     if (typeof window === 'undefined') {
@@ -57,23 +58,38 @@ export function useAgendaTaskKiosks({ setAgendaError }: UseAgendaTaskKiosksOptio
     [loadTaskKiosks, setAgendaError],
   );
 
-  const handleDeleteTaskKiosk = useCallback(
-    async (kiosk: ProcessTaskKiosk) => {
-      if (typeof window !== 'undefined' && !window.confirm(`Delete ${kiosk.name}?`)) {
+  const handleDeleteTaskKiosk = useCallback((kiosk: ProcessTaskKiosk) => {
+    setTaskKioskPendingDeletion(kiosk);
+  }, []);
+
+  const handleCancelDeleteTaskKiosk = useCallback(() => {
+    if (isTaskKioskSaving) {
+      return;
+    }
+
+    setTaskKioskPendingDeletion(null);
+  }, [isTaskKioskSaving]);
+
+  const handleConfirmDeleteTaskKiosk = useCallback(
+    async () => {
+      const kiosk = taskKioskPendingDeletion;
+      if (!kiosk) {
         return;
       }
+
       setIsTaskKioskSaving(true);
       setAgendaError(null);
       try {
         await processTaskKioskApi.deleteKiosk(kiosk.id);
         await loadTaskKiosks();
+        setTaskKioskPendingDeletion(null);
       } catch (error) {
         setAgendaError(getErrorMessage(error, 'Could not delete task access point.'));
       } finally {
         setIsTaskKioskSaving(false);
       }
     },
-    [loadTaskKiosks, setAgendaError],
+    [loadTaskKiosks, setAgendaError, taskKioskPendingDeletion],
   );
 
   const handleCopyTaskKiosk = useCallback(
@@ -98,6 +114,8 @@ export function useAgendaTaskKiosks({ setAgendaError }: UseAgendaTaskKiosksOptio
   );
 
   return {
+    handleCancelDeleteTaskKiosk,
+    handleConfirmDeleteTaskKiosk,
     handleCopyTaskKiosk,
     handleDeleteTaskKiosk,
     handleOpenTaskKiosk,
@@ -106,6 +124,7 @@ export function useAgendaTaskKiosks({ setAgendaError }: UseAgendaTaskKiosksOptio
     isTaskKioskModalOpen,
     isTaskKioskSaving,
     setIsTaskKioskModalOpen,
+    taskKioskPendingDeletion,
     taskKiosks,
   };
 }

@@ -110,7 +110,7 @@ export function ScheduleBuilder({
 
   return (
     <section aria-labelledby="schedule-details-heading" className="flex min-h-full flex-col gap-5">
-      <div className="rounded-2xl border border-[#59C3A5]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8FE0CA]/30 dark:bg-blue-950/20">
+      <div className="rounded-lg border border-[#59C3A5]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8FE0CA]/30 dark:bg-blue-950/20">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 id="schedule-details-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
@@ -196,7 +196,7 @@ export function ScheduleBuilder({
           variant="outline"
           onClick={goBack}
           disabled={!canGoBack}
-          className="rounded-xl"
+          className="rounded-md"
         >
           {copy.schedule.builder.back}
         </Button>
@@ -207,7 +207,7 @@ export function ScheduleBuilder({
           type="button"
           onClick={goNext}
           disabled={!canGoNext}
-          className="rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
+          className="rounded-md bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
         >
           {canGoNext ? copy.schedule.builder.continue : copy.schedule.builder.readyToSave}
         </Button>

@@ -13,6 +13,12 @@ export const koCA = {
     loadingDescription: '사용 가능한 작업 공간을 확인하고 있습니다.',
     empty: '이 사용자에게 표시할 인사 관리 탭이 없습니다.',
   },
+  tabError: {
+    eyebrow: '탭을 사용할 수 없음',
+    title: '이 인사 관리 탭을 불러오지 못했습니다',
+    description: '앱에서 이 작업 공간을 다운로드하지 못했습니다. 탭을 새로고침하여 모듈을 다시 요청하세요.',
+    reload: '탭 새로고침',
+  },
   tabs: {
     collaborators: '직원',
     attendance: '출석',

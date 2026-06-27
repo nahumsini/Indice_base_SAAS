@@ -27,7 +27,7 @@ export function KioskStepGuide({ stepLabel, steps }: { stepLabel: string; steps:
       {steps.map(({ label, state, Icon }, index) => (
         <div
           key={label}
-          className={`flex items-center gap-3 rounded-2xl border px-3 py-3 transition ${
+          className={`flex items-center gap-3 rounded-lg border px-3 py-3 transition ${
             state === 'done'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200'
               : state === 'active'
@@ -36,7 +36,7 @@ export function KioskStepGuide({ stepLabel, steps }: { stepLabel: string; steps:
           }`}
         >
           <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
               state === 'done'
                 ? 'bg-emerald-500 text-white'
                 : state === 'active'
@@ -68,12 +68,12 @@ export function KioskStatusMetric({
   isStrong?: boolean;
 }) {
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${isStrong ? 'border-[#59C3A5]/25 bg-[#59C3A5]/8 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10' : 'border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-950/75'}`}>
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-        <Icon className="h-4 w-4" />
-        {label}
+    <div className={`min-w-0 rounded-lg border px-4 py-3 ${isStrong ? 'border-[#59C3A5]/25 bg-[#59C3A5]/8 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10' : 'border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-950/75'}`}>
+      <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+        <Icon className="h-4 w-4 shrink-0" />
+        <span className="truncate">{label}</span>
       </div>
-      <p className={`mt-2 text-base font-semibold ${isStrong ? 'text-[#59C3A5] dark:text-[#8FE0CA]' : 'text-slate-950 dark:text-white'}`}>
+      <p className={`mt-2 truncate text-base font-semibold ${isStrong ? 'text-[#59C3A5] dark:text-[#8FE0CA]' : 'text-slate-950 dark:text-white'}`}>
         {value}
       </p>
     </div>
@@ -94,14 +94,14 @@ export function KioskLanguageSelector({
   onLocaleChange: (locale: KioskLocale) => void;
 }) {
   return (
-    <label className="flex min-w-[13rem] items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950/75 dark:text-slate-200">
+    <label className="flex w-full min-w-0 max-w-full items-center gap-2 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950/75 dark:text-slate-200 sm:w-auto sm:min-w-[13rem] sm:px-3">
       <Globe2 className="h-4 w-4 shrink-0 text-[#59C3A5] dark:text-[#8FE0CA]" />
       <span className="sr-only">{copy.language.selectorLabel}</span>
       <select
         value={locale}
         onChange={(event) => onLocaleChange(event.target.value as KioskLocale)}
         aria-label={copy.language.selectorLabel}
-        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+        className="min-w-0 flex-1 truncate bg-transparent text-sm font-semibold outline-none"
       >
         {localeOptions.map((option) => (
           <option key={option.code} value={option.code}>
@@ -127,18 +127,18 @@ export function KioskFlowStepper({ stepLabel, steps }: { stepLabel: string; step
       {steps.map(({ label, state, Icon }, index) => (
         <div
           key={label}
-          className={`relative overflow-hidden rounded-[22px] border px-4 py-3 transition ${
+          className={`relative overflow-hidden rounded-lg border px-4 py-3 transition ${
             state === 'done'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200'
               : state === 'active'
-                ? 'border-[#59C3A5]/35 bg-white text-[#59C3A5] shadow-[0_12px_34px_-26px_rgba(89,195,165,0.7)] dark:border-[#8FE0CA]/35 dark:bg-slate-950 dark:text-[#8FE0CA]'
+                ? 'border-[#59C3A5]/35 bg-white text-[#59C3A5] shadow-sm dark:border-[#8FE0CA]/35 dark:bg-slate-950 dark:text-[#8FE0CA]'
                 : 'border-slate-200 bg-white/80 text-slate-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-400'
           }`}
         >
           {state === 'active' ? <div className="absolute inset-y-0 left-0 w-1 bg-[#59C3A5] dark:bg-[#8FE0CA]" /> : null}
           <div className="flex items-center gap-3">
             <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
                 state === 'done'
                   ? 'bg-emerald-500 text-white'
                   : state === 'active'
@@ -193,7 +193,7 @@ export function KioskPinKeypad({
           type="button"
           disabled={disabled}
           onClick={() => handleKey(key)}
-          className={`flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-semibold text-slate-950 shadow-sm transition hover:border-[#59C3A5]/35 hover:bg-[#59C3A5]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-[#8FE0CA]/35 dark:hover:bg-[#8FE0CA]/10 ${
+          className={`flex h-14 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl font-semibold text-slate-950 shadow-sm transition hover:border-[#59C3A5]/35 hover:bg-[#59C3A5]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-[#8FE0CA]/35 dark:hover:bg-[#8FE0CA]/10 ${
             key === '0' ? 'col-start-2' : ''
           }`}
         >

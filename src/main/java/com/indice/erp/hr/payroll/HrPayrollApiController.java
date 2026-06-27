@@ -72,6 +72,159 @@ public class HrPayrollApiController {
         return ResponseEntity.ok(hrPayrollService.getPreferences(user.get().companyId()));
     }
 
+    @GetMapping("/colombia/config")
+    public ResponseEntity<?> colombiaConfig(HttpSession session) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        return ResponseEntity.ok(hrPayrollService.getColombiaConfig(user.get()));
+    }
+
+    @PutMapping("/colombia/config")
+    public ResponseEntity<?> updateColombiaConfig(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.saveColombiaConfig(user.get(), payload));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/colombia/profiles/{userCompanyId}")
+    public ResponseEntity<?> colombiaProfile(HttpSession session, @PathVariable long userCompanyId) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.getColombiaEmployeeProfile(user.get(), userCompanyId));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/colombia/profiles/{userCompanyId}")
+    public ResponseEntity<?> updateColombiaProfile(
+        HttpSession session,
+        @PathVariable long userCompanyId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.saveColombiaEmployeeProfile(user.get(), userCompanyId, payload));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/colombia/novelties")
+    public ResponseEntity<?> colombiaNovelties(
+        HttpSession session,
+        @RequestParam(name = "user_company_id", required = false) Long userCompanyId,
+        @RequestParam(name = "period_from", required = false) String periodFrom,
+        @RequestParam(name = "period_to", required = false) String periodTo,
+        @RequestParam(required = false) String status
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.listColombiaNovelties(
+                user.get(),
+                userCompanyId,
+                periodFrom,
+                periodTo,
+                status
+            ));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/colombia/novelties")
+    public ResponseEntity<?> createColombiaNovelty(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(hrPayrollService.createColombiaNovelty(user.get(), payload));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/colombia/novelties/{noveltyId}")
+    public ResponseEntity<?> updateColombiaNovelty(
+        HttpSession session,
+        @PathVariable long noveltyId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.updateColombiaNovelty(user.get(), noveltyId, payload));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PutMapping("/preferences")
     public ResponseEntity<?> updatePreferences(HttpSession session, @RequestBody Map<String, Object> payload) {
         var user = sessionAuthService.currentUser(session);
@@ -162,6 +315,56 @@ public class HrPayrollApiController {
             return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/runs/{runId}/government-reporting")
+    public ResponseEntity<?> governmentReportingSnapshots(
+        HttpSession session,
+        @PathVariable long runId,
+        @RequestParam(name = "report_type", required = false) String reportType
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.listGovernmentReportingSnapshots(user.get(), runId, reportType));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/government-reporting/{snapshotId}/response")
+    public ResponseEntity<?> updateGovernmentReportingResponse(
+        HttpSession session,
+        @PathVariable long snapshotId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.updateGovernmentReportingSnapshotResponse(user.get(), snapshotId, payload));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 

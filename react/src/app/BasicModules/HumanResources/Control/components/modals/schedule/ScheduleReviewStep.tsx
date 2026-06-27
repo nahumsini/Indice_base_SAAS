@@ -42,7 +42,7 @@ export function ScheduleReviewStep({
   const hasNoEmployees = selectedEmployeeCount === 0;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.review.eyebrow}</p>
         <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.review.title}</h3>
@@ -52,17 +52,17 @@ export function ScheduleReviewStep({
       </div>
 
       {hasNoEmployees ? (
-        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
           {copy.schedule.review.selectCollaborator}
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-[#59C3A5]/20 bg-blue-50 p-4 text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-blue-950/20 dark:text-blue-100">
+      <div className="rounded-lg border border-[#59C3A5]/20 bg-blue-50 p-4 text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-blue-950/20 dark:text-blue-100">
         <p className="text-sm font-semibold">{copy.schedule.review.willApply}</p>
         <p className="mt-2 text-lg font-semibold leading-7">{operationalSummary.compact}</p>
       </div>
 
-      <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+      <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
         {operationalSummary.reviewItems.map((item) => (
           <div key={item.label} className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{item.label}</span>
@@ -84,7 +84,7 @@ export function ScheduleReviewStep({
         {locationRule === 'open' ? ` ${copy.schedule.summary.noExactLocationNote}` : ''}
       </p>
 
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h4 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.saveTemplate.title}</h4>

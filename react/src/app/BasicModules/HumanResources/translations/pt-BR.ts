@@ -13,6 +13,12 @@ export const ptBR = {
     loadingDescription: 'Verificando quais espaços de trabalho estão disponíveis.',
     empty: 'Nenhuma aba de Recursos Humanos está disponível para este usuário.',
   },
+  tabError: {
+    eyebrow: 'Aba indisponível',
+    title: 'Esta aba de Recursos Humanos não pôde ser carregada',
+    description: 'O app não conseguiu baixar este espaço de trabalho. Recarregue a aba para solicitar o módulo novamente.',
+    reload: 'Recarregar aba',
+  },
   tabs: {
     collaborators: 'Colaboradores',
     attendance: 'Presença',

@@ -66,7 +66,7 @@ export function FaceEnrollmentModal({
         className="z-[95]"
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
-        <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#59C3A5]/20 bg-white text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+        <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[#59C3A5]/20 bg-white text-gray-900 shadow-lg dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
           <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5">
             <div className="min-w-0">
               <h2 className="text-xl font-semibold leading-7 text-white">{copy.labels.faceEnrollmentStatus}</h2>
@@ -97,7 +97,7 @@ export function FaceEnrollmentModal({
           </div>
 
           <div className="flex justify-end border-t border-white/10 bg-[#59C3A5] px-6 py-4">
-            <Button className="rounded-xl bg-white text-[#59C3A5] hover:bg-blue-50" onClick={onClose}>
+            <Button className="rounded-md bg-white text-[#59C3A5] hover:bg-blue-50" onClick={onClose}>
               {copy.labels.closeModal}
             </Button>
           </div>

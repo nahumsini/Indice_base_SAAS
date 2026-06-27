@@ -15,7 +15,7 @@ export interface RHColaborador {
   rfc?: string;
   nss?: string;
   salario: number;
-  periodoPago: 'weekly' | 'biweekly' | 'monthly';
+  periodoPago: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
   estado: 'Activo' | 'Vacaciones' | 'Capacitacion' | 'Inactivo';
 }
 

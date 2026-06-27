@@ -80,7 +80,7 @@ export const createDefaultTemplateDays = () =>
     is_rest_day: isDefaultNoShiftDay(day),
   }));
 
-export const todayInputValue = () => new Date().toISOString().slice(0, 10);
+export const todayInputValue = () => todayIsoDate();
 
 export const defaultLocationForm = (): AttendanceControlLocationPayload => ({
   unit_id: null,

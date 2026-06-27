@@ -54,9 +54,10 @@ export interface EmployeeFormData {
   scheduleLocationId: string;
   salaryType: 'daily' | 'hourly';
   workdayHours: string;
+  workdaysPerWeek: string;
   salary: string;
   hourlyRate: string;
-  payPeriod: 'weekly' | 'biweekly' | 'monthly';
+  payPeriod: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
   contractType: 'permanent' | 'temporary';
   contractStartDate: string;
   contractEndDate: string;
@@ -101,6 +102,7 @@ export type EmployeeFieldKey =
   | 'scheduleLateAfterMinutes'
   | 'scheduleLocationId'
   | 'workdayHours'
+  | 'workdaysPerWeek'
   | 'salary'
   | 'hourlyRate'
   | 'contractStartDate'

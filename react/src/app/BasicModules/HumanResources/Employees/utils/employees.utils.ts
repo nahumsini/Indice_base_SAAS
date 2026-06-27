@@ -159,14 +159,17 @@ export const calculateEmployeesMonthlyPayroll = (employees: EmployeeViewModel[])
 
     if (employee.salaryType === 'hourly') {
       const workdayHours = employee.workdayHours ?? 8;
-      return total + (employee.hourlyRate * workdayHours * 260) / 12;
+      const workdaysPerWeek = employee.workdaysPerWeek ?? 5;
+      return total + employee.hourlyRate * workdayHours * workdaysPerWeek * 52 / 12;
     }
 
     const payPeriodFactor = employee.payPeriod === 'monthly'
       ? 1
       : employee.payPeriod === 'biweekly'
         ? 26 / 12
-        : 52 / 12;
+        : employee.payPeriod === 'semimonthly'
+          ? 2
+          : 52 / 12;
 
     return total + employee.salary * payPeriodFactor;
   }, 0);
@@ -246,6 +249,8 @@ export const getEmployeeSortValue = (employee: EmployeeViewModel, columnId: Empl
       return employee.salaryType;
     case 'workdayHours':
       return employee.workdayHours ?? 0;
+    case 'workdaysPerWeek':
+      return employee.workdaysPerWeek ?? 0;
     case 'salary':
       return employee.salaryType === 'hourly' ? employee.hourlyRate : employee.salary;
     case 'hourlyRate':

@@ -29,7 +29,7 @@ export function SaveTemplateModal({
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
+      <div className="w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-950">
         <div className="flex items-center justify-between gap-3 bg-[#59C3A5] px-5 py-4 text-white">
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-white">{copy.schedule.saveTemplate.title}</h3>
@@ -63,11 +63,11 @@ export function SaveTemplateModal({
                 }
               }}
               placeholder={copy.schedule.saveTemplate.placeholder}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </label>
           {errorMessage ? (
-            <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+            <p className="rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
               {errorMessage}
             </p>
           ) : (

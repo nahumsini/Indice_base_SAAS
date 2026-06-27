@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.hr.announcements.HrAnnouncementService;
 import jakarta.servlet.http.HttpSession;
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -2122,6 +2123,133 @@ class HrFirstRunIntegrationTest {
         assertThat(pdfExport.getResponse().getContentAsByteArray()).isNotEmpty();
     }
 
+    @Test
+    void payrollMixedCountryRunPersistsProviderSnapshotsManualEmployerCostAndFrontendDetail() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var business = createIsolatedBusinessFixture(
+            "Payroll Global Unit " + uniqueSuffix,
+            "Payroll Global Business " + uniqueSuffix
+        );
+        var mxUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 1, business, "MX", "MX", "10000");
+        var usUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 2, business, "US", "CA", "2000");
+        var caUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 3, business, "CA", "ON", "2200");
+        var brUserCompanyId = createCountryPayrollUserForTests(session, uniqueSuffix + 4, business, "BR", "BR", "5000");
+        var periodStartDate = LocalDate.parse("2099-02-01");
+        var periodEndDate = LocalDate.parse("2099-02-28");
+        seedPayrollAttendanceForPeriod(
+            List.of(mxUserCompanyId, usUserCompanyId, caUserCompanyId, brUserCompanyId),
+            periodStartDate,
+            periodEndDate
+        );
+
+        var createRunResponse = mockMvc.perform(
+            post("/api/v1/hr/payroll/runs")
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "pay_period", "monthly",
+                    "grouping_mode", "business",
+                    "period_start_date", periodStartDate.toString(),
+                    "period_end_date", periodEndDate.toString()
+                )))
+        )
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        var createRunBody = readMap(createRunResponse.getResponse().getContentAsString());
+        @SuppressWarnings("unchecked")
+        var createdRuns = (List<Map<String, Object>>) createRunBody.get("items");
+        createdRuns.stream()
+            .filter(run -> !Boolean.TRUE.equals(run.get("reused")))
+            .map(run -> ((Number) run.get("id")).longValue())
+            .forEach(createdPayrollRunIds::add);
+        var run = createdRuns.stream()
+            .filter(item -> ("business:" + business.businessId()).equals(item.get("grouping_key")))
+            .findFirst()
+            .orElseThrow();
+        var runId = ((Number) run.get("id")).longValue();
+
+        var detailBeforeManual = readMap(mockMvc.perform(
+            get("/api/v1/hr/payroll/runs/{runId}", runId)
+                .session(session)
+        )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString());
+        @SuppressWarnings("unchecked")
+        var linesBeforeManual = (List<Map<String, Object>>) detailBeforeManual.get("lines");
+
+        var mxLine = payrollLineFor(linesBeforeManual, mxUserCompanyId);
+        var usLine = payrollLineFor(linesBeforeManual, usUserCompanyId);
+        var caLine = payrollLineFor(linesBeforeManual, caUserCompanyId);
+        var brLine = payrollLineFor(linesBeforeManual, brUserCompanyId);
+
+        assertPayrollLineUsesProvider(mxLine, "MX", "payroll_calculation_engine:mx", "IMSS_EMP");
+        assertPayrollLineUsesProvider(usLine, "US", "payroll_calculation_engine:us", "US_SS_EMP");
+        assertPayrollLineUsesProvider(caLine, "CA", "payroll_calculation_engine:ca", "CPP");
+        assertPayrollLineUsesProvider(brLine, "BR", "payroll_calculation_engine:br", "EMPLOYER_BR_INSS");
+
+        var mxLineId = ((Number) mxLine.get("id")).longValue();
+        var mxEmployerCostBefore = payrollDecimal(mxLine.get("employer_contributions_amount"));
+        var detailAfterManualResponse = mockMvc.perform(
+            put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, mxLineId)
+                .session(session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "include_in_fiscal", true,
+                    "notes", "Employer cost true-up",
+                    "manual_items", List.of(
+                        Map.of("category", "employer_contribution", "label", "Employer true-up", "amount", 123.45)
+                    )
+                )))
+        )
+            .andExpect(status().isOk())
+            .andReturn();
+
+        var detailAfterManual = readMap(detailAfterManualResponse.getResponse().getContentAsString());
+        @SuppressWarnings("unchecked")
+        var linesAfterManual = (List<Map<String, Object>>) detailAfterManual.get("lines");
+        var mxLineAfterManual = payrollLineFor(linesAfterManual, mxUserCompanyId);
+        assertThat(payrollDecimal(mxLineAfterManual.get("employer_contributions_amount"))).isGreaterThan(mxEmployerCostBefore);
+        assertManualEmployerCostVisibleForFrontend(mxLineAfterManual);
+
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId).session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.run.status").value("processed"));
+
+        var processedDetail = readMap(mockMvc.perform(
+            get("/api/v1/hr/payroll/runs/{runId}", runId)
+                .session(session)
+        )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString());
+        @SuppressWarnings("unchecked")
+        var processedLines = (List<Map<String, Object>>) processedDetail.get("lines");
+        assertManualEmployerCostVisibleForFrontend(payrollLineFor(processedLines, mxUserCompanyId));
+
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId).session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.run.status").value("approved"));
+
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId).session(session))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.run.status").value("paid"));
+
+        var csvExport = mockMvc.perform(get("/api/v1/hr/payroll/runs/{runId}/export.csv", runId).session(session))
+            .andExpect(status().isOk())
+            .andReturn();
+        assertThat(csvExport.getResponse().getContentAsString()).contains("run_id", "gross_amount", "employer_contributions_amount");
+
+        var pdfExport = mockMvc.perform(get("/api/v1/hr/payroll/runs/{runId}/export.pdf", runId).session(session))
+            .andExpect(status().isOk())
+            .andReturn();
+        assertThat(pdfExport.getResponse().getContentAsByteArray()).isNotEmpty();
+    }
+
         @Test
         void payrollDailyAbsenceOnlyPeriodDoesNotProduceNegativeNet() throws Exception {
             var session = authenticatedSession();
@@ -2365,6 +2493,161 @@ class HrFirstRunIntegrationTest {
         assertThat(String.valueOf(hrUser.get("user_code"))).matches("^USR-\\d{4,}$");
         createdUserCompanyIds.add(userCompanyId);
         return userCompanyId;
+    }
+
+    private long createCountryPayrollUserForTests(
+        HttpSession session,
+        long uniqueSuffix,
+        BusinessFixture business,
+        String country,
+        String province,
+        String salary
+    ) throws Exception {
+        var userCompanyId = createHrUserForTests(session, uniqueSuffix, business);
+        jdbcTemplate.update(
+            """
+                UPDATE user_work_profiles
+                SET registration_country = ?,
+                    state_province = ?,
+                    salary = ?,
+                    pay_period = 'monthly',
+                    salary_type = 'daily',
+                    workday_hours = 8.00,
+                    workdays_per_week = 5.00
+                WHERE company_id = 1
+                  AND user_company_id = ?
+                """,
+            country,
+            province,
+            new BigDecimal(salary),
+            userCompanyId
+        );
+        return userCompanyId;
+    }
+
+    private void seedPayrollAttendanceForPeriod(List<Long> userCompanyIds, LocalDate startDate, LocalDate endDate) {
+        for (var userCompanyId : userCompanyIds) {
+            var userId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM user_companies WHERE id = ?",
+                Long.class,
+                userCompanyId
+            );
+            assertThat(userId).isNotNull();
+            for (var date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                if (date.getDayOfWeek().getValue() > 5) {
+                    continue;
+                }
+                jdbcTemplate.update(
+                    """
+                        INSERT INTO user_attendance_daily_records
+                        (company_id, user_id, user_company_id, attendance_date, system_status, corrected_status,
+                         first_check_in_at, last_check_out_at, corrected_by, corrected_at, minutes_late, notes)
+                        VALUES (1, ?, ?, ?, 'on_time', 'on_time', ?, ?, 1, ?, 0, NULL)
+                        ON DUPLICATE KEY UPDATE
+                          system_status = VALUES(system_status),
+                          corrected_status = VALUES(corrected_status),
+                          first_check_in_at = VALUES(first_check_in_at),
+                          last_check_out_at = VALUES(last_check_out_at),
+                          corrected_by = VALUES(corrected_by),
+                          corrected_at = VALUES(corrected_at),
+                          minutes_late = VALUES(minutes_late)
+                        """,
+                    userId,
+                    userCompanyId,
+                    date,
+                    Timestamp.valueOf(date.atTime(9, 0)),
+                    Timestamp.valueOf(date.atTime(17, 0)),
+                    Timestamp.valueOf(date.atTime(17, 0))
+                );
+            }
+        }
+    }
+
+    private void assertPayrollLineUsesProvider(
+        Map<String, Object> line,
+        String country,
+        String calculationSource,
+        String expectedLineItemCode
+    ) {
+        assertThat(line.get("country_code")).isEqualTo(country);
+        assertThat(line.get("calculation_source")).isEqualTo(calculationSource);
+        assertThat(line.get("statutory_compliance")).isEqualTo(true);
+
+        var inputs = payrollObject(line.get("calculation_inputs"));
+        assertThat(inputs).containsKeys("currencySnapshot", "fiscalAccumulator", "manualAdjustments", "taxableBase");
+        assertThat(payrollObject(inputs.get("currencySnapshot"))).containsKeys("nativeCurrency", "displayCurrency", "fxRate");
+        assertThat(payrollObject(inputs.get("fiscalAccumulator"))).containsKeys("taxableBaseYearToDate", "metadata");
+
+        var results = payrollObject(line.get("calculation_results"));
+        assertThat(results).containsKeys(
+            "grossAmount",
+            "deductionsAmount",
+            "employerContributionsAmount",
+            "netAmount",
+            "totalPayrollCost",
+            "statutoryCompliance"
+        );
+
+        var ruleSnapshot = payrollObject(line.get("rule_snapshot"));
+        assertThat(ruleSnapshot).containsKeys("lineItems", "auditBreakdown", "statutoryCompliance");
+        assertThat(payrollLineItems(line)).anySatisfy(item ->
+            assertThat(payrollObject(item).get("code")).isEqualTo(expectedLineItemCode)
+        );
+    }
+
+    private void assertManualEmployerCostVisibleForFrontend(Map<String, Object> line) {
+        assertThat(payrollList(line.get("manual_adjustments_snapshot"))).anySatisfy(item -> {
+            var manual = payrollObject(item);
+            assertThat(manual.get("code")).isEqualTo("MANUAL_EMPLOYER_CONTRIBUTION");
+            assertThat(manual.get("category")).isEqualTo("employer_contribution");
+            assertThat(manual.get("affectsEmployerCost")).isEqualTo(true);
+        });
+
+        var inputs = payrollObject(line.get("calculation_inputs"));
+        assertThat(payrollList(inputs.get("manualAdjustments"))).anySatisfy(item -> {
+            var manual = payrollObject(item);
+            assertThat(manual.get("code")).isEqualTo("MANUAL_EMPLOYER_CONTRIBUTION");
+            assertThat(payrollDecimal(manual.get("amount"))).isEqualByComparingTo(new BigDecimal("123.45"));
+        });
+
+        assertThat(payrollLineItems(line)).anySatisfy(item -> {
+            var lineItem = payrollObject(item);
+            assertThat(lineItem.get("code")).isEqualTo("MANUAL_EMPLOYER_CONTRIBUTION");
+            assertThat(lineItem.get("category")).isEqualTo("employer_contribution");
+            assertThat(lineItem.get("source_type")).isEqualTo("manual");
+            assertThat(lineItem.get("affects_employer_cost")).isEqualTo(true);
+        });
+    }
+
+    private Map<String, Object> payrollLineFor(List<Map<String, Object>> lines, long userCompanyId) {
+        return lines.stream()
+            .filter(line -> userCompanyId == ((Number) line.get("user_company_id")).longValue())
+            .findFirst()
+            .orElseThrow();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> payrollList(Object rawValue) {
+        return rawValue instanceof List<?> list ? (List<Object>) list : List.of();
+    }
+
+    private List<Object> payrollLineItems(Map<String, Object> line) {
+        return payrollList(line.get("items"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> payrollObject(Object rawValue) {
+        return rawValue instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private BigDecimal payrollDecimal(Object rawValue) {
+        if (rawValue instanceof BigDecimal value) {
+            return value;
+        }
+        if (rawValue instanceof Number number) {
+            return new BigDecimal(number.toString());
+        }
+        return new BigDecimal(String.valueOf(rawValue));
     }
 
     private BusinessFixture activeBusinessFixture() {

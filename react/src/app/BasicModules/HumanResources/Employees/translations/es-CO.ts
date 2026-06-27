@@ -29,16 +29,38 @@ export const esCO = {
   summary: {
     ...esMX.summary,
     total: 'Total de personal',
+    noSchedule: 'Sin turno',
+    documentsPending: 'Documentos pendientes',
     payroll: 'Pago mensual',
     statusReview: (count: number) => `${count} requieren revisión de estado`,
+    noScheduleAlert: (count: number) => `${count} sin turno`,
+    documentsPendingAlert: (count: number) => `${count} con documentos pendientes`,
     summaryInsight: ({
       activeCount,
       activeRate,
+      missingDocumentsCount,
+      noScheduleCount,
       payroll,
+      statusReviewCount,
       totalCount,
       visibleCount,
     }: EmployeesSummaryInsightArgs) =>
-      `Resumen del personal: ${activeCount} personas activas · ${activeRate} activas · ${payroll} de pago mensual · mostrando ${visibleCount} de ${totalCount}.`,
+      noScheduleCount > 0
+        ? `${noScheduleCount} personas activas necesitan turno para que asistencia opere sin fricción.`
+        : missingDocumentsCount > 0
+          ? `${missingDocumentsCount} personas necesitan completar documentos para cerrar expediente.`
+          : statusReviewCount > 0
+            ? `${statusReviewCount} personas requieren revisión de estado antes de pago y accesos.`
+            : `El personal está estable: ${activeCount} personas activas, ${activeRate} activas, ${payroll} de pago mensual, mostrando ${visibleCount} de ${totalCount}.`,
+  },
+  views: {
+    ...esMX.views,
+    label: 'Vista de personal',
+  },
+  bulk: {
+    ...esMX.bulk,
+    selected: (count: number) => `${count} seleccionadas`,
+    exportFileName: (date: string) => `personal-${date}.csv`,
   },
   filters: {
     ...esMX.filters,
@@ -79,7 +101,8 @@ export const esCO = {
   },
   payPeriodLabels: {
     weekly: 'Semanal',
-    biweekly: 'Quincenal',
+    biweekly: 'Cada 2 semanas',
+    semimonthly: 'Quincenal',
     monthly: 'Mensual',
   },
   businessFallback: 'Sin asignar',

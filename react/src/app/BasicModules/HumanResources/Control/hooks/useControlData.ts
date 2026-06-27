@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { runWithMinimumDuration } from '../../../../components/LoadingBarOverlay';
 import { useLocalStorageState } from '../../../../hooks/useLocalStorageState';
 import {
@@ -26,6 +26,10 @@ interface UseControlDataInput {
   successMessage: string;
 }
 
+export interface LoadControlOptions {
+  reloadReferenceData?: boolean;
+}
+
 export function useControlData({
   clearControlMessages,
   copy,
@@ -50,42 +54,64 @@ export function useControlData({
   const [faceEnrollment, setFaceEnrollment] = useState<{ id: number; status: string; enrolled_at?: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
+  const hasLoadedReferenceDataRef = useRef(false);
 
-  const loadControl = async (date: string) => {
+  const loadControl = async (date: string, options: LoadControlOptions = { reloadReferenceData: true }) => {
     setIsLoading(true);
     clearControlMessages();
 
     try {
-      const [overviewResponse, locationsResponse, templatesResponse, kioskDevicesResponse, accessProfilesResponse] = await runWithMinimumDuration(
-        Promise.all([
-          humanResourcesApi.getAttendanceControlOverview(date),
-          humanResourcesApi.listAttendanceControlLocations(),
-          humanResourcesApi.listAttendanceControlTemplates(),
-          humanResourcesApi.listAttendanceKioskDevices(),
-          humanResourcesApi.listAttendanceAccessProfiles(),
-        ]),
+      const shouldLoadReferenceData = Boolean(options.reloadReferenceData) || !hasLoadedReferenceDataRef.current;
+      const response = await runWithMinimumDuration(
+        shouldLoadReferenceData
+          ? Promise.all([
+              humanResourcesApi.getAttendanceControlOverview(date),
+              humanResourcesApi.listAttendanceControlLocations(),
+              humanResourcesApi.listAttendanceControlTemplates(),
+              humanResourcesApi.listAttendanceKioskDevices(),
+              humanResourcesApi.listAttendanceAccessProfiles(),
+            ]).then(([overviewResponse, locationsResponse, templatesResponse, kioskDevicesResponse, accessProfilesResponse]) => ({
+              accessProfiles: accessProfilesResponse.items,
+              kioskDevices: kioskDevicesResponse.items,
+              locations: locationsResponse.items,
+              overview: overviewResponse,
+              templates: templatesResponse.items,
+            }))
+          : humanResourcesApi.getAttendanceControlOverview(date).then((overviewResponse) => ({
+              accessProfiles: null,
+              kioskDevices: null,
+              locations: null,
+              overview: overviewResponse,
+              templates: null,
+            })),
         CONTROL_SAVE_MINIMUM_LOADING_MS,
       );
 
-      setOverview(overviewResponse);
-      setLocations(locationsResponse.items);
-      setTemplates(templatesResponse.items);
-      setKioskDevices(kioskDevicesResponse.items);
-      setAccessProfiles(accessProfilesResponse.items);
+      setOverview(response.overview);
+      if (response.locations && response.templates && response.kioskDevices && response.accessProfiles) {
+        hasLoadedReferenceDataRef.current = true;
+        setLocations(response.locations);
+        setTemplates(response.templates);
+        setKioskDevices(response.kioskDevices);
+        setAccessProfiles(response.accessProfiles);
+      }
+
+      const nextTemplates = response.templates ?? templates;
+      const nextKioskDevices = response.kioskDevices ?? kioskDevices;
       setSelectedEmployeeId((current) =>
-        current && overviewResponse.assignments.some((assignment) => assignment.user_company_id === current)
+        current && response.overview.assignments.some((assignment) => assignment.user_company_id === current)
           ? current
-          : overviewResponse.assignments[0]?.user_company_id ?? null,
+          : response.overview.assignments[0]?.user_company_id ?? null,
       );
       setSelectedTemplateId((current) =>
-        current && templatesResponse.items.some((template) => template.id === current)
+        current && nextTemplates.some((template) => template.id === current)
           ? current
-          : overviewResponse.assignments[0]?.schedule_template_id ?? templatesResponse.items[0]?.id ?? null,
+          : response.overview.assignments[0]?.schedule_template_id ?? nextTemplates[0]?.id ?? null,
       );
       setSelectedKioskDeviceId((current) =>
-        current && kioskDevicesResponse.items.some((device) => device.id === current)
+        current && nextKioskDevices.some((device) => device.id === current)
           ? current
-          : kioskDevicesResponse.items[0]?.id ?? null,
+          : nextKioskDevices[0]?.id ?? null,
       );
     } catch (error) {
       showFailureToast(toErrorMessage(error, copy));
@@ -95,7 +121,7 @@ export function useControlData({
   };
 
   useEffect(() => {
-    void loadControl(controlDate);
+    void loadControl(controlDate, { reloadReferenceData: false });
   }, [controlDate]);
 
   useEffect(() => {

@@ -349,9 +349,8 @@ export default function Attendance() {
 
   const recorderDisabled = !selectedItem;
   const photoCaptureDisabled = recorderDisabled || isSubmitting || punchState.hasActiveCheckIn || punchState.hasCheckOut;
-  const hasRecorderLocation = Boolean(recorderLocationState);
-  const canInlineCheckIn = Boolean(selectedItem) && hasRecorderLocation && Boolean(attendancePhotoUpload.photo) && !punchState.hasCheckIn;
-  const canInlineCheckOut = Boolean(selectedItem) && hasRecorderLocation && punchState.hasActiveCheckIn;
+  const canInlineCheckIn = Boolean(selectedItem) && Boolean(attendancePhotoUpload.photo) && !punchState.hasCheckIn;
+  const canInlineCheckOut = Boolean(selectedItem) && punchState.hasActiveCheckIn;
 
   return (
     <>

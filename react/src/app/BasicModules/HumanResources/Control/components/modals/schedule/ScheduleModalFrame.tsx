@@ -82,10 +82,10 @@ export function ScheduleModalFrame({
       />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-        <div className="my-8 flex max-h-[92vh] w-full max-w-[96rem] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
+        <div className="my-8 flex max-h-[92vh] w-full max-w-[96rem] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-gray-900 shadow-lg dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
           <div className="flex shrink-0 items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white">
             <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">
                 <Clock className="h-5 w-5" />
               </div>
               <div className="min-w-0">
@@ -108,7 +108,7 @@ export function ScheduleModalFrame({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-950/40">
             {errorMessage ? (
               <div className="shrink-0 px-5 pt-5">
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
                   {errorMessage}
                 </div>
               </div>

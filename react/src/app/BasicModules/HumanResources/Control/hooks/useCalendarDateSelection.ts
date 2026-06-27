@@ -1,6 +1,6 @@
 import {
   type Dispatch,
-  type MouseEvent,
+  type PointerEvent,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -38,10 +38,10 @@ export function useCalendarDateSelection({
 
   const startCalendarDateSelection = useCallback((
     date: string,
-    event: MouseEvent<HTMLButtonElement>,
+    event: PointerEvent<HTMLButtonElement>,
     day: AttendanceCalendarDay | null,
   ) => {
-    if (event.button !== 0) {
+    if (event.pointerType === 'mouse' && event.button !== 0) {
       return;
     }
 
@@ -107,10 +107,12 @@ export function useCalendarDateSelection({
   }, [setControlDate, setSelectedCalendarDay]);
 
   useEffect(() => {
-    window.addEventListener('mouseup', finishCalendarDateSelection);
+    window.addEventListener('pointerup', finishCalendarDateSelection);
+    window.addEventListener('pointercancel', finishCalendarDateSelection);
 
     return () => {
-      window.removeEventListener('mouseup', finishCalendarDateSelection);
+      window.removeEventListener('pointerup', finishCalendarDateSelection);
+      window.removeEventListener('pointercancel', finishCalendarDateSelection);
     };
   }, [finishCalendarDateSelection]);
 

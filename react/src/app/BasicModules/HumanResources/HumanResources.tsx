@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { useHumanResourcesTranslations } from './hooks/useHumanResourcesTranslations';
+import type { HumanResourcesTranslations } from './translations';
 import { authApi } from '../../api/auth';
 import {
   canAccessHumanResourcesTab,
@@ -48,6 +49,61 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
   permisos: 'permissions',
   incentivos: 'incentives',
 };
+
+interface TabContentErrorBoundaryProps {
+  children: ReactNode;
+  copy: HumanResourcesTranslations['tabError'];
+}
+
+interface TabContentErrorBoundaryState {
+  hasError: boolean;
+}
+
+class TabContentErrorBoundary extends Component<TabContentErrorBoundaryProps, TabContentErrorBoundaryState> {
+  state: TabContentErrorBoundaryState = {
+    hasError: false,
+  };
+
+  static getDerivedStateFromError(): TabContentErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  private handleReload = () => {
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      const { copy } = this.props;
+
+      return (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100"
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700 dark:text-amber-300">
+            {copy.eyebrow}
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-amber-950 dark:text-white">
+            {copy.title}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-800 dark:text-amber-100/85">
+            {copy.description}
+          </p>
+          <Button
+            type="button"
+            onClick={this.handleReload}
+            className="mt-4 bg-[#59C3A5] text-white hover:bg-[#4AAE91]"
+          >
+            {copy.reload}
+          </Button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   const t = useHumanResourcesTranslations();
@@ -210,29 +266,31 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
 
       {/* Contenido del tab activo */}
       <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-        <Suspense
-          fallback={(
-            <LoadingBarOverlay
-              isVisible
-              title={t.loading.title}
-              description={t.loading.description}
-            />
-          )}
-        >
-          {isAccessLoaded && ActiveComponent ? (
-            <ActiveComponent />
-          ) : isAccessLoaded ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-              {t.access.empty}
-            </div>
-          ) : (
-            <LoadingBarOverlay
-              isVisible
-              title={t.access.loadingTitle}
-              description={t.access.loadingDescription}
-            />
-          )}
-        </Suspense>
+        <TabContentErrorBoundary key={activeTab} copy={t.tabError}>
+          <Suspense
+            fallback={(
+              <LoadingBarOverlay
+                isVisible
+                title={t.loading.title}
+                description={t.loading.description}
+              />
+            )}
+          >
+            {isAccessLoaded && ActiveComponent ? (
+              <ActiveComponent />
+            ) : isAccessLoaded ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                {t.access.empty}
+              </div>
+            ) : (
+              <LoadingBarOverlay
+                isVisible
+                title={t.access.loadingTitle}
+                description={t.access.loadingDescription}
+              />
+            )}
+          </Suspense>
+        </TabContentErrorBoundary>
       </div>
     </div>
   );

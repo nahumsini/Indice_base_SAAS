@@ -237,7 +237,7 @@ export function ContractSiteRegistrationModal({
         onSave={() => void saveContractSites()}
         onSuccessToastClose={() => setSuccessToastMessage('')}
       >
-        <div className="rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+        <div className="rounded-md border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
           <p className="text-sm text-[#59C3A5] dark:text-blue-200">
             {copy.intro}
           </p>

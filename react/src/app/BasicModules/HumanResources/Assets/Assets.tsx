@@ -10,6 +10,7 @@ import {
 import { humanResourcesApi } from '../../../api/humanResources';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useLanguage } from '../../../shared/context';
@@ -73,6 +74,7 @@ export default function Assets() {
   const [statusFilter, setStatusFilter] = useState<'all' | HrAssetStatus>('all');
   const [unitFilter, setUnitFilter] = useState<'all' | string>('all');
   const [toastMessage, setToastMessage] = useState('');
+  const [errorToastMessage, setErrorToastMessage] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -298,7 +300,7 @@ export default function Assets() {
       setSelectedAssetDetails(detail);
       setIsDetailsModalOpen(true);
     } catch (error) {
-      window.alert(normalizeAssetErrorMessage(error, t.errors.details));
+      setErrorToastMessage(normalizeAssetErrorMessage(error, t.errors.details));
     }
   };
 
@@ -323,7 +325,7 @@ export default function Assets() {
       setToastMessage(t.actionAlerts.deactivated(assetPendingDeactivate.name));
       setAssetPendingDeactivate(null);
     } catch (error) {
-      window.alert(normalizeAssetErrorMessage(error, t.errors.status));
+      setErrorToastMessage(normalizeAssetErrorMessage(error, t.errors.status));
     }
   };
 
@@ -428,7 +430,7 @@ export default function Assets() {
       setToastMessage(t.addNewAsset.success(draft.name));
       return true;
     } catch (error) {
-      window.alert(normalizeAssetErrorMessage(error, t.errors.save));
+      setErrorToastMessage(normalizeAssetErrorMessage(error, t.errors.save));
       return false;
     }
   };
@@ -676,6 +678,11 @@ export default function Assets() {
         isVisible={Boolean(toastMessage)}
         message={toastMessage}
         onClose={() => setToastMessage('')}
+      />
+      <FailureToast
+        isVisible={Boolean(errorToastMessage)}
+        message={errorToastMessage}
+        onClose={() => setErrorToastMessage('')}
       />
 
       <LoadingBarOverlay

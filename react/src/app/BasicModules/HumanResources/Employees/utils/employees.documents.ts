@@ -1,8 +1,57 @@
 import { humanResourcesApi } from '../../../../api/humanResources';
-import type { EmployeeFormData } from '../components/CreateEmployeeModal';
+import type {
+  EmployeeDocumentType,
+  EmployeeFormData,
+} from '../components/CreateEmployeeModal';
+import {
+  MAX_DOCUMENT_SIZE_BYTES,
+  SUPPORTED_DOCUMENT_TYPES,
+} from '../components/CreateEmployeeModal/model';
 import { documentTypeOrder } from '../constants/employees.constants';
 import type { EmployeesTranslations } from '../translations';
 import { normalizeErrorMessage } from './employees.utils';
+
+export async function uploadEmployeeDocument({
+  copy,
+  documentType,
+  employeeId,
+  file,
+}: {
+  copy: EmployeesTranslations;
+  documentType: EmployeeDocumentType;
+  employeeId: number;
+  file: File;
+}) {
+  if (!SUPPORTED_DOCUMENT_TYPES.has(file.type)) {
+    throw new Error(copy.modal.validation.documentType);
+  }
+
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    throw new Error(copy.modal.validation.documentSize);
+  }
+
+  const presign = await humanResourcesApi.presignHrUserDocumentUpload(employeeId, {
+    document_type: documentType,
+    file_name: file.name,
+    content_type: file.type,
+    size_bytes: file.size,
+  });
+
+  await humanResourcesApi.uploadHrUserDocument(
+    presign.upload_url,
+    file,
+    file.type,
+    presign.upload_headers,
+  );
+
+  await humanResourcesApi.registerHrUserDocument(employeeId, {
+    document_type: documentType,
+    original_filename: file.name,
+    mime_type: file.type,
+    size_bytes: file.size,
+    object_key: presign.object_key,
+  });
+}
 
 export async function syncEmployeeDocuments({
   copy,

@@ -71,7 +71,7 @@ export function ScheduleSetupStep({
 
   return (
     <section className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="mb-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.setup.eyebrow}</p>
           <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.title}</h3>
@@ -100,7 +100,7 @@ export function ScheduleSetupStep({
           onScheduleTemplateChange={handleTemplateChange}
         />
       ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <ScheduleTypeSelector
             copy={copy}
             isOpenSchedule={isOpenSchedule}
@@ -162,7 +162,7 @@ function SourceOptionButton({
       type="button"
       onClick={onClick}
       disabled={isDisabled}
-      className={`rounded-2xl border p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`rounded-lg border p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
         isSelected
           ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
           : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
@@ -202,7 +202,7 @@ function ScheduleTypeSelector({
         <button
           type="button"
           onClick={() => onModeChange('strict')}
-          className={`rounded-2xl border p-4 text-left transition-all ${
+          className={`rounded-lg border p-4 text-left transition-all ${
             !isOpenSchedule
               ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
@@ -226,7 +226,7 @@ function ScheduleTypeSelector({
         <button
           type="button"
           onClick={() => onModeChange('open')}
-          className={`rounded-2xl border p-4 text-left transition-all ${
+          className={`rounded-lg border p-4 text-left transition-all ${
             isOpenSchedule
               ? 'border-[#59C3A5] bg-white ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-blue-950/20'
               : 'border-slate-200 bg-white/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950'
@@ -274,7 +274,7 @@ function ScheduleTemplateSelector({
   const canDeleteSelectedTemplate = Boolean(selectedScheduleTemplateId) && !isDeletingTemplate && !isSubmitting;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.template.title}</h3>
@@ -288,14 +288,14 @@ function ScheduleTemplateSelector({
         value={selectedScheduleTemplateId ? String(selectedScheduleTemplateId) : ''}
         onChange={(event) => onScheduleTemplateChange(event.target.value)}
         disabled={isDeletingTemplate || isSubmitting}
-        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       >
         <option value="">{copy.schedule.defaultTemplateOption}</option>
         {activeTemplates.map((template) => (
           <option key={template.id} value={template.id}>{template.name}</option>
         ))}
       </select>
-      <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
+      <details className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
         <summary className="cursor-pointer text-xs font-semibold text-slate-500 dark:text-slate-400">
           {copy.schedule.template.manage}
         </summary>

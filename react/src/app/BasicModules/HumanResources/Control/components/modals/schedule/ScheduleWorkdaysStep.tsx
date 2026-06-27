@@ -49,7 +49,7 @@ function WorkingGrid({
   onWorkingDayChange,
 }: ScheduleWorkdaysStepProps) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.eyebrow}</p>
@@ -74,7 +74,7 @@ function WorkingGrid({
           return (
             <div
               key={horario.dayOfWeek}
-              className={`rounded-2xl border p-3 transition-colors ${
+              className={`rounded-lg border p-3 transition-colors ${
                 isWorkingDay
                   ? 'border-emerald-100 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20'
                   : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50'
@@ -124,7 +124,7 @@ function WorkingGrid({
                 ) : null}
 
                 {isOpenSchedule && isWorkingDay ? (
-                  <p className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-slate-950 dark:text-emerald-200">
+                  <p className="rounded-md border border-emerald-100 bg-white px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-slate-950 dark:text-emerald-200">
                     {copy.schedule.workdays.openAccessDay}
                   </p>
                 ) : null}
@@ -161,7 +161,7 @@ function BreakConfigurationCard({
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.breaks.eyebrow}</p>
         <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.title}</h3>
@@ -171,7 +171,7 @@ function BreakConfigurationCard({
       </div>
 
       <div className="grid gap-3">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
           <label className="flex items-center justify-between gap-3">
             <span>
               <span className="block text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.mealTitle}</span>
@@ -189,14 +189,14 @@ function BreakConfigurationCard({
                 min="0"
                 value={mealMinutes}
                 onChange={(event) => updateAllWorkingDays('comida', Number(event.target.value) || 0)}
-                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="h-10 w-24 rounded-md border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
               <span className="text-sm text-slate-600 dark:text-slate-400">{copy.schedule.breaks.minutes}</span>
             </div>
           ) : null}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
           <label className="flex items-center justify-between gap-3">
             <span>
               <span className="block text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.shortTitle}</span>
@@ -214,7 +214,7 @@ function BreakConfigurationCard({
                 min="0"
                 value={breakMinutes}
                 onChange={(event) => updateAllWorkingDays('descanso', Number(event.target.value) || 0)}
-                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="h-10 w-24 rounded-md border border-slate-200 bg-white px-3 text-center text-sm text-slate-900 outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
               <span className="text-sm text-slate-600 dark:text-slate-400">{copy.schedule.breaks.minutes}</span>
             </div>

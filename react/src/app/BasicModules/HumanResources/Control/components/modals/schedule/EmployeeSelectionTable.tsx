@@ -123,7 +123,7 @@ export function EmployeeSelectionTable({
 
   return (
     <>
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.filters.applySchedule}</p>
@@ -142,11 +142,11 @@ export function EmployeeSelectionTable({
           value={availabilityDate}
           min={todayDate}
           onChange={(event) => onAvailabilityDateChange(event.target.value)}
-          className="mt-4 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-56"
+          className="mt-4 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-56"
         />
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 id="available-hr-users-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
@@ -180,7 +180,7 @@ export function EmployeeSelectionTable({
                 }
               }}
               placeholder={copy.schedule.filters.searchPlaceholder}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </div>
 
@@ -188,7 +188,7 @@ export function EmployeeSelectionTable({
             aria-label={copy.schedule.filters.filterByUnit}
             value={unidadFilter}
             onChange={(event) => onUnitFilterChange(event.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">{copy.schedule.filters.allUnits}</option>
             {unitOptions.map(([value, label]) => (
@@ -200,7 +200,7 @@ export function EmployeeSelectionTable({
             aria-label={copy.schedule.filters.filterByBusiness}
             value={negocioFilter}
             onChange={(event) => onBusinessFilterChange(event.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">{copy.schedule.filters.allBusinesses}</option>
             {businessOptions.map(([value, label]) => (
@@ -212,7 +212,7 @@ export function EmployeeSelectionTable({
             type="button"
             variant="outline"
             onClick={onApplySearchFilters}
-            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-[#59C3A5] shadow-sm hover:bg-blue-50 hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8FE0CA] dark:hover:bg-blue-950/20"
+            className="h-10 gap-2 rounded-md border-slate-200 bg-white px-3 text-[#59C3A5] shadow-sm hover:bg-blue-50 hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-950 dark:text-[#8FE0CA] dark:hover:bg-blue-950/20"
           >
             <Search className="h-4 w-4" />
             {copy.schedule.filters.filter}

@@ -35,7 +35,7 @@ export interface CalendarActionContext {
   copy: ControlTranslations;
   isSaving: boolean;
   isUpdatingCalendarDay: boolean;
-  loadControl: (date: string) => Promise<void>;
+  loadControl: (date: string, options?: { reloadReferenceData?: boolean }) => Promise<void>;
   pendingCalendarScheduleClear: PendingCalendarScheduleClear | null;
   selectedCalendarDates: string[];
   selectedCalendarDay: AttendanceCalendarDay | null;
@@ -125,7 +125,7 @@ const refreshEmployeeCalendar = async (
 ) => {
   const [calendarResponse] = await Promise.all([
     humanResourcesApi.getAttendanceCalendar(employeeId, month),
-    context.loadControl(focusDate),
+    context.loadControl(focusDate, { reloadReferenceData: false }),
   ]);
 
   context.setAttendanceCalendarDays(calendarResponse.items);
@@ -235,7 +235,7 @@ export const bulkUpdateCalendarStatus = async (context: CalendarActionContext) =
     await refreshEmployeeCalendar(context.selectedEmployeeId, focusMonth, focusDate, context);
     context.setSelectedCalendarDay(null);
     context.clearCalendarDateSelection();
-    context.showSuccessToast(`${dates.length} selected days updated.`);
+    context.showSuccessToast(context.copy.labels.bulkCalendarUpdated(dates.length));
   } catch (error) {
     context.showFailureToast(toErrorMessage(error, context.copy) || context.copy.saveError);
   } finally {

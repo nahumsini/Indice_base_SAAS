@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Calendar, ChevronDown, Info, Trash2, Upload, UserPlus, X } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Award,
+  Calendar,
+  ChevronDown,
+  Eye,
+  GraduationCap,
+  Info,
+  Trash2,
+  Upload,
+  UserPlus,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type {
   CreateRecordData,
@@ -23,13 +37,19 @@ interface CreateRecordModalProps {
   editingRecord?: EmployeeRecord | null;
 }
 
-const typeOptionIcons: Array<{ value: RecordType; icon: string }> = [
-  { value: 'incident', icon: '🔴' },
-  { value: 'warning', icon: '🟠' },
-  { value: 'recognition', icon: '🟢' },
-  { value: 'observation', icon: '🔵' },
-  { value: 'training', icon: '🟣' },
+const typeOptionIcons: Array<{ value: RecordType; Icon: LucideIcon; iconClassName: string }> = [
+  { value: 'incident', Icon: AlertTriangle, iconClassName: 'text-red-500' },
+  { value: 'warning', Icon: AlertCircle, iconClassName: 'text-orange-500' },
+  { value: 'recognition', Icon: Award, iconClassName: 'text-green-500' },
+  { value: 'observation', Icon: Eye, iconClassName: 'text-blue-500' },
+  { value: 'training', Icon: GraduationCap, iconClassName: 'text-purple-500' },
 ];
+
+const severityDotClass: Record<RecordSeverity, string> = {
+  low: 'bg-green-500',
+  medium: 'bg-yellow-500',
+  high: 'bg-red-500',
+};
 
 export function CreateRecordModal({
   copy,
@@ -193,21 +213,28 @@ export function CreateRecordModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-gray-800">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {editingRecord ? copy.modal.editTitle : copy.modal.newTitle}
-          </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-white">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
+              <UserPlus className="h-5 w-5" />
+            </span>
+            <h2 className="min-w-0 truncate text-2xl font-semibold text-white">
+              {editingRecord ? copy.modal.editTitle : copy.modal.newTitle}
+            </h2>
+          </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
+            aria-label={copy.modal.close}
           >
-            <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 bg-slate-50/70 p-6 dark:bg-slate-950/40">
           <div className="flex gap-3 rounded-r-lg border-l-4 border-blue-500 bg-blue-50 p-4 dark:bg-blue-900/20">
             <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
             <div className="text-sm text-blue-900 dark:text-blue-200">
@@ -307,24 +334,27 @@ export function CreateRecordModal({
                 {copy.modal.recordType} <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-                {typeOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleTypeChange(option.value)}
-                    className={`rounded-lg border-2 p-4 text-left transition-all hover:shadow-md ${
-                      formData.type === option.value
-                        ? 'border-blue-500 bg-blue-50 shadow-sm dark:bg-blue-900/30'
-                        : 'border-gray-200 hover:border-blue-300 dark:border-gray-700 dark:hover:border-blue-700'
-                    }`}
-                  >
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="text-lg">{option.icon}</span>
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{option.label}</span>
-                    </div>
-                    <div className="text-xs leading-tight text-gray-600 dark:text-gray-400">{option.description}</div>
-                  </button>
-                ))}
+                {typeOptions.map((option) => {
+                  const TypeIcon = option.Icon;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleTypeChange(option.value)}
+                      className={`rounded-lg border-2 p-4 text-left transition-all hover:shadow-md ${
+                        formData.type === option.value
+                          ? 'border-[#59C3A5] bg-[#59C3A5]/10 shadow-sm dark:bg-[#59C3A5]/15'
+                          : 'border-gray-200 hover:border-[#59C3A5]/60 dark:border-gray-700 dark:hover:border-[#59C3A5]/70'
+                      }`}
+                    >
+                      <div className="mb-1 flex items-center gap-2">
+                        <TypeIcon className={`h-4 w-4 ${option.iconClassName}`} />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{option.label}</span>
+                      </div>
+                      <div className="text-xs leading-tight text-gray-600 dark:text-gray-400">{option.description}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -339,7 +369,7 @@ export function CreateRecordModal({
                       key={level}
                       type="button"
                       onClick={() => setFormData((current) => ({ ...current, severity: level }))}
-                      className={`rounded-lg border-2 px-4 py-3 font-semibold capitalize transition-all ${
+                      className={`flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 font-semibold capitalize transition-all ${
                         formData.severity === level
                           ? level === 'low'
                             ? 'border-green-500 bg-green-50 text-green-700 shadow-sm dark:bg-green-900/30 dark:text-green-400'
@@ -349,7 +379,8 @@ export function CreateRecordModal({
                           : 'border-gray-200 text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600'
                       }`}
                     >
-                      {level === 'low' ? '🟢' : level === 'medium' ? '🟡' : '🔴'} {copy.severity[level]}
+                      <span className={`h-2.5 w-2.5 rounded-full ${severityDotClass[level]}`} />
+                      {copy.severity[level]}
                     </button>
                   ))}
                 </div>
@@ -570,15 +601,20 @@ export function CreateRecordModal({
           </div>
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+        <div className="sticky bottom-0 flex items-center justify-end gap-3 bg-[#59C3A5] px-6 py-4 text-white">
+          <Button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
+          >
             {copy.modal.cancel}
           </Button>
           <Button
             type="button"
             onClick={handleSave}
             disabled={!isFullyValid || isSaving}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#137F68]/60"
           >
             {isSaving ? copy.modal.saving : editingRecord ? copy.modal.saveChanges : copy.modal.createRecord}
           </Button>

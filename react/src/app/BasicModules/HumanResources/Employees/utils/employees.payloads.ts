@@ -30,6 +30,7 @@ export const buildEmployeeSavePayload = (
   const trimmedEmergencyContactRelationship = data.emergencyContactRelationship.trim();
   const trimmedEmergencyContactPhone = data.emergencyContactPhone.trim();
   const trimmedWorkdayHours = data.workdayHours.trim();
+  const trimmedWorkdaysPerWeek = data.workdaysPerWeek.trim();
 
   return {
     first_name: trimmedFirstName,
@@ -82,6 +83,7 @@ export const buildEmployeeSavePayload = (
     emergency_contact_relationship: trimmedEmergencyContactRelationship,
     emergency_contact_phone: trimmedEmergencyContactPhone,
     workday_hours: trimmedWorkdayHours,
+    workdays_per_week: trimmedWorkdaysPerWeek,
     profile: {
       date_of_birth: data.dateOfBirth,
       address: trimmedAddress,
@@ -97,6 +99,7 @@ export const buildEmployeeSavePayload = (
       emergency_contact_relationship: trimmedEmergencyContactRelationship,
       emergency_contact_phone: trimmedEmergencyContactPhone,
       workday_hours: trimmedWorkdayHours,
+      workdays_per_week: trimmedWorkdaysPerWeek,
     },
     status,
   };

@@ -1,11 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Download, Table2, X } from 'lucide-react';
 import { EmployeesActionModals } from './components/EmployeesActionModals';
+import { EmployeeBulkAssignmentControls } from './components/EmployeeBulkAssignmentControls';
 import { EmployeeKpiStrip } from './components/EmployeeKpiStrip';
 import { EmployeesFilters } from './components/EmployeesFilters';
 import { EmployeesFeedbackLayer } from './components/EmployeesFeedbackLayer';
 import { EmployeesHeaderActions } from './components/EmployeesHeaderActions';
 import { EmployeesTableSection } from './components/EmployeesTableSection';
+import type { EmployeeDocumentType } from './components/CreateEmployeeModal';
+import {
+  OperationalBulkActionsBar,
+  OperationalViewSwitcher,
+  useRowSelection,
+  type OperationalViewOption,
+} from '../../shared/operational';
 import { useLanguage } from '../../../shared/context';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useEmployeeInlineEditing } from './hooks/useEmployeeInlineEditing';
 import { useEmployeeInlineJobOptions } from './hooks/useEmployeeInlineJobOptions';
 import { useEmployeeInlineOrganization } from './hooks/useEmployeeInlineOrganization';
@@ -17,12 +27,42 @@ import { useEmployeesFilters } from './hooks/useEmployeesFilters';
 import { useEmployeesPagination } from './hooks/useEmployeesPagination';
 import { useEmployeesSorting } from './hooks/useEmployeesSorting';
 import { useEmployeesTranslations } from './hooks/useEmployeesTranslations';
-import { currencyFormatter } from './constants/employees.constants';
-import { calculateEmployeesMonthlyPayroll } from './utils/employees.utils';
+import { documentTypeOrder } from './constants/employees.constants';
+import {
+  createBusinessDailyExchangeRateSettings,
+  defaultBusinessCurrency,
+  isBusinessCurrencyCode,
+  normalizeBusinessExchangeRateSettings,
+} from '../../shared/businessCurrency';
+import { uploadEmployeeDocument } from './utils/employees.documents';
+import { downloadEmployeesCsv } from './utils/employees.export';
+import { summarizeEmployeePayroll } from './utils/employees.payroll';
+import { normalizeErrorMessage } from './utils/employees.utils';
+import type { EmployeeViewModel } from './types/employees.types';
+
+type EmployeeViewMode = 'table';
 
 export default function Employees() {
   const { currentLanguage } = useLanguage();
   const copy = useEmployeesTranslations();
+  const [viewMode, setViewMode] = useState<EmployeeViewMode>('table');
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
+    'indice.hr.employeesPreferredCurrency',
+    defaultBusinessCurrency,
+  );
+  const [storedExchangeRateSettings, setStoredExchangeRateSettings] =
+    useLocalStorageState<unknown>(
+      'indice.hr.employeesExchangeRatesPerUsd',
+      createBusinessDailyExchangeRateSettings(),
+    );
+  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
+    ? storedPreferredCurrency
+    : defaultBusinessCurrency;
+  const exchangeRateSettings = useMemo(
+    () => normalizeBusinessExchangeRateSettings(storedExchangeRateSettings),
+    [storedExchangeRateSettings],
+  );
+  const { metadata: exchangeRateMetadata, ratesPerUsd: exchangeRatesPerUsd } = exchangeRateSettings;
 
   const {
     attendanceLocations,
@@ -39,9 +79,14 @@ export default function Employees() {
     unitOptions,
   } = useEmployeesData(copy);
   const {
+    getColumnWidth,
+    handleResizeStart,
     columns,
     fixedColumns,
+    resizingColumn,
     setColumns,
+    selectionColumnWidth,
+    tableMinWidth,
     visibleColumns,
   } = useEmployeesColumns(copy);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
@@ -49,6 +94,7 @@ export default function Employees() {
   const [loadingOverlayDescription, setLoadingOverlayDescription] = useState<string>(copy.loadingDescription);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [failureToastMessage, setFailureToastMessage] = useState('');
+  const [uploadingDocumentKey, setUploadingDocumentKey] = useState<string | null>(null);
   const {
     closeEmployeeModal,
     editingEmployee,
@@ -87,6 +133,7 @@ export default function Employees() {
     setSuccessToastMessage,
   });
   const {
+    handleBulkEmployeeUpdate,
     handleInlineEmployeeUpdate,
     inlineDrafts,
     inlineSavingKey,
@@ -158,7 +205,80 @@ export default function Employees() {
     organizationCopy: copy.modal.belonging,
     unitOptions,
   });
-  const visibleMonthlyPayroll = calculateEmployeesMonthlyPayroll(filteredEmployees);
+  const payrollSummary = useMemo(
+    () => summarizeEmployeePayroll(filteredEmployees, preferredCurrency, exchangeRatesPerUsd),
+    [exchangeRatesPerUsd, filteredEmployees, preferredCurrency],
+  );
+  const rowSelection = useRowSelection<number>();
+  const { pruneSelection } = rowSelection;
+  const paginatedEmployeeIds = useMemo(
+    () => paginatedEmployees.map((employee) => employee.id),
+    [paginatedEmployees],
+  );
+  const selectionState = rowSelection.visibleSelectionState(paginatedEmployeeIds);
+  const selectedEmployees = useMemo(
+    () => filteredEmployees.filter((employee) => rowSelection.selectedIds.has(employee.id)),
+    [filteredEmployees, rowSelection.selectedIds],
+  );
+  const noScheduleCount = useMemo(
+    () =>
+      filteredEmployees.filter((employee) =>
+        employee.status === 'active' && (!employee.scheduleStartTime || !employee.scheduleEndTime),
+      ).length,
+    [filteredEmployees],
+  );
+  const missingDocumentsCount = useMemo(
+    () =>
+      filteredEmployees.filter((employee) =>
+        documentTypeOrder.some((documentType) => !employee.documents[documentType]),
+      ).length,
+    [filteredEmployees],
+  );
+  const viewOptions = useMemo<OperationalViewOption<EmployeeViewMode>[]>(
+    () => [
+      {
+        id: 'table' as const,
+        icon: <Table2 className="h-4 w-4" />,
+        label: copy.views.table,
+      },
+    ],
+    [copy.views.table],
+  );
+  const handleExportSelectedEmployees = useCallback(() => {
+    downloadEmployeesCsv({
+      copy,
+      employees: selectedEmployees,
+    });
+  }, [copy, selectedEmployees]);
+  const handleTableDocumentUpload = useCallback(async (
+    employee: EmployeeViewModel,
+    documentType: EmployeeDocumentType,
+    file: File,
+  ) => {
+    const documentKey = `${employee.id}:${documentType}`;
+    setUploadingDocumentKey(documentKey);
+    setFailureToastMessage('');
+
+    try {
+      await uploadEmployeeDocument({
+        copy,
+        documentType,
+        employeeId: employee.id,
+        file,
+      });
+      await hydrateEmployeeDetails([employee.id], { force: true });
+      setSuccessToastMessage(copy.successMessages.updated);
+    } catch (error) {
+      setFailureToastMessage(normalizeErrorMessage(error, copy.errorMessages.save));
+    } finally {
+      setUploadingDocumentKey(null);
+    }
+  }, [
+    copy,
+    hydrateEmployeeDetails,
+    setFailureToastMessage,
+    setSuccessToastMessage,
+  ]);
 
   useEffect(() => {
     if (isLoading || paginatedEmployees.length === 0) {
@@ -167,6 +287,10 @@ export default function Employees() {
 
     void hydrateEmployeeDetails(paginatedEmployees.map((employee) => employee.id));
   }, [hydrateEmployeeDetails, isLoading, paginatedEmployees]);
+
+  useEffect(() => {
+    pruneSelection(filteredEmployees.map((employee) => employee.id));
+  }, [filteredEmployees, pruneSelection]);
 
   useEffect(() => {
     if (!isModalOpen) {
@@ -194,11 +318,25 @@ export default function Employees() {
       <EmployeesHeaderActions
         addEmployeeLabel={copy.addEmployee}
         configureColumnsLabel={copy.configureColumns}
+        exchangeRateCopy={copy.exchangeRates}
+        exchangeRateMetadata={exchangeRateMetadata}
+        exchangeRatesPerUsd={exchangeRatesPerUsd}
         headingIcon={<span className="text-2xl">👥</span>}
         onConfigureColumns={() => setIsColumnsModalOpen(true)}
         onCreateEmployee={openCreateEmployeeModal}
+        onExchangeRateSettingsChange={setStoredExchangeRateSettings}
+        onPreferredCurrencyChange={setStoredPreferredCurrency}
+        preferredCurrency={preferredCurrency}
+        preferredCurrencyLabel={copy.preferredCurrency}
         subtitle={copy.subtitle}
         title={copy.title}
+      />
+
+      <OperationalViewSwitcher
+        ariaLabel={copy.views.label}
+        options={viewOptions}
+        value={viewMode}
+        onChange={(nextView) => setViewMode(nextView)}
       />
 
       <EmployeesFilters
@@ -226,39 +364,93 @@ export default function Employees() {
         inactiveCount={summary.inactive_count}
         terminatedCount={summary.terminated_count}
         visibleCount={filteredEmployees.length}
-        monthlyPayroll={currencyFormatter.format(visibleMonthlyPayroll)}
+        missingDocumentsCount={missingDocumentsCount}
+        monthlyPayroll={payrollSummary.preferredTotalLabel}
+        nativePayroll={payrollSummary.nativeBreakdownLabel}
+        noScheduleCount={noScheduleCount}
+        payrollCurrencyCount={payrollSummary.currencyCount}
         labels={copy.summary}
       />
 
-      <EmployeesTableSection
-        columns={visibleColumns}
-        copy={copy}
-        currentPage={paginationCurrentPage}
-        employeePositionOptions={employeePositionOptions}
-        getBusinessOptionsForUnit={getInlineBusinessOptionsForUnit}
-        inlineDepartmentOptions={inlineDepartmentOptions}
-        inlineDrafts={inlineDrafts}
-        inlineSavingKey={inlineSavingKey}
-        inlineUnitOptions={inlineUnitOptions}
-        isLoading={isLoading}
-        locale={currentLanguage.code}
-        onDeleteEmployee={(employee) => {
-          void handleDeleteEmployee(employee);
-        }}
-        onEditEmployee={(employee) => {
-          void openEditEmployeeModal(employee);
-        }}
-        onInlineEmployeeUpdate={handleInlineEmployeeUpdate}
-        onPageChange={onPageChange}
-        onSort={handleSort}
-        pageEnd={paginationEnd}
-        pageStart={paginationStart}
-        resolveDefaultBusinessIdForUnit={resolveDefaultBusinessIdForUnit}
-        rows={paginatedEmployees}
-        sortState={sortState}
-        totalCount={filteredEmployees.length}
-        totalPages={totalPages}
-      />
+      {viewMode === 'table' && rowSelection.selectedCount > 0 ? (
+        <OperationalBulkActionsBar
+          actions={[
+            {
+              id: 'export',
+              icon: <Download className="h-4 w-4" />,
+              label: copy.bulk.exportSelected,
+              onClick: handleExportSelectedEmployees,
+              tone: 'brand',
+            },
+            {
+              id: 'clear',
+              icon: <X className="h-4 w-4" />,
+              label: copy.bulk.clear,
+              onClick: rowSelection.clearSelection,
+            },
+          ]}
+          selectedLabel={copy.bulk.selected(rowSelection.selectedCount)}
+          title={copy.bulk.title}
+        >
+          <EmployeeBulkAssignmentControls
+            copy={copy}
+            employeePositionOptions={employeePositionOptions}
+            getBusinessOptionsForUnit={getInlineBusinessOptionsForUnit}
+            inlineDepartmentOptions={inlineDepartmentOptions}
+            inlineUnitOptions={inlineUnitOptions}
+            isSaving={Boolean(inlineSavingKey?.startsWith('bulk:'))}
+            locale={currentLanguage.code}
+            onBulkEmployeeUpdate={(field, overrides) =>
+              handleBulkEmployeeUpdate(selectedEmployees, field, overrides)
+            }
+            resolveDefaultBusinessIdForUnit={resolveDefaultBusinessIdForUnit}
+            selectedEmployees={selectedEmployees}
+          />
+        </OperationalBulkActionsBar>
+      ) : null}
+
+      {viewMode === 'table' ? (
+        <EmployeesTableSection
+          columns={visibleColumns}
+          copy={copy}
+          currentPage={paginationCurrentPage}
+          employeePositionOptions={employeePositionOptions}
+          getColumnWidth={getColumnWidth}
+          getBusinessOptionsForUnit={getInlineBusinessOptionsForUnit}
+          inlineDepartmentOptions={inlineDepartmentOptions}
+          inlineDrafts={inlineDrafts}
+          inlineSavingKey={inlineSavingKey}
+          inlineUnitOptions={inlineUnitOptions}
+          isLoading={isLoading}
+          isRowSelected={rowSelection.isSelected}
+          locale={currentLanguage.code}
+          onDeleteEmployee={(employee) => {
+            void handleDeleteEmployee(employee);
+          }}
+          onDocumentUpload={handleTableDocumentUpload}
+          onEditEmployee={(employee) => {
+            void openEditEmployeeModal(employee);
+          }}
+          onInlineEmployeeUpdate={handleInlineEmployeeUpdate}
+          onPageChange={onPageChange}
+          onResizeStart={handleResizeStart}
+          onSort={handleSort}
+          onToggleAllRows={(checked) => rowSelection.toggleAllVisible(paginatedEmployeeIds, checked)}
+          onToggleRowSelection={rowSelection.toggleSelection}
+          pageEnd={paginationEnd}
+          pageStart={paginationStart}
+          resolveDefaultBusinessIdForUnit={resolveDefaultBusinessIdForUnit}
+          resizingColumn={resizingColumn}
+          rows={paginatedEmployees}
+          selectionColumnWidth={selectionColumnWidth}
+          selectionState={selectionState}
+          sortState={sortState}
+          tableMinWidth={tableMinWidth}
+          totalCount={filteredEmployees.length}
+          totalPages={totalPages}
+          uploadingDocumentKey={uploadingDocumentKey}
+        />
+      ) : null}
 
       <EmployeesActionModals
         attendanceLocations={attendanceLocations}

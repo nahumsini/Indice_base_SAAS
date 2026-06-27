@@ -10,6 +10,17 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrOperationalScope;
+import com.indice.erp.hr.payroll.engine.PayrollAttendanceInputService;
+import com.indice.erp.hr.payroll.engine.PayrollCalculatedLineItem;
+import com.indice.erp.hr.payroll.engine.PayrollCalculationContext;
+import com.indice.erp.hr.payroll.engine.PayrollCalculationEngine;
+import com.indice.erp.hr.payroll.engine.PayrollFiscalAccumulatorService;
+import com.indice.erp.hr.payroll.engine.PayrollCalculationResult;
+import com.indice.erp.hr.payroll.engine.PayrollLineCalculationResult;
+import com.indice.erp.hr.payroll.engine.PayrollManualAdjustmentService;
+import com.indice.erp.hr.payroll.engine.PayrollRuleResolver;
+import com.indice.erp.hr.payroll.engine.PayrollSnapshotService;
+import com.indice.erp.hr.payroll.reporting.co.ColombiaPayrollReportingService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -23,7 +34,9 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -48,15 +61,36 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class HrPayrollService {
 
-    private static final BigDecimal HUNDRED = new BigDecimal("100");
-    private static final BigDecimal DEFAULT_OVERTIME_MULTIPLIER = BigDecimal.ONE;
-
     private final JdbcTemplate jdbcTemplate;
     private final HrPayrollScopeAccess hrPayrollScopeAccess;
+    private final PayrollCalculationEngine payrollCalculationEngine;
+    private final PayrollAttendanceInputService payrollAttendanceInputService;
+    private final PayrollFiscalAccumulatorService payrollFiscalAccumulatorService;
+    private final PayrollManualAdjustmentService payrollManualAdjustmentService;
+    private final PayrollSnapshotService payrollSnapshotService;
+    private final PayrollRuleResolver payrollRuleResolver;
+    private final ColombiaPayrollReportingService colombiaPayrollReportingService;
 
-    public HrPayrollService(JdbcTemplate jdbcTemplate, HrPayrollScopeAccess hrPayrollScopeAccess) {
+    public HrPayrollService(
+        JdbcTemplate jdbcTemplate,
+        HrPayrollScopeAccess hrPayrollScopeAccess,
+        PayrollCalculationEngine payrollCalculationEngine,
+        PayrollAttendanceInputService payrollAttendanceInputService,
+        PayrollFiscalAccumulatorService payrollFiscalAccumulatorService,
+        PayrollManualAdjustmentService payrollManualAdjustmentService,
+        PayrollSnapshotService payrollSnapshotService,
+        PayrollRuleResolver payrollRuleResolver,
+        ColombiaPayrollReportingService colombiaPayrollReportingService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrPayrollScopeAccess = hrPayrollScopeAccess;
+        this.payrollCalculationEngine = payrollCalculationEngine;
+        this.payrollAttendanceInputService = payrollAttendanceInputService;
+        this.payrollFiscalAccumulatorService = payrollFiscalAccumulatorService;
+        this.payrollManualAdjustmentService = payrollManualAdjustmentService;
+        this.payrollSnapshotService = payrollSnapshotService;
+        this.payrollRuleResolver = payrollRuleResolver;
+        this.colombiaPayrollReportingService = colombiaPayrollReportingService;
     }
 
     public Map<String, Object> overview(long companyId) {
@@ -121,6 +155,13 @@ public class HrPayrollService {
         var groupingMode = normalizeGroupingMode(stringValue(payload, "grouping_mode"), current.groupingMode());
         var defaultDailyHours = normalizePositiveDecimal(parseBigDecimal(payload, "default_daily_hours"), current.defaultDailyHours(), "default_daily_hours");
         var payLeaveDays = parseBoolean(payload.getOrDefault("pay_leave_days", current.payLeaveDays()));
+        var weeklyStartDay = normalizeIntegerInRange(payload.get("weekly_start_day"), current.weeklyStartDay(), 1, 7, "weekly_start_day");
+        var biweeklyFirstDay = normalizeIntegerInRange(payload.get("biweekly_first_day"), current.biweeklyFirstDay(), 1, 27, "biweekly_first_day");
+        var biweeklySecondDay = normalizeIntegerInRange(payload.get("biweekly_second_day"), current.biweeklySecondDay(), 2, 28, "biweekly_second_day");
+        if (biweeklySecondDay <= biweeklyFirstDay) {
+            throw new IllegalArgumentException("biweekly_second_day must be after biweekly_first_day.");
+        }
+        var monthlyStartDay = normalizeIntegerInRange(payload.get("monthly_start_day"), current.monthlyStartDay(), 1, 31, "monthly_start_day");
         var isrRate = normalizeRate(parseBigDecimal(payload, "isr_rate"), current.isrRate(), "isr_rate");
         var imssUserRate = normalizeRate(parseBigDecimal(payload, "imss_user_rate"), current.imssUserRate(), "imss_user_rate");
         var infonavitUserRate = normalizeRate(parseBigDecimal(payload, "infonavit_user_rate"), current.infonavitUserRate(), "infonavit_user_rate");
@@ -134,6 +175,10 @@ public class HrPayrollService {
                 SET grouping_mode = ?,
                     default_daily_hours = ?,
                     pay_leave_days = ?,
+                    weekly_start_day = ?,
+                    biweekly_first_day = ?,
+                    biweekly_second_day = ?,
+                    monthly_start_day = ?,
                     isr_rate = ?,
                     imss_user_rate = ?,
                     infonavit_user_rate = ?,
@@ -145,6 +190,10 @@ public class HrPayrollService {
             groupingMode,
             defaultDailyHours,
             payLeaveDays,
+            weeklyStartDay,
+            biweeklyFirstDay,
+            biweeklySecondDay,
+            monthlyStartDay,
             isrRate,
             imssUserRate,
             infonavitUserRate,
@@ -157,15 +206,686 @@ public class HrPayrollService {
         return toPreferencesMap(ensurePreferences(companyId));
     }
 
+    public Map<String, Object> getColombiaConfig(AuthSessionUser currentUser) {
+        var row = loadCompanyCountryConfig(currentUser.companyId(), "CO");
+        return toColombiaConfigMap(row);
+    }
+
+    @Transactional
+    public Map<String, Object> saveColombiaConfig(AuthSessionUser currentUser, Map<String, Object> payload) {
+        var current = loadCompanyCountryConfig(currentUser.companyId(), "CO");
+        var defaultArlClass = normalizeArlClass(
+            parseBigDecimal(payload, "default_arl_class", "defaultArlClass"),
+            current == null ? null : current.defaultArlClass(),
+            "default_arl_class"
+        );
+        var compensationFundCode = payloadText(payload, current == null ? "" : current.compensationFundCode(), "compensation_fund_code", "compensationFundCode");
+        var compensationFundName = payloadText(payload, current == null ? "" : current.compensationFundName(), "compensation_fund_name", "compensationFundName");
+        var employerHealthExemptionApplies = payloadNullableBoolean(payload, current == null ? null : current.employerHealthExemptionApplies(), "employer_health_exemption_applies", "employerHealthExemptionApplies");
+        var senaApplies = payloadNullableBoolean(payload, current == null ? null : current.senaApplies(), "sena_applies", "senaApplies");
+        var icbfApplies = payloadNullableBoolean(payload, current == null ? null : current.icbfApplies(), "icbf_applies", "icbfApplies");
+        var ccfApplies = payloadNullableBoolean(payload, current == null ? null : current.ccfApplies(), "ccf_applies", "ccfApplies");
+        var metadata = payloadObject(payload, current == null ? Map.of() : current.metadata(), "metadata", "metadata_json");
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO payroll_company_country_configs
+                (company_id, country_code, default_arl_class, compensation_fund_code, compensation_fund_name,
+                 employer_health_exemption_applies, sena_applies, icbf_applies, ccf_applies, metadata_json)
+                VALUES (?, 'CO', ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                  default_arl_class = VALUES(default_arl_class),
+                  compensation_fund_code = VALUES(compensation_fund_code),
+                  compensation_fund_name = VALUES(compensation_fund_name),
+                  employer_health_exemption_applies = VALUES(employer_health_exemption_applies),
+                  sena_applies = VALUES(sena_applies),
+                  icbf_applies = VALUES(icbf_applies),
+                  ccf_applies = VALUES(ccf_applies),
+                  metadata_json = VALUES(metadata_json)
+                """,
+            currentUser.companyId(),
+            defaultArlClass,
+            nullable(compensationFundCode),
+            nullable(compensationFundName),
+            employerHealthExemptionApplies,
+            senaApplies,
+            icbfApplies,
+            ccfApplies,
+            payrollSnapshotService.jsonValue(metadata)
+        );
+
+        return getColombiaConfig(currentUser);
+    }
+
+    public Map<String, Object> getColombiaEmployeeProfile(AuthSessionUser currentUser, long userCompanyId) {
+        requireHrUserInScope(currentUser, userCompanyId);
+        var profile = loadEmployeeCountryProfile(currentUser.companyId(), userCompanyId, "CO");
+        return toColombiaEmployeeProfileMap(userCompanyId, profile);
+    }
+
+    @Transactional
+    public Map<String, Object> saveColombiaEmployeeProfile(
+        AuthSessionUser currentUser,
+        long userCompanyId,
+        Map<String, Object> payload
+    ) {
+        requireHrUserInScope(currentUser, userCompanyId);
+        var current = loadEmployeeCountryProfile(currentUser.companyId(), userCompanyId, "CO");
+        var contributorType = payloadText(payload, current == null ? "" : current.contributorType(), "contributor_type", "contributorType");
+        var contributorSubtype = payloadText(payload, current == null ? "" : current.contributorSubtype(), "contributor_subtype", "contributorSubtype");
+        var integralSalary = payloadBoolean(payload, current != null && current.integralSalary(), "integral_salary", "integralSalary");
+        var arlClass = normalizeArlClass(
+            parseBigDecimal(payload, "arl_class", "arlClass"),
+            current == null ? null : current.arlClass(),
+            "arl_class"
+        );
+        var epsCode = payloadText(payload, current == null ? "" : current.epsCode(), "eps_code", "epsCode");
+        var epsName = payloadText(payload, current == null ? "" : current.epsName(), "eps_name", "epsName");
+        var afpCode = payloadText(payload, current == null ? "" : current.afpCode(), "afp_code", "afpCode");
+        var afpName = payloadText(payload, current == null ? "" : current.afpName(), "afp_name", "afpName");
+        var compensationFundCode = payloadText(payload, current == null ? "" : current.compensationFundCode(), "compensation_fund_code", "compensationFundCode");
+        var compensationFundName = payloadText(payload, current == null ? "" : current.compensationFundName(), "compensation_fund_name", "compensationFundName");
+        var employerHealthExemptionApplies = payloadNullableBoolean(payload, current == null ? null : current.employerHealthExemptionApplies(), "employer_health_exemption_applies", "employerHealthExemptionApplies");
+        var senaApplies = payloadNullableBoolean(payload, current == null ? null : current.senaApplies(), "sena_applies", "senaApplies");
+        var icbfApplies = payloadNullableBoolean(payload, current == null ? null : current.icbfApplies(), "icbf_applies", "icbfApplies");
+        var ccfApplies = payloadNullableBoolean(payload, current == null ? null : current.ccfApplies(), "ccf_applies", "ccfApplies");
+        var withholdingProcedure = normalizeColombiaWithholdingProcedure(payloadText(payload, current == null ? "procedure_1" : current.withholdingProcedure(), "withholding_procedure", "withholdingProcedure"));
+        var dependentsMonthlyDeduction = normalizeNonNegativeMoney(parseBigDecimal(payload, "dependents_monthly_deduction", "dependentsMonthlyDeduction"), current == null ? BigDecimal.ZERO : current.dependentsMonthlyDeduction(), "dependents_monthly_deduction");
+        var prepaidMedicineMonthly = normalizeNonNegativeMoney(parseBigDecimal(payload, "prepaid_medicine_monthly", "prepaidMedicineMonthly"), current == null ? BigDecimal.ZERO : current.prepaidMedicineMonthly(), "prepaid_medicine_monthly");
+        var housingInterestMonthly = normalizeNonNegativeMoney(parseBigDecimal(payload, "housing_interest_monthly", "housingInterestMonthly"), current == null ? BigDecimal.ZERO : current.housingInterestMonthly(), "housing_interest_monthly");
+        var voluntaryPensionMonthly = normalizeNonNegativeMoney(parseBigDecimal(payload, "voluntary_pension_monthly", "voluntaryPensionMonthly"), current == null ? BigDecimal.ZERO : current.voluntaryPensionMonthly(), "voluntary_pension_monthly");
+        var afcMonthly = normalizeNonNegativeMoney(parseBigDecimal(payload, "afc_monthly", "afcMonthly"), current == null ? BigDecimal.ZERO : current.afcMonthly(), "afc_monthly");
+        var otherExemptIncomeMonthly = normalizeNonNegativeMoney(parseBigDecimal(payload, "other_exempt_income_monthly", "otherExemptIncomeMonthly"), current == null ? BigDecimal.ZERO : current.otherExemptIncomeMonthly(), "other_exempt_income_monthly");
+        var procedure2FixedRate = normalizeNullableRate(
+            parseBigDecimal(payload, "procedure_2_fixed_rate", "procedure2FixedRate"),
+            current == null ? BigDecimal.ZERO : current.procedure2FixedRate(),
+            "procedure_2_fixed_rate"
+        );
+        var metadata = payloadObject(payload, current == null ? Map.of() : current.metadata(), "metadata", "metadata_json");
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO payroll_employee_country_profiles
+                (company_id, user_company_id, country_code, contributor_type, contributor_subtype, integral_salary,
+                 arl_class, eps_code, eps_name, afp_code, afp_name, compensation_fund_code, compensation_fund_name,
+                 employer_health_exemption_applies, sena_applies, icbf_applies, ccf_applies, withholding_procedure,
+                 dependents_monthly_deduction, prepaid_medicine_monthly, housing_interest_monthly, voluntary_pension_monthly,
+                 afc_monthly, other_exempt_income_monthly, procedure_2_fixed_rate, metadata_json)
+                VALUES (?, ?, 'CO', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                  contributor_type = VALUES(contributor_type),
+                  contributor_subtype = VALUES(contributor_subtype),
+                  integral_salary = VALUES(integral_salary),
+                  arl_class = VALUES(arl_class),
+                  eps_code = VALUES(eps_code),
+                  eps_name = VALUES(eps_name),
+                  afp_code = VALUES(afp_code),
+                  afp_name = VALUES(afp_name),
+                  compensation_fund_code = VALUES(compensation_fund_code),
+                  compensation_fund_name = VALUES(compensation_fund_name),
+                  employer_health_exemption_applies = VALUES(employer_health_exemption_applies),
+                  sena_applies = VALUES(sena_applies),
+                  icbf_applies = VALUES(icbf_applies),
+                  ccf_applies = VALUES(ccf_applies),
+                  withholding_procedure = VALUES(withholding_procedure),
+                  dependents_monthly_deduction = VALUES(dependents_monthly_deduction),
+                  prepaid_medicine_monthly = VALUES(prepaid_medicine_monthly),
+                  housing_interest_monthly = VALUES(housing_interest_monthly),
+                  voluntary_pension_monthly = VALUES(voluntary_pension_monthly),
+                  afc_monthly = VALUES(afc_monthly),
+                  other_exempt_income_monthly = VALUES(other_exempt_income_monthly),
+                  procedure_2_fixed_rate = VALUES(procedure_2_fixed_rate),
+                  metadata_json = VALUES(metadata_json)
+                """,
+            currentUser.companyId(),
+            userCompanyId,
+            nullable(contributorType),
+            nullable(contributorSubtype),
+            integralSalary,
+            arlClass,
+            nullable(epsCode),
+            nullable(epsName),
+            nullable(afpCode),
+            nullable(afpName),
+            nullable(compensationFundCode),
+            nullable(compensationFundName),
+            employerHealthExemptionApplies,
+            senaApplies,
+            icbfApplies,
+            ccfApplies,
+            withholdingProcedure,
+            dependentsMonthlyDeduction,
+            prepaidMedicineMonthly,
+            housingInterestMonthly,
+            voluntaryPensionMonthly,
+            afcMonthly,
+            otherExemptIncomeMonthly,
+            procedure2FixedRate,
+            payrollSnapshotService.jsonValue(metadata)
+        );
+
+        return getColombiaEmployeeProfile(currentUser, userCompanyId);
+    }
+
+    public Map<String, Object> listColombiaNovelties(
+        AuthSessionUser currentUser,
+        Long userCompanyId,
+        String periodFrom,
+        String periodTo,
+        String status
+    ) {
+        if (userCompanyId != null) {
+            requireHrUserInScope(currentUser, userCompanyId);
+        }
+        var from = parseOptionalDate(periodFrom);
+        var to = parseOptionalDate(periodTo);
+        if (from != null && to != null && to.isBefore(from)) {
+            throw new IllegalArgumentException("period_to must be on or after period_from.");
+        }
+
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var params = new ArrayList<Object>();
+        params.add(currentUser.companyId());
+
+        var sql = new StringBuilder("""
+            SELECT n.id,
+                   n.company_id,
+                   n.user_company_id,
+                   n.country_code,
+                   COALESCE(e.user_code, '') AS user_code,
+                   COALESCE(e.full_name, '') AS user_name,
+                   COALESCE(n.novelty_code, '') AS novelty_code,
+                   COALESCE(n.novelty_label, '') AS novelty_label,
+                   n.start_date,
+                   n.end_date,
+                   COALESCE(n.days, 0) AS days,
+                   COALESCE(n.hours, 0) AS hours,
+                   n.paid,
+                   n.affects_ibc,
+                   COALESCE(n.ibc_impact_amount, 0) AS ibc_impact_amount,
+                   COALESCE(n.source, '') AS source,
+                   COALESCE(n.status, '') AS status,
+                   n.metadata_json,
+                   n.created_at,
+                   n.updated_at
+            FROM payroll_employee_country_novelties n
+            JOIN hr_users e
+              ON e.company_id = n.company_id
+             AND e.id = n.user_company_id
+            WHERE n.company_id = ?
+              AND n.country_code = 'CO'
+            """);
+
+        if (userCompanyId != null) {
+            sql.append(" AND n.user_company_id = ?\n");
+            params.add(userCompanyId);
+        }
+        appendNoveltyStatusPredicate(sql, params, status);
+        if (from != null) {
+            sql.append(" AND (n.end_date IS NULL OR n.end_date >= ?)\n");
+            params.add(from);
+        }
+        if (to != null) {
+            sql.append(" AND n.start_date <= ?\n");
+            params.add(to);
+        }
+        sql.append(scope.hrUserPredicate("e"));
+        params.addAll(scope.hrUserParameters());
+        sql.append(" ORDER BY n.start_date DESC, n.id DESC");
+
+        var items = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> toColombiaNoveltyMap(mapColombiaNoveltyRow(rs)), params.toArray());
+        return Map.of("items", items, "count", items.size());
+    }
+
+    @Transactional
+    public Map<String, Object> createColombiaNovelty(AuthSessionUser currentUser, Map<String, Object> payload) {
+        var userCompanyId = parseLong(payload, "user_company_id", "userCompanyId");
+        if (userCompanyId == null) {
+            throw new IllegalArgumentException("user_company_id is required.");
+        }
+        requireHrUserInScope(currentUser, userCompanyId);
+
+        var noveltyCode = normalizeColombiaNoveltyCode(stringValue(payload, "novelty_code", "noveltyCode", "code"));
+        var startDate = parseDate(payload, "start_date", "startDate");
+        if (startDate == null) {
+            throw new IllegalArgumentException("start_date is required.");
+        }
+        var endDate = parseDate(payload, "end_date", "endDate");
+        validateDateRange(startDate, endDate);
+        var noveltyLabel = payloadText(payload, defaultColombiaNoveltyLabel(noveltyCode), "novelty_label", "noveltyLabel", "label");
+        var days = normalizeNonNegativeQuantity(parseBigDecimal(payload, "days"), BigDecimal.ZERO, "days");
+        var hours = normalizeNonNegativeQuantity(parseBigDecimal(payload, "hours"), BigDecimal.ZERO, "hours");
+        var paid = payloadBoolean(payload, false, "paid");
+        var affectsIbc = payloadBoolean(payload, false, "affects_ibc", "affectsIbc");
+        var ibcImpactAmount = normalizeSignedMoney(parseBigDecimal(payload, "ibc_impact_amount", "ibcImpactAmount"), BigDecimal.ZERO, "ibc_impact_amount");
+        var source = normalizeColombiaNoveltySource(payloadText(payload, "manual", "source"));
+        var status = normalizeColombiaNoveltyStatus(payloadText(payload, "active", "status"));
+        var metadata = payloadObject(payload, Map.of(), "metadata", "metadata_json");
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO payroll_employee_country_novelties
+                    (company_id, user_company_id, country_code, novelty_code, novelty_label, start_date, end_date,
+                     days, hours, paid, affects_ibc, ibc_impact_amount, source, status, metadata_json)
+                    VALUES (?, ?, 'CO', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                new String[] {"id"}
+            );
+            statement.setLong(1, currentUser.companyId());
+            statement.setLong(2, userCompanyId);
+            statement.setString(3, noveltyCode);
+            statement.setString(4, noveltyLabel);
+            statement.setObject(5, startDate);
+            statement.setObject(6, endDate);
+            statement.setBigDecimal(7, days);
+            statement.setBigDecimal(8, hours);
+            statement.setBoolean(9, paid);
+            statement.setBoolean(10, affectsIbc);
+            statement.setBigDecimal(11, ibcImpactAmount);
+            statement.setString(12, source);
+            statement.setString(13, status);
+            statement.setString(14, payrollSnapshotService.jsonValue(metadata));
+            return statement;
+        }, keyHolder);
+
+        var id = keyHolder.getKey();
+        if (id == null) {
+            throw new IllegalStateException("Colombia novelty could not be created.");
+        }
+        return Map.of("item", toColombiaNoveltyMap(loadColombiaNoveltyInScope(currentUser, id.longValue())));
+    }
+
+    @Transactional
+    public Map<String, Object> updateColombiaNovelty(
+        AuthSessionUser currentUser,
+        long noveltyId,
+        Map<String, Object> payload
+    ) {
+        var current = loadColombiaNoveltyInScope(currentUser, noveltyId);
+        var noveltyCode = payloadHasAny(payload, "novelty_code", "noveltyCode", "code")
+            ? normalizeColombiaNoveltyCode(stringValue(payload, "novelty_code", "noveltyCode", "code"))
+            : current.noveltyCode();
+        var noveltyLabel = payloadText(payload, current.noveltyLabel(), "novelty_label", "noveltyLabel", "label");
+        var startDate = payloadHasAny(payload, "start_date", "startDate")
+            ? parseDate(payload, "start_date", "startDate")
+            : current.startDate();
+        if (startDate == null) {
+            throw new IllegalArgumentException("start_date is required.");
+        }
+        var endDate = payloadHasAny(payload, "end_date", "endDate")
+            ? parseDate(payload, "end_date", "endDate")
+            : current.endDate();
+        validateDateRange(startDate, endDate);
+        var days = normalizeNonNegativeQuantity(parseBigDecimal(payload, "days"), current.days(), "days");
+        var hours = normalizeNonNegativeQuantity(parseBigDecimal(payload, "hours"), current.hours(), "hours");
+        var paid = payloadBoolean(payload, current.paid(), "paid");
+        var affectsIbc = payloadBoolean(payload, current.affectsIbc(), "affects_ibc", "affectsIbc");
+        var ibcImpactAmount = normalizeSignedMoney(parseBigDecimal(payload, "ibc_impact_amount", "ibcImpactAmount"), current.ibcImpactAmount(), "ibc_impact_amount");
+        var source = normalizeColombiaNoveltySource(payloadText(payload, current.source(), "source"));
+        var status = normalizeColombiaNoveltyStatus(payloadText(payload, current.status(), "status"));
+        var metadata = payloadObject(payload, current.metadata(), "metadata", "metadata_json");
+
+        jdbcTemplate.update(
+            """
+                UPDATE payroll_employee_country_novelties
+                SET novelty_code = ?,
+                    novelty_label = ?,
+                    start_date = ?,
+                    end_date = ?,
+                    days = ?,
+                    hours = ?,
+                    paid = ?,
+                    affects_ibc = ?,
+                    ibc_impact_amount = ?,
+                    source = ?,
+                    status = ?,
+                    metadata_json = ?
+                WHERE company_id = ?
+                  AND country_code = 'CO'
+                  AND id = ?
+                """,
+            noveltyCode,
+            noveltyLabel,
+            startDate,
+            endDate,
+            days,
+            hours,
+            paid,
+            affectsIbc,
+            ibcImpactAmount,
+            source,
+            status,
+            payrollSnapshotService.jsonValue(metadata),
+            currentUser.companyId(),
+            noveltyId
+        );
+
+        return Map.of("item", toColombiaNoveltyMap(loadColombiaNoveltyInScope(currentUser, noveltyId)));
+    }
+
+    public Map<String, Object> listGovernmentReportingSnapshots(
+        AuthSessionUser currentUser,
+        long runId,
+        String reportType
+    ) {
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var run = loadRun(currentUser.companyId(), runId, scope);
+        var normalizedReportType = normalizeGovernmentReportType(reportType);
+        var params = new ArrayList<Object>();
+        params.add(currentUser.companyId());
+        params.add(run.id());
+
+        var sql = new StringBuilder("""
+            SELECT id,
+                   run_id,
+                   run_line_id,
+                   company_id,
+                   user_company_id,
+                   country_code,
+                   report_type,
+                   report_period_start,
+                   report_period_end,
+                   status,
+                   payload_hash,
+                   payload_json,
+                   validation_json,
+                   response_json,
+                   generated_by_source,
+                   generated_at,
+                   updated_at
+            FROM payroll_government_reporting_snapshots
+            WHERE company_id = ?
+              AND run_id = ?
+            """);
+        if (!normalizedReportType.isBlank()) {
+            sql.append(" AND report_type = ?\n");
+            params.add(normalizedReportType);
+        }
+        sql.append(" ORDER BY report_type ASC, run_line_id ASC, id ASC");
+
+        var items = jdbcTemplate.query(
+            sql.toString(),
+            (rs, rowNum) -> {
+                var body = new LinkedHashMap<String, Object>();
+                body.put("id", rs.getLong("id"));
+                body.put("run_id", rs.getLong("run_id"));
+                body.put("run_line_id", rs.getLong("run_line_id"));
+                body.put("company_id", rs.getLong("company_id"));
+                body.put("user_company_id", rs.getLong("user_company_id"));
+                body.put("country_code", safe(rs.getString("country_code")));
+                body.put("report_type", safe(rs.getString("report_type")));
+                body.put("report_period_start", rs.getObject("report_period_start", LocalDate.class).toString());
+                body.put("report_period_end", rs.getObject("report_period_end", LocalDate.class).toString());
+                body.put("status", safe(rs.getString("status")));
+                body.put("payload_hash", safe(rs.getString("payload_hash")));
+                body.put("payload", payrollSnapshotService.parseObject(rs.getString("payload_json")));
+                body.put("validation", payrollSnapshotService.parseObject(rs.getString("validation_json")));
+                body.put("response", payrollSnapshotService.parseObject(rs.getString("response_json")));
+                body.put("generated_by_source", safe(rs.getString("generated_by_source")));
+                var generatedAt = toLocalDateTime(rs.getTimestamp("generated_at"));
+                var updatedAt = toLocalDateTime(rs.getTimestamp("updated_at"));
+                body.put("generated_at", generatedAt == null ? null : generatedAt.toString());
+                body.put("updated_at", updatedAt == null ? null : updatedAt.toString());
+                return body;
+            },
+            params.toArray()
+        );
+
+        return Map.of("run", toRunSummaryMap(run), "items", items, "count", items.size());
+    }
+
+    @Transactional
+    public Map<String, Object> updateGovernmentReportingSnapshotResponse(
+        AuthSessionUser currentUser,
+        long snapshotId,
+        Map<String, Object> payload
+    ) {
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var snapshot = loadGovernmentReportingSnapshotInScope(currentUser, snapshotId, scope);
+        var status = normalizeGovernmentResponseStatus(payloadText(
+            payload,
+            snapshot.status(),
+            "status",
+            "government_status",
+            "governmentStatus"
+        ));
+        var responseAt = payloadText(payload, "", "response_at", "responseAt");
+        if (responseAt.isBlank()) {
+            responseAt = LocalDateTime.now().toString();
+        } else {
+            try {
+                responseAt = LocalDateTime.parse(responseAt.replace(" ", "T")).toString();
+            } catch (DateTimeParseException ex) {
+                throw new IllegalArgumentException("response_at must use ISO local date-time format.");
+            }
+        }
+
+        var response = new LinkedHashMap<>(snapshot.response());
+        response.put("status", status.toUpperCase(Locale.ROOT));
+        response.put("readyForTransmission", !governmentResponseBlocksApproval(status));
+        var currentExternalId = snapshot.response().get("externalId") == null
+            ? ""
+            : String.valueOf(snapshot.response().get("externalId"));
+        response.put("externalId", payloadText(payload, currentExternalId, "external_id", "externalId", "reference"));
+        response.put("requestHash", snapshot.payloadHash());
+        response.put("message", payloadText(payload, "", "message", "mensaje", "description"));
+        response.put("responseAt", responseAt);
+        response.put("recordedByUserId", currentUser.userId());
+        response.put("recordedAt", LocalDateTime.now().toString());
+        if (payload.containsKey("issues")) {
+            response.put("issues", normalizeGovernmentResponseIssues(payload.get("issues")));
+        }
+
+        var validation = new LinkedHashMap<>(snapshot.validation());
+        validation.put("externalStatus", status);
+        validation.put("externalBlocking", governmentResponseBlocksApproval(status));
+        validation.put("blocking", Boolean.TRUE.equals(snapshot.validation().get("blocking")) || governmentResponseBlocksApproval(status));
+
+        jdbcTemplate.update(
+            """
+                UPDATE payroll_government_reporting_snapshots
+                SET status = ?,
+                    response_json = ?,
+                    validation_json = ?
+                WHERE company_id = ?
+                  AND id = ?
+                """,
+            status,
+            payrollSnapshotService.jsonValue(response),
+            payrollSnapshotService.jsonValue(validation),
+            currentUser.companyId(),
+            snapshotId
+        );
+
+        return Map.of(
+            "item",
+            toGovernmentReportingSnapshotMap(loadGovernmentReportingSnapshotInScope(currentUser, snapshotId, scope))
+        );
+    }
+
+    private PayrollGovernmentReportingSnapshotRow loadGovernmentReportingSnapshotInScope(
+        AuthSessionUser currentUser,
+        long snapshotId,
+        HrOperationalScope scope
+    ) {
+        var params = new ArrayList<Object>();
+        params.add(currentUser.companyId());
+        params.add(snapshotId);
+        params.addAll(hrPayrollScopeAccess.runLineParameters(scope));
+
+        var rows = jdbcTemplate.query(
+            """
+                SELECT s.id,
+                       s.run_id,
+                       s.run_line_id,
+                       s.company_id,
+                       s.user_company_id,
+                       s.country_code,
+                       s.report_type,
+                       s.report_period_start,
+                       s.report_period_end,
+                       s.status,
+                       s.payload_hash,
+                       s.payload_json,
+                       s.validation_json,
+                       s.response_json,
+                       s.generated_by_source,
+                       s.generated_at,
+                       s.updated_at
+                FROM payroll_government_reporting_snapshots s
+                JOIN payroll_run_lines l
+                  ON l.company_id = s.company_id
+                 AND l.id = s.run_line_id
+                WHERE s.company_id = ?
+                  AND s.id = ?
+                """
+                + hrPayrollScopeAccess.runLinePredicate(scope, "l")
+                + """
+                LIMIT 1
+                """,
+            (rs, rowNum) -> mapGovernmentReportingSnapshotRow(rs),
+            params.toArray()
+        );
+        if (rows.isEmpty()) {
+            var exists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM payroll_government_reporting_snapshots WHERE company_id = ? AND id = ?",
+                Long.class,
+                currentUser.companyId(),
+                snapshotId
+            );
+            if (exists != null && exists > 0) {
+                throw new HrAccessDeniedException("Forbidden");
+            }
+            throw new NoSuchElementException("Payroll government reporting snapshot not found.");
+        }
+        return rows.getFirst();
+    }
+
+    private PayrollGovernmentReportingSnapshotRow mapGovernmentReportingSnapshotRow(ResultSet rs) throws SQLException {
+        return new PayrollGovernmentReportingSnapshotRow(
+            rs.getLong("id"),
+            rs.getLong("run_id"),
+            rs.getLong("run_line_id"),
+            rs.getLong("company_id"),
+            rs.getLong("user_company_id"),
+            safe(rs.getString("country_code")),
+            safe(rs.getString("report_type")),
+            rs.getObject("report_period_start", LocalDate.class),
+            rs.getObject("report_period_end", LocalDate.class),
+            safe(rs.getString("status")),
+            safe(rs.getString("payload_hash")),
+            payrollSnapshotService.parseObject(rs.getString("payload_json")),
+            payrollSnapshotService.parseObject(rs.getString("validation_json")),
+            payrollSnapshotService.parseObject(rs.getString("response_json")),
+            safe(rs.getString("generated_by_source")),
+            toLocalDateTime(rs.getTimestamp("generated_at")),
+            toLocalDateTime(rs.getTimestamp("updated_at"))
+        );
+    }
+
+    private Map<String, Object> toGovernmentReportingSnapshotMap(PayrollGovernmentReportingSnapshotRow snapshot) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("id", snapshot.id());
+        body.put("run_id", snapshot.runId());
+        body.put("run_line_id", snapshot.runLineId());
+        body.put("company_id", snapshot.companyId());
+        body.put("user_company_id", snapshot.userCompanyId());
+        body.put("country_code", snapshot.countryCode());
+        body.put("report_type", snapshot.reportType());
+        body.put("report_period_start", snapshot.reportPeriodStart().toString());
+        body.put("report_period_end", snapshot.reportPeriodEnd().toString());
+        body.put("status", snapshot.status());
+        body.put("payload_hash", snapshot.payloadHash());
+        body.put("payload", snapshot.payload());
+        body.put("validation", snapshot.validation());
+        body.put("response", snapshot.response());
+        body.put("generated_by_source", snapshot.generatedBySource());
+        body.put("generated_at", snapshot.generatedAt() == null ? null : snapshot.generatedAt().toString());
+        body.put("updated_at", snapshot.updatedAt() == null ? null : snapshot.updatedAt().toString());
+        return body;
+    }
+
+    private void ensureColombiaGovernmentReportingReadyForApproval(long companyId, long runId) {
+        var colombiaLineIds = jdbcTemplate.queryForList(
+            """
+                SELECT id
+                FROM payroll_run_lines
+                WHERE company_id = ?
+                  AND run_id = ?
+                  AND country_code_snapshot = 'CO'
+                """,
+            Long.class,
+            companyId,
+            runId
+        );
+        if (colombiaLineIds.isEmpty()) {
+            return;
+        }
+
+        var snapshotRows = jdbcTemplate.query(
+            """
+                SELECT run_line_id,
+                       status,
+                       report_type,
+                       validation_json
+                FROM payroll_government_reporting_snapshots
+                WHERE company_id = ?
+                  AND run_id = ?
+                  AND country_code = 'CO'
+            """,
+            (rs, rowNum) -> new PayrollGovernmentReportingValidationRow(
+                rs.getLong("run_line_id"),
+                safe(rs.getString("status")),
+                safe(rs.getString("report_type")),
+                payrollSnapshotService.parseObject(rs.getString("validation_json"))
+            ),
+            companyId,
+            runId
+        );
+
+        var reportsByLine = new HashMap<Long, List<PayrollGovernmentReportingValidationRow>>();
+        for (var row : snapshotRows) {
+            reportsByLine.computeIfAbsent(row.runLineId(), ignored -> new ArrayList<>()).add(row);
+            if (Boolean.TRUE.equals(row.validation().get("blocking"))) {
+                throw new IllegalArgumentException("Colombia payroll has blocking PILA/DIAN validation issues before approval.");
+            }
+            if (governmentResponseBlocksApproval(row.status())) {
+                throw new IllegalArgumentException("Colombia payroll has rejected PILA/DIAN government responses before approval.");
+            }
+        }
+
+        for (var lineId : colombiaLineIds) {
+            var reports = reportsByLine.getOrDefault(lineId, List.of());
+            var reportTypes = reports.stream().map(PayrollGovernmentReportingValidationRow::reportType).collect(Collectors.toSet());
+            if (!reportTypes.contains("PILA") || !reportTypes.contains("DIAN_PAYROLL")) {
+                throw new IllegalArgumentException("Colombia payroll requires PILA and DIAN snapshots before approval.");
+            }
+        }
+    }
+
     public Map<String, Object> listRuns(long companyId, Map<String, String> filters) {
-        return listRuns(companyId, filters, HrOperationalScope.corporateOffice());
+        return listRuns(companyId, filters, HrOperationalScope.corporateOffice(), null);
     }
 
     public Map<String, Object> listRuns(AuthSessionUser currentUser, Map<String, String> filters) {
-        return listRuns(currentUser.companyId(), filters, hrPayrollScopeAccess.resolve(currentUser));
+        return listRuns(
+            currentUser.companyId(),
+            filters,
+            hrPayrollScopeAccess.resolve(currentUser),
+            currentUser.userId()
+        );
     }
 
-    private Map<String, Object> listRuns(long companyId, Map<String, String> filters, HrOperationalScope scope) {
+    private Map<String, Object> listRuns(
+        long companyId,
+        Map<String, String> filters,
+        HrOperationalScope scope,
+        Long actorUserId
+    ) {
+        ensureAutomaticPayrollRuns(companyId, actorUserId, scope);
+
         var items = loadRuns(companyId, scope).stream()
             .filter((run) -> matchesRunFilters(run, filters))
             .map(this::toRunSummaryMap)
@@ -207,13 +927,45 @@ public class HrPayrollService {
             throw new IllegalArgumentException("period_end_date must be on or after period_start_date.");
         }
 
-        periodEndDate = normalizeRunPeriodEndDate(payPeriod, periodStartDate);
-        var normalizedPeriodEndDate = periodEndDate;
-
         var groupingMode = normalizeGroupingMode(stringValue(payload, "grouping_mode"), preferences.groupingMode());
+        return createRunsForPeriod(companyId, userId, preferences, payPeriod, periodStartDate, groupingMode, scope);
+    }
+
+    private synchronized void ensureAutomaticPayrollRuns(long companyId, Long actorUserId, HrOperationalScope scope) {
+        var preferences = ensurePreferences(companyId);
+        var payPeriods = loadEligibleHrUsers(companyId, "", false, scope).stream()
+            .map(PayrollHrUserRow::payPeriod)
+            .map(this::normalizePayPeriod)
+            .distinct()
+            .toList();
+        var today = LocalDate.now();
+
+        for (var payPeriod : payPeriods) {
+            createRunsForPeriod(
+                companyId,
+                actorUserId,
+                preferences,
+                payPeriod,
+                resolveAutomaticPeriodStartDate(payPeriod, today, preferences),
+                preferences.groupingMode(),
+                scope
+            );
+        }
+    }
+
+    private Map<String, Object> createRunsForPeriod(
+        long companyId,
+        Long userId,
+        PayrollPreferencesRow preferences,
+        String payPeriod,
+        LocalDate periodStartDate,
+        String groupingMode,
+        HrOperationalScope scope
+    ) {
+        var normalizedPeriodEndDate = normalizeRunPeriodEndDate(payPeriod, periodStartDate, preferences);
         var hrUsers = loadEligibleHrUsers(companyId, payPeriod, true, scope);
         if (hrUsers.isEmpty()) {
-            throw new IllegalArgumentException("No active HR users are configured for the selected pay frequency.");
+            throw new IllegalArgumentException("No hay colaboradores activos configurados para la frecuencia de pago seleccionada.");
         }
 
         var groupedHrUsers = groupHrUsers(hrUsers, groupingMode);
@@ -253,7 +1005,11 @@ public class HrPayrollService {
                 statement.setString(5, payPeriod);
                 statement.setObject(6, periodStartDate);
                 statement.setObject(7, normalizedPeriodEndDate);
-                statement.setLong(8, userId);
+                if (userId == null) {
+                    statement.setNull(8, Types.BIGINT);
+                } else {
+                    statement.setLong(8, userId);
+                }
                 return statement;
             }, keyHolder);
 
@@ -296,6 +1052,10 @@ public class HrPayrollService {
                 body.put("unit_name", line.unitNameSnapshot());
                 body.put("business_id", line.businessIdSnapshot());
                 body.put("business_name", line.businessNameSnapshot());
+                body.put("country_code", line.countryCodeSnapshot());
+                body.put("jurisdiction_code", line.jurisdictionCodeSnapshot());
+                body.put("currency_code", line.currencyCodeSnapshot());
+                body.put("fx_rate", line.fxRate());
                 body.put("pay_period", line.payPeriodSnapshot());
                 body.put("salary_type", line.salaryTypeSnapshot());
                 body.put("base_salary_amount", scaled(line.baseSalaryAmount()));
@@ -304,6 +1064,9 @@ public class HrPayrollService {
                 body.put("leave_days", scaled(line.leaveDays()));
                 body.put("absence_days", scaled(line.absenceDays()));
                 body.put("rest_days", scaled(line.restDays()));
+                body.put("missing_attendance_days", scaled(line.missingAttendanceDays()));
+                body.put("paid_leave_days", scaled(line.paidLeaveDays()));
+                body.put("unpaid_absence_days", scaled(line.unpaidAbsenceDays()));
                 body.put("late_count", line.lateCount());
                 body.put("regular_hours", scaled(line.regularHours()));
                 body.put("overtime_hours", scaled(line.overtimeHours()));
@@ -313,6 +1076,17 @@ public class HrPayrollService {
                 body.put("employer_contributions_amount", scaled(line.employerContributionsAmount()));
                 body.put("net_amount", scaled(line.netAmount()));
                 body.put("notes", line.notes());
+                body.put("calculation_source", line.calculationSource());
+                body.put("calculation_timestamp", line.calculationTimestamp() == null ? null : line.calculationTimestamp().toString());
+                body.put("statutory_compliance", lineStatutoryCompliance(line));
+                body.put("calculation_warnings", lineCalculationWarnings(line));
+                body.put("employee_salary_snapshot", line.employeeSalarySnapshot());
+                body.put("attendance_snapshot", line.attendanceSnapshot());
+                body.put("manual_adjustments_snapshot", line.manualAdjustmentsSnapshot());
+                body.put("calculation_inputs", line.calculationInputs());
+                body.put("calculation_results", line.calculationResults());
+                body.put("rule_snapshot", line.ruleSnapshot());
+                body.put("attendance_warnings", line.attendanceWarnings());
                 body.put("items", loadRunLineItems(line.id()).stream().map(this::toRunLineItemMap).toList());
                 return body;
             })
@@ -376,19 +1150,43 @@ public class HrPayrollService {
             lineId
         );
 
+        var lineJurisdiction = resolvePayrollJurisdiction(companyId, line.userCompanyId());
+        var lineCountry = payrollRuleResolver.normalizeCountry(isBlank(line.countryCodeSnapshot()) ? lineJurisdiction.country() : line.countryCodeSnapshot());
+        var lineJurisdictionCode = isBlank(line.jurisdictionCodeSnapshot())
+            ? resolvePayrollJurisdictionCode(lineCountry, lineJurisdiction.province())
+            : line.jurisdictionCodeSnapshot();
+        var lineCurrency = resolveCurrencyCode(lineCountry);
+
         for (var index = 0; index < manualItems.size(); index++) {
             var manualItem = manualItems.get(index);
-            jdbcTemplate.update(
-                """
-                    INSERT INTO payroll_run_line_items
-                    (run_line_id, code, category, label, amount, source_type, display_order)
-                    VALUES (?, ?, ?, ?, ?, 'manual', ?)
-                    """,
-                lineId,
-                manualItem.code(),
+            var normalizedManual = payrollManualAdjustmentService.normalize(
                 manualItem.category(),
                 manualItem.label(),
                 manualItem.amount(),
+                lineCurrency
+            );
+            jdbcTemplate.update(
+                """
+                    INSERT INTO payroll_run_line_items
+                    (run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code, tax_treatment,
+                     taxable, exempt, affects_social_security, affects_employer_cost, legal_classification, calculation_formula,
+                     calculation_base, currency_code, display_order)
+                    VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, 0, ?, ?, ?, 'manual amount', ?, ?, ?)
+                    """,
+                lineId,
+                normalizedManual.code(),
+                normalizedManual.category(),
+                normalizedManual.label(),
+                normalizedManual.amount(),
+                lineCountry,
+                lineJurisdictionCode,
+                normalizedManual.taxTreatment(),
+                normalizedManual.taxable(),
+                normalizedManual.affectsSocialSecurity(),
+                normalizedManual.affectsEmployerCost(),
+                normalizedManual.legalClassification(),
+                normalizedManual.amount(),
+                normalizedManual.currency(),
                 1000 + index
             );
         }
@@ -417,6 +1215,7 @@ public class HrPayrollService {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "draft");
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
+        recomputeRunLinesWithEngine(runId, ensurePreferences(companyId));
         recomputeRunTotals(runId);
         updateRunStatus(runId, "processed", userId);
         return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
@@ -441,6 +1240,7 @@ public class HrPayrollService {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "processed");
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
+        ensureColombiaGovernmentReportingReadyForApproval(companyId, runId);
         updateRunStatus(runId, "approved", userId);
         return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
@@ -641,10 +1441,14 @@ public class HrPayrollService {
         var rows = jdbcTemplate.query(
             """
                 SELECT company_id,
-                       grouping_mode,
-                       default_daily_hours,
-                       pay_leave_days,
-                       isr_rate,
+	                       grouping_mode,
+	                       default_daily_hours,
+	                       pay_leave_days,
+	                       COALESCE(weekly_start_day, 1) AS weekly_start_day,
+	                       COALESCE(biweekly_first_day, 1) AS biweekly_first_day,
+	                       COALESCE(biweekly_second_day, 16) AS biweekly_second_day,
+	                       COALESCE(monthly_start_day, 1) AS monthly_start_day,
+	                       isr_rate,
                        imss_user_rate,
                        infonavit_user_rate,
                        imss_employer_rate,
@@ -655,11 +1459,15 @@ public class HrPayrollService {
                 LIMIT 1
                 """,
             (rs, rowNum) -> new PayrollPreferencesRow(
-                rs.getLong("company_id"),
-                normalizeGroupingMode(rs.getString("grouping_mode"), "single"),
-                scaled(rs.getBigDecimal("default_daily_hours")),
-                rs.getBoolean("pay_leave_days"),
-                scaled(rs.getBigDecimal("isr_rate")),
+	                rs.getLong("company_id"),
+	                normalizeGroupingMode(rs.getString("grouping_mode"), "single"),
+	                scaled(rs.getBigDecimal("default_daily_hours")),
+	                rs.getBoolean("pay_leave_days"),
+	                rs.getInt("weekly_start_day"),
+	                rs.getInt("biweekly_first_day"),
+	                rs.getInt("biweekly_second_day"),
+	                rs.getInt("monthly_start_day"),
+	                scaled(rs.getBigDecimal("isr_rate")),
                 scaled(rs.getBigDecimal("imss_user_rate")),
                 scaled(rs.getBigDecimal("infonavit_user_rate")),
                 scaled(rs.getBigDecimal("imss_employer_rate")),
@@ -675,9 +1483,9 @@ public class HrPayrollService {
 
         jdbcTemplate.update(
             """
-                INSERT INTO payroll_preferences
-                (company_id, grouping_mode, default_daily_hours, pay_leave_days, isr_rate, imss_user_rate, infonavit_user_rate, imss_employer_rate, infonavit_employer_rate, sar_employer_rate)
-                VALUES (?, 'single', 8.00, 1, 0.10000, 0.04000, 0.03000, 0.07000, 0.05000, 0.02000)
+	                INSERT INTO payroll_preferences
+	                (company_id, grouping_mode, default_daily_hours, pay_leave_days, weekly_start_day, biweekly_first_day, biweekly_second_day, monthly_start_day, isr_rate, imss_user_rate, infonavit_user_rate, imss_employer_rate, infonavit_employer_rate, sar_employer_rate)
+	                VALUES (?, 'single', 8.00, 1, 1, 1, 16, 1, 0.10000, 0.04000, 0.03000, 0.07000, 0.05000, 0.02000)
                 """,
             companyId
         );
@@ -970,10 +1778,14 @@ public class HrPayrollService {
                        u.name AS unit_name,
                        e.business_id,
                        b.name AS business_name,
-                       COALESCE(e.salary, 0) AS salary,
-                       COALESCE(e.hourly_rate, 0) AS hourly_rate,
-                       COALESCE(LOWER(e.salary_type), 'daily') AS salary_type,
-                       COALESCE(LOWER(e.pay_period), 'weekly') AS pay_period
+	                       COALESCE(e.salary, 0) AS salary,
+	                       COALESCE(e.hourly_rate, 0) AS hourly_rate,
+	                       COALESCE(LOWER(e.salary_type), 'daily') AS salary_type,
+	                       COALESCE(LOWER(e.pay_period), 'weekly') AS pay_period,
+	                       COALESCE(e.workday_hours, 8) AS workday_hours,
+	                       COALESCE(e.workdays_per_week, 5) AS workdays_per_week,
+	                       COALESCE(e.registration_country, '') AS registration_country,
+	                       COALESCE(e.state_province, '') AS state_province
                 FROM hr_users e
                 LEFT JOIN units u ON u.id = e.unit_id
                 LEFT JOIN businesses b ON b.id = e.business_id
@@ -997,11 +1809,15 @@ public class HrPayrollService {
                 safe(rs.getString("unit_name")),
                 getNullableLong(rs, "business_id"),
                 safe(rs.getString("business_name")),
-                scaled(rs.getBigDecimal("salary")),
-                scaled(rs.getBigDecimal("hourly_rate")),
-                safe(rs.getString("salary_type")),
-                safe(rs.getString("pay_period"))
-            ),
+	                scaled(rs.getBigDecimal("salary")),
+	                scaled(rs.getBigDecimal("hourly_rate")),
+	                safe(rs.getString("salary_type")),
+	                safe(rs.getString("pay_period")),
+	                scaled(rs.getBigDecimal("workday_hours")),
+	                scaled(rs.getBigDecimal("workdays_per_week")),
+	                safe(rs.getString("registration_country")),
+	                safe(rs.getString("state_province"))
+	            ),
             params.toArray()
         );
     }
@@ -1024,7 +1840,7 @@ public class HrPayrollService {
                 }
                 default -> {
                     key = "single";
-                    label = "All users";
+                    label = "Todos los colaboradores";
                 }
             }
 
@@ -1046,7 +1862,9 @@ public class HrPayrollService {
         LocalDate periodStartDate,
         LocalDate periodEndDate
     ) {
-        var computation = computeLine(companyId, user, preferences, periodStartDate, periodEndDate);
+        var computation = calculateLineWithEngine(companyId, runId, user, preferences, periodStartDate, periodEndDate);
+        var result = computation.result();
+        var context = computation.context();
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -1054,10 +1872,12 @@ public class HrPayrollService {
                 """
                     INSERT INTO payroll_run_lines
                     (run_id, company_id, user_company_id, user_id, user_code_snapshot, user_name_snapshot, position_title_snapshot, department_snapshot,
-                     unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot, pay_period_snapshot, salary_type_snapshot,
-                     base_salary_amount, hourly_rate_amount, days_payable, leave_days, absence_days, rest_days, late_count, regular_hours, overtime_hours,
-                     include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount, net_amount, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot, country_code_snapshot, jurisdiction_code_snapshot,
+                     currency_code_snapshot, fx_rate, pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable,
+                     leave_days, absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count, regular_hours,
+                     overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount, net_amount, notes,
+                     calculation_source, calculation_timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 new String[] {"id"}
             );
@@ -1081,27 +1901,36 @@ public class HrPayrollService {
                 statement.setLong(11, user.businessId());
             }
             statement.setString(12, nullable(user.businessName()));
-            statement.setString(13, runPayPeriod);
-            statement.setString(14, user.salaryType());
-            statement.setBigDecimal(15, computation.baseSalaryAmount());
+            statement.setString(13, nullable(context.country()));
+            statement.setString(14, nullable(context.jurisdiction()));
+            statement.setString(15, nullable(context.currency()));
+            statement.setBigDecimal(16, context.fxRate());
+            statement.setString(17, runPayPeriod);
+            statement.setString(18, user.salaryType());
+            statement.setBigDecimal(19, result.baseSalaryAmount());
             if (user.hourlyRate().compareTo(BigDecimal.ZERO) == 0) {
-                statement.setNull(16, Types.DECIMAL);
+                statement.setNull(20, Types.DECIMAL);
             } else {
-                statement.setBigDecimal(16, user.hourlyRate());
+                statement.setBigDecimal(20, user.hourlyRate());
             }
-            statement.setBigDecimal(17, computation.daysPayable());
-            statement.setBigDecimal(18, computation.leaveDays());
-            statement.setBigDecimal(19, computation.absenceDays());
-            statement.setBigDecimal(20, computation.restDays());
-            statement.setInt(21, computation.lateCount());
-            statement.setBigDecimal(22, computation.regularHours());
-            statement.setBigDecimal(23, computation.overtimeHours());
-            statement.setBoolean(24, true);
-            statement.setBigDecimal(25, computation.grossAmount());
-            statement.setBigDecimal(26, computation.deductionsAmount());
-            statement.setBigDecimal(27, computation.employerContributionsAmount());
-            statement.setBigDecimal(28, computation.netAmount());
-            statement.setString(29, null);
+            statement.setBigDecimal(21, result.daysPayable());
+            statement.setBigDecimal(22, result.leaveDays());
+            statement.setBigDecimal(23, result.absenceDays());
+            statement.setBigDecimal(24, result.restDays());
+            statement.setBigDecimal(25, result.missingAttendanceDays());
+            statement.setBigDecimal(26, result.paidLeaveDays());
+            statement.setBigDecimal(27, result.unpaidAbsenceDays());
+            statement.setInt(28, result.lateCount());
+            statement.setBigDecimal(29, result.regularHours());
+            statement.setBigDecimal(30, result.overtimeHours());
+            statement.setBoolean(31, true);
+            statement.setBigDecimal(32, result.grossAmount());
+            statement.setBigDecimal(33, result.deductionsAmount());
+            statement.setBigDecimal(34, result.employerContributionsAmount());
+            statement.setBigDecimal(35, result.netAmount());
+            statement.setString(36, null);
+            statement.setString(37, result.calculationSource());
+            statement.setTimestamp(38, Timestamp.valueOf(result.calculationTimestamp()));
             return statement;
         }, keyHolder);
 
@@ -1110,11 +1939,26 @@ public class HrPayrollService {
             throw new IllegalStateException("Payroll run line could not be created.");
         }
 
-        storeLineItems(runLineId, computation.items());
+        jdbcTemplate.update(
+            """
+                UPDATE payroll_run_lines
+                SET workday_hours_snapshot = ?,
+                    workdays_per_week_snapshot = ?
+                WHERE id = ?
+                """,
+            user.workdayHours(),
+            user.workdaysPerWeek(),
+            runLineId
+        );
+
+        storeCalculatedLineItems(runLineId, result.items());
+        payrollSnapshotService.persistLineSnapshot(runLineId, context, result);
+        colombiaPayrollReportingService.persistDraftSnapshots(runLineId, context, result);
     }
 
-    private LineComputation computeLine(
+    private EngineLineComputation calculateLineWithEngine(
         long companyId,
+        long runId,
         PayrollHrUserRow user,
         PayrollPreferencesRow preferences,
         LocalDate periodStartDate,
@@ -1122,256 +1966,342 @@ public class HrPayrollService {
     ) {
         var dailyRecords = loadDailyRecords(companyId, user.id(), periodStartDate, periodEndDate);
         var scheduleWindows = loadScheduleWindows(companyId, user.id(), periodStartDate, periodEndDate);
+        var attendance = payrollAttendanceInputService.build(
+            periodStartDate,
+            periodEndDate,
+            toAttendanceRecords(dailyRecords),
+            toScheduleDays(scheduleWindows, user, preferences, periodStartDate, periodEndDate),
+            user.workdayHours().compareTo(BigDecimal.ZERO) > 0 ? user.workdayHours() : preferences.defaultDailyHours(),
+            user.salaryType(),
+            preferences.payLeaveDays()
+        );
+        var country = payrollRuleResolver.normalizeCountry(user.registrationCountry());
+        var jurisdiction = resolvePayrollJurisdictionCode(country, user.stateProvince());
+        var nativeCurrency = resolveCurrencyCode(country);
+        var fiscalFrequency = resolveFiscalPayrollFrequency(country, user.payPeriod());
+        var countryProfile = loadCountryPayrollProfile(companyId, user.id(), country, periodStartDate, periodEndDate);
+        var fiscalAccumulator = payrollFiscalAccumulatorService.loadSnapshot(
+            companyId,
+            user.id(),
+            country,
+            periodStartDate,
+            periodEndDate,
+            runId
+        );
+        var context = new PayrollCalculationContext(
+            companyId,
+            user.userId(),
+            user.id(),
+            runId,
+            country,
+            jurisdiction,
+            nativeCurrency,
+            BigDecimal.ONE,
+            fiscalFrequency,
+            periodStartDate,
+            periodEndDate,
+            true,
+            toSalarySnapshot(user),
+            attendance,
+            toEnginePreferences(preferences),
+            List.of(),
+            currencySnapshot(nativeCurrency, nativeCurrency, BigDecimal.ONE, periodEndDate),
+            countryProfile,
+            fiscalAccumulator
+        );
+        return new EngineLineComputation(context, payrollCalculationEngine.calculateLine(context));
+    }
 
-        BigDecimal payableDays = BigDecimal.ZERO;
-        BigDecimal leaveDays = BigDecimal.ZERO;
-        BigDecimal absenceDays = BigDecimal.ZERO;
-        BigDecimal restDays = BigDecimal.ZERO;
-        int lateCount = 0;
-        BigDecimal regularHours = BigDecimal.ZERO;
-        BigDecimal overtimeHours = BigDecimal.ZERO;
-        BigDecimal leaveHours = BigDecimal.ZERO;
-        BigDecimal scheduledWorkDays = countScheduledWorkDays(scheduleWindows, periodStartDate, periodEndDate);
+    private EngineLineComputation calculateStoredLineWithEngine(
+        PayrollRunLineRow line,
+        PayrollRunRow run,
+        PayrollPreferencesRow preferences,
+        List<PayrollCalculationContext.ManualAdjustment> manualAdjustments,
+        String country,
+        String jurisdiction
+    ) {
+        var resolvedCountry = payrollRuleResolver.normalizeCountry(country);
+        var resolvedJurisdiction = resolvePayrollJurisdictionCode(resolvedCountry, jurisdiction);
+        var nativeCurrency = isBlank(line.currencyCodeSnapshot()) ? resolveCurrencyCode(resolvedCountry) : line.currencyCodeSnapshot();
+        var fxRate = line.fxRate() == null || line.fxRate().compareTo(BigDecimal.ZERO) <= 0 ? BigDecimal.ONE : line.fxRate();
+        var countryProfile = loadCountryPayrollProfile(
+            line.companyId(),
+            line.userCompanyId(),
+            resolvedCountry,
+            run.periodStartDate(),
+            run.periodEndDate()
+        );
+        var fiscalAccumulator = payrollFiscalAccumulatorService.loadSnapshot(
+            line.companyId(),
+            line.userCompanyId(),
+            resolvedCountry,
+            run.periodStartDate(),
+            run.periodEndDate(),
+            run.id()
+        );
+        var context = new PayrollCalculationContext(
+            line.companyId(),
+            line.userIdSnapshot(),
+            line.userCompanyId(),
+            run.id(),
+            resolvedCountry,
+            resolvedJurisdiction,
+            nativeCurrency,
+            fxRate,
+            resolveFiscalPayrollFrequency(resolvedCountry, line.payPeriodSnapshot()),
+            run.periodStartDate(),
+            run.periodEndDate(),
+            line.includeInFiscal(),
+            toSalarySnapshot(line),
+            new PayrollCalculationContext.PayrollAttendanceInput(
+                line.daysPayable(),
+                line.paidLeaveDays(),
+                line.leaveDays(),
+                line.unpaidAbsenceDays(),
+                line.absenceDays(),
+                line.restDays(),
+                line.missingAttendanceDays(),
+                line.daysPayable().add(line.absenceDays()).add(line.leaveDays()),
+                line.lateCount(),
+                line.regularHours(),
+                line.overtimeHours(),
+                line.attendanceWarnings(),
+                List.of()
+            ),
+            toEnginePreferences(preferences),
+            manualAdjustments,
+            currencySnapshot(nativeCurrency, nativeCurrency, fxRate, run.periodEndDate()),
+            countryProfile,
+            fiscalAccumulator
+        );
+        return new EngineLineComputation(context, payrollCalculationEngine.calculateLine(context));
+    }
 
-        for (var currentDate = periodStartDate; !currentDate.isAfter(periodEndDate); currentDate = currentDate.plusDays(1)) {
-            var record = dailyRecords.get(currentDate);
-            var window = resolveScheduleWindow(scheduleWindows, currentDate);
-            var status = resolvePayrollStatus(record, window);
-            if (status == null) {
+    private Map<LocalDate, PayrollAttendanceInputService.AttendanceRecord> toAttendanceRecords(
+        Map<LocalDate, PayrollDailyRecordRow> dailyRecords
+    ) {
+        var result = new LinkedHashMap<LocalDate, PayrollAttendanceInputService.AttendanceRecord>();
+        dailyRecords.forEach((date, record) -> result.put(date, new PayrollAttendanceInputService.AttendanceRecord(
+            date,
+            resolvePayrollStatus(record),
+            record.firstCheckInAt(),
+            record.lastCheckOutAt()
+        )));
+        return result;
+    }
+
+    private Map<LocalDate, PayrollAttendanceInputService.ScheduleDay> toScheduleDays(
+        List<PayrollScheduleWindow> windows,
+        PayrollHrUserRow user,
+        PayrollPreferencesRow preferences,
+        LocalDate startDate,
+        LocalDate endDate
+    ) {
+        var result = new LinkedHashMap<LocalDate, PayrollAttendanceInputService.ScheduleDay>();
+        var fallbackWorkdays = Math.max(1, Math.min(7, user.workdaysPerWeek().setScale(0, RoundingMode.HALF_UP).intValue()));
+        var fallbackHours = user.workdayHours().compareTo(BigDecimal.ZERO) > 0 ? user.workdayHours() : preferences.defaultDailyHours();
+        for (var currentDate = startDate; !currentDate.isAfter(endDate); currentDate = currentDate.plusDays(1)) {
+            var window = resolveScheduleWindow(windows, currentDate);
+            if (window == null) {
+                var workday = currentDate.getDayOfWeek().getValue() <= fallbackWorkdays;
+                result.put(currentDate, new PayrollAttendanceInputService.ScheduleDay(currentDate, workday, !workday, fallbackHours));
                 continue;
             }
-
-            var scheduledHours = scheduledHours(window);
-            switch (status) {
-                case "rest" -> restDays = restDays.add(BigDecimal.ONE);
-                case "absence" -> {
-                    if (window != null && !window.isRestDay()) {
-                        absenceDays = absenceDays.add(BigDecimal.ONE);
-                    }
-                }
-                case "leave" -> {
-                    leaveDays = leaveDays.add(BigDecimal.ONE);
-                    if ("daily".equals(user.salaryType())) {
-                        if (preferences.payLeaveDays()) {
-                            payableDays = payableDays.add(BigDecimal.ONE);
-                        }
-                    } else {
-                        leaveHours = leaveHours.add(scheduledHours);
-                    }
-                }
-                case "late" -> {
-                    lateCount++;
-                    if ("daily".equals(user.salaryType())) {
-                        payableDays = payableDays.add(BigDecimal.ONE);
-                    } else {
-                        var workedHours = resolveWorkedHours(record, scheduledHours);
-                        regularHours = regularHours.add(workedHours.min(scheduledHours.compareTo(BigDecimal.ZERO) > 0 ? scheduledHours : workedHours));
-                        if (scheduledHours.compareTo(BigDecimal.ZERO) <= 0) {
-                            regularHours = regularHours.add(BigDecimal.ZERO);
-                        }
-                    }
-                }
-                case "on_time" -> {
-                    if ("daily".equals(user.salaryType())) {
-                        payableDays = payableDays.add(BigDecimal.ONE);
-                    } else {
-                        var workedHours = resolveWorkedHours(record, scheduledHours);
-                        if (scheduledHours.compareTo(BigDecimal.ZERO) > 0) {
-                            regularHours = regularHours.add(workedHours.min(scheduledHours));
-                        } else {
-                            regularHours = regularHours.add(workedHours);
-                        }
-                    }
-                }
-                default -> {
-                }
-            }
+            var hours = scheduledHours(window);
+            result.put(currentDate, new PayrollAttendanceInputService.ScheduleDay(
+                currentDate,
+                !window.isRestDay(),
+                window.isRestDay(),
+                hours.compareTo(BigDecimal.ZERO) > 0 ? hours : fallbackHours
+            ));
         }
+        return result;
+    }
 
-        var items = new ArrayList<PayrollLineItemDraft>();
-        if ("daily".equals(user.salaryType())) {
-            if (user.salary().compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("BASE_DAILY", "earning", "Fixed period salary", user.salary(), "computed", 10));
-            }
-            var unpaidDays = absenceDays.add(preferences.payLeaveDays() ? BigDecimal.ZERO : leaveDays);
-            var prorationDays = scheduledWorkDays.compareTo(BigDecimal.ZERO) > 0
-                ? scheduledWorkDays
-                : payableDays.add(unpaidDays);
-            var absenceDeductionAmount = computeFixedSalaryDeduction(user.salary(), unpaidDays, prorationDays);
-            if (absenceDeductionAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("ABSENCE_DEDUCTION", "deduction", "Unpaid attendance deduction", absenceDeductionAmount, "computed", 70));
-            }
-        } else {
-            var baseHourlyAmount = user.hourlyRate().multiply(regularHours);
-            var overtimeAmount = user.hourlyRate().multiply(overtimeHours).multiply(DEFAULT_OVERTIME_MULTIPLIER);
-            var leaveHourlyAmount = user.hourlyRate().multiply(leaveHours);
-
-            if (baseHourlyAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("BASE_HOURLY", "earning", "Regular hours", baseHourlyAmount, "computed", 10));
-            }
-            if (overtimeAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("OVERTIME", "earning", "Overtime", overtimeAmount, "computed", 20));
-            }
-            if (leaveHourlyAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("LEAVE_PAY", "earning", "Paid leave", leaveHourlyAmount, "computed", 30));
-            }
-        }
-
-        return computeTotalsForItems(
+    private PayrollCalculationContext.EmployeeSalarySnapshot toSalarySnapshot(PayrollHrUserRow user) {
+        return new PayrollCalculationContext.EmployeeSalarySnapshot(
+            user.userCode(),
+            user.fullName(),
+            user.positionTitle(),
+            user.department(),
+            user.unitName(),
+            user.businessName(),
             user.salaryType(),
             user.salary(),
             user.hourlyRate(),
-            payableDays,
-            leaveDays,
-            absenceDays,
-            restDays,
-            lateCount,
-            regularHours,
-            overtimeHours,
-            items,
-            true,
-            preferences
+            user.workdayHours(),
+            user.workdaysPerWeek()
+        );
+    }
+
+    private PayrollCalculationContext.EmployeeSalarySnapshot toSalarySnapshot(PayrollRunLineRow line) {
+        return new PayrollCalculationContext.EmployeeSalarySnapshot(
+            line.userCodeSnapshot(),
+            line.userNameSnapshot(),
+            line.positionTitleSnapshot(),
+            line.departmentSnapshot(),
+            line.unitNameSnapshot(),
+            line.businessNameSnapshot(),
+            line.salaryTypeSnapshot(),
+            line.baseSalaryAmount(),
+            line.hourlyRateAmount() == null ? BigDecimal.ZERO : line.hourlyRateAmount(),
+            firstPositive(
+                line.workdayHoursSnapshot(),
+                parseBigDecimal(line.employeeSalarySnapshot(), "workdayHours", "workday_hours")
+            ),
+            firstPositive(
+                line.workdaysPerWeekSnapshot(),
+                parseBigDecimal(line.employeeSalarySnapshot(), "workdaysPerWeek", "workdays_per_week")
+            )
+        );
+    }
+
+    private PayrollCalculationContext.Preferences toEnginePreferences(PayrollPreferencesRow preferences) {
+        return new PayrollCalculationContext.Preferences(
+            preferences.defaultDailyHours(),
+            preferences.payLeaveDays(),
+            preferences.isrRate(),
+            preferences.imssUserRate(),
+            preferences.infonavitUserRate(),
+            preferences.imssEmployerRate(),
+            preferences.infonavitEmployerRate(),
+            preferences.sarEmployerRate()
         );
     }
 
     private void recomputeRunLineFromStoredItems(long runLineId, PayrollPreferencesRow preferences) {
         var line = loadRunLine(runLineId);
-        var computedItems = loadRunLineItemsBySource(runLineId, "computed").stream()
-            .map(this::toDraftItem)
+        var run = loadRun(line.companyId(), line.runId());
+        var payrollJurisdiction = resolvePayrollJurisdiction(line.companyId(), line.userCompanyId());
+        var manualAdjustments = loadRunLineItemsBySource(runLineId, "manual").stream()
+            .map((item) -> payrollManualAdjustmentService.normalize(
+                item.category(),
+                item.label(),
+                item.amount(),
+                isBlank(item.currencyCode()) ? line.currencyCodeSnapshot() : item.currencyCode()
+            ))
             .toList();
-        var manualItems = loadRunLineItemsBySource(runLineId, "manual").stream()
-            .map(this::toDraftItem)
-            .toList();
-        var mergedItems = new ArrayList<PayrollLineItemDraft>();
-        mergedItems.addAll(computedItems);
-        mergedItems.addAll(manualItems);
-
-        var recalculated = computeTotalsForItems(
-            line.salaryTypeSnapshot(),
-            line.baseSalaryAmount(),
-            line.hourlyRateAmount() == null ? BigDecimal.ZERO : line.hourlyRateAmount(),
-            line.daysPayable(),
-            line.leaveDays(),
-            line.absenceDays(),
-            line.restDays(),
-            line.lateCount(),
-            line.regularHours(),
-            line.overtimeHours(),
-            mergedItems,
-            line.includeInFiscal(),
-            preferences
+        var computation = calculateStoredLineWithEngine(
+            line,
+            run,
+            preferences,
+            manualAdjustments,
+            isBlank(line.countryCodeSnapshot()) ? payrollJurisdiction.country() : line.countryCodeSnapshot(),
+            isBlank(line.jurisdictionCodeSnapshot()) ? payrollJurisdiction.province() : line.jurisdictionCodeSnapshot()
         );
+        var recalculated = computation.result();
 
         jdbcTemplate.update(
             """
                 UPDATE payroll_run_lines
                 SET include_in_fiscal = ?,
                     notes = ?,
+                    country_code_snapshot = ?,
+                    jurisdiction_code_snapshot = ?,
+                    currency_code_snapshot = ?,
+                    fx_rate = ?,
+                    workday_hours_snapshot = ?,
+                    workdays_per_week_snapshot = ?,
                     gross_amount = ?,
                     deductions_amount = ?,
                     employer_contributions_amount = ?,
-                    net_amount = ?
+                    net_amount = ?,
+                    days_payable = ?,
+                    leave_days = ?,
+                    absence_days = ?,
+                    rest_days = ?,
+                    missing_attendance_days = ?,
+                    paid_leave_days = ?,
+                    unpaid_absence_days = ?,
+                    late_count = ?,
+                    regular_hours = ?,
+                    overtime_hours = ?,
+                    calculation_source = ?,
+                    calculation_timestamp = ?
                 WHERE id = ?
                 """,
             line.includeInFiscal(),
             line.notes(),
+            computation.context().country(),
+            computation.context().jurisdiction(),
+            computation.context().currency(),
+            computation.context().fxRate(),
+            computation.context().salary().workdayHours(),
+            computation.context().salary().workdaysPerWeek(),
             recalculated.grossAmount(),
             recalculated.deductionsAmount(),
             recalculated.employerContributionsAmount(),
             recalculated.netAmount(),
+            recalculated.daysPayable(),
+            recalculated.leaveDays(),
+            recalculated.absenceDays(),
+            recalculated.restDays(),
+            recalculated.missingAttendanceDays(),
+            recalculated.paidLeaveDays(),
+            recalculated.unpaidAbsenceDays(),
+            recalculated.lateCount(),
+            recalculated.regularHours(),
+            recalculated.overtimeHours(),
+            recalculated.calculationSource(),
+            Timestamp.valueOf(recalculated.calculationTimestamp()),
             runLineId
         );
 
         jdbcTemplate.update(
-            "DELETE FROM payroll_run_line_items WHERE run_line_id = ? AND source_type = 'computed_tax'",
+            "DELETE FROM payroll_run_line_items WHERE run_line_id = ? AND source_type <> 'manual'",
             runLineId
         );
 
-        var computedTaxItems = recalculated.items().stream()
-            .filter((item) -> "computed_tax".equals(item.sourceType()))
+        var computedItems = recalculated.items().stream()
+            .filter((item) -> !"manual".equals(item.sourceType()))
             .toList();
-        if (!computedTaxItems.isEmpty()) {
-            storeLineItems(runLineId, computedTaxItems);
+        if (!computedItems.isEmpty()) {
+            storeCalculatedLineItems(runLineId, computedItems);
         }
+        payrollSnapshotService.persistLineSnapshot(runLineId, computation.context(), recalculated);
+        colombiaPayrollReportingService.persistDraftSnapshots(runLineId, computation.context(), recalculated);
     }
 
-    private LineComputation computeTotalsForItems(
-        String salaryType,
-        BigDecimal baseSalaryAmount,
-        BigDecimal hourlyRateAmount,
-        BigDecimal daysPayable,
-        BigDecimal leaveDays,
-        BigDecimal absenceDays,
-        BigDecimal restDays,
-        int lateCount,
-        BigDecimal regularHours,
-        BigDecimal overtimeHours,
-        List<PayrollLineItemDraft> baseItems,
-        boolean includeInFiscal,
-        PayrollPreferencesRow preferences
-    ) {
-        var items = new ArrayList<PayrollLineItemDraft>();
-        items.addAll(baseItems.stream()
-            .filter((item) -> !"computed_tax".equals(item.sourceType()))
-            .toList());
-
-        var earningTotal = sumAmounts(items, "earning");
-        var attendanceReductionTotal = items.stream()
-            .filter((item) -> "deduction".equals(item.category()) && "ABSENCE_DEDUCTION".equals(item.code()))
-            .map(PayrollLineItemDraft::amount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        var taxableBase = includeInFiscal
-            ? earningTotal.subtract(attendanceReductionTotal).max(BigDecimal.ZERO)
-            : BigDecimal.ZERO;
-
-        if (includeInFiscal) {
-            var isrAmount = taxableBase.multiply(preferences.isrRate());
-            var imssAmount = taxableBase.multiply(preferences.imssUserRate());
-            var infonavitAmount = taxableBase.multiply(preferences.infonavitUserRate());
-            var employerImssAmount = taxableBase.multiply(preferences.imssEmployerRate());
-            var employerInfonavitAmount = taxableBase.multiply(preferences.infonavitEmployerRate());
-            var employerSarAmount = taxableBase.multiply(preferences.sarEmployerRate());
-
-            if (isrAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("ISR", "deduction", "ISR", isrAmount, "computed_tax", 80));
-            }
-            if (imssAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("IMSS", "deduction", "IMSS", imssAmount, "computed_tax", 90));
-            }
-            if (infonavitAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("INFONAVIT", "deduction", "INFONAVIT", infonavitAmount, "computed_tax", 100));
-            }
-            if (employerImssAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("EMPLOYER_IMSS", "employer_contribution", "Employer IMSS", employerImssAmount, "computed_tax", 110));
-            }
-            if (employerInfonavitAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("EMPLOYER_INFONAVIT", "employer_contribution", "Employer INFONAVIT", employerInfonavitAmount, "computed_tax", 120));
-            }
-            if (employerSarAmount.compareTo(BigDecimal.ZERO) > 0) {
-                items.add(new PayrollLineItemDraft("EMPLOYER_SAR", "employer_contribution", "Employer SAR", employerSarAmount, "computed_tax", 130));
-            }
+    private void recomputeRunLinesWithEngine(long runId, PayrollPreferencesRow preferences) {
+        var results = new ArrayList<PayrollLineCalculationResult>();
+        for (var line : loadRunLines(runId)) {
+            recomputeRunLineFromStoredItems(line.id(), preferences);
+            results.add(loadLineCalculationResult(line.id()));
         }
+        payrollSnapshotService.persistRunSnapshot(runId, PayrollCalculationResult.fromLines(results));
+    }
 
-        var grossAmount = scaled(sumAmounts(items, "earning"));
-        var deductionsAmount = scaled(sumAmounts(items, "deduction"));
-        var employerContributionsAmount = scaled(sumAmounts(items, "employer_contribution"));
-        var netAmount = scaled(grossAmount.subtract(deductionsAmount));
-
-        return new LineComputation(
-            scaled(baseSalaryAmount),
-            scaled(hourlyRateAmount),
-            scaled(daysPayable),
-            scaled(leaveDays),
-            scaled(absenceDays),
-            scaled(restDays),
-            lateCount,
-            scaled(regularHours),
-            scaled(overtimeHours),
-            grossAmount,
-            deductionsAmount,
-            employerContributionsAmount,
-            netAmount,
-            items.stream().sorted((left, right) -> Integer.compare(left.displayOrder(), right.displayOrder())).toList()
+    private PayrollLineCalculationResult loadLineCalculationResult(long lineId) {
+        var line = loadRunLine(lineId);
+        return new PayrollLineCalculationResult(
+            line.baseSalaryAmount(),
+            line.hourlyRateAmount() == null ? BigDecimal.ZERO : line.hourlyRateAmount(),
+            line.daysPayable(),
+            line.paidLeaveDays(),
+            line.leaveDays(),
+            line.unpaidAbsenceDays(),
+            line.absenceDays(),
+            line.restDays(),
+            line.missingAttendanceDays(),
+            line.lateCount(),
+            line.regularHours(),
+            line.overtimeHours(),
+            BigDecimal.ZERO,
+            line.grossAmount(),
+            line.deductionsAmount(),
+            line.employerContributionsAmount(),
+            line.netAmount(),
+            line.grossAmount().add(line.employerContributionsAmount()),
+            line.calculationSource(),
+            line.calculationTimestamp() == null ? LocalDateTime.now() : line.calculationTimestamp(),
+            List.of(),
+            line.attendanceWarnings(),
+            lineStatutoryCompliance(line),
+            lineCalculationWarnings(line),
+            line.calculationInputs(),
+            line.calculationResults(),
+            line.ruleSnapshot(),
+            Map.of()
         );
     }
 
@@ -1436,11 +2366,16 @@ public class HrPayrollService {
     private List<PayrollRunLineRow> loadRunLines(long runId) {
         return jdbcTemplate.query(
             """
-                SELECT id, run_id, company_id, user_company_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
+                SELECT id, run_id, company_id, user_company_id, user_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
                        department_snapshot, unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot,
-                       pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable, leave_days,
-                       absence_days, rest_days, late_count, regular_hours, overtime_hours, include_in_fiscal, gross_amount,
-                       deductions_amount, employer_contributions_amount, net_amount, notes
+                       country_code_snapshot, jurisdiction_code_snapshot, currency_code_snapshot, fx_rate,
+                       pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount,
+                       workday_hours_snapshot, workdays_per_week_snapshot, days_payable, leave_days,
+                       absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count,
+                       regular_hours, overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount,
+                       net_amount, notes, calculation_source, calculation_timestamp, employee_salary_snapshot_json,
+                       attendance_snapshot_json, manual_adjustments_snapshot_json, calculation_inputs_json, calculation_results_json,
+                       rule_snapshot_json, attendance_warnings_json
                 FROM payroll_run_lines
                 WHERE run_id = ?
                 ORDER BY user_name_snapshot ASC, id ASC
@@ -1462,11 +2397,16 @@ public class HrPayrollService {
 
         return jdbcTemplate.query(
             """
-                SELECT l.id, l.run_id, l.company_id, l.user_company_id, l.user_code_snapshot, l.user_name_snapshot, l.position_title_snapshot,
+                SELECT l.id, l.run_id, l.company_id, l.user_company_id, l.user_id, l.user_code_snapshot, l.user_name_snapshot, l.position_title_snapshot,
                        l.department_snapshot, l.unit_id_snapshot, l.unit_name_snapshot, l.business_id_snapshot, l.business_name_snapshot,
-                       l.pay_period_snapshot, l.salary_type_snapshot, l.base_salary_amount, l.hourly_rate_amount, l.days_payable, l.leave_days,
-                       l.absence_days, l.rest_days, l.late_count, l.regular_hours, l.overtime_hours, l.include_in_fiscal, l.gross_amount,
-                       l.deductions_amount, l.employer_contributions_amount, l.net_amount, l.notes
+                       l.country_code_snapshot, l.jurisdiction_code_snapshot, l.currency_code_snapshot, l.fx_rate,
+                       l.pay_period_snapshot, l.salary_type_snapshot, l.base_salary_amount, l.hourly_rate_amount,
+                       l.workday_hours_snapshot, l.workdays_per_week_snapshot, l.days_payable, l.leave_days,
+                       l.absence_days, l.rest_days, l.missing_attendance_days, l.paid_leave_days, l.unpaid_absence_days, l.late_count,
+                       l.regular_hours, l.overtime_hours, l.include_in_fiscal, l.gross_amount, l.deductions_amount, l.employer_contributions_amount,
+                       l.net_amount, l.notes, l.calculation_source, l.calculation_timestamp, l.employee_salary_snapshot_json,
+                       l.attendance_snapshot_json, l.manual_adjustments_snapshot_json, l.calculation_inputs_json, l.calculation_results_json,
+                       l.rule_snapshot_json, l.attendance_warnings_json
                 FROM payroll_run_lines l
                 WHERE l.company_id = ?
                   AND l.run_id = ?
@@ -1483,11 +2423,16 @@ public class HrPayrollService {
     private PayrollRunLineRow loadRunLine(long runId, long lineId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT id, run_id, company_id, user_company_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
+                SELECT id, run_id, company_id, user_company_id, user_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
                        department_snapshot, unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot,
-                       pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable, leave_days,
-                       absence_days, rest_days, late_count, regular_hours, overtime_hours, include_in_fiscal, gross_amount,
-                       deductions_amount, employer_contributions_amount, net_amount, notes
+                       country_code_snapshot, jurisdiction_code_snapshot, currency_code_snapshot, fx_rate,
+                       pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount,
+                       workday_hours_snapshot, workdays_per_week_snapshot, days_payable, leave_days,
+                       absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count,
+                       regular_hours, overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount,
+                       net_amount, notes, calculation_source, calculation_timestamp, employee_salary_snapshot_json,
+                       attendance_snapshot_json, manual_adjustments_snapshot_json, calculation_inputs_json, calculation_results_json,
+                       rule_snapshot_json, attendance_warnings_json
                 FROM payroll_run_lines
                 WHERE run_id = ? AND id = ?
                 LIMIT 1
@@ -1505,11 +2450,16 @@ public class HrPayrollService {
     private PayrollRunLineRow loadRunLine(long lineId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT id, run_id, company_id, user_company_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
+                SELECT id, run_id, company_id, user_company_id, user_id, user_code_snapshot, user_name_snapshot, position_title_snapshot,
                        department_snapshot, unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot,
-                       pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable, leave_days,
-                       absence_days, rest_days, late_count, regular_hours, overtime_hours, include_in_fiscal, gross_amount,
-                       deductions_amount, employer_contributions_amount, net_amount, notes
+                       country_code_snapshot, jurisdiction_code_snapshot, currency_code_snapshot, fx_rate,
+                       pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount,
+                       workday_hours_snapshot, workdays_per_week_snapshot, days_payable, leave_days,
+                       absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count,
+                       regular_hours, overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount,
+                       net_amount, notes, calculation_source, calculation_timestamp, employee_salary_snapshot_json,
+                       attendance_snapshot_json, manual_adjustments_snapshot_json, calculation_inputs_json, calculation_results_json,
+                       rule_snapshot_json, attendance_warnings_json
                 FROM payroll_run_lines
                 WHERE id = ?
                 LIMIT 1
@@ -1521,6 +2471,411 @@ public class HrPayrollService {
             throw new NoSuchElementException("Payroll run line not found.");
         }
         return rows.getFirst();
+    }
+
+    private PayrollJurisdictionRow resolvePayrollJurisdiction(long companyId, long userCompanyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT COALESCE(registration_country, '') AS registration_country,
+                       COALESCE(state_province, '') AS state_province
+                FROM hr_users
+                WHERE company_id = ?
+                  AND id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new PayrollJurisdictionRow(
+                safe(rs.getString("registration_country")),
+                safe(rs.getString("state_province"))
+            ),
+            companyId,
+            userCompanyId
+        );
+        return rows.isEmpty() ? new PayrollJurisdictionRow("", "") : rows.getFirst();
+    }
+
+    private PayrollCalculationContext.CountryPayrollProfile loadCountryPayrollProfile(
+        long companyId,
+        long userCompanyId,
+        String country,
+        LocalDate periodStartDate,
+        LocalDate periodEndDate
+    ) {
+        var normalizedCountry = payrollRuleResolver.normalizeCountry(country);
+        if (!"CO".equals(normalizedCountry)) {
+            return PayrollCalculationContext.CountryPayrollProfile.empty(normalizedCountry);
+        }
+
+        var companyConfig = loadCompanyCountryConfig(companyId, normalizedCountry);
+        var employeeProfile = loadEmployeeCountryProfile(companyId, userCompanyId, normalizedCountry);
+        var novelties = loadEmployeeCountryNovelties(
+            companyId,
+            userCompanyId,
+            normalizedCountry,
+            periodStartDate,
+            periodEndDate
+        );
+        var metadata = new LinkedHashMap<String, Object>();
+        if (companyConfig != null && !companyConfig.metadata().isEmpty()) {
+            metadata.put("companyConfig", companyConfig.metadata());
+        }
+        if (employeeProfile != null && !employeeProfile.metadata().isEmpty()) {
+            metadata.put("employeeProfile", employeeProfile.metadata());
+        }
+
+        return new PayrollCalculationContext.CountryPayrollProfile(
+            normalizedCountry,
+            employeeProfile == null ? "" : employeeProfile.contributorType(),
+            employeeProfile == null ? "" : employeeProfile.contributorSubtype(),
+            employeeProfile != null && employeeProfile.integralSalary(),
+            firstPositive(employeeProfile == null ? null : employeeProfile.arlClass(), companyConfig == null ? null : companyConfig.defaultArlClass()),
+            employeeProfile == null ? "" : employeeProfile.epsCode(),
+            employeeProfile == null ? "" : employeeProfile.epsName(),
+            employeeProfile == null ? "" : employeeProfile.afpCode(),
+            employeeProfile == null ? "" : employeeProfile.afpName(),
+            firstText(employeeProfile == null ? "" : employeeProfile.compensationFundCode(), companyConfig == null ? "" : companyConfig.compensationFundCode()),
+            firstText(employeeProfile == null ? "" : employeeProfile.compensationFundName(), companyConfig == null ? "" : companyConfig.compensationFundName()),
+            firstBoolean(employeeProfile == null ? null : employeeProfile.employerHealthExemptionApplies(), companyConfig == null ? null : companyConfig.employerHealthExemptionApplies()),
+            firstBoolean(employeeProfile == null ? null : employeeProfile.senaApplies(), companyConfig == null ? null : companyConfig.senaApplies()),
+            firstBoolean(employeeProfile == null ? null : employeeProfile.icbfApplies(), companyConfig == null ? null : companyConfig.icbfApplies()),
+            firstBoolean(employeeProfile == null ? null : employeeProfile.ccfApplies(), companyConfig == null ? null : companyConfig.ccfApplies()),
+            employeeProfile == null ? "procedure_1" : employeeProfile.withholdingProcedure(),
+            employeeProfile == null ? BigDecimal.ZERO : employeeProfile.dependentsMonthlyDeduction(),
+            employeeProfile == null ? BigDecimal.ZERO : employeeProfile.prepaidMedicineMonthly(),
+            employeeProfile == null ? BigDecimal.ZERO : employeeProfile.housingInterestMonthly(),
+            employeeProfile == null ? BigDecimal.ZERO : employeeProfile.voluntaryPensionMonthly(),
+            employeeProfile == null ? BigDecimal.ZERO : employeeProfile.afcMonthly(),
+            employeeProfile == null ? BigDecimal.ZERO : employeeProfile.otherExemptIncomeMonthly(),
+            employeeProfile == null ? BigDecimal.ZERO : employeeProfile.procedure2FixedRate(),
+            novelties,
+            metadata
+        );
+    }
+
+    private PayrollCompanyCountryConfigRow loadCompanyCountryConfig(long companyId, String country) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT default_arl_class,
+                       COALESCE(compensation_fund_code, '') AS compensation_fund_code,
+                       COALESCE(compensation_fund_name, '') AS compensation_fund_name,
+                       employer_health_exemption_applies,
+                       sena_applies,
+                       icbf_applies,
+                       ccf_applies,
+                       metadata_json
+                FROM payroll_company_country_configs
+                WHERE company_id = ?
+                  AND country_code = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new PayrollCompanyCountryConfigRow(
+                scaledNullable(rs.getBigDecimal("default_arl_class")),
+                safe(rs.getString("compensation_fund_code")),
+                safe(rs.getString("compensation_fund_name")),
+                getNullableBoolean(rs, "employer_health_exemption_applies"),
+                getNullableBoolean(rs, "sena_applies"),
+                getNullableBoolean(rs, "icbf_applies"),
+                getNullableBoolean(rs, "ccf_applies"),
+                payrollSnapshotService.parseObject(rs.getString("metadata_json"))
+            ),
+            companyId,
+            country
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    private PayrollEmployeeCountryProfileRow loadEmployeeCountryProfile(
+        long companyId,
+        long userCompanyId,
+        String country
+    ) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT COALESCE(contributor_type, '') AS contributor_type,
+                       COALESCE(contributor_subtype, '') AS contributor_subtype,
+                       integral_salary,
+                       arl_class,
+                       COALESCE(eps_code, '') AS eps_code,
+                       COALESCE(eps_name, '') AS eps_name,
+                       COALESCE(afp_code, '') AS afp_code,
+                       COALESCE(afp_name, '') AS afp_name,
+                       COALESCE(compensation_fund_code, '') AS compensation_fund_code,
+                       COALESCE(compensation_fund_name, '') AS compensation_fund_name,
+                       employer_health_exemption_applies,
+                       sena_applies,
+                       icbf_applies,
+                       ccf_applies,
+                       COALESCE(withholding_procedure, 'procedure_1') AS withholding_procedure,
+                       COALESCE(dependents_monthly_deduction, 0) AS dependents_monthly_deduction,
+                       COALESCE(prepaid_medicine_monthly, 0) AS prepaid_medicine_monthly,
+                       COALESCE(housing_interest_monthly, 0) AS housing_interest_monthly,
+                       COALESCE(voluntary_pension_monthly, 0) AS voluntary_pension_monthly,
+                       COALESCE(afc_monthly, 0) AS afc_monthly,
+                       COALESCE(other_exempt_income_monthly, 0) AS other_exempt_income_monthly,
+                       COALESCE(procedure_2_fixed_rate, 0) AS procedure_2_fixed_rate,
+                       metadata_json
+                FROM payroll_employee_country_profiles
+                WHERE company_id = ?
+                  AND user_company_id = ?
+                  AND country_code = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new PayrollEmployeeCountryProfileRow(
+                safe(rs.getString("contributor_type")),
+                safe(rs.getString("contributor_subtype")),
+                rs.getBoolean("integral_salary"),
+                scaledNullable(rs.getBigDecimal("arl_class")),
+                safe(rs.getString("eps_code")),
+                safe(rs.getString("eps_name")),
+                safe(rs.getString("afp_code")),
+                safe(rs.getString("afp_name")),
+                safe(rs.getString("compensation_fund_code")),
+                safe(rs.getString("compensation_fund_name")),
+                getNullableBoolean(rs, "employer_health_exemption_applies"),
+                getNullableBoolean(rs, "sena_applies"),
+                getNullableBoolean(rs, "icbf_applies"),
+                getNullableBoolean(rs, "ccf_applies"),
+                safe(rs.getString("withholding_procedure")),
+                scaled(rs.getBigDecimal("dependents_monthly_deduction")),
+                scaled(rs.getBigDecimal("prepaid_medicine_monthly")),
+                scaled(rs.getBigDecimal("housing_interest_monthly")),
+                scaled(rs.getBigDecimal("voluntary_pension_monthly")),
+                scaled(rs.getBigDecimal("afc_monthly")),
+                scaled(rs.getBigDecimal("other_exempt_income_monthly")),
+                rateValue(rs.getBigDecimal("procedure_2_fixed_rate")),
+                payrollSnapshotService.parseObject(rs.getString("metadata_json"))
+            ),
+            companyId,
+            userCompanyId,
+            country
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    private List<PayrollCalculationContext.PayrollNovelty> loadEmployeeCountryNovelties(
+        long companyId,
+        long userCompanyId,
+        String country,
+        LocalDate periodStartDate,
+        LocalDate periodEndDate
+    ) {
+        return jdbcTemplate.query(
+            """
+                SELECT COALESCE(novelty_code, '') AS novelty_code,
+                       COALESCE(novelty_label, '') AS novelty_label,
+                       start_date,
+                       end_date,
+                       COALESCE(days, 0) AS days,
+                       COALESCE(hours, 0) AS hours,
+                       COALESCE(ibc_impact_amount, 0) AS ibc_impact_amount,
+                       paid,
+                       affects_ibc,
+                       COALESCE(source, '') AS source,
+                       metadata_json
+                FROM payroll_employee_country_novelties
+                WHERE company_id = ?
+                  AND user_company_id = ?
+                  AND country_code = ?
+                  AND COALESCE(status, 'active') = 'active'
+                  AND start_date <= ?
+                  AND (end_date IS NULL OR end_date >= ?)
+                ORDER BY start_date ASC, id ASC
+                """,
+            (rs, rowNum) -> new PayrollCalculationContext.PayrollNovelty(
+                safe(rs.getString("novelty_code")),
+                safe(rs.getString("novelty_label")),
+                rs.getDate("start_date") == null ? null : rs.getDate("start_date").toLocalDate(),
+                rs.getDate("end_date") == null ? null : rs.getDate("end_date").toLocalDate(),
+                scaled(rs.getBigDecimal("days")),
+                scaled(rs.getBigDecimal("hours")),
+                scaled(rs.getBigDecimal("ibc_impact_amount")),
+                rs.getBoolean("paid"),
+                rs.getBoolean("affects_ibc"),
+                safe(rs.getString("source")),
+                payrollSnapshotService.parseObject(rs.getString("metadata_json"))
+            ),
+            companyId,
+            userCompanyId,
+            country,
+            periodEndDate,
+            periodStartDate
+        );
+    }
+
+    private void requireHrUserInScope(AuthSessionUser currentUser, long userCompanyId) {
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var params = new ArrayList<Object>();
+        params.add(currentUser.companyId());
+        params.add(userCompanyId);
+        params.addAll(scope.hrUserParameters());
+
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM hr_users e
+                WHERE e.company_id = ?
+                  AND e.id = ?
+                """
+                + scope.hrUserPredicate("e"),
+            Long.class,
+            params.toArray()
+        );
+        if (count != null && count > 0) {
+            return;
+        }
+
+        var exists = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM hr_users WHERE company_id = ? AND id = ?",
+            Long.class,
+            currentUser.companyId(),
+            userCompanyId
+        );
+        if (exists != null && exists > 0) {
+            throw new HrAccessDeniedException("Forbidden");
+        }
+        throw new NoSuchElementException("HR user not found.");
+    }
+
+    private PayrollEmployeeCountryNoveltyRow loadColombiaNoveltyInScope(AuthSessionUser currentUser, long noveltyId) {
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var params = new ArrayList<Object>();
+        params.add(currentUser.companyId());
+        params.add(noveltyId);
+        params.addAll(scope.hrUserParameters());
+
+        var rows = jdbcTemplate.query(
+            """
+                SELECT n.id,
+                       n.company_id,
+                       n.user_company_id,
+                       n.country_code,
+                       COALESCE(e.user_code, '') AS user_code,
+                       COALESCE(e.full_name, '') AS user_name,
+                       COALESCE(n.novelty_code, '') AS novelty_code,
+                       COALESCE(n.novelty_label, '') AS novelty_label,
+                       n.start_date,
+                       n.end_date,
+                       COALESCE(n.days, 0) AS days,
+                       COALESCE(n.hours, 0) AS hours,
+                       n.paid,
+                       n.affects_ibc,
+                       COALESCE(n.ibc_impact_amount, 0) AS ibc_impact_amount,
+                       COALESCE(n.source, '') AS source,
+                       COALESCE(n.status, '') AS status,
+                       n.metadata_json,
+                       n.created_at,
+                       n.updated_at
+                FROM payroll_employee_country_novelties n
+                JOIN hr_users e
+                  ON e.company_id = n.company_id
+                 AND e.id = n.user_company_id
+                WHERE n.company_id = ?
+                  AND n.country_code = 'CO'
+                  AND n.id = ?
+                """
+                + scope.hrUserPredicate("e")
+                + """
+                LIMIT 1
+                """,
+            (rs, rowNum) -> mapColombiaNoveltyRow(rs),
+            params.toArray()
+        );
+        if (!rows.isEmpty()) {
+            return rows.getFirst();
+        }
+
+        var exists = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM payroll_employee_country_novelties WHERE company_id = ? AND country_code = 'CO' AND id = ?",
+            Long.class,
+            currentUser.companyId(),
+            noveltyId
+        );
+        if (exists != null && exists > 0) {
+            throw new HrAccessDeniedException("Forbidden");
+        }
+        throw new NoSuchElementException("Colombia payroll novelty not found.");
+    }
+
+    private void appendNoveltyStatusPredicate(StringBuilder sql, List<Object> params, String status) {
+        var normalized = safe(status).trim().toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            normalized = "active";
+        }
+        if ("all".equals(normalized) || "*".equals(normalized)) {
+            return;
+        }
+        sql.append(" AND COALESCE(n.status, 'active') = ?\n");
+        params.add(normalizeColombiaNoveltyStatus(normalized));
+    }
+
+    private Map<String, Object> toColombiaConfigMap(PayrollCompanyCountryConfigRow row) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("country_code", "CO");
+        body.put("exists", row != null);
+        body.put("default_arl_class", row == null ? null : row.defaultArlClass());
+        body.put("compensation_fund_code", row == null ? "" : row.compensationFundCode());
+        body.put("compensation_fund_name", row == null ? "" : row.compensationFundName());
+        body.put("employer_health_exemption_applies", row == null ? null : row.employerHealthExemptionApplies());
+        body.put("sena_applies", row == null ? null : row.senaApplies());
+        body.put("icbf_applies", row == null ? null : row.icbfApplies());
+        body.put("ccf_applies", row == null ? null : row.ccfApplies());
+        body.put("metadata", row == null ? Map.of() : row.metadata());
+        return body;
+    }
+
+    private Map<String, Object> toColombiaEmployeeProfileMap(long userCompanyId, PayrollEmployeeCountryProfileRow row) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("user_company_id", userCompanyId);
+        body.put("country_code", "CO");
+        body.put("exists", row != null);
+        body.put("contributor_type", row == null ? "" : row.contributorType());
+        body.put("contributor_subtype", row == null ? "" : row.contributorSubtype());
+        body.put("integral_salary", row != null && row.integralSalary());
+        body.put("arl_class", row == null ? null : row.arlClass());
+        body.put("eps_code", row == null ? "" : row.epsCode());
+        body.put("eps_name", row == null ? "" : row.epsName());
+        body.put("afp_code", row == null ? "" : row.afpCode());
+        body.put("afp_name", row == null ? "" : row.afpName());
+        body.put("compensation_fund_code", row == null ? "" : row.compensationFundCode());
+        body.put("compensation_fund_name", row == null ? "" : row.compensationFundName());
+        body.put("employer_health_exemption_applies", row == null ? null : row.employerHealthExemptionApplies());
+        body.put("sena_applies", row == null ? null : row.senaApplies());
+        body.put("icbf_applies", row == null ? null : row.icbfApplies());
+        body.put("ccf_applies", row == null ? null : row.ccfApplies());
+        body.put("withholding_procedure", row == null ? "procedure_1" : row.withholdingProcedure());
+        body.put("dependents_monthly_deduction", row == null ? BigDecimal.ZERO : row.dependentsMonthlyDeduction());
+        body.put("prepaid_medicine_monthly", row == null ? BigDecimal.ZERO : row.prepaidMedicineMonthly());
+        body.put("housing_interest_monthly", row == null ? BigDecimal.ZERO : row.housingInterestMonthly());
+        body.put("voluntary_pension_monthly", row == null ? BigDecimal.ZERO : row.voluntaryPensionMonthly());
+        body.put("afc_monthly", row == null ? BigDecimal.ZERO : row.afcMonthly());
+        body.put("other_exempt_income_monthly", row == null ? BigDecimal.ZERO : row.otherExemptIncomeMonthly());
+        body.put("procedure_2_fixed_rate", row == null ? BigDecimal.ZERO.setScale(8, RoundingMode.HALF_UP) : row.procedure2FixedRate());
+        body.put("metadata", row == null ? Map.of() : row.metadata());
+        return body;
+    }
+
+    private Map<String, Object> toColombiaNoveltyMap(PayrollEmployeeCountryNoveltyRow row) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("id", row.id());
+        body.put("company_id", row.companyId());
+        body.put("user_company_id", row.userCompanyId());
+        body.put("country_code", row.countryCode());
+        body.put("user_code", row.userCode());
+        body.put("user_name", row.userName());
+        body.put("novelty_code", row.noveltyCode());
+        body.put("novelty_label", row.noveltyLabel());
+        body.put("start_date", row.startDate().toString());
+        body.put("end_date", row.endDate() == null ? null : row.endDate().toString());
+        body.put("days", row.days());
+        body.put("hours", row.hours());
+        body.put("paid", row.paid());
+        body.put("affects_ibc", row.affectsIbc());
+        body.put("ibc_impact_amount", row.ibcImpactAmount());
+        body.put("source", row.source());
+        body.put("status", row.status());
+        body.put("metadata", row.metadata());
+        body.put("created_at", row.createdAt() == null ? null : row.createdAt().toString());
+        body.put("updated_at", row.updatedAt() == null ? null : row.updatedAt().toString());
+        return body;
     }
 
     private boolean payrollRunExists(long companyId, long runId) {
@@ -1536,7 +2891,9 @@ public class HrPayrollService {
     private List<PayrollRunLineItemRow> loadRunLineItems(long runLineId) {
         return jdbcTemplate.query(
             """
-                SELECT id, run_line_id, code, category, label, amount, source_type, display_order
+                SELECT id, run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code,
+                       tax_treatment, taxable, exempt, affects_social_security, affects_employer_cost, legal_classification,
+                       rule_code, rule_set_id, calculation_formula, calculation_base, rate_applied, currency_code, display_order
                 FROM payroll_run_line_items
                 WHERE run_line_id = ?
                 ORDER BY display_order ASC, id ASC
@@ -1549,7 +2906,9 @@ public class HrPayrollService {
     private List<PayrollRunLineItemRow> loadRunLineItemsBySource(long runLineId, String sourceType) {
         return jdbcTemplate.query(
             """
-                SELECT id, run_line_id, code, category, label, amount, source_type, display_order
+                SELECT id, run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code,
+                       tax_treatment, taxable, exempt, affects_social_security, affects_employer_cost, legal_classification,
+                       rule_code, rule_set_id, calculation_formula, calculation_base, rate_applied, currency_code, display_order
                 FROM payroll_run_line_items
                 WHERE run_line_id = ? AND source_type = ?
                 ORDER BY display_order ASC, id ASC
@@ -1649,24 +3008,25 @@ public class HrPayrollService {
         return days;
     }
 
-    private String resolvePayrollStatus(PayrollDailyRecordRow record, PayrollScheduleWindow window) {
+    private String resolvePayrollStatus(PayrollDailyRecordRow record) {
         if (record != null && !isBlank(record.correctedStatus())) {
             return record.correctedStatus();
         }
         if (record != null && !isBlank(record.systemStatus())) {
             return record.systemStatus();
         }
-        if (window == null) {
-            return null;
-        }
-        return window.isRestDay() ? "rest" : "absence";
+        return null;
     }
 
     private BigDecimal scheduledHours(PayrollScheduleWindow window) {
         if (window == null || window.isRestDay() || window.startTime() == null || window.endTime() == null) {
             return BigDecimal.ZERO;
         }
-        return BigDecimal.valueOf(Duration.between(window.startTime(), window.endTime()).toMinutes())
+        var minutes = Duration.between(window.startTime(), window.endTime()).toMinutes();
+        if (minutes <= 0) {
+            minutes += Duration.ofHours(24).toMinutes();
+        }
+        return BigDecimal.valueOf(minutes)
             .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
     }
 
@@ -1684,13 +3044,15 @@ public class HrPayrollService {
             .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
     }
 
-    private void storeLineItems(long runLineId, List<PayrollLineItemDraft> items) {
+    private void storeCalculatedLineItems(long runLineId, List<PayrollCalculatedLineItem> items) {
         for (var item : items) {
             jdbcTemplate.update(
                 """
                     INSERT INTO payroll_run_line_items
-                    (run_line_id, code, category, label, amount, source_type, display_order)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code, tax_treatment,
+                     taxable, exempt, affects_social_security, affects_employer_cost, legal_classification, rule_code, rule_set_id,
+                     calculation_formula, calculation_base, rate_applied, currency_code, display_order)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 runLineId,
                 item.code(),
@@ -1698,6 +3060,20 @@ public class HrPayrollService {
                 item.label(),
                 scaled(item.amount()),
                 item.sourceType(),
+                nullable(item.countryCode()),
+                nullable(item.jurisdictionCode()),
+                nullable(item.taxTreatment()),
+                item.taxable(),
+                item.exempt(),
+                item.affectsSocialSecurity(),
+                item.affectsEmployerCost(),
+                nullable(item.legalClassification()),
+                nullable(item.ruleCode()),
+                item.ruleSetId(),
+                nullable(item.calculationFormula()),
+                item.calculationBase(),
+                item.rateApplied(),
+                nullable(item.currencyCode()),
                 item.displayOrder()
             );
         }
@@ -1726,7 +3102,7 @@ public class HrPayrollService {
                 throw new IllegalArgumentException("manual item amount must be zero or greater.");
             }
             items.add(new ManualPayrollItemInput(
-                "earning".equals(category) ? "MANUAL_EARNING" : "MANUAL_DEDUCTION",
+                manualCodeForCategory(category),
                 category,
                 label,
                 scaled(amount)
@@ -1738,9 +3114,22 @@ public class HrPayrollService {
     private String normalizeManualCategory(String value) {
         var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "earning", "percepcion", "perception" -> "earning";
-            case "deduction", "deduccion", "deduction_manual" -> "deduction";
-            default -> throw new IllegalArgumentException("manual item category must be earning or deduction.");
+            case "earning", "percepcion", "percepción", "perception" -> "earning";
+            case "deduction", "deduccion", "deducción", "deduction_manual" -> "deduction";
+            case "employer_contribution", "provision" -> normalized;
+            default -> throw new IllegalArgumentException(
+                "manual item category must be earning, deduction, employer_contribution, or provision."
+            );
+        };
+    }
+
+    private String manualCodeForCategory(String category) {
+        return switch (category) {
+            case "earning" -> "MANUAL_EARNING";
+            case "deduction" -> "MANUAL_DEDUCTION";
+            case "employer_contribution" -> "MANUAL_EMPLOYER_CONTRIBUTION";
+            case "provision" -> "MANUAL_PROVISION";
+            default -> "MANUAL_ADJUSTMENT";
         };
     }
 
@@ -1794,6 +3183,10 @@ public class HrPayrollService {
         body.put("grouping_mode", preferences.groupingMode());
         body.put("default_daily_hours", scaled(preferences.defaultDailyHours()));
         body.put("pay_leave_days", preferences.payLeaveDays());
+        body.put("weekly_start_day", preferences.weeklyStartDay());
+        body.put("biweekly_first_day", preferences.biweeklyFirstDay());
+        body.put("biweekly_second_day", preferences.biweeklySecondDay());
+        body.put("monthly_start_day", preferences.monthlyStartDay());
         body.put("isr_rate", scaled(preferences.isrRate()));
         body.put("imss_user_rate", scaled(preferences.imssUserRate()));
         body.put("infonavit_user_rate", scaled(preferences.infonavitUserRate()));
@@ -1804,11 +3197,21 @@ public class HrPayrollService {
     }
 
     private Map<String, Object> toRunSummaryMap(PayrollRunRow run) {
+        var runCurrencySignals = loadRunCurrencySignals(run.id());
+        var nativeTotalsByCurrency = nativeTotalsByCurrency(runCurrencySignals);
+        var currencyCode = nativeTotalsByCurrency.size() == 1
+            ? nativeTotalsByCurrency.keySet().iterator().next()
+            : null;
+        var unsupportedCountryCount = unsupportedCountryLineCount(run.id());
+
         var body = new LinkedHashMap<String, Object>();
         body.put("id", run.id());
         body.put("grouping_mode", run.groupingMode());
         body.put("grouping_key", run.groupingKey());
         body.put("grouping_label", run.groupingLabel());
+        body.put("jurisdiction_label", summarizeJurisdictionLabel(runCurrencySignals));
+        body.put("currency_code", currencyCode);
+        body.put("native_totals_by_currency", scaledCurrencyTotals(nativeTotalsByCurrency));
         body.put("pay_period", run.payPeriod());
         body.put("period_start_date", run.periodStartDate().toString());
         body.put("period_end_date", run.periodEndDate().toString());
@@ -1818,8 +3221,174 @@ public class HrPayrollService {
         body.put("deductions_amount", scaled(run.deductionsAmount()));
         body.put("employer_contributions_amount", scaled(run.employerContributionsAmount()));
         body.put("net_amount", scaled(run.netAmount()));
+        body.put("statutory_compliance", unsupportedCountryCount == 0);
+        body.put("unsupported_country_count", unsupportedCountryCount);
+        body.put("calculation_warnings", unsupportedCountryCount == 0
+            ? List.of()
+            : List.of("Hay " + unsupportedCountryCount + " línea(s) con cálculo genérico por país no soportado."));
         body.put("created_at", run.createdAt() == null ? null : run.createdAt().toString());
         return body;
+    }
+
+    private int unsupportedCountryLineCount(long runId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM payroll_run_lines
+                WHERE run_id = ?
+                  AND calculation_source = 'GENERIC_UNSUPPORTED_COUNTRY'
+                """,
+            Integer.class,
+            runId
+        );
+        return count == null ? 0 : count;
+    }
+
+    private List<PayrollRunCurrencySignal> loadRunCurrencySignals(long runId) {
+        return jdbcTemplate.query(
+            """
+                SELECT COALESCE(NULLIF(l.country_code_snapshot, ''), NULLIF(hu.registration_country, ''), '') AS country,
+                       COALESCE(NULLIF(l.jurisdiction_code_snapshot, ''), NULLIF(hu.state_province, ''), '') AS province,
+                       COALESCE(SUM(l.net_amount), 0) AS net_amount
+                FROM payroll_run_lines l
+                LEFT JOIN hr_users hu
+                  ON hu.company_id = l.company_id
+                 AND hu.id = l.user_company_id
+                WHERE l.run_id = ?
+                GROUP BY COALESCE(NULLIF(l.country_code_snapshot, ''), NULLIF(hu.registration_country, ''), ''),
+                         COALESCE(NULLIF(l.jurisdiction_code_snapshot, ''), NULLIF(hu.state_province, ''), '')
+                ORDER BY country ASC, province ASC
+                """,
+            (rs, rowNum) -> new PayrollRunCurrencySignal(
+                safe(rs.getString("country")),
+                safe(rs.getString("province")),
+                scaled(rs.getBigDecimal("net_amount"))
+            ),
+            runId
+        );
+    }
+
+    private Map<String, BigDecimal> nativeTotalsByCurrency(List<PayrollRunCurrencySignal> signals) {
+        var totalsByCurrency = new LinkedHashMap<String, BigDecimal>();
+        for (var signal : signals) {
+            var currencyCode = resolveCurrencyCode(signal.country());
+            totalsByCurrency.merge(currencyCode, signal.netAmount(), BigDecimal::add);
+        }
+        return totalsByCurrency;
+    }
+
+    private Map<String, Object> scaledCurrencyTotals(Map<String, BigDecimal> nativeTotalsByCurrency) {
+        var body = new LinkedHashMap<String, Object>();
+        nativeTotalsByCurrency.forEach((currencyCode, amount) -> body.put(currencyCode, scaled(amount)));
+        return body;
+    }
+
+    private String summarizeJurisdictionLabel(List<PayrollRunCurrencySignal> signals) {
+        var labels = signals.stream()
+            .map((signal) -> resolveJurisdictionLabel(signal.country(), signal.province()))
+            .filter((label) -> !label.isBlank())
+            .distinct()
+            .toList();
+
+        if (labels.isEmpty()) {
+            return "";
+        }
+        if (labels.size() == 1) {
+            return labels.getFirst();
+        }
+        return "Multiple jurisdictions";
+    }
+
+    private String resolveCurrencyCode(String country) {
+        return switch (normalizeCountryKey(country)) {
+            case "BR", "BRAZIL", "BRASIL" -> "BRL";
+            case "CA", "CANADA" -> "CAD";
+            case "CO", "COLOMBIA" -> "COP";
+            case "MX", "MEXICO", "MÉXICO" -> "MXN";
+            case "US", "USA", "UNITEDSTATES", "UNITED STATES" -> "USD";
+            default -> "USD";
+        };
+    }
+
+    private PayrollCalculationContext.CurrencySnapshot currencySnapshot(
+        String nativeCurrency,
+        String displayCurrency,
+        BigDecimal fxRate,
+        LocalDate fxDate
+    ) {
+        var source = nativeCurrency.equals(displayCurrency) ? "DEFAULT_SAME_CURRENCY" : "DEFAULT_NO_FX_PROVIDER";
+        var warnings = nativeCurrency.equals(displayCurrency)
+            ? List.<String>of()
+            : List.of("No hay tipo de cambio real para convertir " + nativeCurrency + " a " + displayCurrency + ".");
+        return new PayrollCalculationContext.CurrencySnapshot(
+            nativeCurrency,
+            displayCurrency,
+            fxRate,
+            source,
+            fxDate,
+            true,
+            false,
+            warnings
+        );
+    }
+
+    private String resolveFiscalPayrollFrequency(String country, String payPeriod) {
+        var normalizedPeriod = normalizePayPeriodSafe(payPeriod);
+        if ("biweekly".equals(normalizedPeriod)) {
+            var normalizedCountry = payrollRuleResolver.normalizeCountry(country);
+            if ("MX".equals(normalizedCountry) || "BR".equals(normalizedCountry)) {
+                return "semimonthly";
+            }
+        }
+        return normalizedPeriod;
+    }
+
+    private String resolvePayrollJurisdictionCode(String country, String province) {
+        var normalizedCountry = payrollRuleResolver.normalizeCountry(country);
+        var normalizedProvince = safe(province).trim().toUpperCase(Locale.ROOT);
+        if ("CA".equals(normalizedCountry)) {
+            return switch (normalizedProvince.replace(".", "").replace("_", " ").replace("-", " ")) {
+                case "QUEBEC", "QUÉBEC", "PQ" -> "QC";
+                case "" -> "ON";
+                default -> normalizedProvince.length() == 2 ? normalizedProvince : "ON";
+            };
+        }
+        if ("US".equals(normalizedCountry)) {
+            return switch (normalizedProvince.replace(".", "").replace("_", " ").replace("-", " ")) {
+                case "CALIFORNIA" -> "CA";
+                case "NEW YORK", "NUEVA YORK" -> "NY";
+                case "WASHINGTON", "WASHINGTON STATE" -> "WA";
+                default -> normalizedProvince.length() == 2 ? normalizedProvince : "";
+            };
+        }
+        return normalizedCountry;
+    }
+
+    private String resolveJurisdictionLabel(String country, String province) {
+        var countryKey = normalizeCountryKey(country);
+        var cleanProvince = safe(province).trim();
+        return switch (countryKey) {
+            case "BR", "BRAZIL", "BRASIL" -> "Brazil";
+            case "CA", "CANADA" -> cleanProvince.isBlank()
+                ? "Canada"
+                : cleanProvince + ", Canada";
+            case "CO", "COLOMBIA" -> "Colombia";
+            case "MX", "MEXICO", "MÉXICO" -> "Mexico";
+            case "US", "USA", "UNITEDSTATES", "UNITED STATES" -> cleanProvince.isBlank()
+                ? "USA"
+                : cleanProvince + ", USA";
+            default -> "";
+        };
+    }
+
+    private String normalizeCountryKey(String country) {
+        return safe(country)
+            .trim()
+            .toUpperCase(Locale.ROOT)
+            .replace(".", "")
+            .replace("-", "")
+            .replace("_", "")
+            .replace(" ", "");
     }
 
     private Map<String, Object> toRunLineItemMap(PayrollRunLineItemRow item) {
@@ -1830,18 +3399,21 @@ public class HrPayrollService {
         body.put("label", item.label());
         body.put("amount", scaled(item.amount()));
         body.put("source_type", item.sourceType());
+        body.put("country_code", item.countryCode());
+        body.put("jurisdiction_code", item.jurisdictionCode());
+        body.put("tax_treatment", item.taxTreatment());
+        body.put("taxable", item.taxable());
+        body.put("exempt", item.exempt());
+        body.put("affects_social_security", item.affectsSocialSecurity());
+        body.put("affects_employer_cost", item.affectsEmployerCost());
+        body.put("legal_classification", item.legalClassification());
+        body.put("rule_code", item.ruleCode());
+        body.put("rule_set_id", item.ruleSetId());
+        body.put("calculation_formula", item.calculationFormula());
+        body.put("calculation_base", item.calculationBase());
+        body.put("rate_applied", item.rateApplied());
+        body.put("currency_code", item.currencyCode());
         return body;
-    }
-
-    private PayrollLineItemDraft toDraftItem(PayrollRunLineItemRow row) {
-        return new PayrollLineItemDraft(
-            row.code(),
-            row.category(),
-            row.label(),
-            row.amount(),
-            row.sourceType(),
-            row.displayOrder()
-        );
     }
 
     private PayrollRunRow mapRunRow(ResultSet rs) throws SQLException {
@@ -1870,6 +3442,7 @@ public class HrPayrollService {
             rs.getLong("run_id"),
             rs.getLong("company_id"),
             rs.getLong("user_company_id"),
+            rs.getLong("user_id"),
             safe(rs.getString("user_code_snapshot")),
             safe(rs.getString("user_name_snapshot")),
             safe(rs.getString("position_title_snapshot")),
@@ -1878,14 +3451,23 @@ public class HrPayrollService {
             safe(rs.getString("unit_name_snapshot")),
             getNullableLong(rs, "business_id_snapshot"),
             safe(rs.getString("business_name_snapshot")),
+            safe(rs.getString("country_code_snapshot")),
+            safe(rs.getString("jurisdiction_code_snapshot")),
+            safe(rs.getString("currency_code_snapshot")),
+            rateValue(rs.getBigDecimal("fx_rate")),
             safe(rs.getString("pay_period_snapshot")),
             safe(rs.getString("salary_type_snapshot")),
             scaled(rs.getBigDecimal("base_salary_amount")),
             nullableBigDecimal(rs.getBigDecimal("hourly_rate_amount")),
+            scaled(rs.getBigDecimal("workday_hours_snapshot")),
+            scaled(rs.getBigDecimal("workdays_per_week_snapshot")),
             scaled(rs.getBigDecimal("days_payable")),
             scaled(rs.getBigDecimal("leave_days")),
             scaled(rs.getBigDecimal("absence_days")),
             scaled(rs.getBigDecimal("rest_days")),
+            scaled(rs.getBigDecimal("missing_attendance_days")),
+            scaled(rs.getBigDecimal("paid_leave_days")),
+            scaled(rs.getBigDecimal("unpaid_absence_days")),
             rs.getInt("late_count"),
             scaled(rs.getBigDecimal("regular_hours")),
             scaled(rs.getBigDecimal("overtime_hours")),
@@ -1894,7 +3476,16 @@ public class HrPayrollService {
             scaled(rs.getBigDecimal("deductions_amount")),
             scaled(rs.getBigDecimal("employer_contributions_amount")),
             scaled(rs.getBigDecimal("net_amount")),
-            safe(rs.getString("notes"))
+            safe(rs.getString("notes")),
+            safe(rs.getString("calculation_source")),
+            toLocalDateTime(rs.getTimestamp("calculation_timestamp")),
+            payrollSnapshotService.parseObject(rs.getString("employee_salary_snapshot_json")),
+            payrollSnapshotService.parseObject(rs.getString("attendance_snapshot_json")),
+            payrollSnapshotService.parseList(rs.getString("manual_adjustments_snapshot_json")),
+            payrollSnapshotService.parseObject(rs.getString("calculation_inputs_json")),
+            payrollSnapshotService.parseObject(rs.getString("calculation_results_json")),
+            payrollSnapshotService.parseObject(rs.getString("rule_snapshot_json")),
+            payrollSnapshotService.parseList(rs.getString("attendance_warnings_json")).stream().map(String::valueOf).toList()
         );
     }
 
@@ -1907,8 +3498,66 @@ public class HrPayrollService {
             safe(rs.getString("label")),
             scaled(rs.getBigDecimal("amount")),
             safe(rs.getString("source_type")),
+            safe(rs.getString("country_code")),
+            safe(rs.getString("jurisdiction_code")),
+            safe(rs.getString("tax_treatment")),
+            rs.getBoolean("taxable"),
+            rs.getBoolean("exempt"),
+            rs.getBoolean("affects_social_security"),
+            rs.getBoolean("affects_employer_cost"),
+            safe(rs.getString("legal_classification")),
+            safe(rs.getString("rule_code")),
+            getNullableLong(rs, "rule_set_id"),
+            safe(rs.getString("calculation_formula")),
+            rs.getBigDecimal("calculation_base"),
+            rs.getBigDecimal("rate_applied"),
+            safe(rs.getString("currency_code")),
             rs.getInt("display_order")
         );
+    }
+
+    private PayrollEmployeeCountryNoveltyRow mapColombiaNoveltyRow(ResultSet rs) throws SQLException {
+        return new PayrollEmployeeCountryNoveltyRow(
+            rs.getLong("id"),
+            rs.getLong("company_id"),
+            rs.getLong("user_company_id"),
+            safe(rs.getString("country_code")),
+            safe(rs.getString("user_code")),
+            safe(rs.getString("user_name")),
+            safe(rs.getString("novelty_code")),
+            safe(rs.getString("novelty_label")),
+            rs.getObject("start_date", LocalDate.class),
+            rs.getObject("end_date", LocalDate.class),
+            scaled(rs.getBigDecimal("days")),
+            scaled(rs.getBigDecimal("hours")),
+            rs.getBoolean("paid"),
+            rs.getBoolean("affects_ibc"),
+            scaled(rs.getBigDecimal("ibc_impact_amount")),
+            safe(rs.getString("source")),
+            safe(rs.getString("status")),
+            payrollSnapshotService.parseObject(rs.getString("metadata_json")),
+            toLocalDateTime(rs.getTimestamp("created_at")),
+            toLocalDateTime(rs.getTimestamp("updated_at"))
+        );
+    }
+
+    private boolean lineStatutoryCompliance(PayrollRunLineRow line) {
+        var value = line.calculationResults().get("statutoryCompliance");
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return !"GENERIC_UNSUPPORTED_COUNTRY".equals(line.calculationSource());
+    }
+
+    private List<String> lineCalculationWarnings(PayrollRunLineRow line) {
+        var value = line.calculationResults().get("warnings");
+        if (value instanceof List<?> rawWarnings) {
+            return rawWarnings.stream().map(String::valueOf).toList();
+        }
+        if ("GENERIC_UNSUPPORTED_COUNTRY".equals(line.calculationSource())) {
+            return List.of("País no soportado por proveedor fiscal. El cálculo es una estimación operativa.");
+        }
+        return List.of();
     }
 
     private BigDecimal scaled(BigDecimal value) {
@@ -1923,16 +3572,98 @@ public class HrPayrollService {
         return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private LocalDate normalizeRunPeriodEndDate(String payPeriod, LocalDate periodStartDate) {
-        var monthEnd = periodStartDate.withDayOfMonth(periodStartDate.lengthOfMonth());
-        var configuredEndDate = switch (payPeriod) {
-            case "weekly" -> periodStartDate.plusDays(6);
-            case "biweekly" -> periodStartDate.plusDays(13);
-            case "monthly" -> monthEnd;
-            default -> monthEnd;
-        };
+    private BigDecimal rateValue(BigDecimal value) {
+        return value == null ? BigDecimal.ONE.setScale(8, RoundingMode.HALF_UP) : value.setScale(8, RoundingMode.HALF_UP);
+    }
 
-        return configuredEndDate.isAfter(monthEnd) ? monthEnd : configuredEndDate;
+    private BigDecimal firstPositive(BigDecimal primary, BigDecimal fallback) {
+        if (primary != null && primary.compareTo(BigDecimal.ZERO) > 0) {
+            return primary;
+        }
+        if (fallback != null && fallback.compareTo(BigDecimal.ZERO) > 0) {
+            return fallback;
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private String firstText(String primary, String fallback) {
+        var resolvedPrimary = safe(primary);
+        return resolvedPrimary.isBlank() ? safe(fallback) : resolvedPrimary;
+    }
+
+    private Boolean firstBoolean(Boolean primary, Boolean fallback) {
+        return primary == null ? fallback : primary;
+    }
+
+    private LocalDate normalizeRunPeriodEndDate(
+        String payPeriod,
+        LocalDate periodStartDate,
+        PayrollPreferencesRow preferences
+    ) {
+        return resolveNextPeriodStartDate(payPeriod, periodStartDate, preferences).minusDays(1);
+    }
+
+    private LocalDate resolveAutomaticPeriodStartDate(
+        String payPeriod,
+        LocalDate today,
+        PayrollPreferencesRow preferences
+    ) {
+        return switch (payPeriod) {
+            case "weekly" -> today.minusDays(Math.floorMod(today.getDayOfWeek().getValue() - preferences.weeklyStartDay(), 7));
+            case "biweekly", "semimonthly" -> resolveCurrentBiweeklyStartDate(today, preferences);
+            case "monthly" -> resolveCurrentMonthlyStartDate(today, preferences.monthlyStartDay());
+            default -> resolveCurrentMonthlyStartDate(today, preferences.monthlyStartDay());
+        };
+    }
+
+    private LocalDate resolveNextPeriodStartDate(String payPeriod, LocalDate periodStartDate, PayrollPreferencesRow preferences) {
+        return switch (payPeriod) {
+            case "weekly" -> periodStartDate.plusDays(7);
+            case "biweekly", "semimonthly" -> resolveNextBiweeklyStartDate(periodStartDate, preferences);
+            case "monthly" -> dateWithClampedDay(YearMonth.from(periodStartDate).plusMonths(1), preferences.monthlyStartDay());
+            default -> dateWithClampedDay(YearMonth.from(periodStartDate).plusMonths(1), preferences.monthlyStartDay());
+        };
+    }
+
+    private LocalDate resolveCurrentBiweeklyStartDate(LocalDate today, PayrollPreferencesRow preferences) {
+        var currentMonth = YearMonth.from(today);
+        var candidates = List.of(
+            dateWithClampedDay(currentMonth.minusMonths(1), preferences.biweeklySecondDay()),
+            dateWithClampedDay(currentMonth, preferences.biweeklyFirstDay()),
+            dateWithClampedDay(currentMonth, preferences.biweeklySecondDay())
+        );
+
+        return candidates.stream()
+            .filter((candidate) -> !candidate.isAfter(today))
+            .max(LocalDate::compareTo)
+            .orElse(dateWithClampedDay(currentMonth.minusMonths(1), preferences.biweeklySecondDay()));
+    }
+
+    private LocalDate resolveNextBiweeklyStartDate(LocalDate periodStartDate, PayrollPreferencesRow preferences) {
+        var currentMonth = YearMonth.from(periodStartDate);
+        var candidates = List.of(
+            dateWithClampedDay(currentMonth, preferences.biweeklyFirstDay()),
+            dateWithClampedDay(currentMonth, preferences.biweeklySecondDay()),
+            dateWithClampedDay(currentMonth.plusMonths(1), preferences.biweeklyFirstDay()),
+            dateWithClampedDay(currentMonth.plusMonths(1), preferences.biweeklySecondDay())
+        );
+
+        return candidates.stream()
+            .filter((candidate) -> candidate.isAfter(periodStartDate))
+            .min(LocalDate::compareTo)
+            .orElse(dateWithClampedDay(currentMonth.plusMonths(1), preferences.biweeklyFirstDay()));
+    }
+
+    private LocalDate resolveCurrentMonthlyStartDate(LocalDate today, int startDay) {
+        var currentMonthStart = dateWithClampedDay(YearMonth.from(today), startDay);
+        if (!today.isBefore(currentMonthStart)) {
+            return currentMonthStart;
+        }
+        return dateWithClampedDay(YearMonth.from(today).minusMonths(1), startDay);
+    }
+
+    private LocalDate dateWithClampedDay(YearMonth yearMonth, int dayOfMonth) {
+        return yearMonth.atDay(Math.min(Math.max(dayOfMonth, 1), yearMonth.lengthOfMonth()));
     }
 
     private BigDecimal normalizePositiveDecimal(BigDecimal value, BigDecimal fallback, String key) {
@@ -1943,12 +3674,279 @@ public class HrPayrollService {
         return scaled(resolved);
     }
 
+    private int normalizeIntegerInRange(Object value, int fallback, int min, int max, String key) {
+        int resolved;
+        if (value == null) {
+            resolved = fallback;
+        } else if (value instanceof Number number) {
+            resolved = number.intValue();
+        } else {
+            try {
+                resolved = Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException(key + " must be a valid number.");
+            }
+        }
+
+        if (resolved < min || resolved > max) {
+            throw new IllegalArgumentException(key + " must be between " + min + " and " + max + ".");
+        }
+        return resolved;
+    }
+
     private BigDecimal normalizeRate(BigDecimal value, BigDecimal fallback, String key) {
         var resolved = value == null ? fallback : value;
         if (resolved == null || resolved.compareTo(BigDecimal.ZERO) < 0 || resolved.compareTo(BigDecimal.ONE) > 0) {
             throw new IllegalArgumentException(key + " must be between 0 and 1.");
         }
         return resolved.setScale(5, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal normalizeNullableRate(BigDecimal value, BigDecimal fallback, String key) {
+        var resolved = value == null ? fallback : value;
+        if (resolved == null) {
+            resolved = BigDecimal.ZERO;
+        }
+        if (resolved.compareTo(BigDecimal.ZERO) < 0 || resolved.compareTo(BigDecimal.ONE) > 0) {
+            throw new IllegalArgumentException(key + " must be between 0 and 1.");
+        }
+        return resolved.setScale(8, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal normalizeArlClass(BigDecimal value, BigDecimal fallback, String key) {
+        var resolved = value == null ? fallback : value;
+        if (resolved == null) {
+            return null;
+        }
+        if (resolved.compareTo(BigDecimal.ONE) < 0 || resolved.compareTo(new BigDecimal("5")) > 0) {
+            throw new IllegalArgumentException(key + " must be between 1 and 5.");
+        }
+        return resolved.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal normalizeNonNegativeMoney(BigDecimal value, BigDecimal fallback, String key) {
+        var resolved = value == null ? fallback : value;
+        if (resolved == null) {
+            resolved = BigDecimal.ZERO;
+        }
+        if (resolved.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException(key + " must be zero or greater.");
+        }
+        return scaled(resolved);
+    }
+
+    private BigDecimal normalizeSignedMoney(BigDecimal value, BigDecimal fallback, String key) {
+        var resolved = value == null ? fallback : value;
+        if (resolved == null) {
+            resolved = BigDecimal.ZERO;
+        }
+        return scaled(resolved);
+    }
+
+    private BigDecimal normalizeNonNegativeQuantity(BigDecimal value, BigDecimal fallback, String key) {
+        var resolved = value == null ? fallback : value;
+        if (resolved == null) {
+            resolved = BigDecimal.ZERO;
+        }
+        if (resolved.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException(key + " must be zero or greater.");
+        }
+        return resolved.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String payloadText(Map<String, Object> payload, String fallback, String... keys) {
+        if (payloadHasAny(payload, keys)) {
+            return stringValue(payload, keys);
+        }
+        return safe(fallback).trim();
+    }
+
+    private boolean payloadBoolean(Map<String, Object> payload, boolean fallback, String... keys) {
+        if (!payloadHasAny(payload, keys)) {
+            return fallback;
+        }
+        for (var key : keys) {
+            if (payload.containsKey(key)) {
+                return parseBoolean(payload.get(key));
+            }
+        }
+        return fallback;
+    }
+
+    private Boolean payloadNullableBoolean(Map<String, Object> payload, Boolean fallback, String... keys) {
+        if (!payloadHasAny(payload, keys)) {
+            return fallback;
+        }
+        for (var key : keys) {
+            if (!payload.containsKey(key)) {
+                continue;
+            }
+            var value = payload.get(key);
+            if (value == null || (value instanceof String string && string.isBlank())) {
+                return null;
+            }
+            return parseBoolean(value);
+        }
+        return fallback;
+    }
+
+    private Map<String, Object> payloadObject(Map<String, Object> payload, Map<String, Object> fallback, String... keys) {
+        if (payload == null) {
+            return fallback == null ? Map.of() : new LinkedHashMap<>(fallback);
+        }
+        for (var key : keys) {
+            if (!payload.containsKey(key)) {
+                continue;
+            }
+            var value = payload.get(key);
+            if (value == null) {
+                return Map.of();
+            }
+            if (!(value instanceof Map<?, ?> rawMap)) {
+                throw new IllegalArgumentException(key + " must be an object.");
+            }
+            var result = new LinkedHashMap<String, Object>();
+            rawMap.forEach((rawKey, rawValue) -> result.put(String.valueOf(rawKey), rawValue));
+            return result;
+        }
+        return fallback == null ? Map.of() : new LinkedHashMap<>(fallback);
+    }
+
+    private boolean payloadHasAny(Map<String, Object> payload, String... keys) {
+        if (payload == null) {
+            return false;
+        }
+        for (var key : keys) {
+            if (payload.containsKey(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String normalizeColombiaWithholdingProcedure(String value) {
+        var normalized = safe(value).trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "", "procedure_1", "procedimiento_1", "procedimiento1", "1" -> "procedure_1";
+            case "procedure_2", "procedimiento_2", "procedimiento2", "2" -> "procedure_2";
+            default -> throw new IllegalArgumentException("withholding_procedure must be procedure_1 or procedure_2.");
+        };
+    }
+
+    private String normalizeColombiaNoveltyCode(String value) {
+        var normalized = safe(value)
+            .trim()
+            .toUpperCase(Locale.ROOT)
+            .replace("-", "_")
+            .replace(" ", "_");
+        return switch (normalized) {
+            case "ING", "RET", "VSP", "VST", "SLN", "IGE", "LMA", "LPA", "VAC", "SUS", "AUS",
+                "TER", "TERMINATION", "LIQ", "LIQUIDACION", "LIQUIDACIÓN",
+                "RETRO", "RETROACTIVO", "AJR",
+                "CORR", "CORRECCION", "CORRECCIÓN", "AJUSTE", "ADJ" -> normalized;
+            default -> throw new IllegalArgumentException("novelty_code is not supported for Colombia payroll.");
+        };
+    }
+
+    private String defaultColombiaNoveltyLabel(String code) {
+        return switch (normalizeColombiaNoveltyCode(code)) {
+            case "ING" -> "Ingreso";
+            case "RET" -> "Retiro";
+            case "VSP" -> "Variacion permanente de salario";
+            case "VST" -> "Variacion transitoria de salario";
+            case "SLN" -> "Suspension temporal";
+            case "IGE" -> "Incapacidad general";
+            case "LMA" -> "Licencia de maternidad o paternidad";
+            case "LPA" -> "Licencia remunerada";
+            case "VAC" -> "Vacaciones";
+            case "SUS" -> "Suspension";
+            case "AUS" -> "Ausencia";
+            case "TER", "TERMINATION" -> "Terminacion";
+            case "LIQ", "LIQUIDACION", "LIQUIDACIÓN" -> "Liquidacion";
+            case "RETRO", "RETROACTIVO", "AJR" -> "Retroactivo";
+            case "CORR", "CORRECCION", "CORRECCIÓN", "AJUSTE", "ADJ" -> "Correccion";
+            default -> code;
+        };
+    }
+
+    private String normalizeColombiaNoveltySource(String value) {
+        var normalized = safe(value).trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        if (normalized.isBlank()) {
+            return "manual";
+        }
+        return switch (normalized) {
+            case "manual", "attendance", "control", "payroll", "termination", "import", "api" -> normalized;
+            default -> throw new IllegalArgumentException("source is not supported for Colombia payroll novelty.");
+        };
+    }
+
+    private String normalizeColombiaNoveltyStatus(String value) {
+        var normalized = safe(value).trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "", "active", "activa", "activo" -> "active";
+            case "inactive", "inactiva", "inactivo", "closed", "cerrada", "cerrado" -> "inactive";
+            case "cancelled", "canceled", "cancelada", "cancelado" -> "cancelled";
+            case "applied", "aplicada", "aplicado", "processed", "procesada", "procesado" -> "applied";
+            default -> throw new IllegalArgumentException("status is not supported for Colombia payroll novelty.");
+        };
+    }
+
+    private void validateDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("end_date must be on or after start_date.");
+        }
+    }
+
+    private String normalizeGovernmentReportType(String reportType) {
+        var normalized = safe(reportType).trim().toUpperCase(Locale.ROOT).replace("-", "_").replace(" ", "_");
+        return switch (normalized) {
+            case "" -> "";
+            case "PILA" -> "PILA";
+            case "DIAN", "DIAN_PAYROLL", "NOMINA_ELECTRONICA", "NÓMINA_ELECTRÓNICA" -> "DIAN_PAYROLL";
+            default -> throw new IllegalArgumentException("report_type must be PILA or DIAN_PAYROLL.");
+        };
+    }
+
+    private String normalizeGovernmentResponseStatus(String value) {
+        var normalized = safe(value).trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "", "not_transmitted", "draft", "draft_ready" -> "draft_ready";
+            case "draft_blocked", "blocked", "bloqueada", "bloqueado" -> "draft_blocked";
+            case "transmitted", "sent", "enviada", "enviado" -> "transmitted";
+            case "accepted", "accepted_by_government", "aceptada", "aceptado" -> "accepted";
+            case "rejected", "rechazada", "rechazado" -> "rejected";
+            case "correction_required", "requires_correction", "correccion_requerida", "corrección_requerida" -> "correction_required";
+            default -> throw new IllegalArgumentException("government reporting response status is not supported.");
+        };
+    }
+
+    private boolean governmentResponseBlocksApproval(String status) {
+        var normalized = safe(status).trim().toLowerCase(Locale.ROOT);
+        return "draft_blocked".equals(normalized)
+            || "rejected".equals(normalized)
+            || "correction_required".equals(normalized);
+    }
+
+    private List<Map<String, Object>> normalizeGovernmentResponseIssues(Object rawIssues) {
+        if (!(rawIssues instanceof List<?> issues)) {
+            return List.of();
+        }
+        var result = new ArrayList<Map<String, Object>>();
+        for (var rawIssue : issues) {
+            if (!(rawIssue instanceof Map<?, ?> rawMap)) {
+                continue;
+            }
+            var issue = new LinkedHashMap<String, Object>();
+            rawMap.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    issue.put(String.valueOf(key), value);
+                }
+            });
+            if (!issue.isEmpty()) {
+                result.add(issue);
+            }
+        }
+        return result;
     }
 
     private String normalizeGroupingMode(String value, String fallback) {
@@ -1965,10 +3963,19 @@ public class HrPayrollService {
         var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
             case "weekly", "semanal" -> "weekly";
-            case "biweekly", "quincenal" -> "biweekly";
+            case "biweekly" -> "biweekly";
+            case "semimonthly", "semi-monthly", "quincenal" -> "semimonthly";
             case "monthly", "mensual" -> "monthly";
-            default -> throw new IllegalArgumentException("pay_period must be weekly, biweekly, or monthly.");
+            default -> throw new IllegalArgumentException("pay_period must be weekly, biweekly, semimonthly, or monthly.");
         };
+    }
+
+    private String normalizePayPeriodSafe(String value) {
+        try {
+            return normalizePayPeriod(value);
+        } catch (IllegalArgumentException exception) {
+            return "weekly";
+        }
     }
 
     private String normalizeNullableAttendanceStatus(String value) {
@@ -2006,19 +4013,6 @@ public class HrPayrollService {
             .setScale(2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal sumAmounts(List<PayrollLineItemDraft> items, String category) {
-        return items.stream()
-            .filter((item) -> category.equals(item.category()))
-            .map(PayrollLineItemDraft::amount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private BigDecimal sumAmounts(List<PayrollLineItemDraft> items) {
-        return items.stream()
-            .map(PayrollLineItemDraft::amount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
     private LocalDate parseOptionalDate(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -2054,6 +4048,11 @@ public class HrPayrollService {
         return rs.wasNull() ? null : value;
     }
 
+    private Boolean getNullableBoolean(ResultSet rs, String column) throws SQLException {
+        var value = rs.getBoolean(column);
+        return rs.wasNull() ? null : value;
+    }
+
     private boolean parseBoolean(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -2077,12 +4076,114 @@ public class HrPayrollService {
         String groupingMode,
         BigDecimal defaultDailyHours,
         boolean payLeaveDays,
+        int weeklyStartDay,
+        int biweeklyFirstDay,
+        int biweeklySecondDay,
+        int monthlyStartDay,
         BigDecimal isrRate,
         BigDecimal imssUserRate,
         BigDecimal infonavitUserRate,
         BigDecimal imssEmployerRate,
         BigDecimal infonavitEmployerRate,
         BigDecimal sarEmployerRate
+    ) {
+    }
+
+    private record PayrollJurisdictionRow(
+        String country,
+        String province
+    ) {
+    }
+
+    private record PayrollCompanyCountryConfigRow(
+        BigDecimal defaultArlClass,
+        String compensationFundCode,
+        String compensationFundName,
+        Boolean employerHealthExemptionApplies,
+        Boolean senaApplies,
+        Boolean icbfApplies,
+        Boolean ccfApplies,
+        Map<String, Object> metadata
+    ) {
+    }
+
+    private record PayrollEmployeeCountryProfileRow(
+        String contributorType,
+        String contributorSubtype,
+        boolean integralSalary,
+        BigDecimal arlClass,
+        String epsCode,
+        String epsName,
+        String afpCode,
+        String afpName,
+        String compensationFundCode,
+        String compensationFundName,
+        Boolean employerHealthExemptionApplies,
+        Boolean senaApplies,
+        Boolean icbfApplies,
+        Boolean ccfApplies,
+        String withholdingProcedure,
+        BigDecimal dependentsMonthlyDeduction,
+        BigDecimal prepaidMedicineMonthly,
+        BigDecimal housingInterestMonthly,
+        BigDecimal voluntaryPensionMonthly,
+        BigDecimal afcMonthly,
+        BigDecimal otherExemptIncomeMonthly,
+        BigDecimal procedure2FixedRate,
+        Map<String, Object> metadata
+    ) {
+    }
+
+    private record PayrollEmployeeCountryNoveltyRow(
+        long id,
+        long companyId,
+        long userCompanyId,
+        String countryCode,
+        String userCode,
+        String userName,
+        String noveltyCode,
+        String noveltyLabel,
+        LocalDate startDate,
+        LocalDate endDate,
+        BigDecimal days,
+        BigDecimal hours,
+        boolean paid,
+        boolean affectsIbc,
+        BigDecimal ibcImpactAmount,
+        String source,
+        String status,
+        Map<String, Object> metadata,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    private record PayrollGovernmentReportingValidationRow(
+        long runLineId,
+        String status,
+        String reportType,
+        Map<String, Object> validation
+    ) {
+    }
+
+    private record PayrollGovernmentReportingSnapshotRow(
+        long id,
+        long runId,
+        long runLineId,
+        long companyId,
+        long userCompanyId,
+        String countryCode,
+        String reportType,
+        LocalDate reportPeriodStart,
+        LocalDate reportPeriodEnd,
+        String status,
+        String payloadHash,
+        Map<String, Object> payload,
+        Map<String, Object> validation,
+        Map<String, Object> response,
+        String generatedBySource,
+        LocalDateTime generatedAt,
+        LocalDateTime updatedAt
     ) {
     }
 
@@ -2105,11 +4206,19 @@ public class HrPayrollService {
     ) {
     }
 
+    private record PayrollRunCurrencySignal(
+        String country,
+        String province,
+        BigDecimal netAmount
+    ) {
+    }
+
     private record PayrollRunLineRow(
         long id,
         long runId,
         long companyId,
         long userCompanyId,
+        long userIdSnapshot,
         String userCodeSnapshot,
         String userNameSnapshot,
         String positionTitleSnapshot,
@@ -2118,14 +4227,23 @@ public class HrPayrollService {
         String unitNameSnapshot,
         Long businessIdSnapshot,
         String businessNameSnapshot,
+        String countryCodeSnapshot,
+        String jurisdictionCodeSnapshot,
+        String currencyCodeSnapshot,
+        BigDecimal fxRate,
         String payPeriodSnapshot,
         String salaryTypeSnapshot,
         BigDecimal baseSalaryAmount,
         BigDecimal hourlyRateAmount,
+        BigDecimal workdayHoursSnapshot,
+        BigDecimal workdaysPerWeekSnapshot,
         BigDecimal daysPayable,
         BigDecimal leaveDays,
         BigDecimal absenceDays,
         BigDecimal restDays,
+        BigDecimal missingAttendanceDays,
+        BigDecimal paidLeaveDays,
+        BigDecimal unpaidAbsenceDays,
         int lateCount,
         BigDecimal regularHours,
         BigDecimal overtimeHours,
@@ -2134,7 +4252,16 @@ public class HrPayrollService {
         BigDecimal deductionsAmount,
         BigDecimal employerContributionsAmount,
         BigDecimal netAmount,
-        String notes
+        String notes,
+        String calculationSource,
+        LocalDateTime calculationTimestamp,
+        Map<String, Object> employeeSalarySnapshot,
+        Map<String, Object> attendanceSnapshot,
+        List<Object> manualAdjustmentsSnapshot,
+        Map<String, Object> calculationInputs,
+        Map<String, Object> calculationResults,
+        Map<String, Object> ruleSnapshot,
+        List<String> attendanceWarnings
     ) {
     }
 
@@ -2146,7 +4273,27 @@ public class HrPayrollService {
         String label,
         BigDecimal amount,
         String sourceType,
+        String countryCode,
+        String jurisdictionCode,
+        String taxTreatment,
+        boolean taxable,
+        boolean exempt,
+        boolean affectsSocialSecurity,
+        boolean affectsEmployerCost,
+        String legalClassification,
+        String ruleCode,
+        Long ruleSetId,
+        String calculationFormula,
+        BigDecimal calculationBase,
+        BigDecimal rateApplied,
+        String currencyCode,
         int displayOrder
+    ) {
+    }
+
+    private record EngineLineComputation(
+        PayrollCalculationContext context,
+        PayrollLineCalculationResult result
     ) {
     }
 
@@ -2165,7 +4312,11 @@ public class HrPayrollService {
         BigDecimal salary,
         BigDecimal hourlyRate,
         String salaryType,
-        String payPeriod
+        String payPeriod,
+        BigDecimal workdayHours,
+        BigDecimal workdaysPerWeek,
+        String registrationCountry,
+        String stateProvince
     ) {
     }
 
@@ -2197,16 +4348,6 @@ public class HrPayrollService {
     ) {
     }
 
-    private record PayrollLineItemDraft(
-        String code,
-        String category,
-        String label,
-        BigDecimal amount,
-        String sourceType,
-        int displayOrder
-    ) {
-    }
-
     private record ManualPayrollItemInput(
         String code,
         String category,
@@ -2215,21 +4356,4 @@ public class HrPayrollService {
     ) {
     }
 
-    private record LineComputation(
-        BigDecimal baseSalaryAmount,
-        BigDecimal hourlyRateAmount,
-        BigDecimal daysPayable,
-        BigDecimal leaveDays,
-        BigDecimal absenceDays,
-        BigDecimal restDays,
-        int lateCount,
-        BigDecimal regularHours,
-        BigDecimal overtimeHours,
-        BigDecimal grossAmount,
-        BigDecimal deductionsAmount,
-        BigDecimal employerContributionsAmount,
-        BigDecimal netAmount,
-        List<PayrollLineItemDraft> items
-    ) {
-    }
 }

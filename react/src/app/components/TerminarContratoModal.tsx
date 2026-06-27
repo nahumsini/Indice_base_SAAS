@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { AlertTriangle, UserRound, X } from 'lucide-react';
 import { useLanguage } from '../shared/context';
 import { Button } from './ui/button';
 
@@ -451,6 +451,14 @@ const emptyFormState: ContractTerminationFormData = {
   lastWorkingDay: '',
 };
 
+const labelClassName = 'mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200';
+const controlClassName =
+  'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#59C3A5] focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500';
+const footerOutlineButtonClassName =
+  'h-10 rounded-xl border-white/30 bg-white/10 px-5 text-white shadow-none hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50 dark:border-white/25 dark:bg-white/10 dark:text-white dark:hover:bg-white/20';
+const footerDangerButtonClassName =
+  'h-10 rounded-xl bg-white px-5 text-[#B42318] shadow-sm hover:bg-red-50 hover:text-[#B42318] focus-visible:ring-white/40 disabled:bg-white/25 disabled:text-white/60 dark:bg-white dark:text-[#B42318] dark:hover:bg-red-50';
+
 export function TerminarContratoModal({
   isOpen,
   onClose,
@@ -505,48 +513,59 @@ export function TerminarContratoModal({
     : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800">
-        <div className="flex items-center justify-between bg-[#143675] px-6 py-5 dark:bg-[#0f2855]">
-          <h2 className="text-xl font-semibold text-white">{modalCopy.title}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <div className="flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+              <UserRound className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#59C3A5] shadow-sm">
+                {modalCopy.employeeLabel}
+              </div>
+              <h2 className="text-xl font-semibold text-white">{modalCopy.title}</h2>
+            </div>
+          </div>
           <button
+            type="button"
             onClick={handleCancel}
-            className="text-white/80 transition-colors hover:text-white"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
             aria-label={modalCopy.cancelLabel}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
           <div className="space-y-5">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className={labelClassName}>
                 {modalCopy.employeeLabel}
               </label>
-              <div className="rounded-md bg-gray-100 px-3 py-2.5 font-medium text-gray-900 dark:bg-gray-700 dark:text-white">
+              <div className="rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-2.5 font-semibold text-slate-950 dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/20 dark:text-white">
                 {employeeName}
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className={labelClassName}>
                   {modalCopy.exitDateLabel}
                 </label>
                 <input
                   type="date"
                   value={formData.exitDate}
                   onChange={(event) => handleInputChange('exitDate', event.target.value)}
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className={controlClassName}
                 />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className={labelClassName}>
                   {modalCopy.lastWorkingDayLabel}
                 </label>
-                <div className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
                   {formData.lastWorkingDay || modalCopy.lastWorkingDayPlaceholder}
                 </div>
               </div>
@@ -554,7 +573,7 @@ export function TerminarContratoModal({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className={labelClassName}>
                   {modalCopy.reasonTypeLabel}
                 </label>
                 <select
@@ -562,7 +581,7 @@ export function TerminarContratoModal({
                   onChange={(event) =>
                     handleInputChange('reasonType', event.target.value as TerminationReasonType)
                   }
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className={controlClassName}
                 >
                   <option value="">{modalCopy.reasonTypePlaceholder}</option>
                   {modalCopy.reasonOptions.map((reasonOption) => (
@@ -574,14 +593,14 @@ export function TerminarContratoModal({
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className={labelClassName}>
                   {modalCopy.specificReasonLabel}
                 </label>
                 <select
                   value={formData.specificReason}
                   onChange={(event) => handleInputChange('specificReason', event.target.value)}
                   disabled={!formData.reasonType}
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800"
+                  className={`${controlClassName} disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500`}
                 >
                   <option value="">{modalCopy.specificReasonPlaceholder}</option>
                   {specificReasonOptions.map((reasonOption) => (
@@ -594,10 +613,10 @@ export function TerminarContratoModal({
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className={labelClassName}>
                 {modalCopy.summaryLabel}
               </label>
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                 {modalCopy.summaryHelp}
               </p>
               <textarea
@@ -606,21 +625,23 @@ export function TerminarContratoModal({
                 placeholder={modalCopy.summaryPlaceholder}
                 rows={4}
                 maxLength={500}
-                className="w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500"
+                className="min-h-28 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#59C3A5] focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
-              <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-right text-xs font-medium text-slate-500 dark:text-slate-400">
                 {formData.summary.length} / 500 {modalCopy.characterCounterLabel}
               </p>
             </div>
 
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+            <div className="rounded-2xl border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-4 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15">
               <div className="flex items-start gap-3">
-                <span className="text-lg text-red-600 dark:text-red-400">⚠️</span>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FF6B5E] text-white">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
                 <div className="flex-1">
-                  <p className="mb-1 text-sm font-medium text-red-900 dark:text-red-200">
+                  <p className="mb-1 text-sm font-semibold text-[#B42318] dark:text-red-100">
                     {modalCopy.warningTitle}
                   </p>
-                  <p className="text-xs text-red-700 dark:text-red-300">
+                  <p className="text-xs font-medium leading-5 text-[#B42318] dark:text-red-100/85">
                     {modalCopy.warningDescription}
                   </p>
                 </div>
@@ -629,18 +650,20 @@ export function TerminarContratoModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/50">
-          <Button variant="outline" onClick={handleCancel} className="text-sm">
+        <div className="flex flex-col gap-3 bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5] sm:flex-row sm:items-center sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancel}
+            className={footerOutlineButtonClassName}
+          >
             {modalCopy.cancelLabel}
           </Button>
           <Button
+            type="button"
             onClick={handleSubmit}
             disabled={!isFormValid}
-            className={`text-sm ${
-              isFormValid
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-gray-600 dark:text-gray-400'
-            }`}
+            className={footerDangerButtonClassName}
           >
             {modalCopy.confirmLabel}
           </Button>

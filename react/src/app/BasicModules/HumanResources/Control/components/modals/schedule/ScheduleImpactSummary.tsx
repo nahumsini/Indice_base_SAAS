@@ -37,7 +37,7 @@ export function ScheduleImpactSummary({
   }
 
   return (
-    <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
+    <section className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
       <div className="flex items-start gap-3">
         <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-[#8FE0CA]" />
         <div>

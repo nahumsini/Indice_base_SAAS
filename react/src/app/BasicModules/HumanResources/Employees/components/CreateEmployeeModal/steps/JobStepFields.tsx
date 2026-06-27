@@ -60,6 +60,9 @@ export function JobStepFields({
   const fixedSalaryLabel = selectedPayPeriodLabel
     ? `${copy.labels.salary} (${selectedPayPeriodLabel})`
     : copy.labels.salary;
+  const compensationHelperText = formData.salaryType === 'hourly'
+    ? copy.helpers.hourlySalaryMeaning
+    : copy.helpers.salaryPeriodMeaning;
 
   return (
     <JobStep
@@ -177,6 +180,19 @@ export function JobStepFields({
             type="number"
             required
             error={touchedFields.workdayHours ? validationErrors.workdayHours : undefined}
+            helperText={compensationHelperText}
+          />
+        ),
+        workdaysPerWeek: (
+          <TextField
+            name="workdaysPerWeek"
+            label={copy.labels.workdaysPerWeek}
+            value={formData.workdaysPerWeek}
+            onChange={(value) => onFieldChange('workdaysPerWeek', value)}
+            placeholder={copy.placeholders.workdaysPerWeek}
+            type="number"
+            required
+            error={touchedFields.workdaysPerWeek ? validationErrors.workdaysPerWeek : undefined}
           />
         ),
         compensationAmount: formData.salaryType === 'daily' ? (

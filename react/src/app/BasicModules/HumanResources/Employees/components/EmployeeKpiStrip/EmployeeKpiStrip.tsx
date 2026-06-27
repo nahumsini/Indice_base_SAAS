@@ -1,25 +1,36 @@
 import {
+  AlertTriangle,
+  CalendarClock,
+  Coins,
   Eye,
+  FileText,
+  Info,
   UserCheck,
-  UserMinus,
   Users,
   Wallet,
 } from 'lucide-react';
 import { Skeleton } from '../../../../../components/ui/skeleton';
-import { EmployeeInsightStrip } from './EmployeeInsightStrip';
-import { EmployeeKpiMetric } from './EmployeeKpiMetric';
-import { EmployeeStatusBar } from './EmployeeStatusBar';
+import { OperationalKpiArea, type OperationalAlertChip } from '../../../../shared/operational';
 
 interface EmployeeKpiStripLabels {
   active: string;
   activeRate: string;
+  documentsPending: string;
+  documentsPendingAlert: (count: number) => string;
   inactive: string;
+  noSchedule: string;
+  noScheduleAlert: (count: number) => string;
   payroll: string;
+  payrollMultiCurrencyAlert: (count: number) => string;
+  payrollNative: string;
   statusReview: (count: number) => string;
   summaryInsight: (params: {
     activeCount: number;
     activeRate: string;
+    missingDocumentsCount: number;
+    noScheduleCount: number;
     payroll: string;
+    statusReviewCount: number;
     totalCount: number;
     visibleCount: number;
   }) => string;
@@ -33,7 +44,11 @@ interface EmployeeKpiStripProps {
   inactiveCount: number;
   isLoading: boolean;
   labels: EmployeeKpiStripLabels;
+  missingDocumentsCount: number;
   monthlyPayroll: string;
+  nativePayroll: string;
+  noScheduleCount: number;
+  payrollCurrencyCount: number;
   terminatedCount: number;
   totalCount: number;
   visibleCount: number;
@@ -44,13 +59,63 @@ export function EmployeeKpiStrip({
   inactiveCount,
   isLoading,
   labels,
+  missingDocumentsCount,
   monthlyPayroll,
+  nativePayroll,
+  noScheduleCount,
+  payrollCurrencyCount,
   terminatedCount,
   totalCount,
   visibleCount,
 }: EmployeeKpiStripProps) {
   const inactiveAndTerminatedCount = inactiveCount + terminatedCount;
   const activeRate = totalCount > 0 ? `${Math.round((activeCount / totalCount) * 100)}%` : '0%';
+  const alertChips: OperationalAlertChip[] = [];
+
+  if (noScheduleCount > 0) {
+    alertChips.push({
+        id: 'no-schedule',
+        icon: <CalendarClock className="h-3.5 w-3.5" />,
+        label: labels.noScheduleAlert(noScheduleCount),
+        tone: 'warning',
+    });
+  }
+
+  if (missingDocumentsCount > 0) {
+    alertChips.push({
+        id: 'documents',
+        icon: <FileText className="h-3.5 w-3.5" />,
+        label: labels.documentsPendingAlert(missingDocumentsCount),
+        tone: 'info',
+    });
+  }
+
+  if (inactiveAndTerminatedCount > 0) {
+    alertChips.push({
+        id: 'status',
+        icon: <AlertTriangle className="h-3.5 w-3.5" />,
+        label: labels.statusReview(inactiveAndTerminatedCount),
+        tone: 'brand',
+    });
+  }
+
+  if (payrollCurrencyCount > 1) {
+    alertChips.push({
+        id: 'payroll-currencies',
+        icon: <Coins className="h-3.5 w-3.5" />,
+        label: labels.payrollMultiCurrencyAlert(payrollCurrencyCount),
+        tone: 'info',
+    });
+  }
+
+  if (nativePayroll) {
+    alertChips.push({
+        id: 'payroll-native',
+        icon: <Wallet className="h-3.5 w-3.5" />,
+        label: `${labels.payrollNative}: ${nativePayroll}`,
+        tone: 'neutral',
+    });
+  }
 
   if (isLoading) {
     return (
@@ -67,76 +132,84 @@ export function EmployeeKpiStrip({
   }
 
   return (
-    <div className="mb-6 space-y-4">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <EmployeeKpiMetric
-            icon={<Users className="h-4 w-4" />}
-            label={labels.total}
-            value={totalCount}
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <EmployeeKpiMetric
-            icon={<UserCheck className="h-4 w-4" />}
-            label={labels.active}
-            value={activeCount}
-            valueClassName="text-emerald-600 dark:text-emerald-400"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <EmployeeKpiMetric
-            icon={<UserMinus className="h-4 w-4" />}
-            label={labels.inactive}
-            value={inactiveAndTerminatedCount}
-            valueClassName="text-amber-600 dark:text-amber-400"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <EmployeeKpiMetric
-            icon={<Eye className="h-4 w-4" />}
-            label={labels.visible}
-            value={visibleCount}
-            valueClassName="text-[#59C3A5] dark:text-blue-300"
-          />
-          <EmployeeKpiMetric
-            icon={<Wallet className="h-4 w-4" />}
-            label={labels.payroll}
-            value={monthlyPayroll}
-            valueClassName="text-[#59C3A5] dark:text-blue-300"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {inactiveAndTerminatedCount > 0 ? (
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-              {labels.statusReview(inactiveAndTerminatedCount)}
-            </span>
-          ) : null}
-          <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
-            {activeRate} {labels.activeRate}
-          </span>
-        </div>
-      </div>
-
-      <EmployeeStatusBar
-        activeCount={activeCount}
-        inactiveCount={inactiveCount}
-        terminatedCount={terminatedCount}
-        labels={{
-          active: labels.active,
-          inactive: labels.inactive,
-          terminated: labels.terminated,
-        }}
-      />
-
-      <EmployeeInsightStrip
-        message={labels.summaryInsight({
-          activeCount,
-          activeRate,
-          payroll: monthlyPayroll,
-          totalCount,
-          visibleCount,
-        })}
-      />
-    </div>
+    <OperationalKpiArea
+      alertChips={alertChips}
+      className="mb-6"
+      distributionSegments={[
+        {
+          id: 'active',
+          label: labels.active,
+          count: activeCount,
+          className: 'bg-emerald-500',
+        },
+        {
+          id: 'inactive',
+          label: labels.inactive,
+          count: inactiveCount,
+          className: 'bg-amber-500',
+        },
+        {
+          id: 'terminated',
+          label: labels.terminated,
+          count: terminatedCount,
+          className: 'bg-rose-500',
+        },
+      ]}
+      insight={labels.summaryInsight({
+        activeCount,
+        activeRate,
+        missingDocumentsCount,
+        noScheduleCount,
+        payroll: monthlyPayroll,
+        statusReviewCount: inactiveAndTerminatedCount,
+        totalCount,
+        visibleCount,
+      })}
+      insightIcon={<Info className="h-4 w-4" />}
+      metrics={[
+        {
+          id: 'total',
+          icon: <Users className="h-4 w-4" />,
+          label: labels.total,
+          value: totalCount,
+        },
+        {
+          id: 'active',
+          icon: <UserCheck className="h-4 w-4" />,
+          label: labels.active,
+          value: activeCount,
+          valueClassName: 'text-emerald-600 dark:text-emerald-400',
+        },
+        {
+          id: 'visible',
+          icon: <Eye className="h-4 w-4" />,
+          label: labels.visible,
+          value: visibleCount,
+          valueClassName: 'text-[#59C3A5] dark:text-blue-300',
+        },
+        {
+          id: 'no-schedule',
+          icon: <CalendarClock className="h-4 w-4" />,
+          label: labels.noSchedule,
+          value: noScheduleCount,
+          valueClassName: noScheduleCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-950 dark:text-white',
+        },
+        {
+          id: 'documents',
+          icon: <FileText className="h-4 w-4" />,
+          label: labels.documentsPending,
+          value: missingDocumentsCount,
+          valueClassName: missingDocumentsCount > 0 ? 'text-blue-600 dark:text-blue-300' : 'text-slate-950 dark:text-white',
+        },
+        {
+          id: 'payroll',
+          icon: <Wallet className="h-4 w-4" />,
+          label: labels.payroll,
+          value: monthlyPayroll,
+          valueClassName: 'text-[#59C3A5] dark:text-blue-300',
+        },
+      ]}
+    />
   );
 }
 

@@ -120,12 +120,12 @@ function PrivateAppRoute() {
 }
 
 const redirectToLanding = async () => {
-  const session = await authApi.getSessionOrNull();
+  const session = await getRouteSessionOrNull();
   return redirect(session ? '/dashboard' : '/login');
 };
 
 const redirectIfAuthenticated = async () => {
-  const session = await authApi.getSessionOrNull();
+  const session = await getRouteSessionOrNull();
 
   if (session) {
     return redirect('/dashboard');
@@ -135,7 +135,7 @@ const redirectIfAuthenticated = async () => {
 };
 
 const requireAuthenticatedSession = async () => {
-  const session = await authApi.getSessionOrNull();
+  const session = await getRouteSessionOrNull();
 
   if (!session) {
     return redirect('/login');
@@ -143,6 +143,8 @@ const requireAuthenticatedSession = async () => {
 
   return null;
 };
+
+const getRouteSessionOrNull = () => authApi.getSessionOrNull().catch(() => null);
 
 export const router = createBrowserRouter([
   {

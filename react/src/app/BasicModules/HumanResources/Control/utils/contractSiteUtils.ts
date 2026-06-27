@@ -7,6 +7,11 @@ import type { ContractSiteCopy, DraftLocation } from '../types/contractSiteTypes
 
 export const getBusinessUnitId = (business: BackendBusiness) => business.unitId ?? business.unit_id ?? null;
 
+const padDatePart = (value: number) => `${value}`.padStart(2, '0');
+
+const localDateString = (date: Date) =>
+  `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+
 export const timeToInput = (value?: string | null) => (value ?? '').slice(0, 5);
 
 const timeToMinutes = (value?: string | null) => {
@@ -27,7 +32,7 @@ export const calculateDailyHours = (startTime?: string | null, endTime?: string 
 };
 
 export const toBackendTime = (value: string) => `${timeToInput(value)}:00`;
-export const todayInputValue = () => new Date().toISOString().slice(0, 10);
+export const todayInputValue = () => localDateString(new Date());
 
 export const contractDaysBetween = (startDate?: string | null, endDate?: string | null) => {
   if (!startDate || !endDate) {

@@ -32,7 +32,7 @@ export function EmployeeHeaderCard({
   const primaryStatus = getPrimaryStatus(selectedEmployee, copy);
 
   return (
-    <div className="rounded-2xl border border-[#59C3A5]/10 bg-[#fbfdff] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-800">
+    <div className="rounded-lg border border-[#59C3A5]/10 bg-[#fbfdff] p-4 shadow-sm dark:border-gray-800 dark:bg-gray-800">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="truncate text-xl font-semibold text-gray-900 dark:text-white">{selectedEmployee.user_name}</p>

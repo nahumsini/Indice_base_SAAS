@@ -7,6 +7,34 @@ export const ptBR = {
   subtitle: 'Cadastros, alocações, escalas e contexto de folha',
   addEmployee: 'Adicionar funcionário',
   configureColumns: 'Colunas',
+  preferredCurrency: 'Moeda preferida',
+  exchangeRates: {
+    action: 'Câmbio',
+    apply: 'Aplicar',
+    baseCurrency: 'Base USD',
+    dailyMode: 'Taxa diaria',
+    dailyResetNote: 'Carregar taxa do dia substitui qualquer taxa manual pela referencia diaria disponivel.',
+    dailySource: 'Referencia diaria interna',
+    invalid: 'Informe taxas maiores que zero.',
+    manualMode: 'Manual permanente',
+    manualPersistenceNote: 'Ao aplicar, esta taxa fica salva e sera usada ate voce edita-la ou carregar a taxa do dia.',
+    manualSource: 'Taxa manual salva',
+    preferredRate: ({ currency, rate }: { currency: string; rate: string }) => `1 USD = ${rate} ${currency}`,
+    rateInputLabel: (currency: string) => `1 USD em ${currency}`,
+    reset: 'Carregar taxa do dia',
+    sourceDetails: ({
+      base,
+      date,
+      mode,
+      source,
+    }: {
+      base: string;
+      date: string;
+      mode: string;
+      source: string;
+    }) => `Base: ${base} · Fonte: ${source} · Data: ${date} · ${mode}`,
+    title: 'Taxa de câmbio',
+  },
   retryLoad: 'Tentar novamente',
   detailLoadingTitle: 'Carregando detalhes do funcionário',
   detailLoadingDescription: 'Estamos buscando o perfil completo e os documentos.',
@@ -37,19 +65,53 @@ export const ptBR = {
     total: 'Total de funcionários',
     active: 'Ativos',
     inactive: 'Inativos',
+    noSchedule: 'Sem escala',
+    documentsPending: 'Documentos pendentes',
     payroll: 'Folha mensal',
+    payrollNative: 'Folha nativa',
+    payrollMultiCurrencyAlert: (count: number) => `${count} moedas na folha`,
     visible: 'visíveis após filtros',
     terminated: 'Encerrados',
     activeRate: 'taxa ativa',
     statusReview: (count: number) => `${count} status para revisar`,
+    noScheduleAlert: (count: number) => `${count} sem escala`,
+    documentsPendingAlert: (count: number) => `${count} com documentos pendentes`,
     summaryInsight: ({
       activeCount,
       activeRate,
+      missingDocumentsCount,
+      noScheduleCount,
       payroll,
+      statusReviewCount,
       totalCount,
       visibleCount,
     }: EmployeesSummaryInsightArgs) =>
-      `Resumo da equipe: ${activeCount} funcionários ativos · ${activeRate} ativos · ${payroll} de folha mensal · mostrando ${visibleCount} de ${totalCount}.`,
+      noScheduleCount > 0
+        ? `${noScheduleCount} funcionários ativos precisam de escala para a presença operar sem atrito.`
+        : missingDocumentsCount > 0
+          ? `${missingDocumentsCount} funcionários precisam completar documentos para fechar o cadastro.`
+          : statusReviewCount > 0
+            ? `${statusReviewCount} funcionários precisam de revisão de status antes da folha e acessos.`
+            : `A equipe está estável: ${activeCount} funcionários ativos, ${activeRate} ativos, ${payroll} de folha mensal, mostrando ${visibleCount} de ${totalCount}.`,
+  },
+  views: {
+    label: 'Visão de funcionários',
+    table: 'Tabela',
+  },
+  bulk: {
+    title: 'Ações em massa',
+    selected: (count: number) => `${count} selecionados`,
+    changeUnit: 'Alterar unidade',
+    changeBusiness: 'Alterar negócio',
+    changeDepartment: 'Alterar departamento',
+    changePosition: 'Alterar cargo',
+    exportSelected: 'Exportar selecionados',
+    clear: 'Limpar seleção',
+    mixedSelection: 'Vários valores',
+    selectUnitFirst: 'Selecione uma unidade',
+    updateSuccess: (count: number) => `${count} funcionários atualizados.`,
+    updateError: 'Não foi possível atualizar os funcionários selecionados.',
+    exportFileName: (date: string) => `funcionarios-${date}.csv`,
   },
   filters: {
     title: 'Filtros',
@@ -105,6 +167,7 @@ export const ptBR = {
     scheduleLocationId: 'Local exato',
     salaryType: 'Tipo de salário',
     workdayHours: 'Horas da jornada',
+    workdaysPerWeek: 'Dias por semana',
     salary: 'Salário',
     hourlyRate: 'Valor hora',
     payPeriod: 'Período de pagamento',
@@ -123,6 +186,7 @@ export const ptBR = {
     emptyState: 'Nenhum funcionário corresponde aos filtros atuais.',
     selectAllVisible: 'Selecionar todos os funcionários visíveis',
     selectEmployee: (name: string) => `Selecionar ${name}`,
+    resizeColumn: 'Ajustar largura',
     deleteConfirm: 'Excluir permanentemente este funcionário encerrado?',
     editHrUserLabel: 'Editar funcionário',
     terminateHrUserLabel: 'Encerrar contrato',
@@ -165,6 +229,7 @@ export const ptBR = {
     scheduleLocationId: 'Local exato usado quando a regra exige.',
     salaryType: 'Indica se o funcionário recebe valor fixo por período ou por hora.',
     workdayHours: 'Horas previstas de jornada diária.',
+    workdaysPerWeek: 'Dias úteis médios por semana usados nas estimativas de folha.',
     salary: 'Valor fixo pago no período selecionado.',
     hourlyRate: 'Valor hora usado na folha.',
     payPeriod: 'Frequência de pagamento configurada.',
@@ -180,7 +245,8 @@ export const ptBR = {
   },
   payPeriodLabels: {
     weekly: 'Semanal',
-    biweekly: 'Quinzenal',
+    biweekly: 'A cada duas semanas',
+    semimonthly: 'Quinzenal',
     monthly: 'Mensal',
   },
   salaryTypeLabels: {
@@ -202,6 +268,11 @@ export const ptBR = {
   documentStatusLabels: {
     uploaded: 'Enviado',
     missing: 'Nenhum arquivo enviado',
+    upload: 'Enviar',
+    replace: 'Substituir',
+    view: 'Ver',
+    viewImage: 'Ver imagem',
+    uploading: 'Enviando...',
   },
   pagination: {
     previous: 'Anterior',
@@ -389,6 +460,7 @@ export const ptBR = {
       scheduleLocationId: 'Local exato',
       salaryType: 'Tipo de salário',
       workdayHours: 'Horas da jornada',
+      workdaysPerWeek: 'Dias úteis por semana',
       salary: 'Valor fixo',
       hourlyRate: 'Valor hora',
       payPeriod: 'Período de pagamento',
@@ -409,6 +481,8 @@ export const ptBR = {
       scheduleBusinessLocation: 'O funcionário registrará presença no local da Business Structure atribuído ao seu negócio.',
       scheduleExactLocation: 'O local exato selecionado será aplicado à escala deste funcionário.',
       noScheduleLocations: 'Nenhum local de presença ativo está disponível para o negócio ou unidade selecionados.',
+      salaryPeriodMeaning: 'O valor representa o período de pagamento selecionado; horas e dias estimam custo diário e por hora.',
+      hourlySalaryMeaning: 'O valor é por hora; horas da jornada e dias semanais estimam a folha mensal.',
     },
     belonging: {
       businessUnitHelper: 'Escolha a unidade física ou corporativa à qual o funcionário pertence.',
@@ -453,6 +527,7 @@ export const ptBR = {
       city: 'Ex. São Paulo',
       postalCode: 'Ex. 01310-000',
       workdayHours: 'Ex. 8',
+      workdaysPerWeek: 'Ex. 5',
       salary: 'Ex. 12000.00',
       hourlyRate: 'Ex. 75.00',
       scheduleMealMinutes: 'Ex. 30',
@@ -552,7 +627,8 @@ export const ptBR = {
       ],
       payPeriods: [
         { value: 'weekly', label: 'Semanal' },
-        { value: 'biweekly', label: 'Quinzenal' },
+        { value: 'biweekly', label: 'A cada duas semanas' },
+        { value: 'semimonthly', label: 'Quinzenal' },
         { value: 'monthly', label: 'Mensal' },
       ],
       contractTypes: [
@@ -577,6 +653,7 @@ export const ptBR = {
       invalidEmail: 'Informe um e-mail válido.',
       invalidPhone: 'Informe um telefone válido.',
       invalidHours: 'As horas da jornada devem estar entre 1 e 24.',
+      invalidWorkdaysPerWeek: 'Os dias úteis por semana devem estar entre 1 e 7.',
       invalidAmount: 'Informe um valor maior que zero.',
       invalidScheduleTime: 'O fim não pode ser igual ao início.',
       invalidMinutes: 'Informe zero ou um número positivo.',

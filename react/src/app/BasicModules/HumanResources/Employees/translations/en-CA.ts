@@ -7,6 +7,34 @@ export const enCA = {
   subtitle: 'Employee records, assignments, schedules, and payroll context',
   addEmployee: 'Add employee',
   configureColumns: 'Columns',
+  preferredCurrency: 'Preferred currency',
+  exchangeRates: {
+    action: 'FX',
+    apply: 'Apply',
+    baseCurrency: 'USD base',
+    dailyMode: 'Daily rate',
+    dailyResetNote: 'Load daily rate replaces any manual rate with the available daily reference.',
+    dailySource: 'Internal daily reference',
+    invalid: 'Enter rates greater than zero.',
+    manualMode: 'Permanent manual',
+    manualPersistenceNote: 'When applied, this rate is saved and used until you edit it or load the daily rate.',
+    manualSource: 'Saved manual rate',
+    preferredRate: ({ currency, rate }: { currency: string; rate: string }) => `1 USD = ${rate} ${currency}`,
+    rateInputLabel: (currency: string) => `1 USD in ${currency}`,
+    reset: 'Load daily rate',
+    sourceDetails: ({
+      base,
+      date,
+      mode,
+      source,
+    }: {
+      base: string;
+      date: string;
+      mode: string;
+      source: string;
+    }) => `Base: ${base} · Source: ${source} · Date: ${date} · ${mode}`,
+    title: 'Exchange rate',
+  },
   retryLoad: 'Retry',
   detailLoadingTitle: 'Loading employee details',
   detailLoadingDescription: 'We are retrieving the complete employee profile and documents.',
@@ -37,19 +65,53 @@ export const enCA = {
     total: 'Total employees',
     active: 'Active',
     inactive: 'Inactive',
+    noSchedule: 'No schedule',
+    documentsPending: 'Documents pending',
     payroll: 'Monthly payroll',
+    payrollNative: 'Native payroll',
+    payrollMultiCurrencyAlert: (count: number) => `${count} payroll currencies`,
     visible: 'visible after filters',
     terminated: 'Terminated',
     activeRate: 'active rate',
     statusReview: (count: number) => `${count} status review`,
+    noScheduleAlert: (count: number) => `${count} without schedule`,
+    documentsPendingAlert: (count: number) => `${count} with pending documents`,
     summaryInsight: ({
       activeCount,
       activeRate,
+      missingDocumentsCount,
+      noScheduleCount,
       payroll,
+      statusReviewCount,
       totalCount,
       visibleCount,
     }: EmployeesSummaryInsightArgs) =>
-      `Workforce summary: ${activeCount} active employees · ${activeRate} active · ${payroll} monthly payroll · showing ${visibleCount} of ${totalCount}.`,
+      noScheduleCount > 0
+        ? `${noScheduleCount} active employees need schedules before attendance can run cleanly.`
+        : missingDocumentsCount > 0
+          ? `${missingDocumentsCount} employees need documents completed before the file is fully ready.`
+          : statusReviewCount > 0
+            ? `${statusReviewCount} employees need status review before payroll and access stay aligned.`
+            : `Workforce is stable: ${activeCount} active employees, ${activeRate} active rate, ${payroll} monthly payroll, showing ${visibleCount} of ${totalCount}.`,
+  },
+  views: {
+    label: 'Employee view',
+    table: 'Table',
+  },
+  bulk: {
+    title: 'Bulk actions',
+    selected: (count: number) => `${count} selected`,
+    changeUnit: 'Change unit',
+    changeBusiness: 'Change business',
+    changeDepartment: 'Change department',
+    changePosition: 'Change position',
+    exportSelected: 'Export selected',
+    clear: 'Clear selection',
+    mixedSelection: 'Multiple values',
+    selectUnitFirst: 'Select a unit first',
+    updateSuccess: (count: number) => `${count} employees updated.`,
+    updateError: 'Unable to update the selected employees.',
+    exportFileName: (date: string) => `employees-${date}.csv`,
   },
   filters: {
     title: 'Filters',
@@ -104,6 +166,7 @@ export const enCA = {
     scheduleLocationId: 'Exact location',
     salaryType: 'Salary type',
     workdayHours: 'Workday hours',
+    workdaysPerWeek: 'Days per week',
     salary: 'Salary',
     hourlyRate: 'Hourly wage',
     payPeriod: 'Pay period',
@@ -122,6 +185,7 @@ export const enCA = {
     emptyState: 'No employees match the current filters.',
     selectAllVisible: 'Select all visible employees',
     selectEmployee: (name: string) => `Select ${name}`,
+    resizeColumn: 'Adjust width',
     deleteConfirm: 'Delete this terminated employee permanently?',
     editHrUserLabel: 'Edit employee',
     terminateHrUserLabel: 'Terminate employee',
@@ -164,6 +228,7 @@ export const enCA = {
     scheduleLocationId: 'Exact attendance location when configured.',
     salaryType: 'Whether the employee has a fixed pay period amount or is paid by hour.',
     workdayHours: 'Configured standard workday hours.',
+    workdaysPerWeek: 'Average working days per week used for payroll estimates.',
     salary: 'Fixed amount paid for the selected pay period.',
     hourlyRate: 'Hourly wage used when the salary type is hourly.',
     payPeriod: 'Payment frequency configured for the employee.',
@@ -180,6 +245,7 @@ export const enCA = {
   payPeriodLabels: {
     weekly: 'Weekly',
     biweekly: 'Biweekly',
+    semimonthly: 'Semimonthly',
     monthly: 'Monthly',
   },
   salaryTypeLabels: {
@@ -201,6 +267,11 @@ export const enCA = {
   documentStatusLabels: {
     uploaded: 'Uploaded',
     missing: 'No file uploaded',
+    upload: 'Upload',
+    replace: 'Replace',
+    view: 'View',
+    viewImage: 'View image',
+    uploading: 'Uploading...',
   },
   pagination: {
     previous: 'Previous',
@@ -386,6 +457,7 @@ export const enCA = {
       scheduleLocationId: 'Exact location',
       salaryType: 'Salary type',
       workdayHours: 'Workday hours',
+      workdaysPerWeek: 'Working days per week',
       salary: 'Fixed pay amount',
       hourlyRate: 'Hourly wage',
       payPeriod: 'Pay period',
@@ -405,6 +477,8 @@ export const enCA = {
       scheduleBusinessLocation: 'The employee will clock in from the Business Structure location assigned to their business.',
       scheduleExactLocation: 'The selected exact location will be enforced for this employee schedule.',
       noScheduleLocations: 'No active attendance locations are available for the selected business or unit.',
+      salaryPeriodMeaning: 'The amount represents the selected pay period; hours and days estimate daily and hourly cost.',
+      hourlySalaryMeaning: 'The amount is hourly; workday hours and weekly days estimate monthly payroll.',
     },
     belonging: {
       businessUnitHelper: 'Choose the physical or corporate unit where this employee belongs.',
@@ -448,6 +522,7 @@ export const enCA = {
       city: 'e.g. Toronto',
       postalCode: 'e.g. M5V 2T6',
       workdayHours: 'e.g. 8',
+      workdaysPerWeek: 'e.g. 5',
       salary: 'e.g. 12000.00',
       hourlyRate: 'e.g. 75.00',
       scheduleMealMinutes: 'e.g. 30',
@@ -467,6 +542,7 @@ export const enCA = {
       payPeriods: [
         { value: 'weekly', label: 'Weekly' },
         { value: 'biweekly', label: 'Biweekly' },
+        { value: 'semimonthly', label: 'Semimonthly' },
         { value: 'monthly', label: 'Monthly' },
       ],
       contractTypes: [
@@ -490,6 +566,7 @@ export const enCA = {
       invalidEmail: 'Enter a valid email address.',
       invalidPhone: 'Enter a valid phone number.',
       invalidHours: 'Workday hours must be between 1 and 24.',
+      invalidWorkdaysPerWeek: 'Working days per week must be between 1 and 7.',
       invalidAmount: 'Enter an amount greater than zero.',
       invalidScheduleTime: 'End time cannot equal start time.',
       invalidMinutes: 'Enter zero or a positive number.',

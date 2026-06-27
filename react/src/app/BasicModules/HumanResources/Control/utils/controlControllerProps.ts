@@ -101,14 +101,19 @@ export function buildControlControllerProps({
       onRetry: () => void data.loadControl(data.controlDate),
     },
     workspaceProps: {
+      calendarBulkActions: {
+        bulkCalendarStatus,
+        isUpdatingCalendarDay,
+        selectedCount: calendarSelection.selectedCalendarDates.length,
+        onBulkStatusChange: setBulkCalendarStatus,
+        onBulkApply: () => void calendarActions.handleBulkCalendarStatusUpdate(),
+        onClearSelection: calendarSelection.clearCalendarDateSelection,
+      },
       calendarPanel: {
         copy,
         locale,
         calendarMonthLabel: derived.calendarMonthLabel,
-        selectedCalendarDates: calendarSelection.selectedCalendarDates,
         selectedCalendarDateSet: calendarSelection.selectedCalendarDateSet,
-        bulkCalendarStatus,
-        isUpdatingCalendarDay,
         isLoadingCalendar: data.isLoadingCalendar,
         weekdayLabels: derived.weekdayLabels,
         calendarCells: derived.calendarCells,
@@ -116,17 +121,14 @@ export function buildControlControllerProps({
         controlDate: data.controlDate,
         calendarMonth: data.calendarMonth,
         onShiftMonth: calendarActions.shiftCalendarMonth,
-        onBulkStatusChange: setBulkCalendarStatus,
-        onBulkApply: () => void calendarActions.handleBulkCalendarStatusUpdate(),
-        onClearSelection: calendarSelection.clearCalendarDateSelection,
-        onDayMouseDown: calendarSelection.startCalendarDateSelection,
-        onDayMouseEnter: calendarSelection.extendCalendarDateSelection,
+        onDayPointerDown: calendarSelection.startCalendarDateSelection,
+        onDayPointerEnter: calendarSelection.extendCalendarDateSelection,
+        onDayPointerMove: calendarSelection.extendCalendarDateSelection,
         onDaySelect: calendarSelection.selectCalendarDay,
       },
       dailyBoard: {
         copy,
         locale,
-        controlDate: data.controlDate,
         controlDateLabel: derived.controlDateLabel,
         visibleCount: filters.visibleAttendanceAssignments.length,
         filteredCount: filters.statusFilteredAssignments.length,
@@ -135,23 +137,7 @@ export function buildControlControllerProps({
         endRow: filters.attendanceListShowingEnd,
         pageCount: filters.attendanceListPageCount,
         selectedEmployeeId: data.selectedEmployeeId,
-        searchQuery: filters.searchQuery,
         startRow: filters.attendanceListShowingStart,
-        unitFilter: filters.unitFilter,
-        businessFilter: filters.businessFilter,
-        statusFilter: filters.statusFilter,
-        unitFilterOptions: filters.unitFilterOptions,
-        businessFilterOptions: filters.businessFilterOptions,
-        statusFilterOptions: filters.statusFilterOptions,
-        allFilterValue,
-        onDateChange: data.setControlDate,
-        onSearchChange: filters.setSearchQuery,
-        onUnitFilterChange: (value) => {
-          filters.setUnitFilter(value);
-          filters.setBusinessFilter(allFilterValue);
-        },
-        onBusinessFilterChange: filters.setBusinessFilter,
-        onStatusFilterChange: filters.setStatusFilter,
         onPageChange: filters.setAttendanceListPage,
         onSelectAssignment: (assignment) => {
           data.setSelectedEmployeeId(assignment.user_company_id);
@@ -159,6 +145,26 @@ export function buildControlControllerProps({
             data.setSelectedTemplateId(assignment.schedule_template_id);
           }
         },
+      },
+      filters: {
+        allFilterValue,
+        businessFilter: filters.businessFilter,
+        businessFilterOptions: filters.businessFilterOptions,
+        controlDate: data.controlDate,
+        copy,
+        onBusinessFilterChange: filters.setBusinessFilter,
+        onDateChange: data.setControlDate,
+        onSearchChange: filters.setSearchQuery,
+        onStatusFilterChange: filters.setStatusFilter,
+        onUnitFilterChange: (value) => {
+          filters.setUnitFilter(value);
+          filters.setBusinessFilter(allFilterValue);
+        },
+        searchQuery: filters.searchQuery,
+        statusFilter: filters.statusFilter,
+        statusFilterOptions: filters.statusFilterOptions,
+        unitFilter: filters.unitFilter,
+        unitFilterOptions: filters.unitFilterOptions,
       },
       detailPanel: {
         copy,

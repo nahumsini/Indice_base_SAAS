@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
 import type { EmployeeRecord, RecordSeverity, RecordStatus, RecordType } from '../types/records.types';
 import type { RecordDetailCopy } from '../translations';
 
@@ -97,6 +98,7 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
 
 export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdit, onDelete }: RecordDetailModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   if (!isOpen || !record) {
     return null;
@@ -107,9 +109,10 @@ export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdi
   const severityInfo = record.severity ? severityConfig[record.severity] : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-gray-800">
-        <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-6 py-5 dark:border-gray-700 dark:bg-gray-800">
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+        <div className="sticky top-0 z-10 bg-[#59C3A5] px-6 py-5 text-white">
           <div className="mb-3 flex items-start justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold ${typeInfo.bgColor} ${typeInfo.color}`}>
@@ -127,18 +130,19 @@ export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdi
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label={copy.actions.close}
             >
-              <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              <X className="h-5 w-5" />
             </button>
           </div>
-          <h2 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">{record.title}</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <h2 className="mb-1 text-2xl font-bold text-white">{record.title}</h2>
+          <p className="text-sm font-medium text-white/75">
             {record.recordNumber || copy.detail.recordNumber(record.id)}
           </p>
         </div>
 
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 bg-slate-50/70 p-6 dark:bg-slate-950/40">
           <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 dark:border-blue-800 dark:from-blue-900/20 dark:to-blue-800/10">
             <div className="flex items-start gap-4">
               <div className="rounded-xl bg-blue-500 p-3 shadow-sm">
@@ -258,30 +262,19 @@ export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdi
           </div>
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
+        <div className="sticky bottom-0 flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
           <Button
-            variant="outline"
-            className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
-            onClick={async () => {
-              if (window.confirm(copy.detail.deleteConfirm)) {
-                setIsDeleting(true);
-                try {
-                  await onDelete(record.id);
-                  onClose();
-                } finally {
-                  setIsDeleting(false);
-                }
-              }
-            }}
+            className="gap-2 rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
+            onClick={() => setIsDeleteConfirmOpen(true)}
             disabled={isDeleting}
           >
             <Trash2 className="h-4 w-4" />
             {isDeleting ? copy.actions.deleting : copy.actions.delete}
           </Button>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose}>{copy.actions.close}</Button>
+            <Button className="rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.actions.close}</Button>
             <Button
-              className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+              className="gap-2 rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90"
               onClick={() => onEdit(record)}
             >
               <Pencil className="h-4 w-4" />
@@ -290,6 +283,31 @@ export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdi
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <ConfirmDeleteDialog
+        isVisible={isDeleteConfirmOpen}
+        title={copy.actions.delete}
+        itemName={record.title}
+        description={copy.detail.deleteConfirm}
+        confirmLabel={isDeleting ? copy.actions.deleting : copy.actions.delete}
+        cancelLabel={copy.actions.close}
+        confirmDisabled={isDeleting}
+        onCancel={() => {
+          if (!isDeleting) {
+            setIsDeleteConfirmOpen(false);
+          }
+        }}
+        onConfirm={async () => {
+          setIsDeleting(true);
+          try {
+            await onDelete(record.id);
+            setIsDeleteConfirmOpen(false);
+            onClose();
+          } finally {
+            setIsDeleting(false);
+          }
+        }}
+      />
+    </>
   );
 }
