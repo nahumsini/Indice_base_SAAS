@@ -45,7 +45,7 @@ export function EmployeeTable({
   const selectionLabel = `${unitFilter ? selectedUnitLabel : copy.timeTable.allUnits} · ${businessFilter ? selectedBusinessLabel : copy.timeTable.allBusinesses}`;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.employeeListTitle}</h3>
@@ -158,7 +158,7 @@ export function EmployeeTable({
             {employeeRows.length === 0 ? (
               <tr>
                 <TableCell colSpan={9}>
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
+                  <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
                     <Building2 className="mx-auto h-8 w-8 text-slate-400" />
                     <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{copy.timeTable.noEmployeesFound}</p>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

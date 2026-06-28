@@ -31,8 +31,8 @@ export function PublicKioskAside({
   selectedLocale,
 }: PublicKioskAsideProps) {
   return (
-    <aside className="min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_-24px_rgba(89,195,165,0.45)] dark:border-slate-800 dark:bg-slate-950">
-      <div className="rounded-[24px] border border-[#59C3A5]/20 bg-[#59C3A5]/6 p-4 dark:border-[#8FE0CA]/20 dark:bg-[#8FE0CA]/10">
+    <aside className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/6 p-4 dark:border-[#8FE0CA]/20 dark:bg-[#8FE0CA]/10">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#59C3A5] dark:text-[#8FE0CA]">
@@ -49,8 +49,8 @@ export function PublicKioskAside({
         </div>
 
         <div className="mt-4 grid gap-3">
-          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-950/70">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
               <MapPin className="h-5 w-5" />
             </div>
             <div>
@@ -58,8 +58,8 @@ export function PublicKioskAside({
               <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{kioskLocationLabel}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-950/70">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
+          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
               <BadgeCheck className="h-5 w-5" />
             </div>
             <div>
@@ -67,8 +67,8 @@ export function PublicKioskAside({
               <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.pointReady}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-950/70">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-950/70">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               <Clock3 className="h-5 w-5" />
             </div>
             <div>
@@ -81,7 +81,7 @@ export function PublicKioskAside({
         </div>
       </div>
 
-      <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
             {copy.nextAction}

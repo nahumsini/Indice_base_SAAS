@@ -107,6 +107,7 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
   scheduleLocationId: '',
   salaryType: 'daily',
   workdayHours: '8',
+  workdaysPerWeek: '5',
   salary: '',
   hourlyRate: '',
   payPeriod: 'weekly',

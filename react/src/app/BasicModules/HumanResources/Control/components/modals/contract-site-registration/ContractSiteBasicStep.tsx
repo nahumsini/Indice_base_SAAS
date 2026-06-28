@@ -50,7 +50,7 @@ export function ContractSiteBasicStep({
 }: ContractSiteBasicStepProps) {
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
+      <div className="flex items-start gap-3 rounded-md border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
         <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
         <div>
           <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{copy.basic.title}</p>

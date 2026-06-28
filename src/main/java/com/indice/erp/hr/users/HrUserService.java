@@ -93,6 +93,8 @@ public class HrUserService {
 	                       e.salary_type,
 	                       e.hourly_rate,
 	                       e.workday_hours,
+                       e.workdays_per_week,
+                       e.registration_country,
 	                       e.contract_type,
                        e.contract_start_date,
                        e.contract_end_date,
@@ -131,7 +133,7 @@ public class HrUserService {
 	                       COALESCE(SUM(
 	                           CASE
 	                               WHEN LOWER(COALESCE(status, 'active')) <> 'active' THEN 0
-	                               WHEN LOWER(COALESCE(salary_type, 'daily')) = 'hourly' THEN COALESCE(hourly_rate, 0) * COALESCE(workday_hours, 8) * 260 / 12
+	                               WHEN LOWER(COALESCE(salary_type, 'daily')) = 'hourly' THEN COALESCE(hourly_rate, 0) * COALESCE(workday_hours, 8) * COALESCE(workdays_per_week, 5) * 52 / 12
 	                               WHEN LOWER(COALESCE(pay_period, 'weekly')) = 'monthly' THEN COALESCE(salary, 0)
 	                               WHEN LOWER(COALESCE(pay_period, 'weekly')) = 'biweekly' THEN COALESCE(salary, 0) * 26 / 12
 	                               ELSE COALESCE(salary, 0) * 52 / 12
@@ -620,7 +622,8 @@ public class HrUserService {
             resolveTextField(payload, existingProfile.emergencyContactName(), "emergency_contact_name", "emergencyContactName", "nombreContactoEmergencia"),
             resolveTextField(payload, existingProfile.emergencyContactRelationship(), "emergency_contact_relationship", "emergencyContactRelationship", "relacionContacto"),
             normalizePhoneValue(resolveTextField(payload, existingProfile.emergencyContactPhone(), "emergency_contact_phone", "emergencyContactPhone", "telefonoEmergencia")),
-            resolveWorkdayHours(payload, existingProfile.workdayHours())
+            resolveWorkdayHours(payload, existingProfile.workdayHours()),
+            resolveWorkdaysPerWeek(payload, existingProfile.workdaysPerWeek())
         );
     }
 
@@ -814,8 +817,8 @@ public class HrUserService {
                  hire_date, salary, pay_period, salary_type, hourly_rate, contract_type, contract_start_date,
                  contract_end_date, date_of_birth, address, national_id, tax_id, social_security_number,
                  registration_country, state_province, city, postal_code, alternate_phone, emergency_contact_name,
-                 emergency_contact_relationship, emergency_contact_phone, workday_hours, status, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 emergency_contact_relationship, emergency_contact_phone, workday_hours, workdays_per_week, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                   user_code = VALUES(user_code),
                   position = VALUES(position),
@@ -844,6 +847,7 @@ public class HrUserService {
                   emergency_contact_relationship = VALUES(emergency_contact_relationship),
                   emergency_contact_phone = VALUES(emergency_contact_phone),
                   workday_hours = VALUES(workday_hours),
+                  workdays_per_week = VALUES(workdays_per_week),
                   status = VALUES(status),
                   updated_at = CURRENT_TIMESTAMP
                 """,
@@ -877,6 +881,7 @@ public class HrUserService {
             nullable(profileDraft.emergencyContactRelationship()),
             nullable(profileDraft.emergencyContactPhone()),
             profileDraft.workdayHours(),
+            profileDraft.workdaysPerWeek(),
             draft.status(),
             nullableCreatedBy(createdBy)
         );
@@ -953,7 +958,8 @@ public class HrUserService {
                        emergency_contact_name,
                        emergency_contact_relationship,
                        emergency_contact_phone,
-                       workday_hours
+                       workday_hours,
+                       workdays_per_week
                 FROM user_work_profiles
                 WHERE user_company_id = ? AND company_id = ?
                 LIMIT 1
@@ -972,7 +978,8 @@ public class HrUserService {
                 safe(rs.getString("emergency_contact_name")),
                 safe(rs.getString("emergency_contact_relationship")),
                 safe(rs.getString("emergency_contact_phone")),
-                rs.getBigDecimal("workday_hours") == null ? new BigDecimal("8.00") : rs.getBigDecimal("workday_hours")
+                rs.getBigDecimal("workday_hours") == null ? new BigDecimal("8.00") : rs.getBigDecimal("workday_hours"),
+                rs.getBigDecimal("workdays_per_week") == null ? new BigDecimal("5.00") : rs.getBigDecimal("workdays_per_week")
             ),
             userCompanyId,
             companyId
@@ -1264,6 +1271,8 @@ public class HrUserService {
                        e.salary_type,
                        e.hourly_rate,
                        e.workday_hours,
+                       e.workdays_per_week,
+                       e.registration_country,
                        e.contract_type,
                        e.contract_start_date,
                        e.contract_end_date,
@@ -1319,7 +1328,8 @@ public class HrUserService {
                        emergency_contact_name,
                        emergency_contact_relationship,
                        emergency_contact_phone,
-                       workday_hours
+                       workday_hours,
+                       workdays_per_week
                 FROM user_work_profiles
                 WHERE user_company_id = ? AND company_id = ?
                 LIMIT 1
@@ -1340,6 +1350,7 @@ public class HrUserService {
                 profile.put("emergency_contact_relationship", safe(rs.getString("emergency_contact_relationship")));
                 profile.put("emergency_contact_phone", safe(rs.getString("emergency_contact_phone")));
                 profile.put("workday_hours", rs.getBigDecimal("workday_hours") == null ? new BigDecimal("8.00") : rs.getBigDecimal("workday_hours"));
+                profile.put("workdays_per_week", rs.getBigDecimal("workdays_per_week") == null ? new BigDecimal("5.00") : rs.getBigDecimal("workdays_per_week"));
                 return profile;
             },
             userCompanyId,
@@ -1365,6 +1376,7 @@ public class HrUserService {
         emptyProfile.put("emergency_contact_relationship", "");
         emptyProfile.put("emergency_contact_phone", "");
         emptyProfile.put("workday_hours", new BigDecimal("8.00"));
+        emptyProfile.put("workdays_per_week", new BigDecimal("5.00"));
         return emptyProfile;
     }
 
@@ -1451,6 +1463,8 @@ public class HrUserService {
 	        hrUser.put("salary_type", normalizeSalaryType(rs.getString("salary_type")));
 	        hrUser.put("hourly_rate", rs.getBigDecimal("hourly_rate"));
 	        hrUser.put("workday_hours", rs.getBigDecimal("workday_hours") == null ? new BigDecimal("8.00") : rs.getBigDecimal("workday_hours"));
+	        hrUser.put("workdays_per_week", rs.getBigDecimal("workdays_per_week") == null ? new BigDecimal("5.00") : rs.getBigDecimal("workdays_per_week"));
+        hrUser.put("registration_country", safe(rs.getString("registration_country")));
 	        hrUser.put("contract_type", normalizeContractType(rs.getString("contract_type")));
         hrUser.put("contract_start_date", rs.getObject("contract_start_date"));
         hrUser.put("contract_end_date", rs.getObject("contract_end_date"));
@@ -1545,6 +1559,21 @@ public class HrUserService {
         }
         if (parsed.compareTo(BigDecimal.ONE) < 0 || parsed.compareTo(new BigDecimal("24")) > 0) {
             throw new IllegalArgumentException("workday_hours must be between 1 and 24.");
+        }
+        return parsed;
+    }
+
+    private BigDecimal resolveWorkdaysPerWeek(Map<String, Object> payload, BigDecimal existingValue) {
+        if (!hasAnyKey(payload, "workdays_per_week", "workdaysPerWeek", "diasLaboralesSemana")) {
+            return existingValue == null ? new BigDecimal("5.00") : existingValue;
+        }
+
+        var parsed = parseBigDecimal(payload, "workdays_per_week", "workdaysPerWeek", "diasLaboralesSemana");
+        if (parsed == null) {
+            return new BigDecimal("5.00");
+        }
+        if (parsed.compareTo(BigDecimal.ONE) < 0 || parsed.compareTo(new BigDecimal("7")) > 0) {
+            throw new IllegalArgumentException("workdays_per_week must be between 1 and 7.");
         }
         return parsed;
     }
@@ -1844,7 +1873,8 @@ public class HrUserService {
         String emergencyContactName,
         String emergencyContactRelationship,
         String emergencyContactPhone,
-        BigDecimal workdayHours
+        BigDecimal workdayHours,
+        BigDecimal workdaysPerWeek
     ) {
         static ProfileDraft empty() {
             return new ProfileDraft(
@@ -1861,7 +1891,8 @@ public class HrUserService {
                 "",
                 "",
                 "",
-                new BigDecimal("8.00")
+                new BigDecimal("8.00"),
+                new BigDecimal("5.00")
             );
         }
 

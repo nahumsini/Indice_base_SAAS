@@ -28,7 +28,7 @@ interface UseControlCalendarActionsInput {
   copy: ControlTranslations;
   isSaving: boolean;
   isUpdatingCalendarDay: boolean;
-  loadControl: (date: string) => Promise<void>;
+  loadControl: (date: string, options?: { reloadReferenceData?: boolean }) => Promise<void>;
   pendingCalendarScheduleClear: PendingCalendarScheduleClear | null;
   selectedCalendarDates: string[];
   selectedCalendarDay: AttendanceCalendarDay | null;

@@ -13,6 +13,12 @@ export const enUS = {
     loadingDescription: 'Checking which workspaces are available.',
     empty: 'No Human Resources tabs are available for this user.',
   },
+  tabError: {
+    eyebrow: 'Tab unavailable',
+    title: 'This Human Resources tab could not load',
+    description: 'The app could not download this workspace. Refresh the tab to request the module again.',
+    reload: 'Refresh tab',
+  },
   tabs: {
     collaborators: 'Employees',
     attendance: 'Attendance',

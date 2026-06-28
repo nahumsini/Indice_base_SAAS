@@ -7,6 +7,34 @@ export const esMX = {
   subtitle: 'Expedientes, asignaciones, horarios y contexto de nómina',
   addEmployee: 'Agregar colaborador',
   configureColumns: 'Columnas',
+  preferredCurrency: 'Divisa preferida',
+  exchangeRates: {
+    action: 'TC',
+    apply: 'Aplicar',
+    baseCurrency: 'Base USD',
+    dailyMode: 'Tasa diaria',
+    dailyResetNote: 'Cargar tasa del día reemplaza cualquier tasa manual con la referencia diaria disponible.',
+    dailySource: 'Referencia diaria interna',
+    invalid: 'Ingresa tasas mayores a cero.',
+    manualMode: 'Manual permanente',
+    manualPersistenceNote: 'Al aplicar cambios, esta tasa queda guardada y se usará hasta que la edites o cargues la tasa del día.',
+    manualSource: 'Tasa manual guardada',
+    preferredRate: ({ currency, rate }: { currency: string; rate: string }) => `1 USD = ${rate} ${currency}`,
+    rateInputLabel: (currency: string) => `1 USD en ${currency}`,
+    reset: 'Cargar tasa del día',
+    sourceDetails: ({
+      base,
+      date,
+      mode,
+      source,
+    }: {
+      base: string;
+      date: string;
+      mode: string;
+      source: string;
+    }) => `Base: ${base} · Fuente: ${source} · Fecha: ${date} · ${mode}`,
+    title: 'Tipo de cambio',
+  },
   retryLoad: 'Reintentar',
   detailLoadingTitle: 'Cargando detalle del colaborador',
   detailLoadingDescription: 'Estamos obteniendo el perfil completo y documentos del colaborador.',
@@ -37,19 +65,53 @@ export const esMX = {
     total: 'Total de colaboradores',
     active: 'Activos',
     inactive: 'Inactivos',
+    noSchedule: 'Sin horario',
+    documentsPending: 'Documentos pendientes',
     payroll: 'Nómina mensual',
+    payrollNative: 'Nómina nativa',
+    payrollMultiCurrencyAlert: (count: number) => `${count} divisas en nómina`,
     visible: 'visibles por filtros',
     terminated: 'Terminados',
     activeRate: 'activos',
     statusReview: (count: number) => `${count} requieren revisión de estatus`,
+    noScheduleAlert: (count: number) => `${count} sin horario`,
+    documentsPendingAlert: (count: number) => `${count} con documentos pendientes`,
     summaryInsight: ({
       activeCount,
       activeRate,
+      missingDocumentsCount,
+      noScheduleCount,
       payroll,
+      statusReviewCount,
       totalCount,
       visibleCount,
     }: EmployeesSummaryInsightArgs) =>
-      `Resumen del personal: ${activeCount} colaboradores activos · ${activeRate} activos · ${payroll} de nómina mensual · mostrando ${visibleCount} de ${totalCount}.`,
+      noScheduleCount > 0
+        ? `${noScheduleCount} colaboradores activos necesitan horario para que asistencia opere sin fricción.`
+        : missingDocumentsCount > 0
+          ? `${missingDocumentsCount} colaboradores necesitan completar documentos para cerrar expediente.`
+          : statusReviewCount > 0
+            ? `${statusReviewCount} colaboradores requieren revisión de estatus antes de nómina y accesos.`
+            : `La plantilla está estable: ${activeCount} colaboradores activos, ${activeRate} activos, ${payroll} de nómina mensual, mostrando ${visibleCount} de ${totalCount}.`,
+  },
+  views: {
+    label: 'Vista de colaboradores',
+    table: 'Tabla',
+  },
+  bulk: {
+    title: 'Acciones masivas',
+    selected: (count: number) => `${count} seleccionados`,
+    changeUnit: 'Cambiar unidad',
+    changeBusiness: 'Cambiar negocio',
+    changeDepartment: 'Cambiar departamento',
+    changePosition: 'Cambiar puesto',
+    exportSelected: 'Exportar seleccionados',
+    clear: 'Limpiar selección',
+    mixedSelection: 'Varios valores',
+    selectUnitFirst: 'Selecciona unidad primero',
+    updateSuccess: (count: number) => `${count} colaboradores actualizados.`,
+    updateError: 'No se pudieron actualizar los colaboradores seleccionados.',
+    exportFileName: (date: string) => `colaboradores-${date}.csv`,
   },
   filters: {
     title: 'Filtros',
@@ -104,6 +166,7 @@ export const esMX = {
     scheduleLocationId: 'Ubicación exacta',
     salaryType: 'Tipo de salario',
     workdayHours: 'Horas de jornada',
+    workdaysPerWeek: 'Días por semana',
     salary: 'Salario',
     hourlyRate: 'Sueldo por hora',
     payPeriod: 'Periodo de pago',
@@ -122,6 +185,7 @@ export const esMX = {
     emptyState: 'No hay colaboradores con los filtros actuales.',
     selectAllVisible: 'Seleccionar todos los colaboradores visibles',
     selectEmployee: (name: string) => `Seleccionar a ${name}`,
+    resizeColumn: 'Ajustar ancho',
     deleteConfirm: '¿Eliminar permanentemente este colaborador terminado?',
     editHrUserLabel: 'Editar colaborador',
     terminateHrUserLabel: 'Terminar contrato',
@@ -164,6 +228,7 @@ export const esMX = {
     scheduleLocationId: 'Ubicación exacta de asistencia cuando está configurada.',
     salaryType: 'Indica si el colaborador cobra un sueldo fijo por periodo o por hora.',
     workdayHours: 'Horas estándar configuradas para la jornada.',
+    workdaysPerWeek: 'Días laborales promedio por semana usados para estimaciones de nómina.',
     salary: 'Monto fijo pagado en el periodo seleccionado.',
     hourlyRate: 'Tarifa por hora usada cuando el tipo de salario es por hora.',
     payPeriod: 'Frecuencia de pago configurada para el colaborador.',
@@ -179,7 +244,8 @@ export const esMX = {
   },
   payPeriodLabels: {
     weekly: 'Semanal',
-    biweekly: 'Quincenal',
+    biweekly: 'Cada 2 semanas',
+    semimonthly: 'Quincenal',
     monthly: 'Mensual',
   },
   salaryTypeLabels: {
@@ -201,6 +267,11 @@ export const esMX = {
   documentStatusLabels: {
     uploaded: 'Subido',
     missing: 'Ningún archivo subido',
+    upload: 'Subir',
+    replace: 'Reemplazar',
+    view: 'Ver',
+    viewImage: 'Ver imagen',
+    uploading: 'Subiendo...',
   },
   pagination: {
     previous: 'Anterior',
@@ -386,6 +457,7 @@ export const esMX = {
       scheduleLocationId: 'Ubicación exacta',
       salaryType: 'Tipo de salario',
       workdayHours: 'Horas de jornada',
+      workdaysPerWeek: 'Días laborales por semana',
       salary: 'Sueldo fijo',
       hourlyRate: 'Sueldo por hora',
       payPeriod: 'Periodo de pago',
@@ -405,6 +477,8 @@ export const esMX = {
       scheduleBusinessLocation: 'El colaborador registrará asistencia desde la ubicación de Business Structure asignada a su negocio.',
       scheduleExactLocation: 'La ubicación exacta seleccionada se aplicará para este horario.',
       noScheduleLocations: 'No hay ubicaciones activas para el negocio o unidad seleccionada.',
+      salaryPeriodMeaning: 'El sueldo representa el periodo de pago seleccionado; horas y días ayudan a estimar costo diario y por hora.',
+      hourlySalaryMeaning: 'La tarifa es por hora; horas de jornada y días laborales estiman la nómina mensual.',
     },
     belonging: {
       businessUnitHelper: 'Elige la unidad física o corporativa a la que pertenece el colaborador.',
@@ -448,6 +522,7 @@ export const esMX = {
       city: 'Ej. Ciudad de México',
       postalCode: 'Ej. 01000',
       workdayHours: 'Ej. 8',
+      workdaysPerWeek: 'Ej. 5',
       salary: 'Ej. 12000.00',
       hourlyRate: 'Ej. 75.00',
       scheduleMealMinutes: 'Ej. 30',
@@ -466,7 +541,8 @@ export const esMX = {
       ],
       payPeriods: [
         { value: 'weekly', label: 'Semanal' },
-        { value: 'biweekly', label: 'Quincenal' },
+        { value: 'biweekly', label: 'Cada 2 semanas' },
+        { value: 'semimonthly', label: 'Quincenal' },
         { value: 'monthly', label: 'Mensual' },
       ],
       contractTypes: [
@@ -490,6 +566,7 @@ export const esMX = {
       invalidEmail: 'Ingresa un correo válido.',
       invalidPhone: 'Ingresa un teléfono válido.',
       invalidHours: 'Las horas de jornada deben estar entre 1 y 24.',
+      invalidWorkdaysPerWeek: 'Los días laborales por semana deben estar entre 1 y 7.',
       invalidAmount: 'Ingresa un monto mayor a cero.',
       invalidScheduleTime: 'La salida no puede ser igual a la entrada.',
       invalidMinutes: 'Ingresa cero o un número positivo.',

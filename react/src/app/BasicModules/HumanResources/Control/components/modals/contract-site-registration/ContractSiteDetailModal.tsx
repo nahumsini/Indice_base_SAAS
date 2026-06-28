@@ -32,7 +32,7 @@ export function ContractSiteDetailModal({
 }: ContractSiteDetailModalProps) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
+      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-gray-900 shadow-lg dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
         <div className="flex shrink-0 items-start justify-between bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
           <div className="min-w-0">
             <h3 className="truncate text-lg font-semibold text-white">{copy.detail.title}</h3>

@@ -7,6 +7,34 @@ export const koCA = {
   subtitle: '직원 기록, 배정, 근무 일정, 급여 정보를 한곳에서 관리',
   addEmployee: '직원 추가',
   configureColumns: '열 설정',
+  preferredCurrency: '선호 통화',
+  exchangeRates: {
+    action: '환율',
+    apply: '적용',
+    baseCurrency: 'USD 기준',
+    dailyMode: '일일 환율',
+    dailyResetNote: '일일 환율 불러오기는 수동 환율을 사용 가능한 일일 기준으로 대체합니다.',
+    dailySource: '내부 일일 기준',
+    invalid: '0보다 큰 환율을 입력하세요.',
+    manualMode: '영구 수동',
+    manualPersistenceNote: '적용하면 이 환율이 저장되고 수정하거나 일일 환율을 불러올 때까지 사용됩니다.',
+    manualSource: '저장된 수동 환율',
+    preferredRate: ({ currency, rate }: { currency: string; rate: string }) => `1 USD = ${rate} ${currency}`,
+    rateInputLabel: (currency: string) => `1 USD의 ${currency} 값`,
+    reset: '일일 환율 불러오기',
+    sourceDetails: ({
+      base,
+      date,
+      mode,
+      source,
+    }: {
+      base: string;
+      date: string;
+      mode: string;
+      source: string;
+    }) => `Base: ${base} · Source: ${source} · Date: ${date} · ${mode}`,
+    title: '환율',
+  },
   retryLoad: '다시 시도',
   detailLoadingTitle: '직원 상세 정보를 불러오는 중',
   detailLoadingDescription: '직원 프로필과 문서를 불러오고 있습니다.',
@@ -37,19 +65,53 @@ export const koCA = {
     total: '전체 직원',
     active: '활성',
     inactive: '비활성',
+    noSchedule: '일정 없음',
+    documentsPending: '문서 미완료',
     payroll: '월 급여',
+    payrollNative: '원 통화 급여',
+    payrollMultiCurrencyAlert: (count: number) => `급여 통화 ${count}개`,
     visible: '필터 적용 후 표시',
     terminated: '종료',
     activeRate: '활성 비율',
     statusReview: (count: number) => `${count}건 상태 확인 필요`,
+    noScheduleAlert: (count: number) => `${count}명 일정 없음`,
+    documentsPendingAlert: (count: number) => `${count}명 문서 미완료`,
     summaryInsight: ({
       activeCount,
       activeRate,
+      missingDocumentsCount,
+      noScheduleCount,
       payroll,
+      statusReviewCount,
       totalCount,
       visibleCount,
     }: EmployeesSummaryInsightArgs) =>
-      `인력 요약: 활성 직원 ${activeCount}명 · 활성 ${activeRate} · 월 급여 ${payroll} · ${totalCount}명 중 ${visibleCount}명 표시.`,
+      noScheduleCount > 0
+        ? `활성 직원 ${noScheduleCount}명은 정확한 근태 운영을 위해 일정 배정이 필요합니다.`
+        : missingDocumentsCount > 0
+          ? `직원 ${missingDocumentsCount}명은 파일을 완료하려면 문서 보완이 필요합니다.`
+          : statusReviewCount > 0
+            ? `직원 ${statusReviewCount}명은 급여와 접근 권한 정합성을 위해 상태 확인이 필요합니다.`
+            : `인력 상태가 안정적입니다: 활성 직원 ${activeCount}명, 활성 ${activeRate}, 월 급여 ${payroll}, ${totalCount}명 중 ${visibleCount}명 표시.`,
+  },
+  views: {
+    label: '직원 보기',
+    table: '표',
+  },
+  bulk: {
+    title: '일괄 작업',
+    selected: (count: number) => `${count}명 선택됨`,
+    changeUnit: '조직 단위 변경',
+    changeBusiness: '사업장 변경',
+    changeDepartment: '부서 변경',
+    changePosition: '직무 변경',
+    exportSelected: '선택 항목 내보내기',
+    clear: '선택 해제',
+    mixedSelection: '여러 값',
+    selectUnitFirst: '조직 단위를 먼저 선택',
+    updateSuccess: (count: number) => `직원 ${count}명이 업데이트되었습니다.`,
+    updateError: '선택한 직원을 업데이트할 수 없습니다.',
+    exportFileName: (date: string) => `employees-${date}.csv`,
   },
   filters: {
     title: '필터',
@@ -104,6 +166,7 @@ export const koCA = {
     scheduleLocationId: '정확한 위치',
     salaryType: '급여 유형',
     workdayHours: '근무 시간',
+    workdaysPerWeek: '주당 근무일',
     salary: '급여',
     hourlyRate: '시급',
     payPeriod: '급여 주기',
@@ -122,6 +185,7 @@ export const koCA = {
     emptyState: '현재 필터와 일치하는 직원이 없습니다.',
     selectAllVisible: '표시된 모든 직원 선택',
     selectEmployee: (name: string) => `${name} 선택`,
+    resizeColumn: '너비 조정',
     deleteConfirm: '종료된 이 직원을 영구 삭제하시겠습니까?',
     editHrUserLabel: '직원 편집',
     terminateHrUserLabel: '고용 종료',
@@ -164,6 +228,7 @@ export const koCA = {
     scheduleLocationId: '설정된 경우 적용되는 정확한 출퇴근 위치입니다.',
     salaryType: '급여가 선택한 지급 주기의 고정 금액인지 시급인지 표시합니다.',
     workdayHours: '표준 근무 시간 설정입니다.',
+    workdaysPerWeek: '월 급여 추정에 사용하는 평균 주당 근무일입니다.',
     salary: '선택한 지급 주기에 지급되는 고정 금액입니다.',
     hourlyRate: '시급 유형일 때 사용하는 시간당 금액입니다.',
     payPeriod: '직원에게 설정된 급여 지급 주기입니다.',
@@ -180,6 +245,7 @@ export const koCA = {
   payPeriodLabels: {
     weekly: '매주',
     biweekly: '격주',
+    semimonthly: '월 2회',
     monthly: '매월',
   },
   salaryTypeLabels: {
@@ -201,6 +267,11 @@ export const koCA = {
   documentStatusLabels: {
     uploaded: '업로드됨',
     missing: '업로드된 파일 없음',
+    upload: '업로드',
+    replace: '교체',
+    view: '보기',
+    viewImage: '이미지 보기',
+    uploading: '업로드 중...',
   },
   pagination: {
     previous: '이전',
@@ -387,6 +458,7 @@ export const koCA = {
       scheduleLocationId: '정확한 위치',
       salaryType: '급여 유형',
       workdayHours: '근무 시간',
+      workdaysPerWeek: '주당 근무일',
       salary: '고정 급여액',
       hourlyRate: '시급',
       payPeriod: '급여 주기',
@@ -406,6 +478,8 @@ export const koCA = {
       scheduleBusinessLocation: '직원은 배정된 사업장의 Business Structure 위치에서 출퇴근합니다.',
       scheduleExactLocation: '선택한 정확한 위치가 이 직원 일정에 적용됩니다.',
       noScheduleLocations: '선택한 사업 또는 조직 단위에 활성 출퇴근 위치가 없습니다.',
+      salaryPeriodMeaning: '금액은 선택한 급여 주기 전체를 의미하며, 시간과 근무일로 일/시간 비용을 추정합니다.',
+      hourlySalaryMeaning: '금액은 시급이며, 근무 시간과 주당 근무일로 월 급여를 추정합니다.',
     },
     belonging: {
       businessUnitHelper: '직원이 속한 실제 또는 본사 조직 단위를 선택하세요.',
@@ -449,6 +523,7 @@ export const koCA = {
       city: '예: Toronto',
       postalCode: '예: M5V 2T6',
       workdayHours: '예: 8',
+      workdaysPerWeek: '예: 5',
       salary: '예: 12000.00',
       hourlyRate: '예: 75.00',
       scheduleMealMinutes: '예: 30',
@@ -549,6 +624,7 @@ export const koCA = {
       payPeriods: [
         { value: 'weekly', label: '매주' },
         { value: 'biweekly', label: '격주' },
+        { value: 'semimonthly', label: '월 2회' },
         { value: 'monthly', label: '매월' },
       ],
       contractTypes: [
@@ -572,6 +648,7 @@ export const koCA = {
       invalidEmail: '유효한 이메일 주소를 입력하세요.',
       invalidPhone: '유효한 전화번호를 입력하세요.',
       invalidHours: '근무 시간은 1에서 24 사이여야 합니다.',
+      invalidWorkdaysPerWeek: '주당 근무일은 1에서 7 사이여야 합니다.',
       invalidAmount: '0보다 큰 금액을 입력하세요.',
       invalidScheduleTime: '종료 시간은 시작 시간과 같을 수 없습니다.',
       invalidMinutes: '0 또는 양수를 입력하세요.',

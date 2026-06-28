@@ -117,7 +117,7 @@ export function ContractSiteDraftFormPanel({
   onUnitChange,
 }: ContractSiteDraftFormPanelProps) {
   return (
-    <div ref={formSectionRef} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+    <div ref={formSectionRef} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
       <div className="border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900/70">
         <ContractSiteWizardStepper
           copy={copy}

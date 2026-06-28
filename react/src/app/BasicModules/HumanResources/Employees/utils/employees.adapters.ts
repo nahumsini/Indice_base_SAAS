@@ -37,6 +37,7 @@ type BackendHrUserWithOptionalProfile = BackendHrUser & {
   emergency_contact_relationship?: string;
   emergency_contact_phone?: string;
   workday_hours?: number | null;
+  workdays_per_week?: number | null;
 };
 
 export const mapEmployee = (
@@ -99,6 +100,12 @@ export const mapEmployee = (
         : employeeWithProfile.workday_hours !== null && employeeWithProfile.workday_hours !== undefined
           ? Number(employeeWithProfile.workday_hours)
           : null,
+    workdaysPerWeek:
+      profile.workdays_per_week !== null && profile.workdays_per_week !== undefined
+        ? Number(profile.workdays_per_week)
+        : employeeWithProfile.workdays_per_week !== null && employeeWithProfile.workdays_per_week !== undefined
+          ? Number(employeeWithProfile.workdays_per_week)
+          : 5,
     hourlyRate: Number(employee.hourly_rate ?? 0),
     contractType: employee.contract_type,
     contractStartDate: employee.contract_start_date ? String(employee.contract_start_date) : '',
@@ -145,6 +152,10 @@ export const toEmployeeFormData = (details?: HrUserDetailsResponse | null): Empl
       details.profile.workday_hours !== null && details.profile.workday_hours !== undefined
         ? String(details.profile.workday_hours)
         : '8',
+    workdaysPerWeek:
+      details.profile.workdays_per_week !== null && details.profile.workdays_per_week !== undefined
+        ? String(details.profile.workdays_per_week)
+        : '5',
     salary:
       details.user.salary !== null && details.user.salary !== undefined
         ? String(details.user.salary)
@@ -208,6 +219,10 @@ export const mapEmployeeDetails = (
       details.profile.workday_hours !== null && details.profile.workday_hours !== undefined
         ? Number(details.profile.workday_hours)
         : null,
+    workdaysPerWeek:
+      details.profile.workdays_per_week !== null && details.profile.workdays_per_week !== undefined
+        ? Number(details.profile.workdays_per_week)
+        : 5,
     documents,
   };
 };

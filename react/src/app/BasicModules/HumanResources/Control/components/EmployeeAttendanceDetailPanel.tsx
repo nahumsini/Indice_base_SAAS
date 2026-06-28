@@ -39,7 +39,7 @@ export function EmployeeAttendanceDetailPanel({
   onError: (message: string) => void;
 }) {
   return (
-    <section className="rounded-[24px] border border-[#59C3A5]/10 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_8px_24px_rgba(15,23,42,0.03)] dark:border-gray-800 dark:bg-gray-800">
+    <section className="rounded-lg border border-[#59C3A5]/10 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-800">
       <div className="flex flex-col gap-4">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{copy.labels.attendanceCalendar}</h3>
@@ -62,7 +62,7 @@ export function EmployeeAttendanceDetailPanel({
                   faceEnrollment={faceEnrollment}
                   assignments={assignments}
                   assignLocationDisabled={Boolean(selectedEmployeeBusyReason)}
-                  assignLocationTitle={selectedEmployeeBusyReason ? `${selectedEmployeeBusyReason}. Remove the existing shift first.` : undefined}
+                  assignLocationTitle={selectedEmployeeBusyReason ? copy.labels.removeExistingShiftTooltip(selectedEmployeeBusyReason) : undefined}
                   onAssignLocation={onAssignLocation}
                   onFaceEnrollmentChange={onFaceEnrollmentChange}
                   onReload={onReload}
@@ -81,7 +81,7 @@ export function EmployeeAttendanceDetailPanel({
           {quickActions}
         </div>
       ) : (
-        <div className="mt-8 rounded-2xl border border-dashed border-[#59C3A5]/20 bg-[#F4FCF9] px-6 py-12 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+        <div className="mt-8 rounded-lg border border-dashed border-[#59C3A5]/20 bg-[#F4FCF9] px-6 py-12 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
           {copy.labels.selectEmployeeCalendar}
         </div>
       )}

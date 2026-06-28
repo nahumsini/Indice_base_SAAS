@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PackageCheck, PackagePlus, X } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import {
   Dialog,
@@ -122,10 +123,10 @@ export function AddNewAssests({
   };
 
   const inputClassName = cn(
-    'w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:border-[#6d5dfc] focus:ring-2',
+    'w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:border-[#59C3A5] focus:ring-2',
     isDarkMode
-      ? 'border-gray-700 bg-gray-900/70 text-white placeholder:text-slate-400/80 focus:ring-[#6d5dfc]/25 [color-scheme:dark]'
-      : 'border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-[#6d5dfc]/20 [color-scheme:light]',
+      ? 'border-gray-700 bg-gray-900/70 text-white placeholder:text-slate-400/80 focus:ring-[#59C3A5]/25 [color-scheme:dark]'
+      : 'border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:ring-[#59C3A5]/20 [color-scheme:light]',
   );
 
   const selectClassName = `${inputClassName} appearance-none cursor-pointer`;
@@ -167,31 +168,41 @@ export function AddNewAssests({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => (!open ? handleCancel() : undefined)}>
       <DialogContent
+        hideCloseButton
         className={cn(
-          'max-w-3xl p-0 sm:rounded-2xl',
+          'max-h-[90vh] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-[28px] p-0 sm:max-w-3xl',
           isDarkMode
-            ? 'border border-gray-700 bg-gray-800/95 text-white shadow-[0_28px_60px_rgba(4,10,30,0.5)]'
+            ? 'border border-slate-700 bg-slate-950 text-white shadow-[0_28px_60px_rgba(4,10,30,0.5)]'
             : 'border border-gray-200 bg-white text-gray-900 shadow-[0_28px_60px_rgba(15,23,42,0.18)]',
         )}
       >
         <DialogHeader
-          className={cn(
-            'border-b px-6 py-5 text-left',
-            isDarkMode
-              ? 'border-gray-700 bg-[linear-gradient(135deg,rgba(89,195,165,0.18)_0%,rgba(37,24,130,0.22)_100%)]'
-              : 'border-gray-200 bg-[linear-gradient(135deg,#F4FCF9_0%,#eef3ff_100%)]',
-          )}
+          className="flex-row items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-left text-white"
         >
-          <DialogTitle className={cn('flex items-center gap-2 text-2xl font-semibold', isDarkMode ? 'text-white' : 'text-gray-900')}>
-            <span className="text-xl">🏢</span>
-            {modalTitle}
-          </DialogTitle>
-          <DialogDescription className={cn('text-sm', isDarkMode ? 'text-slate-300' : 'text-gray-600')}>
-            {modalSubtitle}
-          </DialogDescription>
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
+              {isEditMode ? <PackageCheck className="h-5 w-5" /> : <PackagePlus className="h-5 w-5" />}
+            </span>
+            <div className="min-w-0">
+              <DialogTitle className="text-2xl font-semibold text-white">
+                {modalTitle}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-sm font-medium text-white/75">
+                {modalSubtitle}
+              </DialogDescription>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label={t.buttons.cancel}
+            onClick={handleCancel}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </DialogHeader>
 
-        <div className="max-h-[78vh] overflow-y-auto px-6 py-6">
+        <div className="min-h-0 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
           <div className="space-y-6">
             <section className={sectionClassName}>
               <div className={cn('mb-4 border-b pb-2', isDarkMode ? 'border-white/10' : 'border-gray-200')}>
@@ -369,21 +380,12 @@ export function AddNewAssests({
         </div>
 
         <DialogFooter
-          className={cn(
-            'border-t px-6 py-4 sm:justify-end',
-            isDarkMode ? 'border-gray-700 bg-gray-900/55' : 'border-gray-200 bg-gray-50',
-          )}
+          className="bg-[#59C3A5] px-6 py-4 text-white sm:justify-end"
         >
           <Button
             type="button"
-            variant="outline"
             onClick={handleCancel}
-            className={cn(
-              'hover:text-white',
-              isDarkMode
-                ? 'border-gray-600 bg-gray-800 text-slate-200 hover:bg-gray-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900',
-            )}
+            className="rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
           >
             {t.buttons.cancel}
           </Button>
@@ -391,7 +393,7 @@ export function AddNewAssests({
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="bg-[#5d35ff] text-white hover:bg-[#4e29ef] disabled:cursor-not-allowed disabled:bg-[#3c365f] disabled:text-slate-400"
+            className="rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#137F68]/60"
           >
             {saveLabel}
           </Button>

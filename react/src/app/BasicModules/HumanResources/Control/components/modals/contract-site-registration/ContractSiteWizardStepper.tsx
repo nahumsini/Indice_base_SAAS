@@ -46,7 +46,7 @@ export function ContractSiteWizardStepper({
               key={step.id}
               type="button"
               onClick={() => onStepChange(step.id)}
-              className={`flex min-h-[76px] items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
+              className={`flex min-h-[76px] items-start gap-3 rounded-md border px-3 py-3 text-left transition-colors ${
                 isCurrent
                   ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-blue-400/50 dark:bg-blue-400/10 dark:text-blue-200'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-[#59C3A5]/30 hover:bg-[#59C3A5]/5 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'

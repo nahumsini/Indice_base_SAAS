@@ -1,4 +1,4 @@
-import { FileText, Plus, RefreshCw } from 'lucide-react';
+import { FileText, KeyRound, Plus, RefreshCw } from 'lucide-react';
 import {
   PointOfSaleTitleBar,
   pointOfSaleTitleBarPrimaryActionClassName,
@@ -8,11 +8,13 @@ import {
 export function PurchaseOrderHeader({
   onCreateInvoice,
   onCreateOrder,
+  onManageSupplierPortal,
   onRefresh,
   refreshing,
 }: {
   onCreateInvoice: () => void;
   onCreateOrder: () => void;
+  onManageSupplierPortal: () => void;
   onRefresh: () => void;
   refreshing: boolean;
 }) {
@@ -32,6 +34,14 @@ export function PurchaseOrderHeader({
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             Actualizar
+          </button>
+          <button
+            type="button"
+            className={pointOfSaleTitleBarSecondaryActionClassName}
+            onClick={onManageSupplierPortal}
+          >
+            <KeyRound className="h-4 w-4" />
+            Portal proveedor
           </button>
           <button
             type="button"

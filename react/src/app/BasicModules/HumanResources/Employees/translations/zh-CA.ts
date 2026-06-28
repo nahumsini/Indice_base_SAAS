@@ -7,6 +7,34 @@ export const zhCA = {
   subtitle: '员工档案、分配、排班和薪资信息',
   addEmployee: '添加员工',
   configureColumns: '列设置',
+  preferredCurrency: '首选币种',
+  exchangeRates: {
+    action: '汇率',
+    apply: '应用',
+    baseCurrency: 'USD 基准',
+    dailyMode: '每日汇率',
+    dailyResetNote: '加载每日汇率会用可用的每日参考替换任何手动汇率。',
+    dailySource: '内部每日参考',
+    invalid: '请输入大于零的汇率。',
+    manualMode: '永久手动',
+    manualPersistenceNote: '应用后，此汇率会保存并持续使用，直到再次编辑或加载每日汇率。',
+    manualSource: '已保存手动汇率',
+    preferredRate: ({ currency, rate }: { currency: string; rate: string }) => `1 USD = ${rate} ${currency}`,
+    rateInputLabel: (currency: string) => `1 USD 折 ${currency}`,
+    reset: '加载每日汇率',
+    sourceDetails: ({
+      base,
+      date,
+      mode,
+      source,
+    }: {
+      base: string;
+      date: string;
+      mode: string;
+      source: string;
+    }) => `Base: ${base} · Source: ${source} · Date: ${date} · ${mode}`,
+    title: '汇率',
+  },
   retryLoad: '重试',
   detailLoadingTitle: '正在加载员工详情',
   detailLoadingDescription: '正在获取完整员工档案和文件。',
@@ -37,19 +65,53 @@ export const zhCA = {
     total: '员工总数',
     active: '在职',
     inactive: '非活跃',
+    noSchedule: '未排班',
+    documentsPending: '文件待补充',
     payroll: '月薪资',
+    payrollNative: '原币薪资',
+    payrollMultiCurrencyAlert: (count: number) => `${count} 种薪资币种`,
     visible: '筛选后显示',
     terminated: '已离职',
     activeRate: '在职率',
     statusReview: (count: number) => `${count} 个状态需复核`,
+    noScheduleAlert: (count: number) => `${count} 人未排班`,
+    documentsPendingAlert: (count: number) => `${count} 人文件待补充`,
     summaryInsight: ({
       activeCount,
       activeRate,
+      missingDocumentsCount,
+      noScheduleCount,
       payroll,
+      statusReviewCount,
       totalCount,
       visibleCount,
     }: EmployeesSummaryInsightArgs) =>
-      `员工概览：${activeCount} 名在职 · 在职率 ${activeRate} · 月薪资 ${payroll} · 显示 ${visibleCount}/${totalCount}。`,
+      noScheduleCount > 0
+        ? `${noScheduleCount} 名在职员工需要排班，才能让考勤更顺畅。`
+        : missingDocumentsCount > 0
+          ? `${missingDocumentsCount} 名员工需要补充文件，档案才算完整。`
+          : statusReviewCount > 0
+            ? `${statusReviewCount} 名员工需要复核状态，以保持薪资和权限一致。`
+            : `员工状态稳定：${activeCount} 名在职，在职率 ${activeRate}，月薪资 ${payroll}，显示 ${visibleCount}/${totalCount}。`,
+  },
+  views: {
+    label: '员工视图',
+    table: '表格',
+  },
+  bulk: {
+    title: '批量操作',
+    selected: (count: number) => `已选择 ${count} 人`,
+    changeUnit: '更改单位',
+    changeBusiness: '更改业务',
+    changeDepartment: '更改部门',
+    changePosition: '更改职位',
+    exportSelected: '导出已选',
+    clear: '清除选择',
+    mixedSelection: '多个值',
+    selectUnitFirst: '先选择单位',
+    updateSuccess: (count: number) => `已更新 ${count} 名员工。`,
+    updateError: '无法更新所选员工。',
+    exportFileName: (date: string) => `employees-${date}.csv`,
   },
   filters: {
     title: '筛选',
@@ -104,6 +166,7 @@ export const zhCA = {
     scheduleLocationId: '指定地点',
     salaryType: '薪资类型',
     workdayHours: '工作时长',
+    workdaysPerWeek: '每周工作日',
     salary: '薪资',
     hourlyRate: '时薪',
     payPeriod: '支付周期',
@@ -122,6 +185,7 @@ export const zhCA = {
     emptyState: '当前筛选条件下没有员工。',
     selectAllVisible: '选择所有可见员工',
     selectEmployee: (name: string) => `选择 ${name}`,
+    resizeColumn: '调整宽度',
     deleteConfirm: '是否永久删除该已离职员工？',
     editHrUserLabel: '编辑员工',
     terminateHrUserLabel: '处理离职',
@@ -164,6 +228,7 @@ export const zhCA = {
     scheduleLocationId: '配置后使用的指定考勤地点。',
     salaryType: '员工按所选支付周期的固定金额或按小时支付。',
     workdayHours: '配置的标准工作时长。',
+    workdaysPerWeek: '用于薪资估算的平均每周工作日。',
     salary: '所选支付周期内支付的固定金额。',
     hourlyRate: '时薪类型下使用的每小时金额。',
     payPeriod: '员工配置的薪资支付频率。',
@@ -180,6 +245,7 @@ export const zhCA = {
   payPeriodLabels: {
     weekly: '每周',
     biweekly: '每两周',
+    semimonthly: '每月两次',
     monthly: '每月',
   },
   salaryTypeLabels: {
@@ -201,6 +267,11 @@ export const zhCA = {
   documentStatusLabels: {
     uploaded: '已上传',
     missing: '未上传文件',
+    upload: '上传',
+    replace: '替换',
+    view: '查看',
+    viewImage: '查看图片',
+    uploading: '正在上传...',
   },
   pagination: {
     previous: '上一页',
@@ -387,6 +458,7 @@ export const zhCA = {
       scheduleLocationId: '指定地点',
       salaryType: '薪资类型',
       workdayHours: '工作时长',
+      workdaysPerWeek: '每周工作日',
       salary: '固定薪资金额',
       hourlyRate: '时薪',
       payPeriod: '支付周期',
@@ -406,6 +478,8 @@ export const zhCA = {
       scheduleBusinessLocation: '员工将从其业务分配的 Business Structure 地点打卡。',
       scheduleExactLocation: '所选指定地点将应用于该员工排班。',
       noScheduleLocations: '所选业务或单位没有可用的活跃考勤地点。',
+      salaryPeriodMeaning: '金额代表所选支付周期；工作时长和工作日用于估算日成本和小时成本。',
+      hourlySalaryMeaning: '金额为时薪；工作时长和每周工作日用于估算月薪资。',
     },
     belonging: {
       businessUnitHelper: '选择该员工所属的实体或公司单位。',
@@ -449,6 +523,7 @@ export const zhCA = {
       city: '例如：Toronto',
       postalCode: '例如：M5V 2T6',
       workdayHours: '例如：8',
+      workdaysPerWeek: '例如：5',
       salary: '例如：12000.00',
       hourlyRate: '例如：75.00',
       scheduleMealMinutes: '例如：30',
@@ -549,6 +624,7 @@ export const zhCA = {
       payPeriods: [
         { value: 'weekly', label: '每周' },
         { value: 'biweekly', label: '每两周' },
+        { value: 'semimonthly', label: '每月两次' },
         { value: 'monthly', label: '每月' },
       ],
       contractTypes: [
@@ -572,6 +648,7 @@ export const zhCA = {
       invalidEmail: '请输入有效的邮箱地址。',
       invalidPhone: '请输入有效的电话号码。',
       invalidHours: '工作时长必须在 1 到 24 之间。',
+      invalidWorkdaysPerWeek: '每周工作日必须在 1 到 7 之间。',
       invalidAmount: '请输入大于零的金额。',
       invalidScheduleTime: '结束时间不能等于开始时间。',
       invalidMinutes: '请输入零或正数。',

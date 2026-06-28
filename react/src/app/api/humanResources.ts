@@ -23,9 +23,12 @@ export interface BackendHrUser {
   business_name?: string;
   hire_date?: string | null;
   salary?: number | null;
-  pay_period: 'weekly' | 'biweekly' | 'monthly';
+  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
   salary_type: 'daily' | 'hourly';
   hourly_rate?: number | null;
+  workday_hours?: number | null;
+  workdays_per_week?: number | null;
+  registration_country?: string;
   contract_type: 'permanent' | 'temporary';
   contract_start_date?: string | null;
   contract_end_date?: string | null;
@@ -52,6 +55,7 @@ export interface BackendHrUserProfile {
   emergency_contact_relationship?: string;
   emergency_contact_phone?: string;
   workday_hours?: number | null;
+  workdays_per_week?: number | null;
 }
 
 export interface BackendHrUserDocument {
@@ -736,6 +740,10 @@ export interface PayrollPreferences {
   grouping_mode: 'single' | 'unit' | 'business';
   default_daily_hours: number;
   pay_leave_days: boolean;
+  weekly_start_day: number;
+  biweekly_first_day: number;
+  biweekly_second_day: number;
+  monthly_start_day: number;
   isr_rate: number;
   imss_user_rate: number;
   infonavit_user_rate: number;
@@ -764,7 +772,10 @@ export interface PayrollRunSummary {
   grouping_mode: 'single' | 'unit' | 'business';
   grouping_key?: string | null;
   grouping_label?: string | null;
-  pay_period: 'weekly' | 'biweekly' | 'monthly';
+  jurisdiction_label?: string | null;
+  currency_code?: string | null;
+  native_totals_by_currency?: Record<string, number>;
+  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
   period_start_date: string;
   period_end_date: string;
   status: 'draft' | 'processed' | 'approved' | 'paid' | 'cancelled';
@@ -773,6 +784,9 @@ export interface PayrollRunSummary {
   deductions_amount: number;
   employer_contributions_amount: number;
   net_amount: number;
+  statutory_compliance?: boolean;
+  unsupported_country_count?: number;
+  calculation_warnings?: string[];
   created_at?: string | null;
   reused?: boolean;
 }
@@ -782,7 +796,7 @@ export interface PayrollRunListResponse {
 }
 
 export interface PayrollCreateRunsPayload {
-  pay_period: 'weekly' | 'biweekly' | 'monthly';
+  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
   grouping_mode: 'single' | 'unit' | 'business';
   period_start_date: string;
   period_end_date: string;
@@ -791,10 +805,24 @@ export interface PayrollCreateRunsPayload {
 export interface PayrollLineItem {
   id: number;
   code: string;
-  category: 'earning' | 'deduction' | 'employer_contribution';
+  category: 'earning' | 'deduction' | 'employer_contribution' | 'provision';
   label: string;
   amount: number;
-  source_type: 'computed' | 'manual' | 'computed_tax';
+  source_type: 'computed' | 'manual' | 'computed_tax' | 'adjustment';
+  country_code?: string | null;
+  jurisdiction_code?: string | null;
+  tax_treatment?: string | null;
+  taxable?: boolean;
+  exempt?: boolean;
+  affects_social_security?: boolean;
+  affects_employer_cost?: boolean;
+  legal_classification?: string | null;
+  rule_code?: string | null;
+  rule_set_id?: number | null;
+  calculation_formula?: string | null;
+  calculation_base?: number | null;
+  rate_applied?: number | null;
+  currency_code?: string | null;
 }
 
 export interface PayrollRunLine {
@@ -808,7 +836,11 @@ export interface PayrollRunLine {
   unit_name?: string;
   business_id?: number | null;
   business_name?: string;
-  pay_period: 'weekly' | 'biweekly' | 'monthly';
+  country_code?: string | null;
+  jurisdiction_code?: string | null;
+  currency_code?: string | null;
+  fx_rate?: number | null;
+  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
   salary_type: 'daily' | 'hourly';
   base_salary_amount: number;
   hourly_rate_amount?: number | null;
@@ -816,6 +848,9 @@ export interface PayrollRunLine {
   leave_days: number;
   absence_days: number;
   rest_days: number;
+  missing_attendance_days?: number;
+  paid_leave_days?: number;
+  unpaid_absence_days?: number;
   late_count: number;
   regular_hours: number;
   overtime_hours: number;
@@ -825,6 +860,17 @@ export interface PayrollRunLine {
   employer_contributions_amount: number;
   net_amount: number;
   notes?: string;
+  calculation_source?: string | null;
+  calculation_timestamp?: string | null;
+  employee_salary_snapshot?: Record<string, unknown>;
+  attendance_snapshot?: Record<string, unknown>;
+  manual_adjustments_snapshot?: unknown[];
+  calculation_inputs?: Record<string, unknown>;
+  calculation_results?: Record<string, unknown>;
+  rule_snapshot?: Record<string, unknown>;
+  attendance_warnings?: string[];
+  statutory_compliance?: boolean;
+  calculation_warnings?: string[];
   items: PayrollLineItem[];
 }
 
@@ -834,7 +880,7 @@ export interface PayrollRunDetailResponse {
 }
 
 export interface PayrollManualItemPayload {
-  category: 'earning' | 'deduction';
+  category: 'earning' | 'deduction' | 'employer_contribution' | 'provision';
   label: string;
   amount: number;
 }
@@ -843,6 +889,150 @@ export interface PayrollUpdateLinePayload {
   include_in_fiscal: boolean;
   notes?: string;
   manual_items: PayrollManualItemPayload[];
+}
+
+export interface PayrollColombiaConfig {
+  country_code: 'CO';
+  exists: boolean;
+  default_arl_class?: number | null;
+  compensation_fund_code?: string;
+  compensation_fund_name?: string;
+  employer_health_exemption_applies?: boolean | null;
+  sena_applies?: boolean | null;
+  icbf_applies?: boolean | null;
+  ccf_applies?: boolean | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PayrollColombiaEmployeeProfile {
+  user_company_id: number;
+  country_code: 'CO';
+  exists: boolean;
+  contributor_type?: string;
+  contributor_subtype?: string;
+  integral_salary: boolean;
+  arl_class?: number | null;
+  eps_code?: string;
+  eps_name?: string;
+  afp_code?: string;
+  afp_name?: string;
+  compensation_fund_code?: string;
+  compensation_fund_name?: string;
+  employer_health_exemption_applies?: boolean | null;
+  sena_applies?: boolean | null;
+  icbf_applies?: boolean | null;
+  ccf_applies?: boolean | null;
+  withholding_procedure: 'procedure_1' | 'procedure_2';
+  dependents_monthly_deduction: number;
+  prepaid_medicine_monthly: number;
+  housing_interest_monthly: number;
+  voluntary_pension_monthly: number;
+  afc_monthly: number;
+  other_exempt_income_monthly: number;
+  procedure_2_fixed_rate: number;
+  metadata?: Record<string, unknown>;
+}
+
+export type PayrollColombiaNoveltyCode =
+  | 'ING'
+  | 'RET'
+  | 'VSP'
+  | 'VST'
+  | 'SLN'
+  | 'IGE'
+  | 'LMA'
+  | 'LPA'
+  | 'VAC'
+  | 'SUS'
+  | 'AUS'
+  | 'TER'
+  | 'TERMINATION'
+  | 'LIQ'
+  | 'LIQUIDACION'
+  | 'RETRO'
+  | 'RETROACTIVO'
+  | 'AJR'
+  | 'CORR'
+  | 'CORRECCION'
+  | 'AJUSTE'
+  | 'ADJ';
+
+export interface PayrollColombiaNovelty {
+  id: number;
+  company_id: number;
+  user_company_id: number;
+  country_code: 'CO';
+  user_code?: string;
+  user_name?: string;
+  novelty_code: PayrollColombiaNoveltyCode;
+  novelty_label?: string;
+  start_date: string;
+  end_date?: string | null;
+  days: number;
+  hours: number;
+  paid: boolean;
+  affects_ibc: boolean;
+  ibc_impact_amount: number;
+  source: 'manual' | 'attendance' | 'control' | 'payroll' | 'termination' | 'import' | 'api';
+  status: 'active' | 'inactive' | 'cancelled' | 'applied';
+  metadata?: Record<string, unknown>;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface PayrollColombiaNoveltiesResponse {
+  items: PayrollColombiaNovelty[];
+  count: number;
+}
+
+export interface PayrollColombiaNoveltyPayload {
+  user_company_id?: number;
+  novelty_code?: PayrollColombiaNoveltyCode;
+  novelty_label?: string;
+  start_date?: string;
+  end_date?: string | null;
+  days?: number;
+  hours?: number;
+  paid?: boolean;
+  affects_ibc?: boolean;
+  ibc_impact_amount?: number;
+  source?: PayrollColombiaNovelty['source'];
+  status?: PayrollColombiaNovelty['status'];
+  metadata?: Record<string, unknown>;
+}
+
+export interface PayrollGovernmentReportingSnapshot {
+  id: number;
+  run_id: number;
+  run_line_id: number;
+  company_id: number;
+  user_company_id: number;
+  country_code: string;
+  report_type: 'PILA' | 'DIAN_PAYROLL';
+  report_period_start: string;
+  report_period_end: string;
+  status: string;
+  payload_hash?: string;
+  payload: Record<string, unknown>;
+  validation: Record<string, unknown>;
+  response: Record<string, unknown>;
+  generated_by_source?: string;
+  generated_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface PayrollGovernmentReportingSnapshotsResponse {
+  run: PayrollRunSummary;
+  items: PayrollGovernmentReportingSnapshot[];
+  count: number;
+}
+
+export interface PayrollGovernmentReportingResponsePayload {
+  status?: 'draft_ready' | 'draft_blocked' | 'transmitted' | 'accepted' | 'rejected' | 'correction_required';
+  external_id?: string;
+  message?: string;
+  response_at?: string;
+  issues?: Array<Record<string, unknown>>;
 }
 
 export interface AttendanceKioskEventPayload {
@@ -1703,6 +1893,86 @@ export const humanResourcesApi = {
     return apiClient<{ run: PayrollRunSummary }>(`${endpoints.humanResources.payrollRuns}/${runId}/cancel`, {
       method: 'POST',
     });
+  },
+
+  getPayrollColombiaConfig() {
+    return apiClient<PayrollColombiaConfig>(`${endpoints.humanResources.payrollColombia}/config`);
+  },
+
+  updatePayrollColombiaConfig(payload: Partial<PayrollColombiaConfig>) {
+    return apiClient<PayrollColombiaConfig>(`${endpoints.humanResources.payrollColombia}/config`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getPayrollColombiaEmployeeProfile(userCompanyId: string | number) {
+    return apiClient<PayrollColombiaEmployeeProfile>(
+      `${endpoints.humanResources.payrollColombia}/profiles/${userCompanyId}`,
+    );
+  },
+
+  updatePayrollColombiaEmployeeProfile(
+    userCompanyId: string | number,
+    payload: Partial<PayrollColombiaEmployeeProfile>,
+  ) {
+    return apiClient<PayrollColombiaEmployeeProfile>(
+      `${endpoints.humanResources.payrollColombia}/profiles/${userCompanyId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  listPayrollColombiaNovelties(filters: {
+    user_company_id?: string | number;
+    period_from?: string;
+    period_to?: string;
+    status?: PayrollColombiaNovelty['status'] | 'all';
+  } = {}) {
+    return apiClient<PayrollColombiaNoveltiesResponse>(
+      `${endpoints.humanResources.payrollColombia}/novelties${toQueryString(filters)}`,
+    );
+  },
+
+  createPayrollColombiaNovelty(payload: PayrollColombiaNoveltyPayload & { user_company_id: number }) {
+    return apiClient<{ item: PayrollColombiaNovelty }>(`${endpoints.humanResources.payrollColombia}/novelties`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updatePayrollColombiaNovelty(noveltyId: string | number, payload: PayrollColombiaNoveltyPayload) {
+    return apiClient<{ item: PayrollColombiaNovelty }>(
+      `${endpoints.humanResources.payrollColombia}/novelties/${noveltyId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  listPayrollGovernmentReportingSnapshots(
+    runId: string | number,
+    filters: { report_type?: 'PILA' | 'DIAN_PAYROLL' } = {},
+  ) {
+    return apiClient<PayrollGovernmentReportingSnapshotsResponse>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/government-reporting${toQueryString(filters)}`,
+    );
+  },
+
+  updatePayrollGovernmentReportingResponse(
+    snapshotId: string | number,
+    payload: PayrollGovernmentReportingResponsePayload,
+  ) {
+    return apiClient<{ item: PayrollGovernmentReportingSnapshot }>(
+      `${endpoints.humanResources.payrollGovernmentReporting}/${snapshotId}/response`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   listAnnouncements() {

@@ -11,6 +11,7 @@ const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk
 const PettyCashKiosk = lazy(() => import('./BasicModules/PettyCash/Kiosk/PublicPettyCashKioskPage'));
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
 const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDisplay'));
+const SupplierPortal = lazy(() => import('./BasicModules/PointOfSale/SupplierPortal'));
 
 function KioskRoute() {
   return (
@@ -86,6 +87,22 @@ function CustomerDisplayRoute() {
   );
 }
 
+function SupplierPortalRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading supplier portal"
+          description="Preparing the supplier purchase proposal portal."
+        />
+      )}
+    >
+      <SupplierPortal />
+    </Suspense>
+  );
+}
+
 function PrivateAppRoute() {
   return (
     <Suspense
@@ -103,12 +120,12 @@ function PrivateAppRoute() {
 }
 
 const redirectToLanding = async () => {
-  const session = await authApi.getSessionOrNull();
+  const session = await getRouteSessionOrNull();
   return redirect(session ? '/dashboard' : '/login');
 };
 
 const redirectIfAuthenticated = async () => {
-  const session = await authApi.getSessionOrNull();
+  const session = await getRouteSessionOrNull();
 
   if (session) {
     return redirect('/dashboard');
@@ -118,7 +135,7 @@ const redirectIfAuthenticated = async () => {
 };
 
 const requireAuthenticatedSession = async () => {
-  const session = await authApi.getSessionOrNull();
+  const session = await getRouteSessionOrNull();
 
   if (!session) {
     return redirect('/login');
@@ -126,6 +143,8 @@ const requireAuthenticatedSession = async () => {
 
   return null;
 };
+
+const getRouteSessionOrNull = () => authApi.getSessionOrNull().catch(() => null);
 
 export const router = createBrowserRouter([
   {
@@ -168,6 +187,10 @@ export const router = createBrowserRouter([
   {
     path: '/pos-display/:deviceToken',
     element: <CustomerDisplayRoute />,
+  },
+  {
+    path: '/supplier-portal/:portalCode',
+    element: <SupplierPortalRoute />,
   },
   {
     path: '/:pageId/*',

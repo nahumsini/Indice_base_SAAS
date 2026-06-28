@@ -7,6 +7,34 @@ export const frCA = {
   subtitle: 'Dossiers, affectations, horaires et contexte de paie',
   addEmployee: 'Ajouter un employé',
   configureColumns: 'Colonnes',
+  preferredCurrency: 'Devise préférée',
+  exchangeRates: {
+    action: 'FX',
+    apply: 'Appliquer',
+    baseCurrency: 'Base USD',
+    dailyMode: 'Taux quotidien',
+    dailyResetNote: 'Charger le taux du jour remplace tout taux manuel par la reference quotidienne disponible.',
+    dailySource: 'Reference quotidienne interne',
+    invalid: 'Saisissez des taux supérieurs à zéro.',
+    manualMode: 'Manuel permanent',
+    manualPersistenceNote: 'Une fois applique, ce taux est enregistre et utilise jusqua modification ou chargement du taux du jour.',
+    manualSource: 'Taux manuel enregistre',
+    preferredRate: ({ currency, rate }: { currency: string; rate: string }) => `1 USD = ${rate} ${currency}`,
+    rateInputLabel: (currency: string) => `1 USD en ${currency}`,
+    reset: 'Charger le taux du jour',
+    sourceDetails: ({
+      base,
+      date,
+      mode,
+      source,
+    }: {
+      base: string;
+      date: string;
+      mode: string;
+      source: string;
+    }) => `Base: ${base} · Source: ${source} · Date: ${date} · ${mode}`,
+    title: 'Taux de change',
+  },
   retryLoad: 'Réessayer',
   detailLoadingTitle: 'Chargement du dossier employé',
   detailLoadingDescription: 'Nous récupérons le profil complet et les documents.',
@@ -37,19 +65,53 @@ export const frCA = {
     total: 'Total des employés',
     active: 'Actifs',
     inactive: 'Inactifs',
+    noSchedule: 'Sans horaire',
+    documentsPending: 'Documents à compléter',
     payroll: 'Paie mensuelle',
+    payrollNative: 'Paie native',
+    payrollMultiCurrencyAlert: (count: number) => `${count} devises de paie`,
     visible: 'visibles après filtres',
     terminated: 'Terminés',
     activeRate: 'taux actif',
     statusReview: (count: number) => `${count} statut à revoir`,
+    noScheduleAlert: (count: number) => `${count} sans horaire`,
+    documentsPendingAlert: (count: number) => `${count} dossiers incomplets`,
     summaryInsight: ({
       activeCount,
       activeRate,
+      missingDocumentsCount,
+      noScheduleCount,
       payroll,
+      statusReviewCount,
       totalCount,
       visibleCount,
     }: EmployeesSummaryInsightArgs) =>
-      `Résumé RH: ${activeCount} employés actifs · ${activeRate} actifs · ${payroll} de paie mensuelle · ${visibleCount} sur ${totalCount} affichés.`,
+      noScheduleCount > 0
+        ? `${noScheduleCount} employés actifs ont besoin d’un horaire pour fiabiliser la présence.`
+        : missingDocumentsCount > 0
+          ? `${missingDocumentsCount} employés ont des documents à compléter avant que le dossier soit prêt.`
+          : statusReviewCount > 0
+            ? `${statusReviewCount} employés demandent une revue de statut avant la paie et les accès.`
+            : `L’effectif est stable: ${activeCount} employés actifs, ${activeRate} actifs, ${payroll} de paie mensuelle, ${visibleCount} sur ${totalCount} affichés.`,
+  },
+  views: {
+    label: 'Vue employés',
+    table: 'Table',
+  },
+  bulk: {
+    title: 'Actions groupées',
+    selected: (count: number) => `${count} sélectionnés`,
+    changeUnit: 'Changer l’unité',
+    changeBusiness: 'Changer l’entreprise',
+    changeDepartment: 'Changer le service',
+    changePosition: 'Changer le poste',
+    exportSelected: 'Exporter la sélection',
+    clear: 'Effacer la sélection',
+    mixedSelection: 'Valeurs multiples',
+    selectUnitFirst: 'Sélectionnez une unité',
+    updateSuccess: (count: number) => `${count} employés mis à jour.`,
+    updateError: 'Impossible de mettre à jour les employés sélectionnés.',
+    exportFileName: (date: string) => `employes-${date}.csv`,
   },
   filters: {
     title: 'Filtres',
@@ -105,6 +167,7 @@ export const frCA = {
     scheduleLocationId: 'Lieu exact',
     salaryType: 'Type de paie',
     workdayHours: 'Heures de travail',
+    workdaysPerWeek: 'Jours par semaine',
     salary: 'Salaire',
     hourlyRate: 'Taux horaire',
     payPeriod: 'Période de paie',
@@ -123,6 +186,7 @@ export const frCA = {
     emptyState: 'Aucun employé ne correspond aux filtres.',
     selectAllVisible: 'Sélectionner tous les employés visibles',
     selectEmployee: (name: string) => `Sélectionner ${name}`,
+    resizeColumn: 'Ajuster la largeur',
     deleteConfirm: 'Supprimer définitivement cet employé terminé?',
     editHrUserLabel: 'Modifier l’employé',
     terminateHrUserLabel: 'Terminer l’emploi',
@@ -165,6 +229,7 @@ export const frCA = {
     scheduleLocationId: 'Lieu précis utilisé lorsque la règle l’exige.',
     salaryType: 'Indique si l’employé reçoit un montant fixe par période ou une paie horaire.',
     workdayHours: 'Heures de travail quotidiennes prévues.',
+    workdaysPerWeek: 'Jours de travail moyens par semaine utilisés pour estimer la paie.',
     salary: 'Montant fixe payé pour la période sélectionnée.',
     hourlyRate: 'Taux horaire utilisé pour la paie.',
     payPeriod: 'Fréquence de paie configurée.',
@@ -181,6 +246,7 @@ export const frCA = {
   payPeriodLabels: {
     weekly: 'Hebdomadaire',
     biweekly: 'Aux deux semaines',
+    semimonthly: 'Semi-mensuel',
     monthly: 'Mensuel',
   },
   salaryTypeLabels: {
@@ -202,6 +268,11 @@ export const frCA = {
   documentStatusLabels: {
     uploaded: 'Téléversé',
     missing: 'Aucun fichier',
+    upload: 'Téléverser',
+    replace: 'Remplacer',
+    view: 'Voir',
+    viewImage: 'Voir l’image',
+    uploading: 'Téléversement...',
   },
   pagination: {
     previous: 'Précédent',
@@ -389,6 +460,7 @@ export const frCA = {
       scheduleLocationId: 'Lieu exact',
       salaryType: 'Type de paie',
       workdayHours: 'Heures de travail',
+      workdaysPerWeek: 'Jours travaillés par semaine',
       salary: 'Montant fixe',
       hourlyRate: 'Taux horaire',
       payPeriod: 'Période de paie',
@@ -409,6 +481,8 @@ export const frCA = {
       scheduleBusinessLocation: 'L’employé pointera depuis le lieu de Business Structure assigné à son activité.',
       scheduleExactLocation: 'Le lieu exact sélectionné sera appliqué à l’horaire de cet employé.',
       noScheduleLocations: 'Aucun lieu de présence actif n’est disponible pour l’activité ou l’unité sélectionnée.',
+      salaryPeriodMeaning: 'Le montant représente la période de paie sélectionnée; heures et jours estiment le coût quotidien et horaire.',
+      hourlySalaryMeaning: 'Le montant est horaire; heures quotidiennes et jours hebdomadaires estiment la paie mensuelle.',
     },
     belonging: {
       businessUnitHelper: 'Choisissez l’unité physique ou corporative à laquelle l’employé appartient.',
@@ -453,6 +527,7 @@ export const frCA = {
       city: 'p. ex. Montréal',
       postalCode: 'p. ex. H2X 1Y4',
       workdayHours: 'p. ex. 8',
+      workdaysPerWeek: 'p. ex. 5',
       salary: 'p. ex. 12000.00',
       hourlyRate: 'p. ex. 75.00',
       scheduleMealMinutes: 'p. ex. 30',
@@ -553,6 +628,7 @@ export const frCA = {
       payPeriods: [
         { value: 'weekly', label: 'Hebdomadaire' },
         { value: 'biweekly', label: 'Aux deux semaines' },
+        { value: 'semimonthly', label: 'Semi-mensuel' },
         { value: 'monthly', label: 'Mensuel' },
       ],
       contractTypes: [
@@ -577,6 +653,7 @@ export const frCA = {
       invalidEmail: 'Entrez une adresse courriel valide.',
       invalidPhone: 'Entrez un numéro de téléphone valide.',
       invalidHours: 'Les heures de travail doivent être entre 1 et 24.',
+      invalidWorkdaysPerWeek: 'Les jours travaillés par semaine doivent être entre 1 et 7.',
       invalidAmount: 'Entrez un montant supérieur à zéro.',
       invalidScheduleTime: 'L’heure de fin ne peut pas être identique au début.',
       invalidMinutes: 'Entrez zéro ou un nombre positif.',

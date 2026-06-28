@@ -1,4 +1,5 @@
 import type { EmployeesTranslations } from '../translations';
+import type { EmployeeDocumentType } from './CreateEmployeeModal';
 import type {
   EmployeeViewModel,
   InlineEditableEmployeeField,
@@ -36,12 +37,14 @@ interface EmployeesTableCellContentProps {
   inlineSavingKey: string | null;
   inlineUnitOptions: OrganizationSelectOption[];
   locale: string;
+  onDocumentUpload?: (employee: EmployeeViewModel, documentType: EmployeeDocumentType, file: File) => void | Promise<void>;
   onInlineEmployeeUpdate: (
     employee: EmployeeViewModel,
     field: InlineEditableEmployeeField,
     overrides: InlineEmployeeUpdateOverrides,
   ) => void | Promise<void>;
   resolveDefaultBusinessIdForUnit: (unitId: string, currentBusinessId: string) => string;
+  uploadingDocumentKey?: string | null;
 }
 
 export function EmployeesTableCellContent({
@@ -55,8 +58,10 @@ export function EmployeesTableCellContent({
   inlineSavingKey,
   inlineUnitOptions,
   locale,
+  onDocumentUpload,
   onInlineEmployeeUpdate,
   resolveDefaultBusinessIdForUnit,
+  uploadingDocumentKey,
 }: EmployeesTableCellContentProps) {
   switch (columnId) {
     case 'employee':
@@ -177,10 +182,12 @@ export function EmployeesTableCellContent({
       return <EmployeeTextCell fallback={copy.fieldFallback} value={copy.salaryTypeLabels[employee.salaryType]} />;
     case 'workdayHours':
       return <EmployeeTextCell fallback={copy.fieldFallback} value={employee.workdayHours !== null ? employee.workdayHours : null} />;
+    case 'workdaysPerWeek':
+      return <EmployeeTextCell fallback={copy.fieldFallback} value={employee.workdaysPerWeek !== null ? employee.workdaysPerWeek : null} />;
     case 'salary':
       return <EmployeeSalaryCell employee={employee} />;
     case 'hourlyRate':
-      return <EmployeeCurrencyCell value={employee.hourlyRate} />;
+      return <EmployeeCurrencyCell employee={employee} value={employee.hourlyRate} />;
     case 'payPeriod':
       return <EmployeePayPeriodCell label={copy.payPeriodLabels[employee.payPeriod]} />;
     case 'contractType':
@@ -192,15 +199,15 @@ export function EmployeesTableCellContent({
     case 'joinDate':
       return <EmployeeDateCell fallback={copy.dateFallback} locale={locale} value={employee.joinDate} />;
     case 'birthCertificate':
-      return <EmployeeDocumentCell employee={employee} documentType="birth_certificate" labels={copy.documentStatusLabels} />;
+      return <EmployeeDocumentCell employee={employee} documentType="birth_certificate" labels={copy.documentStatusLabels} onDocumentUpload={onDocumentUpload} uploadingDocumentKey={uploadingDocumentKey} />;
     case 'governmentId':
-      return <EmployeeDocumentCell employee={employee} documentType="government_id" labels={copy.documentStatusLabels} />;
+      return <EmployeeDocumentCell employee={employee} documentType="government_id" labels={copy.documentStatusLabels} onDocumentUpload={onDocumentUpload} uploadingDocumentKey={uploadingDocumentKey} />;
     case 'proofOfAddress':
-      return <EmployeeDocumentCell employee={employee} documentType="proof_of_address" labels={copy.documentStatusLabels} />;
+      return <EmployeeDocumentCell employee={employee} documentType="proof_of_address" labels={copy.documentStatusLabels} onDocumentUpload={onDocumentUpload} uploadingDocumentKey={uploadingDocumentKey} />;
     case 'resume':
-      return <EmployeeDocumentCell employee={employee} documentType="resume" labels={copy.documentStatusLabels} />;
+      return <EmployeeDocumentCell employee={employee} documentType="resume" labels={copy.documentStatusLabels} onDocumentUpload={onDocumentUpload} uploadingDocumentKey={uploadingDocumentKey} />;
     case 'profilePhoto':
-      return <EmployeeDocumentCell employee={employee} documentType="profile_photo" labels={copy.documentStatusLabels} />;
+      return <EmployeeDocumentCell employee={employee} documentType="profile_photo" labels={copy.documentStatusLabels} onDocumentUpload={onDocumentUpload} uploadingDocumentKey={uploadingDocumentKey} />;
     default:
       return null;
   }

@@ -25,7 +25,7 @@ export function ScheduleWorkflowTabs({
             key={step.id}
             type="button"
             onClick={() => onStepChange(step.id)}
-            className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+            className={`rounded-md border px-3 py-2 text-left transition-colors ${
               isActive
                 ? 'border-[#59C3A5] bg-white text-[#59C3A5] shadow-sm dark:border-[#8FE0CA] dark:bg-slate-950 dark:text-[#8FE0CA]'
                 : 'border-transparent bg-white/50 text-slate-600 hover:bg-white dark:bg-slate-900/30 dark:text-slate-300 dark:hover:bg-slate-900'

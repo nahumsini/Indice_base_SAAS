@@ -11,7 +11,6 @@ import { SalesCrmProvider } from '../Sales/salesCrmContext';
 
 const Sale = lazy(() => import('./Sale/Sale'));
 const Cortes = lazy(() => import('./Cortes'));
-const Arqueos = lazy(() => import('./Arqueos'));
 const Clientes = lazy(() => import('./Clientes'));
 const Productos = lazy(() => import('./Productos'));
 const Inventario = lazy(() => import('./Inventario'));
@@ -28,7 +27,6 @@ interface PuntoDeVentaProps {
 const pointOfSaleTabIds = [
   'sale',
   'cortes',
-  'arqueos',
   'clientes',
   'productos',
   'inventario',
@@ -69,7 +67,6 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
   const tabs = [
     { id: 'sale' as const, label: t.tabs.sale, emoji: '🛒', component: Sale },
     { id: 'cortes' as const, label: t.tabs.cortes, emoji: '✂️', component: Cortes },
-    { id: 'arqueos' as const, label: t.tabs.arqueos, emoji: '🛡️', component: Arqueos },
     { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👥', component: Clientes },
     { id: 'productos' as const, label: t.tabs.productos, emoji: '🛍️', component: Productos },
     { id: 'inventario' as const, label: t.tabs.inventario, emoji: '🏬', component: Inventario },

@@ -51,11 +51,14 @@ public class HrAnnouncementAudienceService {
     }
 
     private List<String> requireUnits(long companyId, Map<String, Object> payload) {
-        var values = unique(stringList(payload, "unit_ids", "units", "unidades"));
+        var values = unique(longList(payload, "unit_ids", "units", "unidades")
+            .stream()
+            .map(String::valueOf)
+            .toList());
         if (values.isEmpty()) {
             throw new IllegalArgumentException("At least one unit target is required.");
         }
-        requireExisting(companyId, values, "units", "id", "unit target");
+        requireExisting(companyId, values, "units", "id", "unit target", true);
         return values;
     }
 
@@ -88,6 +91,17 @@ public class HrAnnouncementAudienceService {
         String columnName,
         String label
     ) {
+        requireExisting(companyId, values, tableName, columnName, label, false);
+    }
+
+    private void requireExisting(
+        long companyId,
+        List<String> values,
+        String tableName,
+        String columnName,
+        String label,
+        boolean allowGlobalCompany
+    ) {
         var params = new ArrayList<Object>();
         params.add(companyId);
         params.addAll(values);
@@ -95,10 +109,16 @@ public class HrAnnouncementAudienceService {
             """
                 SELECT COUNT(DISTINCT %s)
                 FROM %s
-                WHERE company_id = ?
+                WHERE %s
                   AND %s IN (%s)
                   AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
-                """.formatted(columnName, tableName, columnName, placeholders(values.size())),
+                """.formatted(
+                    columnName,
+                    tableName,
+                    allowGlobalCompany ? "(company_id = ? OR company_id IS NULL)" : "company_id = ?",
+                    columnName,
+                    placeholders(values.size())
+                ),
             Integer.class,
             params.toArray()
         );
@@ -116,7 +136,7 @@ public class HrAnnouncementAudienceService {
         params.add(companyId);
         params.addAll(unitIds);
         var names = jdbcTemplate.query(
-            "SELECT name FROM units WHERE company_id = ? AND id IN (%s) ORDER BY name ASC".formatted(placeholders(unitIds.size())),
+            "SELECT name FROM units WHERE (company_id = ? OR company_id IS NULL) AND id IN (%s) ORDER BY name ASC".formatted(placeholders(unitIds.size())),
             (rs, rowNum) -> rs.getString("name"),
             params.toArray()
         );

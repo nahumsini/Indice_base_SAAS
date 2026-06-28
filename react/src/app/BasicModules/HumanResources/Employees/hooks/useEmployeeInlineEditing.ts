@@ -27,6 +27,7 @@ const buildInlineEmployeePayload = (
   const salary = employee.salaryType === 'hourly' ? '' : String(employee.salary ?? 0);
   const hourlyRate = employee.salaryType === 'hourly' ? String(employee.hourlyRate ?? 0) : '';
   const workdayHours = String(employee.workdayHours ?? 8);
+  const workdaysPerWeek = String(employee.workdaysPerWeek ?? 5);
 
   if (!nextPosition || !nextDepartment || !parsedUnitId || !parsedBusinessId) {
     return null;
@@ -83,6 +84,7 @@ const buildInlineEmployeePayload = (
     emergency_contact_relationship: employee.emergencyContactRelationship.trim(),
     emergency_contact_phone: employee.emergencyContactPhone.trim(),
     workday_hours: workdayHours,
+    workdays_per_week: workdaysPerWeek,
     profile: {
       date_of_birth: employee.dateOfBirth,
       address: employee.address.trim(),
@@ -98,9 +100,25 @@ const buildInlineEmployeePayload = (
       emergency_contact_relationship: employee.emergencyContactRelationship.trim(),
       emergency_contact_phone: employee.emergencyContactPhone.trim(),
       workday_hours: workdayHours,
+      workdays_per_week: workdaysPerWeek,
     },
     status: employee.status,
   };
+};
+
+const hasInlineEmployeeChanges = (
+  employee: EmployeeViewModel,
+  overrides: InlineEmployeeUpdateOverrides,
+) => {
+  const nextUnitId = overrides.unitId ?? employee.unitId;
+  const nextBusinessId = overrides.businessId ?? employee.businessId;
+  const nextDepartment = overrides.department ?? employee.department;
+  const nextPosition = overrides.position ?? employee.position;
+
+  return nextUnitId !== employee.unitId
+    || nextBusinessId !== employee.businessId
+    || nextDepartment !== employee.department
+    || nextPosition !== employee.position;
 };
 
 export function useEmployeeInlineEditing({
@@ -153,17 +171,7 @@ export function useEmployeeInlineEditing({
       return;
     }
 
-    const nextUnitId = nextDraft.unitId ?? employee.unitId;
-    const nextBusinessId = nextDraft.businessId ?? employee.businessId;
-    const nextDepartment = nextDraft.department ?? employee.department;
-    const nextPosition = nextDraft.position ?? employee.position;
-    const hasChanged =
-      nextUnitId !== employee.unitId
-      || nextBusinessId !== employee.businessId
-      || nextDepartment !== employee.department
-      || nextPosition !== employee.position;
-
-    if (!hasChanged) {
+    if (!hasInlineEmployeeChanges(employee, nextDraft)) {
       return;
     }
 
@@ -196,7 +204,64 @@ export function useEmployeeInlineEditing({
     setSuccessToastMessage,
   ]);
 
+  const handleBulkEmployeeUpdate = useCallback(async (
+    selectedEmployees: EmployeeViewModel[],
+    field: InlineEditableEmployeeField,
+    overrides: InlineEmployeeUpdateOverrides,
+  ) => {
+    const employeesToUpdate = selectedEmployees.filter((employee) =>
+      hasInlineEmployeeChanges(employee, overrides),
+    );
+
+    if (employeesToUpdate.length === 0) {
+      return;
+    }
+
+    const payloads = employeesToUpdate.map((employee) => ({
+      employee,
+      payload: buildInlineEmployeePayload(employee, overrides),
+    }));
+
+    if (payloads.some(({ payload }) => !payload)) {
+      setFailureToastMessage(copy.bulk.updateError);
+      return;
+    }
+
+    setInlineSavingKey(`bulk:${field}`);
+    setFailureToastMessage('');
+
+    try {
+      const savedEmployees = await Promise.all(
+        payloads.map(({ employee, payload }) =>
+          humanResourcesApi.updateHrUser(employee.id, payload!),
+        ),
+      );
+
+      savedEmployees.forEach(replaceEmployee);
+      setSuccessToastMessage(copy.bulk.updateSuccess(savedEmployees.length));
+      setInlineDrafts((currentDrafts) => {
+        const nextDrafts = { ...currentDrafts };
+        employeesToUpdate.forEach((employee) => {
+          delete nextDrafts[employee.id];
+        });
+        return nextDrafts;
+      });
+      await refreshEmployees();
+    } catch (error) {
+      setFailureToastMessage(normalizeErrorMessage(error, copy.bulk.updateError));
+    } finally {
+      setInlineSavingKey(null);
+    }
+  }, [
+    copy.bulk,
+    refreshEmployees,
+    replaceEmployee,
+    setFailureToastMessage,
+    setSuccessToastMessage,
+  ]);
+
   return {
+    handleBulkEmployeeUpdate,
     handleInlineEmployeeUpdate,
     inlineDrafts,
     inlineSavingKey,

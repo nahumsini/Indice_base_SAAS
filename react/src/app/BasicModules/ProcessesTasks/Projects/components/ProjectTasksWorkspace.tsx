@@ -80,7 +80,7 @@ import {
   type TaskStatus,
 } from '../../Tasks/tasksApi';
 import { ProgressSlider } from '../../shared/ProgressSlider';
-import { useRowSelection } from '../../shared/useRowSelection';
+import { useRowSelection } from '../../../shared/operational';
 import {
   collaboratorCanReceiveAssignment,
   defaultTaskScopeForActor,

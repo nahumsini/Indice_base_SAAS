@@ -9,7 +9,7 @@ export type EmployeesLocale =
   | 'zh-CA';
 
 export type EmployeeStatusTranslationKey = 'active' | 'inactive' | 'terminated';
-export type EmployeePayPeriodTranslationKey = 'weekly' | 'biweekly' | 'monthly';
+export type EmployeePayPeriodTranslationKey = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
 export type EmployeeSalaryTypeTranslationKey = 'daily' | 'hourly';
 export type EmployeeContractTypeTranslationKey = 'permanent' | 'temporary';
 export type EmployeeScheduleLocationRuleTranslationKey = 'business' | 'exact';
@@ -59,6 +59,7 @@ export type EmployeeColumnTranslationKey =
   | 'scheduleLocationId'
   | 'salaryType'
   | 'workdayHours'
+  | 'workdaysPerWeek'
   | 'salary'
   | 'hourlyRate'
   | 'payPeriod'
@@ -76,7 +77,10 @@ export type EmployeeColumnTranslationKey =
 export interface EmployeesSummaryInsightArgs {
   activeCount: number;
   activeRate: string;
+  missingDocumentsCount: number;
+  noScheduleCount: number;
   payroll: string;
+  statusReviewCount: number;
   totalCount: number;
   visibleCount: number;
 }
@@ -190,6 +194,7 @@ export interface EmployeeModalTranslations {
     scheduleLocationId: string;
     salaryType: string;
     workdayHours: string;
+    workdaysPerWeek: string;
     salary: string;
     hourlyRate: string;
     payPeriod: string;
@@ -209,6 +214,8 @@ export interface EmployeeModalTranslations {
     scheduleBusinessLocation: string;
     scheduleExactLocation: string;
     noScheduleLocations: string;
+    salaryPeriodMeaning: string;
+    hourlySalaryMeaning: string;
   };
   belonging: {
     businessUnitHelper: string;
@@ -251,6 +258,7 @@ export interface EmployeeModalTranslations {
     city: string;
     postalCode: string;
     workdayHours: string;
+    workdaysPerWeek: string;
     salary: string;
     hourlyRate: string;
     scheduleMealMinutes: string;
@@ -274,6 +282,7 @@ export interface EmployeeModalTranslations {
     invalidEmail: string;
     invalidPhone: string;
     invalidHours: string;
+    invalidWorkdaysPerWeek: string;
     invalidAmount: string;
     invalidScheduleTime: string;
     invalidMinutes: string;
@@ -291,6 +300,24 @@ export interface EmployeesTranslations {
   subtitle: string;
   addEmployee: string;
   configureColumns: string;
+  preferredCurrency: string;
+  exchangeRates: {
+    action: string;
+    apply: string;
+    baseCurrency: string;
+    dailyMode: string;
+    dailyResetNote: string;
+    dailySource: string;
+    invalid: string;
+    manualMode: string;
+    manualPersistenceNote: string;
+    manualSource: string;
+    preferredRate: (params: { currency: string; rate: string }) => string;
+    rateInputLabel: (currency: string) => string;
+    reset: string;
+    sourceDetails: (params: { base: string; date: string; mode: string; source: string }) => string;
+    title: string;
+  };
   retryLoad: string;
   detailLoadingTitle: string;
   detailLoadingDescription: string;
@@ -321,12 +348,37 @@ export interface EmployeesTranslations {
     total: string;
     active: string;
     inactive: string;
+    noSchedule: string;
+    documentsPending: string;
     payroll: string;
+    payrollMultiCurrencyAlert: (count: number) => string;
+    payrollNative: string;
     visible: string;
     terminated: string;
     activeRate: string;
     statusReview: (count: number) => string;
+    noScheduleAlert: (count: number) => string;
+    documentsPendingAlert: (count: number) => string;
     summaryInsight: (args: EmployeesSummaryInsightArgs) => string;
+  };
+  views: {
+    label: string;
+    table: string;
+  };
+  bulk: {
+    title: string;
+    selected: (count: number) => string;
+    changeUnit: string;
+    changeBusiness: string;
+    changeDepartment: string;
+    changePosition: string;
+    exportSelected: string;
+    clear: string;
+    mixedSelection: string;
+    selectUnitFirst: string;
+    updateSuccess: (count: number) => string;
+    updateError: string;
+    exportFileName: (date: string) => string;
   };
   filters: {
     title: string;
@@ -344,6 +396,7 @@ export interface EmployeesTranslations {
     emptyState: string;
     selectAllVisible: string;
     selectEmployee: (name: string) => string;
+    resizeColumn: string;
     deleteConfirm: string;
     editHrUserLabel: string;
     terminateHrUserLabel: string;
@@ -361,6 +414,11 @@ export interface EmployeesTranslations {
   documentStatusLabels: {
     uploaded: string;
     missing: string;
+    upload: string;
+    replace: string;
+    view: string;
+    viewImage: string;
+    uploading: string;
   };
   pagination: {
     previous: string;

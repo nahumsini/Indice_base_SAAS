@@ -1,9 +1,6 @@
-import { useMemo, type MouseEvent } from 'react';
+import { useMemo, type PointerEvent } from 'react';
 import { CheckCircle2, Clock3, Moon, UserX } from 'lucide-react';
-import type {
-  AttendanceCalendarDay,
-  AttendanceCorrectionStatus,
-} from '../../../../api/humanResources';
+import type { AttendanceCalendarDay } from '../../../../api/humanResources';
 import { Button } from '../../../../components/ui/button';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { ControlKpiMetric } from './ControlKpiStrip/ControlKpiMetric';
@@ -64,10 +61,7 @@ export function EmployeeCalendarPanel({
   copy,
   locale,
   calendarMonthLabel,
-  selectedCalendarDates,
   selectedCalendarDateSet,
-  bulkCalendarStatus,
-  isUpdatingCalendarDay,
   isLoadingCalendar,
   weekdayLabels,
   calendarCells,
@@ -75,20 +69,15 @@ export function EmployeeCalendarPanel({
   controlDate,
   calendarMonth,
   onShiftMonth,
-  onBulkStatusChange,
-  onBulkApply,
-  onClearSelection,
-  onDayMouseDown,
-  onDayMouseEnter,
+  onDayPointerDown,
+  onDayPointerEnter,
+  onDayPointerMove,
   onDaySelect,
 }: {
   copy: AttendanceControlCopy;
   locale: string;
   calendarMonthLabel: string;
-  selectedCalendarDates: string[];
   selectedCalendarDateSet: Set<string>;
-  bulkCalendarStatus: AttendanceCorrectionStatus | '';
-  isUpdatingCalendarDay: boolean;
   isLoadingCalendar: boolean;
   weekdayLabels: string[];
   calendarCells: Array<number | null>;
@@ -96,11 +85,9 @@ export function EmployeeCalendarPanel({
   controlDate: string;
   calendarMonth: string;
   onShiftMonth: (direction: -1 | 1) => void;
-  onBulkStatusChange: (status: AttendanceCorrectionStatus | '') => void;
-  onBulkApply: () => void;
-  onClearSelection: () => void;
-  onDayMouseDown: (date: string, event: MouseEvent<HTMLButtonElement>, day: AttendanceCalendarDay | null) => void;
-  onDayMouseEnter: (date: string, day: AttendanceCalendarDay | null) => void;
+  onDayPointerDown: (date: string, event: PointerEvent<HTMLButtonElement>, day: AttendanceCalendarDay | null) => void;
+  onDayPointerEnter: (date: string, day: AttendanceCalendarDay | null) => void;
+  onDayPointerMove: (date: string, day: AttendanceCalendarDay | null) => void;
   onDaySelect: (date: string, day: AttendanceCalendarDay | null) => void;
 }) {
   const monthDays = useMemo(
@@ -122,10 +109,15 @@ export function EmployeeCalendarPanel({
   }, [monthDays]);
 
   return (
-    <div className="rounded-[22px] border border-[#59C3A5]/10 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_6px_18px_rgba(89,195,165,0.04)] dark:border-gray-800 dark:bg-gray-900 sm:p-4">
+    <div className="rounded-lg border border-[#59C3A5]/10 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-4">
       <div className="space-y-4 sm:space-y-5">
         <div className="flex items-center justify-between gap-4">
-          <Button variant="outline" size="icon" onClick={() => onShiftMonth(-1)}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={copy.labels.previousMonth}
+            onClick={() => onShiftMonth(-1)}
+          >
             <span aria-hidden="true">‹</span>
           </Button>
           <div className="text-center">
@@ -134,12 +126,17 @@ export function EmployeeCalendarPanel({
             </p>
             <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{calendarMonthLabel}</p>
           </div>
-          <Button variant="outline" size="icon" onClick={() => onShiftMonth(1)}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={copy.labels.nextMonth}
+            onClick={() => onShiftMonth(1)}
+          >
             <span aria-hidden="true">›</span>
           </Button>
         </div>
 
-      <div className="rounded-2xl border border-[#59C3A5]/10 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-950/40">
+      <div className="rounded-lg border border-[#59C3A5]/10 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950/40">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <ControlKpiMetric
             icon={<CheckCircle2 className="h-4 w-4" />}
@@ -179,50 +176,6 @@ export function EmployeeCalendarPanel({
         </div>
       </div>
 
-      {selectedCalendarDates.length > 1 ? (
-        <div className="flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-4 dark:border-[#8FE0CA]/30 dark:bg-[#59C3A5]/20 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {selectedCalendarDates.length} days selected
-            </p>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Apply the same attendance status to the selected days.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <select
-              value={bulkCalendarStatus}
-              disabled={isUpdatingCalendarDay}
-              onChange={(event) => onBulkStatusChange(event.target.value as AttendanceCorrectionStatus | '')}
-              className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-            >
-              <option value="on_time">{copy.labels.markAsAttendance}</option>
-              <option value="absence">{copy.labels.markAsAbsent}</option>
-              <option value="late">{copy.labels.markAsDelay}</option>
-              <option value="rest">{copy.labels.markAsRest}</option>
-              <option value="">{copy.labels.clearManualCorrection}</option>
-            </select>
-            <Button
-              type="button"
-              className="h-10 bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
-              disabled={isUpdatingCalendarDay}
-              onClick={onBulkApply}
-            >
-              Apply change
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10"
-              disabled={isUpdatingCalendarDay}
-              onClick={onClearSelection}
-            >
-              Clear
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
       <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
         {weekdayLabels.map((label) => (
           <div key={label} className="px-0.5 text-center text-[10px] font-medium uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400 sm:px-2 sm:text-xs sm:tracking-[0.12em]">
@@ -234,7 +187,7 @@ export function EmployeeCalendarPanel({
       {isLoadingCalendar ? (
         <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
           {Array.from({ length: 35 }).map((_, index) => (
-            <Skeleton key={index} className="h-[76px] rounded-xl sm:h-[104px] sm:rounded-2xl" />
+            <Skeleton key={index} className="h-[76px] rounded-lg sm:h-[104px]" />
           ))}
         </div>
       ) : (
@@ -256,8 +209,9 @@ export function EmployeeCalendarPanel({
                 isMultiSelected={selectedCalendarDateSet.has(dateKey)}
                 isSelected={controlDate === dateKey}
                 locale={locale}
-                onMouseDown={(event) => onDayMouseDown(dateKey, event, day)}
-                onMouseEnter={() => onDayMouseEnter(dateKey, day)}
+                onPointerDown={(event) => onDayPointerDown(dateKey, event, day)}
+                onPointerEnter={() => onDayPointerEnter(dateKey, day)}
+                onPointerMove={() => onDayPointerMove(dateKey, day)}
                 onSelect={() => onDaySelect(dateKey, day)}
               />
             );

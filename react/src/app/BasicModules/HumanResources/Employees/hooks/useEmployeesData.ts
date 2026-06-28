@@ -37,10 +37,14 @@ export function useEmployeesData(copy: EmployeesTranslations) {
   const hydratedEmployeeIdsRef = useRef(new Set<number>());
   const attendanceLocationsRequestRef = useRef<Promise<AttendanceControlLocation[]> | null>(null);
 
-  const hydrateEmployeeDetails = useCallback(async (employeeIds: number[]) => {
-    const pendingEmployeeIds = Array.from(new Set(employeeIds)).filter((employeeId) => (
-      !hydratedEmployeeIdsRef.current.has(employeeId)
-    ));
+  const hydrateEmployeeDetails = useCallback(async (
+    employeeIds: number[],
+    options: { force?: boolean } = {},
+  ) => {
+    const uniqueEmployeeIds = Array.from(new Set(employeeIds));
+    const pendingEmployeeIds = options.force
+      ? uniqueEmployeeIds
+      : uniqueEmployeeIds.filter((employeeId) => !hydratedEmployeeIdsRef.current.has(employeeId));
 
     if (pendingEmployeeIds.length === 0) {
       return;

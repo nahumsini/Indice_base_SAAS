@@ -180,9 +180,23 @@ export function getKioskGreeting(copy: KioskTranslations, date: Date) {
   return copy.greetings.evening;
 }
 
-export function getKioskMessage(copy: KioskTranslations, date: Date) {
+function isSecondSundayOfMay(date: Date) {
+  return date.getMonth() === 4
+    && date.getDay() === 0
+    && date.getDate() >= 8
+    && date.getDate() <= 14;
+}
+
+export function getKioskMessage(copy: KioskTranslations, date: Date, locale?: KioskLocale) {
   const key = `${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`;
-  const holidayMessage = copy.messages.holidays[key as keyof typeof copy.messages.holidays];
+  const mothersDayMessage = copy.messages.holidays['05-10' as keyof typeof copy.messages.holidays];
+  const isMexicoMothersDay = locale === 'es-MX' && key === '05-10';
+  const isFloatingMothersDay = locale !== 'es-MX' && isSecondSundayOfMay(date);
+  const holidayMessage = isMexicoMothersDay || isFloatingMothersDay
+    ? mothersDayMessage
+    : key === '05-10'
+      ? undefined
+      : copy.messages.holidays[key as keyof typeof copy.messages.holidays];
 
   if (holidayMessage) {
     return holidayMessage;

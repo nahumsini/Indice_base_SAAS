@@ -78,6 +78,15 @@ export function validateEmployeeFormData({
   if (!data.workdayHours.trim() || Number.isNaN(parsedHours) || parsedHours < 1 || parsedHours > 24) {
     errors.workdayHours = copy.validation.invalidHours;
   }
+  const parsedWorkdaysPerWeek = Number(data.workdaysPerWeek);
+  if (
+    !data.workdaysPerWeek.trim()
+    || Number.isNaN(parsedWorkdaysPerWeek)
+    || parsedWorkdaysPerWeek < 1
+    || parsedWorkdaysPerWeek > 7
+  ) {
+    errors.workdaysPerWeek = copy.validation.invalidWorkdaysPerWeek;
+  }
 
   if (data.salaryType === 'daily') {
     const parsedSalary = Number(data.salary);
@@ -149,6 +158,7 @@ export function getEmployeeModalStepFields({
       'businessUnitId',
       'businessId',
       'workdayHours',
+      'workdaysPerWeek',
       ...scheduleStepFields,
       ...compensationStepFields,
       ...contractStepFields,

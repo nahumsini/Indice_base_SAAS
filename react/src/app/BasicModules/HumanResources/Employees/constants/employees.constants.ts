@@ -8,17 +8,12 @@ import type {
 } from '../types/employees.types';
 import type { EmployeesTranslations } from '../translations';
 
-export const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
 export const columnsStorageKey = 'rh-colaboradores-columns-v6';
+export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v1';
 export const allFilterValue = 'all';
 export const inlineUnassignedValue = '__unassigned__';
 export const employeesPerPage = 10;
+export const employeeSelectionColumnWidth = 64;
 export const hrAccentButtonClass = 'bg-[#59C3A5] text-white hover:bg-[#3AAE90]';
 
 export const weekdayConfig = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -39,7 +34,8 @@ export const employeeStatusOrder: Record<EmployeeStatus, number> = {
 export const employeePayPeriodOrder: Record<EmployeePayPeriod, number> = {
   weekly: 1,
   biweekly: 2,
-  monthly: 3,
+  semimonthly: 3,
+  monthly: 4,
 };
 
 export const documentTypeOrder: EmployeeDocumentType[] = [
@@ -57,6 +53,50 @@ export const employeeColumnDocumentTypeMap: Partial<Record<EmployeeColumnId, Emp
   resume: 'resume',
   profilePhoto: 'profile_photo',
 };
+
+export function getDefaultEmployeeColumnWidth(columnId: string) {
+  if (columnId === 'actions') {
+    return 150;
+  }
+
+  if (columnId === 'employee') {
+    return 260;
+  }
+
+  if (columnId === 'email' || columnId === 'address') {
+    return 240;
+  }
+
+  if (columnId === 'unit' || columnId === 'business' || columnId === 'position' || columnId === 'department') {
+    return 210;
+  }
+
+  if (columnId in employeeColumnDocumentTypeMap) {
+    return 230;
+  }
+
+  return 170;
+}
+
+export function getMinimumEmployeeColumnWidth(columnId: string) {
+  if (columnId === 'actions') {
+    return 130;
+  }
+
+  if (columnId === 'employee') {
+    return 220;
+  }
+
+  if (columnId === 'email' || columnId === 'address') {
+    return 200;
+  }
+
+  if (columnId in employeeColumnDocumentTypeMap) {
+    return 220;
+  }
+
+  return 140;
+}
 
 export const createDefaultColumns = (copy: EmployeesTranslations): ColumnConfig[] => [
   {
@@ -121,6 +161,7 @@ export const createDefaultColumns = (copy: EmployeesTranslations): ColumnConfig[
   { id: 'status', label: copy.columns.status, visible: true, description: copy.columnDescriptions.status },
   { id: 'salaryType', label: copy.columns.salaryType, visible: false, description: copy.columnDescriptions.salaryType },
   { id: 'workdayHours', label: copy.columns.workdayHours, visible: false, description: copy.columnDescriptions.workdayHours },
+  { id: 'workdaysPerWeek', label: copy.columns.workdaysPerWeek, visible: false, description: copy.columnDescriptions.workdaysPerWeek },
   { id: 'salary', label: copy.columns.salary, visible: true, description: copy.columnDescriptions.salary },
   { id: 'hourlyRate', label: copy.columns.hourlyRate, visible: false, description: copy.columnDescriptions.hourlyRate },
   { id: 'payPeriod', label: copy.columns.payPeriod, visible: true, description: copy.columnDescriptions.payPeriod },

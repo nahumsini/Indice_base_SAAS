@@ -13,6 +13,12 @@ export const frCA = {
     loadingDescription: 'Vérification des espaces de travail disponibles.',
     empty: 'Aucun onglet Ressources humaines n’est disponible pour cet utilisateur.',
   },
+  tabError: {
+    eyebrow: 'Onglet indisponible',
+    title: 'Cet onglet Ressources humaines n’a pas pu se charger',
+    description: 'L’application n’a pas pu télécharger cet espace de travail. Actualisez l’onglet pour redemander le module.',
+    reload: 'Actualiser l’onglet',
+  },
   tabs: {
     collaborators: 'Employés',
     attendance: 'Présence',

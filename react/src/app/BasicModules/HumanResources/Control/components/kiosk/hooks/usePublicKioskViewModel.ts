@@ -155,7 +155,7 @@ export function usePublicKioskViewModel({
     ? `${copy.locationReady}: ${locationState.latitude.toFixed(5)}, ${locationState.longitude.toFixed(5)}`
     : copy.locationRequiredHint;
   const kioskGreeting = getKioskGreeting(copy, currentTime);
-  const kioskMessage = getKioskMessage(copy, currentTime);
+  const kioskMessage = getKioskMessage(copy, currentTime, selectedLocale);
   const loadingTitle = isLoading
     ? copy.loading
     : busyState === 'identifying'

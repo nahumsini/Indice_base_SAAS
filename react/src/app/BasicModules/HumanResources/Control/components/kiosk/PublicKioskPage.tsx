@@ -42,7 +42,9 @@ export default function Kiosk() {
     identificationToken,
     identifiedHrUser,
     isLoading,
+    kioskGreeting,
     kioskLocationLabel,
+    kioskMessage,
     loadingDescription,
     loadingTitle,
     localeOptions,
@@ -84,21 +86,22 @@ export default function Kiosk() {
         durationMs={4200}
       />
 
-      <main className="min-h-dvh bg-[linear-gradient(135deg,_#eef6fb_0%,_#fbfdff_48%,_#edf8f4_100%)] px-3 py-3 text-slate-900 dark:bg-[linear-gradient(135deg,_#020617_0%,_#0f172a_54%,_#06201a_100%)] dark:text-slate-100 sm:px-5">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3">
-          <section className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-[0_24px_80px_-52px_rgba(89,195,165,0.5)] dark:border-slate-700/80 dark:bg-slate-950 dark:shadow-[0_28px_90px_-48px_rgba(0,0,0,0.85)]">
+      <main className="min-h-dvh bg-slate-100 px-0 py-0 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:px-4 sm:py-4">
+        <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col sm:min-h-0">
+          <section className="flex min-h-dvh flex-col overflow-hidden bg-white dark:bg-slate-950 sm:min-h-0 sm:rounded-lg sm:border sm:border-slate-200/80 sm:shadow-sm sm:dark:border-slate-700/80">
             <PublicKioskHeader
               bootstrap={bootstrap}
               copy={copy}
               currentTime={currentTime}
               detectedLocale={detectedLocale}
-              kioskLocationLabel={kioskLocationLabel}
+              kioskGreeting={kioskGreeting}
+              kioskMessage={kioskMessage}
               localeOptions={localeOptions}
               selectedLocale={selectedLocale}
               onLocaleChange={setKioskLocale}
             />
 
-            <div className="bg-slate-50/70 px-4 py-4 dark:bg-slate-900/55 sm:px-6">
+            <div className="flex min-h-0 flex-1 bg-slate-50/80 px-3 py-3 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-slate-900/55 sm:px-5 sm:py-5">
               <PublicKioskIdentityPanel
                 activeActivityLocation={activeActivityLocation}
                 activityStateLabel={activityStateLabel}

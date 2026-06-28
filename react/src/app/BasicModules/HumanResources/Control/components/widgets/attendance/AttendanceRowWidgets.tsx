@@ -50,7 +50,7 @@ export function ControlAttendanceRow({
         tabIndex={0}
         onClick={onSelect}
         onKeyDown={handleKeyDown}
-        className={`w-full cursor-pointer rounded-xl border border-l-4 px-4 py-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all ${rowBorderClassName} ${
+        className={`w-full cursor-pointer rounded-lg border border-l-4 px-4 py-3 text-left shadow-sm transition-all ${rowBorderClassName} ${
           selected
             ? 'border-[#59C3A5]/30 bg-white shadow-[0_1px_2px_rgba(89,195,165,0.10),0_0_0_3px_rgba(89,195,165,0.06)] dark:border-[#8FE0CA]/35 dark:bg-gray-900'
             : 'border-gray-100 bg-white/85 hover:border-[#59C3A5]/20 hover:bg-white hover:shadow-[0_2px_6px_rgba(15,23,42,0.06)] dark:border-gray-800 dark:bg-gray-900/70 dark:hover:border-[#8FE0CA]/30 dark:hover:bg-gray-900'
@@ -124,7 +124,7 @@ function AttendanceEvidencePreviewDialog({
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-950"
+        className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg border border-white/10 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-950"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
@@ -146,8 +146,8 @@ function AttendanceEvidencePreviewDialog({
         <div className="bg-gray-950 p-3">
           <img
             src={photo.photoUrl}
-            alt={`${photo.label} attendance evidence`}
-            className="mx-auto max-h-[76vh] w-auto max-w-full rounded-xl object-contain"
+            alt={copy.labels.attendanceEvidenceAlt(photo.label)}
+            className="mx-auto max-h-[76vh] w-auto max-w-full rounded-lg object-contain"
           />
         </div>
       </div>
@@ -180,7 +180,7 @@ export function AttendanceMomentPanel({
   const mapsUrl = buildGoogleMapsUrl({ latitude, longitude, location });
 
   return (
-    <div className="flex min-w-0 items-start justify-between gap-2 rounded-xl border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
+    <div className="flex min-w-0 items-start justify-between gap-2 rounded-lg border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
       <div className="min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
         <p className={`mt-1 truncate text-sm font-semibold ${isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{time}</p>
@@ -303,7 +303,7 @@ function AttendanceEvidenceThumbnail({
     >
       <img
         src={photoUrl}
-        alt={`${label} attendance evidence`}
+        alt={copy.labels.attendanceEvidenceAlt(label)}
         className="h-full w-full object-cover"
         loading="lazy"
       />

@@ -1,7 +1,7 @@
 import type { EmployeeDocumentType } from '../components/CreateEmployeeModal';
 
 export type EmployeeStatus = 'active' | 'inactive' | 'terminated';
-export type EmployeePayPeriod = 'weekly' | 'biweekly' | 'monthly';
+export type EmployeePayPeriod = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
 export type EmployeeColumnId =
   | 'employee'
   | 'employeeNumber'
@@ -39,6 +39,7 @@ export type EmployeeColumnId =
   | 'scheduleLocationId'
   | 'salaryType'
   | 'workdayHours'
+  | 'workdaysPerWeek'
   | 'salary'
   | 'hourlyRate'
   | 'payPeriod'
@@ -119,6 +120,7 @@ export interface EmployeeViewModel {
   payPeriod: EmployeePayPeriod;
   salaryType: 'daily' | 'hourly';
   workdayHours: number | null;
+  workdaysPerWeek: number | null;
   hourlyRate: number;
   contractType: 'permanent' | 'temporary';
   contractStartDate: string;

@@ -96,15 +96,15 @@ export function EmployeeAccessActions({
     ? 'contents'
     : 'grid w-full grid-cols-2 gap-2 sm:w-auto sm:auto-cols-max sm:grid-flow-col sm:grid-cols-none xl:justify-end';
   const actionButtonClassName = actionBarLayout
-    ? 'h-9 justify-center gap-2 rounded-xl border-[#59C3A5]/25 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.08)] hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/15 hover:text-[#59C3A5] dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/40'
+    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5]/25 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.08)] hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/15 hover:text-[#59C3A5] dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/40'
     : inlineLayout
     ? 'h-9 min-w-[8.75rem] shrink-0 justify-center whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white'
     : 'whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white';
   const pinActionButtonClassName = actionBarLayout
-    ? 'h-9 justify-center gap-2 rounded-xl border-[#59C3A5]/30 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.10)] hover:border-[#59C3A5]/50 hover:bg-[#59C3A5]/20 hover:text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/45'
+    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5]/30 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.10)] hover:border-[#59C3A5]/50 hover:bg-[#59C3A5]/20 hover:text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/45'
     : actionButtonClassName;
   const faceActionButtonClassName = actionBarLayout
-    ? 'h-9 justify-center gap-2 rounded-xl border-[#59C3A5] bg-[#59C3A5] text-xs font-semibold text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:border-[#3AAE90] hover:bg-[#3AAE90] hover:text-white dark:border-[#8FE0CA]/60 dark:bg-[#8FE0CA] dark:text-[#081a38] dark:hover:bg-[#b4ccff]'
+    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5] bg-[#59C3A5] text-xs font-semibold text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:border-[#3AAE90] hover:bg-[#3AAE90] hover:text-white dark:border-[#8FE0CA]/60 dark:bg-[#8FE0CA] dark:text-[#081a38] dark:hover:bg-[#b4ccff]'
     : actionButtonClassName;
   const effectiveAccessProfile = selectedAccessProfile ?? selectedEmployee.access_profile ?? null;
   const selectedPinMethod = effectiveAccessProfile?.methods.find((method) => method.method_type === 'pin') ?? null;
@@ -497,7 +497,7 @@ function AccessProfileDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         hideCloseButton
-        className="max-h-[90vh] gap-0 overflow-hidden rounded-2xl border border-[#59C3A5]/20 bg-white p-0 text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[720px]"
+        className="max-h-[90vh] gap-0 overflow-hidden rounded-lg border border-[#59C3A5]/20 bg-white p-0 text-gray-900 shadow-lg dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[720px]"
         overlayClassName="bg-black/55"
       >
         <DialogHeader className="flex-row items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-left">
@@ -524,7 +524,7 @@ function AccessProfileDialog({
             <select
               value={form.user_company_id || ''}
               onChange={(event) => onEmployeeChange(Number(event.target.value))}
-              className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              className="h-11 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             >
               <option value="0">--</option>
               {assignments.map((assignment) => (
@@ -540,7 +540,7 @@ function AccessProfileDialog({
               <select
                 value={form.status}
                 onChange={(event) => onChange({ ...form, status: event.target.value as 'active' | 'inactive' })}
-                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="h-11 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               >
                 <option value="active">{copy.statuses.active}</option>
                 <option value="inactive">{copy.statuses.inactive}</option>
@@ -551,7 +551,7 @@ function AccessProfileDialog({
               <select
                 value={normalizeControlAccessMethod(form.default_method)}
                 onChange={() => onChange({ ...form, default_method: 'pin' })}
-                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="h-11 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               >
                 {accessMethodOptions.map((value) => (
                   <option key={value} value={value}>
@@ -562,7 +562,7 @@ function AccessProfileDialog({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.pinStatus}</p>
@@ -573,7 +573,7 @@ function AccessProfileDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="rounded-xl border-gray-300 bg-white text-[#59C3A5] hover:bg-[#59C3A5] hover:text-white dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  className="rounded-md border-gray-300 bg-white text-[#59C3A5] hover:bg-[#59C3A5] hover:text-white dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                   onClick={() => setIsResetPinDialogOpen(true)}
                   disabled={isSaving || isLoadingPin || isResettingPin || shouldRegeneratePin || !canOpenResetPin}
                 >
@@ -584,7 +584,7 @@ function AccessProfileDialog({
             </div>
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-lg font-semibold text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+              <div className="rounded-md border border-gray-200 bg-white px-4 py-3 font-mono text-lg font-semibold text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
                 {canRevealPin && isPinVisible ? visiblePin : '*****'}
               </div>
               <Button
@@ -593,7 +593,7 @@ function AccessProfileDialog({
                 size="sm"
                 onClick={() => void handlePinRevealToggle()}
                 disabled={isSaving || isLoadingPin || !canAttemptPinReveal}
-                className="rounded-xl border-[#59C3A5]/25 bg-white text-[#59C3A5] hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/10 hover:text-[#59C3A5] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8FE0CA]/25 dark:bg-gray-950 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/30"
+                className="rounded-md border-[#59C3A5]/25 bg-white text-[#59C3A5] hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/10 hover:text-[#59C3A5] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8FE0CA]/25 dark:bg-gray-950 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/30"
               >
                 {isPinVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 {isPinVisible ? copy.labels.hidePin : isLoadingPin ? copy.loading : copy.labels.revealPin}
@@ -618,13 +618,13 @@ function AccessProfileDialog({
         <DialogFooter className="border-t border-white/10 bg-[#59C3A5] px-6 py-4">
           <Button
             variant="outline"
-            className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            className="rounded-md border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
             onClick={onClose}
           >
             {copy.labels.cancel}
           </Button>
           <Button
-            className="rounded-xl bg-white text-[#59C3A5] hover:bg-blue-50"
+            className="rounded-md bg-white text-[#59C3A5] hover:bg-blue-50"
             onClick={onSave}
             disabled={isSaving || !form.user_company_id}
           >
@@ -637,7 +637,7 @@ function AccessProfileDialog({
     <Dialog open={isResetPinDialogOpen} onOpenChange={setIsResetPinDialogOpen}>
       <DialogContent
         hideCloseButton
-        className="gap-0 overflow-hidden rounded-2xl border border-[#59C3A5]/20 bg-white p-0 text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[480px]"
+        className="gap-0 overflow-hidden rounded-lg border border-[#59C3A5]/20 bg-white p-0 text-gray-900 shadow-lg dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[480px]"
         overlayClassName="bg-black/55"
       >
         <DialogHeader className="flex-row items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-left">
@@ -659,7 +659,7 @@ function AccessProfileDialog({
         </DialogHeader>
 
         <div className="px-6 py-5">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
             <p className="font-semibold">{copy.labels.resetPinWarningTitle}</p>
             <p className="mt-1 leading-5">{copy.labels.resetPinWarningDescription}</p>
           </div>
@@ -671,14 +671,14 @@ function AccessProfileDialog({
         <DialogFooter className="border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
           <Button
             variant="outline"
-            className="rounded-xl border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+            className="rounded-md border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
             onClick={() => setIsResetPinDialogOpen(false)}
             disabled={isResettingPin}
           >
             {copy.labels.cancel}
           </Button>
           <Button
-            className="rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
+            className="rounded-md bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
             onClick={() => void handleResetPinConfirm()}
             disabled={isResettingPin || !canOpenResetPin}
           >

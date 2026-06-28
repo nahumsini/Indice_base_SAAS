@@ -69,7 +69,7 @@ import {
   ProcessActionButton,
 } from './components/ProcessPrimitives';
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
-import { useRowSelection } from '../shared/useRowSelection';
+import { useRowSelection } from '../../shared/operational';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../shared/assignmentScope';
 import type {
   Option,

@@ -337,7 +337,7 @@ export function TimeTableModal({
       }
     }}>
       <DialogContent
-        className="flex max-h-[94vh] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 text-gray-900 shadow-2xl dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[1180px]"
+        className="flex max-h-[94vh] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-0 text-gray-900 shadow-lg dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[1180px]"
         overlayClassName="bg-slate-950/55 backdrop-blur-sm"
         hideCloseButton
       >
@@ -348,7 +348,7 @@ export function TimeTableModal({
 
         <div className="flex shrink-0 items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">
               <CalendarDays className="h-5 w-5" />
             </div>
             <div className="min-w-0">

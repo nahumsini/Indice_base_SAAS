@@ -96,7 +96,7 @@ export function CreateKioskModal({
     >
       <DialogContent
         hideCloseButton
-        className="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl border border-slate-300 bg-white p-0 text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-3xl"
+        className="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-0 text-slate-950 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-3xl"
       >
         <div className="bg-[#59C3A5] px-6 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
@@ -129,7 +129,7 @@ export function CreateKioskModal({
                 value={kioskType === 'business_unit' ? 'closed' : 'open'}
                 onChange={(value) => onKioskTypeChange(value === 'closed' ? 'business_unit' : 'open_attendance')}
               />
-              <div className="mt-4 rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/8 px-4 py-3 text-sm text-slate-700 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10 dark:text-slate-200">
+              <div className="mt-4 rounded-md border border-[#59C3A5]/20 bg-[#59C3A5]/8 px-4 py-3 text-sm text-slate-700 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10 dark:text-slate-200">
                 <p className="font-semibold text-slate-950 dark:text-white">{copy.kiosk.form.attendanceModeHelpTitle}</p>
                 <p className="mt-1 leading-6">
                   {hasScopedLocations
@@ -179,7 +179,7 @@ export function CreateKioskModal({
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/60 sm:grid-cols-2">
+                <div className="mt-4 grid gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/60 sm:grid-cols-2">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                       {copy.kiosk.form.availableForLabel}
@@ -199,7 +199,7 @@ export function CreateKioskModal({
                 title={copy.kiosk.form.openAttendanceTitle}
                 description={copy.kiosk.form.openAttendanceDescription}
               >
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-100">
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-100">
                   <p className="font-semibold">{copy.kiosk.form.allEmployeesNoLocationScope}</p>
                   <p className="mt-1 leading-6">{copy.kiosk.form.openAttendanceDescription}</p>
                 </div>
@@ -355,7 +355,7 @@ function AttendanceModeOption({
       type="button"
       disabled={isDisabled}
       onClick={onSelect}
-      className={`rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`rounded-lg border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
         isSelected
           ? 'border-[#59C3A5] bg-[#59C3A5]/10 text-[#18715D] ring-2 ring-[#59C3A5]/10 dark:border-[#8FE0CA] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]'
           : 'border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5]/30 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
@@ -363,7 +363,7 @@ function AttendanceModeOption({
       aria-pressed={isSelected}
     >
       <div className="flex items-start gap-3">
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
           isSelected
             ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
             : 'bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300'

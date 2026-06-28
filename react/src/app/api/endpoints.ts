@@ -87,6 +87,8 @@ export const endpoints = {
     payrollOverview: '/api/v1/hr/payroll/overview',
     payrollPreferences: '/api/v1/hr/payroll/preferences',
     payrollRuns: '/api/v1/hr/payroll/runs',
+    payrollColombia: '/api/v1/hr/payroll/colombia',
+    payrollGovernmentReporting: '/api/v1/hr/payroll/government-reporting',
   },
   sales: {
     base: '/api/v1/sales',

@@ -12,6 +12,8 @@ import type { PayrollTranslations } from '../translations/types';
 
 type PayrollOperationRun = PayrollRunSummary & {
   jurisdictionLabel: string;
+  nativeBreakdownLabel: string;
+  preferredNetAmount: number;
   unitLabel: string;
   businessLabel: string;
 };
@@ -84,7 +86,7 @@ export function PayrollOperationsPanel({
   const cancelledCount = runs.filter((run) => run.status === 'cancelled').length;
   const payoutTotal = runs
     .filter((run) => run.status !== 'cancelled')
-    .reduce((total, run) => total + run.net_amount, 0);
+    .reduce((total, run) => total + run.preferredNetAmount, 0);
   const jurisdictionCount = new Set(
     runs
       .map((run) => run.jurisdictionLabel)

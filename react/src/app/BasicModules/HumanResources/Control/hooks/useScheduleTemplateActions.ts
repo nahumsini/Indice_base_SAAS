@@ -84,6 +84,7 @@ export function useScheduleTemplateActions({
   const [templateNameError, setTemplateNameError] = useState('');
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
+  const [templatePendingDeletion, setTemplatePendingDeletion] = useState<AttendanceControlTemplate | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetTemplateActionState = useCallback(() => {
@@ -92,6 +93,7 @@ export function useScheduleTemplateActions({
     setTemplateNameError('');
     setIsSavingTemplate(false);
     setIsDeletingTemplate(false);
+    setTemplatePendingDeletion(null);
   }, []);
 
   const buildTemplatePayload = useCallback((templateName = selectedTemplateName.trim() || defaultScheduleTemplateName) => {
@@ -300,7 +302,7 @@ export function useScheduleTemplateActions({
     templateNameDraft,
   ]);
 
-  const deleteSelectedScheduleTemplate = useCallback(async () => {
+  const deleteSelectedScheduleTemplate = useCallback(() => {
     const template = selectedTemplate;
     if (!template) {
       const message = copy.errors.selectTemplateBeforeRemove;
@@ -309,8 +311,25 @@ export function useScheduleTemplateActions({
       return;
     }
 
-    const confirmed = window.confirm(copy.errors.removeTemplateConfirm(template.name));
-    if (!confirmed) {
+    setTemplatePendingDeletion(template);
+  }, [
+    copy,
+    onErrorMessageChange,
+    selectedTemplate,
+    showFailureToast,
+  ]);
+
+  const cancelDeleteSelectedScheduleTemplate = useCallback(() => {
+    if (isDeletingTemplate) {
+      return;
+    }
+
+    setTemplatePendingDeletion(null);
+  }, [isDeletingTemplate]);
+
+  const confirmDeleteSelectedScheduleTemplate = useCallback(async () => {
+    const template = templatePendingDeletion;
+    if (!template) {
       return;
     }
 
@@ -326,6 +345,7 @@ export function useScheduleTemplateActions({
       markTemplateDeleted(template.id);
       removeCreatedTemplate(template.id);
       resetSchedule();
+      setTemplatePendingDeletion(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : copy.errors.removeTemplateFailed;
       onErrorMessageChange(message);
@@ -340,13 +360,15 @@ export function useScheduleTemplateActions({
     onFailureToastClear,
     removeCreatedTemplate,
     resetSchedule,
-    selectedTemplate,
     showFailureToast,
+    templatePendingDeletion,
   ]);
 
   return {
     applySchedule,
+    cancelDeleteSelectedScheduleTemplate,
     closeSaveTemplateModal,
+    confirmDeleteSelectedScheduleTemplate,
     deleteSelectedScheduleTemplate,
     isDeletingTemplate,
     isSaveTemplateModalOpen,
@@ -356,6 +378,7 @@ export function useScheduleTemplateActions({
     resetTemplateActionState,
     saveScheduleTemplate,
     setTemplateNameDraft,
+    templatePendingDeletion,
     templateNameDraft,
     templateNameError,
   };

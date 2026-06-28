@@ -29,7 +29,7 @@ export function TimeTableFilters({
   onUnitFilterChange: (value: string) => void;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.filtersTitle}</h3>
@@ -50,7 +50,7 @@ export function TimeTableFilters({
                 onDateChange(event.target.value);
               }
             }}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           />
         </label>
 
@@ -61,7 +61,7 @@ export function TimeTableFilters({
           <select
             value={unitFilter}
             onChange={(event) => onUnitFilterChange(event.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">{copy.timeTable.allUnits}</option>
             {unitOptions.map(([value, label]) => (
@@ -77,7 +77,7 @@ export function TimeTableFilters({
           <select
             value={businessFilter}
             onChange={(event) => onBusinessFilterChange(event.target.value)}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-colors focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <option value="">{copy.timeTable.allBusinesses}</option>
             {businessOptions.map(([value, label]) => (
@@ -92,7 +92,7 @@ export function TimeTableFilters({
 
 export function TimeTableKpiStrip({ metrics }: { metrics: DailyAttendanceMetric[] }) {
   return (
-    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       {metrics.map((metric, index) => (
         <div key={metric.key} className="flex items-center gap-x-4">
           <TimeTableKpiMetric
@@ -163,7 +163,7 @@ export function OrganizationSummary({
   onUnitFilterChange: (value: string) => void;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.organizationSummaryTitle}</h3>
@@ -186,7 +186,7 @@ export function OrganizationSummary({
             key={group.unitId}
             type="button"
             onClick={() => onUnitFilterChange(group.unitId)}
-            className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${
+            className={`rounded-lg border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${
               unitFilter === group.unitId
                 ? 'border-[#59C3A5] bg-[#59C3A5]/5 shadow-sm dark:border-[#8FE0CA] dark:bg-[#8FE0CA]/10'
                 : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950/40'
@@ -206,7 +206,7 @@ export function OrganizationSummary({
             </div>
             <div className="mt-3 space-y-2">
               {group.businessList.slice(0, 3).map((business) => (
-                <div key={business.business} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900">
+                <div key={business.business} className="flex items-center justify-between gap-3 rounded-md bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900">
                   <span className="truncate font-medium text-slate-700 dark:text-slate-200">{business.business}</span>
                   <span className="font-semibold text-slate-950 dark:text-white">{business.count}</span>
                 </div>
@@ -214,7 +214,7 @@ export function OrganizationSummary({
             </div>
           </button>
         )) : (
-          <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-400">
+          <div className="col-span-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-400">
             {copy.timeTable.noUnitsMatch}
           </div>
         )}

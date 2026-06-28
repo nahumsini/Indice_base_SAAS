@@ -65,7 +65,7 @@ import { useAgendaTaskState } from './hooks/useAgendaTaskState';
 import { TaskAttachmentsDialog } from './components/TaskAttachmentsDialog';
 import { useAgendaTranslations, type AgendaTranslations } from './translations';
 import { TaskKioskManagementModal } from '../Kiosk/TaskKioskManagementModal';
-import { useRowSelection } from '../shared/useRowSelection';
+import { useRowSelection } from '../../shared/operational';
 import {
   collaboratorCanReceiveAssignment,
   filterBusinessesForActor,
@@ -437,6 +437,8 @@ export default function Agenda() {
   });
 
   const {
+    handleCancelDeleteTaskKiosk,
+    handleConfirmDeleteTaskKiosk,
     handleCopyTaskKiosk,
     handleDeleteTaskKiosk,
     handleOpenTaskKiosk,
@@ -445,6 +447,7 @@ export default function Agenda() {
     isTaskKioskModalOpen,
     isTaskKioskSaving,
     setIsTaskKioskModalOpen,
+    taskKioskPendingDeletion,
     taskKiosks,
   } = useAgendaTaskKiosks({ setAgendaError });
 
@@ -980,6 +983,19 @@ export default function Agenda() {
         onDelete={handleDeleteTaskKiosk}
         onCopy={handleCopyTaskKiosk}
         onOpen={handleOpenTaskKiosk}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(taskKioskPendingDeletion)}
+        title={`${agendaCopy.common.delete} ${agendaCopy.header.actions.kiosk}`}
+        itemName={taskKioskPendingDeletion?.name}
+        confirmLabel={agendaCopy.common.delete}
+        cancelLabel={agendaCopy.common.cancel}
+        confirmDisabled={isTaskKioskSaving}
+        onCancel={handleCancelDeleteTaskKiosk}
+        onConfirm={() => {
+          void handleConfirmDeleteTaskKiosk();
+        }}
       />
 
       <TaskFormDialog

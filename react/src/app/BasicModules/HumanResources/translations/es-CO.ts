@@ -13,6 +13,12 @@ export const esCO = {
     loadingDescription: 'Validando qué espacios de trabajo están disponibles.',
     empty: 'Este usuario no tiene pestañas de Recursos Humanos disponibles.',
   },
+  tabError: {
+    eyebrow: 'Pestaña no disponible',
+    title: 'No se pudo cargar esta pestaña de Recursos Humanos',
+    description: 'La app no pudo descargar este espacio de trabajo. Recarga la pestaña para solicitar el módulo de nuevo.',
+    reload: 'Recargar pestaña',
+  },
   tabs: {
     collaborators: 'Personal',
     attendance: 'Asistencia',

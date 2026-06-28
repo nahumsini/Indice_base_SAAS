@@ -13,6 +13,12 @@ export const zhCA = {
     loadingDescription: '正在检查可用的工作区。',
     empty: '此用户没有可用的人力资源标签。',
   },
+  tabError: {
+    eyebrow: '标签不可用',
+    title: '无法加载此人力资源标签',
+    description: '应用无法下载此工作区。请刷新标签以重新请求该模块。',
+    reload: '刷新标签',
+  },
   tabs: {
     collaborators: '员工',
     attendance: '考勤',

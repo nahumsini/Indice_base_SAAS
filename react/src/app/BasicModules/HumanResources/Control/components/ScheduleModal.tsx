@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FailureToast } from '../../../../components/FailureToast';
+import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
 import { type AttendanceControlAssignment } from '../../../../api/humanResources';
 import { useScheduleEmployeeSelection } from '../hooks/useScheduleEmployeeSelection';
 import { useControlTranslations } from '../hooks/useControlTranslations';
@@ -239,7 +240,9 @@ export function ScheduleModal({
   ]);
   const {
     applySchedule,
+    cancelDeleteSelectedScheduleTemplate,
     closeSaveTemplateModal,
+    confirmDeleteSelectedScheduleTemplate,
     deleteSelectedScheduleTemplate,
     isDeletingTemplate,
     isSaveTemplateModalOpen,
@@ -249,6 +252,7 @@ export function ScheduleModal({
     resetTemplateActionState,
     saveScheduleTemplate,
     setTemplateNameDraft,
+    templatePendingDeletion,
     templateNameDraft,
     templateNameError,
   } = useScheduleTemplateActions({
@@ -398,6 +402,23 @@ export function ScheduleModal({
           </section>
         </div>
       </ScheduleModalFrame>
+      <ConfirmDeleteDialog
+        isVisible={Boolean(templatePendingDeletion)}
+        title={copy.schedule.template.remove}
+        itemName={templatePendingDeletion?.name}
+        description={
+          templatePendingDeletion
+            ? copy.schedule.errors.removeTemplateConfirm(templatePendingDeletion.name)
+            : undefined
+        }
+        confirmLabel={isDeletingTemplate ? copy.schedule.template.removing : copy.schedule.template.remove}
+        cancelLabel={copy.schedule.cancel}
+        confirmDisabled={isDeletingTemplate}
+        onCancel={cancelDeleteSelectedScheduleTemplate}
+        onConfirm={() => {
+          void confirmDeleteSelectedScheduleTemplate();
+        }}
+      />
     </>
   );
 }

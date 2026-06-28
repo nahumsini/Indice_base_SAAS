@@ -79,6 +79,7 @@ class HrUserServiceTest {
         assertEquals("", rows.getFirst().get("phone"));
         assertNull(rows.getFirst().get("hire_date"));
         assertEquals(new BigDecimal("6500.00"), rows.getFirst().get("salary"));
+        assertEquals(new BigDecimal("5.00"), rows.getFirst().get("workdays_per_week"));
     }
 
     @Test
@@ -290,6 +291,7 @@ class HrUserServiceTest {
         when(rs.getString("position")).thenReturn("Senior Analyst");
         when(rs.getString("department")).thenReturn("Finance");
         when(rs.getString("phone")).thenReturn(null);
+        when(rs.getString("registration_country")).thenReturn("MX");
         when(rs.getString("unit_name")).thenReturn(null);
         when(rs.getString("business_name")).thenReturn(null);
         when(rs.getString("pay_period")).thenReturn("weekly");
@@ -308,6 +310,8 @@ class HrUserServiceTest {
         when(rs.getObject("last_working_day")).thenReturn(null);
         when(rs.getBigDecimal("salary")).thenReturn(new BigDecimal("6500.00"));
         when(rs.getBigDecimal("hourly_rate")).thenReturn(null);
+        when(rs.getBigDecimal("workday_hours")).thenReturn(new BigDecimal("8.00"));
+        when(rs.getBigDecimal("workdays_per_week")).thenReturn(new BigDecimal("5.00"));
         when(rs.getLong("unit_id")).thenReturn(0L);
         when(rs.getLong("business_id")).thenReturn(0L);
         when(rs.wasNull()).thenReturn(true);
