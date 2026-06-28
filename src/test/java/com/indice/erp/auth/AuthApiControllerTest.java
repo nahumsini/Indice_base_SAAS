@@ -52,7 +52,7 @@ class AuthApiControllerTest {
             new AuthSessionResponse.CompanyInfo(1L)
         );
 
-        given(sessionAuthService.loginJson(eq("demo@example.com"), eq("demo123"), any()))
+        given(sessionAuthService.loginJson(eq("demo@example.com"), eq("demo123"), any(), any(LoginAuditContext.class)))
             .willReturn(new LoginAttemptResult(true, ""));
         given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
         given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");

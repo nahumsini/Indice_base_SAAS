@@ -73,6 +73,9 @@ public class AttendanceFaceVerificationApiController {
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!hrAccessService.canAccessReadableTab(currentUser.get(), HrTab.ATTENDANCE)) {
+            return forbidden();
+        }
 
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -112,6 +115,9 @@ public class AttendanceFaceVerificationApiController {
 
         try {
             var managementAccess = hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL);
+            if (!managementAccess && !hrAccessService.canAccessReadableTab(currentUser.get(), HrTab.ATTENDANCE)) {
+                return forbidden();
+            }
             return ResponseEntity.ok(
                 hrAttendanceService.createFaceVerificationCaptureUpload(currentUser.get(), sessionId, payload, managementAccess)
             );
@@ -137,6 +143,9 @@ public class AttendanceFaceVerificationApiController {
 
         try {
             var managementAccess = hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL);
+            if (!managementAccess && !hrAccessService.canAccessReadableTab(currentUser.get(), HrTab.ATTENDANCE)) {
+                return forbidden();
+            }
             return ResponseEntity.ok(
                 hrAttendanceService.completeFaceVerificationSession(currentUser.get(), sessionId, managementAccess)
             );

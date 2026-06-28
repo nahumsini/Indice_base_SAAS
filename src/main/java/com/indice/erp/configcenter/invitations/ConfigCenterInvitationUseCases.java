@@ -2,6 +2,8 @@ package com.indice.erp.configcenter.invitations;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessUseCases;
+import com.indice.erp.configcenter.users.ConfigCenterUserAccessAudit.Snapshot;
+import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessScope;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.time.LocalDateTime;
@@ -9,12 +11,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAccessUseCases {
+
+    private static final Set<String> MODULES_WITH_TABS = Set.of("config_center", "human_resources");
 
     protected ConfigCenterInvitationUseCases(
         JdbcTemplate jdbcTemplate,
@@ -26,7 +31,8 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
     }
 
-    public Map<String, Object> deleteInvitation(long companyId, long invitationId) {
+    public Map<String, Object> deleteInvitation(long companyId, long actorUserId, String actorRole, long invitationId) {
+        var before = loadInvitationAccessSnapshot(companyId, actorUserId, actorRole, invitationId);
         var updated = jdbcTemplate.update(
             """
                 UPDATE user_invitations
@@ -46,11 +52,24 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var result = new LinkedHashMap<String, Object>();
         result.put("success", true);
         result.put("deleted", true);
+        userAccessAudit.recordInvitationChange(
+            companyId,
+            actorUserId,
+            invitationId,
+            "invitation_cancelled",
+            before,
+            new Snapshot(before.role(), "cancelled", before.unitId(), before.businessId(), before.modules(), before.tabPermissions())
+        );
         return result;
     }
 
     @Transactional
-    public Map<String, Object> inviteUser(long companyId, long invitedByUserId, Map<String, Object> payload) {
+    public Map<String, Object> inviteUser(
+        long companyId,
+        long invitedByUserId,
+        String actorRole,
+        Map<String, Object> payload
+    ) {
         var fullName = value(payload, "name", "full_name", "nombre");
         var email = normalizeEmail(value(payload, "email"));
         var role = normalizeRole(value(payload, "role"));
@@ -62,6 +81,19 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
             ? tabPermissionAccess.normalizeTabPermissionKeys(payload)
             : List.<String>of();
         tabPermissionAccess.ensureTabPermissionKeysValid(tabPermissionKeys, moduleSlugs);
+        var actor = loadActorAccess(companyId, invitedByUserId, actorRole);
+        userMutationGuard.validateInvite(
+            actor,
+            value(payload, "role"),
+            payload,
+            moduleSlugs,
+            tabPermissionKeys,
+            new com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessScope(
+                membership.unitId(),
+                membership.businessId()
+            ),
+            shouldPersistTabPermissions
+        );
 
         if (fullName.isBlank() || email.isBlank()) {
             throw new IllegalArgumentException("Name and email are required.");
@@ -97,6 +129,14 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         if (shouldPersistTabPermissions) {
             tabPermissionAccess.replaceInvitationTabPermissions(invitationId, tabPermissionKeys, moduleSlugs);
         }
+        userAccessAudit.recordInvitationChange(
+            companyId,
+            invitedByUserId,
+            invitationId,
+            "invitation_created",
+            null,
+            new Snapshot(role, "pending", membership.unitId(), membership.businessId(), moduleSlugs, tabPermissionKeys)
+        );
 
         var result = new LinkedHashMap<String, Object>();
         result.put("email", email);
@@ -120,6 +160,7 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         if ("expired".equals(invitationStatus)) {
             throw new IllegalArgumentException("This invitation has expired.");
         }
+        ensureInvitationHasRequiredAccess(invitation);
 
         var password = value(payload, "password", "new_password");
         var confirmPassword = value(payload, "confirm_password", "confirm_new_password", "password_confirmation");
@@ -208,8 +249,28 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         return result;
     }
 
+    private void ensureInvitationHasRequiredAccess(com.indice.erp.configcenter.support.InvitationRecord invitation) {
+        if (invitation.unitId() == null || invitation.businessId() == null) {
+            throw new IllegalArgumentException("Invitation is missing business unit or business access.");
+        }
+        if (invitation.moduleSlugs() == null || invitation.moduleSlugs().isEmpty()) {
+            throw new IllegalArgumentException("Invitation is missing module permissions.");
+        }
+        var requiresTabRows = invitation.moduleSlugs().stream().anyMatch(MODULES_WITH_TABS::contains);
+        if (requiresTabRows && !tabPermissionAccess.hasInvitationTabPermissionRows(invitation.id())) {
+            throw new IllegalArgumentException("Invitation is missing tab permissions.");
+        }
+    }
+
     @Transactional
-    public Map<String, Object> resendInvitation(long companyId, long invitationId, Map<String, Object> payload) {
+    public Map<String, Object> resendInvitation(
+        long companyId,
+        long actorUserId,
+        String actorRole,
+        long invitationId,
+        Map<String, Object> payload
+    ) {
+        var before = loadInvitationAccessSnapshot(companyId, actorUserId, actorRole, invitationId);
         var rows = jdbcTemplate.query(
             """
                 SELECT id, email, COALESCE(full_name, '') AS full_name
@@ -261,6 +322,52 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         result.put("email", finalEmail);
         result.put("full_name", String.valueOf(stored.get("full_name")));
         result.put("token", token);
+        userAccessAudit.recordInvitationChange(companyId, actorUserId, invitationId, "invitation_resent", before, before);
         return result;
+    }
+
+    private Snapshot loadInvitationAccessSnapshot(
+        long companyId,
+        long actorUserId,
+        String actorRole,
+        long invitationId
+    ) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT COALESCE(role, 'user') AS role,
+                       COALESCE(status, 'pending') AS status,
+                       unit_id,
+                       business_id,
+                       COALESCE(module_slugs_json, '[]') AS module_slugs_json
+                FROM user_invitations
+                WHERE id = ?
+                  AND company_id = ?
+                  AND COALESCE(status, 'pending') = 'pending'
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new Snapshot(
+                normalizeRole(rs.getString("role")),
+                normalizeStatus(rs.getString("status")),
+                getNullableLong(rs, "unit_id"),
+                getNullableLong(rs, "business_id"),
+                parseStoredModuleSlugs(safe(rs.getString("module_slugs_json"))),
+                tabPermissionAccess.listInvitationTabPermissionKeys(invitationId)
+            ),
+            invitationId,
+            companyId
+        );
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Invitation not found.");
+        }
+        var snapshot = rows.getFirst();
+        invitationAccessGuard.validateManage(
+            loadActorAccess(companyId, actorUserId, actorRole),
+            snapshot.role(),
+            snapshot.modules(),
+            snapshot.tabPermissions(),
+            new AccessScope(snapshot.unitId(), snapshot.businessId())
+        );
+        return snapshot;
     }
 }

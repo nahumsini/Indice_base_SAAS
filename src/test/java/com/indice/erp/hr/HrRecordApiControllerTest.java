@@ -22,6 +22,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -92,6 +94,21 @@ class HrRecordApiControllerTest {
     }
 
     @Test
+    void userListReturnsForbiddenEvenWhenRecordsTabIsReadable() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/records"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verify(hrRecordService, never()).listAssignedRecords(any(AuthSessionUser.class), any(Map.class));
+        verify(hrRecordService, never()).listRecords(any(AuthSessionUser.class), any(Map.class));
+    }
+
+    @Test
     void listReturnsForbiddenWhenRecordsTabIsDenied() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
@@ -146,6 +163,47 @@ class HrRecordApiControllerTest {
             .andExpect(jsonPath("$.record_id").value(12))
             .andExpect(jsonPath("$.record.title").value("Jordan Safety Observation"))
             .andExpect(jsonPath("$.record.status").value("reviewed"));
+    }
+
+    @Test
+    void userDetailsReturnsForbiddenEvenWhenRecordsTabIsReadable() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.RECORDS)).willReturn(true);
+
+        mockMvc.perform(get("/api/v1/hr/records/12"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verify(hrRecordService, never()).getAssignedRecordDetails(any(AuthSessionUser.class), anyLong());
+        verify(hrRecordService, never()).getRecordDetails(any(AuthSessionUser.class), anyLong());
+    }
+
+    @Test
+    void userCreateReturnsForbiddenEvenWhenRecordsTabIsReadable() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, 776L, "Nahum", "user");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.RECORDS)).willReturn(false);
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.RECORDS)).willReturn(true);
+
+        mockMvc.perform(post("/api/v1/hr/records")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "user_company_id": 2,
+                      "record_type": "incident",
+                      "severity": "high",
+                      "title": "Direct create",
+                      "description": "Should be forbidden"
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verify(hrRecordService, never()).createRecord(any(AuthSessionUser.class), any(Map.class));
     }
 
     @Test

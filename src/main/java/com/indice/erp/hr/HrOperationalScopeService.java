@@ -3,11 +3,16 @@ package com.indice.erp.hr;
 import com.indice.erp.auth.AuthSessionUser;
 import java.util.Locale;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 public class HrOperationalScopeService {
+
+    private static final Set<String> COMPANY_WIDE_ROLES = Set.of("root", "superadmin");
+    private static final Set<String> UNIT_WIDE_ROLES = Set.of("admin", "owner", "dueno");
+    private static final Set<String> BUSINESS_WIDE_ROLES = Set.of("manager", "approver");
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -17,7 +22,7 @@ public class HrOperationalScopeService {
 
     public HrOperationalScope resolve(AuthSessionUser currentUser) {
         var role = normalizeRole(currentUser.role());
-        if ("root".equals(role) || "superadmin".equals(role)) {
+        if (COMPANY_WIDE_ROLES.contains(role)) {
             return HrOperationalScope.corporateOffice();
         }
 
@@ -35,14 +40,25 @@ public class HrOperationalScopeService {
                 ORDER BY CASE WHEN wp.id IS NULL THEN 1 ELSE 0 END, uc.id ASC
                 LIMIT 1
                 """,
-            (rs, rowNum) -> HrOperationalScope.businessOffice(
+            (rs, rowNum) -> new Assignment(
                 getNullableLong(rs, "unit_id"),
                 getNullableLong(rs, "business_id")
             ),
             currentUser.userId(),
             currentUser.companyId()
         );
-        return rows.isEmpty() ? HrOperationalScope.corporateOffice() : rows.getFirst();
+        if (rows.isEmpty()) {
+            return HrOperationalScope.unassigned();
+        }
+
+        var assignment = rows.getFirst();
+        if (UNIT_WIDE_ROLES.contains(role)) {
+            return HrOperationalScope.unitHeadquarters(assignment.unitId());
+        }
+        if (BUSINESS_WIDE_ROLES.contains(role)) {
+            return HrOperationalScope.businessOffice(assignment.unitId(), assignment.businessId());
+        }
+        return HrOperationalScope.unassigned();
     }
 
     public void requireUserInScope(AuthSessionUser currentUser, long targetUserCompanyId) {
@@ -93,6 +109,7 @@ public class HrOperationalScopeService {
     public boolean containsAssignment(long companyId, HrOperationalScope scope, Long unitId, Long businessId) {
         return switch (scope.type()) {
             case CORPORATE_OFFICE -> true;
+            case UNASSIGNED -> false;
             case UNIT_HEADQUARTERS -> unitMatches(scope.unitId(), unitId)
                 || businessBelongsToUnit(companyId, businessId, scope.unitId());
             case BUSINESS_OFFICE -> businessId != null && businessId.equals(scope.businessId());

@@ -48,7 +48,18 @@ dev: prepare ## Start the full local dev stack
 	VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \
 	VITE_API_BASE_URL="$(VITE_API_BASE_URL)" \
 	npm --prefix "$(FRONTEND_DIR)" run dev -- --host "$(FRONTEND_HOST)" --port "$(FRONTEND_PORT)" --strictPort & frontend_pid=$$!; \
-	wait -n "$$backend_pid" "$$frontend_pid" || status=$$?; \
+	while true; do \
+		running_jobs="$$(jobs -rp || true)"; \
+		if ! grep -qx "$$backend_pid" <<< "$$running_jobs"; then \
+			wait "$$backend_pid" || status=$$?; \
+			break; \
+		fi; \
+		if ! grep -qx "$$frontend_pid" <<< "$$running_jobs"; then \
+			wait "$$frontend_pid" || status=$$?; \
+			break; \
+		fi; \
+		sleep 1; \
+	done; \
 	status=$${status:-0}; \
 	trap - EXIT; \
 	cleanup; \

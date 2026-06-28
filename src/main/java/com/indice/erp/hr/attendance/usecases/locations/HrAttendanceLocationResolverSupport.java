@@ -48,9 +48,9 @@ public abstract class HrAttendanceLocationResolverSupport extends HrAttendanceLo
 
         if (isOpenSchedule(scheduleRule)) {
             if (!(scheduleRule.enforceLocation() && scheduleRule.locationId() != null)) {
-                return requestedLocationId == null
-                    ? null
-                    : resolveKioskLocation(companyId, requestedLocationId, latitude, longitude);
+                return requestedLocationId != null && requestedLocationId > 0
+                    ? resolveKioskLocation(companyId, requestedLocationId, latitude, longitude)
+                    : null;
             }
             return resolveAllowedAttendanceLocation(
                 List.of(loadLocation(companyId, scheduleRule.locationId())),

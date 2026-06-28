@@ -1,5 +1,6 @@
 package com.indice.erp.hr.permissions;
 
+import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.shared.HrPayloadUtils;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -23,7 +24,16 @@ public class HrPermissionListRepository {
     }
 
     public PermissionListResult listRequests(long companyId, Long userCompanyId, Map<String, String> filters) {
-        var spec = spec(companyId, userCompanyId, filters);
+        return listRequests(companyId, userCompanyId, null, filters);
+    }
+
+    public PermissionListResult listRequests(
+        long companyId,
+        Long userCompanyId,
+        HrOperationalScope managementScope,
+        Map<String, String> filters
+    ) {
+        var spec = spec(companyId, userCompanyId, managementScope, filters);
         var items = jdbcTemplate.query(
             """
                 SELECT r.id, r.request_number, r.user_company_id, r.user_name_snapshot, r.user_position_snapshot,
@@ -38,36 +48,42 @@ public class HrPermissionListRepository {
                          ORDER BY a.id ASC
                          LIMIT 1
                        ) AS attachment_name
-                FROM user_permission_requests r
                 """
+                + spec.fromClause()
                 + spec.whereClause()
                 + " ORDER BY CASE WHEN LOWER(COALESCE(r.status, 'pending')) = 'pending' THEN 0 ELSE 1 END, r.created_at DESC, r.id DESC",
             (rs, rowNum) -> mapRow(rs),
             spec.params().toArray()
         );
         var total = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM user_permission_requests r " + spec.whereClause(),
+            "SELECT COUNT(*) " + spec.fromClause() + spec.whereClause(),
             Long.class,
             spec.params().toArray()
         );
-        return new PermissionListResult(items, total == null ? 0L : total, summary(companyId, userCompanyId));
+        return new PermissionListResult(items, total == null ? 0L : total, summary(companyId, userCompanyId, managementScope));
     }
-    private Map<String, Object> summary(long companyId, Long userCompanyId) {
+
+    private Map<String, Object> summary(long companyId, Long userCompanyId, HrOperationalScope managementScope) {
         var params = new ArrayList<Object>();
         params.add(companyId);
-        var clause = new StringBuilder(" WHERE company_id = ?");
+        var clause = new StringBuilder(" WHERE r.company_id = ?");
+        var from = new StringBuilder("FROM user_permission_requests r");
         if (userCompanyId != null) {
-            clause.append(" AND user_company_id = ?");
+            clause.append(" AND r.user_company_id = ?");
             params.add(userCompanyId);
+        } else if (shouldApplyManagementScope(managementScope)) {
+            from.append(" LEFT JOIN hr_users e ON e.company_id = r.company_id AND e.id = r.user_company_id");
+            clause.append(managementScope.hrUserPredicate("e"));
+            params.addAll(managementScope.hrUserParameters());
         }
         return jdbcTemplate.queryForObject(
             """
                 SELECT COUNT(*) AS total_count,
-                       SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'pending' THEN 1 ELSE 0 END) AS pending_count,
-                       SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'approved' THEN 1 ELSE 0 END) AS approved_count,
-                       SUM(CASE WHEN LOWER(COALESCE(status, 'pending')) = 'rejected' THEN 1 ELSE 0 END) AS rejected_count
-                FROM user_permission_requests
+                       SUM(CASE WHEN LOWER(COALESCE(r.status, 'pending')) = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+                       SUM(CASE WHEN LOWER(COALESCE(r.status, 'pending')) = 'approved' THEN 1 ELSE 0 END) AS approved_count,
+                       SUM(CASE WHEN LOWER(COALESCE(r.status, 'pending')) = 'rejected' THEN 1 ELSE 0 END) AS rejected_count
                 """
+                + from
                 + clause,
             (rs, rowNum) -> Map.of(
                 "total", rs.getLong("total_count"),
@@ -78,13 +94,18 @@ public class HrPermissionListRepository {
             params.toArray()
         );
     }
-    private QuerySpec spec(long companyId, Long userCompanyId, Map<String, String> filters) {
+    private QuerySpec spec(long companyId, Long userCompanyId, HrOperationalScope managementScope, Map<String, String> filters) {
+        var from = new StringBuilder(" FROM user_permission_requests r");
         var where = new StringBuilder(" WHERE r.company_id = ?");
         var params = new ArrayList<Object>();
         params.add(companyId);
         if (userCompanyId != null) {
             where.append(" AND r.user_company_id = ?");
             params.add(userCompanyId);
+        } else if (shouldApplyManagementScope(managementScope)) {
+            from.append(" LEFT JOIN hr_users e ON e.company_id = r.company_id AND e.id = r.user_company_id");
+            where.append(managementScope.hrUserPredicate("e"));
+            params.addAll(managementScope.hrUserParameters());
         }
         var search = HrPayloadUtils.safe(filters.get("search")).trim().toLowerCase();
         if (!search.isBlank()) {
@@ -99,7 +120,11 @@ public class HrPermissionListRepository {
             where.append(" AND r.user_name_snapshot = ?");
             params.add(employee);
         }
-        return new QuerySpec(where.toString(), params);
+        return new QuerySpec(from.toString(), where.toString(), params);
+    }
+
+    private boolean shouldApplyManagementScope(HrOperationalScope scope) {
+        return scope != null && !scope.isCorporateOffice();
     }
     private void appendEqualsFilter(StringBuilder where, List<Object> params, String column, String rawValue) {
         var value = rawValue.trim().toLowerCase();
@@ -139,7 +164,7 @@ public class HrPermissionListRepository {
         return value == null ? null : value.toLocalDateTime().toString();
     }
 
-    private record QuerySpec(String whereClause, List<Object> params) {
+    private record QuerySpec(String fromClause, String whereClause, List<Object> params) {
     }
 
     public record PermissionListResult(List<Map<String, Object>> items, long totalCount, Map<String, Object> summary) {

@@ -20,6 +20,8 @@ import {
   configCenterApi,
   type ConfigCenterCatalogBusiness,
   type ConfigCenterCatalogModule,
+  type ConfigCenterCatalogTab,
+  type ConfigCenterCatalogUnit,
   type ConfigCenterUser,
 } from '../../../api/configCenter';
 import {
@@ -31,6 +33,12 @@ import {
   type DashboardModuleColor,
 } from '../../../config/moduleCatalog';
 import { validateEmail } from '../../../shared/validation/email';
+import { UsersTabPermissionPicker } from './UsersTabPermissionPicker';
+import {
+  buildTabPermissionModuleOptions,
+  mergeDefaultTabPermissions,
+  pruneTabPermissionKeysForModules,
+} from './usersTabPermissionAssignments';
 
 interface User {
   id: string;
@@ -41,8 +49,10 @@ interface User {
   avatarUrl?: string | null;
   role: 'Super Admin' | 'Admin' | 'User';
   status: 'active' | 'pending' | 'inactive';
+  unitId: number | null;
   businessId: number | null;
   modules: string[];
+  tabPermissionKeys: string[];
   isProtected: boolean;
 }
 
@@ -59,10 +69,18 @@ interface InviteFormState {
   name: string;
   email: string;
   role: User['role'];
+  businessUnitId: string;
+  businessId: string;
+}
+
+interface BusinessUnitOption {
+  id: string;
+  name: string;
 }
 
 interface BusinessOption {
   id: string;
+  unitId: string;
   name: string;
 }
 
@@ -102,7 +120,19 @@ const emptyInviteForm: InviteFormState = {
   name: '',
   email: '',
   role: 'User',
+  businessUnitId: '',
+  businessId: '',
 };
+
+const USER_SELF_SERVICE_TAB_PERMISSION_KEYS = new Set([
+  'config_center.profile',
+  'config_center.personal-performance',
+  'human_resources.announcements',
+  'human_resources.assets',
+  'human_resources.attendance',
+  'human_resources.control',
+  'human_resources.permissions',
+]);
 
 export default function Users() {
   const { currentLanguage, t } = useLanguage();
@@ -111,7 +141,9 @@ export default function Users() {
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>(() =>
     buildAvailableModules(t),
   );
+  const [availableUnits, setAvailableUnits] = useState<BusinessUnitOption[]>([]);
   const [availableBusinesses, setAvailableBusinesses] = useState<BusinessOption[]>([]);
+  const [catalogTabs, setCatalogTabs] = useState<ConfigCenterCatalogTab[]>([]);
   const [businessAssignments, setBusinessAssignments] = useState<Record<string, UserBusinessAssignment>>({});
   const [editingBusinessCell, setEditingBusinessCell] = useState<EditableBusinessCell>(null);
   const [sortState, setSortState] = useState<SortState>(null);
@@ -128,11 +160,13 @@ export default function Users() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [inviteForm, setInviteForm] = useState<InviteFormState>(emptyInviteForm);
   const [inviteModuleIds, setInviteModuleIds] = useState<string[]>([]);
+  const [inviteTabPermissionKeys, setInviteTabPermissionKeys] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [loadingOverlay, setLoadingOverlay] = useState<{
     isVisible: boolean;
     title: string;
@@ -142,8 +176,79 @@ export default function Users() {
     title: '',
   });
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
+  const [selectedTabPermissionDraft, setSelectedTabPermissionDraft] = useState<string[]>([]);
   const usersBusinessCopy = t.panelInicial.users.businessStructure;
-  const businessUnitOptions = usersBusinessCopy.unitOptions;
+  const businessUnitOptions = availableUnits.map((unit) => ({
+    value: unit.id,
+    label: unit.name,
+  }));
+  const tabPermissionModules = useMemo(
+    () => buildTabPermissionModuleOptions(availableModules),
+    [availableModules],
+  );
+  const canAssignSuperAdmin = isSuperAdminRole(currentUserRole);
+  const canManageUsers = canAssignSuperAdmin || isAdminRole(currentUserRole);
+  const currentAccessUser = users.find((user) =>
+    user.source === 'user' && user.backendId === currentUserId
+  ) ?? null;
+  const assignableModules = useMemo(() => {
+    if (canAssignSuperAdmin) {
+      return availableModules;
+    }
+    if (!isAdminRole(currentUserRole) || !currentAccessUser) {
+      return [];
+    }
+
+    const allowedModuleIds = new Set(currentAccessUser.modules);
+    return availableModules.filter((module) => allowedModuleIds.has(module.id));
+  }, [availableModules, canAssignSuperAdmin, currentAccessUser, currentUserRole]);
+  const assignableTabPermissionKeys = useMemo(() => {
+    if (canAssignSuperAdmin) {
+      return new Set(catalogTabs.map((tab) => tab.permission_key));
+    }
+    return new Set(currentAccessUser?.tabPermissionKeys ?? []);
+  }, [canAssignSuperAdmin, catalogTabs, currentAccessUser]);
+  const assignableCatalogTabs = useMemo(() => (
+    canAssignSuperAdmin
+      ? catalogTabs
+      : catalogTabs.filter((tab) => assignableTabPermissionKeys.has(tab.permission_key))
+  ), [assignableTabPermissionKeys, canAssignSuperAdmin, catalogTabs]);
+  const assignableTabPermissionModules = useMemo(
+    () => buildTabPermissionModuleOptions(assignableModules),
+    [assignableModules],
+  );
+  const assignableBusinessUnitOptions = useMemo(() => {
+    if (canAssignSuperAdmin || !currentAccessUser) {
+      return businessUnitOptions;
+    }
+    if (!isAdminRole(currentUserRole)) {
+      return [];
+    }
+    if (currentAccessUser.unitId == null) {
+      return businessUnitOptions;
+    }
+
+    return businessUnitOptions.filter((option) => option.value === String(currentAccessUser.unitId));
+  }, [businessUnitOptions, canAssignSuperAdmin, currentAccessUser, currentUserRole]);
+  const assignableBusinesses = useMemo(() => {
+    if (canAssignSuperAdmin || !currentAccessUser) {
+      return availableBusinesses;
+    }
+    if (!isAdminRole(currentUserRole)) {
+      return [];
+    }
+    if (currentAccessUser.businessId != null) {
+      return availableBusinesses.filter((business) => business.id === String(currentAccessUser.businessId));
+    }
+    if (currentAccessUser.unitId != null) {
+      return availableBusinesses.filter((business) => business.unitId === String(currentAccessUser.unitId));
+    }
+
+    return availableBusinesses;
+  }, [availableBusinesses, canAssignSuperAdmin, currentAccessUser, currentUserRole]);
+  const inviteBusinessOptions = assignableBusinesses.filter((business) =>
+    !inviteForm.businessUnitId || business.unitId === inviteForm.businessUnitId
+  );
 
   const statusLabelMap: Record<User['status'], string> = {
     active: t.panelInicial.users.status.active,
@@ -318,6 +423,10 @@ export default function Users() {
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
+  const selectedUserCatalogTabs = selectedUser
+    ? catalogTabsForRole(selectedUser.role, assignableCatalogTabs)
+    : assignableCatalogTabs;
+  const inviteCatalogTabs = catalogTabsForRole(inviteForm.role, assignableCatalogTabs);
   const invitationPendingDelete =
     users.find((user) => user.id === selectedUserForDelete && user.source === 'invitation') ?? null;
   const categoryTitleMap: Record<AvailableModule['category'], string> = {
@@ -371,6 +480,7 @@ export default function Users() {
         const currentAssignment = currentAssignments[user.id] ?? {};
         nextAssignments[user.id] = {
           ...currentAssignment,
+          businessUnitId: currentAssignment.businessUnitId ?? (user.unitId ? String(user.unitId) : undefined),
           businessId: currentAssignment.businessId ?? (user.businessId ? String(user.businessId) : undefined),
         };
       }
@@ -434,6 +544,7 @@ export default function Users() {
   const refreshUsers = async (fallbackModules: AvailableModule[] = buildAvailableModules(t)) => {
     const response = await configCenterApi.getUsers();
     const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+    const mappedUnits = response.catalog.units.map(mapCatalogUnit);
     const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
     const mappedModules = response.catalog.modules
       .map((module) => mapCatalogModule(module, t))
@@ -441,7 +552,9 @@ export default function Users() {
 
     setUsers(mappedUsers);
     syncBusinessAssignments(mappedUsers);
+    setAvailableUnits(mappedUnits);
     setAvailableBusinesses(mappedBusinesses);
+    setCatalogTabs(response.catalog.tabs ?? []);
     if (mappedModules.length > 0) {
       setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
     } else {
@@ -480,7 +593,9 @@ export default function Users() {
         }
 
         setCurrentUserId(currentUser.id);
+        setCurrentUserRole(currentUser.role ?? null);
         const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+        const mappedUnits = response.catalog.units.map(mapCatalogUnit);
         const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
         const mappedModules = response.catalog.modules
           .map((module) => mapCatalogModule(module, t))
@@ -488,7 +603,9 @@ export default function Users() {
 
         setUsers(mappedUsers);
         syncBusinessAssignments(mappedUsers);
+        setAvailableUnits(mappedUnits);
         setAvailableBusinesses(mappedBusinesses);
+        setCatalogTabs(response.catalog.tabs ?? []);
         if (mappedModules.length > 0) {
           setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
         }
@@ -514,6 +631,7 @@ export default function Users() {
     setShowInviteModal(false);
     setInviteForm(emptyInviteForm);
     setInviteModuleIds([]);
+    setInviteTabPermissionKeys([]);
     setInviteLink('');
     setInviteEmailStatus(null);
     setCopiedLink(false);
@@ -529,15 +647,80 @@ export default function Users() {
   };
 
   const toggleUserModule = (moduleId: string) => {
-    setSelectedModulesDraft((prevModules) =>
-      prevModules.includes(moduleId)
+    const role = selectedUser?.role ?? 'User';
+    const roleCatalogTabs = catalogTabsForRole(role, assignableCatalogTabs);
+    setSelectedModulesDraft((prevModules) => {
+      const nextModules = prevModules.includes(moduleId)
         ? prevModules.filter((module) => module !== moduleId)
-        : [...prevModules, moduleId],
+        : [...prevModules, moduleId];
+
+      setSelectedTabPermissionDraft((currentKeys) =>
+        prevModules.includes(moduleId)
+          ? pruneTabPermissionKeysForModules(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModules)
+          : mergeDefaultTabPermissions(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModules),
+      );
+      return nextModules;
+    });
+  };
+
+  const moduleSlugsForIds = (moduleIds: string[]) => (
+    moduleIds
+      .map((route) => backendSlugForRoute(route as any))
+      .filter((slug): slug is string => Boolean(slug))
+  );
+
+  const numberOrNull = (value?: string | number | null) => {
+    if (value == null || value === '') {
+      return null;
+    }
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : null;
+  };
+
+  const buildUserAccessPayload = (
+    user: User,
+    overrides: Partial<{
+      role: User['role'];
+      status: User['status'];
+      moduleIds: string[];
+      tabPermissionKeys: string[];
+      unitId: string | number | null;
+      businessId: string | number | null;
+    }> = {},
+  ) => {
+    const assignment = businessAssignments[user.id];
+    const moduleIds = overrides.moduleIds ?? user.modules;
+    const role = overrides.role ?? user.role;
+    const tabPermissionKeys = pruneTabPermissionKeysForRole(
+      role,
+      overrides.tabPermissionKeys ?? user.tabPermissionKeys,
     );
+    return {
+      role: toBackendRole(role),
+      status: overrides.status ?? user.status,
+      module_slugs: moduleSlugsForIds(moduleIds),
+      tab_permission_keys: tabPermissionKeys,
+      unit_id: numberOrNull(overrides.unitId ?? assignment?.businessUnitId ?? user.unitId),
+      business_id: numberOrNull(overrides.businessId ?? assignment?.businessId ?? user.businessId),
+    };
+  };
+
+  const canEditAccessFor = (user: User) => {
+    if (user.source !== 'user') {
+      return false;
+    }
+    if (canAssignSuperAdmin) {
+      return true;
+    }
+    if (!isAdminRole(currentUserRole) || user.backendId === currentUserId) {
+      return false;
+    }
+
+    return user.role !== 'Super Admin';
   };
 
   const toggleUserStatus = async (user: User) => {
-    if (user.source !== 'user') {
+    if (!canEditAccessFor(user)) {
       return;
     }
 
@@ -545,13 +728,7 @@ export default function Users() {
 
     try {
       setLoadError('');
-      await configCenterApi.updateUser(user.backendId, {
-        role: toBackendRole(user.role),
-        status: nextStatus,
-        module_slugs: user.modules
-          .map((route) => backendSlugForRoute(route as any))
-          .filter((slug): slug is string => Boolean(slug)),
-      });
+      await configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { status: nextStatus }));
       await refreshUsers();
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to update user status.');
@@ -559,19 +736,16 @@ export default function Users() {
   };
 
   const changeUserRole = async (user: User, newRole: User['role']) => {
-    if (user.source !== 'user') {
+    if (!canEditAccessFor(user)) {
+      return;
+    }
+    if (newRole === 'Super Admin' && !canAssignSuperAdmin) {
       return;
     }
 
     try {
       setLoadError('');
-      await configCenterApi.updateUser(user.backendId, {
-        role: toBackendRole(newRole),
-        status: user.status,
-        module_slugs: user.modules
-          .map((route) => backendSlugForRoute(route as any))
-          .filter((slug): slug is string => Boolean(slug)),
-      });
+      await configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { role: newRole }));
       await refreshUsers();
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to update user role.');
@@ -580,10 +754,13 @@ export default function Users() {
 
   const handleSendInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canManageUsers) {
+      return;
+    }
     const trimmedName = inviteForm.name.trim();
     const trimmedEmail = inviteForm.email.trim();
 
-    if (!trimmedName || !trimmedEmail) {
+    if (!trimmedName || !trimmedEmail || !inviteForm.businessUnitId || !inviteForm.businessId || inviteModuleIds.length === 0) {
       return;
     }
 
@@ -603,9 +780,18 @@ export default function Users() {
             name: trimmedName,
             email: emailValidation.normalized,
             role: toBackendRole(inviteForm.role),
-            module_slugs: inviteModuleIds
-              .map((route) => backendSlugForRoute(route as any))
-              .filter((slug): slug is string => Boolean(slug)),
+            unit_id: numberOrNull(inviteForm.businessUnitId),
+            business_id: numberOrNull(inviteForm.businessId),
+            module_slugs: moduleSlugsForIds(inviteModuleIds),
+            tab_permission_keys: pruneTabPermissionKeysForRole(
+              inviteForm.role,
+              pruneTabPermissionKeysForModules(
+                inviteCatalogTabs,
+                assignableTabPermissionModules,
+                inviteTabPermissionKeys,
+                inviteModuleIds,
+              ),
+            ),
           });
           await refreshUsers();
           setInviteLink(response.invite_link);
@@ -692,29 +878,42 @@ export default function Users() {
   };
 
   const handleOpenModuleSettings = (user: User) => {
-    if (user.source !== 'user') {
+    if (!canEditAccessFor(user)) {
       return;
     }
 
     setSelectedUserForModules(user.id);
-    setSelectedModulesDraft(user.modules);
+    const allowedModuleIds = new Set(assignableModules.map((module) => module.id));
+    setSelectedModulesDraft(user.modules.filter((moduleId) => allowedModuleIds.has(moduleId)));
+    setSelectedTabPermissionDraft(
+      pruneTabPermissionKeysForRole(
+        user.role,
+        user.tabPermissionKeys.filter((key) => assignableTabPermissionKeys.has(key)),
+      ),
+    );
   };
 
   const handleSaveSelectedModules = async () => {
-    if (!selectedUser || selectedUser.source !== 'user') {
+    if (!selectedUser || !canEditAccessFor(selectedUser)) {
       setSelectedUserForModules(null);
       return;
     }
 
     try {
       setLoadError('');
-      await configCenterApi.updateUser(selectedUser.backendId, {
-        role: toBackendRole(selectedUser.role),
-        status: selectedUser.status,
-        module_slugs: selectedModulesDraft
-          .map((route) => backendSlugForRoute(route as any))
-          .filter((slug): slug is string => Boolean(slug)),
-      });
+      const tabPermissionKeys = pruneTabPermissionKeysForModules(
+        selectedUserCatalogTabs,
+        assignableTabPermissionModules,
+        selectedTabPermissionDraft,
+        selectedModulesDraft,
+      );
+      await configCenterApi.updateUser(
+        selectedUser.backendId,
+        buildUserAccessPayload(selectedUser, {
+          moduleIds: selectedModulesDraft,
+          tabPermissionKeys,
+        }),
+      );
       await refreshUsers();
       setSelectedUserForModules(null);
     } catch (error) {
@@ -752,18 +951,30 @@ export default function Users() {
   };
 
   const updateInviteForm = (field: keyof InviteFormState, value: string) => {
+    if (field === 'role') {
+      setInviteTabPermissionKeys((currentKeys) => pruneTabPermissionKeysForRole(value, currentKeys));
+    }
     setInviteForm((prevForm) => ({
       ...prevForm,
       [field]: value,
+      ...(field === 'businessUnitId' ? { businessId: '' } : {}),
     }));
   };
 
   const toggleInviteModule = (moduleId: string) => {
-    setInviteModuleIds((currentModuleIds) =>
-      currentModuleIds.includes(moduleId)
+    const roleCatalogTabs = catalogTabsForRole(inviteForm.role, assignableCatalogTabs);
+    setInviteModuleIds((currentModuleIds) => {
+      const nextModuleIds = currentModuleIds.includes(moduleId)
         ? currentModuleIds.filter((currentModuleId) => currentModuleId !== moduleId)
-        : [...currentModuleIds, moduleId],
-    );
+        : [...currentModuleIds, moduleId];
+
+      setInviteTabPermissionKeys((currentKeys) =>
+        currentModuleIds.includes(moduleId)
+          ? pruneTabPermissionKeysForModules(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModuleIds)
+          : mergeDefaultTabPermissions(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModuleIds),
+      );
+      return nextModuleIds;
+    });
   };
 
   const formatSelectedModulesCount = (count: number) => {
@@ -833,19 +1044,53 @@ export default function Users() {
     </button>
   );
 
-  const updateBusinessAssignment = (
-    userId: string,
+  const updateBusinessAssignment = async (
+    user: User,
     field: BusinessInlineField,
     value: string,
   ) => {
-    setBusinessAssignments((currentAssignments) => ({
-      ...currentAssignments,
-      [userId]: {
-        ...currentAssignments[userId],
-        [field === 'businessUnit' ? 'businessUnitId' : 'businessId']: value || undefined,
-      },
-    }));
     setEditingBusinessCell(null);
+    if (!canEditAccessFor(user) || !value) {
+      return;
+    }
+
+    const currentAssignment = businessAssignments[user.id] ?? {};
+    const nextAssignment = { ...currentAssignment };
+    if (field === 'businessUnit') {
+      nextAssignment.businessUnitId = value;
+      const existingBusiness = assignableBusinesses.find((business) =>
+        business.id === nextAssignment.businessId && business.unitId === value
+      );
+      nextAssignment.businessId = existingBusiness?.id
+        ?? assignableBusinesses.find((business) => business.unitId === value)?.id;
+    } else {
+      const business = assignableBusinesses.find((option) => option.id === value);
+      nextAssignment.businessId = value;
+      nextAssignment.businessUnitId = business?.unitId ?? nextAssignment.businessUnitId;
+    }
+
+    if (!nextAssignment.businessUnitId || !nextAssignment.businessId) {
+      setLoadError('Select both a business unit and business.');
+      return;
+    }
+
+    try {
+      setLoadError('');
+      await configCenterApi.updateUser(
+        user.backendId,
+        buildUserAccessPayload(user, {
+          unitId: nextAssignment.businessUnitId,
+          businessId: nextAssignment.businessId,
+        }),
+      );
+      setBusinessAssignments((currentAssignments) => ({
+        ...currentAssignments,
+        [user.id]: nextAssignment,
+      }));
+      await refreshUsers();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to update business assignment.');
+    }
   };
 
   const getBusinessUnitLabel = (assignment: UserBusinessAssignment | undefined) => (
@@ -863,7 +1108,11 @@ export default function Users() {
     const isEditing = editingBusinessCell?.userId === user.id && editingBusinessCell.field === field;
     const selectedValue = field === 'businessUnit' ? assignment?.businessUnitId : assignment?.businessId;
     const label = field === 'businessUnit' ? getBusinessUnitLabel(assignment) : getBusinessLabel(assignment);
-    const options = field === 'businessUnit' ? businessUnitOptions : availableBusinesses;
+    const options = field === 'businessUnit'
+      ? assignableBusinessUnitOptions
+      : assignableBusinesses
+          .filter((business) => !assignment?.businessUnitId || business.unitId === assignment.businessUnitId)
+          .map((business) => ({ value: business.id, label: business.name }));
     const placeholder = field === 'businessUnit'
       ? usersBusinessCopy.selectBusinessUnit
       : usersBusinessCopy.selectBusiness;
@@ -874,17 +1123,17 @@ export default function Users() {
           <select
             autoFocus
             value={selectedValue ?? ''}
-            onChange={(event) => updateBusinessAssignment(user.id, field, event.target.value)}
+            onChange={(event) => void updateBusinessAssignment(user, field, event.target.value)}
             className="h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600"
           >
             <option value="">{placeholder}</option>
             {options.length > 0 ? (
               options.map((option) => (
                 <option
-                  key={field === 'businessUnit' ? option.value : option.id}
-                  value={field === 'businessUnit' ? option.value : option.id}
+                  key={option.value}
+                  value={option.value}
                 >
-                  {field === 'businessUnit' ? option.label : option.name}
+                  {option.label}
                 </option>
               ))
             ) : (
@@ -899,8 +1148,13 @@ export default function Users() {
     return (
       <button
         type="button"
-        onClick={() => setEditingBusinessCell({ userId: user.id, field })}
-        className="group inline-flex h-12 w-[220px] max-w-full items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-white px-5 text-left text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 dark:hover:bg-slate-800"
+        onClick={() => {
+          if (canEditAccessFor(user)) {
+            setEditingBusinessCell({ userId: user.id, field });
+          }
+        }}
+        disabled={!canEditAccessFor(user)}
+        className="group inline-flex h-12 w-[220px] max-w-full items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-white px-5 text-left text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 dark:hover:bg-slate-800"
       >
         <span className="min-w-0 truncate">{label}</span>
         <ChevronDown className="h-5 w-5 flex-shrink-0 text-slate-400 transition-colors group-hover:text-slate-500" />
@@ -967,20 +1221,23 @@ export default function Users() {
               {t.panelInicial.users.subtitle}
             </p>
           </div>
-          <Button
-            className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-            onClick={() => {
-              setInviteForm(emptyInviteForm);
-              setInviteModuleIds([]);
-              setInviteLink('');
-              setInviteEmailStatus(null);
-              setCopiedLink(false);
-              setShowInviteModal(true);
-            }}
-          >
-            <UserPlus className="w-4 h-4" />
-            {t.panelInicial.users.invite}
-          </Button>
+	          {canManageUsers ? (
+	            <Button
+	              className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+	              onClick={() => {
+		                setInviteForm(emptyInviteForm);
+		                setInviteModuleIds([]);
+		                setInviteTabPermissionKeys([]);
+		                setInviteLink('');
+	                setInviteEmailStatus(null);
+	                setCopiedLink(false);
+	                setShowInviteModal(true);
+	              }}
+	            >
+	              <UserPlus className="w-4 h-4" />
+	              {t.panelInicial.users.invite}
+	            </Button>
+	          ) : null}
         </div>
       </div>
 
@@ -1096,6 +1353,7 @@ export default function Users() {
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => {
                   const isCurrentUser = user.source === 'user' && user.backendId === currentUserId;
+                  const canEditUserAccess = canEditAccessFor(user);
                   const initials = user.name
                     .split(' ')
                     .filter(Boolean)
@@ -1147,12 +1405,14 @@ export default function Users() {
                           <select
                             value={user.role}
                             onChange={(event) => changeUserRole(user, event.target.value as User['role'])}
-                            disabled={user.source !== 'user'}
+                            disabled={!canEditUserAccess}
                             className={`h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 ${
-                              user.source !== 'user' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                              !canEditUserAccess ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
                             }`}
                           >
-                            <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
+                            {(canAssignSuperAdmin || user.role === 'Super Admin') ? (
+                              <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
+                            ) : null}
                             <option value="Admin">{t.panelInicial.users.roles.admin}</option>
                             <option value="User">{t.panelInicial.users.roles.user}</option>
                           </select>
@@ -1169,7 +1429,7 @@ export default function Users() {
                         <button
                           type="button"
                           onClick={() => handleOpenModuleSettings(user)}
-                          disabled={user.source !== 'user'}
+                          disabled={!canEditUserAccess}
                           className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800/70 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
                         >
                           <Settings className="h-4 w-4" />
@@ -1189,7 +1449,7 @@ export default function Users() {
                           <button
                             type="button"
                             onClick={() => toggleUserStatus(user)}
-                            disabled={user.source !== 'user'}
+                            disabled={!canEditUserAccess}
                             className={`inline-flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-150 ease-in-out disabled:cursor-not-allowed disabled:opacity-50 ${
                               user.status === 'active'
                                 ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
@@ -1207,7 +1467,7 @@ export default function Users() {
                           <button
                             type="button"
                             onClick={() => handleOpenModuleSettings(user)}
-                            disabled={user.source !== 'user'}
+                            disabled={!canEditUserAccess}
                             className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-violet-200 bg-violet-50 text-violet-600 transition-all duration-150 ease-in-out hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300"
                             title={t.panelInicial.users.modal.modules}
                           >
@@ -1291,7 +1551,7 @@ export default function Users() {
                       {categoryTitleMap[section.category]}
                     </h4>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {availableModules
+	                      {assignableModules
                         .filter((module) => module.category === section.category)
                         .map((module) => {
                           const isSelected = selectedModulesDraft.includes(module.id);
@@ -1342,18 +1602,28 @@ export default function Users() {
                         })}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+	                ))}
+	                <UsersTabPermissionPicker
+		                  catalogTabs={selectedUserCatalogTabs}
+		                  modules={assignableTabPermissionModules}
+	                  selectedModuleIds={selectedModulesDraft}
+	                  selectedPermissionKeys={selectedTabPermissionDraft}
+	                  onChange={(permissionKeys) =>
+                        setSelectedTabPermissionDraft(pruneTabPermissionKeysForRole(selectedUser.role, permissionKeys))
+                      }
+	                />
+	              </div>
+	            </div>
 
             <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-8">
               <div className="text-sm font-medium text-slate-600 dark:text-slate-300">
                 {formatSelectedModulesCount(selectedModulesDraft.length)}
               </div>
-              <Button
-                onClick={handleSaveSelectedModules}
-                className="w-full rounded-xl bg-blue-600 px-6 text-white shadow-sm hover:bg-blue-700 sm:w-auto"
-              >
+	              <Button
+	                onClick={handleSaveSelectedModules}
+	                disabled={selectedModulesDraft.length === 0}
+	                className="w-full rounded-xl bg-blue-600 px-6 text-white shadow-sm hover:bg-blue-700 sm:w-auto"
+	              >
                 {t.panelInicial.users.modal.save}
               </Button>
             </div>
@@ -1363,7 +1633,7 @@ export default function Users() {
 
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-h-[90vh] w-full max-w-3xl overflow-hidden">
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -1382,7 +1652,7 @@ export default function Users() {
               </button>
             </div>
 
-            <form onSubmit={handleSendInvite}>
+            <form onSubmit={handleSendInvite} className="max-h-[calc(90vh-96px)] overflow-y-auto">
               <div className="space-y-4 p-4 sm:p-6">
                 {!inviteLink ? (
                   <>
@@ -1414,9 +1684,9 @@ export default function Users() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t.panelInicial.users.modal.role}
+	                    <div>
+	                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+	                        {t.panelInicial.users.modal.role}
                       </label>
                       <div className="relative">
                         <select
@@ -1426,13 +1696,61 @@ export default function Users() {
                           }
                           className={`appearance-none cursor-pointer px-4 py-2 pr-10 ${inputClassName}`}
                         >
-                          <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
-                          <option value="Admin">{t.panelInicial.users.roles.admin}</option>
+	                          {canAssignSuperAdmin ? (
+	                            <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
+	                          ) : null}
+	                          <option value="Admin">{t.panelInicial.users.roles.admin}</option>
                           <option value="User">{t.panelInicial.users.roles.user}</option>
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                      </div>
-                    </div>
+	                      </div>
+	                    </div>
+
+	                    <div className="grid gap-4 sm:grid-cols-2">
+	                      <div>
+	                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+	                          {usersBusinessCopy.businessUnit}
+	                        </label>
+	                        <div className="relative">
+	                          <select
+	                            value={inviteForm.businessUnitId}
+	                            onChange={(event) => updateInviteForm('businessUnitId', event.target.value)}
+	                            required
+	                            className={`appearance-none cursor-pointer px-4 py-2 pr-10 ${inputClassName}`}
+	                          >
+	                            <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
+		                            {assignableBusinessUnitOptions.map((option) => (
+	                              <option key={option.value} value={option.value}>
+	                                {option.label}
+	                              </option>
+	                            ))}
+	                          </select>
+	                          <ChevronDown className="absolute right-3 top-1/2 w-4 h-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+	                        </div>
+	                      </div>
+
+	                      <div>
+	                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+	                          {usersBusinessCopy.business}
+	                        </label>
+	                        <div className="relative">
+	                          <select
+	                            value={inviteForm.businessId}
+	                            onChange={(event) => updateInviteForm('businessId', event.target.value)}
+	                            required
+	                            className={`appearance-none cursor-pointer px-4 py-2 pr-10 ${inputClassName}`}
+	                          >
+	                            <option value="">{usersBusinessCopy.selectBusiness}</option>
+	                            {inviteBusinessOptions.map((business) => (
+	                              <option key={business.id} value={business.id}>
+	                                {business.name}
+	                              </option>
+	                            ))}
+	                          </select>
+	                          <ChevronDown className="absolute right-3 top-1/2 w-4 h-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+	                        </div>
+	                      </div>
+	                    </div>
 
                     <div>
                       <div className="mb-2 flex items-center justify-between gap-3">
@@ -1444,7 +1762,7 @@ export default function Users() {
                         </span>
                       </div>
                       <div className="grid max-h-44 gap-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/30 sm:grid-cols-2">
-                        {availableModules.map((module) => {
+	                        {assignableModules.map((module) => {
                           const isSelected = inviteModuleIds.includes(module.id);
 
                           return (
@@ -1468,8 +1786,19 @@ export default function Users() {
                             </button>
                           );
                         })}
-                      </div>
-                    </div>
+	                      </div>
+	                      <div className="mt-4">
+	                        <UsersTabPermissionPicker
+		                          catalogTabs={inviteCatalogTabs}
+		                          modules={assignableTabPermissionModules}
+	                          selectedModuleIds={inviteModuleIds}
+	                          selectedPermissionKeys={inviteTabPermissionKeys}
+	                          onChange={(permissionKeys) =>
+                              setInviteTabPermissionKeys(pruneTabPermissionKeysForRole(inviteForm.role, permissionKeys))
+                            }
+	                        />
+	                      </div>
+	                    </div>
                   </>
                 ) : (
                   <div className="space-y-4">
@@ -1529,11 +1858,16 @@ export default function Users() {
                     >
                       {t.panelInicial.users.modal.cancel}
                     </Button>
-                    <Button
-                      type="submit"
-                      disabled={loadingOverlay.isVisible}
-                      className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                    >
+	                    <Button
+	                      type="submit"
+	                      disabled={
+	                        loadingOverlay.isVisible
+	                        || !inviteForm.businessUnitId
+	                        || !inviteForm.businessId
+	                        || inviteModuleIds.length === 0
+	                      }
+	                      className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+	                    >
                       <UserPlus className="w-4 h-4" />
                       {t.panelInicial.users.modal.send}
                     </Button>
@@ -1739,9 +2073,17 @@ function mapCatalogModule(module: ConfigCenterCatalogModule, t: any): AvailableM
   };
 }
 
+function mapCatalogUnit(unit: ConfigCenterCatalogUnit): BusinessUnitOption {
+  return {
+    id: String(unit.id),
+    name: unit.name,
+  };
+}
+
 function mapCatalogBusiness(business: ConfigCenterCatalogBusiness): BusinessOption {
   return {
     id: String(business.id),
+    unitId: business.unit_id == null ? '' : String(business.unit_id),
     name: business.name,
   };
 }
@@ -1780,8 +2122,10 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     avatarUrl: user.avatar_url ?? null,
     role,
     status,
+    unitId: user.unit_id ?? null,
     businessId: user.business_id ?? null,
     isProtected: user.is_protected,
+    tabPermissionKeys: user.tab_permission_keys ?? [],
     modules: user.module_slugs
       .flatMap((slug) => {
         const route = routeForBackendSlug(slug);
@@ -1799,6 +2143,40 @@ function normalizeUserRole(role: string): User['role'] {
     return 'Admin';
   }
   return 'User';
+}
+
+function isSuperAdminRole(role: string | null | undefined) {
+  const normalized = (role ?? '').trim().toLowerCase();
+  return normalized === 'root' || normalized === 'superadmin' || normalized === 'super admin';
+}
+
+function isAdminRole(role: string | null | undefined) {
+  const normalized = (role ?? '').trim().toLowerCase();
+  return normalized === 'admin' || normalized === 'owner' || normalized === 'manager';
+}
+
+function isSelfServiceUserRole(role: User['role'] | string | null | undefined) {
+  return (role ?? '').trim().toLowerCase() === 'user';
+}
+
+function pruneTabPermissionKeysForRole(
+  role: User['role'] | string | null | undefined,
+  permissionKeys: string[],
+) {
+  if (!isSelfServiceUserRole(role)) {
+    return permissionKeys;
+  }
+  return permissionKeys.filter((permissionKey) => USER_SELF_SERVICE_TAB_PERMISSION_KEYS.has(permissionKey));
+}
+
+function catalogTabsForRole(
+  role: User['role'] | string | null | undefined,
+  catalogTabs: ConfigCenterCatalogTab[],
+) {
+  if (!isSelfServiceUserRole(role)) {
+    return catalogTabs;
+  }
+  return catalogTabs.filter((tab) => USER_SELF_SERVICE_TAB_PERMISSION_KEYS.has(tab.permission_key));
 }
 
 function toBackendRole(role: User['role']): string {

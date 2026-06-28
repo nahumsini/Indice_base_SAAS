@@ -12,7 +12,6 @@ import org.springframework.stereotype.Repository;
 class DashboardModuleAccessRepository {
 
     private static final Set<String> FULL_ACCESS_ROLES = Set.of("root", "superadmin");
-    private static final Set<String> LEGACY_ADMIN_ROLES = Set.of("admin", "owner", "dueno");
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -49,12 +48,7 @@ class DashboardModuleAccessRepository {
             return DashboardModuleAccess.all();
         }
 
-        var moduleSlugs = listModuleSlugs(access.userCompanyId());
-        if (moduleSlugs.isEmpty() && LEGACY_ADMIN_ROLES.contains(role)) {
-            return DashboardModuleAccess.all();
-        }
-
-        return DashboardModuleAccess.only(moduleSlugs);
+        return DashboardModuleAccess.only(listModuleSlugs(access.userCompanyId()));
     }
 
     private Set<String> listModuleSlugs(long userCompanyId) {

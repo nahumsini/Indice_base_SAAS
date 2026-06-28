@@ -2,12 +2,13 @@ import { Columns3, Plus } from 'lucide-react';
 import type { PermissionsTranslations } from '../translations';
 
 interface PermissionHeaderBarProps {
+  canCreate: boolean;
   copy: PermissionsTranslations;
   onColumns: () => void;
   onCreate: () => void;
 }
 
-export function PermissionHeaderBar({ copy, onColumns, onCreate }: PermissionHeaderBarProps) {
+export function PermissionHeaderBar({ canCreate, copy, onColumns, onCreate }: PermissionHeaderBarProps) {
   return (
     <div className="rounded-2xl border border-[#59C3A5]/20 bg-[#59C3A5]/10 p-6 shadow-sm dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/15">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -30,14 +31,16 @@ export function PermissionHeaderBar({ copy, onColumns, onCreate }: PermissionHea
             <Columns3 className="h-4 w-4" />
             {copy.actions.columns}
           </button>
-          <button
-            type="button"
-            onClick={onCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#59C3A5] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3AAE90]"
-          >
-            <Plus className="h-4 w-4" />
-            {copy.actions.addRequest}
-          </button>
+          {canCreate ? (
+            <button
+              type="button"
+              onClick={onCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#59C3A5] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3AAE90]"
+            >
+              <Plus className="h-4 w-4" />
+              {copy.actions.addRequest}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

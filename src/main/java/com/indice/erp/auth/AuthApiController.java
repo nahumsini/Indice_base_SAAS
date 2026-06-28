@@ -1,5 +1,6 @@
 package com.indice.erp.auth;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -32,8 +33,13 @@ public class AuthApiController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpSession session) {
-        var attempt = sessionAuthService.loginJson(request.email(), request.password(), session);
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpSession session, HttpServletRequest servletRequest) {
+        var attempt = sessionAuthService.loginJson(
+            request.email(),
+            request.password(),
+            session,
+            LoginAuditContext.from(servletRequest, session)
+        );
         if (!attempt.success()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                 "message", attempt.message()
@@ -48,7 +54,15 @@ public class AuthApiController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpSession session) {
+    public ResponseEntity<?> logout(
+        HttpSession session,
+        @org.springframework.web.bind.annotation.RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
         sessionAuthService.logout(session);
         return ResponseEntity.ok(Map.of("success", true));
     }

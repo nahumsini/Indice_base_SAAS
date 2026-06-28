@@ -1,8 +1,10 @@
 package com.indice.erp.configcenter;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.config.AppWebProperties;
 import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -28,6 +31,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class ConfigCenterApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final SessionCsrfService sessionCsrfService;
     private final ConfigCenterAccessService accessService;
     private final ConfigCenterService configCenterService;
     private final GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
@@ -36,6 +40,7 @@ public class ConfigCenterApiController {
 
     public ConfigCenterApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         ConfigCenterAccessService accessService,
         ConfigCenterService configCenterService,
         GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
@@ -43,6 +48,7 @@ public class ConfigCenterApiController {
         AppWebProperties appWebProperties
     ) {
         this.sessionAuthService = sessionAuthService;
+        this.sessionCsrfService = sessionCsrfService;
         this.accessService = accessService;
         this.configCenterService = configCenterService;
         this.googleMapsCoordinateExtractor = googleMapsCoordinateExtractor;
@@ -61,10 +67,18 @@ public class ConfigCenterApiController {
     }
 
     @PutMapping("/current-user")
-    public ResponseEntity<?> saveCurrentUser(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> saveCurrentUser(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -85,10 +99,18 @@ public class ConfigCenterApiController {
     }
 
     @PostMapping("/current-user/avatar/presign-upload")
-    public ResponseEntity<?> createCurrentUserAvatarUpload(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createCurrentUserAvatarUpload(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -114,13 +136,14 @@ public class ConfigCenterApiController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
 
-        return ResponseEntity.ok(configCenterService.getUsers(current.get().companyId()));
+        return ResponseEntity.ok(configCenterService.getUsers(current.get()));
     }
 
     @PutMapping("/users/{userId}")
     public ResponseEntity<?> updateUser(
         HttpSession session,
         @PathVariable long userId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
@@ -130,9 +153,22 @@ public class ConfigCenterApiController {
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
+        if (!canMutateUsers(current.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
 
         try {
-            return ResponseEntity.ok(configCenterService.updateUser(current.get().companyId(), userId, payload));
+            return ResponseEntity.ok(configCenterService.updateUser(
+                current.get().companyId(),
+                current.get().userId(),
+                current.get().role(),
+                userId,
+                payload
+            ));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -141,7 +177,11 @@ public class ConfigCenterApiController {
     }
 
     @DeleteMapping("/users/{userId}")
-    public ResponseEntity<?> deleteUser(HttpSession session, @PathVariable long userId) {
+    public ResponseEntity<?> deleteUser(
+        HttpSession session,
+        @PathVariable long userId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
@@ -149,11 +189,19 @@ public class ConfigCenterApiController {
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
+        if (!canMutateUsers(current.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
 
         try {
             return ResponseEntity.ok(configCenterService.deleteUser(
                 current.get().companyId(),
                 current.get().userId(),
+                current.get().role(),
                 userId
             ));
         } catch (NoSuchElementException ex) {
@@ -167,6 +215,7 @@ public class ConfigCenterApiController {
     public ResponseEntity<?> inviteUser(
         HttpSession session,
         HttpServletRequest request,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
@@ -176,9 +225,21 @@ public class ConfigCenterApiController {
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
+        if (!canMutateUsers(current.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
 
         try {
-            var result = configCenterService.inviteUser(current.get().companyId(), current.get().userId(), payload);
+            var result = configCenterService.inviteUser(
+                current.get().companyId(),
+                current.get().userId(),
+                current.get().role(),
+                payload
+            );
             var inviteLink = buildInviteLink(request, String.valueOf(result.get("token")));
             var emailResult = invitationEmailService.sendInvitation(
                 String.valueOf(result.get("email")),
@@ -192,7 +253,11 @@ public class ConfigCenterApiController {
     }
 
     @DeleteMapping("/users/invitations/{invitationId}")
-    public ResponseEntity<?> deleteInvitation(HttpSession session, @PathVariable long invitationId) {
+    public ResponseEntity<?> deleteInvitation(
+        HttpSession session,
+        @PathVariable long invitationId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
@@ -200,9 +265,21 @@ public class ConfigCenterApiController {
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
+        if (!canMutateUsers(current.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
 
         try {
-            return ResponseEntity.ok(configCenterService.deleteInvitation(current.get().companyId(), invitationId));
+            return ResponseEntity.ok(configCenterService.deleteInvitation(
+                current.get().companyId(),
+                current.get().userId(),
+                current.get().role(),
+                invitationId
+            ));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -215,6 +292,7 @@ public class ConfigCenterApiController {
         HttpSession session,
         HttpServletRequest request,
         @PathVariable long invitationId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody(required = false) Map<String, Object> payload
     ) {
         var current = sessionAuthService.currentUser(session);
@@ -224,10 +302,23 @@ public class ConfigCenterApiController {
         if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
+        if (!canMutateUsers(current.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
 
         try {
             var requestPayload = payload == null ? java.util.Collections.<String, Object>emptyMap() : payload;
-            var result = configCenterService.resendInvitation(current.get().companyId(), invitationId, requestPayload);
+            var result = configCenterService.resendInvitation(
+                current.get().companyId(),
+                current.get().userId(),
+                current.get().role(),
+                invitationId,
+                requestPayload
+            );
             var inviteLink = buildInviteLink(request, String.valueOf(result.get("token")));
             var emailResult = invitationEmailService.sendInvitation(
                 String.valueOf(result.get("email")),
@@ -273,7 +364,11 @@ public class ConfigCenterApiController {
     }
 
     @PutMapping("/business-structure")
-    public ResponseEntity<?> saveConfig(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> saveConfig(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
@@ -281,22 +376,36 @@ public class ConfigCenterApiController {
         if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
         }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
 
         try {
-            return ResponseEntity.ok(configCenterService.saveStructure(current.get().companyId(), current.get().userId(), payload));
+            return ResponseEntity.ok(configCenterService.saveStructure(current.get(), payload));
+        } catch (HrAccessDeniedException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
     }
 
     @PostMapping("/locations/extract-coordinates")
-    public ResponseEntity<?> extractCoordinates(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> extractCoordinates(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
         }
         if (!accessService.canAccess(current.get(), ConfigCenterTab.BUSINESS_STRUCTURE)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -307,7 +416,11 @@ public class ConfigCenterApiController {
     }
 
     @PutMapping("/company")
-    public ResponseEntity<?> saveEmpresa(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> saveEmpresa(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var current = sessionAuthService.currentUser(session);
         if (current.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
@@ -318,6 +431,10 @@ public class ConfigCenterApiController {
             ConfigCenterTab.BUSINESS_PROFILE
         )) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -418,6 +535,20 @@ public class ConfigCenterApiController {
         var body = new LinkedHashMap<String, Object>();
         body.put("message", message);
         return body;
+    }
+
+    private ResponseEntity<?> requireCsrf(HttpSession session, String csrfToken) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody(ex.getMessage()));
+        }
+    }
+
+    private boolean canMutateUsers(com.indice.erp.auth.AuthSessionUser currentUser) {
+        var role = text(currentUser.role()).toLowerCase(java.util.Locale.ROOT);
+        return role.equals("root") || role.equals("superadmin") || role.equals("super admin") || role.equals("admin");
     }
 
     private String displayName(Map<String, Object> user) {

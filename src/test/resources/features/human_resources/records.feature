@@ -31,8 +31,9 @@ Feature: HR records
     When the user requests a record attachment upload URL
     Then the backend should return service unavailable
 
-  @planned @access-control
-  Scenario: Normal user cannot manage HR records
+  @implemented @access-control
+  Scenario: Normal user cannot access HR records
     Given a normal user is authenticated
     When the user tries to open Records or call record management APIs
-    Then the app should deny access to HR records
+    Then the HR shell should not show the Records tab
+    And the backend should deny access to HR records

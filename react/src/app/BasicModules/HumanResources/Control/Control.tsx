@@ -1,9 +1,54 @@
+import { useEffect, useState } from 'react';
+import { authApi } from '../../../api/auth';
+import { isHrManagementRole } from '../../../access/accessRules';
+import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { ControlDialogHost } from './components/ControlDialogHost';
 import { ControlFeedback } from './components/ControlFeedback';
 import { ControlOperationsWorkspace } from './components/ControlOperationsWorkspace';
+import { SelfShiftCalendar } from './components/SelfShiftCalendar';
 import { useControlController } from './hooks/useControlController';
 
 export default function Control() {
+  const [role, setRole] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    let active = true;
+
+    authApi.getSessionOrNull()
+      .then((session) => {
+        if (active) {
+          setRole(session?.user.role ?? null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRole(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (role === undefined) {
+    return (
+      <LoadingBarOverlay
+        isVisible
+        title="Loading control"
+        description="Checking your access."
+      />
+    );
+  }
+
+  if (!isHrManagementRole(role)) {
+    return <SelfShiftCalendar />;
+  }
+
+  return <ManagementControl />;
+}
+
+function ManagementControl() {
   const {
     dialogHostProps,
     feedbackProps,

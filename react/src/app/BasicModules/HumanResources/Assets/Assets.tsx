@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { isHrManagementRole } from '../../../access/accessRules';
+import { authApi } from '../../../api/auth';
 import { dashboardApi } from '../../../api/dashboard';
 import {
   hrAssetsApi,
@@ -85,6 +87,7 @@ export default function Assets() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [assetEditing, setAssetEditing] = useState<AssetRow | null>(null);
+  const [canManageAssets, setCanManageAssets] = useState(false);
   const [sortField, setSortField] = useState<AssetSortField>('asset');
   const [sortDirection, setSortDirection] = useState<StandardSortDirection>('asc');
   const [pageSize, setPageSize] = useState(defaultAssetsPageSize);
@@ -226,15 +229,18 @@ export default function Assets() {
       setIsInitialLoading(true);
       setLoadError(null);
 
+      const session = await authApi.getSessionOrNull();
+      const nextCanManageAssets = isHrManagementRole(session?.user.role);
       const [assetsResult, employeesResult, unitsResult] = await Promise.allSettled([
         hrAssetsApi.listAssets({ page: 1, size: 100 }),
-        humanResourcesApi.listHrUsers(),
-        dashboardApi.listUnits(),
-      ]);
+        nextCanManageAssets ? humanResourcesApi.listHrUsers() : Promise.resolve(null),
+        nextCanManageAssets ? dashboardApi.listUnits() : Promise.resolve(null),
+      ] as const);
 
       if (!isMounted) {
         return;
       }
+      setCanManageAssets(nextCanManageAssets);
 
       if (assetsResult.status === 'fulfilled') {
         setAssetRows(assetsResult.value.items.map(mapAssetRow));
@@ -245,7 +251,7 @@ export default function Assets() {
         setLoadError(normalizeAssetErrorMessage(assetsResult.reason, t.errors.load));
       }
 
-      if (employeesResult.status === 'fulfilled') {
+      if (nextCanManageAssets && employeesResult.status === 'fulfilled' && employeesResult.value) {
         const activeEmployees = employeesResult.value.items.filter((employee) => {
           const status = String(employee.status ?? '').trim().toLowerCase();
           return !status || status === 'active' || status === 'activo';
@@ -261,7 +267,7 @@ export default function Assets() {
         setResponsibleOptions([]);
       }
 
-      if (unitsResult.status === 'fulfilled') {
+      if (nextCanManageAssets && unitsResult.status === 'fulfilled' && unitsResult.value) {
         const activeUnits = unitsResult.value.filter((unit) => {
           const status = String(unit.status ?? '').trim().toLowerCase();
           return !status || status === 'active' || status === 'activo';
@@ -288,6 +294,9 @@ export default function Assets() {
   }, [t.errors.load]);
 
   const handleCreateAsset = () => {
+    if (!canManageAssets) {
+      return;
+    }
     setAssetEditing(null);
     setIsAddAssetOpen(true);
   };
@@ -305,12 +314,19 @@ export default function Assets() {
   };
 
   const handleEditAsset = (asset: AssetRow) => {
+    if (!canManageAssets) {
+      return;
+    }
     setAssetEditing(asset);
     setIsAddAssetOpen(true);
   };
 
   const handleConfirmDeactivate = async () => {
     if (!assetPendingDeactivate) {
+      return;
+    }
+    if (!canManageAssets) {
+      setAssetPendingDeactivate(null);
       return;
     }
 
@@ -330,6 +346,9 @@ export default function Assets() {
   };
 
   const handleSaveAsset = async (draft: AddNewAssetDraft) => {
+    if (!canManageAssets) {
+      return false;
+    }
     const trimmedResponsible = draft.responsible.trim();
     const trimmedUnit = draft.unit.trim();
     const trimmedValue = draft.value.trim();
@@ -466,6 +485,7 @@ export default function Assets() {
   return (
     <>
       <AssetHeaderBar
+        canManage={canManageAssets}
         copy={t}
         onAdd={handleCreateAsset}
         onColumns={() => setIsColumnsModalOpen(true)}
@@ -625,19 +645,23 @@ export default function Assets() {
                           >
                             <Eye className="h-4 w-4" />
                           </StandardActionButton>
-                          <StandardActionButton
-                            onClick={() => handleEditAsset(asset)}
-                            label={t.actionsMenu.edit}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </StandardActionButton>
-                          <StandardActionButton
-                            onClick={() => setAssetPendingDeactivate(asset)}
-                            label={t.actionsMenu.delete}
-                            tone="danger"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </StandardActionButton>
+                          {canManageAssets ? (
+                            <>
+                              <StandardActionButton
+                                onClick={() => handleEditAsset(asset)}
+                                label={t.actionsMenu.edit}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </StandardActionButton>
+                              <StandardActionButton
+                                onClick={() => setAssetPendingDeactivate(asset)}
+                                label={t.actionsMenu.delete}
+                                tone="danger"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </StandardActionButton>
+                            </>
+                          ) : null}
                         </div>
                       </td>
                     ) : null}

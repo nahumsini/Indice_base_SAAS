@@ -1,5 +1,8 @@
 package com.indice.erp.hr.permissions;
 
+import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.HrOperationalScope;
+import com.indice.erp.hr.HrOperationalScopeService;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.util.LinkedHashMap;
@@ -14,21 +17,24 @@ public class HrPermissionQueryService {
     private final HrPermissionDetailRepository detailRepository;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
+    private final HrOperationalScopeService hrOperationalScopeService;
 
     public HrPermissionQueryService(
         HrPermissionListRepository listRepository,
         HrPermissionDetailRepository detailRepository,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties storageProperties
+        ObjectStorageProperties storageProperties,
+        HrOperationalScopeService hrOperationalScopeService
     ) {
         this.listRepository = listRepository;
         this.detailRepository = detailRepository;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
+        this.hrOperationalScopeService = hrOperationalScopeService;
     }
 
     public Map<String, Object> listManagement(PermissionActor actor, Map<String, String> filters) {
-        return listEnvelope(listRepository.listRequests(actor.companyId(), null, filters));
+        return listEnvelope(listRepository.listRequests(actor.companyId(), null, resolveScope(actor), filters));
     }
 
     public Map<String, Object> listOwn(PermissionActor actor, Map<String, String> filters) {
@@ -36,7 +42,7 @@ public class HrPermissionQueryService {
     }
 
     public Map<String, Object> getManagement(PermissionActor actor, long requestId) {
-        return detailEnvelope(requestId, detailRepository.findRequest(actor.companyId(), null, requestId));
+        return detailEnvelope(requestId, detailRepository.findRequest(actor.companyId(), null, resolveScope(actor), requestId));
     }
 
     public Map<String, Object> getOwn(PermissionActor actor, long requestId) {
@@ -59,6 +65,16 @@ public class HrPermissionQueryService {
         body.put("permissionId", requestId);
         body.put("permission", permission);
         return body;
+    }
+
+    private HrOperationalScope resolveScope(PermissionActor actor) {
+        return hrOperationalScopeService.resolve(new AuthSessionUser(
+            actor.userId(),
+            actor.companyId(),
+            actor.userCompanyId(),
+            actor.userName(),
+            actor.role()
+        ));
     }
 
     private List<Map<String, Object>> signedAttachments(Object attachments) {

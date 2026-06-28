@@ -32,6 +32,7 @@ public class HrAssetScopeAccess {
     public String assetCondition(HrOperationalScope scope) {
         return switch (scope.type()) {
             case CORPORATE_OFFICE -> "";
+            case UNASSIGNED -> "1 = 0";
             case UNIT_HEADQUARTERS -> """
                 (
                   a.unit_id = ?
@@ -52,6 +53,7 @@ public class HrAssetScopeAccess {
     public List<Object> assetParameters(HrOperationalScope scope) {
         return switch (scope.type()) {
             case CORPORATE_OFFICE -> List.of();
+            case UNASSIGNED -> List.of();
             case UNIT_HEADQUARTERS -> List.of(scope.unitId(), scope.unitId(), scope.unitId());
             case BUSINESS_OFFICE -> List.of(scope.businessId());
         };

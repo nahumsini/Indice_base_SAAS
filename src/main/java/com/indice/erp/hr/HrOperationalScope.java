@@ -8,9 +8,13 @@ public record HrOperationalScope(Type type, Long unitId, Long businessId) {
         return new HrOperationalScope(Type.CORPORATE_OFFICE, null, null);
     }
 
+    public static HrOperationalScope unassigned() {
+        return new HrOperationalScope(Type.UNASSIGNED, null, null);
+    }
+
     public static HrOperationalScope unitHeadquarters(Long unitId) {
         if (unitId == null) {
-            return corporateOffice();
+            return unassigned();
         }
         return new HrOperationalScope(Type.UNIT_HEADQUARTERS, unitId, null);
     }
@@ -38,6 +42,7 @@ public record HrOperationalScope(Type type, Long unitId, Long businessId) {
     public String assignmentPredicate(String unitExpression, String businessExpression, String companyExpression) {
         return switch (type) {
             case CORPORATE_OFFICE -> "";
+            case UNASSIGNED -> " AND 1 = 0\n";
             case UNIT_HEADQUARTERS -> """
                  AND (
                    %1$s = ?
@@ -57,6 +62,7 @@ public record HrOperationalScope(Type type, Long unitId, Long businessId) {
     public List<Object> assignmentParameters() {
         return switch (type) {
             case CORPORATE_OFFICE -> List.of();
+            case UNASSIGNED -> List.of();
             case UNIT_HEADQUARTERS -> List.of(unitId, unitId);
             case BUSINESS_OFFICE -> List.of(businessId);
         };
@@ -64,6 +70,7 @@ public record HrOperationalScope(Type type, Long unitId, Long businessId) {
 
     public enum Type {
         CORPORATE_OFFICE,
+        UNASSIGNED,
         UNIT_HEADQUARTERS,
         BUSINESS_OFFICE
     }

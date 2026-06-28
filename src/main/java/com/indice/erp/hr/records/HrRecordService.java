@@ -6,6 +6,7 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
 import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -68,14 +69,33 @@ public class HrRecordService {
         return listRecords(currentUser.companyId(), filters, hrRecordScopeAccess.resolve(currentUser));
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> listAssignedRecords(AuthSessionUser currentUser, Map<String, Object> filters) {
+        return listRecords(
+            currentUser.companyId(),
+            filters,
+            HrOperationalScope.corporateOffice(),
+            requireSessionUserCompanyId(currentUser)
+        );
+    }
+
     private Map<String, Object> listRecords(
         long companyId,
         Map<String, Object> filters,
         HrOperationalScope scope
     ) {
+        return listRecords(companyId, filters, scope, null);
+    }
+
+    private Map<String, Object> listRecords(
+        long companyId,
+        Map<String, Object> filters,
+        HrOperationalScope scope,
+        Long forcedUserCompanyId
+    ) {
         var page = parsePage(filters);
         var size = parseSize(filters);
-        var query = buildListQuery(companyId, filters, scope);
+        var query = buildListQuery(companyId, filters, scope, forcedUserCompanyId);
         var offset = (page - 1) * size;
 
         var rows = jdbcTemplate.query(
@@ -121,7 +141,7 @@ public class HrRecordService {
             query.params().toArray()
         );
 
-        var summaryQuery = buildSummaryQuery(companyId, scope);
+        var summaryQuery = buildSummaryQuery(companyId, scope, forcedUserCompanyId);
         var summary = jdbcTemplate.query(
             """
                 SELECT COUNT(*) AS total_count,
@@ -170,6 +190,12 @@ public class HrRecordService {
     public Map<String, Object> getRecordDetails(AuthSessionUser currentUser, long recordId) {
         var scope = hrRecordScopeAccess.resolve(currentUser);
         hrRecordScopeAccess.requireRecordInScope(currentUser.companyId(), scope, recordId);
+        return getRecordDetails(currentUser.companyId(), recordId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAssignedRecordDetails(AuthSessionUser currentUser, long recordId) {
+        requireRecordAssignedToUser(currentUser.companyId(), requireSessionUserCompanyId(currentUser), recordId);
         return getRecordDetails(currentUser.companyId(), recordId);
     }
 
@@ -544,7 +570,7 @@ public class HrRecordService {
         deleteAttachment(currentUser.companyId(), currentUser.userId(), recordId, attachmentId);
     }
 
-    private RecordListQuery buildSummaryQuery(long companyId, HrOperationalScope scope) {
+    private RecordListQuery buildSummaryQuery(long companyId, HrOperationalScope scope, Long forcedUserCompanyId) {
         var conditions = new ArrayList<String>();
         var params = new ArrayList<Object>();
         conditions.add("WHERE r.company_id = ?");
@@ -552,13 +578,18 @@ public class HrRecordService {
         conditions.add("AND r.deleted_at IS NULL");
         conditions.add(hrRecordScopeAccess.recordPredicate(scope));
         params.addAll(hrRecordScopeAccess.recordParameters(scope));
+        if (forcedUserCompanyId != null) {
+            conditions.add("AND r.user_company_id = ?");
+            params.add(forcedUserCompanyId);
+        }
         return new RecordListQuery(" " + String.join(" ", conditions) + " ", params);
     }
 
     private RecordListQuery buildListQuery(
         long companyId,
         Map<String, Object> filters,
-        HrOperationalScope scope
+        HrOperationalScope scope,
+        Long forcedUserCompanyId
     ) {
         var conditions = new ArrayList<String>();
         var params = new ArrayList<Object>();
@@ -567,6 +598,10 @@ public class HrRecordService {
         conditions.add("AND r.deleted_at IS NULL");
         conditions.add(hrRecordScopeAccess.recordPredicate(scope));
         params.addAll(hrRecordScopeAccess.recordParameters(scope));
+        if (forcedUserCompanyId != null) {
+            conditions.add("AND r.user_company_id = ?");
+            params.add(forcedUserCompanyId);
+        }
 
         var search = stringValue(filters, "search");
         if (!search.isBlank()) {
@@ -1372,6 +1407,33 @@ public class HrRecordService {
             "resolved_count", 0,
             "high_severity_count", 0
         );
+    }
+
+    private long requireSessionUserCompanyId(AuthSessionUser currentUser) {
+        if (currentUser.userCompanyId() == null) {
+            throw new HrAccessDeniedException("Forbidden");
+        }
+        return currentUser.userCompanyId();
+    }
+
+    private void requireRecordAssignedToUser(long companyId, long userCompanyId, long recordId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM user_records
+                WHERE company_id = ?
+                  AND id = ?
+                  AND user_company_id = ?
+                  AND deleted_at IS NULL
+                """,
+            Long.class,
+            companyId,
+            recordId,
+            userCompanyId
+        );
+        if (count == null || count == 0) {
+            throw new HrAccessDeniedException("Forbidden");
+        }
     }
 
     private record RecordListQuery(String whereClause, List<Object> params) {

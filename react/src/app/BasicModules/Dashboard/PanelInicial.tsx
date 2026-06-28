@@ -1,9 +1,11 @@
-import { lazy, Suspense, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { authApi } from '../../api/auth';
+import { canAccessHomePanelTab, type HomePanelTabId } from '../../access/accessRules';
 import {
   OperationalModuleGuide,
   usePanelInicialGuidanceTranslations,
@@ -44,6 +46,17 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
   const { t } = useLanguage();
   const guidanceCopy = usePanelInicialGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
+  const [sessionAccess, setSessionAccess] = useState<{
+    role: string | null;
+    tabPermissionKeys: string[];
+    tabPermissionsConfigured: boolean;
+    loaded: boolean;
+  }>({
+    role: null,
+    tabPermissionKeys: [],
+    tabPermissionsConfigured: false,
+    loaded: false,
+  });
   const { activeTab: activeSubTab, isTabLoading, setActiveTab: setActiveSubTab } = useRoutedModuleTab<PanelInicialTabId>(
     'profile',
     subTabIds,
@@ -59,10 +72,59 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
     { id: 'plan', label: t.panelInicial.tabs.plan, emoji: '💳', component: Plan },
   ];
-  const visibleSubTabs = subTabs.filter(tab => tab.id !== 'plan');
+  const visibleSubTabs = sessionAccess.loaded
+    ? subTabs.filter((tab) => (
+        tab.id !== 'plan'
+        && canAccessHomePanelTab(
+          sessionAccess.role,
+          tab.id as HomePanelTabId,
+          sessionAccess.tabPermissionKeys,
+          sessionAccess.tabPermissionsConfigured,
+        )
+      ))
+    : [];
 
   // Get the active component
-  const ActiveComponent = subTabs.find(tab => tab.id === activeSubTab)?.component || Profile;
+  const ActiveComponent = visibleSubTabs.find(tab => tab.id === activeSubTab)?.component || null;
+
+  useEffect(() => {
+    let active = true;
+    authApi.getSessionOrNull()
+      .then((session) => {
+        if (!active) {
+          return;
+        }
+        setSessionAccess({
+          role: session?.user.role ?? null,
+          tabPermissionKeys: session?.user.tab_permission_keys ?? [],
+          tabPermissionsConfigured: Boolean(session?.user.tab_permissions_configured),
+          loaded: true,
+        });
+      })
+      .catch(() => {
+        if (active) {
+          setSessionAccess({
+            role: null,
+            tabPermissionKeys: [],
+            tabPermissionsConfigured: false,
+            loaded: true,
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sessionAccess.loaded || visibleSubTabs.length === 0) {
+      return;
+    }
+    if (!visibleSubTabs.some((tab) => tab.id === activeSubTab)) {
+      setActiveSubTab(visibleSubTabs[0].id as PanelInicialTabId);
+    }
+  }, [activeSubTab, sessionAccess.loaded, setActiveSubTab, visibleSubTabs]);
 
   const handleTabClick = (tabId: PanelInicialTabId) => {
     if (tabId === activeSubTab) {
@@ -163,7 +225,12 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
             />
           )}
         >
-          <ActiveComponent />
+          {ActiveComponent ? <ActiveComponent /> : null}
+          {sessionAccess.loaded && !ActiveComponent ? (
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+              No Home Panel tabs are assigned to your user.
+            </div>
+          ) : null}
         </Suspense>
       </div>
     </div>

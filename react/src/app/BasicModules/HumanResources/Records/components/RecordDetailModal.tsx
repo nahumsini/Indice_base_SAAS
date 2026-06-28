@@ -20,6 +20,7 @@ import type { EmployeeRecord, RecordSeverity, RecordStatus, RecordType } from '.
 import type { RecordDetailCopy } from '../translations';
 
 interface RecordDetailModalProps {
+  canManage: boolean;
   copy: RecordDetailCopy;
   isOpen: boolean;
   locale: string;
@@ -96,7 +97,7 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
   minute: '2-digit',
 }).format(new Date(value));
 
-export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdit, onDelete }: RecordDetailModalProps) {
+export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, record, onEdit, onDelete }: RecordDetailModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -263,51 +264,59 @@ export function RecordDetailModal({ copy, isOpen, locale, onClose, record, onEdi
         </div>
 
         <div className="sticky bottom-0 flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
-          <Button
-            className="gap-2 rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
-            onClick={() => setIsDeleteConfirmOpen(true)}
-            disabled={isDeleting}
-          >
-            <Trash2 className="h-4 w-4" />
-            {isDeleting ? copy.actions.deleting : copy.actions.delete}
-          </Button>
+          {canManage ? (
+            <Button
+              className="gap-2 rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4" />
+              {isDeleting ? copy.actions.deleting : copy.actions.delete}
+            </Button>
+          ) : (
+            <span />
+          )}
           <div className="flex gap-3">
             <Button className="rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.actions.close}</Button>
-            <Button
-              className="gap-2 rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90"
-              onClick={() => onEdit(record)}
-            >
-              <Pencil className="h-4 w-4" />
-              {copy.actions.editRecord}
-            </Button>
+            {canManage ? (
+              <Button
+                className="gap-2 rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90"
+                onClick={() => onEdit(record)}
+              >
+                <Pencil className="h-4 w-4" />
+                {copy.actions.editRecord}
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
       </div>
-      <ConfirmDeleteDialog
-        isVisible={isDeleteConfirmOpen}
-        title={copy.actions.delete}
-        itemName={record.title}
-        description={copy.detail.deleteConfirm}
-        confirmLabel={isDeleting ? copy.actions.deleting : copy.actions.delete}
-        cancelLabel={copy.actions.close}
-        confirmDisabled={isDeleting}
-        onCancel={() => {
-          if (!isDeleting) {
-            setIsDeleteConfirmOpen(false);
-          }
-        }}
-        onConfirm={async () => {
-          setIsDeleting(true);
-          try {
-            await onDelete(record.id);
-            setIsDeleteConfirmOpen(false);
-            onClose();
-          } finally {
-            setIsDeleting(false);
-          }
-        }}
-      />
+      {canManage ? (
+        <ConfirmDeleteDialog
+          isVisible={isDeleteConfirmOpen}
+          title={copy.actions.delete}
+          itemName={record.title}
+          description={copy.detail.deleteConfirm}
+          confirmLabel={isDeleting ? copy.actions.deleting : copy.actions.delete}
+          cancelLabel={copy.actions.close}
+          confirmDisabled={isDeleting}
+          onCancel={() => {
+            if (!isDeleting) {
+              setIsDeleteConfirmOpen(false);
+            }
+          }}
+          onConfirm={async () => {
+            setIsDeleting(true);
+            try {
+              await onDelete(record.id);
+              setIsDeleteConfirmOpen(false);
+              onClose();
+            } finally {
+              setIsDeleting(false);
+            }
+          }}
+        />
+      ) : null}
     </>
   );
 }

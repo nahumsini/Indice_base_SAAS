@@ -2,12 +2,13 @@ import { Columns3, Plus } from 'lucide-react';
 import type { AssetHeaderCopy } from '../translations';
 
 interface AssetHeaderBarProps {
+  canManage: boolean;
   copy: AssetHeaderCopy;
   onAdd: () => void;
   onColumns: () => void;
 }
 
-export function AssetHeaderBar({ copy, onAdd, onColumns }: AssetHeaderBarProps) {
+export function AssetHeaderBar({ canManage, copy, onAdd, onColumns }: AssetHeaderBarProps) {
   return (
     <div className="mb-5 rounded-2xl border border-[#59C3A5]/20 bg-[#59C3A5]/10 p-6 shadow-sm dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/15">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -30,14 +31,16 @@ export function AssetHeaderBar({ copy, onAdd, onColumns }: AssetHeaderBarProps) 
             <Columns3 className="h-4 w-4" />
             {copy.columnPicker.button}
           </button>
-          <button
-            type="button"
-            onClick={onAdd}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#59C3A5] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3AAE90]"
-          >
-            <Plus className="h-4 w-4" />
-            {copy.newAsset}
-          </button>
+          {canManage ? (
+            <button
+              type="button"
+              onClick={onAdd}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#59C3A5] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3AAE90]"
+            >
+              <Plus className="h-4 w-4" />
+              {copy.newAsset}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

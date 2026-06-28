@@ -106,6 +106,9 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canWriteSelfAttendance(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             var targetDate = HrAttendanceService.parseDate(date);

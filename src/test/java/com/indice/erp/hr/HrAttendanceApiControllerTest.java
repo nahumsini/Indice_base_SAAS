@@ -69,6 +69,8 @@ class HrAttendanceApiControllerTest {
     void allowHrAccessByDefault() {
         given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
             .willReturn(true);
+        given(hrAccessService.canAccessReadableTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
     }
 
     @Test
@@ -149,6 +151,28 @@ class HrAttendanceApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.summary.total_users").value(1))
             .andExpect(jsonPath("$.items[0].user_company_id").value(12));
+    }
+
+    @Test
+    void myDashboardReturnsForbiddenWhenAttendanceTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.ATTENDANCE)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/attendance/me/dashboard").param("date", "2026-04-07"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void myCalendarReturnsForbiddenWhenAttendanceTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.ATTENDANCE)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/hr/attendance/me/calendar").param("month", "2026-04"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test
@@ -438,6 +462,48 @@ class HrAttendanceApiControllerTest {
     }
 
     @Test
+    void presignMyUploadReturnsPayloadForNormalUserWithAttendanceTab() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAttendanceService.createSelfPhotoUpload(eq(1L), eq(7L), anyMap())).willReturn(Map.of(
+            "object_key", "hr/attendance/users/1/7/2026/04/07/check_in-demo.jpg",
+            "upload_url", "http://127.0.0.1:9000/upload",
+            "expires_at", "2026-04-07T16:00:00Z"
+        ));
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/me/media/presign-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "content_type": "image/jpeg"
+                    }
+                    """)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.object_key").value("hr/attendance/users/1/7/2026/04/07/check_in-demo.jpg"));
+    }
+
+    @Test
+    void presignMyUploadReturnsForbiddenWhenAttendanceTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.ATTENDANCE)).willReturn(false);
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/me/media/presign-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "content_type": "image/jpeg"
+                    }
+                    """)
+        )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
     void createFaceVerificationSessionReturnsCreatedPayload() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
@@ -459,6 +525,34 @@ class HrAttendanceApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(55))
             .andExpect(jsonPath("$.user_company_id").value(12));
+    }
+
+    @Test
+    void createMyFaceVerificationSessionReturnsCreatedForNormalUserWithAttendanceTab() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAttendanceService.resolveSelfUserCompanyId(1L, 7L)).willReturn(12L);
+        given(hrFaceService.createVerificationSession(eq(1L), eq(7L), anyMap())).willReturn(Map.of(
+            "id", 44,
+            "user_company_id", 12,
+            "status", "pending"
+        ));
+
+        mockMvc.perform(post("/api/v1/hr/attendance/me/face-verification-sessions"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(44))
+            .andExpect(jsonPath("$.user_company_id").value(12));
+    }
+
+    @Test
+    void createMyFaceVerificationSessionReturnsForbiddenWhenAttendanceTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.ATTENDANCE)).willReturn(false);
+
+        mockMvc.perform(post("/api/v1/hr/attendance/me/face-verification-sessions"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
     @Test
@@ -501,8 +595,30 @@ class HrAttendanceApiControllerTest {
     }
 
     @Test
-    void myDailyRecordUpdateReturnsPayload() throws Exception {
+    void myKioskEventReturnsForbiddenWhenAttendanceTabIsDenied() throws Exception {
         var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessReadableTab(currentUser, HrTab.ATTENDANCE)).willReturn(false);
+
+        mockMvc.perform(
+            post("/api/v1/hr/attendance/me/kiosk-events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "event_type": "check_in",
+                      "location_id": 1,
+                      "latitude": 25.7,
+                      "longitude": -100.3
+                    }
+                    """)
+        )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void myDailyRecordUpdateReturnsPayload() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance Admin", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrAttendanceService.updateSelfDailyRecord(eq(1L), eq(7L), any(), anyMap())).willReturn(Map.of(
             "user_company_id", 12,
@@ -522,5 +638,24 @@ class HrAttendanceApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.user_company_id").value(12))
             .andExpect(jsonPath("$.effective_status").value("leave"));
+    }
+
+    @Test
+    void myDailyRecordUpdateReturnsForbiddenForUserWithoutControlAccess() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAccessService.canAccessManagementTab(currentUser, HrTab.CONTROL)).willReturn(false);
+
+        mockMvc.perform(
+            put("/api/v1/hr/attendance/me/daily-records/2026-04-07")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "status": "leave"
+                    }
+                    """)
+        )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 }

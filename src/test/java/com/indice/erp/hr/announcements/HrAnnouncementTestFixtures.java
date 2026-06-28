@@ -26,11 +26,15 @@ class HrAnnouncementTestFixtures {
     }
 
     TestUser createNormalUser(long suffix, Long unitId) {
-        return createUser(suffix, "announcement.user.", "user", unitId);
+        var user = createUser(suffix, "announcement.user.", "user", unitId);
+        grantHrAnnouncementAccess(user.userCompanyId(), "user");
+        return user;
     }
 
     TestUser createManagerUser(long suffix, Long unitId) {
-        return createUser(suffix, "announcement.manager.", "admin", unitId);
+        var user = createUser(suffix, "announcement.manager.", "admin", unitId);
+        grantHrAnnouncementAccess(user.userCompanyId(), "admin");
+        return user;
     }
 
     private TestUser createUser(long suffix, String emailPrefix, String role, Long unitId) {
@@ -100,7 +104,9 @@ class HrAnnouncementTestFixtures {
     }
 
     MockHttpSession adminSession() {
-        return session(1L, "Usuario Demo", "admin");
+        var admin = createUser(System.nanoTime(), "announcement.admin.", "superadmin", null);
+        grantHrAnnouncementAccess(admin.userCompanyId(), "superadmin");
+        return session(admin.userId(), "Announcement Super Admin", "superadmin");
     }
 
     MockHttpSession userSession(TestUser user) {
@@ -118,6 +124,59 @@ class HrAnnouncementTestFixtures {
         session.setAttribute(SessionAuthService.SESSION_USER_NAME, name);
         session.setAttribute(SessionAuthService.SESSION_ROLE, role);
         return session;
+    }
+
+    private void grantHrAnnouncementAccess(long userCompanyId, String role) {
+        jdbcTemplate.update(
+            """
+                UPDATE user_company_module_roles
+                SET role = ?
+                WHERE user_company_id = ?
+                  AND module_slug = 'human_resources'
+                """,
+            role,
+            userCompanyId
+        );
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_company_module_roles (user_company_id, module_slug, role, skill_level)
+                SELECT ?, 'human_resources', ?, 0
+                WHERE NOT EXISTS (
+                  SELECT 1
+                  FROM user_company_module_roles
+                  WHERE user_company_id = ?
+                    AND module_slug = 'human_resources'
+                )
+                """,
+            userCompanyId,
+            role,
+            userCompanyId
+        );
+        jdbcTemplate.update(
+            """
+                UPDATE user_company_tab_permissions
+                SET can_view = 1
+                WHERE user_company_id = ?
+                  AND module_slug = 'human_resources'
+                  AND tab_key = 'announcements'
+                """,
+            userCompanyId
+        );
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_company_tab_permissions (user_company_id, module_slug, tab_key, can_view)
+                SELECT ?, 'human_resources', 'announcements', 1
+                WHERE NOT EXISTS (
+                  SELECT 1
+                  FROM user_company_tab_permissions
+                  WHERE user_company_id = ?
+                    AND module_slug = 'human_resources'
+                    AND tab_key = 'announcements'
+                )
+                """,
+            userCompanyId,
+            userCompanyId
+        );
     }
 
     record TestUser(long userId, long userCompanyId, String department) {

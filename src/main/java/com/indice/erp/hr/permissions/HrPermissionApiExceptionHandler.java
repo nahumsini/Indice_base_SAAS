@@ -1,5 +1,6 @@
 package com.indice.erp.hr.permissions;
 
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -16,6 +17,11 @@ public class HrPermissionApiExceptionHandler {
     @ExceptionHandler(HrPermissionApiException.class)
     public ResponseEntity<?> handleApi(HrPermissionApiException ex) {
         return ResponseEntity.status(ex.status()).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(HrAccessDeniedException.class)
+    public ResponseEntity<?> handleForbidden(HrAccessDeniedException ex) {
+        return ResponseEntity.status(403).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(NoSuchElementException.class)

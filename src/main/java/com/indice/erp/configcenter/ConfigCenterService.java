@@ -3,6 +3,7 @@ package com.indice.erp.configcenter;
 import com.indice.erp.auth.AuthSessionUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.configcenter.structure.ConfigCenterBusinessStructureUseCases;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.util.LinkedHashMap;
@@ -40,5 +41,13 @@ public class ConfigCenterService extends ConfigCenterBusinessStructureUseCases {
         config.put("empresa_template", empresa.get("empresa_template"));
         config.put("map", empresa.get("map"));
         return config;
+    }
+
+    public Map<String, Object> saveStructure(AuthSessionUser currentUser, Map<String, Object> payload) {
+        var scope = scopeAccess.resolve(currentUser);
+        if (!scope.isCorporateOffice()) {
+            throw new HrAccessDeniedException("Forbidden");
+        }
+        return saveStructure(currentUser.companyId(), currentUser.userId(), payload);
     }
 }

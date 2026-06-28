@@ -1,6 +1,7 @@
 package com.indice.erp.hr.assets;
 
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrOperationalScope;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -55,6 +56,14 @@ public class HrAssetService {
     @Transactional(readOnly = true)
     public Map<String, Object> listAssets(AuthSessionUser currentUser, Map<String, Object> filters) {
         return listAssets(currentUser.companyId(), filters, hrAssetScopeAccess.resolve(currentUser));
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> listAssignedAssets(AuthSessionUser currentUser, Map<String, Object> filters) {
+        var userCompanyId = requireSessionUserCompanyId(currentUser);
+        var assignedFilters = new LinkedHashMap<String, Object>(filters);
+        assignedFilters.put("responsible_user_company_id", userCompanyId);
+        return listAssets(currentUser.companyId(), assignedFilters, HrOperationalScope.corporateOffice());
     }
 
     private Map<String, Object> listAssets(
@@ -193,6 +202,12 @@ public class HrAssetService {
     public Map<String, Object> assetDetails(AuthSessionUser currentUser, long assetId) {
         var scope = hrAssetScopeAccess.resolve(currentUser);
         hrAssetScopeAccess.requireAssetInScope(currentUser.companyId(), scope, assetId);
+        return assetDetails(currentUser.companyId(), assetId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> assignedAssetDetails(AuthSessionUser currentUser, long assetId) {
+        requireAssetAssignedToUser(currentUser.companyId(), requireSessionUserCompanyId(currentUser), assetId);
         return assetDetails(currentUser.companyId(), assetId);
     }
 
@@ -646,6 +661,12 @@ public class HrAssetService {
     public Map<String, Object> assetHistory(AuthSessionUser currentUser, long assetId) {
         var scope = hrAssetScopeAccess.resolve(currentUser);
         hrAssetScopeAccess.requireAssetInScope(currentUser.companyId(), scope, assetId);
+        return assetHistory(currentUser.companyId(), assetId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> assignedAssetHistory(AuthSessionUser currentUser, long assetId) {
+        requireAssetAssignedToUser(currentUser.companyId(), requireSessionUserCompanyId(currentUser), assetId);
         return assetHistory(currentUser.companyId(), assetId);
     }
 
@@ -1595,6 +1616,32 @@ public class HrAssetService {
         result.put("inactive_count", 0L);
         result.put("total_value_amount", BigDecimal.ZERO);
         return result;
+    }
+
+    private long requireSessionUserCompanyId(AuthSessionUser currentUser) {
+        if (currentUser.userCompanyId() == null) {
+            throw new HrAccessDeniedException("Forbidden");
+        }
+        return currentUser.userCompanyId();
+    }
+
+    private void requireAssetAssignedToUser(long companyId, long userCompanyId, long assetId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM user_assets
+                WHERE company_id = ?
+                  AND id = ?
+                  AND responsible_user_company_id = ?
+                """,
+            Long.class,
+            companyId,
+            assetId,
+            userCompanyId
+        );
+        if (count == null || count == 0) {
+            throw new HrAccessDeniedException("Forbidden");
+        }
     }
 
     private String defaultChangeReason(String targetStatus) {

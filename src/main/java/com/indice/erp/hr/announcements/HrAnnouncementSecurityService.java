@@ -36,11 +36,15 @@ public class HrAnnouncementSecurityService {
     }
 
     public HrAnnouncementActor requireReadActor(HttpSession session) {
-        return loadActor(session);
+        var actor = loadActor(session);
+        if (hrAccessService.canAccessReadableTab(actor.userCompanyId(), actor.role(), HrTab.ANNOUNCEMENTS)) {
+            return actor;
+        }
+        throw new HrAnnouncementApiException(HttpStatus.FORBIDDEN, "Forbidden");
     }
 
     public HrAnnouncementActor requireReadWriteActor(HttpSession session, String csrfToken) {
-        var actor = loadActor(session);
+        var actor = requireReadActor(session);
         requireCsrf(session, csrfToken);
         return actor;
     }

@@ -66,6 +66,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
+        if (!canReadAttendance(currentUser.get())) {
+            return forbidden();
+        }
 
         try {
             YearMonth targetMonth = HrAttendanceService.parseMonth(month);
@@ -111,6 +114,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canRecordSelfAttendance(currentUser.get())) {
+            return forbidden();
         }
 
         try {
@@ -160,6 +166,9 @@ public class AttendanceCalendarEventApiController extends AttendanceApiControlle
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canRecordSelfAttendance(currentUser.get())) {
+            return forbidden();
         }
 
         try {

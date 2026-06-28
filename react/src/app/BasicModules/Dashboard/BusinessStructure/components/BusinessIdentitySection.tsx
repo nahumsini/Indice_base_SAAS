@@ -241,6 +241,7 @@ export function BusinessIdentitySection({
             value={companyName}
             onChange={(event) => onCompanyNameChange(event.target.value)}
             className={inputClassName}
+            disabled={disabled}
           />
         </div>
 
@@ -252,6 +253,7 @@ export function BusinessIdentitySection({
             className={`${inputClassName} appearance-none cursor-pointer`}
             value={industry}
             onChange={(event) => onIndustryChange(event.target.value)}
+            disabled={disabled}
           >
             <option value="">{structure.fields.selectIndustry}</option>
             {structure.options.businessIdentityIndustries.map((option) => (
@@ -324,6 +326,7 @@ export function BusinessIdentitySection({
           value={description}
           onChange={(event) => onDescriptionChange(event.target.value)}
           className={textareaClassName}
+          disabled={disabled}
         />
       </div>
 

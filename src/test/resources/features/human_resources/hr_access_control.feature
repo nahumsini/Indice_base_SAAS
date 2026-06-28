@@ -33,12 +33,13 @@ Feature: Human Resources access control
     Then the personal Attendance tab should be visible
     And the user's own schedule should be visible
     And the user's own check-in and check-out actions should be available
+    And the Permissions self-service tab should be visible if the user's modules allow it
+    And the user should be able to create and view only their own permission requests
     And the Collaborators tab should not be visible
-    And the Control tab should not be visible
     And the Payroll tab should not be visible
     And the Kiosk management controls should not be visible
     And the Announcements management tab should not be visible
-    And the Assets, Records, Permissions, Incentives, and KPIs management tabs should not be visible
+    And the Records, Incentives, and KPIs management tabs should not be visible
 
   @implemented @access-control
   Scenario: Normal user cannot call HR administration endpoints directly
@@ -114,7 +115,9 @@ Feature: Human Resources access control
     Given a normal user with Human Resources module access is authenticated
     When the user opens Human Resources
     Then the Attendance tab should be visible
-    And the Collaborators, Control, Payroll, Announcements, Assets, Records, Permissions, Incentives, and KPIs tabs should not be visible
+    And the Permissions tab should be visible when configured for the user
+    And the Records tab should not be visible
+    And the Collaborators, Payroll, Incentives, and KPIs management tabs should not be visible
     When an admin user with Human Resources module access opens Human Resources
     Then the HR management tabs should be visible
 

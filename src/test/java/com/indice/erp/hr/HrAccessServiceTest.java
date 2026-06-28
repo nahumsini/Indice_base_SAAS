@@ -24,12 +24,22 @@ class HrAccessServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void legacyAdminWithoutModuleRowsCanUseManagementTabs() {
+    void adminWithoutModuleRowsCannotUseManagementTabs() {
         var service = new HrAccessService(jdbcTemplate);
         var currentUser = new AuthSessionUser(1L, 7L, "Admin", "admin");
         givenUserCompanyId(currentUser, 10L);
         givenModuleRows(10L, List.of());
-        givenTabRowsConfigured(10L, false);
+
+        assertFalse(service.canAccessManagementTab(currentUser, HrTab.COLLABORATORS));
+    }
+
+    @Test
+    void adminNeedsModuleAndAllowedTabRows() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "Admin", "admin");
+        givenUserCompanyId(currentUser, 10L);
+        givenModuleRows(10L, List.of("human_resources"));
+        givenAllowedTab(10L, HrTab.COLLABORATORS, true);
 
         assertTrue(service.canAccessManagementTab(currentUser, HrTab.COLLABORATORS));
     }
@@ -50,7 +60,6 @@ class HrAccessServiceTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Admin", "admin");
         givenUserCompanyId(currentUser, 10L);
         givenModuleRows(10L, List.of("human_resources"));
-        givenTabRowsConfigured(10L, true);
         givenAllowedTab(10L, HrTab.PAYROLL, false);
 
         assertFalse(service.canAccessManagementTab(currentUser, HrTab.PAYROLL));
@@ -62,6 +71,56 @@ class HrAccessServiceTest {
         var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
 
         assertFalse(service.canAccessManagementTab(currentUser, HrTab.CONTROL));
+    }
+
+    @Test
+    void normalUserCanReadPersonalHrTabsWithConfiguredTab() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+        givenUserCompanyId(currentUser, 10L);
+        givenModuleRows(10L, List.of("human_resources"));
+        givenAllowedTab(10L, HrTab.ATTENDANCE, true);
+
+        assertTrue(service.canAccessReadableTab(currentUser, HrTab.ATTENDANCE));
+    }
+
+    @Test
+    void normalUserCanReadControlAsSelfServiceTabWhenConfigured() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+        givenUserCompanyId(currentUser, 10L);
+        givenModuleRows(10L, List.of("human_resources"));
+        givenAllowedTab(10L, HrTab.CONTROL, true);
+
+        assertTrue(service.canAccessReadableTab(currentUser, HrTab.CONTROL));
+    }
+
+    @Test
+    void normalUserCannotReadManagementOnlyHrTabs() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+
+        assertFalse(service.canAccessReadableTab(currentUser, HrTab.PAYROLL));
+    }
+
+    @Test
+    void normalUserNeedsConfiguredReadableTab() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+        givenUserCompanyId(currentUser, 10L);
+        givenModuleRows(10L, List.of("human_resources"));
+        givenAllowedTab(10L, HrTab.PERMISSIONS, false);
+
+        assertFalse(service.canAccessReadableTab(currentUser, HrTab.PERMISSIONS));
+    }
+
+    @Test
+    void normalUserCannotReadRecordsEvenWithConfiguredTab() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+        givenUserCompanyId(currentUser, 10L);
+
+        assertFalse(service.canAccessReadableTab(currentUser, HrTab.RECORDS));
     }
 
     @Test
@@ -87,14 +146,6 @@ class HrAccessServiceTest {
             ArgumentMatchers.<RowMapper<String>>any(),
             eq(userCompanyId)
         )).thenReturn(moduleSlugs);
-    }
-
-    private void givenTabRowsConfigured(long userCompanyId, boolean configured) {
-        when(jdbcTemplate.queryForObject(
-            contains("COUNT(*) FROM user_company_tab_permissions WHERE user_company_id = ?"),
-            eq(Long.class),
-            eq(userCompanyId)
-        )).thenReturn(configured ? 1L : 0L);
     }
 
     private void givenAllowedTab(long userCompanyId, HrTab tab, boolean allowed) {

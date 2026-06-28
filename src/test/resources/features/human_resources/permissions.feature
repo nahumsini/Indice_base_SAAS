@@ -15,11 +15,11 @@ Feature: HR permissions and absences
     When the user filters by search text, status, type, or user
     Then the frontend should show only matching permission requests
 
-  @implemented @frontend-only
+  @implemented
   Scenario: User creates a permission request
     Given an authenticated user is viewing the Permissions tab
     When the user submits a new permission request
-    Then the frontend should add a pending request to the current list
+    Then the backend should persist a pending request for that user
     And the request should include the date range, type, reason, and optional attachment name
 
   @implemented @frontend-only
@@ -29,14 +29,14 @@ Feature: HR permissions and absences
     Then the frontend should update the request status
     And the updated timestamp should change
 
-  @planned
+  @implemented
   Scenario: Permission requests persist in the backend
     Given an authenticated user submits a permission request
     When the frontend sends the request to the backend
     Then the backend should persist the request
     And the request should be available after page refresh
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: Normal user sees only their own permission requests
     Given a normal user is authenticated
     When the user opens Permissions
