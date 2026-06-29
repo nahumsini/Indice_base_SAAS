@@ -1,5 +1,11 @@
 package com.indice.erp.pos.purchaseorder;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.finance.expenses.ExpenseService;
+import com.indice.erp.finance.expenses.ExpenseType;
+import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
+import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
@@ -12,12 +18,15 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderListRespo
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceListResponse;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceDocumentUploadRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceReviewRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessListResponse;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessPinRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessResponse;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessStatusRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalContextResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadResponse;
@@ -68,16 +77,22 @@ public class PurchaseOrderService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
+    private final ExpenseService expenseService;
+    private final ObjectMapper objectMapper;
 
     public PurchaseOrderService(
             PurchaseOrderRepository repository,
             BCryptPasswordEncoder passwordEncoder,
             ObjectStorageService objectStorageService,
-            ObjectStorageProperties storageProperties) {
+            ObjectStorageProperties storageProperties,
+            ExpenseService expenseService,
+            ObjectMapper objectMapper) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
+        this.expenseService = expenseService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -212,7 +227,7 @@ public class PurchaseOrderService {
             portalCode,
             request.pin(),
             status,
-            request.expiresAt()
+            null
         );
         var id = repository.insertSupplierPortalAccess(
             context,
@@ -221,6 +236,32 @@ public class PurchaseOrderService {
             passwordEncoder.encode(request.pin().trim())
         );
         return repository.findSupplierPortalAccess(context, id).orElseThrow();
+    }
+
+    @Transactional
+    public SupplierPortalAccessResponse updateSupplierPortalAccessStatus(
+            PosContext context,
+            long accessId,
+            SupplierPortalAccessStatusRequest request) {
+        var status = normalizeSupplierPortalManualStatus(request.status());
+        if (!repository.updateSupplierPortalAccessStatus(context, accessId, status)) {
+            throw PosApiException.notFound("Supplier portal access not found.");
+        }
+        return repository.findSupplierPortalAccess(context, accessId).orElseThrow();
+    }
+
+    @Transactional
+    public SupplierPortalAccessResponse changeSupplierPortalAccessPin(
+            PosContext context,
+            long accessId,
+            SupplierPortalAccessPinRequest request) {
+        if (!repository.updateSupplierPortalAccessPin(
+                context,
+                accessId,
+                passwordEncoder.encode(request.pin().trim()))) {
+            throw PosApiException.notFound("Supplier portal access not found.");
+        }
+        return repository.findSupplierPortalAccess(context, accessId).orElseThrow();
     }
 
     @Transactional(readOnly = true)
@@ -492,14 +533,135 @@ public class PurchaseOrderService {
     @Transactional
     public SupplierInvoiceResponse submitSupplierInvoice(PosContext context, SupplierInvoiceRequest request) {
         var provider = requireProvider(context, request.providerId());
+        PurchaseOrderResponse order = null;
         if (request.purchaseOrderId() != null) {
-            var order = requireOrder(context, request.purchaseOrderId());
+            order = requireOrder(context, request.purchaseOrderId());
             if (!order.providerId().equals(provider.id())) {
                 throw PosApiException.badRequest("purchaseOrderId does not belong to providerId.");
             }
         }
         var invoiceId = repository.insertSupplierInvoice(context, request);
+        createExpenseDraftFromSupplierInvoice(context, request, provider, order, invoiceId);
         return enrichSupplierInvoiceDocument(repository.findSupplierInvoice(context, invoiceId).orElseThrow());
+    }
+
+    private void createExpenseDraftFromSupplierInvoice(
+            PosContext context,
+            SupplierInvoiceRequest request,
+            PurchaseOrderRepository.ProviderRef provider,
+            PurchaseOrderResponse order,
+            long invoiceId) {
+        var purchaseOrderId = order == null ? request.purchaseOrderId() : order.id();
+        var metadata = objectMapper.createObjectNode();
+        metadata.put("source", "POS_PURCHASE_ORDER");
+        metadata.put("supplierInvoiceId", invoiceId);
+        if (purchaseOrderId != null) {
+            metadata.put("purchaseOrderId", purchaseOrderId);
+        }
+        metadata.put("invoiceNumber", request.invoiceNumber().trim());
+        var documentUrl = trimToNull(request.documentUrl());
+        if (documentUrl != null) {
+            metadata.put("documentUrl", documentUrl);
+        }
+
+        var customFields = objectMapper.createObjectNode();
+        customFields.put("entryType", "budget");
+        customFields.put("projected", false);
+        customFields.put("legacyStatus", "pending");
+        customFields.put("originModule", "point_of_sale");
+        customFields.put("originTab", "ordenes_compra");
+        customFields.put("supplierInvoiceId", invoiceId);
+        if (purchaseOrderId != null) {
+            customFields.put("purchaseOrderId", purchaseOrderId);
+        }
+
+        var expenseRequest = new CreateExpenseRequest(
+            order == null ? context.scope().unitId() : order.unitId(),
+            order == null ? context.scope().businessId() : order.businessId(),
+            request.providerId(),
+            null,
+            null,
+            null,
+            purchaseOrderId,
+            "POS-INV-" + invoiceId,
+            compact("Factura proveedor " + provider.name() + " - " + request.invoiceNumber().trim(), 220),
+            expenseDescription(order, request),
+            ExpenseType.VARIABLE,
+            money(request.subtotalAmount()),
+            money(request.taxAmount()),
+            money(request.totalAmount()),
+            normalizedCurrency(request.currencyCode()),
+            request.invoiceDate() == null ? LocalDate.now() : request.invoiceDate(),
+            request.dueDate(),
+            context.userId(),
+            null,
+            null,
+            customFields,
+            metadata
+        );
+
+        expenseService.createDraft(toFinanceContext(context), expenseRequest);
+    }
+
+    private FinanceContext toFinanceContext(PosContext context) {
+        return new FinanceContext(
+            context.userId(),
+            context.companyId(),
+            context.userName(),
+            context.role(),
+            true,
+            toFinanceScope(context.scope())
+        );
+    }
+
+    private FinanceScope toFinanceScope(PosScope scope) {
+        return switch (scope.type()) {
+            case CORPORATE_OFFICE -> FinanceScope.corporateOffice();
+            case UNIT_HEADQUARTERS -> FinanceScope.unitHeadquarters(scope.unitId());
+            case BUSINESS_OFFICE -> FinanceScope.businessOffice(scope.unitId(), scope.businessId());
+        };
+    }
+
+    private String expenseDescription(PurchaseOrderResponse order, SupplierInvoiceRequest request) {
+        var description = new StringBuilder("Compromiso de pago creado desde POS / Ordenes de compra.");
+        if (order != null) {
+            description.append(" Orden: ").append(order.folio()).append('.');
+        }
+        var notes = trimToNull(request.notes());
+        if (notes != null) {
+            description.append(" Notas: ").append(notes);
+        }
+        return compact(description.toString(), 4000);
+    }
+
+    @Transactional(readOnly = true)
+    public SupplierPortalDocumentUploadResponse createSupplierInvoiceUpload(
+            PosContext context,
+            SupplierInvoiceDocumentUploadRequest request) {
+        requireSupplierDocumentStorage();
+        var fileName = requireSupplierDocumentFileName(request.fileName());
+        var contentType = requireSupplierDocumentContentType(request.contentType(), fileName);
+        var sizeBytes = requireSupplierDocumentSize(request.sizeBytes());
+        var objectKey = buildInternalSupplierInvoiceDocumentObjectKey(context.companyId(), context.userId(), fileName);
+        var upload = objectStorageService.presignUpload(
+            supplierDocumentsBucket(),
+            objectKey,
+            contentType,
+            storageProperties.getMinio().getPresignExpirySeconds()
+        );
+        return new SupplierPortalDocumentUploadResponse(
+            upload.objectKey(),
+            upload.objectKey(),
+            upload.uploadUrl(),
+            upload.uploadUrl(),
+            upload.expiresAt(),
+            upload.expiresAt().toString(),
+            upload.uploadHeaders(),
+            upload.uploadHeaders(),
+            fileName,
+            contentType,
+            sizeBytes
+        );
     }
 
     @Transactional
@@ -590,9 +752,6 @@ public class PurchaseOrderService {
         if (!"ACTIVE".equalsIgnoreCase(access.status())) {
             throw PosApiException.forbidden("Supplier portal is not active.");
         }
-        if (access.expiresAt() != null && access.expiresAt().isBefore(Instant.now())) {
-            throw PosApiException.forbidden("Supplier portal access has expired.");
-        }
         if (access.pinHash() == null || access.pinHash().isBlank()
                 || pin == null || !passwordEncoder.matches(pin.trim(), access.pinHash())) {
             throw PosApiException.forbidden("Supplier portal PIN is invalid.");
@@ -677,6 +836,14 @@ public class PurchaseOrderService {
 
     private String normalizedCurrency(String value) {
         return value == null || value.isBlank() ? "MXN" : value.trim().toUpperCase();
+    }
+
+    private String normalizeSupplierPortalManualStatus(String value) {
+        var status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (!List.of("ACTIVE", "PAUSED").contains(status)) {
+            throw PosApiException.badRequest("Supplier portal status is invalid.");
+        }
+        return status;
     }
 
     private String portalCodeOrGenerate(PosContext context, String requestedCode, Long providerId) {
@@ -782,6 +949,17 @@ public class PurchaseOrderService {
             + sanitizeSupplierDocumentFileName(fileName);
     }
 
+    private String buildInternalSupplierInvoiceDocumentObjectKey(long companyId, long userId, String fileName) {
+        return "pos/supplier-invoices/"
+            + companyId
+            + "/users/"
+            + userId
+            + "/"
+            + UUID.randomUUID()
+            + "-"
+            + sanitizeSupplierDocumentFileName(fileName);
+    }
+
     private String supplierInvoiceDocumentPrefix(long companyId, long accessId) {
         return "pos/supplier-portal/" + companyId + "/" + accessId + "/invoices/";
     }
@@ -852,5 +1030,16 @@ public class PurchaseOrderService {
         }
         var trimmed = value.trim();
         return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private String compact(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        var trimmed = value.trim();
+        if (trimmed.length() <= maxLength) {
+            return trimmed;
+        }
+        return trimmed.substring(0, Math.max(0, maxLength - 1)).trim();
     }
 }

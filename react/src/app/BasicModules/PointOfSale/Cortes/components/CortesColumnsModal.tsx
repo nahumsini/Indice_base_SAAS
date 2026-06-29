@@ -1,5 +1,6 @@
-import { RotateCcw, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Columns3, RotateCcw, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { CortesModalFrame } from './CortesModalFrame';
 import { cortesColumnOptions, defaultCortesColumns, type CortesColumnId } from '../utils/cortesColumns';
 
 interface CortesColumnsModalProps {
@@ -25,10 +26,6 @@ export function CortesColumnsModal({
       : cortesColumnOptions.filter((option) => option.label.toLowerCase().includes(term));
   }, [search]);
 
-  if (!open) {
-    return null;
-  }
-
   const toggleColumn = (columnId: CortesColumnId) => {
     setDraftColumns((current) => (
       current.includes(columnId)
@@ -37,102 +34,141 @@ export function CortesColumnsModal({
     ));
   };
 
+  const moveColumn = (columnId: CortesColumnId, direction: 'down' | 'up') => {
+    setDraftColumns((current) => {
+      const index = current.indexOf(columnId);
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) {
+        return current;
+      }
+
+      const next = [...current];
+      const [column] = next.splice(index, 1);
+      next.splice(targetIndex, 0, column);
+      return next;
+    });
+  };
+
   const applyColumns = () => {
     onVisibleColumnsChange(draftColumns.length > 0 ? draftColumns : defaultCortesColumns);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl dark:bg-slate-900">
-        <div className="flex items-start justify-between gap-4 bg-[#FF6B5E] px-6 py-5 text-white">
-          <div>
-            <h3 className="text-2xl font-black">Configurar columnas</h3>
-            <p className="mt-1 text-sm font-semibold text-white/85">
-              Selecciona la informacion visible en la tabla de cortes.
-            </p>
-          </div>
+    <CortesModalFrame
+      closeLabel="Cerrar configuracion de columnas"
+      eyebrow="Tabla de cortes"
+      icon={<Columns3 className="h-5 w-5" />}
+      onClose={onClose}
+      open={open}
+      size="md"
+      title="Configurar columnas"
+      subtitle="Selecciona la informacion visible en la tabla de cortes."
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 text-white transition hover:bg-white/10"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4 overflow-y-auto p-6">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <button
-              type="button"
-              onClick={() => setDraftColumns(cortesColumnOptions.map((option) => option.id))}
-              className="h-10 rounded-xl border border-slate-200 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              Todas
-            </button>
-            <button
-              type="button"
-              onClick={() => setDraftColumns([])}
-              className="h-10 rounded-xl border border-slate-200 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              Ninguna
-            </button>
-            <button
-              type="button"
-              onClick={() => setDraftColumns(defaultCortesColumns)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Restaurar
-            </button>
-          </div>
-
-          <label className="relative block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar columna"
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-          </label>
-
-          <div className="space-y-2">
-            {filteredOptions.map((option) => (
-              <label
-                key={option.id}
-                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:border-[#FF6B5E]/30 hover:bg-[#FF6B5E]/5 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-[#FF6B5E]/10"
-              >
-                <input
-                  type="checkbox"
-                  checked={draftColumns.includes(option.id)}
-                  onChange={() => toggleColumn(option.id)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#FF6B5E] focus:ring-[#FF6B5E]"
-                />
-                <span className="text-sm font-black text-slate-800 dark:text-slate-100">{option.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 border-t border-slate-200 bg-[#FF6B5E] px-6 py-4 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-11 rounded-xl border border-white/35 px-5 text-sm font-black text-white transition hover:bg-white/10"
+            className="h-11 rounded-xl border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={applyColumns}
-            className="h-11 rounded-xl bg-white px-5 text-sm font-black text-[#B63B32] shadow-sm transition hover:bg-slate-50"
+            className="h-11 rounded-xl bg-[#222831] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#111827]"
           >
             Aplicar cambios
           </button>
         </div>
+      )}
+    >
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => setDraftColumns(cortesColumnOptions.map((option) => option.id))}
+            className="h-10 rounded-xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Todas
+          </button>
+          <button
+            type="button"
+            onClick={() => setDraftColumns([])}
+            className="h-10 rounded-xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Ninguna
+          </button>
+          <button
+            type="button"
+            onClick={() => setDraftColumns(defaultCortesColumns)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Restaurar
+          </button>
+        </div>
+
+        <label className="relative block">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar columna"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          />
+        </label>
+
+        <div className="space-y-2">
+          {filteredOptions.map((option) => {
+            const selectedIndex = draftColumns.indexOf(option.id);
+            const isSelected = selectedIndex >= 0;
+
+            return (
+              <div
+                key={option.id}
+                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:border-[#FF6B5E]/30 hover:bg-[#FF6B5E]/5 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-[#FF6B5E]/10"
+              >
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleColumn(option.id)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#FF6B5E] focus:ring-[#FF6B5E]"
+                  />
+                  <span className="truncate text-sm font-black text-slate-800 dark:text-slate-100">{option.label}</span>
+                </label>
+
+                {isSelected ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label={`Subir ${option.label}`}
+                      title={`Subir ${option.label}`}
+                      disabled={selectedIndex === 0}
+                      onClick={() => moveColumn(option.id, 'up')}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Bajar ${option.label}`}
+                      title={`Bajar ${option.label}`}
+                      disabled={selectedIndex === draftColumns.length - 1}
+                      onClick={() => moveColumn(option.id, 'down')}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </CortesModalFrame>
   );
 }

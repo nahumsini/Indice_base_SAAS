@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { LayoutList, Table2 } from 'lucide-react';
 import { CorteDetailModal } from './components/CorteDetailModal';
+import { CortesBulkActionsBar } from './components/CortesBulkActionsBar';
 import { CortesColumnsModal } from './components/CortesColumnsModal';
 import { CortesDayView } from './components/CortesDayView';
 import { CortesFiltersBar, type CortesFilterOption } from './components/CortesFiltersBar';
@@ -82,6 +83,7 @@ export default function Cortes() {
   const [notice, setNotice] = useState('');
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
   const [visibleColumns, setVisibleColumns] = useState<CortesColumnId[]>(defaultCortesColumns);
   const [warehouses, setWarehouses] = useState<PosWarehouseSummary[]>([]);
   const [cashRegisters, setCashRegisters] = useState<PosCashRegisterResponse[]>([]);
@@ -155,6 +157,17 @@ export default function Cortes() {
     return sortCortesRows(filteredRows, sortKey, sortDirection);
   }, [filters, rows, sortDirection, sortKey]);
 
+  useEffect(() => {
+    setSelectedRowIds((current) => current.filter((rowId) => visibleRows.some((row) => row.id === rowId)));
+  }, [visibleRows]);
+
+  const selectedRows = useMemo(
+    () => visibleRows.filter((row) => selectedRowIds.includes(row.id)),
+    [selectedRowIds, visibleRows],
+  );
+
+  const allVisibleSelected = visibleRows.length > 0 && visibleRows.every((row) => selectedRowIds.includes(row.id));
+
   const analytics = useMemo(
     () => buildCortesAnalytics(visibleRows, preferredCurrency),
     [preferredCurrency, visibleRows],
@@ -165,7 +178,7 @@ export default function Cortes() {
       label: [
         warehouse.name,
         warehouse.businessName,
-      ].filter(Boolean).join(' · '),
+      ].filter(Boolean).join(' - '),
       value: String(warehouse.id),
     }))
   ), [warehouses]);
@@ -174,7 +187,7 @@ export default function Cortes() {
     cashRegisters
       .filter((register) => !filters.warehouseId || String(register.warehouseId) === filters.warehouseId)
       .map((register) => ({
-        label: `${register.name} · ${register.code}`,
+        label: `${register.name} - ${register.code}`,
         value: String(register.id),
       }))
   ), [cashRegisters, filters.warehouseId]);
@@ -222,11 +235,6 @@ export default function Cortes() {
     setOffset(0);
   };
 
-  const resetFilters = () => {
-    setFilters(initialFilters);
-    setOffset(0);
-  };
-
   const handleSort = (nextSortKey: CortesSortKey) => {
     if (nextSortKey === sortKey) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
@@ -235,6 +243,30 @@ export default function Cortes() {
 
     setSortKey(nextSortKey);
     setSortDirection('desc');
+  };
+
+  const toggleRowSelection = (rowId: number) => {
+    setSelectedRowIds((current) => (
+      current.includes(rowId)
+        ? current.filter((id) => id !== rowId)
+        : [...current, rowId]
+    ));
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedRowIds((current) => {
+      const visibleIds = visibleRows.map((row) => row.id);
+
+      if (visibleIds.length === 0) {
+        return current;
+      }
+
+      if (visibleIds.every((rowId) => current.includes(rowId))) {
+        return current.filter((rowId) => !visibleIds.includes(rowId));
+      }
+
+      return Array.from(new Set([...current, ...visibleIds]));
+    });
   };
 
   const openDetail = (row: PosCashClosingSummaryRow) => {
@@ -303,6 +335,39 @@ export default function Cortes() {
     setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) filtrado(s).`);
   };
 
+  const printSelectedReport = () => {
+    if (selectedRows.length === 0) {
+      setNotice('Selecciona uno o mas cortes para preparar el reporte.');
+      return;
+    }
+
+    const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
+
+    if (!reportWindow) {
+      setNotice('No se pudo abrir la vista de impresion. Revisa permisos de ventanas emergentes del navegador.');
+      return;
+    }
+
+    const reportRows = sortCortesRows(selectedRows, sortKey, sortDirection);
+    const reportHtml = buildCortesPrintReportHtml({
+      analytics: buildCortesAnalytics(reportRows, preferredCurrency),
+      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
+      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
+      filters,
+      preferredCurrency,
+      rows: reportRows,
+      scopeNote: `Incluye ${reportRows.length} corte(s) seleccionados manualmente para auditoria.`,
+      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId),
+    });
+
+    reportWindow.document.open();
+    reportWindow.document.write(reportHtml);
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.setTimeout(() => reportWindow.print(), 350);
+    setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) seleccionados.`);
+  };
+
   const handleRowDownload = (row: PosCashClosingSummaryRow) => {
     setNotice(`El corte COR-${row.id} esta listo para descarga desde el detalle.`);
     openDetail(row);
@@ -354,18 +419,17 @@ export default function Cortes() {
         filters={filters}
         warehouses={warehouseOptions}
         onChange={updateFilter}
-        onReset={resetFilters}
       />
       <CortesKpiArea analytics={analytics} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex w-fit rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <ViewButton active={viewMode === 'table'} icon={<Table2 className="h-4 w-4" />} label="Tabla" onClick={() => setViewMode('table')} />
-          <ViewButton active={viewMode === 'day'} icon={<LayoutList className="h-4 w-4" />} label="Por día" onClick={() => setViewMode('day')} />
+          <ViewButton active={viewMode === 'day'} icon={<LayoutList className="h-4 w-4" />} label="Por dia" onClick={() => setViewMode('day')} />
         </div>
 
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-          Mostrando {visibleRows.length} de {totalCount} corte(s) · Preferida {analytics.convertedSalesLabel} · Cobrado {analytics.totalSalesLabel}
+          Mostrando {visibleRows.length} de {totalCount} corte(s) - Preferida {analytics.convertedSalesLabel} - Cobrado {analytics.totalSalesLabel}
         </p>
       </div>
 
@@ -376,25 +440,36 @@ export default function Cortes() {
       ) : null}
 
       {viewMode === 'table' ? (
-        <CortesTable
-          preferredCurrency={preferredCurrency}
-          loading={loading}
-          rows={visibleRows}
-          sortDirection={sortDirection}
-          sortKey={sortKey}
-          visibleColumns={visibleColumns}
-          onDownload={handleRowDownload}
-          onPrint={handleRowPrint}
-          onSelect={openDetail}
-          onSort={handleSort}
-        />
+        <>
+          <CortesBulkActionsBar
+            selectedCount={selectedRows.length}
+            onClearSelection={() => setSelectedRowIds([])}
+            onPrintSelected={printSelectedReport}
+          />
+          <CortesTable
+            allVisibleSelected={allVisibleSelected}
+            preferredCurrency={preferredCurrency}
+            loading={loading}
+            rows={visibleRows}
+            selectedRowIds={selectedRowIds}
+            sortDirection={sortDirection}
+            sortKey={sortKey}
+            visibleColumns={visibleColumns}
+            onDownload={handleRowDownload}
+            onPrint={handleRowPrint}
+            onSelect={openDetail}
+            onSort={handleSort}
+            onToggleRowSelection={toggleRowSelection}
+            onToggleVisibleSelection={toggleVisibleSelection}
+          />
+        </>
       ) : (
         <CortesDayView preferredCurrency={preferredCurrency} rows={visibleRows} onSelect={openDetail} />
       )}
 
       <div className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-          Pagina {Math.floor(offset / pageSize) + 1} · limite {pageSize}
+          Pagina {Math.floor(offset / pageSize) + 1} - limite {pageSize}
         </p>
         <div className="flex gap-2">
           <button

@@ -3,6 +3,7 @@ import * as argon2 from 'argon2';
 import { serialize } from 'cookie';
 import { AppConfigService } from '../config/app-config.service';
 import { RequestWithSession, SessionContext } from '../common/types/session-context';
+import { demoModuleSlugs, demoTabPermissionKeys, normalizeDemoRole } from '../common/demo-access';
 import { AuthRepository } from './auth.repository';
 import { DemoUserRow } from './auth.types';
 import { RegisterDto } from './dto/register.dto';
@@ -190,20 +191,16 @@ export class AuthService {
   }
 
   toAuthSession(session: SessionContext, csrfToken?: string) {
+    const role = normalizeDemoRole(session.role);
+
     return {
       user: {
         id: session.userId,
         name: `${session.firstName} ${session.lastName}`.trim(),
         email: session.email,
-        role: session.role,
-        module_slugs: ['config_center'],
-        tab_permission_keys: [
-          'config_center.profile',
-          'config_center.business-structure',
-          'config_center.business-profile',
-          'config_center.personal-performance',
-          'config_center.users',
-        ],
+        role,
+        module_slugs: demoModuleSlugs,
+        tab_permission_keys: demoTabPermissionKeys,
         tab_permissions_configured: true,
       },
       company: {

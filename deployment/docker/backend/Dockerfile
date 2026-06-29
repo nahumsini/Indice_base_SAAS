@@ -11,12 +11,12 @@ RUN chmod +x mvnw
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -DskipTests dependency:go-offline
 
 COPY src src
-RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN addgroup -S spring && adduser -S spring -G spring && mkdir -p /app/logs && chown -R spring:spring /app/logs
 
 COPY --from=build /workspace/target/*.jar /app/app.jar
 

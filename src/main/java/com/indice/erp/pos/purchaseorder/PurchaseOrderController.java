@@ -5,11 +5,14 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierRequest
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderActionRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderCreateRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessPinRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessStatusRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalInvoiceRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalLoginRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalSubmissionRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceDocumentUploadRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceReviewRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionConvertRequest;
@@ -215,6 +218,30 @@ public class PurchaseOrderController {
             : ResponseEntity.status(HttpStatus.CREATED).body(service.createSupplierPortalAccess(access.context(), request));
     }
 
+    @PostMapping("/supplier-portal-access/{accessId}/status")
+    public ResponseEntity<?> updateSupplierPortalAccessStatus(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId,
+            @Valid @RequestBody SupplierPortalAccessStatusRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.updateSupplierPortalAccessStatus(access.context(), accessId, request));
+    }
+
+    @PostMapping("/supplier-portal-access/{accessId}/pin")
+    public ResponseEntity<?> changeSupplierPortalAccessPin(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId,
+            @Valid @RequestBody SupplierPortalAccessPinRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.changeSupplierPortalAccessPin(access.context(), accessId, request));
+    }
+
     @PostMapping("/public/supplier-portal/{portalCode}/authenticate")
     public ResponseEntity<?> authenticateSupplierPortal(
             @PathVariable String portalCode,
@@ -293,6 +320,17 @@ public class PurchaseOrderController {
         return access.denied()
             ? access.error()
             : ResponseEntity.status(HttpStatus.CREATED).body(service.submitSupplierInvoice(access.context(), request));
+    }
+
+    @PostMapping("/supplier-invoices/presign-upload")
+    public ResponseEntity<?> createSupplierInvoiceUpload(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @Valid @RequestBody SupplierInvoiceDocumentUploadRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.createSupplierInvoiceUpload(access.context(), request));
     }
 
     @PostMapping("/supplier-invoices/{invoiceId}/review")

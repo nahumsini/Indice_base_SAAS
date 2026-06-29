@@ -77,11 +77,11 @@ class ExpenseRepository {
                 """
                 INSERT INTO finance_expenses
                 (company_id, unit_id, business_id, folio, provider_id, budget_line_id, accounting_account_id,
-                 payment_account_id, concept, description, expense_type, subtotal_amount, tax_amount, total_amount,
+                 payment_account_id, purchase_order_id, concept, description, expense_type, subtotal_amount, tax_amount, total_amount,
                  paid_amount, balance_amount, currency_code, expense_date, due_date, requested_by_user_id,
                  approved_by_user_id, performed_by_user_id, status, payment_status, attachment_count,
                  created_by_user_id, custom_fields_json, metadata_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 Statement.RETURN_GENERATED_KEYS
             );
@@ -104,6 +104,7 @@ class ExpenseRepository {
                     budget_line_id = ?,
                     accounting_account_id = ?,
                     payment_account_id = ?,
+                    purchase_order_id = ?,
                     folio = ?,
                     concept = ?,
                     description = ?,
@@ -168,6 +169,42 @@ class ExpenseRepository {
         setNullableLong(statement, 6, command.budgetLineId());
         setNullableLong(statement, 7, command.accountingAccountId());
         setNullableLong(statement, 8, command.paymentAccountId());
+        setNullableLong(statement, 9, command.purchaseOrderId());
+        statement.setString(10, command.concept());
+        statement.setString(11, command.description());
+        statement.setString(12, command.expenseType().name());
+        statement.setBigDecimal(13, command.subtotalAmount());
+        statement.setBigDecimal(14, command.taxAmount());
+        statement.setBigDecimal(15, command.totalAmount());
+        statement.setBigDecimal(16, command.paidAmount());
+        statement.setBigDecimal(17, command.balanceAmount());
+        statement.setString(18, command.currencyCode());
+        statement.setDate(19, Date.valueOf(command.expenseDate()));
+        setNullableDate(statement, 20, command.dueDate());
+        setNullableLong(statement, 21, command.requestedByUserId());
+        setNullableLong(statement, 22, command.approvedByUserId());
+        setNullableLong(statement, 23, command.performedByUserId());
+        statement.setString(24, ExpenseStatus.DRAFT.name());
+        statement.setString(25, PaymentStatus.UNPAID.name());
+        statement.setInt(26, 0);
+        setNullableLong(statement, 27, command.createdByUserId());
+        statement.setString(28, command.customFieldsJson());
+        statement.setString(29, command.metadataJson());
+    }
+
+    private void bindUpdate(
+            PreparedStatement statement,
+            FinanceContext context,
+            long expenseId,
+            ExpenseDraftCommand command) throws java.sql.SQLException {
+        setNullableLong(statement, 1, command.unitId());
+        setNullableLong(statement, 2, command.businessId());
+        setNullableLong(statement, 3, command.providerId());
+        setNullableLong(statement, 4, command.budgetLineId());
+        setNullableLong(statement, 5, command.accountingAccountId());
+        setNullableLong(statement, 6, command.paymentAccountId());
+        setNullableLong(statement, 7, command.purchaseOrderId());
+        statement.setString(8, command.folio());
         statement.setString(9, command.concept());
         statement.setString(10, command.description());
         statement.setString(11, command.expenseType().name());
@@ -182,47 +219,13 @@ class ExpenseRepository {
         setNullableLong(statement, 20, command.requestedByUserId());
         setNullableLong(statement, 21, command.approvedByUserId());
         setNullableLong(statement, 22, command.performedByUserId());
-        statement.setString(23, ExpenseStatus.DRAFT.name());
-        statement.setString(24, PaymentStatus.UNPAID.name());
-        statement.setInt(25, 0);
-        setNullableLong(statement, 26, command.createdByUserId());
-        statement.setString(27, command.customFieldsJson());
-        statement.setString(28, command.metadataJson());
-    }
-
-    private void bindUpdate(
-            PreparedStatement statement,
-            FinanceContext context,
-            long expenseId,
-            ExpenseDraftCommand command) throws java.sql.SQLException {
-        setNullableLong(statement, 1, command.unitId());
-        setNullableLong(statement, 2, command.businessId());
-        setNullableLong(statement, 3, command.providerId());
-        setNullableLong(statement, 4, command.budgetLineId());
-        setNullableLong(statement, 5, command.accountingAccountId());
-        setNullableLong(statement, 6, command.paymentAccountId());
-        statement.setString(7, command.folio());
-        statement.setString(8, command.concept());
-        statement.setString(9, command.description());
-        statement.setString(10, command.expenseType().name());
-        statement.setBigDecimal(11, command.subtotalAmount());
-        statement.setBigDecimal(12, command.taxAmount());
-        statement.setBigDecimal(13, command.totalAmount());
-        statement.setBigDecimal(14, command.paidAmount());
-        statement.setBigDecimal(15, command.balanceAmount());
-        statement.setString(16, command.currencyCode());
-        statement.setDate(17, Date.valueOf(command.expenseDate()));
-        setNullableDate(statement, 18, command.dueDate());
-        setNullableLong(statement, 19, command.requestedByUserId());
-        setNullableLong(statement, 20, command.approvedByUserId());
-        setNullableLong(statement, 21, command.performedByUserId());
-        statement.setString(22, PaymentStatus.UNPAID.name());
-        setNullableLong(statement, 23, command.updatedByUserId());
-        statement.setString(24, command.customFieldsJson());
-        statement.setString(25, command.metadataJson());
-        statement.setLong(26, context.companyId());
-        statement.setLong(27, expenseId);
-        statement.setString(28, ExpenseStatus.DRAFT.name());
+        statement.setString(23, PaymentStatus.UNPAID.name());
+        setNullableLong(statement, 24, command.updatedByUserId());
+        statement.setString(25, command.customFieldsJson());
+        statement.setString(26, command.metadataJson());
+        statement.setLong(27, context.companyId());
+        statement.setLong(28, expenseId);
+        statement.setString(29, ExpenseStatus.DRAFT.name());
     }
 
     private void appendScopeParam(List<Object> params, FinanceScope scope) {

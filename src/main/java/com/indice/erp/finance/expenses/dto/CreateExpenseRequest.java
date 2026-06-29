@@ -16,6 +16,7 @@ public record CreateExpenseRequest(
     Long budgetLineId,
     Long accountingAccountId,
     Long paymentAccountId,
+    Long purchaseOrderId,
     @NotBlank @Size(max = 80) String folio,
     @NotBlank @Size(max = 220) String concept,
     String description,

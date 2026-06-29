@@ -32,6 +32,7 @@ async function bootstrap() {
 
   await app.listen(config.port, '127.0.0.1');
   console.log(`Demo Indice backend listening on http://127.0.0.1:${config.port}`);
+  setInterval(() => undefined, 60 * 60 * 1000);
 }
 
 void bootstrap();

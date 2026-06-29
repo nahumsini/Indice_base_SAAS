@@ -14,7 +14,7 @@ INSERT INTO demo_account_users (
 )
 SELECT id, 'demo@indice.com',
   '$argon2id$v=19$m=65536,t=3,p=4$ZNgQc+Ia7Jmp+n2OSPP+FQ$q+uEMXS4AMsjv+bBOpvH52WrmPo7pz7iW0V7VOCjHNk',
-  'Demo', 'Admin', '+1 555 0100', 'CA', 'en-CA', 'demo_admin', 'active'
+  'Demo', 'Admin', '+1 555 0100', 'CA', 'en-CA', 'superadmin', 'active'
 FROM demo_accounts
 WHERE company_slug = 'indice-demo'
 ON DUPLICATE KEY UPDATE

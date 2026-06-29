@@ -18,6 +18,7 @@ interface AttachmentsModalProps {
   expenseFolio: string;
   expenseConcept: string;
   attachments: string[];
+  moduleVariant?: 'finance' | 'sales';
   onSave: (attachments: string[]) => void;
 }
 
@@ -27,9 +28,12 @@ export function AttachmentsModal({
   expenseFolio,
   expenseConcept,
   attachments,
+  moduleVariant = 'finance',
   onSave,
 }: AttachmentsModalProps) {
   const t = useFinanceTranslations();
+  const accent = moduleVariant === 'sales' ? '#FF6B5E' : '#147514';
+  const accentText = moduleVariant === 'sales' ? '#B63B32' : '#147514';
   const objectUrlsRef = useRef<Set<string>>(new Set());
   const didSaveRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -125,12 +129,11 @@ export function AttachmentsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-        {/* Header */}
-        <div className="bg-[#147514] dark:bg-[#0b3f1b] rounded-t-2xl px-6 py-4 flex items-center justify-between flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-gray-800">
+        <div className="flex flex-shrink-0 items-center justify-between px-6 py-4 text-white" style={{ backgroundColor: accent }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 dark:bg-white/10 rounded-lg flex items-center justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 dark:bg-white/10">
               <Paperclip className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -142,7 +145,7 @@ export function AttachmentsModal({
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
             aria-label={t.columnModal.close}
             type="button"
           >
@@ -150,9 +153,7 @@ export function AttachmentsModal({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Upload Area */}
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -160,14 +161,15 @@ export function AttachmentsModal({
             className={`
               border-2 border-dashed rounded-xl p-8 text-center transition-all
               ${isDragging
-                ? 'border-[#147514] bg-green-50 dark:bg-green-900/20'
-                : 'border-gray-300 dark:border-gray-600 hover:border-[#147514] dark:hover:border-[#147514]'
+                ? 'bg-slate-50 dark:bg-slate-900/20'
+                : 'border-gray-300 dark:border-gray-600'
               }
             `}
+            style={{ borderColor: isDragging ? accent : undefined }}
           >
             <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
-                <Upload className="w-8 h-8 text-[#147514]" />
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}1A` }}>
+                <Upload className="h-8 w-8" style={{ color: accentText }} />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 {t.expenses.attachments.dragTitle}
@@ -183,7 +185,7 @@ export function AttachmentsModal({
                   className="hidden"
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                 />
-                <span className="px-4 py-2 text-sm font-medium text-white bg-[#147514] hover:bg-[#0f5e0f] rounded-lg transition-colors inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors" style={{ backgroundColor: accent }}>
                   <Upload className="w-4 h-4" />
                   {t.expenses.attachments.selectFiles}
                 </span>
@@ -210,7 +212,7 @@ export function AttachmentsModal({
                 {files.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-[#147514] dark:hover:border-[#147514] transition-colors group"
+                    className="group flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-gray-600 dark:bg-gray-700/50"
                   >
                     {/* File Icon */}
                     <div className="flex-shrink-0">
@@ -278,23 +280,23 @@ export function AttachmentsModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-between items-center gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl flex-shrink-0">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 px-6 py-4 text-white" style={{ backgroundColor: accent }}>
+          <p className="text-xs text-white/80">
             {t.expenses.attachments.saveHint}
           </p>
           <div className="flex gap-3">
             <button
               onClick={onClose}
               type="button"
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/20"
             >
               {t.common.cancel}
             </button>
             <button
               onClick={handleSave}
               type="button"
-              className="px-5 py-2 text-sm font-medium text-white bg-[#147514] hover:bg-[#0f5e0f] rounded-lg transition-colors shadow-sm flex items-center gap-2"
+              className="flex items-center gap-2 rounded-xl bg-white px-5 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50"
+              style={{ color: accentText }}
             >
               <Paperclip className="w-4 h-4" />
               {t.expenses.attachments.saveFiles(files.length)}

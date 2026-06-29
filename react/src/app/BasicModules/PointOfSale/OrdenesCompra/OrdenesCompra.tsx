@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { buildSalesProductInputFromPointOfSale } from '../../CommerceCore/posProductMutations';
+import { toPointOfSaleProduct } from '../../CommerceCore/posCatalog';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
+import { useSalesCrm } from '../../Sales/salesCrmContext';
 import { CreatePurchaseOrderModal } from './components/CreatePurchaseOrderModal';
 import { PurchaseOrderDetailModal } from './components/PurchaseOrderDetailModal';
 import { PurchaseOrderFiltersBar } from './components/PurchaseOrderFilters';
@@ -12,8 +15,6 @@ import { ReceivePurchaseOrderModal } from './components/ReceivePurchaseOrderModa
 import { SupplierSubmissionDetailModal } from './components/SupplierSubmissionDetailModal';
 import { SupplierSubmissionKpis } from './components/SupplierSubmissionKpis';
 import { SupplierSubmissionsTable } from './components/SupplierSubmissionsTable';
-import { SupplierInvoiceModal } from './components/SupplierInvoiceModal';
-import { SupplierInvoicesPanel } from './components/SupplierInvoicesPanel';
 import { SupplierPortalAccessModal } from './components/SupplierPortalAccessModal';
 import { usePurchaseOrderWorkspace } from './hooks/usePurchaseOrderWorkspace';
 import type {
@@ -27,19 +28,19 @@ import type {
 
 export default function OrdenesCompra() {
   const { balanceLoadError, products, saleCurrency } = usePointOfSaleCatalogProducts();
+  const { createProductRecord } = useSalesCrm();
   const {
+    changeSupplierPortalAccessPin,
     createOrder,
     createSupplierPortalAccess,
     error,
     filteredOrders,
     filteredSupplierSubmissions,
     filters,
-    loading,
     notice,
     performOrderAction,
     providers,
     receiveOrder,
-    reload,
     reviewSupplierInvoice,
     reviewSupplierSubmission,
     saving,
@@ -51,12 +52,12 @@ export default function OrdenesCompra() {
     supplierPortalAccess,
     warehouses,
     convertSupplierSubmission,
+    updateSupplierPortalAccessStatus,
   } = usePurchaseOrderWorkspace();
 
   const [workspaceMode, setWorkspaceMode] = useState<PurchaseOrderWorkspaceMode>('orders');
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [showSupplierPortal, setShowSupplierPortal] = useState(false);
-  const [showSupplierInvoice, setShowSupplierInvoice] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<SupplierSubmission | null>(null);
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
@@ -94,6 +95,11 @@ export default function OrdenesCompra() {
     createSupplierPortalAccess(payload)
   );
 
+  const handleCreatePurchaseProduct = async (product: Partial<(typeof products)[number]>) => {
+    const savedProduct = await createProductRecord(buildSalesProductInputFromPointOfSale(product, saleCurrency));
+    return toPointOfSaleProduct(savedProduct);
+  };
+
   const openSubmissionConvert = (submission: SupplierSubmission) => {
     setSelectedSubmission(submission);
   };
@@ -101,11 +107,8 @@ export default function OrdenesCompra() {
   return (
     <div className="space-y-6">
       <PurchaseOrderHeader
-        onCreateInvoice={() => setShowSupplierInvoice(true)}
         onCreateOrder={() => setShowCreateOrder(true)}
         onManageSupplierPortal={() => setShowSupplierPortal(true)}
-        onRefresh={() => void reload()}
-        refreshing={loading}
       />
 
       {notice ? (
@@ -120,12 +123,6 @@ export default function OrdenesCompra() {
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error ?? balanceLoadError}</span>
         </div>
-      ) : null}
-
-      {(providers.length === 0 || warehouses.length === 0 || products.length === 0) ? (
-        <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-          Para comprar necesitas proveedores activos, almacenes POS y productos preparados para punto de venta. La orden queda bloqueada si falta cualquiera de esos tres datos.
-        </section>
       ) : null}
 
       <PurchaseOrderViewSwitcher
@@ -160,14 +157,9 @@ export default function OrdenesCompra() {
             invoices={supplierInvoices}
             orders={filteredOrders}
             onAction={handleOrderAction}
+            onInvoiceReview={handleInvoiceReview}
             onReceive={setReceivingOrder}
             onSelect={setSelectedOrder}
-          />
-
-          <SupplierInvoicesPanel
-            disabled={saving}
-            invoices={supplierInvoices}
-            onReview={handleInvoiceReview}
           />
         </>
       ) : (
@@ -189,17 +181,9 @@ export default function OrdenesCompra() {
           supplierLinks={supplierLinks}
           warehouses={warehouses}
           onClose={() => setShowCreateOrder(false)}
+          onCreateProduct={handleCreatePurchaseProduct}
           onSubmit={createOrder}
-        />
-      ) : null}
-
-      {showSupplierInvoice ? (
-        <SupplierInvoiceModal
-          orders={filteredOrders}
-          providers={providers}
-          saving={saving}
-          onClose={() => setShowSupplierInvoice(false)}
-          onSubmit={submitSupplierInvoice}
+          onSubmitInvoice={submitSupplierInvoice}
         />
       ) : null}
 
@@ -208,7 +192,9 @@ export default function OrdenesCompra() {
           accessList={supplierPortalAccess}
           providers={providers}
           saving={saving}
+          onChangePin={changeSupplierPortalAccessPin}
           onClose={() => setShowSupplierPortal(false)}
+          onStatusChange={updateSupplierPortalAccessStatus}
           onSubmit={handleCreateSupplierPortalAccess}
         />
       ) : null}

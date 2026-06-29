@@ -13,7 +13,7 @@ export type DemoSession = {
   email: string;
   companyName: string;
   companySlug: string;
-  role: 'demo-admin' | 'demo-user' | 'demo_admin';
+  role: 'demo-admin' | 'demo-user' | 'demo_admin' | 'superadmin';
   issuedAt: string;
 };
 

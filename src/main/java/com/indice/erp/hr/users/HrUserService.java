@@ -1263,6 +1263,7 @@ public class HrUserService {
                        e.pay_period,
                        e.salary_type,
                        e.hourly_rate,
+                       e.workday_hours,
                        e.contract_type,
                        e.contract_start_date,
                        e.contract_end_date,

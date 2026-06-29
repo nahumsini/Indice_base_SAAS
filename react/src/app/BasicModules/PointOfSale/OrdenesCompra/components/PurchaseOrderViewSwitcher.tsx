@@ -19,7 +19,7 @@ export function PurchaseOrderViewSwitcher({
         active={mode === 'orders'}
         count={orderCount}
         icon={ClipboardList}
-        label="Ordenes de compra"
+        label="Compras POS"
         onClick={() => onChange('orders')}
       />
       <SwitchButton

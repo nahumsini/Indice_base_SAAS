@@ -1,5 +1,6 @@
-import { CalendarDays, RotateCcw } from 'lucide-react';
+import { Search } from 'lucide-react';
 import {
+  type CortesDifferenceFilter,
   type CortesFilters,
   type CortesPeriodFilter,
   getCortesPeriodRange,
@@ -15,7 +16,6 @@ interface CortesFiltersBarProps {
   cashRegisters: CortesFilterOption[];
   filters: CortesFilters;
   onChange: <Key extends keyof CortesFilters>(key: Key, value: CortesFilters[Key]) => void;
-  onReset: () => void;
   warehouses: CortesFilterOption[];
 }
 
@@ -24,7 +24,6 @@ export function CortesFiltersBar({
   cashRegisters,
   filters,
   onChange,
-  onReset,
   warehouses,
 }: CortesFiltersBarProps) {
   const handlePeriodChange = (period: CortesPeriodFilter) => {
@@ -43,63 +42,59 @@ export function CortesFiltersBar({
   };
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="mb-4">
-            <h3 className="text-base font-bold text-slate-800 dark:text-white">Filtros</h3>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4">
-            <SelectField
-              label="Periodo"
-              value={filters.period}
-              options={periodOptions}
-              onChange={(value) => handlePeriodChange(value as CortesPeriodFilter)}
-            />
-            <SelectField
-              label="Almacén"
-              value={filters.warehouseId || 'all'}
-              options={[allOption('Todos'), ...warehouses]}
-              onChange={(value) => onChange('warehouseId', value === 'all' ? '' : value)}
-            />
-            <SelectField
-              label="Cajero"
-              value={filters.userId || 'all'}
-              options={[allOption('Todos'), ...cashiers]}
-              onChange={(value) => onChange('userId', value === 'all' ? '' : value)}
-            />
-            <SelectField
-              label="Caja"
-              value={filters.cashRegisterId || 'all'}
-              options={[allOption('Todos'), ...cashRegisters]}
-              onChange={(value) => onChange('cashRegisterId', value === 'all' ? '' : value)}
-            />
-          </div>
-
-          {filters.period === 'custom' ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:gap-4 xl:max-w-xl">
-              <DateInput label="Desde" value={filters.dateFrom} onChange={(value) => handleCustomDateChange('dateFrom', value)} />
-              <DateInput label="Hasta" value={filters.dateTo} onChange={(value) => handleCustomDateChange('dateTo', value)} />
-            </div>
-          ) : (
-            <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-              <CalendarDays className="h-4 w-4 text-[#FF6B5E]" />
-              <span className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Rango</span>
-              <span>{filters.dateFrom === filters.dateTo ? filters.dateFrom : `${filters.dateFrom} a ${filters.dateTo}`}</span>
-            </div>
-          )}
+    <section className="rounded-[20px] border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-slate-900 sm:p-5">
+      <div className="mb-4">
+        <div>
+          <h3 className="text-base font-black text-[#222831] dark:text-white">Filtros</h3>
+          <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            Filtra por jornada, contexto operativo y diferencias de caja.
+          </p>
         </div>
-
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex h-11 w-fit shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 xl:mt-9"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Limpiar
-        </button>
       </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <SearchField
+          value={filters.search}
+          onChange={(value) => onChange('search', value)}
+        />
+        <SelectField
+          label="Periodo"
+          value={filters.period}
+          options={periodOptions}
+          onChange={(value) => handlePeriodChange(value as CortesPeriodFilter)}
+        />
+        <SelectField
+          label="Diferencia"
+          value={filters.difference}
+          options={differenceOptions}
+          onChange={(value) => onChange('difference', value as CortesDifferenceFilter)}
+        />
+        <SelectField
+          label="Almacen"
+          value={filters.warehouseId || 'all'}
+          options={[allOption('Todos'), ...warehouses]}
+          onChange={(value) => onChange('warehouseId', value === 'all' ? '' : value)}
+        />
+        <SelectField
+          label="Caja"
+          value={filters.cashRegisterId || 'all'}
+          options={[allOption('Todos'), ...cashRegisters]}
+          onChange={(value) => onChange('cashRegisterId', value === 'all' ? '' : value)}
+        />
+        <SelectField
+          label="Cajero"
+          value={filters.userId || 'all'}
+          options={[allOption('Todos'), ...cashiers]}
+          onChange={(value) => onChange('userId', value === 'all' ? '' : value)}
+        />
+      </div>
+
+      {filters.period === 'custom' ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:max-w-xl">
+          <DateInput label="Desde" value={filters.dateFrom} onChange={(value) => handleCustomDateChange('dateFrom', value)} />
+          <DateInput label="Hasta" value={filters.dateTo} onChange={(value) => handleCustomDateChange('dateTo', value)} />
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -110,6 +105,14 @@ const periodOptions: Array<{ label: string; value: CortesPeriodFilter }> = [
   { label: 'Esta semana', value: 'week' },
   { label: 'Este mes', value: 'month' },
   { label: 'Personalizado', value: 'custom' },
+];
+
+const differenceOptions: Array<{ label: string; value: CortesDifferenceFilter }> = [
+  { label: 'Todos', value: 'all' },
+  { label: 'Cuadrados', value: 'balanced' },
+  { label: 'Con diferencia', value: 'withDifference' },
+  { label: 'Faltantes', value: 'short' },
+  { label: 'Sobrantes', value: 'over' },
 ];
 
 const allOption = (label: string): CortesFilterOption => ({ label, value: 'all' });
@@ -130,8 +133,32 @@ function DateInput({
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
       />
+    </label>
+  );
+}
+
+function SearchField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="space-y-2 md:col-span-2 xl:col-span-2">
+      <FilterLabel>Buscar</FilterLabel>
+      <span className="relative block">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Folio, caja, turno o usuario"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+        />
+      </span>
     </label>
   );
 }
@@ -153,7 +180,7 @@ function SelectField({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

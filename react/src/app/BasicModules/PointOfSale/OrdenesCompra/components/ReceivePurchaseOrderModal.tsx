@@ -39,15 +39,16 @@ export function ReceivePurchaseOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="w-full max-w-3xl overflow-hidden rounded-[24px] bg-white shadow-2xl dark:bg-slate-900">
-        <header className="bg-orange-500 px-6 py-5 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <header className="bg-[#FF6B5E] px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/75">Recepcion POS</p>
               <h3 className="text-2xl font-bold">Recibir mercancia</h3>
-              <p className="mt-1 text-sm font-medium text-white/85">{order.folio} · {order.warehouseName}</p>
+              <p className="mt-1 text-sm font-medium text-white/85">{order.folio} - {order.warehouseName}</p>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full p-2 text-white/80 hover:bg-white/10">
+            <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20" aria-label="Close modal">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -63,7 +64,7 @@ export function ReceivePurchaseOrderModal({
               <div>
                 <p className="font-bold text-slate-950 dark:text-white">{item.productName}</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Pendiente {item.pendingQuantity} · costo {formatMoney(item.unitCost, order.currencyCode)}
+                  Pendiente {item.pendingQuantity} - costo {formatMoney(item.unitCost, order.currencyCode)}
                 </p>
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 dark:bg-slate-950 dark:text-slate-200">
@@ -92,9 +93,12 @@ export function ReceivePurchaseOrderModal({
           </label>
         </main>
 
-        <footer className="flex justify-end gap-3 bg-orange-500 px-6 py-4">
-          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white hover:bg-white/10">Cancelar</button>
-          <button type="button" disabled={saving || receivableItems.length === 0} onClick={() => void submit()} className="h-11 rounded-xl bg-white px-5 text-sm font-bold text-orange-700 disabled:cursor-not-allowed disabled:opacity-60">Guardar recepcion</button>
+        <footer className="flex flex-col gap-3 bg-[#FF6B5E] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-white/85">{receivableItems.length} partidas pendientes por recibir</p>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={onClose} className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white hover:bg-white/10">Cancelar</button>
+            <button type="button" disabled={saving || receivableItems.length === 0} onClick={() => void submit()} className="h-11 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] disabled:cursor-not-allowed disabled:opacity-60">Guardar recepcion</button>
+          </div>
         </footer>
       </div>
     </div>

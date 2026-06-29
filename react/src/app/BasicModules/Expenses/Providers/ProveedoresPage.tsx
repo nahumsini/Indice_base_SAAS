@@ -229,6 +229,7 @@ export default function ProveedoresPage({
           expenseFolio={attachmentsProvider.folio}
           expenseConcept={attachmentsProvider.name}
           attachments={attachmentsProvider.attachments}
+          moduleVariant={variant === 'sales' ? 'sales' : 'finance'}
           onSave={saveProviderAttachments}
         />
       )}
@@ -238,6 +239,7 @@ export default function ProveedoresPage({
           businessOptions={effectiveBusinessOptions}
           unitOptions={effectiveUnitOptions}
           userOptions={userOptions}
+          variant={variant}
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleAddProvider}
         />
@@ -252,6 +254,7 @@ export default function ProveedoresPage({
           title={t.providers.edit}
           unitOptions={effectiveUnitOptions}
           userOptions={userOptions}
+          variant={variant}
           onClose={() => setEditingProvider(null)}
           onSubmit={handleEditProvider}
         />
@@ -259,6 +262,7 @@ export default function ProveedoresPage({
       {isColumnsModalOpen && (
         <ProviderColumnsModal
           columns={visibleColumns}
+          variant={variant}
           onApply={() => setIsColumnsModalOpen(false)}
           onClose={() => setIsColumnsModalOpen(false)}
           onHideOptional={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: Boolean(column.fixed) })))}

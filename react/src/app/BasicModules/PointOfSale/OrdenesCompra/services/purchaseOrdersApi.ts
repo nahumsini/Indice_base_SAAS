@@ -11,12 +11,15 @@ import type {
   PurchaseOrderReceivePayload,
   PurchaseOrderStatus,
   SupplierInvoice,
+  SupplierInvoiceDocumentUploadPayload,
   SupplierInvoiceListResponse,
   SupplierInvoicePayload,
   SupplierInvoiceStatus,
   SupplierPortalAccess,
   SupplierPortalAccessListResponse,
+  SupplierPortalAccessPinPayload,
   SupplierPortalAccessPayload,
+  SupplierPortalAccessStatusPayload,
   SupplierPortalContextResponse,
   SupplierPortalDocumentUploadPayload,
   SupplierPortalDocumentUploadResponse,
@@ -114,6 +117,20 @@ export const purchaseOrdersApi = {
     });
   },
 
+  updateSupplierPortalAccessStatus(accessId: number, payload: SupplierPortalAccessStatusPayload) {
+    return apiClient<SupplierPortalAccess>(`${posBasePath}/supplier-portal-access/${accessId}/status`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  changeSupplierPortalAccessPin(accessId: number, payload: SupplierPortalAccessPinPayload) {
+    return apiClient<SupplierPortalAccess>(`${posBasePath}/supplier-portal-access/${accessId}/pin`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   action(orderId: number, action: 'request' | 'approve' | 'send' | 'cancel', note?: string) {
     return apiClient<PurchaseOrder>(`${posBasePath}/purchase-orders/${orderId}/${action}`, {
       method: 'POST',
@@ -189,6 +206,36 @@ export const purchaseOrdersApi = {
       method: 'POST',
       body: JSON.stringify({ status, reviewNote: reviewNote ?? null }),
     });
+  },
+
+  presignSupplierInvoiceDocument(payload: SupplierInvoiceDocumentUploadPayload) {
+    return apiClient<SupplierPortalDocumentUploadResponse>(`${posBasePath}/supplier-invoices/presign-upload`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async uploadDocument(
+    uploadUrl: string,
+    file: File,
+    contentType: string,
+    uploadHeaders: Record<string, string> = {},
+  ) {
+    const headers = new Headers(uploadHeaders);
+
+    if (contentType && !headers.has('Content-Type')) {
+      headers.set('Content-Type', contentType);
+    }
+
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers,
+      body: file,
+    });
+
+    if (!response.ok) {
+      throw new Error('No se pudo subir el documento del proveedor.');
+    }
   },
 };
 

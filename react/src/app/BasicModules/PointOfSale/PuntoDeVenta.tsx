@@ -1,7 +1,5 @@
 import { lazy, Suspense } from 'react';
-import {
-  Home,
-} from 'lucide-react';
+import { Home } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -11,9 +9,10 @@ import { SalesCrmProvider } from '../Sales/salesCrmContext';
 
 const Sale = lazy(() => import('./Sale/Sale'));
 const Cortes = lazy(() => import('./Cortes'));
-const Clientes = lazy(() => import('./Clientes'));
-const Productos = lazy(() => import('./Productos'));
-const Inventario = lazy(() => import('./Inventario'));
+const Clientes = lazy(() => import('../Sales/Contactos'));
+const Productos = lazy(() => import('../Sales/Productos'));
+const Inventario = lazy(() => import('../Sales/Inventory'));
+const Proveedores = lazy(() => import('../Sales/Providers'));
 const OrdenesCompra = lazy(() => import('./OrdenesCompra'));
 const Facturacion = lazy(() => import('./Facturacion'));
 const Descuentos = lazy(() => import('./Descuentos'));
@@ -30,6 +29,7 @@ const pointOfSaleTabIds = [
   'clientes',
   'productos',
   'inventario',
+  'proveedores',
   'ordenesCompra',
   'facturacion',
   'descuentos',
@@ -41,9 +41,21 @@ type PointOfSaleTabId = (typeof pointOfSaleTabIds)[number];
 
 const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
   venta: 'sale',
+  contacts: 'clientes',
+  contactos: 'clientes',
+  customers: 'clientes',
+  clientes: 'clientes',
   productos: 'productos',
+  products: 'productos',
+  inventory: 'inventario',
+  inventario: 'inventario',
+  providers: 'proveedores',
+  proveedores: 'proveedores',
+  suppliers: 'proveedores',
   ordenesCompra: 'ordenesCompra',
   ordenes_compra: 'ordenesCompra',
+  purchaseOrders: 'ordenesCompra',
+  purchase_orders: 'ordenesCompra',
   credito: 'credito',
   credit: 'credito',
 };
@@ -70,6 +82,7 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
     { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👥', component: Clientes },
     { id: 'productos' as const, label: t.tabs.productos, emoji: '🛍️', component: Productos },
     { id: 'inventario' as const, label: t.tabs.inventario, emoji: '🏬', component: Inventario },
+    { id: 'proveedores' as const, label: t.tabs.proveedores, emoji: '🏢', component: Proveedores },
     { id: 'ordenesCompra' as const, label: t.tabs.ordenesCompra, emoji: '📋', component: OrdenesCompra },
     { id: 'facturacion' as const, label: t.tabs.facturacion, emoji: '🧾', component: Facturacion },
     { id: 'descuentos' as const, label: t.tabs.descuentos, emoji: '🏷️', component: Descuentos },
@@ -77,8 +90,7 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
     { id: 'kpis' as const, label: t.tabs.kpis, emoji: '📊', component: KPIs },
   ];
 
-  // Get the active component
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || Sale;
+  const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || Sale;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -90,14 +102,14 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
 
       <header className="border-b border-gray-200 bg-white px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
         <div className="mx-auto max-w-[1600px]">
-          <FavoritesBar 
+          <FavoritesBar
             onNavigate={(page) => {
               if (page === 'point-of-sale') return;
               onNavigate(page);
-            }} 
-            currentModule="point-of-sale" 
+            }}
+            currentModule="point-of-sale"
           />
-          
+
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -107,8 +119,8 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
                 {t.subtitle}
               </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => onNavigate()}
               className="gap-2 rounded-xl border-gray-200 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
             >
@@ -141,7 +153,6 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
         </div>
       </header>
 
-      {/* Contenido del tab activo */}
       <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
         <Suspense
           fallback={(

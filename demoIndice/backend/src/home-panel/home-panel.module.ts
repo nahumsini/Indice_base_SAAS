@@ -7,6 +7,7 @@ import { ConfigCenterController } from './config-center.controller';
 import { ConfigCenterRepository } from './config-center.repository';
 import { ConfigCenterService } from './config-center.service';
 import { DashboardController } from './dashboard.controller';
+import { DemoModuleDataController } from './demo-module-data.controller';
 import { SupportController } from './support.controller';
 import { UsersDisabledController } from './users-disabled.controller';
 import { UsersService } from './users.service';
@@ -16,6 +17,7 @@ import { UsersService } from './users.service';
   controllers: [
     ConfigCenterController,
     DashboardController,
+    DemoModuleDataController,
     SupportController,
     UsersDisabledController,
   ],

@@ -98,16 +98,16 @@ export function SupplierSubmissionDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl dark:bg-slate-900">
-        <header className="bg-orange-500 px-6 py-5 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <header className="bg-[#FF6B5E] px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-white/75">Propuesta proveedor</p>
               <h3 className="mt-1 text-2xl font-bold">{submission.submissionNumber}</h3>
-              <p className="mt-1 text-sm font-medium text-white/85">{submission.providerName} · {formatMoney(submission.totalAmount, submission.currencyCode)}</p>
+              <p className="mt-1 text-sm font-medium text-white/85">{submission.providerName} - {formatMoney(submission.totalAmount, submission.currencyCode)}</p>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full p-2 text-white/80 hover:bg-white/10">
+            <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20" aria-label="Close modal">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -190,20 +190,24 @@ export function SupplierSubmissionDetailModal({
               </button>
             </section>
 
-            <section className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-500/30 dark:bg-orange-500/10">
+            <section className="rounded-2xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4 dark:border-[#FF6B5E]/30 dark:bg-[#FF6B5E]/10">
               <h4 className="font-bold text-slate-950 dark:text-white">Convertir a OC</h4>
-              <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="mt-3 h-11 w-full rounded-xl border border-orange-200 bg-white px-3 text-sm font-bold text-slate-950 dark:border-orange-500/30 dark:bg-slate-900 dark:text-white">
+              <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="mt-3 h-11 w-full rounded-xl border border-[#FF6B5E]/25 bg-white px-3 text-sm font-bold text-slate-950 dark:border-[#FF6B5E]/30 dark:bg-slate-900 dark:text-white">
                 {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
               </select>
-              <input type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} className="mt-3 h-11 w-full rounded-xl border border-orange-200 bg-white px-3 text-sm font-bold text-slate-950 dark:border-orange-500/30 dark:bg-slate-900 dark:text-white" />
-              <textarea value={convertNote} onChange={(event) => setConvertNote(event.target.value)} placeholder="Nota para la orden" className="mt-3 min-h-20 w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm font-medium text-slate-950 dark:border-orange-500/30 dark:bg-slate-900 dark:text-white" />
-              <button type="button" disabled={saving || !canConvert || numberFrom(submission.totalAmount) <= 0} onClick={() => void submitConvert()} className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
+              <input type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} className="mt-3 h-11 w-full rounded-xl border border-[#FF6B5E]/25 bg-white px-3 text-sm font-bold text-slate-950 dark:border-[#FF6B5E]/30 dark:bg-slate-900 dark:text-white" />
+              <textarea value={convertNote} onChange={(event) => setConvertNote(event.target.value)} placeholder="Nota para la orden" className="mt-3 min-h-20 w-full rounded-xl border border-[#FF6B5E]/25 bg-white px-3 py-2 text-sm font-medium text-slate-950 dark:border-[#FF6B5E]/30 dark:bg-slate-900 dark:text-white" />
+              <button type="button" disabled={saving || !canConvert || numberFrom(submission.totalAmount) <= 0} onClick={() => void submitConvert()} className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
                 <ArrowRight className="h-4 w-4" />
                 Convertir a orden
               </button>
             </section>
           </aside>
         </div>
+        <footer className="flex flex-col gap-3 bg-[#FF6B5E] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-white/85">{submission.items.length} partidas - Total {formatMoney(submission.totalAmount, submission.currencyCode)}</p>
+          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white hover:bg-white/10">Cerrar</button>
+        </footer>
       </div>
     </div>
   );
@@ -211,7 +215,7 @@ export function SupplierSubmissionDetailModal({
 
 function Summary({ highlight = false, label, value }: { highlight?: boolean; label: string; value: string }) {
   return (
-    <div className={`rounded-2xl border p-4 ${highlight ? 'border-orange-200 bg-orange-50 dark:border-orange-500/30 dark:bg-orange-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950'}`}>
+    <div className={`rounded-2xl border p-4 ${highlight ? 'border-[#FF6B5E]/25 bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-[#FF6B5E]/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950'}`}>
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{label}</p>
       <p className="mt-2 text-lg font-bold text-slate-950 dark:text-white">{value}</p>
     </div>
