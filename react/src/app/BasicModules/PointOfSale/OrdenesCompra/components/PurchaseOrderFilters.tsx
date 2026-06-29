@@ -74,7 +74,7 @@ export function PurchaseOrderFiltersBar({
 
   return (
     <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Filtros</h3>
+      <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Filtros de compra</h3>
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(260px,1.4fr)_repeat(6,minmax(150px,1fr))]">
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Buscar</span>
@@ -95,7 +95,7 @@ export function PurchaseOrderFiltersBar({
                 <option key={status} value={status}>{status === 'ALL' ? 'Todos' : purchaseOrderStatusLabels[status]}</option>
               ))}
             </SelectField>
-            <SelectField label="Origen" value={filters.origin} onChange={(value) => update('origin', value as PurchaseOrderFilters['origin'])}>
+            <SelectField label="Canal" value={filters.origin} onChange={(value) => update('origin', value as PurchaseOrderFilters['origin'])}>
               {origins.map((origin) => (
                 <option key={origin} value={origin}>{origin === 'ALL' ? 'Todos' : purchaseOrderOriginLabels[origin]}</option>
               ))}
@@ -108,7 +108,7 @@ export function PurchaseOrderFiltersBar({
                 <option key={status} value={status}>{status === 'ALL' ? 'Todos' : supplierSubmissionStatusLabels[status]}</option>
               ))}
             </SelectField>
-            <ReadOnlyField label="Origen" value="Kiosko proveedor" />
+            <ReadOnlyField label="Canal" value="Kiosko proveedor" />
           </>
         )}
         <SelectField label="Proveedor" value={String(filters.providerId)} onChange={(value) => update('providerId', value === 'ALL' ? 'ALL' : Number(value))}>
@@ -119,8 +119,8 @@ export function PurchaseOrderFiltersBar({
           <option value="ALL">Todos</option>
           {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
         </SelectField>
-        <InputField label="Desde" type="date" value={filters.dateFrom} onChange={(value) => update('dateFrom', value)} />
-        <InputField label="Hasta" type="date" value={filters.dateTo} onChange={(value) => update('dateTo', value)} />
+        <InputField label="Esperado desde" type="date" value={filters.dateFrom} onChange={(value) => update('dateFrom', value)} />
+        <InputField label="Esperado hasta" type="date" value={filters.dateTo} onChange={(value) => update('dateTo', value)} />
       </div>
     </section>
   );

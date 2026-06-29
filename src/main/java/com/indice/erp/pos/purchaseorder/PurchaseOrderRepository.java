@@ -608,6 +608,42 @@ public class PurchaseOrderRepository {
             """, this::mapSupplierPortalAccess, params.toArray()).stream().findFirst();
     }
 
+    public boolean updateSupplierPortalAccessStatus(PosContext context, long accessId, String status) {
+        var params = new ArrayList<Object>();
+        params.add(normalizePortalStatus(status));
+        params.add(context.userId());
+        params.add(context.companyId());
+        params.add(accessId);
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access access
+            JOIN finance_providers provider ON provider.id = access.provider_id
+            SET access.status = ?, access.expires_at = NULL, access.updated_by_user_id = ?,
+                access.updated_at = CURRENT_TIMESTAMP
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
+            """, params.toArray()) > 0;
+    }
+
+    public boolean updateSupplierPortalAccessPin(PosContext context, long accessId, String pinHash) {
+        var params = new ArrayList<Object>();
+        params.add(pinHash);
+        params.add(context.userId());
+        params.add(context.companyId());
+        params.add(accessId);
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access access
+            JOIN finance_providers provider ON provider.id = access.provider_id
+            SET access.pin_hash = ?, access.expires_at = NULL, access.updated_by_user_id = ?,
+                access.updated_at = CURRENT_TIMESTAMP
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
+            """, params.toArray()) > 0;
+    }
+
     public Optional<SupplierPortalAccessRecord> findSupplierPortalAccessByCode(String portalCode) {
         return jdbcTemplate.query("""
             SELECT access.*, provider.name AS provider_name, provider.email AS provider_email
@@ -1114,12 +1150,13 @@ public class PurchaseOrderRepository {
     }
 
     private String warehouseScopePredicate(PosScope scope) {
-        return switch (scope.type()) {
+        var predicate = switch (scope.type()) {
             case CORPORATE_OFFICE -> "1 = 1";
             case UNIT_HEADQUARTERS -> "(CAST(warehouse.business_unit_id AS UNSIGNED) = ? OR CAST(warehouse.business_id AS UNSIGNED) IN "
                 + "(SELECT id FROM businesses WHERE unit_id = ?))";
             case BUSINESS_OFFICE -> "CAST(warehouse.business_id AS UNSIGNED) = ?";
         };
+        return " " + predicate + " ";
     }
 
     private void appendWarehouseScopeParams(List<Object> params, PosScope scope) {

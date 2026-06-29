@@ -13,6 +13,7 @@ import type {
   SupplierInvoicePayload,
   SupplierInvoiceStatus,
   SupplierPortalAccess,
+  SupplierPortalAccessStatus,
   SupplierPortalAccessPayload,
   SupplierSubmission,
   SupplierSubmissionConvertPayload,
@@ -110,23 +111,33 @@ export function usePurchaseOrderWorkspace() {
 
   const filteredOrders = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
-    if (!query) return orders;
     return orders.filter((order) => (
-      `${order.folio} ${order.providerName} ${order.warehouseName} ${order.notes ?? ''}`
-        .toLowerCase()
-        .includes(query)
+      (!query
+        || `${order.folio} ${order.providerName} ${order.warehouseName} ${order.notes ?? ''}`
+          .toLowerCase()
+          .includes(query))
+      && (filters.status === 'ALL' || order.status === filters.status)
+      && (filters.origin === 'ALL' || order.origin === filters.origin)
+      && (filters.providerId === 'ALL' || order.providerId === filters.providerId)
+      && (filters.warehouseId === 'ALL' || order.warehouseId === filters.warehouseId)
+      && (!filters.dateFrom || (order.expectedDate ?? '') >= filters.dateFrom)
+      && (!filters.dateTo || (order.expectedDate ?? '') <= filters.dateTo)
     ));
-  }, [filters.query, orders]);
+  }, [filters, orders]);
 
   const filteredSupplierSubmissions = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
-    if (!query) return supplierSubmissions;
     return supplierSubmissions.filter((submission) => (
-      `${submission.submissionNumber} ${submission.providerName} ${submission.submittedByName ?? ''} ${submission.notes ?? ''}`
-        .toLowerCase()
-        .includes(query)
+      (!query
+        || `${submission.submissionNumber} ${submission.providerName} ${submission.submittedByName ?? ''} ${submission.notes ?? ''}`
+          .toLowerCase()
+          .includes(query))
+      && (filters.submissionStatus === 'ALL' || submission.status === filters.submissionStatus)
+      && (filters.providerId === 'ALL' || submission.providerId === filters.providerId)
+      && (!filters.dateFrom || (submission.submittedAt?.slice(0, 10) ?? '') >= filters.dateFrom)
+      && (!filters.dateTo || (submission.submittedAt?.slice(0, 10) ?? '') <= filters.dateTo)
     ));
-  }, [filters.query, supplierSubmissions]);
+  }, [filters, supplierSubmissions]);
 
   const mutate = useCallback(async <T,>(operation: () => Promise<T>, successMessage: string) => {
     setSaving(true);
@@ -165,6 +176,17 @@ export function usePurchaseOrderWorkspace() {
     mutate(() => purchaseOrdersApi.createSupplierPortalAccess(payload), 'Acceso de proveedor listo para compartir.')
   ), [mutate]);
 
+  const updateSupplierPortalAccessStatus = useCallback((accessId: number, status: SupplierPortalAccessStatus) => (
+    mutate(
+      () => purchaseOrdersApi.updateSupplierPortalAccessStatus(accessId, { status }),
+      status === 'ACTIVE' ? 'Acceso de proveedor activado.' : 'Acceso de proveedor desactivado.',
+    )
+  ), [mutate]);
+
+  const changeSupplierPortalAccessPin = useCallback((accessId: number, pin: string) => (
+    mutate(() => purchaseOrdersApi.changeSupplierPortalAccessPin(accessId, { pin }), 'NIP de proveedor actualizado.')
+  ), [mutate]);
+
   const reviewSupplierInvoice = useCallback((invoiceId: number, status: SupplierInvoiceStatus, reviewNote?: string) => (
     mutate(() => purchaseOrdersApi.reviewSupplierInvoice(invoiceId, status, reviewNote), 'Factura de proveedor actualizada.')
   ), [mutate]);
@@ -179,6 +201,7 @@ export function usePurchaseOrderWorkspace() {
 
   return {
     convertSupplierSubmission,
+    changeSupplierPortalAccessPin,
     createSupplierPortalAccess,
     createOrder,
     error,
@@ -202,6 +225,7 @@ export function usePurchaseOrderWorkspace() {
     supplierLinks,
     supplierPortalAccess,
     supplierSubmissions,
+    updateSupplierPortalAccessStatus,
     warehouses,
   };
 }

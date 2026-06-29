@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS demo_account_users (
   phone VARCHAR(40) NULL,
   country VARCHAR(10) NULL,
   preferred_language VARCHAR(20) NOT NULL DEFAULT 'en-CA',
-  role ENUM('demo_admin') NOT NULL DEFAULT 'demo_admin',
+  role ENUM('demo_admin', 'superadmin') NOT NULL DEFAULT 'superadmin',
   status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

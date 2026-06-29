@@ -22,9 +22,9 @@ export function SupplierInvoicesPanel({
     <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Facturas de proveedor</h3>
+          <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Facturas por conciliar</h3>
           <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-            Cola operativa para conciliar facturas y dejarlas listas para pago.
+            Valida que la factura corresponda a la compra recibida antes de mandarla a pago.
           </p>
         </div>
         <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

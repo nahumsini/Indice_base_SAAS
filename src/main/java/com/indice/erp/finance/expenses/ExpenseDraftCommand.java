@@ -10,6 +10,7 @@ record ExpenseDraftCommand(
     Long budgetLineId,
     Long accountingAccountId,
     Long paymentAccountId,
+    Long purchaseOrderId,
     String folio,
     String concept,
     String description,

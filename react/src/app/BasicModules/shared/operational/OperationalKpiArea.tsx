@@ -150,7 +150,7 @@ export function OperationalKpiArea({
         <div className="flex gap-x-4 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
           {metrics.map((metric, index) => (
             <div key={metric.id} className="flex items-center gap-4">
-              {index > 0 ? <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span> : null}
+              {index > 0 ? <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">|</span> : null}
               <OperationalKpiMetricItem {...metric} />
             </div>
           ))}

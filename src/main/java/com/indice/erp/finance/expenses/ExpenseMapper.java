@@ -83,7 +83,7 @@ public class ExpenseMapper {
             CreateExpenseRequest request,
             ExpenseScopedAssignment assignment) {
         return newCommand(context, assignment, request.providerId(), request.budgetLineId(),
-            request.accountingAccountId(), request.paymentAccountId(), request.folio(), request.concept(),
+            request.accountingAccountId(), request.paymentAccountId(), request.purchaseOrderId(), request.folio(), request.concept(),
             request.description(), request.expenseType(), request.subtotalAmount(), request.taxAmount(),
             request.totalAmount(), request.currencyCode(), request.expenseDate(), request.dueDate(),
             defaultUserId(request.requestedByUserId(), context.userId()), request.approvedByUserId(),
@@ -97,7 +97,7 @@ public class ExpenseMapper {
             ExpenseScopedAssignment assignment,
             ExpenseRecord existing) {
         return newCommand(context, assignment, request.providerId(), request.budgetLineId(),
-            request.accountingAccountId(), request.paymentAccountId(), request.folio(), request.concept(),
+            request.accountingAccountId(), request.paymentAccountId(), request.purchaseOrderId(), request.folio(), request.concept(),
             request.description(), request.expenseType(), request.subtotalAmount(), request.taxAmount(),
             request.totalAmount(), request.currencyCode(), request.expenseDate(), request.dueDate(),
             defaultUserId(request.requestedByUserId(), defaultUserId(existing.requestedByUserId(), context.userId())),
@@ -112,6 +112,7 @@ public class ExpenseMapper {
             Long budgetLineId,
             Long accountingAccountId,
             Long paymentAccountId,
+            Long purchaseOrderId,
             String folio,
             String concept,
             String description,
@@ -130,7 +131,7 @@ public class ExpenseMapper {
             boolean create) {
         return new ExpenseDraftCommand(
             assignment.unitId(), assignment.businessId(), providerId, budgetLineId, accountingAccountId,
-            paymentAccountId, trim(folio), trim(concept), trim(description), expenseType, subtotal, tax,
+            paymentAccountId, purchaseOrderId, trim(folio), trim(concept), trim(description), expenseType, subtotal, tax,
             total, BigDecimal.ZERO, total, currencyCode.trim().toUpperCase(Locale.ROOT), expenseDate, dueDate,
             requestedByUserId, approvedByUserId, performedByUserId, create ? context.userId() : null,
             create ? null : context.userId(), customFieldsJson, metadataJson

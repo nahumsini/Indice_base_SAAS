@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, DollarSign, Landmark, Loader2, RotateCw, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, DollarSign, Landmark, Loader2, RotateCw } from 'lucide-react';
+import { PosModalFrame } from './PosModalFrame';
 import type { PosCashMovementType } from '../services/posBackendApi';
 
 interface CashMovementModalProps {
@@ -120,37 +121,44 @@ export function CashMovementModal({
   const ActiveIcon = activeOption.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800">
-        <div className="flex items-center justify-between bg-gray-950 px-6 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15">
-              <ActiveIcon className="h-6 w-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold text-white">Movimiento de efectivo</h2>
-              <p className="truncate text-xs text-white/70">Registra ajustes operativos del turno actual.</p>
-            </div>
-          </div>
+    <PosModalFrame
+      closeLabel="Cerrar movimiento de efectivo"
+      eyebrow="Caja operativa"
+      icon={<ActiveIcon className="h-6 w-6" />}
+      isCloseDisabled={isSubmitting}
+      onClose={onClose}
+      size="md"
+      subtitle="Registra ajustes operativos del turno actual."
+      title="Movimiento de efectivo"
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-lg p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Cerrar movimiento de efectivo"
+            className="min-h-14 flex-1 rounded-2xl border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
           >
-            <X className="h-5 w-5" />
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={isSubmitting || !amount || Number(amount) <= 0 || !reason.trim()}
+            className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FF6B5E] px-6 py-3 text-base font-black text-white shadow-sm transition hover:bg-[#ff5a4b] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+          >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Registrando...' : 'Registrar movimiento'}
           </button>
         </div>
-
-        <div className="space-y-5 p-6">
+      )}
+    >
+        <div className="space-y-5">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
 
           <div>
-            <p className="mb-2 text-sm font-bold text-gray-700 dark:text-gray-300">Tipo de movimiento</p>
+            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Tipo de movimiento</p>
             <div className="grid gap-2 sm:grid-cols-4">
               {movementOptions.map((option) => {
                 const Icon = option.icon;
@@ -161,10 +169,10 @@ export function CashMovementModal({
                     key={option.type}
                     type="button"
                     onClick={() => setType(option.type)}
-                    className={`rounded-lg border-2 p-3 text-left transition-all ${
+                    className={`min-h-24 rounded-2xl border-2 p-4 text-left transition-all active:scale-[0.98] ${
                       isActive
                         ? option.tone
-                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300'
+                      : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300'
                     }`}
                   >
                     <Icon className="mb-2 h-5 w-5" />
@@ -178,7 +186,7 @@ export function CashMovementModal({
 
           <div className="grid gap-4 md:grid-cols-[1fr_0.8fr]">
             <div>
-              <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
                 Monto
               </label>
               <div className="relative">
@@ -191,14 +199,14 @@ export function CashMovementModal({
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   placeholder="0.00"
-                  className="w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-12 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white py-3 pl-12 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
             </div>
 
             <div>
-              <p className="mb-2 text-sm font-bold text-gray-700 dark:text-gray-300">Vista previa</p>
-              <div className={`rounded-lg border-2 p-4 ${activeOption.tone}`}>
+              <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Vista previa</p>
+              <div className={`rounded-2xl border-2 p-4 ${activeOption.tone}`}>
                 <p className="text-xs font-black uppercase">{activeOption.label}</p>
                 <p className="mt-1 text-2xl font-black">
                   {formatCurrency(Number(amount) || 0, currency)}
@@ -208,14 +216,14 @@ export function CashMovementModal({
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-bold text-gray-700 dark:text-gray-300">Montos rapidos</p>
-            <div className="grid grid-cols-4 gap-2">
+            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Montos rapidos</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[100, 200, 500, 1000].map((value) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => handleQuickAmount(value)}
-                  className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-bold text-gray-900 hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                 >
                   {formatCurrency(value, currency)}
                 </button>
@@ -225,7 +233,7 @@ export function CashMovementModal({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
                 Motivo
               </label>
               <input
@@ -233,12 +241,12 @@ export function CashMovementModal({
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Describe el motivo"
-                className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
                 Referencia
               </label>
               <input
@@ -246,20 +254,20 @@ export function CashMovementModal({
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
                 placeholder="Opcional"
-                className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-bold text-gray-700 dark:text-gray-300">Motivos comunes</p>
+            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Motivos comunes</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {commonReasons[type].map((reasonOption) => (
                 <button
                   key={reasonOption}
                   type="button"
                   onClick={() => setReason(reasonOption)}
-                  className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold transition-all ${
+                  className={`min-h-12 rounded-2xl border px-3 py-2 text-left text-sm font-black transition-all active:scale-[0.98] ${
                     reason === reasonOption
                       ? activeOption.tone
                       : 'border-gray-300 bg-gray-50 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300'
@@ -271,25 +279,6 @@ export function CashMovementModal({
             </div>
           </div>
         </div>
-
-        <div className="flex gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="flex-1 rounded-lg px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={isSubmitting || !amount || Number(amount) <= 0 || !reason.trim()}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Registrando...' : 'Registrar movimiento'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }

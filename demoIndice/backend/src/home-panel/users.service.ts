@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { SessionContext } from '../common/types/session-context';
+import { demoModules, demoModuleSlugs, demoTabPermissionKeys } from '../common/demo-access';
 import { ConfigCenterRepository } from './config-center.repository';
 
 @Injectable()
@@ -15,18 +16,12 @@ export class UsersService {
       apellidos: user.last_name,
       email: user.email,
       telefono: user.phone,
-      role: 'Admin',
+      role: 'Super Admin',
       status: 'active',
       source: 'demo',
       is_protected: true,
-      module_slugs: ['config_center'],
-      tab_permission_keys: [
-        'config_center.profile',
-        'config_center.business-structure',
-        'config_center.business-profile',
-        'config_center.personal-performance',
-        'config_center.users',
-      ],
+      module_slugs: demoModuleSlugs,
+      tab_permission_keys: demoTabPermissionKeys,
       tab_permissions_configured: true,
     }] : [];
 
@@ -36,7 +31,7 @@ export class UsersService {
       catalog: {
         units: [],
         businesses: [],
-        modules: [{ slug: 'config_center', name: 'Home Panel' }],
+        modules: demoModules.map(({ slug, name }) => ({ slug, name })),
         tabs: [],
       },
     };

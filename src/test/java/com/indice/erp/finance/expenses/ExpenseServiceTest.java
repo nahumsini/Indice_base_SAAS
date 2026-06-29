@@ -162,6 +162,7 @@ class ExpenseServiceTest {
             null,
             null,
             null,
+            null,
             folio,
             "Office supplies",
             "Monthly office supplies",
@@ -184,6 +185,7 @@ class ExpenseServiceTest {
         return new UpdateExpenseRequest(
             unitId,
             businessId,
+            null,
             null,
             null,
             null,

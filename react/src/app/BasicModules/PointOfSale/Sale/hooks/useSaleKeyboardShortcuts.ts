@@ -25,7 +25,16 @@ export function useSaleKeyboardShortcuts({
 }: UseSaleKeyboardShortcutsOptions) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.target === barcodeInputRef.current || isModalOpen) {
+      const target = event.target;
+      const isTypingTarget = target instanceof HTMLElement
+        && (
+          target.tagName === 'INPUT'
+          || target.tagName === 'TEXTAREA'
+          || target.tagName === 'SELECT'
+          || target.isContentEditable
+        );
+
+      if (event.target === barcodeInputRef.current || isTypingTarget || isModalOpen) {
         return;
       }
 

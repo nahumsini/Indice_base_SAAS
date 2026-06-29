@@ -12,9 +12,9 @@ import {
   Store,
   User,
   Warehouse,
-  X,
   type LucideIcon,
 } from 'lucide-react';
+import { PosModalFrame } from './PosModalFrame';
 import {
   businessCurrencyOptions,
   formatBusinessCurrencyAmount,
@@ -230,31 +230,34 @@ export function OpenShiftModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800">
-        <div className="flex items-center justify-between bg-gray-950 px-6 py-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
-              <LogIn className="h-6 w-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-black text-white">Abrir caja</h2>
-              <p className="truncate text-sm font-semibold text-white/70">
-                Selecciona unidad, negocio, almacén y caja para iniciar operación.
-              </p>
-            </div>
-          </div>
+    <PosModalFrame
+      closeLabel="Cerrar apertura de caja"
+      eyebrow="Inicio de turno"
+      icon={<LogIn className="h-6 w-6" />}
+      isCloseDisabled={isSubmitting}
+      onClose={onClose}
+      size="lg"
+      subtitle="Selecciona contexto, divisa y fondo inicial para iniciar el turno."
+      title="Abrir caja"
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="Cerrar apertura de caja"
+            className="min-h-14 rounded-2xl border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
           >
-            <X className="h-5 w-5" />
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={isSubmitting || hasWarehouseBlocker || hasIncompleteContext || hasRegisterBlocker || !registerContext}
+            className="min-h-14 rounded-2xl bg-[#FF6B5E] px-8 py-3 text-base font-black text-white shadow-sm transition hover:bg-[#ff5a4b] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+          >
+            {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
           </button>
         </div>
-
-        <div className="min-h-0 overflow-y-auto p-6">
+      )}
+    >
           <div className="mb-5 grid gap-3 md:grid-cols-3">
             <SetupTile icon={Warehouse} label="Almacén" complete={warehouses.length > 0} active={hasWarehouseBlocker} />
             <SetupTile icon={Monitor} label="Caja" complete={activeRegisters.length > 0} active={!hasWarehouseBlocker && activeRegisters.length === 0} />
@@ -443,26 +446,7 @@ export function OpenShiftModal({
               </div>
             </section>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700 sm:flex-row sm:justify-end">
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="rounded-xl px-6 py-3 text-base font-bold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={isSubmitting || hasWarehouseBlocker || hasIncompleteContext || hasRegisterBlocker || !registerContext}
-            className="rounded-xl bg-orange-600 px-8 py-3 text-base font-black text-white shadow-sm transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }
 

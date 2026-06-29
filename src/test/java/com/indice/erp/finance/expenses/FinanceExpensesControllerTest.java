@@ -150,6 +150,7 @@ class FinanceExpensesControllerTest {
             null,
             null,
             null,
+            null,
             "EXP-001",
             "Office supplies",
             "Monthly office supplies",
@@ -170,6 +171,7 @@ class FinanceExpensesControllerTest {
 
     private UpdateExpenseRequest updateRequest() {
         return new UpdateExpenseRequest(
+            null,
             null,
             null,
             null,

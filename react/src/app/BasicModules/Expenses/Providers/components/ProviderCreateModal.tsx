@@ -10,6 +10,7 @@ import {
   type ProviderStatus,
   type ProviderType,
 } from '../useProveedoresLogic';
+import { getProviderModalTheme, type ProviderModalVariant } from './providerModalTheme';
 
 type ProviderCreateModalProps = {
   accountingAccountOptions: FinanceReferenceOption[];
@@ -20,6 +21,7 @@ type ProviderCreateModalProps = {
   title?: string;
   unitOptions: FinanceReferenceOption[];
   userOptions: FinanceReferenceOption[];
+  variant?: ProviderModalVariant;
   onClose: () => void;
   onSubmit: (values: ProviderFormValues) => void | Promise<void>;
 };
@@ -52,10 +54,12 @@ export function ProviderCreateModal({
   title,
   unitOptions,
   userOptions,
+  variant = 'finance',
   onClose,
   onSubmit,
 }: ProviderCreateModalProps) {
   const t = useFinanceTranslations();
+  const theme = getProviderModalTheme(variant);
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<ProviderFormValues>(formInitialValues);
   const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
@@ -114,13 +118,13 @@ export function ProviderCreateModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
       <form onSubmit={handleSubmit} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#147514]">
+        <div className="flex items-start justify-between gap-4 px-6 py-4 text-white" style={{ backgroundColor: theme.accent }}>
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
               <Building2 className="h-5 w-5" />
             </span>
             <div>
-              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">
+              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold shadow-sm" style={{ color: theme.accentText }}>
                 {t.providers.modal.stepOf(stepIndex + 1, steps.length)}
               </div>
               <h2 className="text-xl font-bold text-white">{effectiveTitle}</h2>
@@ -139,7 +143,7 @@ export function ProviderCreateModal({
             {t.providers.modal.stepOf(stepIndex + 1, steps.length)}
           </p>
           <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-            <div className="h-full rounded-full bg-[#147514] transition-all duration-300 ease-out" style={{ width: progressPercentage }} />
+            <div className="h-full rounded-full transition-all duration-300 ease-out" style={{ width: progressPercentage, backgroundColor: theme.accent }} />
           </div>
           <div className="overflow-x-auto pb-1">
             <div className="grid min-w-[720px] grid-cols-4 gap-3">
@@ -148,9 +152,18 @@ export function ProviderCreateModal({
                 const isActive = stepIndex === step.id;
                 const isCompleted = stepIndex > step.id;
                 return (
-                  <button key={step.id} type="button" onClick={() => canContinue && setStepIndex(step.id)} className={`flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${isActive ? 'border-[#147514]/40 bg-[#147514]/10 text-[#147514] shadow-sm' : isCompleted ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-[#147514]/25 hover:bg-white hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400'}`}>
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isActive ? 'bg-[#147514] text-white' : isCompleted ? 'bg-emerald-600 text-white' : 'border border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-900'}`}>
-                      {isCompleted ? <Check className="h-4 w-4" /> : isActive ? '●' : '○'}
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => canContinue && setStepIndex(step.id)}
+                    className={`flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all ${isCompleted ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-white dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400'}`}
+                    style={isActive ? { borderColor: theme.softBorder, backgroundColor: theme.softBackground, color: theme.accentText } : undefined}
+                  >
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isCompleted ? 'bg-emerald-600 text-white' : !isActive ? 'border border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-900' : 'text-white'}`}
+                      style={isActive ? { backgroundColor: theme.accent } : undefined}
+                    >
+                      {isCompleted ? <Check className="h-4 w-4" /> : isActive ? '?' : '?'}
                     </span>
                     <span className="flex min-w-0 items-center gap-2">
                       <StepIcon className="h-4 w-4 shrink-0" />
@@ -164,7 +177,7 @@ export function ProviderCreateModal({
         </div>
 
         <div className="flex-1 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
-          <StepCard description={currentStep.description} icon={currentStep.icon} title={currentStep.title}>
+          <StepCard accent={theme.accentText} background={theme.softBackground} description={currentStep.description} icon={currentStep.icon} title={currentStep.title}>
             {stepIndex === 0 ? <BasicStep statusOptions={localizedProviderStatusOptions} typeOptions={localizedProviderTypeOptions} values={values} update={update} /> : null}
             {stepIndex === 1 ? <ScopeStep accountingAccountOptions={selectableAccountingAccountOptions} businessOptions={availableBusinessOptions} unitOptions={unitOptions} values={values} update={update} /> : null}
             {stepIndex === 2 ? <ContactStep values={values} update={update} /> : null}
@@ -172,14 +185,14 @@ export function ProviderCreateModal({
           </StepCard>
         </div>
 
-        <div className="flex flex-col gap-3 bg-[#147514] px-6 py-3 dark:bg-[#147514] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 px-6 py-3 sm:flex-row sm:items-center sm:justify-between" style={{ backgroundColor: theme.accent }}>
           <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
           <div className="flex flex-wrap items-center gap-3 sm:justify-end">
             <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50">
               <ChevronLeft className="h-4 w-4" />
               {t.providers.modal.back}
             </button>
-            <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
+            <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-white/40" style={{ color: theme.accentText }}>
               {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               {isLastStep ? effectiveSubmitLabel : t.providers.modal.next}
             </button>
@@ -190,11 +203,11 @@ export function ProviderCreateModal({
   );
 }
 
-function StepCard({ children, description, icon: Icon, title }: { children: React.ReactNode; description: string; icon: LucideIcon; title: string }) {
+function StepCard({ accent, background, children, description, icon: Icon, title }: { accent: string; background: string; children: React.ReactNode; description: string; icon: LucideIcon; title: string }) {
   return (
     <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-6 flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: background, color: accent }}>
           <Icon className="h-5 w-5" />
         </span>
         <div>

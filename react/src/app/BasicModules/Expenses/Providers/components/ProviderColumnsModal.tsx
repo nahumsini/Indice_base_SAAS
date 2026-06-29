@@ -1,7 +1,8 @@
 import { Eye, EyeOff, GripVertical, RotateCcw, Search, X } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { ProviderColumnConfig } from '../providerTableConfig';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { getProviderModalTheme, type ProviderModalVariant } from './providerModalTheme';
 
 type ProviderColumnsModalProps = {
   columns: ProviderColumnConfig[];
@@ -11,6 +12,7 @@ type ProviderColumnsModalProps = {
   onRestoreDefault: () => void;
   onShowAll: () => void;
   onToggleColumn: (key: ProviderColumnConfig['key'], visible: boolean) => void;
+  variant?: ProviderModalVariant;
 };
 
 export function ProviderColumnsModal({
@@ -21,8 +23,10 @@ export function ProviderColumnsModal({
   onRestoreDefault,
   onShowAll,
   onToggleColumn,
+  variant = 'finance',
 }: ProviderColumnsModalProps) {
   const t = useFinanceTranslations();
+  const theme = getProviderModalTheme(variant);
   const [searchTerm, setSearchTerm] = useState('');
   const visibleCount = columns.filter(column => column.visible).length;
   const filteredColumns = useMemo(() => {
@@ -38,9 +42,9 @@ export function ProviderColumnsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
       <div className="flex h-[min(86vh,820px)] max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.32)]">
-        <div className="flex shrink-0 items-center justify-between bg-[#147514] px-6 py-5 text-white">
+        <div className="flex shrink-0 items-center justify-between px-6 py-5 text-white" style={{ backgroundColor: theme.accent }}>
           <div className="min-w-0">
-            <h2 className="text-2xl font-extrabold tracking-normal">{t.columnModal.title}</h2>
+            <h2 className="text-2xl font-extrabold tracking-normal">Configure columns</h2>
             <p className="mt-1 text-sm font-medium text-white/85">{t.providers.headerSubtitle}</p>
           </div>
           <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/10 text-white transition hover:bg-white/20" aria-label={t.columnModal.close}>
@@ -72,7 +76,8 @@ export function ProviderColumnsModal({
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder={t.columnModal.searchPlaceholder}
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#147514]/45 focus:ring-4 focus:ring-[#147514]/10"
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:ring-4"
+                style={{ '--tw-ring-color': theme.softBackground } as CSSProperties}
               />
             </div>
           </div>
@@ -82,15 +87,17 @@ export function ProviderColumnsModal({
               {filteredColumns.map(column => (
                 <label
                   key={column.key}
-                  className={`flex cursor-pointer items-center gap-4 rounded-2xl border bg-white px-5 py-4 shadow-sm transition hover:border-[#147514]/35 hover:shadow-md ${column.visible ? 'border-[#147514]/25' : 'border-slate-200'}`}
+                  className="flex cursor-pointer items-center gap-4 rounded-2xl border bg-white px-5 py-4 shadow-sm transition hover:shadow-md"
+                  style={{ borderColor: column.visible ? theme.softBorder : undefined }}
                 >
-                  <GripVertical className="h-5 w-5 shrink-0 text-[#147514]/70" />
+                  <GripVertical className="h-5 w-5 shrink-0" style={{ color: theme.accentText }} />
                   <input
                     type="checkbox"
                     checked={column.visible}
                     disabled={column.fixed}
                     onChange={(event) => onToggleColumn(column.key, event.target.checked)}
-                    className="h-5 w-5 rounded border-slate-300 text-[#147514] focus:ring-[#147514] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-5 w-5 rounded border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ accentColor: theme.accent }}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2 text-base font-extrabold text-slate-900">
@@ -112,9 +119,9 @@ export function ProviderColumnsModal({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-3 bg-[#147514] px-6 py-4">
+        <div className="flex shrink-0 items-center justify-end gap-3 px-6 py-4" style={{ backgroundColor: theme.accent }}>
           <button type="button" onClick={onClose} className="h-12 rounded-2xl border border-white/35 bg-white/10 px-7 text-sm font-extrabold text-white transition hover:bg-white/18">{t.common.cancel}</button>
-          <button type="button" onClick={onApply} className="h-12 rounded-2xl bg-white px-7 text-sm font-extrabold text-[#147514] shadow-lg shadow-slate-900/15 transition hover:bg-slate-50">{t.columnModal.applyChanges}</button>
+          <button type="button" onClick={onApply} className="h-12 rounded-2xl bg-white px-7 text-sm font-extrabold shadow-lg shadow-slate-900/15 transition hover:bg-slate-50" style={{ color: theme.accentText }}>{t.columnModal.applyChanges}</button>
         </div>
       </div>
     </div>

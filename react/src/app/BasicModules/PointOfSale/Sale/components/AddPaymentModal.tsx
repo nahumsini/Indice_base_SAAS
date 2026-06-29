@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { X, DollarSign, CreditCard, Smartphone, Calculator, WalletCards } from 'lucide-react';
+import { DollarSign, CreditCard, Smartphone, Calculator, WalletCards } from 'lucide-react';
+import { PosModalFrame } from './PosModalFrame';
 import {
   evaluateCreditPurchase,
   findCreditRuleForCustomer,
@@ -148,7 +149,7 @@ export function AddPaymentModal({
         return;
       }
 
-      const creditReference = reference || `Credito ${creditRule.id} · vence ${creditEvaluation.dueDate.toISOString().slice(0, 10)}`;
+      const creditReference = reference || `Credito ${creditRule.id} - vence ${creditEvaluation.dueDate.toISOString().slice(0, 10)}`;
       onConfirm(amountValue, creditReference, undefined, {
         customerId: selectedCustomer.id,
         customerName: selectedCustomer.name,
@@ -176,28 +177,24 @@ export function AddPaymentModal({
         return {
           title: 'Agregar Pago en Efectivo',
           icon: <DollarSign className="h-6 w-6" />,
-          headerClass: 'bg-emerald-600',
           confirmClass: 'bg-emerald-600 hover:bg-emerald-700',
         };
       case 'card':
         return {
           title: 'Agregar Pago con Tarjeta',
           icon: <CreditCard className="h-6 w-6" />,
-          headerClass: 'bg-blue-600',
           confirmClass: 'bg-blue-600 hover:bg-blue-700',
         };
       case 'transfer':
         return {
           title: 'Agregar Pago por Transferencia',
           icon: <Smartphone className="h-6 w-6" />,
-          headerClass: 'bg-purple-600',
           confirmClass: 'bg-purple-600 hover:bg-purple-700',
         };
       case 'credit':
         return {
           title: 'Agregar Venta a Credito',
           icon: <WalletCards className="h-6 w-6" />,
-          headerClass: 'bg-amber-600',
           confirmClass: 'bg-amber-600 hover:bg-amber-700',
         };
     }
@@ -206,44 +203,50 @@ export function AddPaymentModal({
   const config = getPaymentConfig();
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800">
-        {/* Header */}
-        <div className={`flex items-center justify-between px-6 py-4 ${config.headerClass}`}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 text-white">
-              {config.icon}
-            </div>
-            <h2 className="text-xl font-bold text-white">{config.title}</h2>
-          </div>
+    <PosModalFrame
+      closeLabel="Cerrar pago"
+      eyebrow="Cobro POS"
+      icon={config.icon}
+      onClose={onClose}
+      size="md"
+      title={config.title}
+      subtitle={`Restante ${formatCurrency(remainingAmount)}`}
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="Cerrar pago"
+            className="min-h-14 flex-1 rounded-2xl border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
           >
-            <X className="h-5 w-5" />
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!amount || parseFloat(amount) <= 0}
+            className={`min-h-14 flex-1 rounded-2xl px-6 py-3 text-base font-black text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 ${config.confirmClass}`}
+          >
+            {paymentMethod === 'credit' ? 'Agregar Credito' : 'Agregar Pago'}
           </button>
         </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-4">
+      )}
+    >
+        <div className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
 
           {/* Remaining Amount Display */}
-          <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Falta por pagar</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <div className="rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 p-4 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10">
+            <p className="mb-1 text-sm font-black text-[#7A5B00] dark:text-[#F8E08A]">Falta por pagar</p>
+            <p className="text-3xl font-black text-gray-950 dark:text-white">
               {formatCurrency(remainingAmount)}
             </p>
           </div>
 
           {/* Amount Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
               Monto a pagar con {paymentMethod === 'cash' ? 'efectivo' : paymentMethod === 'card' ? 'tarjeta' : paymentMethod === 'transfer' ? 'transferencia' : 'credito'}
             </label>
             <div className="relative">
@@ -255,42 +258,42 @@ export function AddPaymentModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-10 pr-4 py-3 text-xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
 
           {/* Quick Amount Buttons */}
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Montos rápidos</p>
-            <div className="grid grid-cols-3 gap-2">
+            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Montos rapidos</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <button
                 onClick={() => handleQuickAmount(remainingAmount)}
-                className="py-2 px-3 bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-500 text-orange-700 dark:text-orange-400 font-semibold rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 text-sm"
+                className="min-h-12 rounded-2xl border-2 border-orange-500 bg-orange-50 px-3 py-2 text-sm font-black text-orange-700 transition hover:bg-orange-100 active:scale-[0.98] dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
               >
                 Restante
               </button>
               <button
                 onClick={() => handleQuickAmount(100)}
-                className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $100
               </button>
               <button
                 onClick={() => handleQuickAmount(200)}
-                className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $200
               </button>
               <button
                 onClick={() => handleQuickAmount(500)}
-                className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $500
               </button>
               <button
                 onClick={() => handleQuickAmount(1000)}
-                className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $1,000
               </button>
@@ -301,8 +304,8 @@ export function AddPaymentModal({
           {paymentMethod === 'cash' && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Con cuánto paga el cliente
+                <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+                  Con cuanto paga el cliente
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-xl">$</span>
@@ -312,42 +315,42 @@ export function AddPaymentModal({
                     value={cashReceived}
                     onChange={(e) => setCashReceived(e.target.value)}
                     placeholder="0.00"
-                    className="w-full pl-10 pr-4 py-3 text-xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
               </div>
 
               {/* Quick Cash Buttons */}
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Efectivo recibido</p>
-                <div className="grid grid-cols-3 gap-2">
+                <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Efectivo recibido</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <button
                     onClick={() => handleQuickCash(parseFloat(amount) || 0)}
-                    className="py-2 px-3 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 text-green-700 dark:text-green-400 font-semibold rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 text-sm"
+                    className="min-h-12 rounded-2xl border-2 border-green-500 bg-green-50 px-3 py-2 text-sm font-black text-green-700 transition hover:bg-green-100 active:scale-[0.98] dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30"
                   >
                     Exacto
                   </button>
                   <button
                     onClick={() => handleQuickCash(100)}
-                    className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $100
                   </button>
                   <button
                     onClick={() => handleQuickCash(200)}
-                    className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $200
                   </button>
                   <button
                     onClick={() => handleQuickCash(500)}
-                    className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $500
                   </button>
                   <button
                     onClick={() => handleQuickCash(1000)}
-                    className="py-2 px-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $1,000
                   </button>
@@ -356,22 +359,22 @@ export function AddPaymentModal({
 
               {/* Change Display */}
               {parseFloat(cashReceived) > 0 && (
-                <div className={`rounded-lg p-4 ${
+                <div className={`rounded-2xl p-4 ${
                   change > 0
                     ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
                     : 'bg-red-50 dark:bg-red-900/20 border-2 border-red-500'
                 }`}>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="mb-2 flex items-center gap-2">
                     <Calculator className={`w-5 h-5 ${
                       change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`} />
-                    <p className={`text-sm font-medium ${
+                    <p className={`text-sm font-black ${
                       change > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                     }`}>
                       {change > 0 ? 'Cambio a devolver' : 'Monto insuficiente'}
                     </p>
                   </div>
-                  <p className={`text-3xl font-bold ${
+                  <p className={`text-3xl font-black ${
                     change > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                   }`}>
                     {formatCurrency(change > 0 ? change : (parseFloat(amount) || 0) - (parseFloat(cashReceived) || 0))}
@@ -382,15 +385,15 @@ export function AddPaymentModal({
           )}
 
           {paymentMethod === 'credit' && (
-            <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
               <div>
-                <label className="mb-2 block text-sm font-semibold text-amber-900 dark:text-amber-100">
+                <label className="mb-2 block text-sm font-black text-amber-900 dark:text-amber-100">
                   Cliente con linea de credito
                 </label>
                 <select
                   value={selectedCustomerId}
                   onChange={(event) => setSelectedCustomerId(event.target.value)}
-                  className="w-full rounded-lg border-2 border-amber-200 bg-white px-3 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-amber-500 dark:border-amber-500/30 dark:bg-gray-900 dark:text-white"
+                  className="min-h-14 w-full rounded-2xl border-2 border-amber-200 bg-white px-4 py-3 text-base font-black text-gray-900 focus:ring-2 focus:ring-amber-500 dark:border-amber-500/30 dark:bg-gray-900 dark:text-white"
                 >
                   <option value="">Selecciona cliente</option>
                   {creditCustomers
@@ -415,7 +418,7 @@ export function AddPaymentModal({
               )}
 
               {creditEvaluation && (
-                <div className={`rounded-lg px-3 py-2 text-xs font-bold ${
+                <div className={`rounded-2xl px-4 py-3 text-xs font-bold ${
                   creditEvaluation.decision === 'blocked'
                     ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
                     : creditEvaluation.decision === 'review'
@@ -434,22 +437,22 @@ export function AddPaymentModal({
               {!showReferenceField ? (
                 <button
                   onClick={() => setShowReferenceField(true)}
-                  className="w-full py-2 px-4 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-400 rounded-lg transition-colors"
+                  className="min-h-12 w-full rounded-2xl border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-black text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 active:scale-[0.98] dark:border-gray-600 dark:text-gray-400 dark:hover:text-white"
                 >
                   + Agregar referencia (opcional)
                 </button>
               ) : (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {paymentMethod === 'card' ? 'Últimos 4 dígitos / Autorización' : paymentMethod === 'credit' ? 'Referencia de autorizacion' : 'Número de referencia'}
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className="block text-sm font-black text-gray-700 dark:text-gray-300">
+                      {paymentMethod === 'card' ? 'Ultimos 4 digitos / Autorizacion' : paymentMethod === 'credit' ? 'Referencia de autorizacion' : 'Numero de referencia'}
                     </label>
                     <button
                       onClick={() => {
                         setShowReferenceField(false);
                         setReference('');
                       }}
-                      className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      className="min-h-10 rounded-xl px-3 text-xs font-black text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-300"
                     >
                       Quitar
                     </button>
@@ -459,38 +462,20 @@ export function AddPaymentModal({
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     placeholder={paymentMethod === 'card' ? '1234 / AUTH123' : paymentMethod === 'credit' ? 'AUT-CRED-001' : 'REF123456'}
-                    className="w-full px-4 py-3 text-base border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
               )}
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-6 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!amount || parseFloat(amount) <= 0}
-            className={`flex-1 rounded-lg px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${config.confirmClass}`}
-          >
-            {paymentMethod === 'credit' ? 'Agregar Credito' : 'Agregar Pago'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }
 
 function CreditStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-white p-3 dark:bg-gray-900/60">
+    <div className="rounded-2xl bg-white p-3 dark:bg-gray-900/60">
       <p className="text-[11px] font-black uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400">{label}</p>
       <p className="mt-1 text-sm font-black text-gray-950 dark:text-white">{value}</p>
     </div>

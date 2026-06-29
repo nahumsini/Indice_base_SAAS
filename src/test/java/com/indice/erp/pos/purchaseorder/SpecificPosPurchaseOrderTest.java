@@ -3,12 +3,12 @@ package com.indice.erp.pos.purchaseorder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.finance.expenses.ExpenseService;
 import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
@@ -20,8 +20,6 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveIt
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderReceiveRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceRequest;
-import com.indice.erp.storage.ObjectStorageProperties;
-import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,12 +31,17 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import com.indice.erp.storage.ObjectStorageProperties;
+import com.indice.erp.storage.ObjectStorageService;
 
 @ExtendWith(MockitoExtension.class)
 class SpecificPosPurchaseOrderTest {
 
     @Mock PurchaseOrderRepository repository;
+    @Mock BCryptPasswordEncoder passwordEncoder;
     @Mock ObjectStorageService objectStorageService;
+    @Mock ObjectStorageProperties storageProperties;
+    @Mock ExpenseService expenseService;
 
     @Test
     void createOrderLinksProductsToProvider() {
@@ -47,10 +50,10 @@ class SpecificPosPurchaseOrderTest {
         when(repository.findWarehouse(context(), 30L)).thenReturn(Optional.of(warehouse()));
         when(repository.findProduct(context(), 700L)).thenReturn(Optional.of(product()));
         when(repository.nextOrderFolio(context())).thenReturn("PO-2026-0001");
-        when(repository.insertOrder(eq(context()), any(), any(), eq(PurchaseOrderStatus.DRAFT),
-            eq(PurchaseOrderOrigin.POS_REPLENISHMENT), isNull(), eq("PO-2026-0001"), eq("MXN"),
-            eq(LocalDate.parse("2026-06-25")), eq("Comprar para sucursal"), any(), any(), any(),
-            anyList())).thenReturn(99L);
+        when(repository.insertOrder(eq(context()), eq(warehouse()), eq(provider(300L)), eq(PurchaseOrderStatus.DRAFT),
+            eq(PurchaseOrderOrigin.POS_REPLENISHMENT), eq(null),
+            eq("PO-2026-0001"), eq("MXN"), eq(LocalDate.parse("2026-06-25")),
+            eq("Comprar para sucursal"), any(), any(), any(), any())).thenReturn(99L);
         when(repository.findOrder(context(), 99L)).thenReturn(Optional.of(order(PurchaseOrderStatus.DRAFT, 300L)));
 
         service.createOrder(context(), createRequest());
@@ -99,9 +102,11 @@ class SpecificPosPurchaseOrderTest {
     private PurchaseOrderService service() {
         return new PurchaseOrderService(
             repository,
-            new BCryptPasswordEncoder(),
+            passwordEncoder,
             objectStorageService,
-            new ObjectStorageProperties()
+            storageProperties,
+            expenseService,
+            new ObjectMapper()
         );
     }
 

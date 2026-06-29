@@ -166,6 +166,14 @@ export type SupplierPortalAccessPayload = {
   expiresAt?: string | null;
 };
 
+export type SupplierPortalAccessStatusPayload = {
+  status: SupplierPortalAccessStatus;
+};
+
+export type SupplierPortalAccessPinPayload = {
+  pin: string;
+};
+
 export type SupplierPortalCatalogProduct = {
   productId: number;
   productName: string;
@@ -333,6 +341,12 @@ export type SupplierPortalInvoicePayload = {
 
 export type SupplierPortalDocumentUploadPayload = {
   pin: string;
+  fileName: string;
+  contentType?: string | null;
+  sizeBytes: number;
+};
+
+export type SupplierInvoiceDocumentUploadPayload = {
   fileName: string;
   contentType?: string | null;
   sizeBytes: number;

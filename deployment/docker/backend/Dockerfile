@@ -9,7 +9,7 @@ RUN chmod +x mvnw
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -DskipTests dependency:go-offline
 
 COPY src src
-RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app

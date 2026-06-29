@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Globe2, Percent, X } from 'lucide-react';
+import { Check, Globe2, Percent } from 'lucide-react';
+import { PosModalFrame } from './PosModalFrame';
 import {
   findQuoteTaxPreset,
   getAutomaticCurrencyForTaxJurisdiction,
@@ -27,7 +28,7 @@ interface PosFiscalSettingsModalProps {
   formatCurrency: (amount: number) => string;
 }
 
-const fieldClassName = 'h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-base font-black text-gray-950 outline-none transition focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-900 dark:text-white';
+const fieldClassName = 'min-h-14 w-full rounded-2xl border border-gray-200 bg-white px-4 text-base font-black text-gray-950 outline-none transition focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-900 dark:text-white';
 
 export function PosFiscalSettingsModal({
   isOpen,
@@ -116,36 +117,41 @@ export function PosFiscalSettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl dark:bg-gray-900">
-        <div className="flex items-start justify-between gap-4 bg-[#222831] px-6 py-5 text-white">
-          <div className="flex min-w-0 items-center gap-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-3xl" aria-hidden="true">
-              🧾
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-black leading-tight">Divisa / Impuestos</h2>
-              <p className="mt-1 text-sm font-semibold text-white/75">
-                Configura el pais fiscal, la divisa de venta y el impuesto antes de cobrar.
-              </p>
-            </div>
-          </div>
+    <PosModalFrame
+      closeLabel="Cerrar configuracion fiscal"
+      eyebrow="Configuracion POS"
+      icon={<Globe2 className="h-7 w-7" />}
+      onClose={onClose}
+      size="lg"
+      subtitle="Configura el pais fiscal, la divisa de venta y el impuesto antes de cobrar."
+      title="Divisa / Impuestos"
+      zIndexClassName="z-[160]"
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-2xl p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
-            aria-label="Cerrar configuracion fiscal"
+            className="min-h-14 rounded-2xl border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
           >
-            <X className="h-6 w-6" />
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm({ ...draft, currencyCode: visibleCurrency })}
+            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#FF6B5E] px-6 py-3 text-base font-black text-white shadow-sm transition hover:bg-[#E85F54] active:scale-[0.98]"
+          >
+            <Check className="h-5 w-5" />
+            Aplicar al ticket
           </button>
         </div>
-
-        <div className="grid min-h-0 flex-1 overflow-y-auto bg-[#F7F8FA] p-5 dark:bg-gray-950 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-5">
+      )}
+    >
+        <div className="grid min-h-0 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-5">
           <div className="space-y-4">
             <section className="rounded-[24px] border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-gray-900">
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6B5E]/10 text-2xl" aria-hidden="true">
-                  🌎
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6B5E]/10 text-[#FF6B5E]" aria-hidden="true">
+                  <Globe2 className="h-6 w-6" />
                 </span>
                 <div>
                   <h3 className="text-lg font-black text-gray-950 dark:text-white">Configuracion fiscal</h3>
@@ -176,9 +182,9 @@ export function PosFiscalSettingsModal({
                     {lockedCurrency ? 'Divisa del turno' : 'Divisa de venta'}
                   </span>
                   {lockedCurrency ? (
-                    <div className="flex h-12 items-center justify-between rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-black text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
+                    <div className="flex min-h-14 items-center justify-between rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-black text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
                       <span>{lockedCurrency}</span>
-                      <span className="text-xl" aria-hidden="true">💱</span>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs text-[#7A5B00] shadow-sm dark:bg-gray-900 dark:text-[#F8E08A]">POS</span>
                     </div>
                   ) : draft.taxJurisdiction === 'custom' ? (
                     <select
@@ -191,9 +197,9 @@ export function PosFiscalSettingsModal({
                       ))}
                     </select>
                   ) : (
-                    <div className="flex h-12 items-center justify-between rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-black text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
+                    <div className="flex min-h-14 items-center justify-between rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-black text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
                       <span>{automaticCurrency ?? draft.currencyCode}</span>
-                      <span className="text-xl" aria-hidden="true">💱</span>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs text-[#7A5B00] shadow-sm dark:bg-gray-900 dark:text-[#F8E08A]">POS</span>
                     </div>
                   )}
                 </label>
@@ -227,7 +233,7 @@ export function PosFiscalSettingsModal({
                       key={preset.id}
                       type="button"
                       onClick={() => handlePresetChange(preset.id)}
-                      className={`rounded-[20px] border p-4 text-left shadow-sm transition active:scale-[0.98] ${
+                      className={`min-h-28 rounded-[20px] border p-4 text-left shadow-sm transition active:scale-[0.98] ${
                         isSelected
                           ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 text-[#B63B32] dark:bg-[#FF6B5E]/15 dark:text-[#FFB5AE]'
                           : 'border-gray-200 bg-white text-gray-900 hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/5 dark:border-gray-800 dark:bg-gray-950 dark:text-white'
@@ -298,25 +304,7 @@ export function PosFiscalSettingsModal({
           </aside>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-gray-200 px-6 py-3 text-sm font-black text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={() => onConfirm({ ...draft, currencyCode: visibleCurrency })}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FF6B5E] px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#E85F54] active:scale-[0.98]"
-          >
-            <Check className="h-5 w-5" />
-            Aplicar al ticket
-          </button>
-        </div>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }
 

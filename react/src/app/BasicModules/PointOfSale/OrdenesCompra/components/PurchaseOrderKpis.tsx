@@ -1,4 +1,17 @@
-import { AlertTriangle, ClipboardList, FileText, PackageCheck, Truck } from 'lucide-react';
+import {
+  AlertTriangle,
+  ClipboardList,
+  FileText,
+  Gauge,
+  PackageCheck,
+  Truck,
+} from 'lucide-react';
+import type {
+  OperationalAlertChip,
+  OperationalDistributionSegment,
+  OperationalKpiMetric,
+} from '../../../shared/operational';
+import { OperationalKpiArea } from '../../../shared/operational';
 import type { PurchaseOrder, SupplierInvoice } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
 
@@ -11,8 +24,14 @@ export function PurchaseOrderKpis({
   invoices: SupplierInvoice[];
   orders: PurchaseOrder[];
 }) {
-  const openOrders = orders.filter((order) => !['RECEIVED', 'CANCELLED'].includes(order.status));
-  const receivedOrders = orders.filter((order) => order.status === 'RECEIVED');
+  const draftOrders = orders.filter((order) => order.status === 'DRAFT').length;
+  const inApproval = orders.filter((order) => ['REQUESTED', 'IN_REVIEW', 'NEEDS_CLARIFICATION', 'APPROVED'].includes(order.status)).length;
+  const inTransit = orders.filter((order) => ['ISSUED', 'SENT', 'CONFIRMED'].includes(order.status)).length;
+  const partiallyReceived = orders.filter((order) => order.status === 'PARTIALLY_RECEIVED').length;
+  const receivedOrders = orders.filter((order) => order.status === 'RECEIVED').length;
+  const closedOrders = orders.filter((order) => ['INVOICED', 'VALIDATED_FOR_PAYMENT', 'SCHEDULED_FOR_PAYMENT', 'PAID', 'CLOSED'].includes(order.status)).length;
+  const cancelledOrders = orders.filter((order) => ['CANCELLED', 'REJECTED'].includes(order.status)).length;
+  const openOrders = orders.filter((order) => !['RECEIVED', 'CANCELLED', 'REJECTED', 'CLOSED', 'PAID'].includes(order.status));
   const pendingReceive = openOrders.reduce((sum, order) => (
     sum + order.items.reduce((itemSum, item) => itemSum + numberFrom(item.pendingQuantity), 0)
   ), 0);
@@ -24,50 +43,103 @@ export function PurchaseOrderKpis({
     return expected.getTime() < Date.now();
   }).length;
 
-  return (
-    <section className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <Kpi icon={Truck} label="Abiertas" value={String(openOrders.length)} />
-        <Kpi icon={ClipboardList} label="Valor por recibir" value={formatMoney(expectedValue, currency)} />
-        <Kpi icon={PackageCheck} label="Unidades pendientes" value={String(pendingReceive)} tone="blue" />
-        <Kpi icon={FileText} label="Facturas pendientes" value={String(pendingInvoices)} tone="amber" />
-        <Kpi icon={AlertTriangle} label="Retrasadas" value={String(delayed)} tone={delayed > 0 ? 'red' : 'gray'} />
-      </div>
-      <div className="rounded-[20px] border border-orange-100 bg-orange-50 px-5 py-4 text-sm font-semibold text-orange-900 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-100">
-        {receivedOrders.length} ordenes recibidas · {openOrders.length} abiertas · {pendingReceive} unidades aun pendientes de entrar a inventario.
-      </div>
-    </section>
-  );
-}
+  const metrics: OperationalKpiMetric[] = [
+    {
+      id: 'open-orders',
+      icon: <Truck className="h-4 w-4" />,
+      label: 'compras abiertas',
+      value: openOrders.length,
+      iconClassName: 'text-[#B63B32]',
+      valueClassName: 'text-[#FF6B5E]',
+    },
+    {
+      id: 'pending-receive',
+      icon: <PackageCheck className="h-4 w-4" />,
+      label: 'unidades por recibir',
+      value: pendingReceive,
+      iconClassName: 'text-[#2563EB]',
+      valueClassName: 'text-[#2563EB]',
+    },
+    {
+      id: 'expected-value',
+      icon: <ClipboardList className="h-4 w-4" />,
+      label: 'valor comprometido',
+      value: formatMoney(expectedValue, currency),
+      iconClassName: 'text-[#9A6B05]',
+      valueClassName: 'text-[#9A6B05]',
+    },
+    {
+      id: 'pending-invoices',
+      icon: <FileText className="h-4 w-4" />,
+      label: 'facturas por conciliar',
+      value: pendingInvoices,
+      iconClassName: 'text-violet-600',
+      valueClassName: 'text-violet-600',
+    },
+    {
+      id: 'delayed',
+      icon: <AlertTriangle className="h-4 w-4" />,
+      label: 'retrasadas',
+      value: delayed,
+      iconClassName: delayed > 0 ? 'text-rose-600' : 'text-slate-500',
+      valueClassName: delayed > 0 ? 'text-rose-600' : 'text-slate-700 dark:text-slate-200',
+    },
+  ];
 
-function Kpi({
-  icon: Icon,
-  label,
-  tone = 'gray',
-  value,
-}: {
-  icon: typeof Truck;
-  label: string;
-  tone?: 'gray' | 'blue' | 'amber' | 'red';
-  value: string;
-}) {
-  const tones = {
-    gray: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
-    blue: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-200',
-    amber: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
-    red: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-200',
-  };
+  const alertChips: OperationalAlertChip[] = [];
+
+  if (delayed > 0) {
+    alertChips.push({
+      id: 'delayed',
+      icon: <AlertTriangle className="h-3.5 w-3.5" />,
+      label: `${delayed} compras retrasadas`,
+      tone: 'danger',
+    });
+  }
+
+  if (pendingReceive > 0) {
+    alertChips.push({
+      id: 'pending-receive',
+      icon: <PackageCheck className="h-3.5 w-3.5" />,
+      label: `${pendingReceive} unidades pendientes`,
+      tone: 'info',
+    });
+  }
+
+  if (pendingInvoices > 0) {
+    alertChips.push({
+      id: 'pending-invoices',
+      icon: <FileText className="h-3.5 w-3.5" />,
+      label: `${pendingInvoices} facturas por conciliar`,
+      tone: 'warning',
+    });
+  }
+
+  const distributionSegments: OperationalDistributionSegment[] = [
+    { id: 'draft', label: 'Borrador', count: draftOrders, className: 'bg-slate-400' },
+    { id: 'approval', label: 'Aprobacion', count: inApproval, className: 'bg-[#F4C84A]' },
+    { id: 'transit', label: 'En proveedor', count: inTransit, className: 'bg-[#2563EB]' },
+    { id: 'receiving', label: 'Recepcion parcial', count: partiallyReceived, className: 'bg-violet-500' },
+    { id: 'received', label: 'Recibidas', count: receivedOrders, className: 'bg-emerald-500' },
+    { id: 'closed', label: 'Pago/cierre', count: closedOrders, className: 'bg-cyan-500' },
+    { id: 'cancelled', label: 'Canceladas', count: cancelledOrders, className: 'bg-rose-500' },
+  ];
+
+  const insight = delayed > 0
+    ? `${delayed} compras requieren seguimiento con proveedor antes de que afecten disponibilidad en caja.`
+    : pendingReceive > 0
+      ? `Recibe ${pendingReceive} unidades pendientes para convertir compras abiertas en inventario vendible.`
+      : pendingInvoices > 0
+        ? `Concilia ${pendingInvoices} facturas para cerrar el ciclo de compra y pago.`
+        : 'No hay alertas operativas en compras POS con los filtros actuales.';
+
   return (
-    <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex items-center gap-3">
-        <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tones[tone]}`}>
-          <Icon className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="truncate text-2xl font-bold text-slate-950 dark:text-white">{value}</p>
-        </div>
-      </div>
-    </div>
+    <OperationalKpiArea
+      alertChips={alertChips}
+      distributionSegments={distributionSegments}
+      insight={insight}
+      insightIcon={<Gauge className="h-4 w-4" />}
+      metrics={metrics}
+    />
   );
 }

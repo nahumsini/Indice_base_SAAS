@@ -1,61 +1,103 @@
-import { Copy, ExternalLink, KeyRound, Plus, ShieldCheck, X } from 'lucide-react';
+import { Copy, ExternalLink, KeyRound, Plus, Power, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type {
   ProviderOption,
   SupplierPortalAccess,
   SupplierPortalAccessPayload,
+  SupplierPortalAccessStatus,
 } from '../types/purchaseOrder.types';
 
-const randomPin = () => String(Math.floor(100000 + Math.random() * 900000));
+const randomNip = () => String(Math.floor(100000 + Math.random() * 900000));
+
+const statusCopy: Record<SupplierPortalAccessStatus, { label: string; className: string }> = {
+  ACTIVE: {
+    label: 'Activo',
+    className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+  },
+  PAUSED: {
+    label: 'Inactivo',
+    className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200',
+  },
+  EXPIRED: {
+    label: 'Sin uso',
+    className: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+  },
+  REVOKED: {
+    label: 'Revocado',
+    className: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+  },
+};
 
 export function SupplierPortalAccessModal({
   accessList,
+  onChangePin,
   onClose,
+  onStatusChange,
   onSubmit,
   providers,
   saving,
 }: {
   accessList: SupplierPortalAccess[];
+  onChangePin: (accessId: number, nip: string) => Promise<SupplierPortalAccess>;
   onClose: () => void;
+  onStatusChange: (accessId: number, status: SupplierPortalAccessStatus) => Promise<SupplierPortalAccess>;
   onSubmit: (payload: SupplierPortalAccessPayload) => Promise<SupplierPortalAccess>;
   providers: ProviderOption[];
   saving: boolean;
 }) {
   const [providerId, setProviderId] = useState(providers[0]?.id ? String(providers[0].id) : '');
   const [portalCode, setPortalCode] = useState('');
-  const [pin, setPin] = useState(() => randomPin());
-  const [expiresAt, setExpiresAt] = useState('');
-  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [generatedNip, setGeneratedNip] = useState(() => randomNip());
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [revealedNips, setRevealedNips] = useState<Record<number, string>>({});
 
   const activeProviders = useMemo(() => providers.filter(provider => provider.status !== 'INACTIVE'), [providers]);
-  const canSubmit = Boolean(providerId && pin.trim().length >= 4 && !saving);
+  const activeCount = accessList.filter(access => access.status === 'ACTIVE').length;
+  const pausedCount = accessList.filter(access => access.status === 'PAUSED').length;
+  const canSubmit = Boolean(providerId && generatedNip && !saving);
 
   const submit = async () => {
     if (!canSubmit) return;
+    const nipToCreate = generatedNip || randomNip();
     const payload: SupplierPortalAccessPayload = {
       providerId: Number(providerId),
       portalCode: portalCode.trim() || null,
-      pin: pin.trim(),
+      pin: nipToCreate,
       status: 'ACTIVE',
-      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+      expiresAt: null,
     };
     await onSubmit(payload);
     setPortalCode('');
-    setPin(randomPin());
-    setExpiresAt('');
+    setGeneratedNip(randomNip());
   };
 
-  const copyLink = async (access: SupplierPortalAccess) => {
-    const url = `${window.location.origin}${access.portalUrl}`;
-    await navigator.clipboard?.writeText(url);
-    setCopiedId(access.id);
-    window.setTimeout(() => setCopiedId(null), 1800);
+  const fullPortalUrl = (access: SupplierPortalAccess) => `${window.location.origin}${access.portalUrl}`;
+
+  const markCopied = (key: string) => {
+    setCopiedKey(key);
+    window.setTimeout(() => setCopiedKey(null), 1800);
+  };
+
+  const copyValue = async (key: string, value: string) => {
+    await navigator.clipboard?.writeText(value);
+    markCopied(key);
+  };
+
+  const changeStatus = async (access: SupplierPortalAccess) => {
+    const nextStatus: SupplierPortalAccessStatus = access.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+    await onStatusChange(access.id, nextStatus);
+  };
+
+  const changeNip = async (access: SupplierPortalAccess) => {
+    const nextNip = randomNip();
+    await onChangePin(access.id, nextNip);
+    setRevealedNips(current => ({ ...current, [access.id]: nextNip }));
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl dark:bg-slate-900">
-        <header className="bg-orange-500 px-6 py-5 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <header className="bg-[#FF6B5E] px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -63,13 +105,13 @@ export function SupplierPortalAccessModal({
               </span>
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-white/75">Kiosko proveedor</p>
-                <h3 className="text-2xl font-bold">Accesos por PIN</h3>
+                <h3 className="text-2xl font-bold">Accesos por NIP</h3>
                 <p className="mt-1 text-sm font-medium text-white/85">
                   Comparte un link controlado para que el proveedor capture propuestas de compra.
                 </p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full p-2 text-white/80 hover:bg-white/10">
+            <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20" aria-label="Cerrar modal">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -79,7 +121,7 @@ export function SupplierPortalAccessModal({
           <section className="border-r border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
             <h4 className="text-lg font-bold text-slate-950 dark:text-white">Crear acceso</h4>
             <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-              El PIN no se vuelve a mostrar después de crear el acceso. Compártelo junto con el link.
+              El NIP se genera automaticamente. Guardalo al crear el acceso; despues solo podras cambiarlo.
             </p>
 
             <label className="mt-5 block space-y-2">
@@ -96,95 +138,119 @@ export function SupplierPortalAccessModal({
             </label>
 
             <label className="mt-4 block space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Código opcional</span>
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Codigo de acceso opcional</span>
               <input
                 value={portalCode}
                 onChange={(event) => setPortalCode(event.target.value)}
-                placeholder="Se genera automático"
+                placeholder="Se genera automatico"
                 className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
             </label>
 
-            <label className="mt-4 block space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">PIN proveedor</span>
-              <div className="flex gap-2">
-                <input
-                  value={pin}
-                  onChange={(event) => setPin(event.target.value)}
-                  className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                />
-                <button type="button" onClick={() => setPin(randomPin())} className="rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+            <div className="mt-4 rounded-2xl border border-[#FFB3AD] bg-[#FFF1EF] p-4 dark:border-[#FF6B5E]/40 dark:bg-[#FF6B5E]/10">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-[#B63B32] dark:text-[#FFC7C3]">NIP automatico</span>
+                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{generatedNip}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGeneratedNip(randomNip())}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#FFB3AD] bg-white px-3 text-xs font-bold text-[#B63B32] hover:bg-[#FFF7F5] dark:border-[#FF6B5E]/40 dark:bg-slate-950 dark:text-[#FFC7C3]"
+                >
+                  <RefreshCw className="h-4 w-4" />
                   Nuevo
                 </button>
               </div>
-            </label>
-
-            <label className="mt-4 block space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Expira</span>
-              <input
-                type="datetime-local"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-              />
-            </label>
-
-            <button
-              type="button"
-              disabled={!canSubmit}
-              onClick={() => void submit()}
-              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Plus className="h-4 w-4" />
-              Crear acceso
-            </button>
+              <p className="mt-2 text-xs font-semibold text-[#B63B32]/80 dark:text-[#FFC7C3]/80">
+                No hay expiracion. El acceso se controla activando, desactivando o cambiando el NIP.
+              </p>
+            </div>
           </section>
 
           <section className="space-y-3 p-6">
             <div>
-              <h4 className="text-lg font-bold text-slate-950 dark:text-white">Accesos activos</h4>
+              <h4 className="text-lg font-bold text-slate-950 dark:text-white">Accesos de proveedor</h4>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Usa estos links para que el proveedor capture productos, cantidades, costos e imagenes.
+                Activa, desactiva o cambia el NIP sin crear accesos duplicados.
               </p>
             </div>
 
             {accessList.length === 0 ? (
               <div className="rounded-[20px] border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-                <p className="font-bold text-slate-950 dark:text-white">Todavía no hay accesos de proveedor.</p>
+                <p className="font-bold text-slate-950 dark:text-white">Todavia no hay accesos de proveedor.</p>
                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Crea el primero para empezar a recibir propuestas desde kiosko.
+                  Crea el primero para empezar a recibir propuestas desde el kiosko.
                 </p>
               </div>
-            ) : accessList.map((access) => (
-              <article key={access.id} className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                      <h5 className="font-bold text-slate-950 dark:text-white">{access.providerName}</h5>
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">
-                        {access.status}
-                      </span>
+            ) : accessList.map((access) => {
+              const status = statusCopy[access.status] ?? statusCopy.PAUSED;
+              const revealedNip = revealedNips[access.id];
+              const linkKey = `link-${access.id}`;
+              const nipKey = `nip-${access.id}`;
+
+              return (
+                <article key={access.id} className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                        <h5 className="font-bold text-slate-950 dark:text-white">{access.providerName}</h5>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${status.className}`}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <p className="mt-1 max-w-full truncate text-sm font-semibold text-slate-500 dark:text-slate-400">
+                        {fullPortalUrl(access)}
+                      </p>
+                      {revealedNip ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-[#FFB3AD] bg-[#FFF1EF] px-3 py-2 text-sm font-bold text-[#B63B32] dark:border-[#FF6B5E]/40 dark:bg-[#FF6B5E]/10 dark:text-[#FFC7C3]">
+                          <span>Nuevo NIP: {revealedNip}</span>
+                          <button type="button" onClick={() => void copyValue(nipKey, revealedNip)} className="rounded-lg bg-white px-2 py-1 text-xs dark:bg-slate-950">
+                            {copiedKey === nipKey ? 'Copiado' : 'Copiar NIP'}
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                      {window.location.origin}{access.portalUrl}
-                    </p>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button type="button" onClick={() => void copyValue(linkKey, fullPortalUrl(access))} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                        <Copy className="h-4 w-4" />
+                        {copiedKey === linkKey ? 'Copiado' : 'Copiar'}
+                      </button>
+                      <button type="button" disabled={saving} onClick={() => void changeNip(access)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#FFB3AD] px-3 text-xs font-bold text-[#B63B32] hover:bg-[#FFF1EF] disabled:opacity-60 dark:border-[#FF6B5E]/40 dark:text-[#FFC7C3] dark:hover:bg-[#FF6B5E]/10">
+                        <RefreshCw className="h-4 w-4" />
+                        Cambiar NIP
+                      </button>
+                      <button type="button" disabled={saving} onClick={() => void changeStatus(access)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                        <Power className="h-4 w-4" />
+                        {access.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <a href={access.portalUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-950 px-3 text-xs font-bold text-white dark:bg-white dark:text-slate-950">
+                        <ExternalLink className="h-4 w-4" />
+                        Abrir
+                      </a>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => void copyLink(access)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                      <Copy className="h-4 w-4" />
-                      {copiedId === access.id ? 'Copiado' : 'Copiar'}
-                    </button>
-                    <a href={access.portalUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-950 px-3 text-xs font-bold text-white dark:bg-white dark:text-slate-950">
-                      <ExternalLink className="h-4 w-4" />
-                      Abrir
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </section>
         </div>
+        <footer className="flex flex-col gap-3 bg-[#FF6B5E] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-white/85">{activeCount} activos - {pausedCount} inactivos</p>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={onClose} className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white hover:bg-white/10">Cerrar</button>
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={() => void submit()}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Plus className="h-4 w-4" />
+              Crear acceso
+            </button>
+          </div>
+        </footer>
       </div>
     </div>
   );
