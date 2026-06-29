@@ -14,6 +14,8 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -Dmaven.test.skip=true package
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+LABEL org.opencontainers.image.title="Indice ERP Backend"
+
 RUN addgroup -S spring \
     && adduser -S spring -G spring \
     && mkdir -p /app/logs \
