@@ -64,6 +64,7 @@ export const koCA: AgendaTranslations = {
   statuses: {
     open: '열림',
     pending: '대기',
+    pending_overdue: '대기 및 기한 초과',
     in_progress: '진행 중',
     completed: '완료',
     pending_audit: '감사 대기',

@@ -237,6 +237,10 @@ export function taskMatchesStatusFilter(
     return agendaStatus != null;
   }
 
+  if (filter === 'pending_overdue') {
+    return agendaStatus === 'pending' || agendaStatus === 'overdue';
+  }
+
   return agendaStatus === filter;
 }
 

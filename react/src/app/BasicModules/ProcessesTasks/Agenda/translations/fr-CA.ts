@@ -64,6 +64,7 @@ export const frCA: AgendaTranslations = {
   statuses: {
     open: "Ouvertes",
     pending: "En attente",
+    pending_overdue: "En attente et en retard",
     in_progress: "En cours",
     completed: "Terminee",
     pending_audit: "Audit a faire",

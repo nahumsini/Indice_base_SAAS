@@ -64,6 +64,7 @@ export const enUS: AgendaTranslations = {
   statuses: {
     open: 'Open',
     pending: 'Pending',
+    pending_overdue: 'Pending and overdue',
     in_progress: 'In progress',
     completed: 'Completed',
     pending_audit: 'Pending audit',

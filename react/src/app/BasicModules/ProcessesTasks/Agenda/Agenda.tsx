@@ -171,6 +171,34 @@ function agendaEvaluationRangeForPeriod(
   return activeRange;
 }
 
+function normalizeFilterLabel(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function parseProjectFilterId(value: string) {
+  const match = /^project:(\d+)$/.exec(value);
+  return match ? Number(match[1]) : null;
+}
+
+function parseCollaboratorFilter(value: string) {
+  const userCompanyMatch = /^user-company:(\d+)$/.exec(value);
+  if (userCompanyMatch) {
+    return { type: 'userCompany' as const, id: Number(userCompanyMatch[1]), name: '' };
+  }
+
+  const userMatch = /^user:(\d+)$/.exec(value);
+  if (userMatch) {
+    return { type: 'user' as const, id: Number(userMatch[1]), name: '' };
+  }
+
+  const nameMatch = /^name:(.+)$/.exec(value);
+  if (nameMatch) {
+    return { type: 'name' as const, id: null, name: normalizeFilterLabel(nameMatch[1] ?? '') };
+  }
+
+  return null;
+}
+
 function createAgendaKanbanColumns(copy: AgendaTranslations): AgendaKanbanColumn[] {
   return [
   {
@@ -522,30 +550,6 @@ export default function Agenda() {
     unitFilter,
     visibleSelectionState: rowSelection.visibleSelectionState,
   });
-  const {
-    handleCreateTaskClick,
-    handleEditTask,
-    handleQuickTaskDialogOpenChange,
-    handleSubmitQuickTask,
-    handleSubmitTask,
-    handleTaskDialogOpenChange,
-    isQuickTaskDialogOpen,
-    isSubmittingTask,
-    isTaskDialogOpen,
-    quickTaskTitle,
-    setIsQuickTaskDialogOpen,
-    setQuickTaskTitle,
-    setTaskForm,
-    taskDialogMode,
-    taskForm,
-  } = useAgendaTaskFormDialog({
-    agendaCopy,
-    currentUserCollaborator,
-    loadAgenda: loadVisibleAgenda,
-    selectedScheduleDate,
-    setAgendaError,
-    todayAgendaValue,
-  });
   const currentAssignmentScope = useMemo(
     () => resolveCollaboratorAssignmentScope(currentUserCollaborator),
     [currentUserCollaborator],
@@ -570,6 +574,112 @@ export default function Agenda() {
       ),
     [catalogBusinesses, catalogCollaborators],
   );
+
+  const quickTaskDate = viewMode === 'diagram' ? selectedScheduleDate : agendaStatusDate;
+  const quickTaskContext = useMemo(() => {
+    const selectedUnit =
+      unitFilter === 'all'
+        ? null
+        : scopedCatalogUnits.find((unit) => normalizeFilterLabel(unit.name) === normalizeFilterLabel(unitFilter)) ?? null;
+    const selectedBusiness =
+      businessFilter === 'all'
+        ? null
+        : scopedCatalogBusinesses.find(
+            (business) =>
+              normalizeFilterLabel(business.name) === normalizeFilterLabel(businessFilter) &&
+              businessMatchesUnit(business, selectedUnit?.id ?? null),
+          ) ?? null;
+    const selectedProjectId = projectFilter === 'all' || projectFilter === NO_PROJECT_VALUE
+      ? null
+      : parseProjectFilterId(projectFilter);
+    const selectedProject = selectedProjectId != null
+      ? projects.find((project) => project.id === selectedProjectId) ?? null
+      : null;
+
+    let unitId = selectedUnit?.id ?? selectedProject?.unitId ?? null;
+    let businessId = selectedBusiness?.id ?? selectedProject?.businessId ?? null;
+    const business = businessId != null
+      ? catalogBusinesses.find((option) => option.id === businessId) ?? null
+      : null;
+
+    if (business?.unitId != null) {
+      unitId = business.unitId;
+    }
+
+    const parsedCollaborator = collaboratorFilter === 'all' || collaboratorFilter === UNASSIGNED_RESPONSIBLE_VALUE
+      ? null
+      : parseCollaboratorFilter(collaboratorFilter);
+    const selectedCollaborator = parsedCollaborator == null
+      ? null
+      : catalogCollaborators.find((collaborator) => {
+          if (parsedCollaborator.type === 'userCompany') {
+            return collaborator.userCompanyId === parsedCollaborator.id;
+          }
+
+          if (parsedCollaborator.type === 'user') {
+            return collaborator.userId === parsedCollaborator.id;
+          }
+
+          return normalizeFilterLabel(collaborator.name) === parsedCollaborator.name;
+        }) ?? null;
+    const assignSelectedCollaborator =
+      selectedCollaborator != null &&
+      collaboratorCanReceiveAssignment(selectedCollaborator, unitId, businessId, catalogBusinesses);
+
+    const context: Record<string, string> = {};
+
+    if (assignSelectedCollaborator) {
+      context.assignedName = selectedCollaborator.name;
+      context.assignedUserCompanyId = selectedCollaborator.userCompanyId.toString();
+    }
+    if (businessId != null) {
+      context.businessId = businessId.toString();
+    }
+    if (selectedProject?.id != null) {
+      context.projectId = selectedProject.id.toString();
+    }
+    if (unitId != null) {
+      context.unitId = unitId.toString();
+    }
+
+    return context;
+  }, [
+    businessFilter,
+    catalogBusinesses,
+    catalogCollaborators,
+    collaboratorFilter,
+    projectFilter,
+    projects,
+    scopedCatalogBusinesses,
+    scopedCatalogUnits,
+    unitFilter,
+  ]);
+  const {
+    handleCreateTaskClick,
+    handleEditTask,
+    handleQuickTaskDialogOpenChange,
+    handleSubmitQuickTask,
+    handleSubmitTask,
+    handleTaskDialogOpenChange,
+    isQuickTaskDialogOpen,
+    isSubmittingTask,
+    isTaskDialogOpen,
+    quickTaskTitle,
+    setIsQuickTaskDialogOpen,
+    setQuickTaskTitle,
+    setTaskForm,
+    taskDialogMode,
+    taskForm,
+  } = useAgendaTaskFormDialog({
+    agendaCopy,
+    currentUserCollaborator,
+    loadAgenda: loadVisibleAgenda,
+    quickTaskContext,
+    quickTaskDate,
+    selectedScheduleDate,
+    setAgendaError,
+    todayAgendaValue,
+  });
 
   const {
     deleteTask,

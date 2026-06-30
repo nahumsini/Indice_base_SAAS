@@ -64,6 +64,7 @@ export const ptBR: AgendaTranslations = {
   statuses: {
     open: 'Abertas',
     pending: 'Pendente',
+    pending_overdue: 'Pendentes e vencidas',
     in_progress: 'Em andamento',
     completed: 'Concluída',
     pending_audit: 'Pendente de auditoria',

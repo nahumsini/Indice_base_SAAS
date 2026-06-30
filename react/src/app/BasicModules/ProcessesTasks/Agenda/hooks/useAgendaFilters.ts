@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   AgendaFocusFilter,
-  AgendaStatus,
   OptionFilter,
   PeriodFilter,
   StatusFilter,
@@ -17,8 +16,9 @@ import {
   toDateInputValue,
 } from '../utils/agendaDateUtils';
 
-export const agendaStatusFilterValues: AgendaStatus[] = [
+export const agendaStatusFilterValues: Exclude<StatusFilter, 'all'>[] = [
   'pending',
+  'pending_overdue',
   'in_progress',
   'paused',
   'completed',
@@ -53,7 +53,7 @@ function isAgendaFocusFilter(value: string | null | undefined): value is AgendaF
 }
 
 function isAgendaStatusFilter(value: string | null | undefined): value is StatusFilter {
-  return value === 'all' || agendaStatusFilterValues.includes(value as AgendaStatus);
+  return value === 'all' || agendaStatusFilterValues.includes(value as Exclude<StatusFilter, 'all'>);
 }
 
 function normalizeLegacyStatus(value: string | null | undefined): StatusFilter | null {

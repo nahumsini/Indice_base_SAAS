@@ -64,6 +64,7 @@ export const esMX: AgendaTranslations = {
   statuses: {
     open: 'Abiertas',
     pending: 'Pendiente',
+    pending_overdue: 'Pendientes y vencidas',
     in_progress: 'En progreso',
     completed: 'Completada',
     pending_audit: 'Por auditar',

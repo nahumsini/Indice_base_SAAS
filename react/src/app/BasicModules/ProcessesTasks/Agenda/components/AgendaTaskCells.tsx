@@ -74,7 +74,7 @@ export function AgendaTaskCell({
 
   switch (columnId) {
     case 'folio':
-      return <div className="w-full text-sm font-semibold text-slate-900 dark:text-white">{task.folio}</div>;
+      return <div className="w-full whitespace-normal break-words text-sm font-semibold text-slate-900 [overflow-wrap:anywhere] dark:text-white">{task.folio}</div>;
     case 'type':
       return (
         <Badge variant="outline" className="w-full rounded-full border-slate-200 bg-slate-50 px-3 py-1 text-center font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
@@ -91,7 +91,7 @@ export function AgendaTaskCell({
       return <ReadonlyValue muted={!task.description}>{task.description || copy.common.noDescription}</ReadonlyValue>;
     case 'createdAt':
       return (
-        <div className="w-full text-sm font-medium text-slate-900 dark:text-white">
+        <div className="w-full whitespace-normal break-words text-sm font-medium text-slate-900 [overflow-wrap:anywhere] dark:text-white">
           {task.createdAt ? formatDate(task.createdAt, true) : copy.common.noDate}
         </div>
       );
@@ -171,7 +171,7 @@ export function AgendaTaskCell({
     }
     case 'creator':
       return (
-        <div className="w-full space-y-1 text-sm text-slate-700 dark:text-slate-200">
+        <div className="w-full space-y-1 whitespace-normal break-words text-sm text-slate-700 [overflow-wrap:anywhere] dark:text-slate-200">
           <p className="font-medium text-slate-900 dark:text-white">
             {task.createdByName ?? task.creator ?? copy.common.noRecord}
           </p>
@@ -216,7 +216,7 @@ function ReadonlyValue({ children, muted = false }: { children: ReactNode; muted
   return (
     <div
       className={cn(
-        'w-full rounded-xl border border-transparent px-3 py-2 text-sm font-semibold leading-5',
+        'w-full whitespace-normal rounded-xl border border-transparent px-3 py-2 text-sm font-semibold leading-5 break-words [overflow-wrap:anywhere]',
         muted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100',
       )}
     >
