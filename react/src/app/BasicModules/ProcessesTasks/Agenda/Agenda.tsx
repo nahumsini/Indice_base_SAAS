@@ -687,6 +687,7 @@ export default function Agenda() {
     handleConfirmDeleteTask,
     handleDuplicateTask,
     handleProjectCellChange,
+    handlePriorityCellChange,
     handleResponsibleCellChange,
     handleUnitCellChange,
     persistTaskChange,
@@ -800,6 +801,7 @@ export default function Agenda() {
       onEditTask={handleEditTask}
       onOpenAttachments={setAttachmentsTask}
       onPersistTaskChange={persistTaskChange}
+      onPriorityChange={handlePriorityCellChange}
       onProjectChange={handleProjectCellChange}
       onResponsibleChange={handleResponsibleCellChange}
       onUnitChange={handleUnitCellChange}
