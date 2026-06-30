@@ -3,7 +3,7 @@ import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal
 import type { AgendaTranslations } from '../translations';
 import type { AgendaColumnId, AgendaFixedColumnId, AgendaTableColumnId } from '../types';
 
-const agendaColumnsStorageKey = 'processes-tasks-agenda-columns-v2';
+const agendaColumnsStorageKey = 'processes-tasks-agenda-columns-v3';
 const agendaColumnWidthsStorageKey = 'processes-tasks-agenda-column-widths-v2';
 const selectionColumnWidth = 64;
 
@@ -75,7 +75,7 @@ function createDefaultAgendaColumns(copy: AgendaTranslations): ColumnConfig[] {
     { id: 'responsible', label: copy.columns.responsible.label, visible: true, description: copy.columns.responsible.description },
     { id: 'priority', label: copy.columns.priority.label, visible: true, description: copy.columns.priority.description },
     { id: 'attachments', label: copy.columns.attachments.label, visible: true, description: copy.columns.attachments.description },
-    { id: 'project', label: copy.columns.project.label, visible: false, description: copy.columns.project.description },
+    { id: 'project', label: copy.columns.project.label, visible: true, description: copy.columns.project.description },
     { id: 'completion', label: copy.columns.completion.label, visible: true, description: copy.columns.completion.description },
     { id: 'notes', label: copy.columns.notes.label, visible: false, description: copy.columns.notes.description },
     { id: 'weighting', label: copy.columns.weighting.label, visible: true, description: copy.columns.weighting.description },

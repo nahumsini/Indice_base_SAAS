@@ -104,7 +104,7 @@ export function AgendaTaskCell({
       return (
         <ReadonlyValue muted={!task.predecessorTaskFolio && !task.predecessorTaskTitle}>
           {task.predecessorTaskFolio
-            ? `${task.predecessorTaskFolio}${task.predecessorTaskTitle ? ` · ${task.predecessorTaskTitle}` : ''}`
+            ? `${task.predecessorTaskFolio}${task.predecessorTaskTitle ? ` - ${task.predecessorTaskTitle}` : ''}`
             : copy.common.noRecord}
         </ReadonlyValue>
       );
