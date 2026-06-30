@@ -97,7 +97,7 @@ Equivalent repo helper:
 
 ```bash
 PUBLIC_URL=https://apptest.indiceapp.com \
-FRONTEND_DIST=/home/corazon/apptest.indiceapp.com/react/dist \
+APP_DIR=/home/corazon/apptest.indiceapp.com \
 WEB_CONTAINER=indice-erp-web-1 \
 ./deployment/scripts/publish-web-dist.sh
 ```

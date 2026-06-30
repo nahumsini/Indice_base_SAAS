@@ -3,7 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-FRONTEND_DIST="${FRONTEND_DIST:-${ROOT_DIR}/react/dist}"
+APP_DIR="${APP_DIR:-${ROOT_DIR}}"
+FRONTEND_DIST="${FRONTEND_DIST:-${APP_DIR}/react/dist}"
 WEB_CONTAINER="${WEB_CONTAINER:-indice-erp-web-1}"
 WEB_HTML_DIR="${WEB_HTML_DIR:-/usr/share/nginx/html}"
 PUBLIC_URL="${PUBLIC_URL:-}"
@@ -23,6 +24,7 @@ fi
 
 echo "Publishing ${FRONTEND_DIST} to ${WEB_CONTAINER}:${WEB_HTML_DIR}"
 echo "Expected public asset: ${expected_asset}"
+echo "App directory: ${APP_DIR}"
 
 docker cp "${FRONTEND_DIST}/." "${WEB_CONTAINER}:${WEB_HTML_DIR}/"
 
