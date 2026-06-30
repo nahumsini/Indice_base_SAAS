@@ -8,13 +8,23 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '../../../../components/ui/pagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../../components/ui/select';
 import type { EmployeesTranslations } from '../translations';
 
 interface EmployeesPaginationProps {
   currentPage: number;
   labels: EmployeesTranslations['pagination'];
   onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
   pageEnd: number;
+  pageSize: number;
+  pageSizeOptions: readonly number[];
   pageStart: number;
   totalCount: number;
   totalPages: number;
@@ -24,7 +34,10 @@ export function EmployeesPagination({
   currentPage,
   labels,
   onPageChange,
+  onPageSizeChange,
   pageEnd,
+  pageSize,
+  pageSizeOptions,
   pageStart,
   totalCount,
   totalPages,
@@ -73,8 +86,25 @@ export function EmployeesPagination({
       <p className="text-sm text-slate-500 dark:text-slate-400">
         {labels.showing(pageStart, pageEnd, totalCount)}
       </p>
-      <div className="flex flex-col items-start gap-3 md:items-end">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            {labels.pageSize}
+          </span>
+          <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+            <SelectTrigger className="h-11 w-[104px] rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {pageSizeOptions.map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="whitespace-nowrap text-sm font-semibold text-slate-600 dark:text-slate-300">
           {labels.page(currentPage, totalPages)}
         </p>
         <Pagination className="mx-0 w-auto justify-start md:justify-end">

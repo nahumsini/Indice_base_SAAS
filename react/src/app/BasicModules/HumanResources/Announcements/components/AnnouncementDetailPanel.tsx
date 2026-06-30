@@ -56,7 +56,7 @@ export function AnnouncementDetailPanel({
           <Info label={copy.author} value={announcement.authorName} />
         </div>
 
-        <div className="mt-6 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+        <div className="mt-6 rounded-lg border border-slate-200 p-4 dark:border-slate-700">
           <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">{announcement.content}</p>
         </div>
 
@@ -92,7 +92,7 @@ export function AnnouncementDetailPanel({
             {announcement.attachments.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">{copy.noAttachments}</p>
             ) : announcement.attachments.map((attachment) => (
-              <div key={attachment.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">
+              <div key={attachment.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700">
                 <a href={attachment.download_url ?? undefined} target="_blank" rel="noreferrer" className="truncate text-[#59C3A5] dark:text-blue-300">
                   {attachment.original_filename}
                 </a>
@@ -112,7 +112,7 @@ export function AnnouncementDetailPanel({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+    <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
       <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
       <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
     </div>

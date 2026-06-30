@@ -3,7 +3,15 @@ import type {
   HrAssetsSummary,
   HrAssetStatus,
 } from '../../../../api/HumanResources/assets';
+import {
+  formatBusinessCurrencyAmount,
+  normalizeBusinessCurrencyCode,
+} from '../../../shared/businessCurrency';
 import type { AssetColumnConfig } from '../AssetColumnsModal';
+import {
+  assetTypeOptionByValue,
+  type AddNewAssetType,
+} from '../constants/assetCatalog';
 import type { AssetsTranslations } from '../translations';
 import type { AssetColumnId, AssetRow, AssetTypeFilter } from '../types/assets.types';
 
@@ -18,6 +26,7 @@ export const allAssetColumnIds: AssetColumnId[] = [
   'status',
   'assignedAt',
   'value',
+  'photos',
   'notes',
   'actions',
 ];
@@ -32,6 +41,7 @@ export const emptyAssetSummary: HrAssetsSummary = {
   custody_count: 0,
   inactive_count: 0,
   total_value_amount: 0,
+  value_totals_by_currency: {},
 };
 
 export const assignableAssetStatuses: HrAssetStatus[] = ['assigned', 'custody'];
@@ -43,32 +53,15 @@ export const normalizeAssetErrorMessage = (error: unknown, fallback: string) => 
 export const getAssetTypeFilter = (assetType: string): AssetTypeFilter => {
   const normalized = assetType.trim().toLowerCase();
 
-  if (normalized === 'laptop') {
-    return 'laptop';
-  }
-  if (normalized === 'attendance') {
-    return 'attendance';
-  }
-  if (normalized === 'operations') {
-    return 'operations';
-  }
-  if (normalized === 'maintenance') {
-    return 'maintenance';
+  if (assetTypeOptionByValue.has(normalized)) {
+    return normalized as AddNewAssetType;
   }
 
   return 'other';
 };
 
 export const getAssetTypeIcon = (assetType: string) => {
-  const iconMap: Record<AssetTypeFilter, string> = {
-    laptop: '💻',
-    attendance: '🖥️',
-    operations: '📱',
-    maintenance: '🧰',
-    other: '📦',
-  };
-
-  return iconMap[getAssetTypeFilter(assetType)];
+  return assetTypeOptionByValue.get(getAssetTypeFilter(assetType))?.icon ?? '📦';
 };
 
 export const getAssetStatusClasses = (status: HrAssetStatus) => {
@@ -84,16 +77,10 @@ export const getAssetStatusClasses = (status: HrAssetStatus) => {
 };
 
 export const getAssetTypeLabel = (assetType: string, t: AssetsTranslations) => {
-  const labelMap: Partial<Record<AssetTypeFilter, string>> = {
-    laptop: t.addNewAsset.options.laptop,
-    attendance: t.filters.attendanceControl,
-    operations: t.filters.operation,
-    maintenance: t.filters.maintenance,
-  };
-
   const normalizedType = getAssetTypeFilter(assetType);
-  if (normalizedType !== 'other') {
-    return labelMap[normalizedType] ?? assetType;
+  const option = assetTypeOptionByValue.get(normalizedType);
+  if (option) {
+    return t.addNewAsset.options[option.labelKey];
   }
 
   return assetType
@@ -127,6 +114,7 @@ export const getAssetColumnConfig = (
   { id: 'status', label: t.table.status, visible: visibleIds.includes('status') },
   { id: 'assignedAt', label: t.table.assignedAt, visible: visibleIds.includes('assignedAt') },
   { id: 'value', label: t.table.value, visible: visibleIds.includes('value') },
+  { id: 'photos', label: t.table.photos, visible: visibleIds.includes('photos') },
   { id: 'notes', label: t.table.notes, visible: visibleIds.includes('notes') },
   { id: 'actions', label: t.table.actions, visible: visibleIds.includes('actions'), locked: true },
 ];
@@ -150,16 +138,17 @@ export const formatAssetDate = (value: string | null, locale: string) => {
   }).format(parsedDate);
 };
 
-export const formatAssetValue = (value: number | null, locale: string) => {
+export const formatAssetNativeValue = (
+  value: number | null,
+  currency: string | null | undefined,
+) => {
   if (value === null || value === undefined) {
     return '-';
   }
 
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
+  return formatBusinessCurrencyAmount(value, normalizeBusinessCurrencyCode(currency, 'USD'), {
     maximumFractionDigits: 0,
-  }).format(value);
+  });
 };
 
 export const normalizeComparableAssetDate = (value: string | null) => {
@@ -186,5 +175,7 @@ export const mapAssetRow = (asset: HrAsset): AssetRow => ({
   status: asset.status,
   assignedAt: asset.assigned_at,
   valueAmount: asset.value_amount,
+  valueCurrency: normalizeBusinessCurrencyCode(asset.value_currency, 'USD'),
+  photoCount: asset.photo_count ?? 0,
   notes: asset.notes ?? '',
 });

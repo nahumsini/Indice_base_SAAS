@@ -276,6 +276,7 @@ export const esMX = {
   pagination: {
     previous: 'Anterior',
     next: 'Siguiente',
+    pageSize: 'Filas por página',
     showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} colaboradores`,
     page: (current: number, total: number) => `Página ${current} de ${total}`,
   },

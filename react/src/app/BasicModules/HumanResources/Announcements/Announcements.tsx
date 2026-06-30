@@ -27,12 +27,13 @@ import {
   statusFilterValues,
   typeFilterValues,
 } from './constants/announcements.constants';
-import type { AnnouncementColumn } from './components/AnnouncementColumnsModal';
+import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { AnnouncementFilters } from './components/AnnouncementFilters';
 import { AnnouncementHeaderBar } from './components/AnnouncementHeaderBar';
 import { AnnouncementKpiStrip } from './components/AnnouncementKpiStrip';
 import { AnnouncementTable } from './components/AnnouncementTable';
 import { AnnouncementDetailPanel } from './components/AnnouncementDetailPanel';
+import { AnnouncementBulkActionsBar } from './components/AnnouncementBulkActionsBar';
 import { useAnnouncementsResolvedLocale, useAnnouncementsTranslations } from './hooks/useAnnouncementsTranslations';
 import type { AnnouncementsTranslations } from './translations';
 import {
@@ -41,8 +42,8 @@ import {
   getAnnouncementTypeClasses,
 } from './utils/announcements.filters';
 
-const LazyAnnouncementColumnsModal = lazy(() =>
-  import('./components/AnnouncementColumnsModal').then((module) => ({ default: module.AnnouncementColumnsModal })),
+const LazyColumnasConfigModal = lazy(() =>
+  import('../../../components/rh/ColumnasConfigModal').then((module) => ({ default: module.ColumnasConfigModal })),
 );
 const LazyCreateAnnouncementModal = lazy(() =>
   import('./components/CreateAnnouncementModal').then((module) => ({ default: module.CreateAnnouncementModal })),
@@ -60,10 +61,12 @@ export default function Announcements() {
   const [selectedType, setSelectedType] = useState<AnnouncementTypeFilter>('all');
   const [selectedStatus, setSelectedStatus] = useState<AnnouncementStatusFilter>('all');
   const [selectedAudience, setSelectedAudience] = useState<AnnouncementAudienceFilter>('all');
+  const [selectedAnnouncementIds, setSelectedAnnouncementIds] = useState<string[]>([]);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([...defaultVisibleColumnIds]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementView | null>(null);
   const [pendingDeleteAnnouncement, setPendingDeleteAnnouncement] = useState<AnnouncementView | null>(null);
+  const [isBulkDeletePending, setIsBulkDeletePending] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementView | null>(null);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,7 +82,7 @@ export default function Announcements() {
     try {
       const announcementsResponse = await humanResourcesApi.listAnnouncements();
       const nextCanManage = Boolean(announcementsResponse.summary.can_manage);
-      setAnnouncements(announcementsResponse.items.map((item) => toAnnouncementView(item, locale)));
+      setAnnouncements(announcementsResponse.items.map((item) => toAnnouncementView(item, locale, copy.view)));
       setSummary({
         can_manage: nextCanManage,
         draft_count: announcementsResponse.summary.draft_count,
@@ -97,14 +100,14 @@ export default function Announcements() {
 
       const audienceResponse = await humanResourcesApi.getAnnouncementAudienceOptions();
       setDepartmentOptions(audienceResponse.departments.map(toAnnouncementDepartmentOption));
-      setUnitOptions(audienceResponse.units.map(toAnnouncementUnitOption));
+      setUnitOptions(audienceResponse.units.map((option) => toAnnouncementUnitOption(option, copy.view)));
       setEmployees(
         audienceResponse.employees
-          .map(toAnnouncementAudienceEmployeeOption)
+          .map((employee) => toAnnouncementAudienceEmployeeOption(employee, copy.view))
           .filter((item): item is AnnouncementEmployeeOption => item !== null),
       );
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to load announcements.');
+      setErrorMessage(error instanceof Error ? error.message : copy.feedback.loadAnnouncementsFailed);
     } finally {
       setIsLoading(false);
     }
@@ -114,13 +117,22 @@ export default function Announcements() {
     void loadAnnouncements();
   }, [locale]);
 
-  const announcementColumns = useMemo<AnnouncementColumn[]>(
+  const announcementColumns = useMemo<ColumnConfig[]>(
     () => [
-      { id: 'type', label: copy.table.columns.type },
-      { id: 'audience', label: copy.table.columns.audience },
-      { id: 'publication', label: copy.table.columns.publication },
-      { id: 'status', label: copy.table.columns.status },
-      { id: 'author', label: copy.table.columns.author },
+      { id: 'type', label: copy.table.columns.type, visible: visibleColumns.includes('type') },
+      { id: 'audience', label: copy.table.columns.audience, visible: visibleColumns.includes('audience') },
+      { id: 'publication', label: copy.table.columns.publication, visible: visibleColumns.includes('publication') },
+      { id: 'reads', label: copy.table.columns.reads, visible: visibleColumns.includes('reads') },
+      { id: 'status', label: copy.table.columns.status, visible: visibleColumns.includes('status') },
+      { id: 'author', label: copy.table.columns.author, visible: visibleColumns.includes('author') },
+    ],
+    [copy, visibleColumns],
+  );
+
+  const fixedAnnouncementColumns = useMemo<ColumnConfig[]>(
+    () => [
+      { id: 'announcement', label: copy.table.columns.announcement, visible: true, locked: true },
+      { id: 'actions', label: copy.table.columns.actions, visible: true, locked: true },
     ],
     [copy],
   );
@@ -152,17 +164,90 @@ export default function Announcements() {
     [announcements, searchQuery, selectedAudience, selectedStatus, selectedType],
   );
 
-  const handleToggleColumn = (columnId: string) => {
-    setVisibleColumns((current) =>
-      current.includes(columnId)
-        ? current.filter((id) => id !== columnId)
-        : [...current, columnId],
+  const selectedAnnouncements = useMemo(
+    () => filteredAnnouncements.filter((announcement) => selectedAnnouncementIds.includes(announcement.id)),
+    [filteredAnnouncements, selectedAnnouncementIds],
+  );
+
+  const readSelectedCount = useMemo(
+    () => selectedAnnouncements.filter((announcement) => announcement.isRead).length,
+    [selectedAnnouncements],
+  );
+
+  const readRate = useMemo(() => {
+    const deliveryCount = filteredAnnouncements.reduce((total, announcement) => total + announcement.deliveryCount, 0);
+    const readCount = filteredAnnouncements.reduce((total, announcement) => total + announcement.readCount, 0);
+    if (deliveryCount === 0) {
+      return copy.kpis.notTracked;
+    }
+    return new Intl.NumberFormat(locale, {
+      maximumFractionDigits: 0,
+      style: 'percent',
+    }).format(readCount / deliveryCount);
+  }, [copy.kpis.notTracked, filteredAnnouncements, locale]);
+
+  useEffect(() => {
+    setSelectedAnnouncementIds((current) => current.filter((id) => announcements.some((announcement) => announcement.id === id)));
+  }, [announcements]);
+
+  const handleSaveColumns = (nextColumns: ColumnConfig[]) => {
+    setVisibleColumns(nextColumns.filter((column) => column.visible).map((column) => column.id));
+  };
+
+  const handleToggleAnnouncementSelection = (announcementId: string) => {
+    setSelectedAnnouncementIds((current) =>
+      current.includes(announcementId)
+        ? current.filter((id) => id !== announcementId)
+        : [...current, announcementId],
     );
+  };
+
+  const handleTogglePageAnnouncementSelection = (pageAnnouncements: AnnouncementView[], isSelected: boolean) => {
+    const pageIds = pageAnnouncements.map((announcement) => announcement.id);
+    setSelectedAnnouncementIds((current) => {
+      if (!isSelected) {
+        return current.filter((id) => !pageIds.includes(id));
+      }
+      return [...new Set([...current, ...pageIds])];
+    });
+  };
+
+  const handleMarkSelectedUnread = async () => {
+    const readAnnouncements = selectedAnnouncements.filter((announcement) => announcement.isRead);
+    if (readAnnouncements.length === 0) {
+      return;
+    }
+    const success = await guardedMutation(
+      () => Promise.all(readAnnouncements.map((announcement) => humanResourcesApi.markAnnouncementUnread(announcement.backendId))),
+      copy.feedback.markUnreadFailed,
+    );
+    if (success) {
+      setSelectedAnnouncementIds([]);
+    }
+  };
+
+  const handleConfirmBulkDeleteAnnouncements = async () => {
+    if (selectedAnnouncements.length === 0) {
+      setIsBulkDeletePending(false);
+      return;
+    }
+    const announcementsToDelete = selectedAnnouncements;
+    const success = await guardedMutation(
+      () => Promise.all(announcementsToDelete.map((announcement) => humanResourcesApi.deleteAnnouncement(announcement.backendId))),
+      copy.feedback.deleteAnnouncementFailed,
+    );
+    if (success) {
+      setSelectedAnnouncementIds([]);
+      setIsBulkDeletePending(false);
+      if (selectedAnnouncement && announcementsToDelete.some((announcement) => announcement.id === selectedAnnouncement.id)) {
+        setSelectedAnnouncement(null);
+      }
+    }
   };
 
   const handleSaveAnnouncement = async (data: CreateAnnouncementFormData) => {
     if (!canManage) {
-      const message = 'You are not allowed to manage announcements.';
+      const message = copy.feedback.manageNotAllowed;
       setErrorMessage(message);
       throw new Error(message);
     }
@@ -179,7 +264,7 @@ export default function Announcements() {
       setIsModalOpen(false);
       setEditingAnnouncement(null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to save announcement.');
+      setErrorMessage(error instanceof Error ? error.message : copy.feedback.saveAnnouncementFailed);
       throw error;
     } finally {
       setIsSubmitting(false);
@@ -209,12 +294,13 @@ export default function Announcements() {
     const announcement = pendingDeleteAnnouncement;
     const success = await guardedMutation(
       () => humanResourcesApi.deleteAnnouncement(announcement.backendId),
-      'Unable to delete announcement.',
+      copy.feedback.deleteAnnouncementFailed,
     );
     if (!success) {
       return;
     }
     setPendingDeleteAnnouncement(null);
+    setSelectedAnnouncementIds((current) => current.filter((id) => id !== announcement.id));
     if (selectedAnnouncement?.id === announcement.id) {
       setSelectedAnnouncement(null);
     }
@@ -223,7 +309,7 @@ export default function Announcements() {
   const handleMarkRead = async (announcement: AnnouncementView) => {
     const success = await guardedMutation(
       () => humanResourcesApi.markAnnouncementRead(announcement.backendId),
-      'Unable to mark announcement as read.',
+      copy.feedback.markReadFailed,
     );
     if (success) {
       setSelectedAnnouncement((current) => {
@@ -236,7 +322,7 @@ export default function Announcements() {
           isRead: true,
           readAt: new Date().toISOString(),
           readCount,
-          readSummary: current.deliveryCount > 0 ? `${readCount}/${current.deliveryCount} read` : 'Read',
+          readSummary: current.deliveryCount > 0 ? copy.view.readRatio(readCount, current.deliveryCount) : copy.view.read,
         };
       });
     }
@@ -278,7 +364,7 @@ export default function Announcements() {
       setErrorMessage('');
       const result = await runWithMinimumDuration(task(), 650);
       if (result && typeof result === 'object' && 'id' in result) {
-        setSelectedAnnouncement(toAnnouncementView(result as Parameters<typeof toAnnouncementView>[0], locale));
+        setSelectedAnnouncement(toAnnouncementView(result as Parameters<typeof toAnnouncementView>[0], locale, copy.view));
       }
       await loadAnnouncements();
       return true;
@@ -343,10 +429,20 @@ export default function Announcements() {
         draftCount={summary.draft_count}
         progressCopy={copy.progress}
         publishedCount={summary.published_count}
-        readRate={copy.kpis.notTracked}
+        readRate={readRate}
         scheduledCount={summary.scheduled_count}
         totalCount={summary.total_count}
         visibleCount={filteredAnnouncements.length}
+      />
+
+      <AnnouncementBulkActionsBar
+        copy={copy.bulk}
+        canDelete={canManage}
+        readCount={readSelectedCount}
+        selectedCount={selectedAnnouncements.length}
+        onClearSelection={() => setSelectedAnnouncementIds([])}
+        onDeleteSelected={() => setIsBulkDeletePending(true)}
+        onMarkUnread={() => void handleMarkSelectedUnread()}
       />
 
       <AnnouncementTable
@@ -357,9 +453,12 @@ export default function Announcements() {
         getTypeClasses={getAnnouncementTypeClasses}
         visibleColumns={visibleColumns}
         canManage={canManage}
+        selectedIds={selectedAnnouncementIds}
         onDelete={handleDeleteAnnouncement}
         onEdit={handleEditAnnouncement}
         onOpen={handleOpenAnnouncement}
+        onTogglePageSelection={handleTogglePageAnnouncementSelection}
+        onToggleSelection={handleToggleAnnouncementSelection}
       />
 
       <AnnouncementDetailPanel
@@ -375,13 +474,13 @@ export default function Announcements() {
 
       <Suspense fallback={null}>
         {isColumnsModalOpen ? (
-          <LazyAnnouncementColumnsModal
+          <LazyColumnasConfigModal
             columns={announcementColumns}
-            copy={copy.columnsModal}
             isOpen={isColumnsModalOpen}
-            visibleColumns={visibleColumns}
+            fixedColumns={fixedAnnouncementColumns}
+            theme="humanResources"
             onClose={() => setIsColumnsModalOpen(false)}
-            onToggleColumn={handleToggleColumn}
+            onSave={handleSaveColumns}
           />
         ) : null}
 
@@ -414,6 +513,18 @@ export default function Announcements() {
         confirmDisabled={isSubmitting}
         onConfirm={() => void handleConfirmDeleteAnnouncement()}
         onCancel={() => setPendingDeleteAnnouncement(null)}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={isBulkDeletePending}
+        title={copy.bulk.deleteSelected}
+        itemName={copy.bulk.selectedBadge(selectedAnnouncements.length)}
+        description={copy.bulk.deleteDescription}
+        confirmLabel={copy.deleteDialog.confirm}
+        cancelLabel={copy.deleteDialog.cancel}
+        confirmDisabled={isSubmitting}
+        onConfirm={() => void handleConfirmBulkDeleteAnnouncements()}
+        onCancel={() => setIsBulkDeletePending(false)}
       />
     </>
   );

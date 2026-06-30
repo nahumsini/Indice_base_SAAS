@@ -2018,6 +2018,15 @@ export const humanResourcesApi = {
     return response;
   },
 
+  async markAnnouncementUnread(announcementId: string | number) {
+    const response = await apiClient<{ announcement_id: number; read_at: null }>(
+      `${endpoints.humanResources.announcementsList}/${announcementId}/read`,
+      { method: 'DELETE' },
+    );
+    dispatchNotificationsRefresh();
+    return response;
+  },
+
   presignAnnouncementAttachmentUpload(
     announcementId: string | number,
     payload: AnnouncementAttachmentPresignPayload,

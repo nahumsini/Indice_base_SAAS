@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { PackageCheck, PackagePlus, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ImagePlus, PackageCheck, PackagePlus, Trash2, X } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import {
   Dialog,
@@ -10,10 +10,18 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog';
 import { cn } from '../../../components/ui/utils';
+import {
+  businessCurrencyOptions,
+  normalizeBusinessCurrencyCode,
+} from '../../shared/businessCurrency';
+import {
+  assetTypeOptions,
+  type AddNewAssetType,
+} from './constants/assetCatalog';
 import { useAssetsTranslations } from './hooks/useAssetsTranslations';
 import { useAssetsPortalTheme } from './useAssetsPortalTheme';
 
-export type AddNewAssetType = 'laptop' | 'attendance' | 'operations' | 'maintenance';
+export type { AddNewAssetType } from './constants/assetCatalog';
 export type AddNewAssetStatus = 'available' | 'assigned' | 'maintenance' | 'custody' | 'inactive';
 
 export interface AddNewAssetOption {
@@ -21,8 +29,15 @@ export interface AddNewAssetOption {
   label: string;
 }
 
+export interface AddNewAssetPhotoDraft {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataUrl: string;
+  caption?: string;
+}
+
 export interface AddNewAssetDraft {
-  id: string;
   assetType: AddNewAssetType;
   name: string;
   model: string;
@@ -32,6 +47,8 @@ export interface AddNewAssetDraft {
   status: AddNewAssetStatus;
   assignedDate: string;
   value: string;
+  currency: string;
+  photos: AddNewAssetPhotoDraft[];
   notes: string;
 }
 
@@ -41,12 +58,12 @@ interface AddNewAssestsProps {
   onSave: (draft: AddNewAssetDraft) => Promise<boolean | void> | boolean | void;
   responsibleOptions: AddNewAssetOption[];
   unitOptions: AddNewAssetOption[];
+  preferredCurrency: string;
   mode?: 'create' | 'edit';
   initialDraft?: AddNewAssetDraft | null;
 }
 
 const emptyDraft: AddNewAssetDraft = {
-  id: '',
   assetType: 'laptop',
   name: '',
   model: '',
@@ -56,8 +73,22 @@ const emptyDraft: AddNewAssetDraft = {
   status: 'available',
   assignedDate: '',
   value: '',
+  currency: 'USD',
+  photos: [],
   notes: '',
 };
+
+const maxAssetPhotoCount = 8;
+const maxAssetPhotoSize = 2_500_000;
+const acceptedAssetPhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+const readPhotoAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error('Unable to read file.'));
+    reader.readAsDataURL(file);
+  });
 
 export function AddNewAssests({
   isOpen,
@@ -65,23 +96,33 @@ export function AddNewAssests({
   onSave,
   responsibleOptions,
   unitOptions,
+  preferredCurrency,
   mode = 'create',
   initialDraft = null,
 }: AddNewAssestsProps) {
   const t = useAssetsTranslations().addNewAsset;
-  const baseDraft = initialDraft ?? emptyDraft;
+  const defaultCurrency = normalizeBusinessCurrencyCode(preferredCurrency, 'USD');
+  const emptyDraftForCurrency = useMemo<AddNewAssetDraft>(
+    () => ({ ...emptyDraft, currency: defaultCurrency }),
+    [defaultCurrency],
+  );
+  const baseDraft = initialDraft ?? emptyDraftForCurrency;
   const [draft, setDraft] = useState<AddNewAssetDraft>(baseDraft);
+  const [photoError, setPhotoError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isDarkMode = useAssetsPortalTheme();
   const isEditMode = mode === 'edit';
 
   useEffect(() => {
     if (isOpen) {
       setDraft(baseDraft);
+      setPhotoError('');
       return;
     }
 
-    setDraft(emptyDraft);
-  }, [baseDraft, isOpen]);
+    setDraft(emptyDraftForCurrency);
+    setPhotoError('');
+  }, [baseDraft, emptyDraftForCurrency, isOpen]);
 
   const hasChanges = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(baseDraft),
@@ -91,13 +132,12 @@ export function AddNewAssests({
   const canSave = useMemo(
     () =>
       Boolean(
-        draft.id.trim()
-        && draft.assetType
+        draft.assetType
         && draft.name.trim()
         && (!['assigned', 'custody'].includes(draft.status) || draft.responsible)
         && (!isEditMode || hasChanges)
       ),
-    [draft.assetType, draft.id, draft.name, draft.responsible, draft.status, hasChanges, isEditMode],
+    [draft.assetType, draft.name, draft.responsible, draft.status, hasChanges, isEditMode],
   );
 
   const handleFieldChange = <K extends keyof AddNewAssetDraft>(field: K, value: AddNewAssetDraft[K]) => {
@@ -105,7 +145,7 @@ export function AddNewAssests({
   };
 
   const handleCancel = () => {
-    setDraft(emptyDraft);
+    setDraft(emptyDraftForCurrency);
     onClose();
   };
 
@@ -119,7 +159,7 @@ export function AddNewAssests({
       return;
     }
 
-    setDraft(emptyDraft);
+    setDraft(emptyDraftForCurrency);
   };
 
   const inputClassName = cn(
@@ -162,6 +202,61 @@ export function AddNewAssests({
       ...current,
       assignedDate: value,
       status: value && !['assigned', 'custody'].includes(current.status) ? 'assigned' : current.status,
+    }));
+  };
+
+  const handleSelectPhotos = async (files: FileList | null) => {
+    const selectedFiles = Array.from(files ?? []);
+    if (!selectedFiles.length) {
+      return;
+    }
+
+    const availableSlots = Math.max(0, maxAssetPhotoCount - draft.photos.length);
+    if (availableSlots === 0) {
+      setPhotoError(t.photoUploader.tooMany);
+      return;
+    }
+
+    const filesToRead = selectedFiles.slice(0, availableSlots);
+    if (selectedFiles.length > availableSlots) {
+      setPhotoError(t.photoUploader.tooMany);
+    } else {
+      setPhotoError('');
+    }
+
+    const nextPhotos: AddNewAssetPhotoDraft[] = [];
+    for (const file of filesToRead) {
+      if (!acceptedAssetPhotoTypes.has(file.type)) {
+        setPhotoError(t.photoUploader.unsupported);
+        continue;
+      }
+      if (file.size > maxAssetPhotoSize) {
+        setPhotoError(t.photoUploader.tooLarge);
+        continue;
+      }
+
+      const dataUrl = await readPhotoAsDataUrl(file);
+      nextPhotos.push({
+        fileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        dataUrl,
+      });
+    }
+
+    if (nextPhotos.length) {
+      setDraft((current) => ({
+        ...current,
+        photos: [...current.photos, ...nextPhotos].slice(0, maxAssetPhotoCount),
+      }));
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotoError('');
+    setDraft((current) => ({
+      ...current,
+      photos: current.photos.filter((_, currentIndex) => currentIndex !== index),
     }));
   };
 
@@ -214,19 +309,6 @@ export function AddNewAssests({
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClassName}>
-                    {t.fields.assetId} <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={draft.id}
-                    onChange={(event) => handleFieldChange('id', event.target.value)}
-                    placeholder={t.placeholders.assetId}
-                    className={inputClassName}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClassName}>
                     {t.fields.assetType} <span className="text-rose-400">*</span>
                   </label>
                   <select
@@ -234,14 +316,15 @@ export function AddNewAssests({
                     onChange={(event) => handleFieldChange('assetType', event.target.value as AddNewAssetType)}
                     className={selectClassName}
                   >
-                    <option value="laptop">{t.options.laptop}</option>
-                    <option value="attendance">{t.options.attendanceTerminal}</option>
-                    <option value="operations">{t.options.mobileDevice}</option>
-                    <option value="maintenance">{t.options.maintenanceKit}</option>
+                    {assetTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t.options[option.labelKey]}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <label className={labelClassName}>
                     {t.fields.assetName} <span className="text-rose-400">*</span>
                   </label>
@@ -352,7 +435,7 @@ export function AddNewAssests({
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(9rem,12rem)]">
                 <div>
                   <label className={labelClassName}>{t.fields.value}</label>
                   <input
@@ -365,6 +448,21 @@ export function AddNewAssests({
                 </div>
 
                 <div>
+                  <label className={labelClassName}>{t.fields.currency}</label>
+                  <select
+                    value={draft.currency}
+                    onChange={(event) => handleFieldChange('currency', event.target.value)}
+                    className={selectClassName}
+                  >
+                    {businessCurrencyOptions.map((currency) => (
+                      <option key={currency.code} value={currency.code}>
+                        {currency.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
                   <label className={labelClassName}>{t.fields.notes}</label>
                   <textarea
                     value={draft.notes}
@@ -374,6 +472,106 @@ export function AddNewAssests({
                     className={`${inputClassName} resize-none`}
                   />
                 </div>
+              </div>
+            </section>
+
+            <section className={sectionClassName}>
+              <div className={cn('mb-4 border-b pb-2', isDarkMode ? 'border-white/10' : 'border-gray-200')}>
+                <h3 className={cn('text-sm font-semibold uppercase tracking-[0.14em]', isDarkMode ? 'text-slate-300' : 'text-gray-500')}>
+                  {t.sections.photos}
+                </h3>
+              </div>
+
+              <div className={cn(
+                'rounded-2xl border p-4',
+                isDarkMode ? 'border-[#59C3A5]/25 bg-[#59C3A5]/10' : 'border-[#bfeee3] bg-[#f0fbf8]',
+              )}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className={cn('text-sm font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
+                      {t.photoUploader.title}
+                    </p>
+                    <p className={cn('mt-1 text-xs leading-5', isDarkMode ? 'text-slate-300' : 'text-slate-600')}>
+                      {t.photoUploader.subtitle}
+                    </p>
+                    <p className={cn('mt-1 text-xs leading-5', isDarkMode ? 'text-slate-400' : 'text-slate-500')}>
+                      {t.photoUploader.hint}
+                    </p>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    className="hidden"
+                    onChange={(event) => {
+                      void handleSelectPhotos(event.target.files);
+                      event.target.value = '';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="shrink-0 rounded-xl bg-[#59C3A5] font-semibold text-white hover:bg-[#43ad90]"
+                  >
+                    <ImagePlus className="mr-2 h-4 w-4" />
+                    {t.photoUploader.browse}
+                  </Button>
+                </div>
+
+                {photoError ? (
+                  <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                    {photoError}
+                  </p>
+                ) : null}
+
+                {draft.photos.length ? (
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {draft.photos.map((photo, index) => (
+                      <div
+                        key={`${photo.fileName}-${photo.sizeBytes}-${index}`}
+                        className={cn(
+                          'group overflow-hidden rounded-2xl border',
+                          isDarkMode ? 'border-white/10 bg-slate-900' : 'border-slate-200 bg-white',
+                        )}
+                      >
+                        <div className="relative aspect-square bg-slate-100">
+                          <img
+                            src={photo.dataUrl}
+                            alt={`${t.photoUploader.preview} ${index + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePhoto(index)}
+                            aria-label={t.photoUploader.remove}
+                            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-sm transition hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="px-3 py-2">
+                          <p className={cn('truncate text-xs font-semibold', isDarkMode ? 'text-white' : 'text-slate-800')}>
+                            {photo.fileName}
+                          </p>
+                          <p className={cn('mt-0.5 text-[11px]', isDarkMode ? 'text-slate-400' : 'text-slate-500')}>
+                            {(photo.sizeBytes / 1024).toFixed(0)} KB
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={cn(
+                    'mt-4 rounded-2xl border border-dashed px-4 py-6 text-center text-sm font-medium',
+                    isDarkMode ? 'border-white/15 text-slate-400' : 'border-slate-300 text-slate-500',
+                  )}
+                  >
+                    {t.photoUploader.empty}
+                  </div>
+                )}
               </div>
             </section>
           </div>

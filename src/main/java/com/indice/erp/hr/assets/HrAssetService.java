@@ -35,8 +35,20 @@ public class HrAssetService {
     private static final Set<String> ACTIVE_UNIT_STATUSES = Set.of("active", "activo");
     private static final Pattern ASSET_CODE_PATTERN = Pattern.compile("^[A-Z0-9][A-Z0-9._-]{1,79}$");
     private static final Pattern ASSET_TYPE_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9 _-]{0,49}$");
+    private static final Pattern CURRENCY_CODE_PATTERN = Pattern.compile("^[A-Z]{3}$");
     private static final DateTimeFormatter DATE_TIME_OUTPUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter DATE_TIME_INPUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String DEFAULT_ASSET_CODE_PREFIX = "ACT";
+    private static final String DEFAULT_VALUE_CURRENCY = "USD";
+    private static final Set<String> VALID_ASSET_PHOTO_MIME_TYPES = Set.of(
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif"
+    );
+    private static final int MAX_ASSET_PHOTOS_PER_SAVE = 8;
+    private static final int MAX_ASSET_PHOTO_BYTES = 2_500_000;
+    private static final int MAX_ASSET_PHOTO_DATA_URL_LENGTH = 4_000_000;
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
 
@@ -93,7 +105,14 @@ public class HrAssetService {
                        a.status,
                        a.assigned_at,
                        a.value_amount,
+                       a.value_currency,
                        a.notes,
+                       (
+                         SELECT COUNT(*)
+                         FROM user_asset_photos photo
+                         WHERE photo.company_id = a.company_id
+                           AND photo.asset_id = a.id
+                       ) AS photo_count,
                        a.created_by_user_id,
                        created_by.full_name AS created_by_name,
                        a.updated_by_user_id,
@@ -126,7 +145,9 @@ public class HrAssetService {
                 rs.getString("status"),
                 asLocalDateTime(rs.getTimestamp("assigned_at")),
                 rs.getBigDecimal("value_amount"),
+                rs.getString("value_currency"),
                 rs.getString("notes"),
+                rs.getLong("photo_count"),
                 nullableLong(rs.getObject("created_by_user_id")),
                 rs.getString("created_by_name"),
                 nullableLong(rs.getObject("updated_by_user_id")),
@@ -174,6 +195,29 @@ public class HrAssetService {
             },
             query.params().toArray()
         );
+        var valueTotalsByCurrency = jdbcTemplate.query(
+            """
+                SELECT COALESCE(NULLIF(TRIM(a.value_currency), ''), ?) AS value_currency,
+                       COALESCE(SUM(a.value_amount), 0) AS total_value_amount
+                FROM user_assets a
+                LEFT JOIN hr_users e ON e.id = a.responsible_user_company_id
+                """
+                + query.whereClause()
+                + """
+                    AND a.value_amount IS NOT NULL
+                    GROUP BY COALESCE(NULLIF(TRIM(a.value_currency), ''), ?)
+                    ORDER BY value_currency
+                    """,
+            (rs, rowNum) -> Map.entry(
+                normalizeCurrencyCode(rs.getString("value_currency")),
+                rs.getBigDecimal("total_value_amount")
+            ),
+            withCurrencyDefaults(query.params())
+        );
+        var valueTotals = new LinkedHashMap<String, Object>();
+        for (var item : valueTotalsByCurrency) {
+            valueTotals.put(item.getKey(), item.getValue());
+        }
 
         var totalRows = totalCount == null ? 0L : totalCount;
         var totalPages = totalRows == 0 ? 0 : (int) Math.ceil((double) totalRows / size);
@@ -184,7 +228,9 @@ public class HrAssetService {
         result.put("size", size);
         result.put("total_count", totalRows);
         result.put("total_pages", totalPages);
-        result.put("summary", summary.isEmpty() ? defaultSummary() : summary.getFirst());
+        var summaryResult = summary.isEmpty() ? defaultSummary() : summary.getFirst();
+        summaryResult.put("value_totals_by_currency", valueTotals);
+        result.put("summary", summaryResult);
         return result;
     }
 
@@ -233,8 +279,9 @@ public class HrAssetService {
         HrOperationalScope scope
     ) {
         var draft = normalizeCreatePayload(companyId, payload);
+        var assetCode = draft.assetCode().isBlank() ? generateAssetCode(companyId) : draft.assetCode();
         hrAssetScopeAccess.requireTargetInScope(companyId, scope, draft.unitId(), draft.responsibleUserCompanyId());
-        ensureUniqueAssetCode(companyId, draft.assetCode(), null);
+        ensureUniqueAssetCode(companyId, assetCode, null);
         ensureUniqueSerialNumber(companyId, draft.serialNumber(), null);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -244,13 +291,13 @@ public class HrAssetService {
                     """
                         INSERT INTO user_assets
                         (company_id, asset_code, asset_type, name, model, serial_number, responsible_user_company_id, responsible_user_id, unit_id, status, assigned_at,
-                         value_amount, notes, created_by_user_id, updated_by_user_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         value_amount, value_currency, notes, created_by_user_id, updated_by_user_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                     new String[] {"id"}
                 );
                 statement.setLong(1, companyId);
-                statement.setString(2, draft.assetCode());
+                statement.setString(2, assetCode);
                 statement.setString(3, draft.assetType());
                 statement.setString(4, draft.name());
                 statement.setString(5, nullable(draft.model()));
@@ -261,9 +308,10 @@ public class HrAssetService {
                 statement.setString(10, draft.status());
                 setNullableDateTime(statement, 11, draft.assignedAt());
                 setNullableBigDecimal(statement, 12, draft.valueAmount());
-                statement.setString(13, nullable(draft.notes()));
-                setNullableLong(statement, 14, actorUserId);
+                statement.setString(13, draft.valueCurrency());
+                statement.setString(14, nullable(draft.notes()));
                 setNullableLong(statement, 15, actorUserId);
+                setNullableLong(statement, 16, actorUserId);
                 return statement;
             }, keyHolder);
         } catch (DataIntegrityViolationException ex) {
@@ -274,6 +322,8 @@ public class HrAssetService {
         if (assetId <= 0) {
             throw new IllegalArgumentException("Unable to create asset.");
         }
+
+        insertAssetPhotos(companyId, assetId, actorUserId, draft.photos());
 
         var changedAt = draft.assignedAt() != null ? draft.assignedAt() : LocalDateTime.now();
         insertStatusHistory(
@@ -373,11 +423,26 @@ public class HrAssetService {
         if (hasAnyKey(payload, "value", "value_amount", "valueAmount")) {
             valueAmount = parseFlexibleBigDecimal(payload, "value", "value_amount", "valueAmount");
         }
+        var valueCurrency = current.valueCurrency();
+        if (hasAnyKey(payload, "value_currency", "valueCurrency", "currency", "currency_code", "currencyCode")) {
+            valueCurrency = normalizeCurrencyCode(requiredString(
+                payload,
+                "value_currency",
+                "valueCurrency",
+                "currency",
+                "currency_code",
+                "currencyCode"
+            ));
+        }
 
         var notes = current.notes();
         if (hasAnyKey(payload, "notes")) {
             notes = normalizeOptionalText(stringValue(payload, "notes"), "notes", 4000);
         }
+        var photoDrafts = hasAnyKey(payload, "photos")
+            ? normalizeAssetPhotos(payload)
+            : List.<AssetPhotoDraft>of();
+        var replacePhotos = booleanValue(payload, "replace_photos", "replacePhotos");
 
         ensureUniqueAssetCode(companyId, assetCode, assetId);
         ensureUniqueSerialNumber(companyId, serialNumber, assetId);
@@ -392,6 +457,7 @@ public class HrAssetService {
                     serial_number = ?,
                     unit_id = ?,
                     value_amount = ?,
+                    value_currency = ?,
                     notes = ?,
                     updated_by_user_id = ?
                 WHERE id = ? AND company_id = ?
@@ -403,6 +469,7 @@ public class HrAssetService {
             nullable(serialNumber),
             unitId,
             valueAmount,
+            valueCurrency,
             nullable(notes),
             actorUserId,
             assetId,
@@ -412,6 +479,11 @@ public class HrAssetService {
         if (rowsUpdated == 0) {
             throw new NoSuchElementException("Asset not found.");
         }
+
+        if (replacePhotos) {
+            deleteAssetPhotos(companyId, assetId);
+        }
+        insertAssetPhotos(companyId, assetId, actorUserId, photoDrafts);
 
         return assetDetails(companyId, assetId);
     }
@@ -670,6 +742,29 @@ public class HrAssetService {
         return assetHistory(currentUser.companyId(), assetId);
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> assetPhotos(AuthSessionUser currentUser, long assetId) {
+        var scope = hrAssetScopeAccess.resolve(currentUser);
+        hrAssetScopeAccess.requireAssetInScope(currentUser.companyId(), scope, assetId);
+        return Map.of(
+            "asset_id",
+            assetId,
+            "photos",
+            loadAssetPhotos(currentUser.companyId(), assetId)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> assignedAssetPhotos(AuthSessionUser currentUser, long assetId) {
+        requireAssetAssignedToUser(currentUser.companyId(), requireSessionUserCompanyId(currentUser), assetId);
+        return Map.of(
+            "asset_id",
+            assetId,
+            "photos",
+            loadAssetPhotos(currentUser.companyId(), assetId)
+        );
+    }
+
     private Map<String, Object> applyAssignmentChange(
         long companyId,
         long actorUserId,
@@ -737,7 +832,8 @@ public class HrAssetService {
     }
 
     private AssetCreatePayload normalizeCreatePayload(long companyId, Map<String, Object> payload) {
-        var assetCode = normalizeAssetCode(requiredString(payload, "asset_code", "assetCode", "id"));
+        var rawAssetCode = stringValue(payload, "asset_code", "assetCode", "id");
+        var assetCode = rawAssetCode.isBlank() ? "" : normalizeAssetCode(rawAssetCode);
         var assetType = normalizeAssetType(requiredString(payload, "asset_type", "assetType"));
         var name = normalizeRequiredText(requiredString(payload, "name", "asset_name", "assetName"), "name", 160);
         var model = normalizeOptionalText(stringValue(payload, "model"), "model", 160);
@@ -750,12 +846,23 @@ public class HrAssetService {
             : normalizeStatus(statusValue);
         var assignedAt = parseDateTime(payload, "assigned_at", "assignedAt", "assigned_date", "assignedDate");
         var valueAmount = parseFlexibleBigDecimal(payload, "value", "value_amount", "valueAmount");
+        var valueCurrency = hasAnyKey(payload, "value_currency", "valueCurrency", "currency", "currency_code", "currencyCode")
+            ? normalizeCurrencyCode(requiredString(
+                payload,
+                "value_currency",
+                "valueCurrency",
+                "currency",
+                "currency_code",
+                "currencyCode"
+            ))
+            : DEFAULT_VALUE_CURRENCY;
         var notes = normalizeOptionalText(stringValue(payload, "notes"), "notes", 4000);
         var assignmentNotes = normalizeOptionalText(
             stringValue(payload, "assignment_notes", "assignmentNotes"),
             "assignment_notes",
             4000
         );
+        var photos = normalizeAssetPhotos(payload);
 
         if (ASSIGNABLE_STATUSES.contains(status)) {
             if (responsibleUserCompanyId == null) {
@@ -784,8 +891,10 @@ public class HrAssetService {
             status,
             assignedAt,
             valueAmount,
+            valueCurrency,
             notes,
-            assignmentNotes
+            assignmentNotes,
+            photos
         );
     }
 
@@ -858,7 +967,14 @@ public class HrAssetService {
                        a.status,
                        a.assigned_at,
                        a.value_amount,
+                       a.value_currency,
                        a.notes,
+                       (
+                         SELECT COUNT(*)
+                         FROM user_asset_photos photo
+                         WHERE photo.company_id = a.company_id
+                           AND photo.asset_id = a.id
+                       ) AS photo_count,
                        a.created_by_user_id,
                        created_by.full_name AS created_by_name,
                        a.updated_by_user_id,
@@ -889,7 +1005,9 @@ public class HrAssetService {
                 rs.getString("status"),
                 asLocalDateTime(rs.getTimestamp("assigned_at")),
                 rs.getBigDecimal("value_amount"),
+                rs.getString("value_currency"),
                 rs.getString("notes"),
+                rs.getLong("photo_count"),
                 nullableLong(rs.getObject("created_by_user_id")),
                 rs.getString("created_by_name"),
                 nullableLong(rs.getObject("updated_by_user_id")),
@@ -923,6 +1041,7 @@ public class HrAssetService {
                        status,
                        assigned_at,
                        value_amount,
+                       value_currency,
                        notes
                 FROM user_assets
                 WHERE company_id = ?
@@ -942,6 +1061,7 @@ public class HrAssetService {
                 safe(rs.getString("status")),
                 asLocalDateTime(rs.getTimestamp("assigned_at")),
                 rs.getBigDecimal("value_amount"),
+                normalizeCurrencyCode(rs.getString("value_currency")),
                 safe(rs.getString("notes"))
             ),
             companyId,
@@ -1024,6 +1144,121 @@ public class HrAssetService {
             actorUserId,
             Timestamp.valueOf(changedAt)
         );
+    }
+
+    private void insertAssetPhotos(
+        long companyId,
+        long assetId,
+        long actorUserId,
+        List<AssetPhotoDraft> photos
+    ) {
+        if (photos == null || photos.isEmpty()) {
+            return;
+        }
+
+        for (var photo : photos) {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO user_asset_photos
+                    (company_id, asset_id, file_name, mime_type, size_bytes, data_url, caption, uploaded_by_user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                companyId,
+                assetId,
+                photo.fileName(),
+                photo.mimeType(),
+                photo.sizeBytes(),
+                photo.dataUrl(),
+                nullable(photo.caption()),
+                actorUserId
+            );
+        }
+    }
+
+    private void deleteAssetPhotos(long companyId, long assetId) {
+        jdbcTemplate.update(
+            """
+                DELETE FROM user_asset_photos
+                WHERE company_id = ?
+                  AND asset_id = ?
+                """,
+            companyId,
+            assetId
+        );
+    }
+
+    private List<Map<String, Object>> loadAssetPhotos(long companyId, long assetId) {
+        requireAssetState(companyId, assetId);
+        return jdbcTemplate.query(
+            """
+                SELECT p.id,
+                       p.asset_id,
+                       p.file_name,
+                       p.mime_type,
+                       p.size_bytes,
+                       p.data_url,
+                       p.caption,
+                       p.uploaded_by_user_id,
+                       uploaded_by.full_name AS uploaded_by_name,
+                       p.created_at,
+                       p.updated_at
+                FROM user_asset_photos p
+                LEFT JOIN users uploaded_by ON uploaded_by.id = p.uploaded_by_user_id
+                WHERE p.company_id = ?
+                  AND p.asset_id = ?
+                ORDER BY p.created_at DESC, p.id DESC
+                """,
+            (rs, rowNum) -> {
+                var photo = new LinkedHashMap<String, Object>();
+                var dataUrl = safe(rs.getString("data_url"));
+                photo.put("id", rs.getLong("id"));
+                photo.put("asset_id", rs.getLong("asset_id"));
+                photo.put("file_name", safe(rs.getString("file_name")));
+                photo.put("mime_type", safe(rs.getString("mime_type")));
+                photo.put("size_bytes", rs.getInt("size_bytes"));
+                photo.put("data_url", dataUrl);
+                photo.put("download_url", dataUrl);
+                photo.put("caption", safe(rs.getString("caption")));
+                photo.put("uploaded_by_user_id", nullableLong(rs.getObject("uploaded_by_user_id")));
+                photo.put("uploaded_by_name", safe(rs.getString("uploaded_by_name")));
+                photo.put("created_at", formatDateTime(asLocalDateTime(rs.getTimestamp("created_at"))));
+                photo.put("updated_at", formatDateTime(asLocalDateTime(rs.getTimestamp("updated_at"))));
+                return photo;
+            },
+            companyId,
+            assetId
+        );
+    }
+
+    private String generateAssetCode(long companyId) {
+        var highestSequence = jdbcTemplate.queryForObject(
+            """
+                SELECT COALESCE(MAX(CAST(SUBSTRING(asset_code, 5) AS UNSIGNED)), 0)
+                FROM user_assets
+                WHERE company_id = ?
+                  AND asset_code REGEXP '^ACT-[0-9]+$'
+                """,
+            Long.class,
+            companyId
+        );
+        var nextSequence = (highestSequence == null ? 0L : highestSequence) + 1L;
+        for (var attempts = 0; attempts < 100; attempts += 1) {
+            var candidate = "%s-%06d".formatted(DEFAULT_ASSET_CODE_PREFIX, nextSequence + attempts);
+            if (!assetCodeExists(companyId, candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException("Unable to generate a unique asset code.");
+    }
+
+    private boolean assetCodeExists(long companyId, String assetCode) {
+        var count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM user_assets WHERE company_id = ? AND LOWER(asset_code) = LOWER(?)",
+            Long.class,
+            companyId,
+            assetCode
+        );
+        return count != null && count > 0;
     }
 
     private void ensureUniqueAssetCode(long companyId, String assetCode, Long currentAssetId) {
@@ -1339,6 +1574,14 @@ public class HrAssetService {
         return next.toArray();
     }
 
+    private Object[] withCurrencyDefaults(List<Object> params) {
+        var next = new ArrayList<Object>();
+        next.add(DEFAULT_VALUE_CURRENCY);
+        next.addAll(params);
+        next.add(DEFAULT_VALUE_CURRENCY);
+        return next.toArray();
+    }
+
     private Map<String, Object> mapAssetRow(
         long id,
         String assetCode,
@@ -1354,7 +1597,9 @@ public class HrAssetService {
         String status,
         LocalDateTime assignedAt,
         BigDecimal valueAmount,
+        String valueCurrency,
         String notes,
+        long photoCount,
         Long createdByUserId,
         String createdByName,
         Long updatedByUserId,
@@ -1377,7 +1622,9 @@ public class HrAssetService {
         asset.put("status", safe(status));
         asset.put("assigned_at", formatDateTime(assignedAt));
         asset.put("value_amount", valueAmount);
+        asset.put("value_currency", normalizeCurrencyCode(valueCurrency));
         asset.put("notes", safe(notes));
+        asset.put("photo_count", photoCount);
         asset.put("created_by_user_id", createdByUserId);
         asset.put("created_by_name", safe(createdByName));
         asset.put("updated_by_user_id", updatedByUserId);
@@ -1420,6 +1667,97 @@ public class HrAssetService {
             throw new IllegalArgumentException("asset_type must be 1-50 characters using lowercase letters, numbers, spaces, underscore, or hyphen.");
         }
         return normalized;
+    }
+
+    private List<AssetPhotoDraft> normalizeAssetPhotos(Map<String, Object> payload) {
+        if (!payload.containsKey("photos")) {
+            return List.of();
+        }
+
+        var value = payload.get("photos");
+        if (value == null) {
+            return List.of();
+        }
+        if (!(value instanceof List<?> rawPhotos)) {
+            throw new IllegalArgumentException("photos must be an array.");
+        }
+        if (rawPhotos.size() > MAX_ASSET_PHOTOS_PER_SAVE) {
+            throw new IllegalArgumentException("photos supports up to " + MAX_ASSET_PHOTOS_PER_SAVE + " files per save.");
+        }
+
+        var photos = new ArrayList<AssetPhotoDraft>();
+        for (var index = 0; index < rawPhotos.size(); index += 1) {
+            var rawPhoto = rawPhotos.get(index);
+            if (!(rawPhoto instanceof Map<?, ?> rawPhotoMap)) {
+                throw new IllegalArgumentException("photos items must be objects.");
+            }
+
+            var photoPayload = new LinkedHashMap<String, Object>();
+            for (var entry : rawPhotoMap.entrySet()) {
+                if (entry.getKey() != null) {
+                    photoPayload.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            }
+
+            var dataUrl = requiredString(photoPayload, "data_url", "dataUrl", "url");
+            if (dataUrl.length() > MAX_ASSET_PHOTO_DATA_URL_LENGTH) {
+                throw new IllegalArgumentException("photo data is too large.");
+            }
+
+            var mimeType = normalizeOptionalText(
+                stringValue(photoPayload, "mime_type", "mimeType", "type"),
+                "mime_type",
+                80
+            ).toLowerCase();
+            if (mimeType.isBlank()) {
+                mimeType = detectMimeTypeFromDataUrl(dataUrl);
+            }
+            if (!VALID_ASSET_PHOTO_MIME_TYPES.contains(mimeType)) {
+                throw new IllegalArgumentException("photos only supports JPG, PNG, WEBP or GIF images.");
+            }
+            if (!dataUrl.startsWith("data:" + mimeType + ";base64,")) {
+                throw new IllegalArgumentException("photo data_url must match its mime_type.");
+            }
+
+            var fileName = normalizeOptionalText(stringValue(photoPayload, "file_name", "fileName", "name"), "file_name", 180);
+            if (fileName.isBlank()) {
+                fileName = "asset-photo-" + (index + 1);
+            }
+
+            var sizeBytesLong = parseLong(photoPayload, "size_bytes", "sizeBytes", "size");
+            var sizeBytes = sizeBytesLong == null
+                ? estimateDataUrlSize(dataUrl)
+                : sizeBytesLong;
+            if (sizeBytes < 0 || sizeBytes > MAX_ASSET_PHOTO_BYTES) {
+                throw new IllegalArgumentException("each photo must be 2.5 MB or less.");
+            }
+
+            var caption = normalizeOptionalText(stringValue(photoPayload, "caption"), "caption", 240);
+            photos.add(new AssetPhotoDraft(fileName, mimeType, Math.toIntExact(sizeBytes), dataUrl, caption));
+        }
+
+        return List.copyOf(photos);
+    }
+
+    private String detectMimeTypeFromDataUrl(String dataUrl) {
+        if (!dataUrl.startsWith("data:")) {
+            throw new IllegalArgumentException("photo data_url must be a base64 data URL.");
+        }
+        var separatorIndex = dataUrl.indexOf(";base64,");
+        if (separatorIndex < 0) {
+            throw new IllegalArgumentException("photo data_url must be base64 encoded.");
+        }
+        return dataUrl.substring("data:".length(), separatorIndex).trim().toLowerCase();
+    }
+
+    private long estimateDataUrlSize(String dataUrl) {
+        var commaIndex = dataUrl.indexOf(',');
+        if (commaIndex < 0 || commaIndex + 1 >= dataUrl.length()) {
+            return 0L;
+        }
+        var encoded = dataUrl.substring(commaIndex + 1).replaceAll("\\s", "");
+        var padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+        return (encoded.length() * 3L / 4L) - padding;
     }
 
     private String normalizeStatus(String value) {
@@ -1490,6 +1828,23 @@ public class HrAssetService {
         return "";
     }
 
+    private boolean booleanValue(Map<String, Object> payload, String... keys) {
+        for (var key : keys) {
+            if (!payload.containsKey(key)) {
+                continue;
+            }
+            var value = payload.get(key);
+            if (value instanceof Boolean bool) {
+                return bool;
+            }
+            if (value instanceof String string) {
+                return Boolean.parseBoolean(string.trim());
+            }
+            return false;
+        }
+        return false;
+    }
+
     private Long parseLong(Map<String, Object> payload, String... keys) {
         for (var key : keys) {
             if (!payload.containsKey(key)) {
@@ -1553,6 +1908,17 @@ public class HrAssetService {
         return null;
     }
 
+    private String normalizeCurrencyCode(String value) {
+        var normalized = String.valueOf(value == null ? DEFAULT_VALUE_CURRENCY : value).trim().toUpperCase();
+        if (normalized.isBlank()) {
+            normalized = DEFAULT_VALUE_CURRENCY;
+        }
+        if (!CURRENCY_CODE_PATTERN.matcher(normalized).matches()) {
+            throw new IllegalArgumentException("value_currency must be a three-letter ISO currency code.");
+        }
+        return normalized;
+    }
+
     private LocalDateTime parseDateTime(Map<String, Object> payload, String... keys) {
         for (var key : keys) {
             if (!payload.containsKey(key)) {
@@ -1606,7 +1972,7 @@ public class HrAssetService {
         }
     }
 
-    private Object defaultSummary() {
+    private Map<String, Object> defaultSummary() {
         var result = new LinkedHashMap<String, Object>();
         result.put("total_count", 0L);
         result.put("available_count", 0L);
@@ -1744,6 +2110,7 @@ public class HrAssetService {
         String status,
         LocalDateTime assignedAt,
         BigDecimal valueAmount,
+        String valueCurrency,
         String notes
     ) {
     }
@@ -1759,8 +2126,19 @@ public class HrAssetService {
         String status,
         LocalDateTime assignedAt,
         BigDecimal valueAmount,
+        String valueCurrency,
         String notes,
-        String assignmentNotes
+        String assignmentNotes,
+        List<AssetPhotoDraft> photos
+    ) {
+    }
+
+    private record AssetPhotoDraft(
+        String fileName,
+        String mimeType,
+        int sizeBytes,
+        String dataUrl,
+        String caption
     ) {
     }
 

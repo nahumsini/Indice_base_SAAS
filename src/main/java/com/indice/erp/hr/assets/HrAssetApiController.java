@@ -223,6 +223,29 @@ public class HrAssetApiController {
         }
     }
 
+    @GetMapping("/{assetId}/photos")
+    public ResponseEntity<?> photos(HttpSession session, @PathVariable long assetId) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        var currentUser = user.get();
+        var canManage = canManageAssets(currentUser);
+        if (!canManage && !canReadAssignedAssets(currentUser)) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(canManage
+                ? hrAssetService.assetPhotos(currentUser, assetId)
+                : hrAssetService.assignedAssetPhotos(currentUser, assetId));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     private boolean canManageAssets(AuthSessionUser user) {
         return hrAccessService.canAccessManagementTab(user, HrTab.ASSETS);
     }

@@ -4,7 +4,6 @@ export const zhCA = {
   pageTitle: '公告',
   pageSubtitle: '管理内部更新、分组消息和已排程的人力资源沟通。',
   actions: {
-    export: '导出',
     columns: '列',
     addAnnouncement: '新增公告',
   },
@@ -15,6 +14,12 @@ export const zhCA = {
     uploadAttachmentFailed: '无法上传附件。',
     removeAttachmentFailed: '无法移除附件。',
     openDetails: '打开详情',
+    loadAnnouncementsFailed: '无法加载公告。',
+    manageNotAllowed: '你没有权限管理公告。',
+    saveAnnouncementFailed: '无法保存公告。',
+    deleteAnnouncementFailed: '无法删除公告。',
+    markReadFailed: '无法将公告标记为已读。',
+    markUnreadFailed: '无法将公告标记为未读。',
   },
   filters: {
     title: '筛选',
@@ -41,6 +46,9 @@ export const zhCA = {
       operations: '运营',
       leaders: '主管',
       everyone: '所有员工',
+      units: '单位',
+      departments: '部门',
+      employees: '指定员工',
     },
   },
   kpis: {
@@ -63,6 +71,14 @@ export const zhCA = {
     ) =>
       `沟通摘要：已发布 ${publishedCount} · 已排程 ${scheduledCount} · 草稿 ${draftCount} · 平均阅读率 ${readRate} · 显示 ${visibleCount}/${totalCount}。`,
   },
+  bulk: {
+    selectedBadge: (count: number) => `已选择 ${count} 项`,
+    label: '批量操作',
+    deleteSelected: '删除已选',
+    deleteDescription: '所选公告将从列表中移除。',
+    markUnread: '标记为未读',
+    clearSelection: '清除选择',
+  },
   progress: {
     published: '已发布',
     scheduled: '已排程',
@@ -80,6 +96,8 @@ export const zhCA = {
       actions: '操作',
     },
     emptyState: '没有公告符合当前筛选条件。',
+    selectAllRows: '选择本页公告',
+    selectRow: (title: string) => `选择 ${title}`,
     noPreview: '暂无预览。',
     noTime: '无时间',
     edit: '编辑',
@@ -141,6 +159,16 @@ export const zhCA = {
     selectedUnits: '已选单位',
     specificEmployees: '指定员工',
   },
+  view: {
+    readRatio: (read: number, total: number) => `${read}/${total} 已读`,
+    read: '已读',
+    unread: '未读',
+    noDate: '无日期',
+    noTime: '无时间',
+    noPosition: '无职位',
+    unnamedUser: '未命名用户',
+    unitLabel: (unitId: string | number) => `单位 ${unitId}`,
+  },
   modal: {
     title: '新公告',
     subtitle: '创建、指定对象并排程内部人力资源沟通。',
@@ -190,7 +218,7 @@ export const zhCA = {
     message: {
       title: '消息',
       helper: '保持简短、直接、易读。',
-      attachmentNote: '附件将在下一次前端迭代中加入。',
+      attachmentNote: '保存后可在详情面板上传附件。',
     },
     publishing: {
       title: '发布',
@@ -207,6 +235,7 @@ export const zhCA = {
     buttons: {
       cancel: '取消',
       saveDraft: '保存草稿',
+      saveChanges: '保存更改',
       publishNow: '立即发布',
       schedulePublication: '排程发布',
     },

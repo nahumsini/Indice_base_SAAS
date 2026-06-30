@@ -40,6 +40,7 @@ interface EmployeesTableProps {
   onToggleRowSelection: (employeeId: number, checked: boolean) => void;
   onSort: (columnId: EmployeeColumnId) => void;
   renderColumnCell: (employee: EmployeeViewModel, columnId: string) => ReactNode;
+  renderPinAction?: (employee: EmployeeViewModel) => ReactNode;
   resizingColumn: string | null;
   rows: EmployeeViewModel[];
   selectionColumnWidth: number;
@@ -189,6 +190,7 @@ function EmployeesTableBody({
   onEditEmployee,
   onToggleRowSelection,
   renderColumnCell,
+  renderPinAction,
   rows,
   selectionColumnWidth,
   tableLabels,
@@ -203,6 +205,7 @@ function EmployeesTableBody({
   | 'onEditEmployee'
   | 'onToggleRowSelection'
   | 'renderColumnCell'
+  | 'renderPinAction'
   | 'rows'
   | 'selectionColumnWidth'
   | 'tableLabels'
@@ -296,6 +299,7 @@ function EmployeesTableBody({
                 onClick={() => onEditEmployee(employee)}
                 toneClassName="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
               />
+              {renderPinAction?.(employee)}
               <EmployeeTableActionButton
                 icon={<Trash2 className="h-4 w-4 text-red-600" />}
                 label={employee.status === 'terminated' ? tableLabels.deleteHrUserLabel : tableLabels.terminateHrUserLabel}
@@ -323,6 +327,7 @@ export function EmployeesTable({
   onToggleRowSelection,
   onSort,
   renderColumnCell,
+  renderPinAction,
   resizingColumn,
   rows,
   selectionColumnWidth,
@@ -356,6 +361,7 @@ export function EmployeesTable({
         onEditEmployee={onEditEmployee}
         onToggleRowSelection={onToggleRowSelection}
         renderColumnCell={renderColumnCell}
+        renderPinAction={renderPinAction}
         rows={rows}
         selectionColumnWidth={selectionColumnWidth}
         tableLabels={tableLabels}

@@ -9,10 +9,11 @@ import type {
 import type { EmployeesTranslations } from '../translations';
 
 export const columnsStorageKey = 'rh-colaboradores-columns-v6';
-export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v1';
+export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v2';
 export const allFilterValue = 'all';
 export const inlineUnassignedValue = '__unassigned__';
 export const employeesPerPage = 10;
+export const employeePageSizeOptions = [10, 25, 50] as const;
 export const employeeSelectionColumnWidth = 64;
 export const hrAccentButtonClass = 'bg-[#59C3A5] text-white hover:bg-[#3AAE90]';
 
@@ -56,7 +57,7 @@ export const employeeColumnDocumentTypeMap: Partial<Record<EmployeeColumnId, Emp
 
 export function getDefaultEmployeeColumnWidth(columnId: string) {
   if (columnId === 'actions') {
-    return 150;
+    return 210;
   }
 
   if (columnId === 'employee') {
@@ -80,7 +81,7 @@ export function getDefaultEmployeeColumnWidth(columnId: string) {
 
 export function getMinimumEmployeeColumnWidth(columnId: string) {
   if (columnId === 'actions') {
-    return 130;
+    return 190;
   }
 
   if (columnId === 'employee') {

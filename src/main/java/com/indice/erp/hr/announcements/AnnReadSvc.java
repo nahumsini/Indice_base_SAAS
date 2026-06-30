@@ -63,4 +63,37 @@ public class AnnReadSvc {
         body.put("read_at", readAt);
         return body;
     }
+
+    @Transactional
+    public Map<String, Object> markUnread(HrAnnouncementActor actor, long announcementId) {
+        visSvc.requireVisible(actor, announcementId);
+        jdbcTemplate.update(
+            """
+                DELETE FROM hr_announcement_reads
+                WHERE company_id = ?
+                  AND announcement_id = ?
+                  AND user_company_id = ?
+                """,
+            actor.companyId(),
+            announcementId,
+            actor.userCompanyId()
+        );
+        jdbcTemplate.update(
+            """
+                UPDATE hr_announcement_deliveries
+                SET status = 'delivered',
+                    read_at = NULL
+                WHERE company_id = ?
+                  AND announcement_id = ?
+                  AND user_company_id = ?
+                """,
+            actor.companyId(),
+            announcementId,
+            actor.userCompanyId()
+        );
+        var body = new LinkedHashMap<String, Object>();
+        body.put("announcement_id", announcementId);
+        body.put("read_at", null);
+        return body;
+    }
 }

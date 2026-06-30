@@ -80,6 +80,16 @@ public class HrAnnouncementApiController {
         return ResponseEntity.ok(hrAnnouncementService.markRead(actor, announcementId));
     }
 
+    @DeleteMapping("/{announcementId}/read")
+    public ResponseEntity<?> unread(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @PathVariable long announcementId
+    ) {
+        var actor = securityService.requireReadWriteActor(session, csrfToken);
+        return ResponseEntity.ok(hrAnnouncementService.markUnread(actor, announcementId));
+    }
+
     @PostMapping("/{announcementId}/attachments/presign-upload")
     public ResponseEntity<?> presignAttachment(
         HttpSession session,

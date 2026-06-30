@@ -277,6 +277,7 @@ export const ptBR = {
   pagination: {
     previous: 'Anterior',
     next: 'Próximo',
+    pageSize: 'Linhas por página',
     showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} funcionários`,
     page: (current: number, total: number) => `Página ${current} de ${total}`,
   },

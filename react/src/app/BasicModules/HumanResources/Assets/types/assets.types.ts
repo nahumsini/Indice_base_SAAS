@@ -1,5 +1,5 @@
 import type { HrAssetStatus } from '../../../../api/HumanResources/assets';
-import type { AddNewAssetType } from '../AddNewAssests';
+import type { AddNewAssetType } from '../constants/assetCatalog';
 
 export type AssetType = AddNewAssetType;
 export type AssetTypeFilter = AssetType | 'other';
@@ -14,6 +14,7 @@ export type AssetColumnId =
   | 'status'
   | 'assignedAt'
   | 'value'
+  | 'photos'
   | 'notes'
   | 'actions';
 
@@ -33,5 +34,7 @@ export interface AssetRow {
   status: HrAssetStatus;
   assignedAt: string | null;
   valueAmount: number | null;
+  valueCurrency: string;
+  photoCount: number;
   notes: string;
 }

@@ -9,7 +9,6 @@ import { zhCA } from './zh-CA';
 import type { AnnouncementsLocale, AnnouncementsTranslations } from './types';
 
 export type {
-  AnnouncementColumnsModalCopy,
   AnnouncementDetailCopy,
   AnnouncementFiltersCopy,
   AnnouncementHeaderCopy,

@@ -179,7 +179,7 @@ export function CreateAnnouncementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" aria-busy={isSubmitting}>
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#59C3A5]/20 bg-white text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-[#59C3A5]/20 bg-white text-gray-900 shadow-2xl dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
         <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5">
           <div className="flex min-w-0 items-start gap-3">
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
@@ -205,7 +205,7 @@ export function CreateAnnouncementModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-white px-6 py-5 dark:bg-gray-950">
           <div className="space-y-5">
-            <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+            <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.basicInformation.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -220,7 +220,7 @@ export function CreateAnnouncementModal({
                     value={formData.title}
                     onChange={(event) => updateField('title', event.target.value)}
                     placeholder={copy.placeholders.title}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   />
                 </label>
 
@@ -229,7 +229,7 @@ export function CreateAnnouncementModal({
                   <select
                     value={formData.type}
                     onChange={(event) => updateField('type', event.target.value as FormState['type'])}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   >
                     <option value="general">{copy.typeOptions.general}</option>
                     <option value="urgent">{copy.typeOptions.urgent}</option>
@@ -243,7 +243,7 @@ export function CreateAnnouncementModal({
                   <select
                     value={formData.audienceType}
                     onChange={(event) => updateField('audienceType', event.target.value as FormState['audienceType'])}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   >
                     <option value="all">{copy.audienceOptions.all}</option>
                     <option value="units">{copy.audienceOptions.units}</option>
@@ -304,11 +304,11 @@ export function CreateAnnouncementModal({
                     value={employeeSearch}
                     onChange={(event) => setEmployeeSearch(event.target.value)}
                     placeholder={copy.placeholders.employeeSearch}
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                   />
                 </div>
 
-                <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950">
+                <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950">
                   {filteredEmployees.map((employee) => (
                     <label
                       key={employee.id}
@@ -332,7 +332,7 @@ export function CreateAnnouncementModal({
               </AudienceOptionSection>
             ) : null}
 
-            <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+            <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.message.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -344,14 +344,14 @@ export function CreateAnnouncementModal({
                 onChange={(event) => updateField('content', event.target.value)}
                 rows={7}
                 placeholder={copy.placeholders.message}
-                className="mt-4 w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                className="mt-4 w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
               />
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 {copy.message.attachmentNote}
               </p>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+            <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.publishing.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -384,7 +384,7 @@ export function CreateAnnouncementModal({
                         type="date"
                         value={formData.scheduledDate}
                         onChange={(event) => updateField('scheduledDate', event.target.value)}
-                        className="h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                        className="h-11 w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                       />
                     </div>
                   </label>
@@ -394,7 +394,7 @@ export function CreateAnnouncementModal({
                       type="time"
                       value={formData.scheduledTime}
                       onChange={(event) => updateField('scheduledTime', event.target.value)}
-                      className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
+                      className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-600 dark:bg-gray-950 dark:text-white"
                     />
                   </label>
                 </div>
@@ -406,7 +406,7 @@ export function CreateAnnouncementModal({
         <div className="flex flex-col gap-3 border-t border-white/10 bg-[#59C3A5] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Button
             variant="outline"
-            className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            className="rounded-lg border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
             onClick={resetAndClose}
             disabled={isSubmitting}
           >
@@ -417,7 +417,7 @@ export function CreateAnnouncementModal({
             <Button
               variant="outline"
               disabled={isSubmitting || !canSaveDraft}
-              className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white disabled:border-white/15 disabled:text-white/50"
+              className="rounded-lg border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white disabled:border-white/15 disabled:text-white/50"
               onClick={() => void submitAnnouncement('draft')}
             >
               {copy.buttons.saveDraft}
@@ -425,9 +425,9 @@ export function CreateAnnouncementModal({
             <Button
               disabled={isSubmitting || !canPublish}
               onClick={() => void submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
-              className="rounded-xl bg-white text-[#59C3A5] hover:bg-blue-50 disabled:bg-white/50 disabled:text-[#59C3A5]/60"
+              className="rounded-lg bg-white text-[#59C3A5] hover:bg-blue-50 disabled:bg-white/50 disabled:text-[#59C3A5]/60"
             >
-              {isEdit ? 'Save changes' : formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
+              {isEdit ? copy.buttons.saveChanges : formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
             </Button>
           </div>
         </div>
@@ -461,7 +461,7 @@ function AudienceOptionSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+    <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
       <h3 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h3>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
       <div className="mt-4">{children}</div>
@@ -481,7 +481,7 @@ function CheckboxPill({
   onChange: () => void;
 }) {
   return (
-    <label className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
+    <label className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
       disabled
         ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500'
         : checked
@@ -502,8 +502,7 @@ function CheckboxPill({
 }
 
 function formatAudienceOptionLabel(name: string, activeUserCount: number) {
-  const suffix = activeUserCount === 1 ? '1 user' : `${activeUserCount} users`;
-  return `${name} (${suffix})`;
+  return `${name} (${activeUserCount})`;
 }
 
 function normalizeOptionName(value: string) {
@@ -522,7 +521,7 @@ function RadioCard({
   onChange: () => void;
 }) {
   return (
-    <label className={`rounded-2xl border p-4 transition ${
+    <label className={`rounded-lg border p-4 transition ${
       checked
         ? 'border-[#59C3A5] bg-[#59C3A5]/10 shadow-[inset_0_0_0_1px_rgba(89,195,165,0.16)] dark:border-[#8FE0CA] dark:bg-[#59C3A5]/30'
         : 'border-gray-300 bg-white hover:border-[#59C3A5]/40 dark:border-gray-700 dark:bg-gray-950'

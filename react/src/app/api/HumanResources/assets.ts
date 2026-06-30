@@ -19,11 +19,28 @@ export interface HrAsset {
   status: HrAssetStatus;
   assigned_at: string | null;
   value_amount: number | null;
+  value_currency: string;
   notes: string | null;
+  photo_count: number;
   created_by_user_id: number | null;
   created_by_name: string | null;
   updated_by_user_id: number | null;
   updated_by_name: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface HrAssetPhoto {
+  id: number;
+  asset_id: number;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  data_url: string;
+  download_url: string;
+  caption: string;
+  uploaded_by_user_id: number | null;
+  uploaded_by_name: string;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -36,6 +53,7 @@ export interface HrAssetsSummary {
   custody_count: number;
   inactive_count: number;
   total_value_amount: number | null;
+  value_totals_by_currency?: Record<string, number | null>;
 }
 
 export interface HrAssetsListResponse {
@@ -58,8 +76,16 @@ export interface HrAssetsListParams {
   size?: number;
 }
 
+export interface HrAssetPhotoUploadPayload {
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  data_url: string;
+  caption?: string;
+}
+
 export interface CreateHrAssetPayload {
-  asset_code: string;
+  asset_code?: string;
   asset_type: string;
   name: string;
   model?: string;
@@ -69,7 +95,9 @@ export interface CreateHrAssetPayload {
   status?: HrAssetStatus;
   assigned_date?: string;
   value?: string | number;
+  value_currency?: string;
   notes?: string;
+  photos?: HrAssetPhotoUploadPayload[];
 }
 
 export interface UpdateHrAssetPayload {
@@ -80,7 +108,10 @@ export interface UpdateHrAssetPayload {
   serial_number?: string | null;
   unit_id?: number | null;
   value?: string | number | null;
+  value_currency?: string;
   notes?: string | null;
+  photos?: HrAssetPhotoUploadPayload[];
+  replace_photos?: boolean;
 }
 
 export interface ReassignHrAssetPayload {
@@ -103,6 +134,11 @@ export interface HrAssetHistoryResponse {
   assignment_history: Array<Record<string, unknown>>;
   status_history: Array<Record<string, unknown>>;
   timeline: Array<Record<string, unknown>>;
+}
+
+export interface HrAssetPhotosResponse {
+  asset_id: number;
+  photos: HrAssetPhoto[];
 }
 
 const buildQueryString = (params: HrAssetsListParams = {}) => {
@@ -159,5 +195,9 @@ export const hrAssetsApi = {
 
   getAssetHistory(assetId: number) {
     return apiClient<HrAssetHistoryResponse>(`${hrAssetsEndpoint}/${assetId}/history`);
+  },
+
+  getAssetPhotos(assetId: number) {
+    return apiClient<HrAssetPhotosResponse>(`${hrAssetsEndpoint}/${assetId}/photos`);
   },
 };

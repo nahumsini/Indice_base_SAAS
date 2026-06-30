@@ -15,6 +15,9 @@ import type {
   AnnouncementView,
   CreateAnnouncementFormData,
 } from './announcementTypes';
+import type { AnnouncementsTranslations } from './translations';
+
+type AnnouncementViewCopy = AnnouncementsTranslations['view'];
 
 const typeMap: Record<AnnouncementListItem['type'], AnnouncementDisplayType> = {
   celebration: 'Celebracion',
@@ -29,9 +32,9 @@ const statusMap: Record<AnnouncementListItem['status'], AnnouncementDisplayStatu
   scheduled: 'Programado',
 };
 
-export function toAnnouncementView(item: AnnouncementListItem, locale: string): AnnouncementView {
+export function toAnnouncementView(item: AnnouncementListItem, locale: string, copy: AnnouncementViewCopy): AnnouncementView {
   const effectiveDate = item.scheduled_for || item.published_at || item.created_at || '';
-  const { date, time } = formatDateTime(effectiveDate, locale);
+  const { date, time } = formatDateTime(effectiveDate, locale, copy);
 
   return {
     id: String(item.id),
@@ -46,7 +49,7 @@ export function toAnnouncementView(item: AnnouncementListItem, locale: string): 
     authorName: item.author_name,
     content: item.content,
     preview: item.content,
-    readSummary: readSummary(item),
+    readSummary: readSummary(item, copy),
     attachments: item.attachments ?? [],
     attachmentCount: item.attachment_count ?? item.attachments?.length ?? 0,
     deliveryCount: item.delivery_count ?? 0,
@@ -73,15 +76,18 @@ export function toAnnouncementEmployeeOption(employee: BackendHrUser): Announcem
   };
 }
 
-export function toAnnouncementAudienceEmployeeOption(employee: BackendEmployeeOption): AnnouncementEmployeeOption | null {
+export function toAnnouncementAudienceEmployeeOption(
+  employee: BackendEmployeeOption,
+  copy: AnnouncementViewCopy,
+): AnnouncementEmployeeOption | null {
   if (!employee.id) {
     return null;
   }
 
   return {
     id: employee.id,
-    name: employee.name || 'Unnamed user',
-    position: employee.position || employee.department || 'No position',
+    name: employee.name || copy.unnamedUser,
+    position: employee.position || employee.department || copy.noPosition,
     unit: employee.unit_id ?? 0,
     unitName: employee.unit_name || undefined,
     department: employee.department || undefined,
@@ -96,10 +102,13 @@ export function toAnnouncementDepartmentOption(option: BackendDepartmentOption):
   };
 }
 
-export function toAnnouncementUnitOption(option: BackendUnitOption): AnnouncementUnitOption {
+export function toAnnouncementUnitOption(
+  option: BackendUnitOption,
+  copy: AnnouncementViewCopy,
+): AnnouncementUnitOption {
   return {
     id: String(option.id),
-    name: option.name || `Unit ${option.id}`,
+    name: option.name || copy.unitLabel(option.id),
     activeUserCount: option.active_user_count,
     isAvailable: option.is_available,
   };
@@ -144,13 +153,13 @@ export function toAnnouncementFormData(item: AnnouncementListItem): CreateAnnoun
   };
 }
 
-function readSummary(item: AnnouncementListItem) {
+function readSummary(item: AnnouncementListItem, copy: AnnouncementViewCopy) {
   const readCount = item.read_count ?? 0;
   const deliveryCount = item.delivery_count ?? 0;
   if (deliveryCount > 0) {
-    return `${readCount}/${deliveryCount} read`;
+    return copy.readRatio(readCount, deliveryCount);
   }
-  return item.is_read ? 'Read' : 'Unread';
+  return item.is_read ? copy.read : copy.unread;
 }
 
 function targetValues(item: AnnouncementListItem, targetType: 'unit' | 'department' | 'employee') {
@@ -167,10 +176,10 @@ function timePart(value?: string | null) {
   return value ? value.slice(11, 16) : '';
 }
 
-function formatDateTime(value: string, locale: string) {
+function formatDateTime(value: string, locale: string, copy: AnnouncementViewCopy) {
   const parsed = new Date(value);
   if (!value || Number.isNaN(parsed.getTime())) {
-    return { date: 'No date', time: 'No time' };
+    return { date: copy.noDate, time: copy.noTime };
   }
 
   return {

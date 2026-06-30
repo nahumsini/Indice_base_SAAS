@@ -4,7 +4,6 @@ export const esMX = {
   pageTitle: 'Comunicados',
   pageSubtitle: 'Avisos internos, mensajes segmentados y comunicaciones de RH programadas.',
   actions: {
-    export: 'Exportar',
     columns: 'Columnas',
     addAnnouncement: 'Agregar comunicado',
   },
@@ -15,6 +14,12 @@ export const esMX = {
     uploadAttachmentFailed: 'No fue posible cargar el adjunto.',
     removeAttachmentFailed: 'No fue posible retirar el adjunto.',
     openDetails: 'Abrir detalle',
+    loadAnnouncementsFailed: 'No fue posible cargar los comunicados.',
+    manageNotAllowed: 'No tienes permiso para administrar comunicados.',
+    saveAnnouncementFailed: 'No fue posible guardar el comunicado.',
+    deleteAnnouncementFailed: 'No fue posible eliminar el comunicado.',
+    markReadFailed: 'No fue posible marcar el comunicado como leído.',
+    markUnreadFailed: 'No fue posible marcar el comunicado como no leído.',
   },
   filters: {
     title: 'Filtros',
@@ -41,6 +46,9 @@ export const esMX = {
       operations: 'Operaciones',
       leaders: 'Líderes',
       everyone: 'Todos los colaboradores',
+      units: 'Unidades',
+      departments: 'Departamentos',
+      employees: 'Colaboradores específicos',
     },
   },
   kpis: {
@@ -63,6 +71,14 @@ export const esMX = {
     ) =>
       `Resumen de comunicación: ${publishedCount} publicados · ${scheduledCount} programados · ${draftCount} borradores · ${readRate} lectura promedio · mostrando ${visibleCount} de ${totalCount}.`,
   },
+  bulk: {
+    selectedBadge: (count: number) => `${count} seleccionados`,
+    label: 'Acciones masivas',
+    deleteSelected: 'Eliminar seleccionados',
+    deleteDescription: 'Los comunicados seleccionados se eliminarán de la lista.',
+    markUnread: 'Marcar como no leído',
+    clearSelection: 'Limpiar selección',
+  },
   progress: {
     published: 'Publicados',
     scheduled: 'Programados',
@@ -80,6 +96,8 @@ export const esMX = {
       actions: 'Acciones',
     },
     emptyState: 'No hay comunicados que coincidan con los filtros actuales.',
+    selectAllRows: 'Seleccionar comunicados de esta página',
+    selectRow: (title: string) => `Seleccionar ${title}`,
     noPreview: 'Sin vista previa disponible.',
     noTime: 'Sin hora',
     edit: 'Editar',
@@ -141,6 +159,16 @@ export const esMX = {
     selectedUnits: 'Unidades seleccionadas',
     specificEmployees: 'Colaboradores específicos',
   },
+  view: {
+    readRatio: (read: number, total: number) => `${read}/${total} leídos`,
+    read: 'Leído',
+    unread: 'Sin leer',
+    noDate: 'Sin fecha',
+    noTime: 'Sin hora',
+    noPosition: 'Sin puesto',
+    unnamedUser: 'Usuario sin nombre',
+    unitLabel: (unitId: string | number) => `Unidad ${unitId}`,
+  },
   modal: {
     title: 'Nuevo comunicado',
     subtitle: 'Crea, segmenta y programa comunicaciones internas de RH.',
@@ -190,7 +218,7 @@ export const esMX = {
     message: {
       title: 'Mensaje',
       helper: 'Mantén el mensaje corto, directo y fácil de leer.',
-      attachmentNote: 'Los adjuntos se agregarán en una siguiente pasada de frontend.',
+      attachmentNote: 'Puedes subir adjuntos desde el detalle después de guardar el comunicado.',
     },
     publishing: {
       title: 'Publicación',
@@ -207,6 +235,7 @@ export const esMX = {
     buttons: {
       cancel: 'Cancelar',
       saveDraft: 'Guardar borrador',
+      saveChanges: 'Guardar cambios',
       publishNow: 'Publicar ahora',
       schedulePublication: 'Programar publicación',
     },

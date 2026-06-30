@@ -277,6 +277,7 @@ export const frCA = {
   pagination: {
     previous: 'Précédent',
     next: 'Suivant',
+    pageSize: 'Lignes par page',
     showing: (start: number, end: number, total: number) => `${start}-${end} sur ${total} employés`,
     page: (current: number, total: number) => `Page ${current} sur ${total}`,
   },

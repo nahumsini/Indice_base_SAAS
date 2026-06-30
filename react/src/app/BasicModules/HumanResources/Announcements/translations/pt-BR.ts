@@ -4,7 +4,6 @@ export const ptBR = {
   pageTitle: 'Comunicados',
   pageSubtitle: 'Atualizações internas, mensagens segmentadas e comunicações de RH programadas.',
   actions: {
-    export: 'Exportar',
     columns: 'Colunas',
     addAnnouncement: 'Adicionar comunicado',
   },
@@ -15,6 +14,12 @@ export const ptBR = {
     uploadAttachmentFailed: 'Não foi possível carregar o anexo.',
     removeAttachmentFailed: 'Não foi possível remover o anexo.',
     openDetails: 'Abrir detalhes',
+    loadAnnouncementsFailed: 'Não foi possível carregar os comunicados.',
+    manageNotAllowed: 'Você não tem permissão para gerenciar comunicados.',
+    saveAnnouncementFailed: 'Não foi possível salvar o comunicado.',
+    deleteAnnouncementFailed: 'Não foi possível excluir o comunicado.',
+    markReadFailed: 'Não foi possível marcar o comunicado como lido.',
+    markUnreadFailed: 'Não foi possível marcar o comunicado como não lido.',
   },
   filters: {
     title: 'Filtros',
@@ -41,6 +46,9 @@ export const ptBR = {
       operations: 'Operações',
       leaders: 'Lideranças',
       everyone: 'Todos os colaboradores',
+      units: 'Unidades',
+      departments: 'Departamentos',
+      employees: 'Colaboradores específicos',
     },
   },
   kpis: {
@@ -63,6 +71,14 @@ export const ptBR = {
     ) =>
       `Resumo de comunicação: ${publishedCount} publicados · ${scheduledCount} agendados · ${draftCount} rascunhos · ${readRate} leitura média · mostrando ${visibleCount} de ${totalCount}.`,
   },
+  bulk: {
+    selectedBadge: (count: number) => `${count} selecionados`,
+    label: 'Ações em massa',
+    deleteSelected: 'Excluir selecionados',
+    deleteDescription: 'Os comunicados selecionados serão removidos da lista.',
+    markUnread: 'Marcar como não lido',
+    clearSelection: 'Limpar seleção',
+  },
   progress: {
     published: 'Publicados',
     scheduled: 'Agendados',
@@ -80,6 +96,8 @@ export const ptBR = {
       actions: 'Ações',
     },
     emptyState: 'Nenhum comunicado corresponde aos filtros atuais.',
+    selectAllRows: 'Selecionar comunicados desta página',
+    selectRow: (title: string) => `Selecionar ${title}`,
     noPreview: 'Sem prévia disponível.',
     noTime: 'Sem horário',
     edit: 'Editar',
@@ -141,6 +159,16 @@ export const ptBR = {
     selectedUnits: 'Unidades selecionadas',
     specificEmployees: 'Colaboradores específicos',
   },
+  view: {
+    readRatio: (read: number, total: number) => `${read}/${total} lidos`,
+    read: 'Lido',
+    unread: 'Não lido',
+    noDate: 'Sem data',
+    noTime: 'Sem hora',
+    noPosition: 'Sem cargo',
+    unnamedUser: 'Usuário sem nome',
+    unitLabel: (unitId: string | number) => `Unidade ${unitId}`,
+  },
   modal: {
     title: 'Novo comunicado',
     subtitle: 'Crie, segmente e agende comunicações internas de RH.',
@@ -190,7 +218,7 @@ export const ptBR = {
     message: {
       title: 'Mensagem',
       helper: 'Mantenha a mensagem curta, direta e fácil de ler.',
-      attachmentNote: 'Anexos serão adicionados em uma próxima etapa de frontend.',
+      attachmentNote: 'Os anexos podem ser enviados pelo painel de detalhes depois de salvar.',
     },
     publishing: {
       title: 'Publicação',
@@ -207,6 +235,7 @@ export const ptBR = {
     buttons: {
       cancel: 'Cancelar',
       saveDraft: 'Salvar rascunho',
+      saveChanges: 'Salvar alterações',
       publishNow: 'Publicar agora',
       schedulePublication: 'Agendar publicação',
     },

@@ -17,9 +17,12 @@ interface AnnouncementTableProps {
   getTypeClasses: (type: AnnouncementView['type']) => string;
   visibleColumns: string[];
   canManage?: boolean;
+  selectedIds: string[];
   onDelete: (announcement: AnnouncementView) => void;
   onEdit: (announcement: AnnouncementView) => void;
   onOpen: (announcement: AnnouncementView) => void;
+  onTogglePageSelection: (announcements: AnnouncementView[], isSelected: boolean) => void;
+  onToggleSelection: (announcementId: string) => void;
 }
 
 type AnnouncementSortField =
@@ -47,9 +50,12 @@ export function AnnouncementTable({
   getTypeClasses,
   visibleColumns,
   canManage = false,
+  selectedIds,
   onDelete,
   onEdit,
   onOpen,
+  onTogglePageSelection,
+  onToggleSelection,
 }: AnnouncementTableProps) {
   const canShow = (columnId: string) => visibleColumns.includes(columnId);
   const [sortField, setSortField] = useState<AnnouncementSortField>('publication');
@@ -118,9 +124,12 @@ export function AnnouncementTable({
   const pageStartIndex = (safeCurrentPage - 1) * pageSize;
   const pageEndIndex = pageStartIndex + pageSize;
   const paginatedAnnouncements = sortedAnnouncements.slice(pageStartIndex, pageEndIndex);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allPageSelected = paginatedAnnouncements.length > 0
+    && paginatedAnnouncements.every((announcement) => selectedIdSet.has(announcement.id));
   const paginationStart = sortedAnnouncements.length === 0 ? 0 : pageStartIndex + 1;
   const paginationEnd = sortedAnnouncements.length === 0 ? 0 : Math.min(pageEndIndex, sortedAnnouncements.length);
-  const emptyColSpan = tableColumns.length;
+  const emptyColSpan = tableColumns.length + 1;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -133,11 +142,20 @@ export function AnnouncementTable({
   }, [currentPage, totalPages]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
+              <th className="w-12 px-5 py-4 text-left">
+                <input
+                  type="checkbox"
+                  aria-label={copy.table.selectAllRows}
+                  checked={allPageSelected}
+                  className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
+                  onChange={(event) => onTogglePageSelection(paginatedAnnouncements, event.target.checked)}
+                />
+              </th>
               {tableColumns.map((column) => (
                 <TableHeader
                   key={column.id}
@@ -165,6 +183,15 @@ export function AnnouncementTable({
                     key={announcement.id}
                     className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/35"
                   >
+                    <td className="w-12 px-5 py-5 align-middle">
+                      <input
+                        type="checkbox"
+                        aria-label={copy.table.selectRow(announcement.title)}
+                        checked={selectedIdSet.has(announcement.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
+                        onChange={() => onToggleSelection(announcement.id)}
+                      />
+                    </td>
                     <td className="min-w-[320px] px-5 py-5 align-middle">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-[#59C3A5] dark:bg-slate-700 dark:text-blue-200">
@@ -224,7 +251,7 @@ export function AnnouncementTable({
                       </td>
                     ) : null}
                     <td className="px-5 py-5 align-middle text-right">
-                      <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+                      <div className="inline-flex items-center justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
                         <StandardActionButton label={copy.feedback.openDetails} onClick={() => onOpen(announcement)}>
                           <Eye className="h-4 w-4" />
                         </StandardActionButton>

@@ -9,6 +9,7 @@ export const koCA = {
   loading: '자산을 불러오는 중...',
   emptyState: '현재 필터와 일치하는 자산이 없습니다.',
   errors: {
+    ...enCA.errors,
     load: '자산을 불러올 수 없습니다.',
     save: '자산을 저장할 수 없습니다.',
     details: '자산 상세 정보를 불러올 수 없습니다.',
@@ -51,6 +52,7 @@ export const koCA = {
     Inactivo: '비활성',
   },
   table: {
+    ...enCA.table,
     id: 'ID',
     type: '유형',
     asset: '자산',
@@ -74,6 +76,7 @@ export const koCA = {
   kpis: {
     visibleAfterFilters: '필터 후 표시',
     assetValue: '자산 가치',
+    currencies: (count: number) => `${count}개 통화`,
     summary: (
       assignedCount: number,
       availableCount: number,
@@ -96,6 +99,7 @@ export const koCA = {
     apply: '적용',
   },
   actionsMenu: {
+    ...enCA.actionsMenu,
     viewDetails: '세부 정보 보기',
     edit: '수정',
     delete: '삭제',
@@ -157,12 +161,13 @@ export const koCA = {
     editTitle: '자산 수정',
     editSubtitle: '선택한 회사 자산을 업데이트합니다.',
     sections: {
+      ...enCA.addNewAsset.sections,
       general: '일반 정보',
       assignment: '배정',
       valueDetails: '가치 및 세부 사항',
     },
     fields: {
-      assetId: '자산 ID',
+      ...enCA.addNewAsset.fields,
       assetType: '자산 유형',
       assetName: '자산 이름',
       model: '모델',
@@ -171,11 +176,12 @@ export const koCA = {
       unit: '유닛',
       status: '상태',
       assignedDate: '배정 날짜',
-      value: '가치 (USD)',
+      value: '가치',
+      currency: '통화',
       notes: '추가 메모',
     },
     placeholders: {
-      assetId: '예: ACT-001',
+      ...enCA.addNewAsset.placeholders,
       assetName: '예: MacBook Pro 16',
       model: '예: M2 Pro',
       serialNumber: '예: MRE-2023-9445',
@@ -183,12 +189,13 @@ export const koCA = {
       unit: '유닛 선택',
       status: '상태 선택',
       value: '예: $45,000',
+      currency: '통화 선택',
       notes: '자산에 대한 추가 정보...',
     },
     options: {
+      ...enCA.addNewAsset.options,
       laptop: '노트북',
       attendanceTerminal: '출석 단말기',
-      mobileDevice: '모바일 기기',
       maintenanceKit: '유지보수 키트',
       available: '사용 가능',
       assigned: '배정됨',
@@ -197,9 +204,13 @@ export const koCA = {
       inactive: '비활성',
     },
     buttons: {
+      ...enCA.addNewAsset.buttons,
       cancel: '취소',
       save: '자산 저장',
       saveChanges: '변경 사항 저장',
+    },
+    photoUploader: {
+      ...enCA.addNewAsset.photoUploader,
     },
     success: (assetName: string) => `${assetName}이(가) 성공적으로 생성되었습니다.`,
     successUpdated: (assetName: string) => `${assetName}이(가) 성공적으로 업데이트되었습니다.`,

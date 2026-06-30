@@ -9,6 +9,7 @@ export const zhCA = {
   loading: '正在加载资产...',
   emptyState: '没有符合当前筛选条件的资产。',
   errors: {
+    ...enCA.errors,
     load: '无法加载资产。',
     save: '无法保存资产。',
     details: '无法加载资产详情。',
@@ -51,6 +52,7 @@ export const zhCA = {
     Inactivo: '停用',
   },
   table: {
+    ...enCA.table,
     id: 'ID',
     type: '类型',
     asset: '资产',
@@ -74,6 +76,7 @@ export const zhCA = {
   kpis: {
     visibleAfterFilters: '筛选后显示',
     assetValue: '资产价值',
+    currencies: (count: number) => `${count} 种货币`,
     summary: (
       assignedCount: number,
       availableCount: number,
@@ -96,6 +99,7 @@ export const zhCA = {
     apply: '应用',
   },
   actionsMenu: {
+    ...enCA.actionsMenu,
     viewDetails: '查看详情',
     edit: '编辑',
     delete: '删除',
@@ -157,12 +161,13 @@ export const zhCA = {
     editTitle: '编辑资产',
     editSubtitle: '更新所选公司资产。',
     sections: {
+      ...enCA.addNewAsset.sections,
       general: '基本信息',
       assignment: '分配',
       valueDetails: '价值与详情',
     },
     fields: {
-      assetId: '资产 ID',
+      ...enCA.addNewAsset.fields,
       assetType: '资产类型',
       assetName: '资产名称',
       model: '型号',
@@ -171,11 +176,12 @@ export const zhCA = {
       unit: '单位',
       status: '状态',
       assignedDate: '分配日期',
-      value: '价值 (USD)',
+      value: '价值',
+      currency: '币种',
       notes: '附加说明',
     },
     placeholders: {
-      assetId: '例如：ACT-001',
+      ...enCA.addNewAsset.placeholders,
       assetName: '例如：MacBook Pro 16',
       model: '例如：M2 Pro',
       serialNumber: '例如：MRE-2023-9445',
@@ -183,12 +189,13 @@ export const zhCA = {
       unit: '选择单位',
       status: '选择状态',
       value: '例如：$45,000',
+      currency: '选择币种',
       notes: '关于该资产的其他信息...',
     },
     options: {
+      ...enCA.addNewAsset.options,
       laptop: '笔记本电脑',
       attendanceTerminal: '考勤终端',
-      mobileDevice: '移动设备',
       maintenanceKit: '维护工具包',
       available: '可用',
       assigned: '已分配',
@@ -197,9 +204,13 @@ export const zhCA = {
       inactive: '停用',
     },
     buttons: {
+      ...enCA.addNewAsset.buttons,
       cancel: '取消',
       save: '保存资产',
       saveChanges: '保存更改',
+    },
+    photoUploader: {
+      ...enCA.addNewAsset.photoUploader,
     },
     success: (assetName: string) => `${assetName} 已成功创建。`,
     successUpdated: (assetName: string) => `${assetName} 已成功更新。`,

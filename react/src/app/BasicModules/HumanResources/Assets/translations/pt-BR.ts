@@ -9,6 +9,7 @@ export const ptBR = {
   loading: 'Carregando ativos...',
   emptyState: 'Nenhum ativo corresponde aos filtros atuais.',
   errors: {
+    ...enCA.errors,
     load: 'Não foi possível carregar os ativos.',
     save: 'Não foi possível salvar o ativo.',
     details: 'Não foi possível carregar os detalhes do ativo.',
@@ -51,6 +52,7 @@ export const ptBR = {
     Inactivo: 'Inativo',
   },
   table: {
+    ...enCA.table,
     id: 'ID',
     type: 'Tipo',
     asset: 'Ativo',
@@ -74,6 +76,7 @@ export const ptBR = {
   kpis: {
     visibleAfterFilters: 'visíveis após filtros',
     assetValue: 'valor dos ativos',
+    currencies: (count: number) => `${count} moedas`,
     summary: (
       assignedCount: number,
       availableCount: number,
@@ -96,6 +99,7 @@ export const ptBR = {
     apply: 'Aplicar',
   },
   actionsMenu: {
+    ...enCA.actionsMenu,
     viewDetails: 'Ver detalhes',
     edit: 'Editar',
     delete: 'Excluir',
@@ -157,12 +161,13 @@ export const ptBR = {
     editTitle: 'Editar ativo',
     editSubtitle: 'Atualize o ativo selecionado da empresa.',
     sections: {
+      ...enCA.addNewAsset.sections,
       general: 'Informações gerais',
       assignment: 'Atribuição',
       valueDetails: 'Valor e detalhes',
     },
     fields: {
-      assetId: 'ID do ativo',
+      ...enCA.addNewAsset.fields,
       assetType: 'Tipo de ativo',
       assetName: 'Nome do ativo',
       model: 'Modelo',
@@ -171,11 +176,12 @@ export const ptBR = {
       unit: 'Unidade',
       status: 'Situação',
       assignedDate: 'Data de atribuição',
-      value: 'Valor (USD)',
+      value: 'Valor',
+      currency: 'Moeda',
       notes: 'Notas adicionais',
     },
     placeholders: {
-      assetId: 'Ex.: ATI-001',
+      ...enCA.addNewAsset.placeholders,
       assetName: 'Ex.: Notebook corporativo',
       model: 'Ex.: Latitude 5440',
       serialNumber: 'Ex.: BR-2026-9445',
@@ -183,12 +189,13 @@ export const ptBR = {
       unit: 'Selecionar unidade',
       status: 'Selecionar status',
       value: 'Ex.: R$ 4.500,00',
+      currency: 'Selecionar moeda',
       notes: 'Informações adicionais sobre o ativo...',
     },
     options: {
+      ...enCA.addNewAsset.options,
       laptop: 'Notebook',
       attendanceTerminal: 'Terminal de presença',
-      mobileDevice: 'Dispositivo móvel',
       maintenanceKit: 'Kit de manutenção',
       available: 'Disponível',
       assigned: 'Atribuído',
@@ -197,9 +204,13 @@ export const ptBR = {
       inactive: 'Inativo',
     },
     buttons: {
+      ...enCA.addNewAsset.buttons,
       cancel: 'Cancelar',
       save: 'Salvar ativo',
       saveChanges: 'Salvar alterações',
+    },
+    photoUploader: {
+      ...enCA.addNewAsset.photoUploader,
     },
     success: (assetName: string) => `${assetName} foi criado com sucesso.`,
     successUpdated: (assetName: string) => `${assetName} foi atualizado com sucesso.`,
