@@ -23,6 +23,28 @@ class NotificationCommandService {
 
     @Transactional
     Map<String, Object> markRead(HrAnnouncementActor actor, long notificationId) {
+        if (notificationId < 0) {
+            var appNotificationId = Math.abs(notificationId);
+            var updated = jdbcTemplate.update(
+                """
+                    UPDATE app_notifications
+                    SET status = 'read',
+                        read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+                    WHERE company_id = ?
+                      AND recipient_user_company_id = ?
+                      AND id = ?
+                      AND dismissed_at IS NULL
+                    """,
+                actor.companyId(),
+                actor.userCompanyId(),
+                appNotificationId
+            );
+            if (updated == 0) {
+                throw new NoSuchElementException("Notification not found.");
+            }
+            return queryService.loadOneApp(actor, appNotificationId);
+        }
+
         var announcementId = announcementId(actor, notificationId);
         readSvc.markRead(actor, announcementId);
         return queryService.loadOne(actor, notificationId);
@@ -37,6 +59,20 @@ class NotificationCommandService {
                     read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
                 WHERE company_id = ?
                   AND user_company_id = ?
+                  AND dismissed_at IS NULL
+                  AND read_at IS NULL
+                  AND LOWER(COALESCE(status, 'delivered')) NOT IN ('cancelled', 'dismissed')
+                """,
+            actor.companyId(),
+            actor.userCompanyId()
+        );
+        var appUpdated = jdbcTemplate.update(
+            """
+                UPDATE app_notifications
+                SET status = 'read',
+                    read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+                WHERE company_id = ?
+                  AND recipient_user_company_id = ?
                   AND dismissed_at IS NULL
                   AND read_at IS NULL
                   AND LOWER(COALESCE(status, 'delivered')) NOT IN ('cancelled', 'dismissed')
@@ -62,11 +98,34 @@ class NotificationCommandService {
             actor.companyId(),
             actor.userCompanyId()
         );
-        return Map.of("updated_count", updated);
+        return Map.of("updated_count", updated + appUpdated);
     }
 
     @Transactional
     Map<String, Object> dismiss(HrAnnouncementActor actor, long notificationId) {
+        if (notificationId < 0) {
+            var updated = jdbcTemplate.update(
+                """
+                    UPDATE app_notifications
+                    SET status = 'dismissed',
+                        dismissed_at = CURRENT_TIMESTAMP,
+                        dismissed_by = ?
+                    WHERE company_id = ?
+                      AND recipient_user_company_id = ?
+                      AND id = ?
+                      AND dismissed_at IS NULL
+                    """,
+                actor.userId(),
+                actor.companyId(),
+                actor.userCompanyId(),
+                Math.abs(notificationId)
+            );
+            if (updated == 0) {
+                throw new NoSuchElementException("Notification not found.");
+            }
+            return Map.of("success", true);
+        }
+
         var updated = jdbcTemplate.update(
             """
                 UPDATE hr_announcement_deliveries

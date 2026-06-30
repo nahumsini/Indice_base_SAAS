@@ -4,28 +4,64 @@ export const getNotificationStyle = (notification: AppNotification) => {
   switch (notification.source_subtype) {
     case 'urgent':
       return {
-        emoji: '🚨',
+        emoji: '!',
         color: 'red',
         priority: 'high',
         type: 'alert',
       };
     case 'reminder':
       return {
-        emoji: '⏰',
+        emoji: 'i',
         color: 'blue',
         priority: 'medium',
         type: 'info',
       };
     case 'celebration':
       return {
-        emoji: '🎉',
+        emoji: '*',
         color: 'gold',
+        priority: 'low',
+        type: 'info',
+      };
+    case 'task_assigned':
+    case 'task_reassigned':
+      return {
+        emoji: '+',
+        color: 'yellow',
+        priority: 'medium',
+        type: 'info',
+      };
+    case 'task_due_today':
+      return {
+        emoji: '!',
+        color: 'yellow',
+        priority: 'medium',
+        type: 'alert',
+      };
+    case 'task_overdue':
+      return {
+        emoji: '!',
+        color: 'red',
+        priority: 'high',
+        type: 'alert',
+      };
+    case 'task_pending_audit':
+      return {
+        emoji: '?',
+        color: 'blue',
+        priority: 'medium',
+        type: 'info',
+      };
+    case 'task_audited':
+      return {
+        emoji: 'ok',
+        color: 'green',
         priority: 'low',
         type: 'info',
       };
     default:
       return {
-        emoji: '📢',
+        emoji: 'i',
         color: 'blue',
         priority: 'medium',
         type: 'info',

@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 public record TaskMutationRecord(
     long id,
+    Long assignedUserCompanyId,
     String status,
     LocalDateTime startedAt,
     LocalDateTime completedAt,

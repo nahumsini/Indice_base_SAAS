@@ -2,6 +2,11 @@ package com.indice.erp.notifications;
 
 import com.indice.erp.hr.announcements.HrAnnouncementActor;
 import com.indice.erp.hr.announcements.HrAnnouncementPublisher;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -30,11 +35,29 @@ class NotificationQueryService {
     Map<String, Object> list(HrAnnouncementActor actor) {
         publisher.publishDueAnnouncements();
         syncSvc.syncVisible(actor);
-        return responseFactory.listBody(jdbcTemplate.query(sql() + " ORDER BY d.delivered_at DESC, d.id DESC LIMIT 50",
+        syncSvc.syncProcessTaskSignals(actor);
+
+        var items = new ArrayList<Map<String, Object>>();
+        items.addAll(jdbcTemplate.query(sql() + " ORDER BY d.delivered_at DESC, d.id DESC LIMIT 50",
             (rs, rowNum) -> NotificationRows.map(rs),
             actor.companyId(),
             actor.userCompanyId()
-        ));
+        ).stream().map(responseFactory::item).toList());
+        items.addAll(jdbcTemplate.query(appSql() + " ORDER BY created_at DESC, id DESC LIMIT 50",
+            (rs, rowNum) -> mapAppNotification(rs),
+            actor.companyId(),
+            actor.userCompanyId()
+        ).stream().map(responseFactory::appItem).toList());
+
+        var sortedItems = items.stream()
+            .sorted(Comparator.comparing(
+                item -> parseCreatedAt(item.get("created_at")),
+                Comparator.nullsLast(Comparator.reverseOrder())
+            ))
+            .limit(50)
+            .toList();
+
+        return responseFactory.combinedListBody(sortedItems);
     }
 
     Map<String, Object> loadOne(HrAnnouncementActor actor, long notificationId) {
@@ -48,6 +71,19 @@ class NotificationQueryService {
             throw new NoSuchElementException("Notification not found.");
         }
         return responseFactory.item(rows.getFirst());
+    }
+
+    Map<String, Object> loadOneApp(HrAnnouncementActor actor, long appNotificationId) {
+        var rows = jdbcTemplate.query(appSql() + " AND id = ?",
+            (rs, rowNum) -> mapAppNotification(rs),
+            actor.companyId(),
+            actor.userCompanyId(),
+            appNotificationId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Notification not found.");
+        }
+        return responseFactory.appItem(rows.getFirst());
     }
 
     private String sql() {
@@ -71,5 +107,58 @@ class NotificationQueryService {
               AND a.deleted_at IS NULL
               AND LOWER(COALESCE(a.status, 'draft')) = 'published'
             """;
+    }
+
+    private String appSql() {
+        return """
+            SELECT id,
+                   source_module,
+                   source_type,
+                   source_id,
+                   event_type,
+                   title,
+                   description,
+                   status,
+                   read_at,
+                   created_at,
+                   action_url
+            FROM app_notifications
+            WHERE company_id = ?
+              AND recipient_user_company_id = ?
+              AND dismissed_at IS NULL
+              AND LOWER(COALESCE(status, 'delivered')) NOT IN ('cancelled', 'dismissed')
+            """;
+    }
+
+    private AppNotificationRow mapAppNotification(ResultSet rs) throws SQLException {
+        return new AppNotificationRow(
+            rs.getLong("id"),
+            rs.getString("source_module"),
+            rs.getString("source_type"),
+            rs.getObject("source_id", Long.class),
+            rs.getString("event_type"),
+            rs.getString("title"),
+            rs.getString("description"),
+            rs.getString("status"),
+            time(rs, "read_at"),
+            time(rs, "created_at"),
+            rs.getString("action_url")
+        );
+    }
+
+    private LocalDateTime time(ResultSet rs, String column) throws SQLException {
+        var timestamp = rs.getTimestamp(column);
+        return timestamp == null ? null : timestamp.toLocalDateTime();
+    }
+
+    private LocalDateTime parseCreatedAt(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(String.valueOf(value));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 }
