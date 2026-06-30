@@ -15,6 +15,8 @@ import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toLocalD
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toTimeString;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskPresentation.fallback;
 
+import com.indice.erp.notifications.AppNotificationEvent;
+import com.indice.erp.notifications.AppNotificationService;
 import com.indice.erp.processTasks.tasks.domain.TaskCommand;
 import com.indice.erp.processTasks.tasks.domain.TaskLifecycle;
 import com.indice.erp.processTasks.tasks.domain.TaskMutationRecord;
@@ -65,6 +67,7 @@ public class ProcessTasksService {
     private final ProcessTaskAssignmentScopeService assignmentScopeService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final AppNotificationService appNotificationService;
     private static final String TASK_SELECT_COLUMNS = """
             SELECT pt.id,
                    pt.company_id,
@@ -170,12 +173,14 @@ public class ProcessTasksService {
         JdbcTemplate jdbcTemplate,
         ProcessTaskAssignmentScopeService assignmentScopeService,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        AppNotificationService appNotificationService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.assignmentScopeService = assignmentScopeService;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.appNotificationService = appNotificationService;
     }
 
     public Map<String, Object> listTasks(long companyId, long userId) {
@@ -299,7 +304,12 @@ public class ProcessTasksService {
         }, keyHolder);
 
         var taskId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
-        return getTask(companyId, taskId);
+        var task = getTask(companyId, taskId);
+        publishTaskAssigned(companyId, userId, task, "task_assigned", "assigned");
+        if ("completed".equals(command.status()) && !audited) {
+            publishTaskPendingAudit(companyId, userId, task);
+        }
+        return task;
     }
 
     @Transactional
@@ -398,7 +408,18 @@ public class ProcessTasksService {
             return statement;
         });
 
-        return getTask(companyId, taskId);
+        var task = getTask(companyId, taskId);
+        var nextAssignedUserCompanyId = numberValue(task.get("assignedUserCompanyId"));
+        if (nextAssignedUserCompanyId != null && !nextAssignedUserCompanyId.equals(existingTask.assignedUserCompanyId())) {
+            publishTaskAssigned(companyId, userId, task, "task_reassigned", "reassigned");
+        }
+        if (!"completed".equals(existingTask.status()) && "completed".equals(command.status()) && !audited) {
+            publishTaskPendingAudit(companyId, userId, task);
+        }
+        if (!existingTask.audited() && audited) {
+            publishTaskAudited(companyId, userId, task);
+        }
+        return task;
     }
 
     @Transactional
@@ -451,7 +472,9 @@ public class ProcessTasksService {
             return statement;
         });
 
-        return getTask(companyId, taskId);
+        var task = getTask(companyId, taskId);
+        publishTaskPendingAudit(companyId, userId, task);
+        return task;
     }
 
     public Map<String, Object> listTaskDependencies(long companyId, long userId, long taskId) {
@@ -543,7 +566,9 @@ public class ProcessTasksService {
                 lagDays,
                 userId);
 
-        return getTask(companyId, taskId);
+        var task = getTask(companyId, taskId);
+        publishTaskAudited(companyId, userId, task);
+        return task;
     }
 
     @Transactional
@@ -993,6 +1018,7 @@ public class ProcessTasksService {
         var rows = jdbcTemplate.query(
                 """
                         SELECT id,
+                               assigned_user_company_id,
                                status,
                                started_at,
                                completed_at,
@@ -1015,6 +1041,7 @@ public class ProcessTasksService {
                         """,
                 (rs, rowNum) -> new TaskMutationRecord(
                         rs.getLong("id"),
+                        rs.getObject("assigned_user_company_id", Long.class),
                         rs.getString("status"),
                         toLocalDateTime(rs.getTimestamp("started_at")),
                         toLocalDateTime(rs.getTimestamp("completed_at")),
@@ -1574,6 +1601,108 @@ public class ProcessTasksService {
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException(effectiveKey + " must be a valid integer.");
         }
+    }
+
+    private Long numberValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+
+        var normalized = String.valueOf(value).trim();
+        if (normalized.isBlank()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(normalized);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private void publishTaskAssigned(
+            long companyId,
+            long actorUserId,
+            Map<String, Object> task,
+            String eventType,
+            String label) {
+        var recipientUserCompanyId = numberValue(task.get("assignedUserCompanyId"));
+        var actorUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, actorUserId);
+        if (recipientUserCompanyId == null || recipientUserCompanyId.equals(actorUserCompanyId)) {
+            return;
+        }
+
+        appNotificationService.publish(new AppNotificationEvent(
+                companyId,
+                recipientUserCompanyId,
+                "processes_tasks",
+                "task",
+                numberValue(task.get("id")),
+                eventType,
+                "process-task:" + task.get("id") + ":" + eventType,
+                "Task " + label + ": " + safeTaskFolio(task),
+                safeTaskTitle(task),
+                "/processes-tasks"));
+    }
+
+    private void publishTaskPendingAudit(long companyId, long actorUserId, Map<String, Object> task) {
+        var creatorUserId = numberValue(task.get("createdBy"));
+        var recipientUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, creatorUserId);
+        var actorUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, actorUserId);
+        if (recipientUserCompanyId == null || recipientUserCompanyId.equals(actorUserCompanyId)) {
+            return;
+        }
+
+        appNotificationService.publish(new AppNotificationEvent(
+                companyId,
+                recipientUserCompanyId,
+                "processes_tasks",
+                "task",
+                numberValue(task.get("id")),
+                "task_pending_audit",
+                "process-task:" + task.get("id") + ":pending-audit",
+                "Task pending review: " + safeTaskFolio(task),
+                safeTaskTitle(task),
+                "/processes-tasks"));
+    }
+
+    private void publishTaskAudited(long companyId, long actorUserId, Map<String, Object> task) {
+        var recipientUserCompanyId = numberValue(task.get("completedByUserCompanyId"));
+        if (recipientUserCompanyId == null) {
+            recipientUserCompanyId = numberValue(task.get("assignedUserCompanyId"));
+        }
+        var actorUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, actorUserId);
+        if (recipientUserCompanyId == null || recipientUserCompanyId.equals(actorUserCompanyId)) {
+            return;
+        }
+
+        appNotificationService.publish(new AppNotificationEvent(
+                companyId,
+                recipientUserCompanyId,
+                "processes_tasks",
+                "task",
+                numberValue(task.get("id")),
+                "task_audited",
+                "process-task:" + task.get("id") + ":audited",
+                "Task reviewed: " + safeTaskFolio(task),
+                safeTaskTitle(task),
+                "/processes-tasks"));
+    }
+
+    private String safeTaskFolio(Map<String, Object> task) {
+        var folio = task.get("folio");
+        return folio == null || String.valueOf(folio).isBlank()
+                ? "task " + task.get("id")
+                : String.valueOf(folio);
+    }
+
+    private String safeTaskTitle(Map<String, Object> task) {
+        var title = task.get("title");
+        return title == null ? "" : String.valueOf(title);
     }
 
     private String safe(String value) {

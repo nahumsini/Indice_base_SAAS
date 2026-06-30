@@ -20,6 +20,17 @@ class NotificationResponseFactory {
         return body;
     }
 
+    Map<String, Object> combinedListBody(List<Map<String, Object>> items) {
+        var unreadCount = items.stream().filter(item -> Boolean.TRUE.equals(item.get("is_unread"))).count();
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", items);
+        body.put("summary", Map.of(
+            "total_count", items.size(),
+            "unread_count", unreadCount
+        ));
+        return body;
+    }
+
     Map<String, Object> item(NotificationRow row) {
         var item = new LinkedHashMap<String, Object>();
         item.put("id", row.id());
@@ -34,6 +45,23 @@ class NotificationResponseFactory {
         item.put("read_at", iso(row.readAt()));
         item.put("created_at", iso(first(row.deliveredAt(), row.publishedAt(), row.createdAt())));
         item.put("action_url", "/human-resources/announcements");
+        return item;
+    }
+
+    Map<String, Object> appItem(AppNotificationRow row) {
+        var item = new LinkedHashMap<String, Object>();
+        item.put("id", -row.id());
+        item.put("source_type", normalize(row.sourceType(), "record"));
+        item.put("source_id", row.sourceId());
+        item.put("title", safe(row.title()));
+        item.put("description", safe(row.description()));
+        item.put("module_slug", normalize(row.sourceModule(), "general"));
+        item.put("source_subtype", normalize(row.eventType(), "general"));
+        item.put("status", normalize(row.status(), "delivered"));
+        item.put("is_unread", row.readAt() == null);
+        item.put("read_at", iso(row.readAt()));
+        item.put("created_at", iso(row.createdAt()));
+        item.put("action_url", row.actionUrl());
         return item;
     }
 

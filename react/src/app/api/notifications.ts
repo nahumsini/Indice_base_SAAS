@@ -3,8 +3,8 @@ import { endpoints } from './endpoints';
 
 export interface AppNotification {
   id: number;
-  source_type: 'announcement';
-  source_id: number;
+  source_type: 'announcement' | 'task' | 'project' | 'process' | string;
+  source_id: number | null;
   title: string;
   description: string;
   module_slug: string;

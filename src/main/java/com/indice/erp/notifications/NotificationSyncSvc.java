@@ -1,6 +1,7 @@
 package com.indice.erp.notifications;
 
 import com.indice.erp.hr.announcements.HrAnnouncementActor;
+import java.time.LocalDate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,73 @@ class NotificationSyncSvc {
             String.valueOf(actor.userCompanyId()),
             actor.unitTargetValue(),
             actor.normalizedDepartment()
+        );
+    }
+
+    @Transactional
+    void syncProcessTaskSignals(HrAnnouncementActor actor) {
+        var today = LocalDate.now();
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO app_notifications
+                (company_id, recipient_user_company_id, source_module, source_type, source_id,
+                 event_type, event_key, title, description, action_url)
+                SELECT task.company_id,
+                       task.assigned_user_company_id,
+                       'processes_tasks',
+                       'task',
+                       task.id,
+                       'task_due_today',
+                       CONCAT('process-task:', task.id, ':due:', DATE_FORMAT(task.due_date, '%Y-%m-%d')),
+                       CONCAT('Task due today: ', task.folio),
+                       task.title,
+                       '/processes-tasks'
+                FROM process_tasks task
+                WHERE task.company_id = ?
+                  AND task.assigned_user_company_id = ?
+                  AND task.deleted_at IS NULL
+                  AND task.due_date = ?
+                  AND LOWER(COALESCE(task.status, 'pending')) IN ('pending', 'in_progress', 'paused')
+                ON DUPLICATE KEY UPDATE
+                  title = VALUES(title),
+                  description = VALUES(description),
+                  action_url = VALUES(action_url)
+                """,
+            actor.companyId(),
+            actor.userCompanyId(),
+            java.sql.Date.valueOf(today)
+        );
+
+        jdbcTemplate.update(
+            """
+                INSERT INTO app_notifications
+                (company_id, recipient_user_company_id, source_module, source_type, source_id,
+                 event_type, event_key, title, description, action_url)
+                SELECT task.company_id,
+                       task.assigned_user_company_id,
+                       'processes_tasks',
+                       'task',
+                       task.id,
+                       'task_overdue',
+                       CONCAT('process-task:', task.id, ':overdue'),
+                       CONCAT('Overdue task: ', task.folio),
+                       task.title,
+                       '/processes-tasks'
+                FROM process_tasks task
+                WHERE task.company_id = ?
+                  AND task.assigned_user_company_id = ?
+                  AND task.deleted_at IS NULL
+                  AND task.due_date < ?
+                  AND LOWER(COALESCE(task.status, 'pending')) IN ('pending', 'in_progress', 'paused')
+                ON DUPLICATE KEY UPDATE
+                  title = VALUES(title),
+                  description = VALUES(description),
+                  action_url = VALUES(action_url)
+                """,
+            actor.companyId(),
+            actor.userCompanyId(),
+            java.sql.Date.valueOf(today)
         );
     }
 }
