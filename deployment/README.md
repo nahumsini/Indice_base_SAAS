@@ -70,12 +70,39 @@ Dev override adds:
 ## Operational Notes
 
 - The frontend is served by Nginx and calls the backend through same-origin `/api` paths.
+- APPTEST/app frontends are served from the running web container, not only from the cPanel document root. After every `npm run build`, publish `react/dist` into the container with `deployment/scripts/publish-web-dist.sh` or the equivalent `docker cp "$APP_DIR/react/dist/." indice-erp-web-1:/usr/share/nginx/html/`.
 - Nginx also proxies `/storage/` to MinIO so presigned browser uploads can stay on the web origin by default.
 - The backend uses the internal MinIO endpoint for server-side access and rewrites presigned URLs onto `MINIO_PUBLIC_ENDPOINT`.
 - MinIO CORS is configured cluster-wide through `MINIO_API_CORS_ALLOW_ORIGIN`, sourced from `MINIO_CORS_ALLOWED_ORIGINS`.
 - Session auth is still servlet-session based, so this deployment should be treated as a single backend replica unless session storage is externalized.
 - `minio-init` is safe to rerun; it creates the bucket if missing.
 - The MySQL and MinIO data directories are persisted via named Docker volumes.
+
+## Frontend Container Publish
+
+For APPTEST:
+
+```bash
+cd /home/corazon/apptest.indiceapp.com/react
+npm ci --no-audit --no-fund
+npm run build
+cd ..
+docker cp "$PWD/react/dist/." indice-erp-web-1:/usr/share/nginx/html/
+curl -s https://apptest.indiceapp.com/ | grep -o "/assets/index-[^\"]*\.js" | head
+```
+
+The public asset hash must match the asset in `react/dist/index.html`.
+
+Equivalent repo helper:
+
+```bash
+PUBLIC_URL=https://apptest.indiceapp.com \
+FRONTEND_DIST=/home/corazon/apptest.indiceapp.com/react/dist \
+WEB_CONTAINER=indice-erp-web-1 \
+./deployment/scripts/publish-web-dist.sh
+```
+
+If only React changed, do not rebuild the backend. If Java, DTOs, controllers, repositories, services, `pom.xml`, Flyway migrations, or Dockerfiles changed, perform a backend deploy. Database changes must use a new Flyway migration; never edit an already executed migration.
 
 ## Verification
 
