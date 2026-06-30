@@ -9,11 +9,11 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { cn } from '../../../../components/ui/utils';
-import type { TaskStatus } from '../../Tasks/tasksApi';
+import type { TaskPriority, TaskStatus } from '../../Tasks/tasksApi';
 import { tableSelectTriggerClass } from './AgendaTablePrimitives';
 import type { AgendaTaskCellProps } from './AgendaTaskCellTypes';
 import { AuditNotesCell, NotesCell, WeightingCell } from './AgendaTaskAuditCells';
-import { BusinessCell, UnitCell } from './AgendaTaskScopeCells';
+import { BusinessCell, ProjectCell, ResponsibleCell, UnitCell } from './AgendaTaskScopeCells';
 import { getTaskScheduleHour } from '../utils/agendaScheduleUtils';
 import { clampPercent, getTaskDisplayStatus } from '../utils/agendaTaskStatus';
 import { formatDate } from '../utils/agendaReports';
@@ -37,6 +37,7 @@ export function AgendaTaskCell({
   onEditTask,
   onOpenAttachments,
   onPersistTaskChange,
+  onPriorityChange,
   onProjectChange,
   onResponsibleChange,
   onUnitChange,
@@ -179,9 +180,16 @@ export function AgendaTaskCell({
         </div>
       );
     case 'responsible':
-      return <ReadonlyValue muted={!task.assignedName && !task.responsible}>{task.assignedName ?? task.responsible ?? copy.common.unassigned}</ReadonlyValue>;
+      return <ResponsibleCell {...scopeCellProps} />;
     case 'priority':
-      return <ReadonlyValue>{copy.priorities[task.priority]}</ReadonlyValue>;
+      return (
+        <PriorityCell
+          copy={copy}
+          isPending={isPending}
+          onPriorityChange={onPriorityChange}
+          task={task}
+        />
+      );
     case 'attachments':
       return (
         <button
@@ -196,11 +204,7 @@ export function AgendaTaskCell({
         </button>
       );
     case 'project':
-      return (
-        <ReadonlyValue muted={!task.projectName && !task.project}>
-          {task.projectName ?? task.project ?? copy.common.noRecord}
-        </ReadonlyValue>
-      );
+      return <ProjectCell {...scopeCellProps} />;
     case 'completion':
       return <ReadonlyValue>{clampPercent(task.completionPercent)}%</ReadonlyValue>;
     case 'notes':
@@ -210,6 +214,28 @@ export function AgendaTaskCell({
     case 'auditNotes':
       return <AuditNotesCell {...auditCellProps} />;
   }
+}
+
+function PriorityCell({
+  copy,
+  isPending,
+  onPriorityChange,
+  task,
+}: Pick<AgendaTaskCellProps, 'copy' | 'isPending' | 'onPriorityChange' | 'task'>) {
+  return (
+    <Select value={task.priority} disabled={isPending} onValueChange={(value) => onPriorityChange(task, value)}>
+      <SelectTrigger className={cn(tableSelectTriggerClass, 'w-full')}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {(['low', 'medium', 'high'] as TaskPriority[]).map((priority) => (
+          <SelectItem key={priority} value={priority}>
+            {copy.priorities[priority]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 function ReadonlyValue({ children, muted = false }: { children: ReactNode; muted?: boolean }) {

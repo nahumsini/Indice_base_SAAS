@@ -38,6 +38,7 @@ export type AgendaTaskCellProps = {
   onEditTask: (task: AgendaTaskItem) => void;
   onOpenAttachments: (task: AgendaTaskItem) => void;
   onPersistTaskChange: (task: AgendaTaskItem, patch: Partial<TaskPayload>) => void | Promise<void>;
+  onPriorityChange: (task: AgendaTaskItem, value: string) => void;
   onProjectChange: (task: AgendaTaskItem, value: string) => void;
   onResponsibleChange: (task: AgendaTaskItem, value: string) => void;
   onUnitChange: (task: AgendaTaskItem, value: string) => void;

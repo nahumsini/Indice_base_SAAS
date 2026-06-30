@@ -226,6 +226,21 @@ export function useAgendaTaskMutations({
     [noProjectValue, persistTaskChange, projects],
   );
 
+  const handlePriorityCellChange = useCallback(
+    (task: AgendaTaskItem, value: string) => {
+      if (value !== 'low' && value !== 'medium' && value !== 'high') {
+        return;
+      }
+
+      if (task.priority === value) {
+        return;
+      }
+
+      void persistTaskChange(task, { priority: value });
+    },
+    [persistTaskChange],
+  );
+
   const handleDuplicateTask = useCallback(
     async (task: AgendaTaskItem) => {
       setTaskPendingState(task.taskId, true);
@@ -292,6 +307,7 @@ export function useAgendaTaskMutations({
     handleConfirmDeleteTask,
     handleDuplicateTask,
     handleProjectCellChange,
+    handlePriorityCellChange,
     handleResponsibleCellChange,
     handleUnitCellChange,
     persistTaskChange,
