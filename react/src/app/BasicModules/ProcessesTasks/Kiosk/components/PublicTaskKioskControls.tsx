@@ -14,13 +14,13 @@ export function TaskPinKeypad({
 }) {
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'backspace', '0'];
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-2 sm:gap-3">
       {keys.map((key) => (
         <button
           key={key}
           type="button"
           disabled={disabled}
-          className={`flex h-16 items-center justify-center rounded-2xl border border-slate-200 bg-white text-2xl font-bold text-slate-950 shadow-sm transition hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${key === '0' ? 'col-start-2' : ''}`}
+          className={`flex h-14 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl font-bold text-slate-950 shadow-sm transition hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${key === '0' ? 'col-start-2' : ''}`}
           onClick={() => {
             if (key === 'backspace') {
               onChange(value.slice(0, -1));
@@ -50,7 +50,7 @@ export function TaskKioskLanguageSelector({
   onLocaleChange: (locale: TaskKioskLocale) => void;
 }) {
   return (
-    <label className="flex min-w-[13rem] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+    <label className="flex w-full min-w-0 max-w-full items-center gap-2 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950/75 dark:text-slate-200 sm:w-auto sm:min-w-[13rem] sm:px-3">
       <Globe2 className="h-4 w-4 shrink-0 text-[#9A6B05]" />
       <span className="sr-only">{copy.language.selectorLabel}</span>
       <select

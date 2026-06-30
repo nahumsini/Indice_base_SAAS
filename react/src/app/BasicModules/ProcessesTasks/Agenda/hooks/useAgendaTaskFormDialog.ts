@@ -16,6 +16,11 @@ type UseAgendaTaskFormDialogOptions = {
   agendaCopy: AgendaTranslations;
   currentUserCollaborator: ProcessCollaboratorOption | null;
   loadAgenda: () => Promise<void>;
+  quickTaskContext?: Partial<Pick<
+    TaskFormValues,
+    'assignedName' | 'assignedUserCompanyId' | 'businessId' | 'projectId' | 'unitId'
+  >>;
+  quickTaskDate: string;
   selectedScheduleDate: string;
   setAgendaError: (message: string | null) => void;
   todayAgendaValue: string;
@@ -25,6 +30,8 @@ export function useAgendaTaskFormDialog({
   agendaCopy,
   currentUserCollaborator,
   loadAgenda,
+  quickTaskContext,
+  quickTaskDate,
   selectedScheduleDate,
   setAgendaError,
   todayAgendaValue,
@@ -139,11 +146,13 @@ export function useAgendaTaskFormDialog({
           buildTaskPayload(
             {
               ...createDefaultTaskFormForCurrentUser(),
+              ...quickTaskContext,
               title,
               description: '',
-              startDate: selectedScheduleDate || todayAgendaValue,
-              dueDate: selectedScheduleDate || todayAgendaValue,
+              startDate: quickTaskDate || selectedScheduleDate || todayAgendaValue,
+              dueDate: quickTaskDate || selectedScheduleDate || todayAgendaValue,
               processId: '',
+              status: 'pending',
             },
             agendaCopy,
           ),
@@ -162,6 +171,8 @@ export function useAgendaTaskFormDialog({
       agendaCopy,
       createDefaultTaskFormForCurrentUser,
       loadAgenda,
+      quickTaskContext,
+      quickTaskDate,
       quickTaskTitle,
       selectedScheduleDate,
       setAgendaError,

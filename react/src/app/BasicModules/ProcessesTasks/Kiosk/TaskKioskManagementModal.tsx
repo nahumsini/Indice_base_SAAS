@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, Link2, MonitorSmartphone, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Building2, Copy, ExternalLink, Link2, MonitorSmartphone, Pencil, Plus, Radio, Save, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import {
@@ -66,6 +66,17 @@ function formFromKiosk(kiosk: ProcessTaskKiosk): ProcessTaskKioskPayload {
   };
 }
 
+function kioskSaveErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : '';
+  if (/unauthorized|401/i.test(message)) {
+    return 'Your session expired or the browser is not sending credentials. Sign in again and retry.';
+  }
+  if (/forbidden|403/i.test(message)) {
+    return 'Your session does not have permission to manage task kiosks.';
+  }
+  return message || 'Could not save this kiosk. Review the required fields and try again.';
+}
+
 export function TaskKioskManagementModal({
   isOpen,
   isSaving,
@@ -81,6 +92,7 @@ export function TaskKioskManagementModal({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingKioskId, setEditingKioskId] = useState<number | undefined>();
   const [form, setForm] = useState<ProcessTaskKioskPayload>(() => createDefaultForm());
+  const [editorError, setEditorError] = useState<string | null>(null);
 
   const activeCount = kiosks.filter((kiosk) => kiosk.status === 'active').length;
   const readyCount = kiosks.filter((kiosk) => Boolean(kiosk.public_access_token)).length;
@@ -105,11 +117,13 @@ export function TaskKioskManagementModal({
   const closeEditor = () => {
     setIsEditorOpen(false);
     setEditingKioskId(undefined);
+    setEditorError(null);
     setForm(createDefaultForm());
   };
 
   const handleStartCreate = () => {
     setEditingKioskId(undefined);
+    setEditorError(null);
     setForm({
       ...createDefaultForm(),
       name: 'Field task access',
@@ -120,6 +134,7 @@ export function TaskKioskManagementModal({
 
   const handleStartEdit = (kiosk: ProcessTaskKiosk) => {
     setEditingKioskId(kiosk.id);
+    setEditorError(null);
     setForm(formFromKiosk(kiosk));
     setIsEditorOpen(true);
   };
@@ -135,11 +150,29 @@ export function TaskKioskManagementModal({
   };
 
   const handleSubmit = async () => {
+    const nextPayload: ProcessTaskKioskPayload = {
+      ...form,
+      name: form.name.trim(),
+      code: form.code.trim(),
+      unit_id: form.unit_id ?? null,
+      business_id: form.business_id ?? null,
+      metadata: {
+        ...(form.metadata ?? {}),
+        kiosk_type: 'task_access',
+      },
+    };
+
+    if (!nextPayload.name || !nextPayload.code) {
+      setEditorError('Name and internal reference are required to create the kiosk.');
+      return;
+    }
+
+    setEditorError(null);
     try {
-      await onSave(form, editingKioskId);
+      await onSave(nextPayload, editingKioskId);
       closeEditor();
-    } catch {
-      // The parent view owns the visible error message.
+    } catch (error) {
+      setEditorError(kioskSaveErrorMessage(error));
     }
   };
 
@@ -162,25 +195,25 @@ export function TaskKioskManagementModal({
       >
         <DialogContent
           hideCloseButton
-          className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 text-slate-950 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
+          className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-0 text-slate-950 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
         >
-          <div className="bg-[#F4C84A] px-6 py-4 text-slate-950">
+          <div className="shrink-0 bg-[#F4C84A] px-6 py-4 text-slate-950">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/25">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/25">
                   <MonitorSmartphone className="h-5 w-5" />
                 </span>
                 <DialogHeader className="gap-1 text-left">
-                  <DialogTitle className="text-xl font-bold text-slate-950">Task kiosks</DialogTitle>
-                  <DialogDescription className="text-sm font-medium text-slate-800/80">
-                    Manage quick access points workers use to complete assigned tasks with their PIN.
+                  <DialogTitle className="text-xl font-semibold text-slate-950">Centro de kioskos de tareas</DialogTitle>
+                  <DialogDescription className="text-sm font-semibold text-slate-800/80">
+                    Administra accesos diarios para que el equipo cierre tareas asignadas desde celular.
                   </DialogDescription>
                 </DialogHeader>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  className="h-10 gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white hover:bg-slate-800"
+                  className="h-10 gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white hover:bg-slate-800"
                   onClick={handleStartCreate}
                 >
                   <Plus className="h-4 w-4" />
@@ -198,94 +231,127 @@ export function TaskKioskManagementModal({
             </div>
           </div>
 
-          <div className="min-h-0 overflow-y-auto bg-slate-50/70 px-6 py-5 dark:bg-slate-950">
-            <section className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-3">
-              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">Centro operativo</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Cada kiosko abre una pantalla publica para ejecutar tareas con PIN, sin abrir el ERP completo.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="h-10 gap-2 rounded-lg bg-[#F4C84A] px-4 text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-[#E5B835] hover:shadow-md"
+                onClick={handleStartCreate}
+              >
+                <Plus className="h-4 w-4" />
+                Crear kiosko
+              </Button>
+            </div>
+
+            <section className="mt-5 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-900/55 sm:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
                 <p className="text-2xl font-bold text-slate-950 dark:text-white">{kiosks.length}</p>
                 <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Total kiosks</p>
               </div>
-              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
+              <div className="rounded-lg border border-emerald-200 bg-white px-4 py-3 dark:border-emerald-900/50 dark:bg-slate-950">
                 <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-300">{activeCount}</p>
                 <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Active</p>
               </div>
-              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/60">
+              <div className="rounded-lg border border-[#F4C84A]/30 bg-white px-4 py-3 dark:border-[#F4C84A]/30 dark:bg-slate-950">
                 <p className="text-2xl font-bold text-[#9A6B05] dark:text-[#FEF3C7]">{readyCount}</p>
                 <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Links ready</p>
               </div>
             </section>
 
             <section className="mt-5">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-slate-950 dark:text-white">Configured kiosks</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Each kiosk opens a public task execution flow for identified workers.
-                  </p>
-                </div>
-                <Button type="button" variant="outline" className="w-fit gap-2 rounded-xl bg-white" onClick={handleStartCreate}>
-                  <Plus className="h-4 w-4" />
-                  Create kiosk
-                </Button>
-              </div>
-
               {kiosks.length > 0 ? (
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-4">
                   {kiosks.map((kiosk) => (
                     <article
                       key={kiosk.id}
-                      className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-[#F4C84A]/50 dark:border-slate-800 dark:bg-slate-900"
+                      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#F4C84A]/45 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="truncate text-base font-bold text-slate-950 dark:text-white">{kiosk.name}</h4>
-                            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${kiosk.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
-                              {kiosk.status === 'active' ? 'Active' : 'Inactive'}
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start gap-3">
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A]/15 text-[#9A6B05] dark:text-[#FEF3C7]">
+                              <MonitorSmartphone className="h-5 w-5" />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="break-words text-base font-semibold text-slate-950 dark:text-white">{kiosk.name}</h4>
+                                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${kiosk.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+                                  {kiosk.status === 'active' ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{kiosk.code}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/60">
+                              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                                <Building2 className="h-4 w-4 text-[#9A6B05] dark:text-[#FEF3C7]" />
+                                Contexto
+                              </div>
+                              <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{kiosk.scope_label}</p>
+                            </div>
+                            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/60">
+                              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                                <ShieldCheck className="h-4 w-4 text-[#9A6B05] dark:text-[#FEF3C7]" />
+                                Visibilidad
+                              </div>
+                              <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">
+                                El colaborador ve tareas abiertas asignadas a su usuario.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                              <Link2 className="h-3.5 w-3.5" />
+                              {kiosk.public_access_token ? 'Link listo' : 'Link pendiente'}
+                            </span>
+                            <span className="inline-flex items-center gap-2 rounded-full bg-[#F4C84A]/12 px-3 py-1.5 text-xs font-semibold text-[#9A6B05] dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
+                              <Radio className="h-3.5 w-3.5" />
+                              Acceso por PIN
                             </span>
                           </div>
-                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{kiosk.scope_label}</p>
                         </div>
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F4C84A]/15 text-[#9A6B05] dark:text-[#FEF3C7]">
-                          <MonitorSmartphone className="h-5 w-5" />
-                        </span>
-                      </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">{kiosk.code}</span>
-                        <span className="rounded-full bg-[#F4C84A]/12 px-2.5 py-1 text-[#9A6B05] dark:text-[#FEF3C7]">
-                          {kiosk.public_access_token ? 'Link ready' : 'No link'}
-                        </span>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <Button type="button" size="sm" className="gap-2 bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={() => onOpen(kiosk)}>
-                          <ExternalLink className="h-4 w-4" />
-                          Open
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" className="gap-2" onClick={() => onCopy(kiosk)}>
-                          <Copy className="h-4 w-4" />
-                          Copy link
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" className="gap-2" onClick={() => handleStartEdit(kiosk)}>
-                          <Pencil className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" className="gap-2 text-red-600 hover:text-red-700" disabled={isSaving} onClick={() => onDelete(kiosk)}>
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+                          <Button type="button" className="h-10 gap-2 rounded-lg bg-[#F4C84A] px-4 text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-[#E5B835] hover:shadow-md" onClick={() => onOpen(kiosk)}>
+                            <ExternalLink className="h-4 w-4" />
+                            Abrir pantalla
+                          </Button>
+                          <div className="grid grid-cols-3 gap-2 lg:grid-cols-1">
+                            <Button type="button" size="sm" variant="outline" className="gap-2 rounded-lg" onClick={() => onCopy(kiosk)}>
+                              <Copy className="h-4 w-4" />
+                              Copiar
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" className="gap-2 rounded-lg" onClick={() => handleStartEdit(kiosk)}>
+                              <Pencil className="h-4 w-4" />
+                              Editar
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" className="gap-2 rounded-lg text-red-600 hover:text-red-700" disabled={isSaving} onClick={() => onDelete(kiosk)}>
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </article>
                   ))}
                 </div>
               ) : (
-                <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900/40">
+                <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900/40">
                   <MonitorSmartphone className="mx-auto h-11 w-11 text-[#9A6B05] dark:text-[#FEF3C7]" />
                   <p className="mt-4 text-base font-bold text-slate-950 dark:text-white">No kiosks yet</p>
                   <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
                     Create a kiosk link so field workers can complete assigned tasks without starting a full session.
                   </p>
-                  <Button type="button" className="mt-5 gap-2 bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={handleStartCreate}>
+                  <Button type="button" className="mt-5 h-10 gap-2 rounded-lg bg-[#F4C84A] px-4 text-slate-950 hover:bg-[#E5B835]" onClick={handleStartCreate}>
                     <Plus className="h-4 w-4" />
                     Create kiosk
                   </Button>
@@ -294,11 +360,11 @@ export function TaskKioskManagementModal({
             </section>
           </div>
 
-          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
+          <DialogFooter className="shrink-0 border-t border-[#9A6B05]/30 bg-[#F4C84A] px-6 py-4">
             <p className="mr-auto text-sm font-medium text-slate-600 dark:text-slate-300">
               Kiosk visibility follows the identified worker and their assigned open tasks.
             </p>
-            <Button type="button" variant="outline" className="rounded-xl border-slate-200 bg-white text-[#9A6B05] hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800" onClick={handleClose}>
+            <Button type="button" variant="outline" className="rounded-lg border-white/30 bg-white text-[#9A6B05] hover:bg-white/90 hover:text-[#9A6B05]" onClick={handleClose}>
               Close
             </Button>
           </DialogFooter>
@@ -313,7 +379,7 @@ export function TaskKioskManagementModal({
           }
         }}
       >
-        <DialogContent className="rounded-[28px] border border-slate-200 bg-white p-0 text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.2)] dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-xl">
+        <DialogContent className="overflow-hidden rounded-lg border border-slate-200 bg-white p-0 text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.2)] dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-xl">
           <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
             <DialogHeader className="text-left">
               <DialogTitle className="text-xl font-bold text-slate-950 dark:text-white">
@@ -326,12 +392,22 @@ export function TaskKioskManagementModal({
           </div>
 
           <div className="grid gap-4 px-6 py-5">
+            {editorError ? (
+              <div
+                className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200"
+                role="alert"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p className="font-semibold">{editorError}</p>
+              </div>
+            ) : null}
             <div>
               <label className={labelClassName}>Name</label>
               <input
                 value={form.name}
                 placeholder="Warehouse task kiosk"
                 className={inputClassName}
+                disabled={isSaving}
                 onChange={(event) => handleNameChange(event.target.value)}
               />
             </div>
@@ -341,6 +417,7 @@ export function TaskKioskManagementModal({
                 value={form.code}
                 placeholder="warehouse-task-kiosk"
                 className={inputClassName}
+                disabled={isSaving}
                 onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))}
               />
             </div>
@@ -349,6 +426,7 @@ export function TaskKioskManagementModal({
               <select
                 value={form.unit_id ?? ''}
                 className={inputClassName}
+                disabled={isSaving}
                 onChange={(event) => setForm((current) => ({
                   ...current,
                   unit_id: event.target.value ? Number(event.target.value) : null,
@@ -365,7 +443,7 @@ export function TaskKioskManagementModal({
               <label className={labelClassName}>Business context</label>
               <select
                 value={form.business_id ?? ''}
-                disabled={!form.unit_id}
+                disabled={!form.unit_id || isSaving}
                 className={inputClassName}
                 onChange={(event) => setForm((current) => ({
                   ...current,
@@ -383,6 +461,7 @@ export function TaskKioskManagementModal({
               <select
                 value={form.status}
                 className={inputClassName}
+                disabled={isSaving}
                 onChange={(event) => setForm((current) => ({
                   ...current,
                   status: event.target.value as ProcessTaskKioskPayload['status'],

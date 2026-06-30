@@ -64,6 +64,7 @@ export const zhCA: AgendaTranslations = {
   statuses: {
     open: '打开',
     pending: '待处理',
+    pending_overdue: '待处理和逾期',
     in_progress: '进行中',
     completed: '已完成',
     pending_audit: '待审核',

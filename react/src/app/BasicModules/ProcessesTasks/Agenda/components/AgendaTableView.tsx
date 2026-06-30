@@ -260,13 +260,15 @@ export function AgendaTableView({
                     return (
                       <TableCell
                         key={`${task.taskId}-${column.id}`}
-                        className="px-5 py-5 align-middle"
+                        className="whitespace-normal break-words px-5 py-5 align-middle"
                         style={{
                           width: agendaColumnWidths[columnId],
                           minWidth: agendaColumnWidths[columnId],
                         }}
                       >
-                        {renderAgendaTaskCell(task, columnId)}
+                        <div className="min-w-0 max-w-full whitespace-normal break-words [overflow-wrap:anywhere]">
+                          {renderAgendaTaskCell(task, columnId)}
+                        </div>
                       </TableCell>
                     );
                   })}
@@ -276,7 +278,7 @@ export function AgendaTableView({
                     return (
                       <TableCell
                         key={`${task.taskId}-${column.id}`}
-                        className="px-5 py-5 align-middle"
+                        className="whitespace-normal px-5 py-5 align-middle"
                         style={{
                           width: agendaColumnWidths[columnId],
                           minWidth: agendaColumnWidths[columnId],
