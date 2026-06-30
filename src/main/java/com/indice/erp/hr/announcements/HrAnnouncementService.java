@@ -59,6 +59,10 @@ public class HrAnnouncementService {
         return readSvc.markRead(actor, id);
     }
 
+    public Map<String, Object> markUnread(HrAnnouncementActor actor, long id) {
+        return readSvc.markUnread(actor, id);
+    }
+
     public Map<String, Object> presignAttachment(HrAnnouncementActor actor, long id, Map<String, Object> payload) {
         return fileSvc.presign(actor, id, payload);
     }

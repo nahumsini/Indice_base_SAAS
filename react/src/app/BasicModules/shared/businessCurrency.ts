@@ -1,4 +1,6 @@
 export const defaultBusinessCurrency = 'MXN';
+export const hrPreferredCurrencyStorageKey = 'indice.hr.employeesPreferredCurrency';
+export const hrExchangeRateSettingsStorageKey = 'indice.hr.employeesExchangeRatesPerUsd';
 
 export const businessCurrencyOptions = [
   { code: 'MXN', locale: 'es-MX' },

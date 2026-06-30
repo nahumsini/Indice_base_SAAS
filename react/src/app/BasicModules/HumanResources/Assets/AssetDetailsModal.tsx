@@ -19,55 +19,20 @@ import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import { useLanguage } from '../../../shared/context';
 import { type HrAsset } from '../../../api/HumanResources/assets';
+import {
+  formatBusinessCurrencyAmount,
+  normalizeBusinessCurrencyCode,
+} from '../../shared/businessCurrency';
 import { useAssetsTranslations } from './hooks/useAssetsTranslations';
 import type { AssetsTranslations } from './translations';
 import { useAssetsPortalTheme } from './useAssetsPortalTheme';
+import { getAssetTypeLabel } from './utils/assets.utils';
 
 interface AssetDetailsModalProps {
   isOpen: boolean;
   asset: HrAsset | null;
   onClose: () => void;
 }
-
-const getAssetTypeFilter = (assetType: string) => {
-  const normalized = assetType.trim().toLowerCase();
-
-  if (normalized === 'laptop') {
-    return 'laptop';
-  }
-  if (normalized === 'attendance') {
-    return 'attendance';
-  }
-  if (normalized === 'operations') {
-    return 'operations';
-  }
-  if (normalized === 'maintenance') {
-    return 'maintenance';
-  }
-
-  return 'other';
-};
-
-const getAssetTypeLabel = (assetType: string, t: AssetsTranslations) => {
-  const normalizedType = getAssetTypeFilter(assetType);
-
-  if (normalizedType === 'laptop') {
-    return t.addNewAsset.options.laptop;
-  }
-  if (normalizedType === 'attendance') {
-    return t.filters.attendanceControl;
-  }
-  if (normalizedType === 'operations') {
-    return t.filters.operation;
-  }
-  if (normalizedType === 'maintenance') {
-    return t.filters.maintenance;
-  }
-
-  return assetType
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-};
 
 const getStatusLabel = (status: HrAsset['status'], t: AssetsTranslations) => {
   const labelMap = {
@@ -119,16 +84,14 @@ const formatDateTime = (value: string | null, locale: string) => {
   }).format(parsedDate);
 };
 
-const formatValue = (value: number | null, locale: string) => {
+const formatValue = (value: number | null, currency: string | null | undefined) => {
   if (value === null || value === undefined) {
     return '-';
   }
 
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
+  return formatBusinessCurrencyAmount(value, normalizeBusinessCurrencyCode(currency, 'USD'), {
     maximumFractionDigits: 0,
-  }).format(value);
+  });
 };
 
 function SummaryStat({
@@ -283,7 +246,7 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
     {
       icon: <Wallet className="size-4" />,
       label: copy.fields.value,
-      value: formatValue(asset.value_amount, currentLanguage.code),
+      value: formatValue(asset.value_amount, asset.value_currency),
     },
     {
       icon: <CalendarClock className="size-4" />,

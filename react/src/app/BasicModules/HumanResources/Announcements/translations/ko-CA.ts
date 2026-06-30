@@ -4,7 +4,6 @@ export const koCA = {
   pageTitle: '공지',
   pageSubtitle: '내부 업데이트, 대상별 메시지, 예약된 HR 커뮤니케이션을 관리합니다.',
   actions: {
-    export: '내보내기',
     columns: '열',
     addAnnouncement: '공지 추가',
   },
@@ -15,6 +14,12 @@ export const koCA = {
     uploadAttachmentFailed: '첨부 파일을 업로드할 수 없습니다.',
     removeAttachmentFailed: '첨부 파일을 제거할 수 없습니다.',
     openDetails: '세부 정보 열기',
+    loadAnnouncementsFailed: '공지를 불러올 수 없습니다.',
+    manageNotAllowed: '공지를 관리할 권한이 없습니다.',
+    saveAnnouncementFailed: '공지를 저장할 수 없습니다.',
+    deleteAnnouncementFailed: '공지를 삭제할 수 없습니다.',
+    markReadFailed: '공지를 읽음으로 표시할 수 없습니다.',
+    markUnreadFailed: '공지를 읽지 않음으로 표시할 수 없습니다.',
   },
   filters: {
     title: '필터',
@@ -41,6 +46,9 @@ export const koCA = {
       operations: '운영',
       leaders: '리더',
       everyone: '전체 직원',
+      units: '지점',
+      departments: '부서',
+      employees: '특정 직원',
     },
   },
   kpis: {
@@ -63,6 +71,14 @@ export const koCA = {
     ) =>
       `커뮤니케이션 요약: 게시 ${publishedCount}개 · 예약 ${scheduledCount}개 · 초안 ${draftCount}개 · 평균 읽음률 ${readRate} · ${totalCount}개 중 ${visibleCount}개 표시.`,
   },
+  bulk: {
+    selectedBadge: (count: number) => `${count}개 선택됨`,
+    label: '일괄 작업',
+    deleteSelected: '선택 항목 삭제',
+    deleteDescription: '선택한 공지가 목록에서 제거됩니다.',
+    markUnread: '읽지 않음으로 표시',
+    clearSelection: '선택 해제',
+  },
   progress: {
     published: '게시됨',
     scheduled: '예약됨',
@@ -80,6 +96,8 @@ export const koCA = {
       actions: '작업',
     },
     emptyState: '현재 필터와 일치하는 공지가 없습니다.',
+    selectAllRows: '이 페이지의 공지 선택',
+    selectRow: (title: string) => `${title} 선택`,
     noPreview: '미리보기가 없습니다.',
     noTime: '시간 없음',
     edit: '편집',
@@ -141,6 +159,16 @@ export const koCA = {
     selectedUnits: '선택한 지점',
     specificEmployees: '특정 직원',
   },
+  view: {
+    readRatio: (read: number, total: number) => `${read}/${total} 읽음`,
+    read: '읽음',
+    unread: '읽지 않음',
+    noDate: '날짜 없음',
+    noTime: '시간 없음',
+    noPosition: '직무 없음',
+    unnamedUser: '이름 없는 사용자',
+    unitLabel: (unitId: string | number) => `지점 ${unitId}`,
+  },
   modal: {
     title: '새 공지',
     subtitle: '내부 HR 커뮤니케이션을 작성하고 대상 지정 및 예약합니다.',
@@ -190,7 +218,7 @@ export const koCA = {
     message: {
       title: '메시지',
       helper: '짧고 명확하며 읽기 쉽게 작성하세요.',
-      attachmentNote: '첨부 파일은 다음 프론트엔드 작업에서 추가됩니다.',
+      attachmentNote: '저장한 뒤 세부 정보 패널에서 첨부 파일을 업로드할 수 있습니다.',
     },
     publishing: {
       title: '게시',
@@ -207,6 +235,7 @@ export const koCA = {
     buttons: {
       cancel: '취소',
       saveDraft: '초안 저장',
+      saveChanges: '변경 사항 저장',
       publishNow: '지금 게시',
       schedulePublication: '게시 예약',
     },

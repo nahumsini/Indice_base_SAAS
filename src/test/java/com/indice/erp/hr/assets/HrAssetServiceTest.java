@@ -71,6 +71,14 @@ class HrAssetServiceTest {
             when(rs.getBigDecimal("total_value_amount")).thenReturn(java.math.BigDecimal.ZERO);
             return List.of(rowMapper.mapRow(rs, 0));
         });
+        when(jdbcTemplate.query(
+            org.mockito.ArgumentMatchers.contains("GROUP BY COALESCE"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map.Entry<String, java.math.BigDecimal>>>any(),
+            eq("USD"),
+            eq(1L),
+            eq(9L),
+            eq("USD")
+        )).thenReturn(List.of());
 
         var result = service.listAssets(currentUser, Map.of());
 

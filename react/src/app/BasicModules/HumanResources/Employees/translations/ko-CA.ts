@@ -276,6 +276,7 @@ export const koCA = {
   pagination: {
     previous: '이전',
     next: '다음',
+    pageSize: '페이지당 행',
     showing: (start: number, end: number, total: number) => `직원 ${total}명 중 ${start}-${end}명 표시`,
     page: (current: number, total: number) => `${total}페이지 중 ${current}페이지`,
   },

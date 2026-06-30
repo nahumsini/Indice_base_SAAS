@@ -3,7 +3,7 @@ import type {
   AnnouncementDisplayType,
 } from '../announcementTypes';
 
-export const audienceFilterValues = ['all', 'operations', 'leaders', 'everyone'] as const;
+export const audienceFilterValues = ['all', 'everyone', 'units', 'departments', 'employees'] as const;
 export const typeFilterValues = ['all', 'general', 'urgent', 'reminder', 'celebration'] as const;
 export const statusFilterValues = ['all', 'published', 'scheduled', 'draft'] as const;
 export const defaultVisibleColumnIds = ['type', 'audience', 'publication', 'reads', 'status', 'author'] as const;

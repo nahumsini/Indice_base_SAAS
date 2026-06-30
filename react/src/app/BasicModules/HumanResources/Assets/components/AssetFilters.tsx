@@ -1,6 +1,10 @@
 import { Search } from 'lucide-react';
 import type { HrAssetStatus } from '../../../../api/HumanResources/assets';
-import type { AddNewAssetOption, AddNewAssetType } from '../AddNewAssests';
+import type { AddNewAssetOption } from '../AddNewAssests';
+import {
+  assetTypeOptions,
+  type AddNewAssetType,
+} from '../constants/assetCatalog';
 import type { AssetFiltersCopy } from '../translations';
 
 type AssetTypeFilter = 'all' | AddNewAssetType;
@@ -58,10 +62,11 @@ export function AssetFilters({
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             <option value="all">{copy.filters.allTypes}</option>
-            <option value="laptop">{copy.filters.computerEquipment}</option>
-            <option value="attendance">{copy.filters.attendanceControl}</option>
-            <option value="operations">{copy.filters.operation}</option>
-            <option value="maintenance">{copy.filters.maintenance}</option>
+            {assetTypeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {copy.addNewAsset.options[option.labelKey]}
+              </option>
+            ))}
           </select>
         </div>
 

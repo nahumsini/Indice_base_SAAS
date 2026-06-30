@@ -9,6 +9,7 @@ export const frCA = {
   loading: 'Chargement des actifs...',
   emptyState: 'Aucun actif ne correspond aux filtres actuels.',
   errors: {
+    ...enCA.errors,
     load: 'Impossible de charger les actifs.',
     save: "Impossible d'enregistrer l'actif.",
     details: "Impossible de charger les détails de l'actif.",
@@ -51,6 +52,7 @@ export const frCA = {
     Inactivo: 'Inactif',
   },
   table: {
+    ...enCA.table,
     id: 'ID',
     type: 'Catégorie',
     asset: 'Actif',
@@ -74,6 +76,7 @@ export const frCA = {
   kpis: {
     visibleAfterFilters: 'visibles après filtres',
     assetValue: 'valeur des actifs',
+    currencies: (count: number) => `${count} devises`,
     summary: (
       assignedCount: number,
       availableCount: number,
@@ -96,6 +99,7 @@ export const frCA = {
     apply: 'Appliquer',
   },
   actionsMenu: {
+    ...enCA.actionsMenu,
     viewDetails: 'Voir les détails',
     edit: 'Modifier',
     delete: 'Supprimer',
@@ -157,12 +161,13 @@ export const frCA = {
     editTitle: "Modifier l'actif",
     editSubtitle: "Mettez à jour l'actif sélectionné de l'entreprise.",
     sections: {
+      ...enCA.addNewAsset.sections,
       general: 'Informations générales',
       assignment: 'Attribution',
       valueDetails: 'Valeur et détails',
     },
     fields: {
-      assetId: "ID de l'actif",
+      ...enCA.addNewAsset.fields,
       assetType: "Type d'actif",
       assetName: "Nom de l'actif",
       model: 'Modèle',
@@ -171,11 +176,12 @@ export const frCA = {
       unit: 'Unité',
       status: 'Statut',
       assignedDate: "Date d'attribution",
-      value: 'Valeur (USD)',
+      value: 'Valeur',
+      currency: 'Devise',
       notes: 'Notes supplémentaires',
     },
     placeholders: {
-      assetId: 'Ex : ACT-001',
+      ...enCA.addNewAsset.placeholders,
       assetName: 'Ex : MacBook Pro 16',
       model: 'Ex : M2 Pro',
       serialNumber: 'Ex : MRE-2023-9445',
@@ -183,12 +189,13 @@ export const frCA = {
       unit: 'Sélectionner une unité',
       status: 'Sélectionner un statut',
       value: 'Ex : $45,000',
+      currency: 'Sélectionner une devise',
       notes: "Informations supplémentaires sur l'actif...",
     },
     options: {
+      ...enCA.addNewAsset.options,
       laptop: 'Portable',
       attendanceTerminal: 'Terminal de présence',
-      mobileDevice: 'Appareil mobile',
       maintenanceKit: 'Kit de maintenance',
       available: 'Disponible',
       assigned: 'Attribué',
@@ -197,9 +204,13 @@ export const frCA = {
       inactive: 'Inactif',
     },
     buttons: {
+      ...enCA.addNewAsset.buttons,
       cancel: 'Annuler',
       save: "Enregistrer l'actif",
       saveChanges: 'Enregistrer les modifications',
+    },
+    photoUploader: {
+      ...enCA.addNewAsset.photoUploader,
     },
     success: (assetName: string) => `${assetName} a été créé avec succès.`,
     successUpdated: (assetName: string) => `${assetName} a été mis à jour avec succès.`,

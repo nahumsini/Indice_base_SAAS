@@ -276,6 +276,7 @@ export const zhCA = {
   pagination: {
     previous: '上一页',
     next: '下一页',
+    pageSize: '每页行数',
     showing: (start: number, end: number, total: number) => `显示 ${start}-${end}，共 ${total} 名员工`,
     page: (current: number, total: number) => `第 ${current} 页，共 ${total} 页`,
   },

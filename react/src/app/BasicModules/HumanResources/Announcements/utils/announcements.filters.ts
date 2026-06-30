@@ -15,11 +15,12 @@ export const getAnnouncementAudienceGroup = (announcement: AnnouncementView): An
   if (announcement.audienceType === 'all') {
     return 'everyone';
   }
-  if (announcement.audienceSummary.toLowerCase().includes('lider')) {
-    return 'leaders';
-  }
-  if (announcement.audienceSummary.toLowerCase().includes('operacion')) {
-    return 'operations';
+  if (
+    announcement.audienceType === 'units'
+    || announcement.audienceType === 'departments'
+    || announcement.audienceType === 'employees'
+  ) {
+    return announcement.audienceType;
   }
   return 'all';
 };

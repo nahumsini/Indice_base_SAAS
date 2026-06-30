@@ -14,10 +14,11 @@ export function useEmployeesPagination({
   totalCount,
 }: EmployeesPaginationParams) {
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(totalCount / employeesPerPage));
+  const [pageSize, setPageSize] = useState(employeesPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-  const pageStartIndex = (safeCurrentPage - 1) * employeesPerPage;
-  const pageEndIndex = pageStartIndex + employeesPerPage;
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
 
   const paginatedEmployees = useMemo(
     () => rows.slice(pageStartIndex, pageEndIndex),
@@ -39,7 +40,12 @@ export function useEmployeesPagination({
   return {
     currentPage: safeCurrentPage,
     onPageChange: setCurrentPage,
+    onPageSizeChange: (nextPageSize: number) => {
+      setPageSize(nextPageSize);
+      setCurrentPage(1);
+    },
     pageEnd: paginationEnd,
+    pageSize,
     pageStart: paginationStart,
     paginatedEmployees,
     totalPages,

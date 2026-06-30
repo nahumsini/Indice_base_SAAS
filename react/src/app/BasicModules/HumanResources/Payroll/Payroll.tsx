@@ -70,6 +70,8 @@ import {
   createBusinessDailyExchangeRateSettings,
   defaultBusinessCurrency,
   formatBusinessCurrencyAmount,
+  hrExchangeRateSettingsStorageKey,
+  hrPreferredCurrencyStorageKey,
   isBusinessCurrencyCode,
   normalizeBusinessCurrencyCode,
   normalizeBusinessExchangeRateSettings,
@@ -827,11 +829,11 @@ export default function Payroll() {
   const { currentLanguage } = useLanguage();
   const copy = usePayrollTranslations();
   const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    'indice.hr.employeesPreferredCurrency',
+    hrPreferredCurrencyStorageKey,
     defaultBusinessCurrency,
   );
   const [storedExchangeRateSettings, setStoredExchangeRateSettings] = useLocalStorageState<unknown>(
-    'indice.hr.employeesExchangeRatesPerUsd',
+    hrExchangeRateSettingsStorageKey,
     createBusinessDailyExchangeRateSettings(),
   );
   const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)

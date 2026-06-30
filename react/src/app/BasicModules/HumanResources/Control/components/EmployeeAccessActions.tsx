@@ -32,6 +32,8 @@ interface EmployeeAccessActionsProps {
   assignments: AttendanceControlAssignment[];
   inlineLayout?: boolean;
   actionBarLayout?: boolean;
+  pinLabelOverride?: string;
+  showFaceAction?: boolean;
   onFaceEnrollmentChange: (enrollment: FaceEnrollmentSummary) => void;
   onReload: () => Promise<void> | void;
   onSuccess: (message: string) => void;
@@ -73,6 +75,8 @@ export function EmployeeAccessActions({
   assignments,
   inlineLayout = false,
   actionBarLayout = false,
+  pinLabelOverride,
+  showFaceAction = true,
   onFaceEnrollmentChange,
   onReload,
   onSuccess,
@@ -236,7 +240,7 @@ export function EmployeeAccessActions({
             onClick={effectiveAccessProfile ? () => openEditAccessProfileDialog(effectiveAccessProfile) : openCreateAccessProfileDialog}
           >
             <KeyRound className="h-4 w-4" />
-            {copy.labels.setPin}
+            {pinLabelOverride ?? copy.labels.setPin}
           </Button>
         ) : (
           <div className={inlineLayout ? 'flex h-9 shrink-0 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100' : 'flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'}>
@@ -255,17 +259,19 @@ export function EmployeeAccessActions({
             {effectiveAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
           </Button>
         ) : null}
-        <Button
-          variant="outline"
-          size="sm"
-          className={faceActionButtonClassName}
-          disabled={isSaving}
-          onClick={() => setIsFaceEnrollmentModalOpen(true)}
-        >
-          {actionBarLayout ? <ScanFace className="h-4 w-4" /> : null}
-          {faceEnrollment ? copy.labels.reEnrollFace : copy.labels.enrollFace}
-        </Button>
-        {faceEnrollment && !actionBarLayout ? (
+        {showFaceAction ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className={faceActionButtonClassName}
+            disabled={isSaving}
+            onClick={() => setIsFaceEnrollmentModalOpen(true)}
+          >
+            {actionBarLayout ? <ScanFace className="h-4 w-4" /> : null}
+            {faceEnrollment ? copy.labels.reEnrollFace : copy.labels.enrollFace}
+          </Button>
+        ) : null}
+        {showFaceAction && faceEnrollment && !actionBarLayout ? (
           <Button
             variant="outline"
             size="sm"
@@ -302,32 +308,34 @@ export function EmployeeAccessActions({
         title={actionBarLayout ? copy.labels.setPin : editingAccessProfile ? copy.labels.editAccessProfile : copy.labels.addAccessProfile}
       />
 
-      <FaceEnrollmentModal
-        copy={copy}
-        isOpen={isFaceEnrollmentModalOpen}
-        employeeId={selectedEmployee.user_company_id}
-        employeeName={selectedEmployee.user_name}
-        onClose={() => setIsFaceEnrollmentModalOpen(false)}
-        onError={onError}
-        onCompleted={async () => {
-          setIsSaving(true);
-          onError('');
-          try {
-            const response = await runWithMinimumDuration(
-              humanResourcesApi.getFaceEnrollment(selectedEmployee.user_company_id),
-              850,
-            );
-            onFaceEnrollmentChange(response.enrollment);
-            onSuccess(copy.labels.faceEnrollmentCompleted);
-          } catch (error) {
-            const message = toErrorMessage(error, copy) || copy.saveError;
-            onError(message);
-            throw new Error(message);
-          } finally {
-            setIsSaving(false);
-          }
-        }}
-      />
+      {showFaceAction ? (
+        <FaceEnrollmentModal
+          copy={copy}
+          isOpen={isFaceEnrollmentModalOpen}
+          employeeId={selectedEmployee.user_company_id}
+          employeeName={selectedEmployee.user_name}
+          onClose={() => setIsFaceEnrollmentModalOpen(false)}
+          onError={onError}
+          onCompleted={async () => {
+            setIsSaving(true);
+            onError('');
+            try {
+              const response = await runWithMinimumDuration(
+                humanResourcesApi.getFaceEnrollment(selectedEmployee.user_company_id),
+                850,
+              );
+              onFaceEnrollmentChange(response.enrollment);
+              onSuccess(copy.labels.faceEnrollmentCompleted);
+            } catch (error) {
+              const message = toErrorMessage(error, copy) || copy.saveError;
+              onError(message);
+              throw new Error(message);
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+        />
+      ) : null}
     </>
   );
 }

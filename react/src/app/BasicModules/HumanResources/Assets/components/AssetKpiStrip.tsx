@@ -5,12 +5,13 @@ import type { AssetKpiCopy } from '../translations';
 interface AssetKpiStripProps {
   assignedCount: number;
   availableCount: number;
+  assetValueLabel: string;
   copy: AssetKpiCopy;
-  locale: string;
+  currencyCount: number;
   maintenanceCount: number;
+  nativeBreakdownLabel: string;
   selectedCount?: number;
   totalCount: number;
-  totalValueAmount: number;
   visibleCount: number;
 }
 
@@ -34,22 +35,18 @@ function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
 export function AssetKpiStrip({
   assignedCount,
   availableCount,
+  assetValueLabel,
   copy,
-  locale,
+  currencyCount,
   maintenanceCount,
+  nativeBreakdownLabel,
   selectedCount = 0,
   totalCount,
-  totalValueAmount,
   visibleCount,
 }: AssetKpiStripProps) {
   const availablePercent = totalCount > 0 ? (availableCount / totalCount) * 100 : 0;
   const assignedPercent = totalCount > 0 ? (assignedCount / totalCount) * 100 : 0;
   const maintenancePercent = totalCount > 0 ? (maintenanceCount / totalCount) * 100 : 0;
-  const formattedValue = new Intl.NumberFormat(locale, {
-    currency: 'USD',
-    maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(totalValueAmount);
 
   return (
     <div className="mb-5 space-y-4">
@@ -64,7 +61,12 @@ export function AssetKpiStrip({
         <span className="text-slate-300 dark:text-slate-600">•</span>
         <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visibleCount} valueClassName="text-[#59C3A5]" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={copy.kpis.assetValue} value={formattedValue} valueClassName="text-[#59C3A5]" />
+        <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={copy.kpis.assetValue} value={assetValueLabel} valueClassName="text-[#59C3A5]" />
+        {currencyCount > 1 ? (
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/12 dark:text-blue-200">
+            {copy.kpis.currencies(currencyCount)}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -83,7 +85,8 @@ export function AssetKpiStrip({
       </div>
 
       <div className="rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#59C3A5] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-blue-100">
-        {copy.kpis.summary(assignedCount, availableCount, maintenanceCount, selectedCount, visibleCount, totalCount)}
+        <div>{copy.kpis.summary(assignedCount, availableCount, maintenanceCount, selectedCount, visibleCount, totalCount)}</div>
+        <div className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">{nativeBreakdownLabel}</div>
       </div>
     </div>
   );

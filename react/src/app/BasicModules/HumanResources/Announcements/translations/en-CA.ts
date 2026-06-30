@@ -2,7 +2,6 @@ export const enCA = {
   pageTitle: 'Announcements',
   pageSubtitle: 'Internal updates, segmented messages, and scheduled HR communications.',
   actions: {
-    export: 'Export',
     columns: 'Columns',
     addAnnouncement: 'Add announcement',
   },
@@ -13,6 +12,12 @@ export const enCA = {
     uploadAttachmentFailed: 'Unable to upload attachment.',
     removeAttachmentFailed: 'Unable to remove attachment.',
     openDetails: 'Open details',
+    loadAnnouncementsFailed: 'Unable to load announcements.',
+    manageNotAllowed: 'You are not allowed to manage announcements.',
+    saveAnnouncementFailed: 'Unable to save announcement.',
+    deleteAnnouncementFailed: 'Unable to delete announcement.',
+    markReadFailed: 'Unable to mark announcement as read.',
+    markUnreadFailed: 'Unable to mark announcement as unread.',
   },
   filters: {
     title: 'Filters',
@@ -39,6 +44,9 @@ export const enCA = {
       operations: 'Operations',
       leaders: 'Leaders',
       everyone: 'All employees',
+      units: 'Units',
+      departments: 'Departments',
+      employees: 'Specific collaborators',
     },
   },
   kpis: {
@@ -61,6 +69,14 @@ export const enCA = {
     ) =>
       `Communications summary: ${publishedCount} published · ${scheduledCount} scheduled · ${draftCount} drafts · ${readRate} average read rate · showing ${visibleCount} of ${totalCount}.`,
   },
+  bulk: {
+    selectedBadge: (count: number) => `${count} selected`,
+    label: 'Bulk actions',
+    deleteSelected: 'Delete selected',
+    deleteDescription: 'The selected announcements will be removed from the list.',
+    markUnread: 'Mark as unread',
+    clearSelection: 'Clear selection',
+  },
   progress: {
     published: 'Published',
     scheduled: 'Scheduled',
@@ -78,6 +94,8 @@ export const enCA = {
       actions: 'Actions',
     },
     emptyState: 'No announcements match the current filters.',
+    selectAllRows: 'Select announcements on this page',
+    selectRow: (title: string) => `Select ${title}`,
     noPreview: 'No preview available.',
     noTime: 'No time',
     edit: 'Edit',
@@ -139,6 +157,16 @@ export const enCA = {
     selectedUnits: 'Selected units',
     specificEmployees: 'Specific employees',
   },
+  view: {
+    readRatio: (read: number, total: number) => `${read}/${total} read`,
+    read: 'Read',
+    unread: 'Unread',
+    noDate: 'No date',
+    noTime: 'No time',
+    noPosition: 'No position',
+    unnamedUser: 'Unnamed user',
+    unitLabel: (unitId: string | number) => `Unit ${unitId}`,
+  },
   modal: {
     title: 'New announcement',
     subtitle: 'Create, target, and schedule internal HR communications.',
@@ -188,7 +216,7 @@ export const enCA = {
     message: {
       title: 'Message',
       helper: 'Keep the message short, direct, and easy to scan.',
-      attachmentNote: 'Attachments will be added in a later frontend pass.',
+      attachmentNote: 'Attachments can be uploaded from the detail panel after saving.',
     },
     publishing: {
       title: 'Publishing',
@@ -205,6 +233,7 @@ export const enCA = {
     buttons: {
       cancel: 'Cancel',
       saveDraft: 'Save draft',
+      saveChanges: 'Save changes',
       publishNow: 'Publish now',
       schedulePublication: 'Schedule publication',
     },

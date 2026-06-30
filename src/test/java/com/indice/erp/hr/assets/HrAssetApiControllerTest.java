@@ -199,6 +199,31 @@ class HrAssetApiControllerTest {
     }
 
     @Test
+    void photosReturnsAssetPhotoPayloadForAuthenticatedSession() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAssetService.assetPhotos(any(AuthSessionUser.class), anyLong()))
+            .willReturn(Map.of(
+                "asset_id", 9L,
+                "photos", List.of(Map.of(
+                    "id", 44L,
+                    "asset_id", 9L,
+                    "file_name", "laptop-front.jpg",
+                    "mime_type", "image/jpeg",
+                    "size_bytes", 1200,
+                    "data_url", "data:image/jpeg;base64,AAAA",
+                    "download_url", "data:image/jpeg;base64,AAAA"
+                ))
+            ));
+
+        mockMvc.perform(get("/api/v1/hr/assets/9/photos"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.asset_id").value(9))
+            .andExpect(jsonPath("$.photos[0].file_name").value("laptop-front.jpg"));
+    }
+
+    @Test
     void detailsReturnsForbiddenWhenAssetIsOutsideOperationalScope() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Scoped Admin", "admin");
 

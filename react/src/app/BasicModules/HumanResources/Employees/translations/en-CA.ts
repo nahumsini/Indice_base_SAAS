@@ -276,6 +276,7 @@ export const enCA = {
   pagination: {
     previous: 'Previous',
     next: 'Next',
+    pageSize: 'Rows per page',
     showing: (start: number, end: number, total: number) => `Showing ${start}-${end} of ${total} employees`,
     page: (current: number, total: number) => `Page ${current} of ${total}`,
   },

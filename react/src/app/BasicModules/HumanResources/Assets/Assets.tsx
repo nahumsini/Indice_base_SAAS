@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Images, Pencil, Trash2 } from 'lucide-react';
 import { isHrManagementRole } from '../../../access/accessRules';
 import { authApi } from '../../../api/auth';
 import { dashboardApi } from '../../../api/dashboard';
 import {
   hrAssetsApi,
   type HrAsset,
+  type HrAssetPhoto,
   type HrAssetsSummary,
   type HrAssetStatus,
 } from '../../../api/HumanResources/assets';
@@ -22,8 +23,21 @@ import {
   StandardSortIcon,
   type StandardSortDirection,
 } from '../shared/StandardTableControls';
+import {
+  convertBusinessCurrencyAmount,
+  createBusinessDailyExchangeRateSettings,
+  defaultBusinessCurrency,
+  formatBusinessCurrencyAmount,
+  formatBusinessCurrencyBreakdown,
+  hrExchangeRateSettingsStorageKey,
+  hrPreferredCurrencyStorageKey,
+  isBusinessCurrencyCode,
+  normalizeBusinessCurrencyCode,
+  normalizeBusinessExchangeRateSettings,
+} from '../../shared/businessCurrency';
 import type { AddNewAssetDraft, AddNewAssetOption } from './AddNewAssests';
 import type { AssetColumnConfig } from './AssetColumnsModal';
+import { assetTypeOptionByValue } from './constants/assetCatalog';
 import { AssetFilters } from './components/AssetFilters';
 import { AssetHeaderBar } from './components/AssetHeaderBar';
 import { AssetKpiStrip } from './components/AssetKpiStrip';
@@ -34,7 +48,7 @@ import {
   assignableAssetStatuses,
   emptyAssetSummary,
   formatAssetDate,
-  formatAssetValue,
+  formatAssetNativeValue,
   getAssetColumnConfig,
   getAssetStatusClasses,
   getAssetStatusLabel,
@@ -55,6 +69,9 @@ const LazyAssetDetailsModal = lazy(() =>
 const LazyAssetColumnsModal = lazy(() =>
   import('./AssetColumnsModal').then((module) => ({ default: module.AssetColumnsModal })),
 );
+const LazyAssetPhotosModal = lazy(() =>
+  import('./AssetPhotosModal').then((module) => ({ default: module.AssetPhotosModal })),
+);
 
 type AssetSortField = Exclude<AssetColumnId, 'actions'>;
 
@@ -71,6 +88,14 @@ export default function Assets() {
     'indice.hr.assets.visibleColumns.v2',
     allAssetColumnIds,
   );
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
+    hrPreferredCurrencyStorageKey,
+    defaultBusinessCurrency,
+  );
+  const [storedExchangeRateSettings, setStoredExchangeRateSettings] = useLocalStorageState<unknown>(
+    hrExchangeRateSettingsStorageKey,
+    createBusinessDailyExchangeRateSettings(),
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | AssetType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | HrAssetStatus>('all');
@@ -84,6 +109,10 @@ export default function Assets() {
   const [assetPendingDeactivate, setAssetPendingDeactivate] = useState<AssetRow | null>(null);
   const [selectedAssetDetails, setSelectedAssetDetails] = useState<HrAsset | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedPhotosAsset, setSelectedPhotosAsset] = useState<AssetRow | null>(null);
+  const [selectedAssetPhotos, setSelectedAssetPhotos] = useState<HrAssetPhoto[]>([]);
+  const [isPhotosModalOpen, setIsPhotosModalOpen] = useState(false);
+  const [isPhotosLoading, setIsPhotosLoading] = useState(false);
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [assetEditing, setAssetEditing] = useState<AssetRow | null>(null);
@@ -92,6 +121,14 @@ export default function Assets() {
   const [sortDirection, setSortDirection] = useState<StandardSortDirection>('asc');
   const [pageSize, setPageSize] = useState(defaultAssetsPageSize);
   const [currentPage, setCurrentPage] = useState(1);
+  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
+    ? storedPreferredCurrency
+    : defaultBusinessCurrency;
+  const exchangeRateSettings = useMemo(
+    () => normalizeBusinessExchangeRateSettings(storedExchangeRateSettings),
+    [storedExchangeRateSettings],
+  );
+  const { metadata: exchangeRateMetadata, ratesPerUsd: exchangeRatesPerUsd } = exchangeRateSettings;
 
   const normalizedVisibleColumnIds = useMemo(() => {
     const nextVisible = allAssetColumnIds.filter(
@@ -122,7 +159,7 @@ export default function Assets() {
           .join(' ')
           .toLowerCase();
         const matchesSearch = haystack.includes(searchQuery.trim().toLowerCase());
-        const matchesType = typeFilter === 'all' || asset.assetTypeFilter === typeFilter;
+        const matchesType = typeFilter === 'all' || asset.assetType === typeFilter;
         const matchesStatus = statusFilter === 'all' || asset.status === statusFilter;
         const matchesUnit = unitFilter === 'all' || String(asset.unitId ?? '') === unitFilter;
 
@@ -130,6 +167,33 @@ export default function Assets() {
       }),
     [assetRows, searchQuery, statusFilter, typeFilter, unitFilter],
   );
+
+  const assetValueSummary = useMemo(() => {
+    const assetsWithValue = filteredAssets.filter((asset) => asset.valueAmount !== null && asset.valueAmount !== undefined);
+    const preferredTotal = assetsWithValue.reduce(
+      (total, asset) =>
+        total
+        + convertBusinessCurrencyAmount(
+          asset.valueAmount ?? 0,
+          asset.valueCurrency,
+          preferredCurrency,
+          exchangeRatesPerUsd,
+        ),
+      0,
+    );
+
+    return {
+      currencyCount: new Set(assetsWithValue.map((asset) => asset.valueCurrency)).size,
+      nativeBreakdownLabel: formatBusinessCurrencyBreakdown(
+        assetsWithValue,
+        (asset) => asset.valueAmount ?? 0,
+        (asset) => asset.valueCurrency,
+      ),
+      preferredTotalLabel: formatBusinessCurrencyAmount(preferredTotal, preferredCurrency, {
+        maximumFractionDigits: 0,
+      }),
+    };
+  }, [exchangeRatesPerUsd, filteredAssets, preferredCurrency]);
 
   const handleSort = (field: AssetSortField) => {
     if (sortField === field) {
@@ -164,6 +228,8 @@ export default function Assets() {
           return asset.assignedAt ? new Date(asset.assignedAt).getTime() : 0;
         case 'value':
           return asset.valueAmount ?? 0;
+        case 'photos':
+          return asset.photoCount;
         case 'notes':
           return asset.notes.toLowerCase();
       }
@@ -313,6 +379,24 @@ export default function Assets() {
     }
   };
 
+  const handleViewPhotos = async (asset: AssetRow) => {
+    setSelectedPhotosAsset(asset);
+    setSelectedAssetPhotos([]);
+    setIsPhotosModalOpen(true);
+    setIsPhotosLoading(true);
+
+    try {
+      const response = await hrAssetsApi.getAssetPhotos(asset.backendId);
+      setSelectedAssetPhotos(response.photos ?? []);
+    } catch (error) {
+      setErrorToastMessage(normalizeAssetErrorMessage(error, t.errors.photos));
+      setIsPhotosModalOpen(false);
+      setSelectedPhotosAsset(null);
+    } finally {
+      setIsPhotosLoading(false);
+    }
+  };
+
   const handleEditAsset = (asset: AssetRow) => {
     if (!canManageAssets) {
       return;
@@ -353,6 +437,14 @@ export default function Assets() {
     const trimmedUnit = draft.unit.trim();
     const trimmedValue = draft.value.trim();
     const trimmedNotes = draft.notes.trim();
+    const normalizedValueCurrency = normalizeBusinessCurrencyCode(draft.currency, preferredCurrency);
+    const photoPayload = draft.photos.map((photo) => ({
+      file_name: photo.fileName,
+      mime_type: photo.mimeType,
+      size_bytes: photo.sizeBytes,
+      data_url: photo.dataUrl,
+      caption: photo.caption,
+    }));
 
     try {
       if (assetEditing) {
@@ -366,25 +458,27 @@ export default function Assets() {
         const unitHandledByUpdate = !currentIsAssignmentStatus && !desiredIsAssignmentStatus && !lifecycleStatusChanged;
 
         const updatePayload = {
-          asset_code: draft.id.trim(),
           asset_type: draft.assetType,
           name: draft.name.trim(),
           model: draft.model.trim() || null,
           serial_number: draft.serialNumber.trim() || null,
           unit_id: unitHandledByUpdate ? desiredUnitId : undefined,
           value: trimmedValue || null,
+          value_currency: normalizedValueCurrency,
           notes: trimmedNotes || null,
+          photos: photoPayload.length ? photoPayload : undefined,
         };
 
         const needsMetadataUpdate =
-          updatePayload.asset_code !== assetEditing.assetCode
-          || updatePayload.asset_type !== assetEditing.assetType
+          updatePayload.asset_type !== assetEditing.assetType
           || updatePayload.name !== assetEditing.name
           || (updatePayload.model ?? '') !== assetEditing.model
           || (updatePayload.serial_number ?? '') !== assetEditing.serialNumber
           || (trimmedValue ? Number(trimmedValue.replace(/[^0-9.-]/g, '')) : null) !== assetEditing.valueAmount
+          || normalizedValueCurrency !== assetEditing.valueCurrency
           || (trimmedNotes || '') !== assetEditing.notes
-          || (unitHandledByUpdate && desiredUnitId !== assetEditing.unitId);
+          || (unitHandledByUpdate && desiredUnitId !== assetEditing.unitId)
+          || photoPayload.length > 0;
 
         await runAssetOperation(t.actionsMenu.edit, async () => {
           if (needsMetadataUpdate) {
@@ -426,7 +520,6 @@ export default function Assets() {
       }
 
       const payload = {
-        asset_code: draft.id.trim(),
         asset_type: draft.assetType,
         name: draft.name.trim(),
         model: draft.model.trim() || undefined,
@@ -439,6 +532,8 @@ export default function Assets() {
             ? Number(trimmedResponsible)
             : undefined,
         value: trimmedValue || undefined,
+        value_currency: normalizedValueCurrency,
+        photos: photoPayload.length ? photoPayload : undefined,
         notes: trimmedNotes || undefined,
       };
 
@@ -466,8 +561,11 @@ export default function Assets() {
   const assetDraftForModal = useMemo<AddNewAssetDraft | null>(
     () => (assetEditing
       ? {
-          id: assetEditing.assetCode,
-          assetType: assetEditing.assetTypeFilter === 'other' ? 'operations' : assetEditing.assetTypeFilter,
+          assetType: (
+            assetTypeOptionByValue.has(assetEditing.assetType)
+              ? assetEditing.assetType
+              : 'other'
+          ) as AddNewAssetDraft['assetType'],
           name: assetEditing.name,
           model: assetEditing.model,
           serialNumber: assetEditing.serialNumber,
@@ -476,6 +574,8 @@ export default function Assets() {
           status: assetEditing.status,
           assignedDate: assetEditing.assignedAt ? assetEditing.assignedAt.slice(0, 10) : '',
           value: assetEditing.valueAmount === null ? '' : String(assetEditing.valueAmount),
+          currency: assetEditing.valueCurrency,
+          photos: [],
           notes: assetEditing.notes,
         }
       : null),
@@ -487,8 +587,14 @@ export default function Assets() {
       <AssetHeaderBar
         canManage={canManageAssets}
         copy={t}
+        exchangeRateMetadata={exchangeRateMetadata}
+        exchangeRatesPerUsd={exchangeRatesPerUsd}
         onAdd={handleCreateAsset}
         onColumns={() => setIsColumnsModalOpen(true)}
+        onExchangeRateSettingsChange={setStoredExchangeRateSettings}
+        onPreferredCurrencyChange={setStoredPreferredCurrency}
+        preferredCurrency={preferredCurrency}
+        preferredCurrencyLabel={t.preferredCurrency}
       />
 
       <AssetFilters
@@ -507,11 +613,12 @@ export default function Assets() {
       <AssetKpiStrip
         copy={t}
         assignedCount={summary.assigned_count}
+        assetValueLabel={assetValueSummary.preferredTotalLabel}
         availableCount={summary.available_count}
-        locale={currentLanguage.code}
+        currencyCount={assetValueSummary.currencyCount}
         maintenanceCount={summary.maintenance_count}
+        nativeBreakdownLabel={assetValueSummary.nativeBreakdownLabel}
         totalCount={summary.total_count}
-        totalValueAmount={summary.total_value_amount}
         visibleCount={filteredAssets.length}
       />
 
@@ -628,7 +735,21 @@ export default function Assets() {
                     ) : null}
                     {visibleColumnSet.has('value') ? (
                       <td className="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">
-                        {formatAssetValue(asset.valueAmount, currentLanguage.code)}
+                        {formatAssetNativeValue(asset.valueAmount, asset.valueCurrency)}
+                      </td>
+                    ) : null}
+                    {visibleColumnSet.has('photos') ? (
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          aria-label={`${t.actionsMenu.viewPhotos}: ${asset.name}`}
+                          title={t.actionsMenu.viewPhotos}
+                          onClick={() => void handleViewPhotos(asset)}
+                          className="inline-flex h-10 items-center gap-2 rounded-full border border-[#bfeee3] bg-[#f0fbf8] px-3 text-sm font-semibold text-[#137F68] transition hover:border-[#59C3A5] hover:bg-[#e4f8f2] disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#82e2cb]"
+                        >
+                          <Images className="h-4 w-4" />
+                          {asset.photoCount}
+                        </button>
                       </td>
                     ) : null}
                     {visibleColumnSet.has('notes') ? (
@@ -723,6 +844,7 @@ export default function Assets() {
               setAssetEditing(null);
             }}
             onSave={handleSaveAsset}
+            preferredCurrency={preferredCurrency}
             responsibleOptions={responsibleOptions}
             unitOptions={unitOptions}
             mode={assetEditing ? 'edit' : 'create'}
@@ -748,6 +870,20 @@ export default function Assets() {
             onClose={() => setIsColumnsModalOpen(false)}
             columns={assetColumnConfig}
             onApply={handleApplyColumns}
+          />
+        ) : null}
+
+        {isPhotosModalOpen ? (
+          <LazyAssetPhotosModal
+            isOpen={isPhotosModalOpen}
+            asset={selectedPhotosAsset}
+            photos={selectedAssetPhotos}
+            isLoading={isPhotosLoading}
+            onClose={() => {
+              setIsPhotosModalOpen(false);
+              setSelectedPhotosAsset(null);
+              setSelectedAssetPhotos([]);
+            }}
           />
         ) : null}
       </Suspense>

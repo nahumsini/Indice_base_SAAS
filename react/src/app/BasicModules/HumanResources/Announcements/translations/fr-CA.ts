@@ -4,7 +4,6 @@ export const frCA = {
   pageTitle: 'Annonces',
   pageSubtitle: 'Mises à jour internes, messages ciblés et communications RH planifiées.',
   actions: {
-    export: 'Exporter',
     columns: 'Colonnes',
     addAnnouncement: 'Ajouter une annonce',
   },
@@ -15,6 +14,12 @@ export const frCA = {
     uploadAttachmentFailed: 'Impossible de téléverser la pièce jointe.',
     removeAttachmentFailed: 'Impossible de retirer la pièce jointe.',
     openDetails: 'Ouvrir le détail',
+    loadAnnouncementsFailed: 'Impossible de charger les annonces.',
+    manageNotAllowed: 'Vous n’avez pas l’autorisation de gérer les annonces.',
+    saveAnnouncementFailed: 'Impossible d’enregistrer l’annonce.',
+    deleteAnnouncementFailed: 'Impossible de supprimer l’annonce.',
+    markReadFailed: 'Impossible de marquer l’annonce comme lue.',
+    markUnreadFailed: 'Impossible de marquer l’annonce comme non lue.',
   },
   filters: {
     title: 'Filtres',
@@ -41,6 +46,9 @@ export const frCA = {
       operations: 'Opérations',
       leaders: 'Gestionnaires',
       everyone: 'Tous les employés',
+      units: 'Unités',
+      departments: 'Départements',
+      employees: 'Employés précis',
     },
   },
   kpis: {
@@ -63,6 +71,14 @@ export const frCA = {
     ) =>
       `Résumé des communications : ${publishedCount} publiées · ${scheduledCount} planifiées · ${draftCount} brouillons · ${readRate} taux de lecture moyen · affichage de ${visibleCount} sur ${totalCount}.`,
   },
+  bulk: {
+    selectedBadge: (count: number) => `${count} sélectionnées`,
+    label: 'Actions groupées',
+    deleteSelected: 'Supprimer la sélection',
+    deleteDescription: 'Les annonces sélectionnées seront retirées de la liste.',
+    markUnread: 'Marquer comme non lue',
+    clearSelection: 'Effacer la sélection',
+  },
   progress: {
     published: 'Publiées',
     scheduled: 'Planifiées',
@@ -80,6 +96,8 @@ export const frCA = {
       actions: 'Opérations',
     },
     emptyState: 'Aucune annonce ne correspond aux filtres actuels.',
+    selectAllRows: 'Sélectionner les annonces de cette page',
+    selectRow: (title: string) => `Sélectionner ${title}`,
     noPreview: 'Aucun aperçu disponible.',
     noTime: 'Aucune heure',
     edit: 'Modifier',
@@ -141,6 +159,16 @@ export const frCA = {
     selectedUnits: 'Unités sélectionnées',
     specificEmployees: 'Employés précis',
   },
+  view: {
+    readRatio: (read: number, total: number) => `${read}/${total} lues`,
+    read: 'Lue',
+    unread: 'Non lue',
+    noDate: 'Aucune date',
+    noTime: 'Aucune heure',
+    noPosition: 'Aucun poste',
+    unnamedUser: 'Utilisateur sans nom',
+    unitLabel: (unitId: string | number) => `Unité ${unitId}`,
+  },
   modal: {
     title: 'Nouvelle annonce',
     subtitle: 'Créez, ciblez et planifiez des communications RH internes.',
@@ -190,7 +218,7 @@ export const frCA = {
     message: {
       title: 'Contenu',
       helper: 'Gardez le message court, direct et facile à lire.',
-      attachmentNote: 'Les pièces jointes seront ajoutées dans une prochaine passe frontend.',
+      attachmentNote: 'Les pièces jointes peuvent être téléversées depuis le panneau de détail après l’enregistrement.',
     },
     publishing: {
       title: 'Publication',
@@ -207,6 +235,7 @@ export const frCA = {
     buttons: {
       cancel: 'Annuler',
       saveDraft: 'Enregistrer le brouillon',
+      saveChanges: 'Enregistrer les modifications',
       publishNow: 'Publier maintenant',
       schedulePublication: 'Planifier la publication',
     },

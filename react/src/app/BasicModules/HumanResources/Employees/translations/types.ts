@@ -423,6 +423,7 @@ export interface EmployeesTranslations {
   pagination: {
     previous: string;
     next: string;
+    pageSize: string;
     showing: (start: number, end: number, total: number) => string;
     page: (current: number, total: number) => string;
   };

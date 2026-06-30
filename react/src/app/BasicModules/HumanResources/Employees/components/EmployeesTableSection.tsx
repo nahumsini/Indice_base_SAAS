@@ -1,5 +1,5 @@
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { EmployeesTranslations } from '../translations';
 import type { EmployeeDocumentType } from './CreateEmployeeModal';
 import type {
@@ -37,12 +37,16 @@ interface EmployeesTableSectionProps {
     overrides: InlineEmployeeUpdateOverrides,
   ) => void | Promise<void>;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
   onResizeStart: (event: ReactMouseEvent, columnId: string) => void;
   onSort: (columnId: EmployeeColumnId) => void;
   onToggleAllRows: (checked: boolean) => void;
   onToggleRowSelection: (employeeId: number, checked: boolean) => void;
   pageEnd: number;
+  pageSize: number;
+  pageSizeOptions: readonly number[];
   pageStart: number;
+  renderPinAction?: (employee: EmployeeViewModel) => ReactNode;
   resolveDefaultBusinessIdForUnit: (unitId: string, currentBusinessId: string) => string;
   resizingColumn: string | null;
   rows: EmployeeViewModel[];
@@ -77,12 +81,16 @@ export function EmployeesTableSection({
   onEditEmployee,
   onInlineEmployeeUpdate,
   onPageChange,
+  onPageSizeChange,
   onResizeStart,
   onSort,
   onToggleAllRows,
   onToggleRowSelection,
   pageEnd,
+  pageSize,
+  pageSizeOptions,
   pageStart,
+  renderPinAction,
   resolveDefaultBusinessIdForUnit,
   resizingColumn,
   rows,
@@ -108,6 +116,7 @@ export function EmployeesTableSection({
         onSort={onSort}
         onToggleAllRows={onToggleAllRows}
         onToggleRowSelection={onToggleRowSelection}
+        renderPinAction={renderPinAction}
         renderColumnCell={(employee, columnId) => (
           <EmployeesTableCellContent
             columnId={columnId}
@@ -140,7 +149,10 @@ export function EmployeesTableSection({
         currentPage={currentPage}
         labels={copy.pagination}
         onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
         pageEnd={pageEnd}
+        pageSize={pageSize}
+        pageSizeOptions={pageSizeOptions}
         pageStart={pageStart}
         totalCount={totalCount}
         totalPages={totalPages}
