@@ -33,6 +33,18 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(280px,1.4fr)_repeat(5,minmax(0,1fr))]">
         <SearchFilter filters={filters} placeholder={t.expenses.searchPlaceholder} searchLabel={t.common.search} onFiltersChange={onFiltersChange} />
         <SelectFilter
+          label={t.filters.unit}
+          value={filters.businessUnitFilter}
+          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessUnitFilter', value))}
+          options={businessUnitOptions.map(option => [option.value, option.label])}
+        />
+        <SelectFilter
+          label={t.filters.business}
+          value={filters.businessFilter}
+          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessFilter', value))}
+          options={businessOptions.map(option => [option.value, option.label])}
+        />
+        <SelectFilter
           label={t.filters.period}
           value={filters.periodFilter}
           onChange={(value) => onFiltersChange(updateFilter(filters, 'periodFilter', value as PeriodFilter))}
@@ -46,24 +58,6 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
           ]}
         />
         <SelectFilter
-          label={t.filters.unit}
-          value={filters.businessUnitFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessUnitFilter', value))}
-          options={businessUnitOptions.map(option => [option.value, option.label])}
-        />
-        <SelectFilter
-          label={t.filters.business}
-          value={filters.businessFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessFilter', value))}
-          options={businessOptions.map(option => [option.value, option.label])}
-        />
-        <SelectFilter
-          label={t.filters.provider}
-          value={filters.providerFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'providerFilter', value))}
-          options={providers.map(provider => [provider.id, provider.name])}
-        />
-        <SelectFilter
           label={t.filters.status}
           value={filters.statusFilter}
           onChange={(value) => onFiltersChange(updateFilter(filters, 'statusFilter', value as ExpenseListFilters['statusFilter']))}
@@ -75,6 +69,12 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
             ['overdue', t.statuses.overdue],
             ['audited', t.statuses.audited],
           ]}
+        />
+        <SelectFilter
+          label={t.filters.provider}
+          value={filters.providerFilter}
+          onChange={(value) => onFiltersChange(updateFilter(filters, 'providerFilter', value))}
+          options={providers.map(provider => [provider.id, provider.name])}
         />
       </div>
     </div>

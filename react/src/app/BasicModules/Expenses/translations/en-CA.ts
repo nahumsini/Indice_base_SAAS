@@ -93,6 +93,7 @@ export const enCA: FinanceTranslations = {
       saveHint: 'Changes are saved when you press save',
       selectFiles: 'Select files',
       supportedFormats: 'Supported formats: PDF, images, documents (max. 10MB)',
+      maxFilesHint: max => `Attach up to ${max} receipts or supporting files.`,
       title: 'Attached Files',
       total: 'Total',
     },

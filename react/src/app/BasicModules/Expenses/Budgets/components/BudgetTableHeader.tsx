@@ -1,4 +1,4 @@
-import { Columns3, Plus } from 'lucide-react';
+import { ClipboardList, Columns3, Plus } from 'lucide-react';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 type BudgetTableHeaderProps = {
@@ -14,7 +14,9 @@ export function BudgetTableHeader({ onConfigureColumns, onCreate }: BudgetTableH
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <span className="text-3xl leading-none sm:text-4xl">📋</span>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#147514] text-white shadow-sm">
+              <ClipboardList className="h-6 w-6" />
+            </span>
             <h2 className="text-2xl font-bold text-slate-950 dark:text-white sm:text-[28px]">{t.budgets.headerTitle}</h2>
           </div>
           <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">

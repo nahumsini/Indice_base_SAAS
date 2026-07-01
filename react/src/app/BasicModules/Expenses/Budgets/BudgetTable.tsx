@@ -7,8 +7,6 @@ import { mockProviders } from '../data/expenses.mock';
 import type { Expense } from '../types/expenses.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { accountingAccountsService, budgetLinesService, toFinanceApiErrorMessage } from '../services';
-import { ExpenseTable } from '../Expenses/components/ExpenseTable';
-import { AttachmentsModal } from '../Expenses/components/AttachmentsModal';
 import type { ColumnConfig } from '../types/expenseView.types';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { BudgetCreateModal } from '../components/modals/BudgetCreateModal';
@@ -18,6 +16,7 @@ import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
 import { buildBudgetLineDraft, buildBudgetMasterDraft, createBudgetDraftStateFromExpense, createInitialBudgetDraftState } from './budgetDraftState';
 import { generateProjectedBudgetEntries, getBudgetScheduleDates } from './budgetUtils';
+import { BudgetLinesTable } from './components/BudgetLinesTable';
 import { BudgetSummaryBar } from './components/BudgetSummaryBar';
 import { BudgetTableHeader } from './components/BudgetTableHeader';
 import { MISSING_ACCOUNTING_ACCOUNT_FILTER, useBudgetLogic } from './useBudgetLogic';
@@ -33,8 +32,6 @@ interface BudgetTableProps {
 export default function BudgetTable({ columns, expenses, onExpensesChange, providers: providerRecords }: BudgetTableProps) {
   const t = useFinanceTranslations();
   const [activeAccountingAccountOptions, setActiveAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
-  const [attachmentsByExpenseId, setAttachmentsByExpenseId] = useState<Record<string, string[]>>({});
-  const [attachmentsExpense, setAttachmentsExpense] = useState<Expense | null>(null);
   const [draft, setDraft] = useState(createInitialBudgetDraftState);
   const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
   const [editingBudgetExpense, setEditingBudgetExpense] = useState<Expense | null>(null);
@@ -69,7 +66,6 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   const {
     businessOptions: referenceBusinessOptions,
     unitOptions: referenceUnitOptions,
-    userOptions,
   } = useFinanceReferenceData(setFailureToastMessage);
   const {
     createBudget,
@@ -157,23 +153,6 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       ...(hasMissingAccount ? [{ value: MISSING_ACCOUNTING_ACCOUNT_FILTER, label: t.budgets.columns.accountingAccount.label }] : []),
     ];
   }, [expenses, t.budgets.columns.accountingAccount.label, t.common.all]);
-
-  const getExpenseAttachments = (expense: Expense) => {
-    return attachmentsByExpenseId[expense.id] ?? expense.attachments ?? [];
-  };
-
-  const closeAttachmentsModal = () => {
-    setAttachmentsExpense(null);
-  };
-
-  const saveExpenseAttachments = (attachments: string[]) => {
-    if (!attachmentsExpense) return;
-
-    setAttachmentsByExpenseId(prev => ({
-      ...prev,
-      [attachmentsExpense.id]: attachments,
-    }));
-  };
 
   const openCreateModal = () => {
     setDraft(createInitialBudgetDraftState());
@@ -403,22 +382,11 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
         />
       )}
 
-      <ExpenseTable
-        actionVisibility={{ showAudit: false, showMarkPaid: false, showRecordPayment: false }}
+      <BudgetLinesTable
         columns={tableColumns}
-        emptyTitle={t.budgets.messages.emptyTitle}
-        emptyMessage={t.budgets.messages.emptyMessage}
         expenses={filteredBudgetExpenses}
-        getAttachments={getExpenseAttachments}
         onDeleteExpense={deleteBudgetExpense}
         onEditExpense={openEditBudgetExpense}
-        onExpensesChange={onExpensesChange}
-        onOpenAttachments={setAttachmentsExpense}
-        onPersistExpenseUpdate={persistBudgetExpense}
-        businessOptions={businessOptions}
-        providers={providers}
-        unitOptions={unitOptions}
-        userOptions={userOptions}
       />
 
       {isColumnModalOpen && (
@@ -436,16 +404,6 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
         />
       )}
 
-      {attachmentsExpense && (
-        <AttachmentsModal
-          isOpen={true}
-          onClose={closeAttachmentsModal}
-          expenseFolio={attachmentsExpense.folio}
-          expenseConcept={attachmentsExpense.concept}
-          attachments={getExpenseAttachments(attachmentsExpense)}
-          onSave={saveExpenseAttachments}
-        />
-      )}
       <SuccessToast
         isVisible={Boolean(successToastMessage)}
         message={successToastMessage}

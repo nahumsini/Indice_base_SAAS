@@ -2,7 +2,9 @@ package com.indice.erp.finance.expenses;
 
 import com.indice.erp.finance.FinanceAccessService;
 import com.indice.erp.finance.FinanceApiException;
+import com.indice.erp.finance.budgetlines.BudgetLineRollupService;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
+import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
@@ -34,6 +36,12 @@ class ExpenseServiceTest {
 
     @Mock
     private ExpenseRepository repository;
+
+    @Mock
+    private ExpenseWorkflowRepository workflowRepository;
+
+    @Mock
+    private BudgetLineRollupService budgetLineRollupService;
 
     @Mock
     private FinanceAccessService accessService;
@@ -141,9 +149,72 @@ class ExpenseServiceTest {
         verify(repository).softDelete(context, 13L);
     }
 
+    @Test
+    void approveMovesPendingExpenseToApprovedWithApprover() {
+        var service = service();
+        var context = context();
+        when(repository.findById(context, 20L))
+            .thenReturn(Optional.of(record(20L, ExpenseStatus.PENDING_APPROVAL, "Pending")))
+            .thenReturn(Optional.of(record(20L, ExpenseStatus.APPROVED, "Pending")));
+        when(workflowRepository.transitionStatus(
+            eq(context),
+            eq(20L),
+            eq(java.util.List.of(ExpenseStatus.PENDING_APPROVAL)),
+            eq(ExpenseStatus.APPROVED),
+            eq(PaymentStatus.UNPAID),
+            eq(1L),
+            eq(null),
+            eq(null)
+        )).thenReturn(true);
+
+        var response = service.approve(context, 20L);
+
+        assertEquals(ExpenseStatus.APPROVED, response.status());
+        verify(budgetLineRollupService).refreshExpenseImpact(context, 44L);
+        verify(workflowRepository).transitionStatus(
+            eq(context),
+            eq(20L),
+            eq(java.util.List.of(ExpenseStatus.PENDING_APPROVAL)),
+            eq(ExpenseStatus.APPROVED),
+            eq(PaymentStatus.UNPAID),
+            eq(1L),
+            eq(null),
+            eq(null)
+        );
+    }
+
+    @Test
+    void recordPaymentDerivesPartialPaymentAmounts() {
+        var service = service();
+        var context = context();
+        when(repository.findById(context, 21L))
+            .thenReturn(Optional.of(record(21L, ExpenseStatus.APPROVED, "Approved")))
+            .thenReturn(Optional.of(recordWithPayment(21L, ExpenseStatus.PARTIALLY_PAID, "Approved",
+                new BigDecimal("50.00"), new BigDecimal("66.00"))));
+        when(workflowRepository.recordPayment(
+            context,
+            21L,
+            new BigDecimal("50.00"),
+            new BigDecimal("66.00"),
+            ExpenseStatus.PARTIALLY_PAID,
+            PaymentStatus.PARTIALLY_PAID,
+            LocalDate.of(2026, 6, 15)
+        )).thenReturn(true);
+
+        var response = service.recordPayment(context, 21L,
+            new RecordExpensePaymentRequest(new BigDecimal("50.00"), LocalDate.of(2026, 6, 15)));
+
+        assertEquals(ExpenseStatus.PARTIALLY_PAID, response.status());
+        assertEquals(new BigDecimal("50.00"), response.paidAmount());
+        assertEquals(new BigDecimal("66.00"), response.balanceAmount());
+        verify(budgetLineRollupService).refreshExpenseImpact(context, 44L);
+    }
+
     private ExpenseService service() {
         return new ExpenseService(
             repository,
+            workflowRepository,
+            budgetLineRollupService,
             new ExpenseMapper(),
             new ExpenseValidator(accessService),
             referenceValidator
@@ -159,7 +230,7 @@ class ExpenseServiceTest {
             unitId,
             businessId,
             null,
-            null,
+            44L,
             null,
             null,
             null,
@@ -209,13 +280,22 @@ class ExpenseServiceTest {
     }
 
     private ExpenseRecord record(long id, ExpenseStatus status, String concept) {
+        return recordWithPayment(id, status, concept, BigDecimal.ZERO, new BigDecimal("116.00"));
+    }
+
+    private ExpenseRecord recordWithPayment(
+            long id,
+            ExpenseStatus status,
+            String concept,
+            BigDecimal paidAmount,
+            BigDecimal balanceAmount) {
         return new ExpenseRecord(
             id,
             7L,
             null,
             null,
             null,
-            null,
+            44L,
             null,
             null,
             null,
@@ -226,8 +306,8 @@ class ExpenseServiceTest {
             new BigDecimal("100.00"),
             new BigDecimal("16.00"),
             new BigDecimal("116.00"),
-            BigDecimal.ZERO,
-            new BigDecimal("116.00"),
+            paidAmount,
+            balanceAmount,
             "MXN",
             LocalDate.of(2026, 6, 8),
             LocalDate.of(2026, 6, 30),
@@ -237,7 +317,7 @@ class ExpenseServiceTest {
             null,
             null,
             status,
-            PaymentStatus.UNPAID,
+            paidAmount.compareTo(BigDecimal.ZERO) > 0 ? PaymentStatus.PARTIALLY_PAID : PaymentStatus.UNPAID,
             null,
             0,
             1L,

@@ -197,6 +197,8 @@ export const toExpense = (
 	    accountingAccount: expense.accountingAccountId ? String(expense.accountingAccountId) : asString(customFields.accountingAccount, undefined),
     paymentAccountId: expense.paymentAccountId ? String(expense.paymentAccountId) : asString(customFields.paymentAccountId, undefined),
 	    status,
+	    backendPaymentStatus: expense.paymentStatus,
+	    backendStatus: expense.status,
 	    approver: approvedByUserId,
 	    requestedByUserId,
 	    approvedByUserId,

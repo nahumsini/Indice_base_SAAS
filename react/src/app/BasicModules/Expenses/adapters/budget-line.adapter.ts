@@ -45,7 +45,7 @@ const getRequiredBudgetId = (expense: Expense) => {
 
 const toBudgetLineName = (expense: Expense) => {
   const concept = expense.concept.trim();
-  const uniqueSuffix = expense.folio?.trim() ? ` · ${expense.folio.trim()}` : ` · ${Date.now()}`;
+  const uniqueSuffix = expense.folio?.trim() ? ` - ${expense.folio.trim()}` : ` - ${Date.now()}`;
   return `${concept}${uniqueSuffix}`.slice(0, 160);
 };
 
@@ -88,6 +88,13 @@ export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
     category: defaultCategory,
     providerId: asString(customFields.providerId, undefined),
     providerName: asString(customFields.providerName, undefined),
+    committedAmount: asNumber(budgetLine.committedAmount),
+    actualExpenseAmount: asNumber(budgetLine.actualExpenseAmount),
+    pettyCashIssuedAmount: asNumber(budgetLine.pettyCashIssuedAmount),
+    pettyCashSettledAmount: asNumber(budgetLine.pettyCashSettledAmount),
+    availableAmount: asNumber(budgetLine.availableAmount),
+    budgetHealthStatus: budgetLine.healthStatus,
+    budgetStatus: budgetLine.status,
     total: plannedAmount,
     taxes: asNumber(customFields.taxes),
     taxCountry: asString(customFields.taxCountry, undefined),

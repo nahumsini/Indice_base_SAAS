@@ -17,6 +17,13 @@ export interface Expense {
   providerId?: string;
   providerName?: string;
   budgetId?: string;
+  committedAmount?: number;
+  actualExpenseAmount?: number;
+  pettyCashIssuedAmount?: number;
+  pettyCashSettledAmount?: number;
+  availableAmount?: number;
+  budgetHealthStatus?: string;
+  budgetStatus?: string;
   total: number;
   taxes: number;
   taxCountry?: string;
@@ -37,6 +44,8 @@ export interface Expense {
   accountingAccount?: string;
   paymentAccountId?: string;
   status: ExpenseStatus;
+  backendPaymentStatus?: string;
+  backendStatus?: string;
   approver?: string;
   requestedByUserId?: string;
   approvedByUserId?: string;

@@ -1,5 +1,12 @@
-import { Coins, Columns3, Plus } from 'lucide-react';
+import { Coins, Columns3, Plus, ReceiptText } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../../components/ui/select';
 import { financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
@@ -23,38 +30,45 @@ export function ExpensesHeader({
   const t = useFinanceTranslations();
 
   return (
-    <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6 sm:py-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white sm:text-[28px]">
-            <span className="text-3xl leading-none" aria-hidden="true">💰</span>
-            {t.expenses.headerTitle}
-          </h2>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-            {t.expenses.headerSubtitle}
-          </p>
+    <section className="rounded-lg border border-[#147514]/25 bg-[#147514]/10 p-5 shadow-sm dark:border-emerald-400/25 dark:bg-emerald-400/10 sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#147514] text-white shadow-sm">
+            <ReceiptText className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
+              {t.expenses.headerTitle}
+            </h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              {t.expenses.headerSubtitle}
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
-          <label className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto">
-            <Coins className="h-4 w-4" />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-[#147514]/25 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none dark:border-emerald-400/25 dark:bg-slate-800 dark:text-slate-100">
+            <Coins className="h-4 w-4 text-[#147514]" />
             <span>{t.expenses.preferredCurrency}</span>
-            <select
-              aria-label={t.expenses.preferredCurrency}
-              value={preferredCurrency}
-              onChange={(event) => onPreferredCurrencyChange(event.target.value)}
-              className="cursor-pointer border-0 bg-transparent p-0 text-sm font-extrabold text-[#147514] outline-none focus:ring-0 dark:text-white"
-            >
-              {financeCurrencySelectOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
+            <Select value={preferredCurrency} onValueChange={onPreferredCurrencyChange}>
+              <SelectTrigger
+                aria-label={t.expenses.preferredCurrency}
+                className="h-8 w-[92px] rounded-lg border-slate-200 bg-slate-50 px-2 text-sm font-bold text-slate-900 shadow-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {financeCurrencySelectOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button
             onClick={onConfigureColumns}
             variant="outline"
-            className="h-11 w-full justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto"
+            className="h-11 justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           >
             <Columns3 className="w-4 h-4" />
             {t.common.columns}
@@ -64,13 +78,13 @@ export function ExpensesHeader({
             disabled={createExpenseDisabled}
             onClick={onCreateExpense}
             title={createExpenseDisabledReason}
-            className="h-11 w-full justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#105010] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 sm:w-auto"
+            className="h-11 justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#105010] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
           >
             <Plus className="w-4 h-4" />
             {t.expenses.headerButton}
           </Button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
