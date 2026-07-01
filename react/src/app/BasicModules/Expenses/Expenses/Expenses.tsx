@@ -7,6 +7,7 @@ import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { isBackendId } from '../adapters/adapter.utils';
 import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
 import { DEFAULT_FINANCE_CURRENCY, isFinanceCurrencyOption } from '../constants/financeCurrencyOptions';
+import { hrPreferredCurrencyStorageKey } from '../../shared/businessCurrency';
 import { mockExpenses, mockProviders } from '../data/expenses.mock';
 import { accountingAccountsService, expensesService, toFinanceApiErrorMessage } from '../services';
 import type { Expense, Provider } from '../types/expenses.types';
@@ -70,7 +71,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const [isQuickExpenseSubmitting, setIsQuickExpenseSubmitting] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [successToastMessage, setSuccessToastMessage] = useState('');
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>('indice.finance.preferredCurrency', DEFAULT_FINANCE_CURRENCY);
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(hrPreferredCurrencyStorageKey, DEFAULT_FINANCE_CURRENCY);
   const saveTimeoutsRef = useRef<Record<string, number>>({});
   const expenses = controlledExpenses ?? localExpenses;
   const setExpenses = onExpensesChange ?? setLocalExpenses;
@@ -184,11 +185,13 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       await handleExpenseSubmit({
         accountingAccount: '',
         amount,
+        attachments: [],
         business: '',
         businessUnit: '',
         concept,
         currency: preferredCurrency,
         description: '',
+        dueDate: '',
         paymentDate: '',
         paymentMethod: 'transfer',
         providerId: '',
@@ -229,9 +232,10 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     const provider = providers.find(item => item.id === values.providerId);
     const now = new Date();
     const inputPaymentDate = values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined;
+    const inputDueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : undefined;
     const paymentDate = inputPaymentDate ?? editingExpense?.paymentDate;
     const recordDate = editingExpense?.date ?? inputPaymentDate ?? now;
-    const dueDate = editingExpense?.dueDate ?? inputPaymentDate ?? now;
+    const dueDate = inputDueDate ?? editingExpense?.dueDate ?? now;
     const amountPaid = values.status === 'paid' || values.status === 'audited'
       ? values.total
       : values.status === 'partial'
@@ -270,7 +274,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       paymentMethod: values.paymentMethod,
       accountingAccount: values.accountingAccount,
       status: values.status,
-      attachments: editingExpense?.attachments ?? [],
+      attachments: values.attachments ?? editingExpense?.attachments ?? [],
       type: editingExpense?.type ?? 'real',
       createdAt: editingExpense?.createdAt ?? now,
       updatedAt: now,
@@ -310,6 +314,75 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         setExpenses(currentExpenses => [expense, ...currentExpenses]);
         setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.deleteFailed));
       });
+  };
+
+  const handleSaveAttachments = (attachments: string[]) => {
+    if (!attachmentsExpense) return;
+    saveExpenseAttachments(attachments);
+
+    const updatedExpense = {
+      ...attachmentsExpense,
+      attachments,
+      updatedAt: new Date(),
+    };
+
+    setExpenses(currentExpenses => currentExpenses.map(item => (
+      item.id === attachmentsExpense.id ? updatedExpense : item
+    )));
+    persistExpenseUpdate(updatedExpense);
+  };
+
+  const ensureExpensePayable = async (expense: Expense) => {
+    if (!isBackendId(expense.id) || expense.type === 'budget') {
+      return expense;
+    }
+
+    let currentExpense = expense;
+    if (currentExpense.backendStatus === 'DRAFT') {
+      currentExpense = await expensesService.submitExpense(currentExpense.id, providers);
+    }
+    if (currentExpense.backendStatus === 'PENDING_APPROVAL') {
+      currentExpense = await expensesService.approveExpense(currentExpense.id, providers);
+    }
+    return currentExpense;
+  };
+
+  const handleMarkExpensePaid = async (expense: Expense) => {
+    try {
+      const payableExpense = await ensureExpensePayable(expense);
+      const remainingAmount = Math.max(payableExpense.total - (payableExpense.amountPaid ?? 0), 0);
+      if (remainingAmount <= 0) return payableExpense;
+
+      const savedExpense = isBackendId(payableExpense.id) && payableExpense.type !== 'budget'
+        ? await expensesService.recordExpensePayment(payableExpense.id, remainingAmount, new Date(), providers)
+        : { ...payableExpense, amountPaid: payableExpense.total, paymentDate: new Date(), status: 'paid' as const };
+
+      setSuccessToastMessage(t.expenses.messages.saved);
+      return savedExpense;
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
+      return null;
+    }
+  };
+
+  const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentDate: Date) => {
+    try {
+      const payableExpense = await ensureExpensePayable(expense);
+      const savedExpense = isBackendId(payableExpense.id) && payableExpense.type !== 'budget'
+        ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentDate, providers)
+        : {
+          ...payableExpense,
+          amountPaid: Math.min(payableExpense.total, (payableExpense.amountPaid ?? 0) + amount),
+          paymentDate,
+          status: (payableExpense.amountPaid ?? 0) + amount >= payableExpense.total ? 'paid' as const : 'partial' as const,
+        };
+
+      setSuccessToastMessage(t.expenses.messages.saved);
+      return savedExpense;
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
+      return null;
+    }
   };
 
   const handleDuplicate = (id: string) => {
@@ -370,8 +443,10 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
           setIsAddExpenseModalOpen(true);
         }}
         onExpensesChange={setExpenses}
+        onMarkExpensePaid={handleMarkExpensePaid}
         onOpenAttachments={openAttachmentsModal}
         onPersistExpenseUpdate={persistExpenseUpdate}
+        onRecordExpensePayment={handleRecordExpensePayment}
         businessOptions={businessOptions}
         providers={providers}
         unitOptions={unitOptions}
@@ -400,15 +475,19 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
           expenseFolio={attachmentsExpense.folio}
           expenseConcept={attachmentsExpense.concept}
           attachments={getExpenseAttachments(attachmentsExpense)}
-          onSave={saveExpenseAttachments}
+          onSave={handleSaveAttachments}
         />
       )}
 
       {isAddExpenseModalOpen && (
         <ExpenseFormModal
+          accountingAccountOptions={accountingAccountOptions}
+          businessOptions={businessOptions}
           editingExpense={editingExpense}
           onClose={closeExpenseModal}
           preferredCurrency={preferredCurrency}
+          providers={providers}
+          unitOptions={unitOptions}
           onSubmitExpense={handleExpenseSubmit}
         />
       )}

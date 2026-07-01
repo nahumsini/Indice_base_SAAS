@@ -1,4 +1,4 @@
-import { AlertTriangle, CircleDollarSign } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDollarSign, Clock3, ReceiptText } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseTotals } from '../../types/expenseView.types';
@@ -12,11 +12,11 @@ type ExpensesSummaryProps = {
 
 type StatusMetric = {
   amount: number;
+  amountLabel: string;
   barClass: string;
   count: number;
   dotClass: string;
   label: string;
-  amountLabel: string;
   percentage: number;
   status: ExpenseStatus;
   valueClassName: string;
@@ -33,6 +33,14 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
   const t = useFinanceTranslations();
   const totalAmount = Math.max(totals.total, 0);
   const totalAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.amount, (expense) => expense.currency);
+  const paidAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.amountPaid || 0, (expense) => expense.currency);
+  const openAmountLabel = formatBusinessCurrencyBreakdown(
+    expenses,
+    (expense) => Math.max(expense.amount - (expense.amountPaid || 0), 0),
+    (expense) => expense.currency,
+  );
+  const overdueExpenses = expenses.filter(expense => expense.status === 'overdue');
+  const overdueAmountLabel = formatBusinessCurrencyBreakdown(overdueExpenses, (expense) => expense.amount, (expense) => expense.currency);
   const statusMetrics = statusConfig.map(config => {
     const statusExpenses = expenses.filter(expense => expense.status === config.status);
     const amount = statusExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -46,33 +54,53 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
     };
   });
 
+  const openPaymentCount = expenses.filter(expense => expense.status === 'pending' || expense.status === 'partial' || expense.status === 'overdue').length;
+  const insight = totals.overdueCount > 0
+    ? t.kpis.summaryCopy.overdue(totals.overdueCount)
+    : openPaymentCount > 0
+      ? t.kpis.summaryCopy.unpaid(openPaymentCount)
+      : t.kpis.summaryCopy.noOverdue;
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5">
+    <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.expenses.summary.total} value={totalAmountLabel} />
-          <div className="flex gap-x-4 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-            {statusMetrics.map(metric => (
-              <StatusMetricItem key={metric.status} metric={metric} />
-            ))}
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Metric icon={<ReceiptText className="h-4 w-4" />} label={t.expenses.summary.records(expenses.length)} value={totalAmountLabel} />
+            <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.statuses.pending} value={openAmountLabel} valueClassName="text-amber-600 dark:text-amber-400" />
+            <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={t.statuses.paid} value={paidAmountLabel} valueClassName="text-[#147514]" />
+            <Metric icon={<Clock3 className="h-4 w-4" />} label={t.statuses.overdue} value={overdueAmountLabel} valueClassName="text-rose-600 dark:text-rose-400" />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {totals.overdueCount > 0 ? (
+              <AlertChip tone="danger" icon={<AlertTriangle className="h-3.5 w-3.5" />}>
+                {t.expenses.summary.overdue(totals.overdueCount)}
+              </AlertChip>
+            ) : null}
+            {openPaymentCount > 0 ? (
+              <AlertChip tone="warning" icon={<Clock3 className="h-3.5 w-3.5" />}>
+                {t.expenses.summary.records(openPaymentCount)}
+              </AlertChip>
+            ) : null}
           </div>
         </div>
 
-        <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
           <div className="flex h-full w-full">
             {statusMetrics.map(metric => (
               <div
                 key={metric.status}
                 className={`${metric.barClass} transition-all duration-300`}
                 style={{ width: `${metric.percentage}%` }}
-                title={`${metric.label}: ${metric.amountLabel} · ${metric.percentage.toFixed(1)}%`}
+                title={`${metric.label}: ${metric.amountLabel} - ${metric.percentage.toFixed(1)}%`}
               />
             ))}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {statusMetrics.map(metric => (
               <span key={metric.status} className="flex items-center gap-1">
                 <span className={`h-2 w-2 rounded-full ${metric.dotClass}`} />
@@ -80,52 +108,48 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
               </span>
             ))}
           </div>
-          <StatusNotes expensesCount={expenses.length} totals={totals} />
+          <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-slate-200">
+            {insight}
+          </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function Metric({
+  icon,
+  label,
+  value,
+  valueClassName = 'text-slate-900 dark:text-white',
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#147514] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className={`truncate text-sm font-extrabold ${valueClassName}`}>{value}</p>
+        <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </div>
   );
 }
 
-function Metric({ icon, label, value, valueClassName = 'text-slate-900 dark:text-white' }: { icon: ReactNode; label: string; value: string; valueClassName?: string }) {
-  return (
-    <div className="flex min-w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#147514] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">{icon}</span>
-      <span className={`font-extrabold ${valueClassName}`}>{value}</span>
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function StatusMetricItem({ metric }: { metric: StatusMetric }) {
-  return (
-    <div className="flex min-w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
-        <span className={`h-3 w-3 rounded-full ${metric.dotClass}`} />
-      </span>
-      <span className={`font-extrabold ${metric.valueClassName}`}>{metric.amountLabel}</span>
-      <span>{metric.label}</span>
-      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-        {metric.percentage.toFixed(1)}%
-      </span>
-    </div>
-  );
-}
-
-function StatusNotes({ expensesCount, totals }: { expensesCount: number; totals: ExpenseTotals }) {
-  const t = useFinanceTranslations();
+function AlertChip({ children, icon, tone }: { children: ReactNode; icon: ReactNode; tone: 'danger' | 'warning' }) {
+  const toneClass = tone === 'danger'
+    ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300'
+    : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300';
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {totals.overdueCount > 0 ? (
-        <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          {t.expenses.summary.overdue(totals.overdueCount)}
-        </span>
-      ) : null}
-      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-        {t.expenses.summary.records(expensesCount)}
-      </span>
-    </div>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${toneClass}`}>
+      {icon}
+      {children}
+    </span>
   );
 }

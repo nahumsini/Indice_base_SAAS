@@ -133,6 +133,7 @@ export type FinanceTranslations = {
       saveHint: string;
       selectFiles: string;
       supportedFormats: string;
+      maxFilesHint: (max: number) => string;
       title: string;
       total: string;
     };

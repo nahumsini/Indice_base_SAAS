@@ -135,7 +135,7 @@ export function ReadonlyPill({ children, onClick }: { children: ReactNode; onCli
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-xl border border-transparent px-3 py-2 text-left text-sm font-semibold text-slate-800 transition-colors hover:border-slate-200 hover:bg-slate-50 dark:text-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
+      className="w-full rounded-xl border border-transparent px-3 py-2 text-left text-sm font-semibold leading-5 text-slate-800 whitespace-normal break-words transition-colors hover:border-slate-200 hover:bg-slate-50 dark:text-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
     >
       {children}
     </button>
@@ -147,9 +147,9 @@ export function ReadonlySelectPill({ children, onClick }: { children: ReactNode;
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-10 w-full max-w-xs items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 text-left text-sm font-semibold text-slate-900 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:focus:ring-slate-700"
+      className="inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-left text-sm font-semibold leading-5 text-slate-900 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:focus:ring-slate-700"
     >
-      <span className="min-w-0 flex-1 truncate">{children}</span>
+      <span className="min-w-0 flex-1 whitespace-normal break-words">{children}</span>
       <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
     </button>
   );

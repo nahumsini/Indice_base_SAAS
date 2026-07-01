@@ -39,8 +39,10 @@ type ExpenseTableProps = {
   onDuplicateExpense?: (expenseId: string) => void;
   onEditExpense?: (expense: Expense) => void;
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
+  onMarkExpensePaid?: (expense: Expense) => Promise<Expense | null>;
   onOpenAttachments: (expense: Expense) => void;
   onPersistExpenseUpdate?: (expense: Expense) => void;
+  onRecordExpensePayment?: (expense: Expense, amount: number, paymentDate: Date) => Promise<Expense | null>;
   businessOptions?: FinanceReferenceOption[];
   providers?: Provider[];
   unitOptions?: FinanceReferenceOption[];
@@ -59,8 +61,10 @@ export function ExpenseTable({
   onDuplicateExpense,
   onEditExpense,
   onExpensesChange,
+  onMarkExpensePaid,
   onOpenAttachments,
   onPersistExpenseUpdate,
+  onRecordExpensePayment,
   businessOptions = [],
   providers = mockProviders,
   unitOptions = [],
@@ -75,6 +79,8 @@ export function ExpenseTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [sortField, setSortField] = useState<ExpenseSortField | null>(null);
   const [paymentExpenseId, setPaymentExpenseId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [workflowByExpenseId, setWorkflowByExpenseId] = useState<Record<string, ExpenseWorkflowState>>({});
   const rowSelection = useExpenseRowSelection<string>();
 
@@ -85,7 +91,16 @@ export function ExpenseTable({
     if (!sortField || !sortDirection) return expenses;
     return [...expenses].sort((left, right) => compareSortValues(left[sortField], right[sortField], sortDirection));
   }, [expenses, sortDirection, sortField]);
-  const visibleExpenseIds = useMemo(() => sortedExpenses.map(expense => expense.id), [sortedExpenses]);
+  const totalPages = Math.max(1, Math.ceil(sortedExpenses.length / pageSize));
+  const pageStartIndex = (currentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
+  const paginatedExpenses = useMemo(
+    () => sortedExpenses.slice(pageStartIndex, pageEndIndex),
+    [pageEndIndex, pageStartIndex, sortedExpenses],
+  );
+  const paginationStart = sortedExpenses.length === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = sortedExpenses.length === 0 ? 0 : Math.min(pageEndIndex, sortedExpenses.length);
+  const visibleExpenseIds = useMemo(() => paginatedExpenses.map(expense => expense.id), [paginatedExpenses]);
   const visibleSelection = rowSelection.visibleSelectionState(visibleExpenseIds);
   const visibleColumnCount = useMemo(() => (
     columns.filter(column => column.key !== 'actions' && column.visible).length + 2
@@ -117,6 +132,10 @@ export function ExpenseTable({
     rowSelection.pruneSelection(expenses.map(expense => expense.id));
   }, [expenses, rowSelection.pruneSelection]);
 
+  useEffect(() => {
+    setCurrentPage(current => Math.min(Math.max(current, 1), totalPages));
+  }, [totalPages]);
+
   const handleResizeStart = (event: ReactMouseEvent, columnKey: string) => {
     event.preventDefault();
     setResizingColumn(columnKey);
@@ -125,6 +144,7 @@ export function ExpenseTable({
   };
 
   const handleSort = (field: ExpenseSortField) => {
+    setCurrentPage(1);
     if (sortField === field && sortDirection === 'asc') {
       setSortDirection('desc');
       return;
@@ -277,15 +297,30 @@ export function ExpenseTable({
     rowSelection.clearSelection();
   };
 
-  const handlePay = (id: string) => {
+  const replaceSavedExpense = (savedExpense: Expense) => {
+    onExpensesChange(prev => prev.map(expense => (expense.id === savedExpense.id ? savedExpense : expense)));
+  };
+
+  const handlePay = async (id: string) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
+    if (onMarkExpensePaid) {
+      const savedExpense = await onMarkExpensePaid(expense);
+      if (savedExpense) replaceSavedExpense(savedExpense);
+      return;
+    }
     updateExpense(id, { amountPaid: expense.total, paymentDate: new Date(), status: 'paid' });
   };
 
-  const handleRecordPayment = (id: string, amount: number, paymentDate: Date) => {
+  const handleRecordPayment = async (id: string, amount: number, paymentDate: Date) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
+    if (onRecordExpensePayment) {
+      const savedExpense = await onRecordExpensePayment(expense, amount, paymentDate);
+      if (savedExpense) replaceSavedExpense(savedExpense);
+      setPaymentExpenseId(null);
+      return;
+    }
 
     const nextAmountPaid = Math.min(expense.total, (expense.amountPaid ?? 0) + amount);
     updateExpense(id, {
@@ -323,7 +358,7 @@ export function ExpenseTable({
         actionVisibility={actionVisibility}
         emptyMessage={effectiveEmptyMessage}
         emptyTitle={effectiveEmptyTitle}
-        expenses={sortedExpenses}
+        expenses={paginatedExpenses}
         getAttachments={getAttachments}
         isColumnVisible={isColumnVisible}
         isSelected={rowSelection.isSelected}
@@ -365,7 +400,7 @@ export function ExpenseTable({
             {sortedExpenses.length === 0 ? (
               <EmptyExpenseTableRow colSpan={visibleColumnCount} emptyMessage={effectiveEmptyMessage} emptyTitle={effectiveEmptyTitle} />
             ) : (
-              sortedExpenses.map(expense => (
+              paginatedExpenses.map(expense => (
                 <EditableExpenseRow
                   key={expense.id}
                   actionVisibility={actionVisibility}
@@ -396,6 +431,21 @@ export function ExpenseTable({
         </div>
       </div>
 
+      <ExpenseTablePagination
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(nextPageSize) => {
+          setPageSize(nextPageSize);
+          setCurrentPage(1);
+        }}
+        pageEnd={paginationEnd}
+        pageSize={pageSize}
+        pageStart={paginationStart}
+        t={t}
+        totalCount={sortedExpenses.length}
+        totalPages={totalPages}
+      />
+
       {paymentExpense && (
         <ExpensePaymentModal
           expense={paymentExpense}
@@ -403,6 +453,73 @@ export function ExpenseTable({
           onSubmit={handleRecordPayment}
         />
       )}
+    </div>
+  );
+}
+
+function ExpenseTablePagination({
+  currentPage,
+  onPageChange,
+  onPageSizeChange,
+  pageEnd,
+  pageSize,
+  pageStart,
+  t,
+  totalCount,
+  totalPages,
+}: {
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  pageEnd: number;
+  pageSize: number;
+  pageStart: number;
+  t: ReturnType<typeof useFinanceTranslations>;
+  totalCount: number;
+  totalPages: number;
+}) {
+  const hasPreviousPage = currentPage > 1;
+  const hasNextPage = currentPage < totalPages;
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        {t.common.showing(pageStart, pageEnd, totalCount)}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+          <span>{t.common.rowsPerPage}</span>
+          <select
+            aria-label={t.common.rowsPerPage}
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            value={pageSize}
+            onChange={(event) => onPageSizeChange(Number(event.target.value))}
+          >
+            {[10, 25, 50].map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={!hasPreviousPage}
+          onClick={() => onPageChange(currentPage - 1)}
+          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          {t.common.previous}
+        </button>
+        <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          {currentPage}/{totalPages}
+        </span>
+        <button
+          type="button"
+          disabled={!hasNextPage}
+          onClick={() => onPageChange(currentPage + 1)}
+          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          {t.common.next}
+        </button>
+      </div>
     </div>
   );
 }

@@ -225,7 +225,7 @@ export function AttachmentsModal({
                         {file.name}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatFileSize(file.size)} • {file.uploadedAt.toLocaleDateString(t.locale)}
+                        {formatFileSize(file.size)} - {file.uploadedAt.toLocaleDateString(t.locale)}
                       </p>
                     </div>
 

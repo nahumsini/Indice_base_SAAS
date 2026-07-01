@@ -2,6 +2,8 @@ package com.indice.erp.finance.expenses;
 
 import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
+import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
+import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -82,5 +84,80 @@ public class FinanceExpensesController {
             return access.error();
         }
         return ResponseEntity.ok(expenseService.deleteDraft(access.context(), expenseId));
+    }
+
+    @PostMapping("/{expenseId}/submit")
+    public ResponseEntity<?> submit(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.submitForApproval(access.context(), expenseId));
+    }
+
+    @PostMapping("/{expenseId}/approve")
+    public ResponseEntity<?> approve(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.approve(access.context(), expenseId));
+    }
+
+    @PostMapping("/{expenseId}/reject")
+    public ResponseEntity<?> reject(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId,
+            @RequestBody(required = false) RejectExpenseRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.reject(access.context(), expenseId,
+            request == null ? new RejectExpenseRequest(null) : request));
+    }
+
+    @PostMapping("/{expenseId}/cancel")
+    public ResponseEntity<?> cancel(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.cancel(access.context(), expenseId));
+    }
+
+    @PostMapping("/{expenseId}/record-payment")
+    public ResponseEntity<?> recordPayment(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId,
+            @Valid @RequestBody RecordExpensePaymentRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.recordPayment(access.context(), expenseId, request));
+    }
+
+    @PostMapping("/{expenseId}/close")
+    public ResponseEntity<?> close(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.close(access.context(), expenseId));
     }
 }

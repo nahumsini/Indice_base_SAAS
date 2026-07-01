@@ -92,6 +92,7 @@ export const esMX = mergeFinanceTranslations('es-MX', {
       saveHint: 'Los cambios se guardarán al presionar guardar',
       selectFiles: 'Seleccionar archivos',
       supportedFormats: 'Formatos soportados: PDF, imágenes, documentos (máx. 10MB)',
+      maxFilesHint: max => `Adjunta hasta ${max} comprobantes o archivos de soporte.`,
       title: 'Archivos adjuntos',
       total: 'Total',
     },

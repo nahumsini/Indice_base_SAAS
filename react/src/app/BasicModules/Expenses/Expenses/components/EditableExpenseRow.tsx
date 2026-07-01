@@ -207,7 +207,7 @@ export function EditableExpenseRow({
             <button
               type="button"
               onClick={startEditing}
-              className="max-w-xs truncate rounded-xl border border-transparent px-3 py-2 text-left text-sm text-gray-600 transition-colors hover:border-slate-200 hover:bg-slate-50 dark:text-gray-400 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
+              className="w-full rounded-xl border border-transparent px-3 py-2 text-left text-sm leading-5 text-gray-600 whitespace-normal break-words transition-colors hover:border-slate-200 hover:bg-slate-50 dark:text-gray-400 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
             >
               {expense.description || '-'}
             </button>

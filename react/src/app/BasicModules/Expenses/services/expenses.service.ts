@@ -55,6 +55,37 @@ export const expensesService = {
     await apiClient(`${expensesPath}/${expenseId}`, { method: 'DELETE' });
   },
 
+  async submitExpense(expenseId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expenseId}/submit`, { method: 'POST' });
+    return toExpense(response, providers);
+  },
+
+  async approveExpense(expenseId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expenseId}/approve`, { method: 'POST' });
+    return toExpense(response, providers);
+  },
+
+  async recordExpensePayment(
+    expenseId: string,
+    amount: number,
+    paymentDate: Date,
+    providers: Array<{ id: string; name: string }> = [],
+  ): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(
+      `${expensesPath}/${expenseId}/record-payment`,
+      jsonMutation('POST', {
+        amount,
+        paymentDate: paymentDate.toISOString().slice(0, 10),
+      }),
+    );
+    return toExpense(response, providers);
+  },
+
+  async closeExpense(expenseId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expenseId}/close`, { method: 'POST' });
+    return toExpense(response, providers);
+  },
+
   async getPurchaseOrders(): Promise<FinancePurchaseOrder[]> {
     return [];
   },
