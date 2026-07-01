@@ -1,13 +1,15 @@
-import { CheckCircle2, Clock3, Eye, FileCheck2, XCircle } from 'lucide-react';
+import { BadgeDollarSign, CheckCircle2, Clock3, Eye, FileCheck2, WalletCards, XCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { PermissionsTranslations } from '../translations';
 
 interface PermissionKpiStripProps {
   approved: number;
   copy: PermissionsTranslations;
+  paid: number;
   pending: number;
   rejected: number;
   total: number;
+  unpaid: number;
   visible: number;
 }
 
@@ -28,7 +30,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
   );
 }
 
-export function PermissionKpiStrip({ approved, copy, pending, rejected, total, visible }: PermissionKpiStripProps) {
+export function PermissionKpiStrip({ approved, copy, paid, pending, rejected, total, unpaid, visible }: PermissionKpiStripProps) {
   const approvedPercent = total > 0 ? (approved / total) * 100 : 0;
   const pendingPercent = total > 0 ? (pending / total) * 100 : 0;
   const rejectedPercent = total > 0 ? (rejected / total) * 100 : 0;
@@ -48,6 +50,17 @@ export function PermissionKpiStrip({ approved, copy, pending, rejected, total, v
         <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visible} />
         <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-[#59C3A5] dark:bg-slate-800 dark:text-blue-100">
           {copy.kpis.approvalRate(approvalRate)}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <BadgeDollarSign className="h-4 w-4" />
+          {paid} {copy.kpis.paid}
+        </span>
+        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          <WalletCards className="h-4 w-4" />
+          {unpaid} {copy.kpis.unpaid}
         </span>
       </div>
 

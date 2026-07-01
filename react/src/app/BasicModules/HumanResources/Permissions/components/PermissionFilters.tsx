@@ -17,7 +17,13 @@ export function PermissionFilters({
   isManager = false,
   permissions,
 }: PermissionFiltersProps) {
-  const employeeOptions = Array.from(new Set(permissions.map((permission) => permission.employee.name))).sort();
+  const employeeOptions = Array.from(
+    new Set(
+      permissions
+        .map((permission) => permission.employee.name)
+        .filter((employeeName): employeeName is string => Boolean(employeeName?.trim())),
+    ),
+  ).sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
 
   const updateFilter = <K extends keyof PermissionFilterState>(key: K, value: PermissionFilterState[K]) => {
     onFiltersChange({ ...filters, [key]: value });
@@ -26,8 +32,8 @@ export function PermissionFilters({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">{copy.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="xl:col-span-2">
           <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {copy.filters.searchLabel}
           </label>
@@ -76,6 +82,21 @@ export function PermissionFilters({
             <option value="bereavement">{copy.types.bereavement}</option>
             <option value="unpaid">{copy.types.unpaid}</option>
             <option value="other">{copy.types.other}</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            {copy.filters.payrollTreatment}
+          </label>
+          <select
+            value={filters.payrollTreatment}
+            onChange={(event) => updateFilter('payrollTreatment', event.target.value as PermissionFilterState['payrollTreatment'])}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          >
+            <option value="all">{copy.filters.allPayrollTreatments}</option>
+            <option value="paid">{copy.payrollTreatment.paid}</option>
+            <option value="unpaid">{copy.payrollTreatment.unpaid}</option>
           </select>
         </div>
 

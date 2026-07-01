@@ -69,9 +69,9 @@ export const enCA = {
         description: 'Active HR users inside the selected scope.',
       },
       attendance: {
-        title: 'Attendance today',
+        title: 'Control date attendance',
         target: (registered: number, total: number) => `${registered} of ${total} employees with attendance`,
-        description: 'Check-ins registered from the attendance control overview.',
+        description: 'Check-ins registered for the selected control date.',
       },
       late: {
         title: 'Late and no-record signals',
@@ -87,6 +87,11 @@ export const enCA = {
         title: 'Asset coverage',
         target: (assigned: number, maintenance: number) => `${assigned} assigned · ${maintenance} in maintenance`,
         description: 'Assigned equipment compared with the active workforce.',
+      },
+      assetValue: {
+        title: 'Asset value',
+        target: (nativeBreakdown: string) => `Native total: ${nativeBreakdown}`,
+        description: (currency: string) => `Estimated in preferred currency (${currency}).`,
       },
       records: {
         title: 'Record risk',
@@ -111,6 +116,8 @@ export const enCA = {
       inactive: 'Inactive',
       terminated: 'Terminated',
       attendanceToday: 'attendance today',
+      attendanceControlDate: 'Attendance control date',
+      preferredCurrency: 'Preferred currency',
       onTime: 'On time',
       late: 'Late',
       leave: 'Leave',
@@ -119,6 +126,7 @@ export const enCA = {
       noRecord: 'No record',
       pending: 'Pending',
       totalAssets: 'Assets',
+      totalAssetValue: 'Asset value',
       totalPermissions: 'Permissions',
       totalRecords: 'Records',
       readiness: 'Readiness',

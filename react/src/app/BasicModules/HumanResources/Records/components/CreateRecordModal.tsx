@@ -51,6 +51,13 @@ const severityDotClass: Record<RecordSeverity, string> = {
   high: 'bg-red-500',
 };
 
+const getLocalDateInputValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export function CreateRecordModal({
   copy,
   isOpen,
@@ -82,7 +89,7 @@ export function CreateRecordModal({
     description: '',
     actionsTaken: '',
     witnesses: [],
-    eventDate: new Date().toISOString().split('T')[0],
+    eventDate: getLocalDateInputValue(),
     attachments: [],
   });
   const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
@@ -130,7 +137,7 @@ export function CreateRecordModal({
       description: '',
       actionsTaken: '',
       witnesses: [],
-      eventDate: new Date().toISOString().split('T')[0],
+      eventDate: getLocalDateInputValue(),
       attachments: [],
     });
   }, [editingRecord, isOpen]);
@@ -235,11 +242,11 @@ export function CreateRecordModal({
         </div>
 
         <div className="space-y-6 bg-slate-50/70 p-6 dark:bg-slate-950/40">
-          <div className="flex gap-3 rounded-r-lg border-l-4 border-blue-500 bg-blue-50 p-4 dark:bg-blue-900/20">
-            <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-            <div className="text-sm text-blue-900 dark:text-blue-200">
+          <div className="flex gap-3 rounded-2xl border border-[#C9EDE3] bg-[#EAF8F4] p-4 dark:border-[#59C3A5]/25 dark:bg-[#10231F]">
+            <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#1F8A70] dark:text-[#9BE4D0]" />
+            <div className="text-sm text-[#145F51] dark:text-[#C6F4E8]">
               <p className="mb-1 font-semibold">{copy.modal.noticeTitle}</p>
-              <p className="text-blue-800 dark:text-blue-300">
+              <p className="text-[#1F8A70] dark:text-[#9BE4D0]">
                 {copy.modal.noticeDescription}
               </p>
             </div>
@@ -258,7 +265,7 @@ export function CreateRecordModal({
                 value={formData.employeeId}
                 onChange={(event) => setFormData((current) => ({ ...current, employeeId: event.target.value }))}
                 disabled={isEmployeesLoading || !hasEmployeeOptions}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">
                   {isEmployeesLoading
@@ -306,7 +313,7 @@ export function CreateRecordModal({
                   type="date"
                   value={formData.eventDate}
                   onChange={(event) => setFormData((current) => ({ ...current, eventDate: event.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
@@ -321,7 +328,7 @@ export function CreateRecordModal({
                   ...current,
                   status: event.target.value as RecordStatus,
                 }))}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
                 <option value="pending">{copy.status.pending}</option>
                 <option value="reviewed">{copy.status.reviewed}</option>
@@ -403,7 +410,7 @@ export function CreateRecordModal({
                 onChange={(event) => setFormData((current) => ({ ...current, title: event.target.value }))}
                 onFocus={() => formData.type && setShowTitleSuggestions(true)}
                 placeholder={copy.modal.titlePlaceholder}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
               {showTitleSuggestions && formData.type && !formData.title ? (
                 <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50">
@@ -417,7 +424,7 @@ export function CreateRecordModal({
                           setFormData((current) => ({ ...current, title: suggestion }));
                           setShowTitleSuggestions(false);
                         }}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-700 dark:hover:bg-blue-900/30"
+                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:border-[#59C3A5]/50 hover:bg-[#EAF8F4] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-[#59C3A5]/70 dark:hover:bg-[#10231F]"
                       >
                         {suggestion}
                       </button>
@@ -437,7 +444,7 @@ export function CreateRecordModal({
                 rows={4}
                 maxLength={1000}
                 placeholder={copy.modal.descriptionPlaceholder}
-                className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {copy.modal.characters(formData.description.length, 1000)}
@@ -459,7 +466,7 @@ export function CreateRecordModal({
                 onChange={(event) => setFormData((current) => ({ ...current, actionsTaken: event.target.value }))}
                 rows={3}
                 placeholder={copy.modal.actionsPlaceholder}
-                className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
 
@@ -473,7 +480,7 @@ export function CreateRecordModal({
                   {formData.witnesses.map((witness) => (
                     <span
                       key={witness}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#C9EDE3] bg-[#EAF8F4] px-3 py-1.5 text-sm text-[#1F8A70] dark:border-[#59C3A5]/30 dark:bg-[#10231F] dark:text-[#9BE4D0]"
                     >
                       {witness}
                       <button
@@ -482,7 +489,7 @@ export function CreateRecordModal({
                           ...current,
                           witnesses: current.witnesses.filter((item) => item !== witness),
                         }))}
-                        className="rounded-full p-0.5 transition-colors hover:bg-blue-200 dark:hover:bg-blue-800"
+                        className="rounded-full p-0.5 transition-colors hover:bg-[#C9EDE3] dark:hover:bg-[#16483D]"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -495,7 +502,7 @@ export function CreateRecordModal({
                 <button
                   type="button"
                   onClick={() => setShowWitnessDropdown((current) => !current)}
-                  className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-gray-700 transition-colors hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:border-blue-700"
+                  className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-gray-700 transition-colors hover:border-[#59C3A5]/50 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:border-[#59C3A5]/70"
                 >
                   <span className="flex items-center gap-2 text-sm">
                     <UserPlus className="h-4 w-4" />
@@ -512,7 +519,7 @@ export function CreateRecordModal({
                         value={witnessSearch}
                         onChange={(event) => setWitnessSearch(event.target.value)}
                         placeholder={copy.modal.witnessSearchPlaceholder}
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#59C3A5] dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         autoFocus
                       />
                     </div>
@@ -527,7 +534,7 @@ export function CreateRecordModal({
                             setShowWitnessDropdown(false);
                             setWitnessSearch('');
                           }}
-                          className="w-full border-b border-gray-100 px-3 py-2 text-left transition-colors hover:bg-blue-50 last:border-0 dark:border-gray-600 dark:hover:bg-blue-900/30"
+                          className="w-full border-b border-gray-100 px-3 py-2 text-left transition-colors hover:bg-[#EAF8F4] last:border-0 dark:border-gray-600 dark:hover:bg-[#10231F]"
                         >
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{employee.name}</div>
                           <div className="text-xs text-gray-600 dark:text-gray-400">
@@ -551,7 +558,8 @@ export function CreateRecordModal({
               {copy.modal.attachments}
             </h3>
 
-            <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-400 dark:border-gray-600 dark:hover:border-blue-600">
+            <div className="rounded-2xl border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-[#59C3A5] dark:border-gray-600 dark:hover:border-[#59C3A5]"
+            >
               <Upload className="mx-auto mb-3 h-10 w-10 text-gray-400" />
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
                 {copy.modal.dropFiles}
@@ -565,7 +573,7 @@ export function CreateRecordModal({
               />
               <label
                 htmlFor="record-file-upload"
-                className="inline-block cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                className="inline-block cursor-pointer rounded-lg bg-[#59C3A5] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#48AE91]"
               >
                 {copy.modal.chooseFiles}
               </label>

@@ -7,11 +7,13 @@ import {
   CalendarCheck2,
   CheckCircle2,
   ClipboardList,
+  Coins,
   FileWarning,
   Filter,
   IdCard,
   Laptop,
   Printer,
+  RefreshCw,
   Search,
   ShieldCheck,
   Users,
@@ -45,7 +47,20 @@ import {
 } from '../../../api/humanResources';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { cn } from '../../../components/ui/utils';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useLanguage } from '../../../shared/context';
+import {
+  businessCurrencyOptions,
+  convertBusinessCurrencyAmount,
+  createBusinessDailyExchangeRateSettings,
+  defaultBusinessCurrency,
+  formatBusinessCurrencyAmount,
+  formatBusinessCurrencyBreakdown,
+  hrExchangeRateSettingsStorageKey,
+  hrPreferredCurrencyStorageKey,
+  isBusinessCurrencyCode,
+  normalizeBusinessExchangeRateSettings,
+} from '../../shared/businessCurrency';
 import { useKPIsTranslations } from './hooks/useKPIsTranslations';
 import type { KPIsTranslations } from './translations';
 import { printKpisReport } from './utils/kpisPrintReport';
@@ -61,6 +76,7 @@ interface KpiCardModel {
   description: string;
   status: HealthStatus;
   icon: ReactNode;
+  score?: number | null;
 }
 
 interface UnitSummaryRow {
@@ -82,6 +98,13 @@ interface AttentionSignalRow {
   unit: string;
   signals: string[];
   status: HealthStatus;
+}
+
+interface PaginatedResponse<TItem> {
+  items: TItem[];
+  count?: number;
+  total_count?: number;
+  total_pages?: number;
 }
 
 const allValue = 'all';
@@ -268,7 +291,7 @@ function includesText(value: string, searchQuery: string) {
 }
 
 function getDateFromPermission(permission: BackendPermissionItem) {
-  return permission.createdAt || permission.startDate || permission.updatedAt || '';
+  return permission.startDate || permission.createdAt || permission.updatedAt || '';
 }
 
 function getDateFromRecord(record: BackendRecordItem) {
@@ -284,6 +307,45 @@ function isDateInPeriod(dateValue: string, period: PeriodFilter, anchorDate: str
   const { start, end } = periodRangeFor(period, anchorDate);
 
   return normalizedDate >= start && normalizedDate <= end;
+}
+
+function isPermissionInPeriod(permission: BackendPermissionItem, period: PeriodFilter, anchorDate: string) {
+  const { start, end } = periodRangeFor(period, anchorDate);
+  const permissionStart = (permission.startDate || getDateFromPermission(permission)).slice(0, 10);
+  const permissionEnd = (permission.endDate || permissionStart).slice(0, 10);
+
+  if (!permissionStart) {
+    return false;
+  }
+
+  return permissionStart <= end && permissionEnd >= start;
+}
+
+async function fetchAllPages<TItem, TResponse extends PaginatedResponse<TItem>>(
+  fetchPage: (page: number, size: number) => Promise<TResponse>,
+  pageSize = 200,
+): Promise<TResponse> {
+  const firstPage = await fetchPage(1, pageSize);
+  const items = [...firstPage.items];
+  const totalCount = firstPage.total_count ?? firstPage.count ?? items.length;
+  const totalPages = firstPage.total_pages ?? (Math.ceil(totalCount / pageSize) || 1);
+  const maxPages = Math.min(totalPages, 50);
+
+  for (let page = 2; page <= maxPages; page += 1) {
+    const nextPage = await fetchPage(page, pageSize);
+    items.push(...nextPage.items);
+
+    if (items.length >= totalCount) {
+      break;
+    }
+  }
+
+  return {
+    ...firstPage,
+    items,
+    count: items.length,
+    total_count: Math.max(totalCount, items.length),
+  };
 }
 
 function employeeMatchesFilters(
@@ -388,6 +450,7 @@ function KpiScoreBar({ score, status }: { score: number; status: HealthStatus })
 function KpiCard({ card, copy }: { card: KpiCardModel; copy: KPIsTranslations }) {
   const score = Number.parseInt(card.value, 10);
   const fallbackScore = card.status === 'healthy' ? 92 : card.status === 'watch' ? 74 : 42;
+  const displayedScore = card.score ?? (Number.isFinite(score) ? score : fallbackScore);
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -403,7 +466,7 @@ function KpiCard({ card, copy }: { card: KpiCardModel; copy: KPIsTranslations })
         </div>
         <KpiStatusBadge copy={copy} status={card.status} />
       </div>
-      <KpiScoreBar score={Number.isFinite(score) ? score : fallbackScore} status={card.status} />
+      <KpiScoreBar score={displayedScore} status={card.status} />
       <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">{card.target}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{card.description}</p>
     </article>
@@ -438,6 +501,22 @@ function SelectField({
 export default function KPIs() {
   const copy = useKPIsTranslations();
   const { currentLanguage } = useLanguage();
+  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
+    hrPreferredCurrencyStorageKey,
+    defaultBusinessCurrency,
+  );
+  const [storedExchangeRateSettings] = useLocalStorageState<unknown>(
+    hrExchangeRateSettingsStorageKey,
+    createBusinessDailyExchangeRateSettings(),
+  );
+  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
+    ? storedPreferredCurrency
+    : defaultBusinessCurrency;
+  const exchangeRateSettings = useMemo(
+    () => normalizeBusinessExchangeRateSettings(storedExchangeRateSettings),
+    [storedExchangeRateSettings],
+  );
+  const { ratesPerUsd: exchangeRatesPerUsd } = exchangeRateSettings;
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
   const [employeeSummary, setEmployeeSummary] = useState(emptyHrSummary);
   const [attendanceOverview, setAttendanceOverview] = useState<AttendanceControlOverviewResponse | null>(null);
@@ -474,18 +553,27 @@ export default function KPIs() {
 
     const fetchPermissions = async () => {
       try {
-        return await permissionsApi.listPermissions({ page: 1, size: 100 });
+        return await fetchAllPages<BackendPermissionItem, Awaited<ReturnType<typeof permissionsApi.listPermissions>>>(
+          (page, size) => permissionsApi.listPermissions({ page, size }),
+        );
       } catch {
-        return permissionsApi.listMyPermissions({ page: 1, size: 100 });
+        return fetchAllPages<BackendPermissionItem, Awaited<ReturnType<typeof permissionsApi.listMyPermissions>>>(
+          (page, size) => permissionsApi.listMyPermissions({ page, size }),
+        );
       }
     };
 
     const results = await runWithMinimumDuration(Promise.allSettled([
       humanResourcesApi.listHrUsers(),
       humanResourcesApi.getAttendanceControlOverview(controlDate),
-      hrAssetsApi.listAssets({ page: 1, size: 500 }),
+      fetchAllPages<HrAsset, Awaited<ReturnType<typeof hrAssetsApi.listAssets>>>(
+        (page, size) => hrAssetsApi.listAssets({ page, size }),
+        500,
+      ),
       fetchPermissions(),
-      humanResourcesApi.listRecords({ page: 1, size: 200 }),
+      fetchAllPages<BackendRecordItem, Awaited<ReturnType<typeof humanResourcesApi.listRecords>>>(
+        (page, size) => humanResourcesApi.listRecords({ page, size }),
+      ),
       dashboardApi.listUnits(),
       dashboardApi.listBusinesses(),
     ]));
@@ -631,7 +719,7 @@ export default function KPIs() {
         return (
           matchesEmployee &&
           includesText(haystack, searchQuery) &&
-          isDateInPeriod(getDateFromPermission(permission), periodFilter, selectedDate)
+          isPermissionInPeriod(permission, periodFilter, selectedDate)
         );
       }),
     [filteredEmployeeIds, filteredEmployeeNames, permissions, periodFilter, searchQuery, selectedDate],
@@ -740,6 +828,37 @@ export default function KPIs() {
     [filteredAssets],
   );
 
+  const assetValueSummary = useMemo(() => {
+    const assetsWithValue = filteredAssets.filter((asset) => asset.value_amount !== null && asset.value_amount !== undefined);
+    const preferredTotal = assetsWithValue.reduce(
+      (total, asset) =>
+        total
+        + convertBusinessCurrencyAmount(
+          asset.value_amount ?? 0,
+          asset.value_currency,
+          preferredCurrency,
+          exchangeRatesPerUsd,
+        ),
+      0,
+    );
+    const valueCoverageRate = filteredAssets.length > 0
+      ? clampScore((assetsWithValue.length / filteredAssets.length) * 100)
+      : null;
+
+    return {
+      assetCountWithValue: assetsWithValue.length,
+      nativeBreakdownLabel: formatBusinessCurrencyBreakdown(
+        assetsWithValue,
+        (asset) => asset.value_amount ?? 0,
+        (asset) => asset.value_currency,
+      ),
+      preferredTotalLabel: formatBusinessCurrencyAmount(preferredTotal, preferredCurrency, {
+        maximumFractionDigits: 0,
+      }),
+      valueCoverageRate,
+    };
+  }, [exchangeRatesPerUsd, filteredAssets, preferredCurrency]);
+
   const activeRate = scopedEmployees.length > 0
     ? clampScore((filteredEmployees.length / scopedEmployees.length) * 100)
     : 0;
@@ -776,6 +895,7 @@ export default function KPIs() {
         description: copy.dashboard.cards.workforce.description,
         status: getHealthStatus(activeRate),
         icon: <Users className="h-5 w-5" />,
+        score: activeRate,
       },
       {
         id: 'attendance',
@@ -785,6 +905,7 @@ export default function KPIs() {
         description: copy.dashboard.cards.attendance.description,
         status: getHealthStatus(attendanceSummary.attendanceRate ?? 0),
         icon: <CalendarCheck2 className="h-5 w-5" />,
+        score: attendanceSummary.attendanceRate,
       },
       {
         id: 'late',
@@ -794,6 +915,14 @@ export default function KPIs() {
         description: copy.dashboard.cards.late.description,
         status: attendanceSummary.late === 0 ? 'healthy' : attendanceSummary.late <= 2 ? 'watch' : 'critical',
         icon: <Activity className="h-5 w-5" />,
+        score: attendanceSummary.denominator > 0
+          ? clampScore(
+            100
+            - ((attendanceSummary.late + attendanceSummary.absence + attendanceSummary.noRecord)
+              / attendanceSummary.denominator)
+              * 100,
+          )
+          : null,
       },
       {
         id: 'permissions',
@@ -803,6 +932,7 @@ export default function KPIs() {
         description: copy.dashboard.cards.permissions.description,
         status: permissionCounts.pending === 0 ? 'healthy' : permissionCounts.pending <= 3 ? 'watch' : 'critical',
         icon: <ClipboardList className="h-5 w-5" />,
+        score: permissionResolutionRate,
       },
       {
         id: 'assets',
@@ -812,6 +942,17 @@ export default function KPIs() {
         description: copy.dashboard.cards.assets.description,
         status: getHealthStatus(assetCoverageRate ?? 0),
         icon: <Laptop className="h-5 w-5" />,
+        score: assetCoverageRate,
+      },
+      {
+        id: 'asset-value',
+        title: copy.dashboard.cards.assetValue.title,
+        value: assetValueSummary.preferredTotalLabel,
+        target: copy.dashboard.cards.assetValue.target(assetValueSummary.nativeBreakdownLabel),
+        description: copy.dashboard.cards.assetValue.description(preferredCurrency),
+        status: assetValueSummary.assetCountWithValue > 0 ? 'healthy' : 'watch',
+        icon: <Coins className="h-5 w-5" />,
+        score: assetValueSummary.valueCoverageRate,
       },
       {
         id: 'records',
@@ -821,6 +962,7 @@ export default function KPIs() {
         description: copy.dashboard.cards.records.description,
         status: recordCounts.pending + recordCounts.highSeverity === 0 ? 'healthy' : recordCounts.highSeverity > 0 ? 'critical' : 'watch',
         icon: <FileWarning className="h-5 w-5" />,
+        score: recordResolutionRate,
       },
       {
         id: 'health',
@@ -830,12 +972,17 @@ export default function KPIs() {
         description: copy.dashboard.cards.health.description,
         status: healthStatus,
         icon: <ShieldCheck className="h-5 w-5" />,
+        score: healthScore,
       },
     ],
     [
       activeRate,
       assetCounts.assigned,
       assetCounts.maintenance,
+      assetValueSummary.assetCountWithValue,
+      assetValueSummary.nativeBreakdownLabel,
+      assetValueSummary.preferredTotalLabel,
+      assetValueSummary.valueCoverageRate,
       assetCoverageRate,
       attendanceSummary.absence,
       attendanceSummary.attendanceRate,
@@ -850,9 +997,12 @@ export default function KPIs() {
       healthStatus,
       permissionCounts.pending,
       permissionCounts.total,
+      permissionResolutionRate,
+      preferredCurrency,
       recordCounts.highSeverity,
       recordCounts.pending,
       recordCounts.total,
+      recordResolutionRate,
     ],
   );
 
@@ -1030,6 +1180,7 @@ export default function KPIs() {
   const periodScopeLabel = periodFilter === 'specificDate'
     ? formatDateLabel(selectedDate, currentLanguage.code)
     : `${formatDateLabel(periodRange.start, currentLanguage.code)} - ${formatDateLabel(periodRange.end, currentLanguage.code)}`;
+  const attendanceScopeLabel = formatDateLabel(controlDate, currentLanguage.code);
   const selectedUnitLabel = unitFilter === allValue
     ? copy.dashboard.filters.allUnits
     : unitOptions.find((unit) => unit.id === unitFilter)?.name ?? copy.dashboard.filters.allUnits;
@@ -1069,6 +1220,8 @@ export default function KPIs() {
       filters: [
         { label: copy.dashboard.filters.search, value: searchQuery.trim() || copy.dashboard.common.notAvailable },
         { label: copy.dashboard.filters.period, value: `${periodLabel} · ${periodScopeLabel}` },
+        { label: copy.dashboard.labels.attendanceControlDate, value: attendanceScopeLabel },
+        { label: copy.dashboard.labels.preferredCurrency, value: preferredCurrency },
         { label: copy.dashboard.filters.unit, value: selectedUnitLabel },
         { label: copy.dashboard.filters.business, value: selectedBusinessLabel },
         { label: copy.dashboard.filters.department, value: selectedDepartmentLabel },
@@ -1098,22 +1251,50 @@ export default function KPIs() {
         description={copy.loading.description}
       />
 
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
+            <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
               <BarChart3 className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-2xl font-bold text-slate-950 dark:text-white">{copy.title}</h2>
+              <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-950 dark:text-white">
+                <span className="text-2xl">📊</span>
+                {copy.title}
+              </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:justify-end">
+            <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none dark:border-[#59C3A5]/40 dark:bg-slate-800 dark:text-slate-100 sm:w-auto">
+              <Coins className="h-4 w-4 text-[#59C3A5]" />
+              <span className="min-w-0">{copy.dashboard.labels.preferredCurrency}</span>
+              <select
+                aria-label={copy.dashboard.labels.preferredCurrency}
+                value={preferredCurrency}
+                onChange={(event) => setStoredPreferredCurrency(event.target.value)}
+                className="h-8 w-[92px] shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2 text-sm font-bold text-slate-900 shadow-none outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              >
+                {businessCurrencyOptions.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.code}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => void loadDashboard()}
+              disabled={isLoading}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white px-4 text-sm font-semibold text-[#177d66] shadow-none transition hover:bg-[#59C3A5] hover:text-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#59C3A5]/40 dark:bg-slate-800 dark:text-emerald-200"
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading ? 'animate-spin' : '')} />
+              {copy.dashboard.actions.refresh}
+            </button>
             <button
               type="button"
               onClick={handlePrintReport}
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3AAE90]"
             >
               <Printer className="h-4 w-4" />
               {copy.dashboard.actions.printReport}
@@ -1240,7 +1421,9 @@ export default function KPIs() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.dashboard.sections.attendanceMix}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{periodLabel} · {periodScopeLabel}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {copy.dashboard.labels.attendanceControlDate}: {attendanceScopeLabel}
+              </p>
             </div>
             <IdCard className="h-5 w-5 text-emerald-500" />
           </div>
@@ -1393,12 +1576,13 @@ export default function KPIs() {
         </article>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4 text-xs font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-7">
+      <section className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4 text-xs font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-8">
         <span>{copy.dashboard.labels.totalEmployees}: {employeeSummary.total_count}</span>
         <span>{copy.dashboard.labels.active}: {employeeSummary.active_count}</span>
         <span>{copy.dashboard.labels.inactive}: {employeeSummary.inactive_count}</span>
         <span>{copy.dashboard.labels.terminated}: {employeeSummary.terminated_count}</span>
         <span>{copy.dashboard.labels.totalAssets}: {assetSummary.total_count}</span>
+        <span>{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.preferredTotalLabel}</span>
         <span>{copy.dashboard.labels.totalPermissions}: {permissionSummary.total}</span>
         <span>{copy.dashboard.labels.totalRecords}: {recordSummary.total_count}</span>
       </section>

@@ -9,6 +9,8 @@ export type PermissionType =
 
 export type PermissionStatus = 'pending' | 'approved' | 'rejected';
 
+export type PermissionPayrollTreatment = 'paid' | 'unpaid';
+
 export interface PermissionItem {
   id: string;
   folio: string;
@@ -21,6 +23,7 @@ export interface PermissionItem {
     department?: string;
   };
   type: PermissionType;
+  payrollTreatment: PermissionPayrollTreatment;
   startDate: string;
   endDate: string;
   days: number;
@@ -51,5 +54,6 @@ export interface PermissionFilterState {
   search: string;
   status: 'all' | PermissionStatus;
   type: 'all' | PermissionType;
+  payrollTreatment: 'all' | PermissionPayrollTreatment;
   employee: 'all' | string;
 }

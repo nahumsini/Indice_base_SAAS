@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Download, Trash2, X } from 'lucide-react';
 import {
   type ApiClientError,
 } from '../../../lib/apiClient';
@@ -8,7 +9,10 @@ import {
   humanResourcesApi,
   type BackendRecordItem,
   type BackendRecordWitness,
+  type CreateRecordPayload,
 } from '../../../api/humanResources';
+import { Button } from '../../../components/ui/button';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
@@ -65,7 +69,7 @@ const normalizeWitnesses = (witnesses: BackendRecordWitness[] | undefined) => (
 
 const defaultRecordsPageSize = 10;
 
-const defaultVisibleRecordColumns: RecordColumnId[] = [
+const defaultRecordColumnOrder: RecordColumnId[] = [
   'id',
   'employee',
   'reportedBy',
@@ -76,6 +80,8 @@ const defaultVisibleRecordColumns: RecordColumnId[] = [
   'date',
   'actions',
 ];
+
+const defaultVisibleRecordColumns: RecordColumnId[] = defaultRecordColumnOrder;
 
 const mapBackendRecord = (record: BackendRecordItem): EmployeeRecord => ({
   id: String(record.id),
@@ -109,6 +115,21 @@ const mapBackendRecord = (record: BackendRecordItem): EmployeeRecord => ({
     type: attachment.mime_type,
     url: attachment.download_url ?? '',
   })),
+});
+
+const buildPayloadFromRecord = (
+  record: EmployeeRecord,
+  status: EmployeeRecord['status'] = record.status,
+): CreateRecordPayload & { status: EmployeeRecord['status'] } => ({
+  user_company_id: Number(record.user.id),
+  record_type: record.type,
+  ...(record.severity ? { severity: record.severity } : {}),
+  title: record.title,
+  description: record.description,
+  ...(record.actionsTaken ? { actions_taken: record.actionsTaken } : {}),
+  event_date: toIsoEventDate(record.eventDate),
+  ...(record.witnesses?.length ? { witnesses: record.witnesses } : {}),
+  status,
 });
 
 const buildRecordPayload = (
@@ -158,9 +179,12 @@ export default function Records() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [recordColumnOrder, setRecordColumnOrder] = useState<RecordColumnId[]>(defaultRecordColumnOrder);
   const [visibleRecordColumns, setVisibleRecordColumns] = useState<RecordColumnId[]>(defaultVisibleRecordColumns);
+  const [selectedRecordIds, setSelectedRecordIds] = useState<string[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<EmployeeRecord | null>(null);
   const [editingRecord, setEditingRecord] = useState<EmployeeRecord | null>(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [canManageRecords, setCanManageRecords] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -171,18 +195,35 @@ export default function Records() {
   });
 
   const recordColumns = useMemo<RecordColumn[]>(
-    () => [
-      { id: 'id', label: copy.columns.id, locked: true },
-      { id: 'employee', label: copy.columns.employee, locked: true },
-      { id: 'reportedBy', label: copy.columns.reportedBy },
-      { id: 'unit', label: copy.columns.unit },
-      { id: 'business', label: copy.columns.business },
-      { id: 'type', label: copy.columns.type },
-      { id: 'severity', label: copy.columns.severity },
-      { id: 'date', label: copy.columns.date },
-      { id: 'actions', label: copy.columns.actions, locked: true },
-    ],
-    [copy],
+    () => {
+      const columnMetadata: Record<RecordColumnId, Omit<RecordColumn, 'visible'>> = {
+        id: { id: 'id', label: copy.columns.id, locked: true },
+        employee: { id: 'employee', label: copy.columns.employee, locked: true },
+        reportedBy: { id: 'reportedBy', label: copy.columns.reportedBy },
+        unit: { id: 'unit', label: copy.columns.unit },
+        business: { id: 'business', label: copy.columns.business },
+        type: { id: 'type', label: copy.columns.type },
+        severity: { id: 'severity', label: copy.columns.severity },
+        date: { id: 'date', label: copy.columns.date },
+        actions: { id: 'actions', label: copy.columns.actions, locked: true },
+      };
+
+      return recordColumnOrder.map((columnId) => {
+        const column = columnMetadata[columnId];
+        return {
+          ...column,
+          visible: Boolean(column.locked) || visibleRecordColumns.includes(columnId),
+        };
+      });
+    },
+    [copy, recordColumnOrder, visibleRecordColumns],
+  );
+
+  const selectedRecords = useMemo(
+    () => selectedRecordIds
+      .map((recordId) => records.find((record) => record.id === recordId))
+      .filter((record): record is EmployeeRecord => Boolean(record)),
+    [records, selectedRecordIds],
   );
 
   const unitOptions = useMemo(
@@ -277,6 +318,10 @@ export default function Records() {
   useEffect(() => {
     void loadInitialData();
   }, []);
+
+  useEffect(() => {
+    setSelectedRecordIds((current) => current.filter((recordId) => records.some((record) => record.id === recordId)));
+  }, [records]);
 
   const loadEmployees = async () => {
     setIsEmployeesLoading(true);
@@ -477,17 +522,103 @@ export default function Records() {
     }
   };
 
-  const handleToggleColumn = (columnId: string) => {
-    const column = recordColumns.find((item) => item.id === columnId);
-    if (column?.locked) {
+  const handleApplyColumns = (columns: RecordColumn[]) => {
+    setRecordColumnOrder(columns.map((column) => column.id));
+    setVisibleRecordColumns(columns.filter((column) => column.locked || column.visible).map((column) => column.id));
+    setIsColumnsModalOpen(false);
+  };
+
+  const handleSelectionChange = (recordId: string, checked: boolean) => {
+    setSelectedRecordIds((current) => {
+      if (checked) {
+        return current.includes(recordId) ? current : [...current, recordId];
+      }
+      return current.filter((id) => id !== recordId);
+    });
+  };
+
+  const handleSelectPage = (recordIds: string[], checked: boolean) => {
+    setSelectedRecordIds((current) => {
+      if (checked) {
+        return Array.from(new Set([...current, ...recordIds]));
+      }
+      return current.filter((id) => !recordIds.includes(id));
+    });
+  };
+
+  const clearSelection = () => setSelectedRecordIds([]);
+
+  const handleBulkDownload = async () => {
+    if (!canManageRecords || selectedRecords.length === 0) {
       return;
     }
 
-    setVisibleRecordColumns((current) =>
-      current.includes(columnId as RecordColumnId)
-        ? current.filter((id) => id !== columnId)
-        : [...current, columnId as RecordColumnId],
-    );
+    setLoadingState({
+      isVisible: true,
+      title: copy.loading.recordTitle,
+      description: copy.loading.recordDescription,
+    });
+
+    try {
+      for (const record of selectedRecords) {
+        await downloadRecordPdf(record, copy, locale);
+      }
+    } catch (error) {
+      setErrorMessage(formatErrorMessage(error, copy.errors.exportRecord));
+    } finally {
+      setLoadingState((current) => ({ ...current, isVisible: false }));
+    }
+  };
+
+  const handleBulkStatusUpdate = async (status: EmployeeRecord['status']) => {
+    if (!canManageRecords || selectedRecords.length === 0) {
+      return;
+    }
+
+    setLoadingState({
+      isVisible: true,
+      title: copy.loading.savingTitle,
+      description: copy.loading.updatingDescription,
+    });
+
+    try {
+      await runWithMinimumDuration(Promise.all(
+        selectedRecords.map((record) => humanResourcesApi.updateRecord(record.id, buildPayloadFromRecord(record, status))),
+      ));
+      await refreshRecords();
+      clearSelection();
+      setSuccessMessage(copy.success.updated);
+    } catch (error) {
+      setErrorMessage(formatErrorMessage(error, copy.errors.updateRecord));
+    } finally {
+      setLoadingState((current) => ({ ...current, isVisible: false }));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!canManageRecords || selectedRecords.length === 0) {
+      return;
+    }
+
+    setLoadingState({
+      isVisible: true,
+      title: copy.loading.deletingTitle,
+      description: copy.loading.deletingDescription,
+    });
+
+    try {
+      await runWithMinimumDuration(Promise.all(
+        selectedRecords.map((record) => humanResourcesApi.deleteRecord(record.id)),
+      ));
+      await refreshRecords();
+      clearSelection();
+      setIsBulkDeleteConfirmOpen(false);
+      setSuccessMessage(copy.success.deleted);
+    } catch (error) {
+      setErrorMessage(formatErrorMessage(error, copy.errors.deleteRecord));
+    } finally {
+      setLoadingState((current) => ({ ...current, isVisible: false }));
+    }
   };
 
   return (
@@ -524,15 +655,81 @@ export default function Records() {
             totalCount={summary.total_count}
             visibleCount={sortedRecords.length}
           />
+
+          {selectedRecords.length > 0 ? (
+            <div className="flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/30 bg-[#EAF8F4] px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-[#59C3A5]/25 dark:bg-[#10231F]">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#1F8A70] shadow-sm dark:bg-white/10 dark:text-[#9BE4D0]">
+                  {copy.bulk.selected(selectedRecords.length)}
+                </span>
+                <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.bulk.actions}</span>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBulkDownload}
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-[#1F8A70] shadow-sm hover:bg-white/90"
+                >
+                  <Download className="h-4 w-4" />
+                  {copy.bulk.downloadPdf}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void handleBulkStatusUpdate('reviewed');
+                  }}
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-[#1F8A70] shadow-sm hover:bg-white/90"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {copy.bulk.markReviewed}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void handleBulkStatusUpdate('resolved');
+                  }}
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-[#1F8A70] shadow-sm hover:bg-white/90"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {copy.bulk.markResolved}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                  className="h-10 rounded-xl border-red-100 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {copy.bulk.delete}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={clearSelection}
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm hover:bg-white/90"
+                >
+                  <X className="h-4 w-4" />
+                  {copy.bulk.clear}
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
 
       <RecordsList
         canManage={canManageRecords}
+        columns={recordColumns}
         copy={copy}
         locale={locale}
         records={paginatedRecords}
+        selectedRecordIds={selectedRecordIds}
         visibleColumns={visibleRecordColumns}
+        onSelectPage={handleSelectPage}
+        onSelectionChange={handleSelectionChange}
         onRecordClick={(record) => {
           void handleRecordClick(record);
         }}
@@ -540,39 +737,36 @@ export default function Records() {
           void handleEditRecord(record);
         }}
         onDownload={handleDownloadRecord}
+        footer={
+          sortedRecords.length > 0 ? (
+            <StandardPaginationFooter
+              currentPage={safeCurrentPage}
+              labels={copy.pagination}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(nextPageSize) => {
+                setPageSize(nextPageSize);
+                setCurrentPage(1);
+              }}
+              pageEnd={paginationEnd}
+              pageSize={pageSize}
+              pageStart={paginationStart}
+              totalCount={sortedRecords.length}
+              totalPages={totalPages}
+            />
+          ) : null
+        }
       />
 
       <Suspense fallback={null}>
         {canManageRecords && isColumnsModalOpen ? (
           <LazyRecordColumnsModal
             columns={recordColumns}
-            copy={copy.columnsModal}
             isOpen={isColumnsModalOpen}
-            visibleColumns={visibleRecordColumns}
+            onApplyColumns={handleApplyColumns}
             onClose={() => setIsColumnsModalOpen(false)}
-            onToggleColumn={handleToggleColumn}
           />
         ) : null}
       </Suspense>
-
-      {sortedRecords.length > 0 ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <StandardPaginationFooter
-            currentPage={safeCurrentPage}
-            labels={copy.pagination}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={(nextPageSize) => {
-              setPageSize(nextPageSize);
-              setCurrentPage(1);
-            }}
-            pageEnd={paginationEnd}
-            pageSize={pageSize}
-            pageStart={paginationStart}
-            totalCount={sortedRecords.length}
-            totalPages={totalPages}
-          />
-        </div>
-      ) : null}
 
       <Suspense fallback={null}>
         {canManageRecords && isCreateModalOpen ? (
@@ -602,6 +796,7 @@ export default function Records() {
             isOpen={isDetailModalOpen}
             onClose={() => setIsDetailModalOpen(false)}
             record={selectedRecord}
+            onDownload={handleDownloadRecord}
             onEdit={(record) => {
               void handleEditRecord(record);
             }}
@@ -624,6 +819,16 @@ export default function Records() {
         isVisible={Boolean(errorMessage)}
         message={errorMessage}
         onClose={() => setErrorMessage('')}
+      />
+      <ConfirmDeleteDialog
+        isVisible={isBulkDeleteConfirmOpen}
+        title={copy.actions.delete}
+        itemName={copy.bulk.deleteConfirmItem(selectedRecords.length)}
+        description={copy.detail.deleteConfirm}
+        confirmLabel={copy.actions.delete}
+        cancelLabel={copy.actions.close}
+        onCancel={() => setIsBulkDeleteConfirmOpen(false)}
+        onConfirm={handleBulkDelete}
       />
     </div>
   );

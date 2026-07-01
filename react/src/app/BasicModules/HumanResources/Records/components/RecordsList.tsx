@@ -19,10 +19,15 @@ import type { RecordsListCopy } from '../translations';
 
 interface RecordsListProps {
   canManage: boolean;
+  columns: Array<{ id: RecordColumnId; label: string }>;
   copy: RecordsListCopy;
   locale: string;
   records: EmployeeRecord[];
+  selectedRecordIds: string[];
   visibleColumns: RecordColumnId[];
+  footer?: ReactNode;
+  onSelectPage: (recordIds: string[], checked: boolean) => void;
+  onSelectionChange: (recordId: string, checked: boolean) => void;
   onRecordClick: (record: EmployeeRecord) => void;
   onEdit: (record: EmployeeRecord) => void;
   onDownload: (record: EmployeeRecord) => void;
@@ -88,25 +93,31 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
   minute: '2-digit',
 }).format(new Date(value));
 
-export function RecordsList({ canManage, copy, locale, records, visibleColumns, onRecordClick, onEdit, onDownload }: RecordsListProps) {
+const sortableColumnIds = new Set<RecordColumnId>(['id', 'employee', 'reportedBy', 'unit', 'business', 'type', 'severity', 'date']);
+
+export function RecordsList({
+  canManage,
+  columns,
+  copy,
+  locale,
+  records,
+  selectedRecordIds,
+  visibleColumns,
+  footer,
+  onSelectPage,
+  onSelectionChange,
+  onRecordClick,
+  onEdit,
+  onDownload,
+}: RecordsListProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<StandardSortDirection>(null);
   const visibleColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
+  const selectedRecordSet = useMemo(() => new Set(selectedRecordIds), [selectedRecordIds]);
   const showActions = canManage && visibleColumnSet.has('actions');
-  const recordColumns = useMemo<Array<{ id: RecordColumnId; label: string; sortable?: boolean }>>(
-    () => [
-      { id: 'id', label: copy.columns.id, sortable: true },
-      { id: 'employee', label: copy.columns.employee, sortable: true },
-      { id: 'reportedBy', label: copy.columns.reportedBy, sortable: true },
-      { id: 'unit', label: copy.columns.unit, sortable: true },
-      { id: 'business', label: copy.columns.business, sortable: true },
-      { id: 'type', label: copy.columns.type, sortable: true },
-      { id: 'severity', label: copy.columns.severity, sortable: true },
-      { id: 'date', label: copy.columns.date, sortable: true },
-      { id: 'actions', label: copy.columns.actions },
-    ],
-    [copy],
-  );
+  const pageRecordIds = useMemo(() => records.map((record) => record.id), [records]);
+  const selectedPageCount = pageRecordIds.filter((recordId) => selectedRecordSet.has(recordId)).length;
+  const isPageSelected = pageRecordIds.length > 0 && selectedPageCount === pageRecordIds.length;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -187,16 +198,35 @@ export function RecordsList({ canManage, copy, locale, records, visibleColumns, 
         <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
-              {recordColumns
+              {canManage ? (
+                <th className="w-12 px-4 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={isPageSelected}
+                    ref={(input) => {
+                      if (input) {
+                        input.indeterminate = selectedPageCount > 0 && selectedPageCount < pageRecordIds.length;
+                      }
+                    }}
+                    onChange={(event) => onSelectPage(pageRecordIds, event.target.checked)}
+                    aria-label={copy.bulk.selectedPage}
+                    className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
+                  />
+                </th>
+              ) : null}
+              {columns
                 .filter((column) => column.id !== 'actions' && visibleColumnSet.has(column.id))
                 .map((column) => (
                 <th key={column.id} className="px-4 py-3 text-left">
                   <button
                     onClick={() => handleSort(column.id as SortField)}
+                    disabled={!sortableColumnIds.has(column.id)}
                     className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   >
                     {column.label}
-                    <StandardSortIcon active={sortField === column.id} direction={sortDirection} />
+                    {sortableColumnIds.has(column.id) ? (
+                      <StandardSortIcon active={sortField === column.id} direction={sortDirection} />
+                    ) : null}
                   </button>
                 </th>
               ))}
@@ -211,15 +241,29 @@ export function RecordsList({ canManage, copy, locale, records, visibleColumns, 
             {sortedRecords.map((record) => {
               const typeInfo = typeConfig[record.type];
               const severityInfo = record.severity ? severityConfig[record.severity] : null;
+              const isSelected = selectedRecordSet.has(record.id);
 
               return (
                 <tr
                   key={record.id}
                   onClick={canManage ? () => onRecordClick(record) : undefined}
                   className={canManage
-                    ? 'cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    ? `cursor-pointer transition-colors hover:bg-[#EAF8F4] dark:hover:bg-[#13362F] ${
+                        isSelected ? 'bg-[#EAF8F4] dark:bg-[#10231F]' : ''
+                      }`
                     : undefined}
                 >
+                  {canManage ? (
+                    <td className="whitespace-nowrap px-4 py-4" onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(event) => onSelectionChange(record.id, event.target.checked)}
+                        aria-label={copy.bulk.selectRecord(record.recordNumber || copy.list.recordFallback(record.id))}
+                        className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
+                      />
+                    </td>
+                  ) : null}
                   {visibleColumnSet.has('id') ? (
                     <td className="whitespace-nowrap px-4 py-4 text-sm font-semibold text-gray-900 dark:text-white">
                       {record.recordNumber || copy.list.recordFallback(record.id)}
@@ -273,7 +317,7 @@ export function RecordsList({ canManage, copy, locale, records, visibleColumns, 
                       className="whitespace-nowrap px-4 py-4 text-right text-sm"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
                         <StandardActionButton
                           label={copy.actions.view}
                           onClick={() => onRecordClick(record)}
@@ -302,6 +346,7 @@ export function RecordsList({ canManage, copy, locale, records, visibleColumns, 
           </tbody>
         </table>
       </div>
+      {footer}
     </div>
   );
 }

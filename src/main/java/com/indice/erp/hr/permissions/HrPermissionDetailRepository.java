@@ -36,7 +36,7 @@ public class HrPermissionDetailRepository {
         var rows = jdbcTemplate.query(
             """
                 SELECT r.id, r.request_number, r.user_company_id, r.user_name_snapshot, r.user_position_snapshot,
-                       r.user_department_snapshot, r.permission_type, r.start_date, r.end_date, r.requested_days,
+                       r.user_department_snapshot, r.permission_type, r.payroll_treatment, r.start_date, r.end_date, r.requested_days,
                        r.is_half_day, r.status, r.reason, r.review_notes, r.reviewed_by_user_id, r.reviewed_at,
                        r.created_at, r.updated_at, COALESCE(NULLIF(reviewer.full_name, ''), reviewer.email, '') AS reviewed_by_name
                 FROM user_permission_requests r
@@ -86,6 +86,7 @@ public class HrPermissionDetailRepository {
         body.put("folio", HrPayloadUtils.safe(rs.getString("request_number")));
         body.put("employee", Map.of("id", rs.getLong("user_company_id"), "name", HrPayloadUtils.safe(rs.getString("user_name_snapshot")), "initials", initials(rs.getString("user_name_snapshot")), "avatar", "", "position", HrPayloadUtils.safe(rs.getString("user_position_snapshot")), "department", HrPayloadUtils.safe(rs.getString("user_department_snapshot"))));
         body.put("type", HrPayloadUtils.safe(rs.getString("permission_type")));
+        body.put("payrollTreatment", HrPayloadUtils.safe(rs.getString("payroll_treatment")));
         body.put("startDate", asDate(rs.getObject("start_date", LocalDate.class)));
         body.put("endDate", asDate(rs.getObject("end_date", LocalDate.class)));
         body.put("days", rs.getBigDecimal("requested_days"));

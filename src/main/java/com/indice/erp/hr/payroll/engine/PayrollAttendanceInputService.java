@@ -53,6 +53,7 @@ public class PayrollAttendanceInputService {
             recordSnapshot.put("scheduledWorkday", scheduleDay.workday());
             recordSnapshot.put("expectedHours", expectedHours);
             recordSnapshot.put("status", status.isBlank() ? null : status);
+            recordSnapshot.put("leavePayrollTreatment", record == null ? null : normalizeLeavePayrollTreatment(record.leavePayrollTreatment()));
 
             if (!scheduleDay.workday() || scheduleDay.restDay()) {
                 restDays = restDays.add(BigDecimal.ONE);
@@ -79,7 +80,7 @@ public class PayrollAttendanceInputService {
                 }
                 case "leave" -> {
                     leaveDays = leaveDays.add(BigDecimal.ONE);
-                    if (payLeaveDays) {
+                    if (isPaidLeave(record, payLeaveDays)) {
                         paidLeaveDays = paidLeaveDays.add(BigDecimal.ONE);
                         paidDays = paidDays.add(BigDecimal.ONE);
                         if (hourly) {
@@ -152,11 +153,32 @@ public class PayrollAttendanceInputService {
         };
     }
 
+    private boolean isPaidLeave(AttendanceRecord record, boolean payLeaveDaysFallback) {
+        var treatment = record == null ? "" : normalizeLeavePayrollTreatment(record.leavePayrollTreatment());
+        if ("paid".equals(treatment)) {
+            return true;
+        }
+        if ("unpaid".equals(treatment)) {
+            return false;
+        }
+        return payLeaveDaysFallback;
+    }
+
+    private String normalizeLeavePayrollTreatment(String value) {
+        var normalized = value == null ? "" : value.trim().toLowerCase().replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "paid", "paid_leave", "pagado", "con_goce" -> "paid";
+            case "unpaid", "unpaid_leave", "no_pagado", "sin_goce" -> "unpaid";
+            default -> "";
+        };
+    }
+
     public record AttendanceRecord(
         LocalDate date,
         String status,
         LocalDateTime firstCheckInAt,
-        LocalDateTime lastCheckOutAt
+        LocalDateTime lastCheckOutAt,
+        String leavePayrollTreatment
     ) {
     }
 

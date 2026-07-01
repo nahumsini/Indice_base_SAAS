@@ -17,8 +17,8 @@ interface PermissionsTableProps {
   permissions: PermissionItem[];
   visibleColumns: PermissionColumnId[];
   onView: (permission: PermissionItem) => void;
-  onApprove?: (id: string) => Promise<void>;
-  onReject?: (id: string) => Promise<void>;
+  onApprove?: (id: string, reviewNotes?: string) => Promise<void>;
+  onReject?: (id: string, reviewNotes?: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   isManager?: boolean;
   busyPermissionId?: string | null;
@@ -28,6 +28,7 @@ export type PermissionColumnId =
   | 'folio'
   | 'employee'
   | 'type'
+  | 'payrollTreatment'
   | 'startDate'
   | 'endDate'
   | 'days'
@@ -53,6 +54,28 @@ const statusColors: Record<PermissionItem['status'], string> = {
   approved: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
+
+const payrollTreatmentColors: Record<PermissionItem['payrollTreatment'], string> = {
+  paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  unpaid: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+};
+
+const getTypeLabel = (copy: PermissionsTranslations, permission: PermissionItem) => (
+  copy.types[permission.type] ?? copy.types.other
+);
+
+const getStatusLabel = (copy: PermissionsTranslations, permission: PermissionItem) => (
+  copy.status[permission.status] ?? copy.status.pending
+);
+
+const getPayrollTreatmentLabel = (copy: PermissionsTranslations, permission: PermissionItem) => (
+  copy.payrollTreatment[permission.payrollTreatment] ?? copy.payrollTreatment.paid
+);
+
+const getTypeColor = (permission: PermissionItem) => typeColors[permission.type] ?? typeColors.other;
+const getStatusColor = (permission: PermissionItem) => statusColors[permission.status] ?? statusColors.pending;
+const getPayrollTreatmentColor = (permission: PermissionItem) => payrollTreatmentColors[permission.payrollTreatment] ?? payrollTreatmentColors.paid;
+const normalizeSortText = (value: unknown) => String(value ?? '').toLowerCase();
 
 export function PermissionsTable({
   copy,
@@ -85,11 +108,13 @@ export function PermissionsTable({
     const getValue = (permission: PermissionItem): number | string => {
       switch (sortField) {
         case 'folio':
-          return permission.folio.toLowerCase();
+          return normalizeSortText(permission.folio);
         case 'employee':
-          return permission.employee.name.toLowerCase();
+          return normalizeSortText(permission.employee.name);
         case 'type':
-          return copy.types[permission.type].toLowerCase();
+          return normalizeSortText(getTypeLabel(copy, permission));
+        case 'payrollTreatment':
+          return normalizeSortText(getPayrollTreatmentLabel(copy, permission));
         case 'startDate':
           return Date.parse(permission.startDate) || permission.startDate;
         case 'endDate':
@@ -97,7 +122,7 @@ export function PermissionsTable({
         case 'days':
           return permission.days;
         case 'status':
-          return copy.status[permission.status].toLowerCase();
+          return normalizeSortText(getStatusLabel(copy, permission));
       }
     };
 
@@ -116,7 +141,7 @@ export function PermissionsTable({
       });
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [copy.status, copy.types, permissions, sortDirection, sortField]);
+  }, [copy.payrollTreatment, copy.status, copy.types, permissions, sortDirection, sortField]);
 
   const totalPages = Math.max(1, Math.ceil(sortedPermissions.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -155,6 +180,7 @@ export function PermissionsTable({
               {visibleColumnSet.has('folio') ? <TableHeader field="folio" label={copy.columns.folio} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
               {visibleColumnSet.has('employee') ? <TableHeader field="employee" label={copy.columns.employee} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
               {visibleColumnSet.has('type') ? <TableHeader field="type" label={copy.columns.type} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
+              {visibleColumnSet.has('payrollTreatment') ? <TableHeader field="payrollTreatment" label={copy.columns.payrollTreatment} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
               {visibleColumnSet.has('startDate') ? <TableHeader field="startDate" label={copy.columns.startDate} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
               {visibleColumnSet.has('endDate') ? <TableHeader field="endDate" label={copy.columns.endDate} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
               {visibleColumnSet.has('days') ? <TableHeader field="days" label={copy.columns.days} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
@@ -196,7 +222,16 @@ export function PermissionsTable({
                   ) : null}
                   {visibleColumnSet.has('type') ? (
                     <td className="whitespace-nowrap px-6 py-4">
-                      <Badge className={`rounded-full ${typeColors[permission.type]}`}>{copy.types[permission.type]}</Badge>
+                      <Badge className={`rounded-full ${getTypeColor(permission)}`}>
+                        {getTypeLabel(copy, permission)}
+                      </Badge>
+                    </td>
+                  ) : null}
+                  {visibleColumnSet.has('payrollTreatment') ? (
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <Badge className={`rounded-full ${getPayrollTreatmentColor(permission)}`}>
+                        {getPayrollTreatmentLabel(copy, permission)}
+                      </Badge>
                     </td>
                   ) : null}
                   {visibleColumnSet.has('startDate') ? (
@@ -216,8 +251,8 @@ export function PermissionsTable({
                   ) : null}
                   {visibleColumnSet.has('status') ? (
                     <td className="whitespace-nowrap px-6 py-4">
-                      <Badge className={`rounded-full ${statusColors[permission.status]}`}>
-                        {copy.status[permission.status]}
+                      <Badge className={`rounded-full ${getStatusColor(permission)}`}>
+                        {getStatusLabel(copy, permission)}
                       </Badge>
                     </td>
                   ) : null}
@@ -226,7 +261,7 @@ export function PermissionsTable({
                       className="whitespace-nowrap px-6 py-4 text-right"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="inline-flex items-center justify-end gap-2 rounded-[18px] border border-slate-200 bg-slate-50/80 p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
                         {isManager && permission.status === 'pending' && onApprove && onReject ? (
                           <>
                             <StandardActionButton

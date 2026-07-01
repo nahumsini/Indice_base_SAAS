@@ -17,7 +17,7 @@ public class HrPermissionAttendanceSyncRepository {
     public ApprovedPermissionWindow loadApprovedWindow(long companyId, long requestId) {
         var rows = jdbcTemplate.query(
             """
-                SELECT user_company_id, start_date, end_date
+                SELECT user_company_id, start_date, end_date, payroll_treatment
                 FROM user_permission_requests
                 WHERE company_id = ?
                   AND id = ?
@@ -26,7 +26,8 @@ public class HrPermissionAttendanceSyncRepository {
             (rs, rowNum) -> new ApprovedPermissionWindow(
                 rs.getLong("user_company_id"),
                 rs.getObject("start_date", LocalDate.class),
-                rs.getObject("end_date", LocalDate.class)
+                rs.getObject("end_date", LocalDate.class),
+                rs.getString("payroll_treatment")
             ),
             companyId,
             requestId
@@ -37,6 +38,6 @@ public class HrPermissionAttendanceSyncRepository {
         return rows.getFirst();
     }
 
-    public record ApprovedPermissionWindow(long userCompanyId, LocalDate startDate, LocalDate endDate) {
+    public record ApprovedPermissionWindow(long userCompanyId, LocalDate startDate, LocalDate endDate, String payrollTreatment) {
     }
 }

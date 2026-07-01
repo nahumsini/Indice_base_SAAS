@@ -13,6 +13,10 @@ public final class HrPermissionPayloadSupport {
 
     public static PermissionDraft permissionDraft(Map<String, Object> payload) {
         var type = normalizeType(HrPayloadUtils.stringValue(payload, "type", "permission_type", "permissionType"));
+        var payrollTreatment = normalizePayrollTreatment(
+            HrPayloadUtils.stringValue(payload, "payroll_treatment", "payrollTreatment", "payrollTreatmentCode"),
+            type
+        );
         var startDate = requiredDate(payload, "start_date", "startDate");
         var endDate = requiredDate(payload, "end_date", "endDate");
         if (endDate.isBefore(startDate)) {
@@ -23,7 +27,7 @@ public final class HrPermissionPayloadSupport {
             halfDay = parseBoolean(payload.get("halfDay"));
         }
         var reason = requiredText(HrPayloadUtils.stringValue(payload, "reason"), "reason", 2000);
-        return new PermissionDraft(type, startDate, endDate, halfDay, reason, requestedDays(startDate, endDate, halfDay));
+        return new PermissionDraft(type, payrollTreatment, startDate, endDate, halfDay, reason, requestedDays(startDate, endDate, halfDay));
     }
 
     public static String reviewNotes(Map<String, Object> payload) {
@@ -35,6 +39,18 @@ public final class HrPermissionPayloadSupport {
         return switch (normalized) {
             case "vacation", "sick_leave", "personal", "maternity", "bereavement", "unpaid", "other" -> normalized;
             default -> throw new IllegalArgumentException("type is invalid.");
+        };
+    }
+
+    private static String normalizePayrollTreatment(String rawTreatment, String type) {
+        var normalized = HrPayloadUtils.safe(rawTreatment).trim().toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return "unpaid".equalsIgnoreCase(type) ? "unpaid" : "paid";
+        }
+        return switch (normalized) {
+            case "paid", "paid_leave", "pagado", "con_goce" -> "paid";
+            case "unpaid", "unpaid_leave", "no_pagado", "sin_goce" -> "unpaid";
+            default -> throw new IllegalArgumentException("payroll_treatment is invalid.");
         };
     }
 
@@ -79,6 +95,7 @@ public final class HrPermissionPayloadSupport {
 
     public record PermissionDraft(
         String type,
+        String payrollTreatment,
         LocalDate startDate,
         LocalDate endDate,
         boolean halfDay,

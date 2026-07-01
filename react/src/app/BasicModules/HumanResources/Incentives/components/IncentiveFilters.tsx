@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react';
-import type { RHIncentivo } from '../../mockData';
 import type { IncentivesTranslations } from '../translations';
+import type { RHIncentivo } from '../types';
 
 interface IncentiveFiltersProps {
   copy: IncentivesTranslations;

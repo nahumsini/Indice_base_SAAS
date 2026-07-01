@@ -76,9 +76,9 @@ export const ptBR = {
         description: 'Colaboradores ativos dentro do escopo selecionado.',
       },
       attendance: {
-        title: 'Presença de hoje',
+        title: 'Presença da data de controle',
         target: (registered: number, total: number) => `${registered} de ${total} colaboradores com presença`,
-        description: 'Entradas registradas pelo controle de presença.',
+        description: 'Entradas registradas para a data de controle selecionada.',
       },
       late: {
         title: 'Atrasos e sem registro',
@@ -94,6 +94,11 @@ export const ptBR = {
         title: 'Cobertura de ativos',
         target: (assigned: number, maintenance: number) => `${assigned} atribuídos · ${maintenance} em manutenção`,
         description: 'Equipamentos atribuídos comparados ao quadro ativo.',
+      },
+      assetValue: {
+        title: 'Valor de ativos',
+        target: (nativeBreakdown: string) => `Total nativo: ${nativeBreakdown}`,
+        description: (currency: string) => `Estimado na moeda preferida (${currency}).`,
       },
       records: {
         title: 'Risco em registros',
@@ -118,6 +123,8 @@ export const ptBR = {
       inactive: 'Inativos',
       terminated: 'Encerrados',
       attendanceToday: 'presença de hoje',
+      attendanceControlDate: 'Data de controle de presença',
+      preferredCurrency: 'Moeda preferida',
       onTime: 'No horário',
       late: 'Atraso',
       leave: 'Afastamento',
@@ -126,6 +133,7 @@ export const ptBR = {
       noRecord: 'Sem registro',
       pending: 'Pendente',
       totalAssets: 'Ativos',
+      totalAssetValue: 'Valor de ativos',
       totalPermissions: 'Afastamentos',
       totalRecords: 'Registros',
       readiness: 'Prontidão',

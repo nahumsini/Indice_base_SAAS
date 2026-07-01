@@ -24,7 +24,6 @@ type PayrollRunActionsMenuProps = {
   run: PayrollRunSummary;
   isBusy: boolean;
   onOpen: () => void;
-  onEdit: () => void;
   onProcess: () => void;
   onApprove: () => void;
   onMarkPaid: () => void;
@@ -38,7 +37,6 @@ export function PayrollRunActionsMenu({
   run,
   isBusy,
   onOpen,
-  onEdit,
   onProcess,
   onApprove,
   onMarkPaid,
@@ -50,7 +48,6 @@ export function PayrollRunActionsMenu({
   const canApprove = run.status === 'processed';
   const canPay = run.status === 'approved';
   const canCancel = run.status !== 'paid' && run.status !== 'cancelled';
-  const canEdit = run.status === 'draft';
   const isPaid = run.status === 'paid';
   const isBlocked = run.users_count === 0 && run.status !== 'paid' && run.status !== 'cancelled';
   const reviewTone = isBlocked
@@ -65,7 +62,7 @@ export function PayrollRunActionsMenu({
       <Button
         type="button"
         disabled={isBusy}
-        onClick={canEdit ? onEdit : onOpen}
+        onClick={onOpen}
         title={copy.reviewPayroll}
         aria-label={copy.reviewPayroll}
         className={`${actionButtonClassName} border ${reviewTone}`}
