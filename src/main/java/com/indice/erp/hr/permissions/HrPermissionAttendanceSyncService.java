@@ -22,9 +22,11 @@ public class HrPermissionAttendanceSyncService {
         attendanceService.markPermissionLeaveDays(
             companyId,
             actorUserId,
+            requestId,
             window.userCompanyId(),
             window.startDate(),
-            window.endDate()
+            window.endDate(),
+            window.payrollTreatment()
         );
     }
 }

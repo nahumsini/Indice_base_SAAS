@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { RHIncentivo } from '../../mockData';
 import {
   StandardPaginationFooter,
   StandardSortIcon,
   type StandardSortDirection,
 } from '../../shared/StandardTableControls';
 import type { IncentivesTranslations } from '../translations';
+import type { RHIncentivo } from '../types';
 
 export type IncentiveColumnId =
   | 'incentive'

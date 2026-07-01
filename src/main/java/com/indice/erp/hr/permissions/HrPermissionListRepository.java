@@ -37,7 +37,7 @@ public class HrPermissionListRepository {
         var items = jdbcTemplate.query(
             """
                 SELECT r.id, r.request_number, r.user_company_id, r.user_name_snapshot, r.user_position_snapshot,
-                       r.user_department_snapshot, r.permission_type, r.start_date, r.end_date, r.requested_days,
+                       r.user_department_snapshot, r.permission_type, r.payroll_treatment, r.start_date, r.end_date, r.requested_days,
                        r.is_half_day, r.status, r.reason, r.created_at, r.updated_at,
                        (
                          SELECT a.original_filename
@@ -115,6 +115,7 @@ public class HrPermissionListRepository {
         }
         appendEqualsFilter(where, params, "status", HrPayloadUtils.safe(filters.get("status")));
         appendEqualsFilter(where, params, "permission_type", HrPayloadUtils.safe(filters.get("type")));
+        appendEqualsFilter(where, params, "payroll_treatment", HrPayloadUtils.safe(filters.get("payrollTreatment")));
         var employee = HrPayloadUtils.safe(filters.get("employee")).trim();
         if (!employee.isBlank() && !"all".equalsIgnoreCase(employee)) {
             where.append(" AND r.user_name_snapshot = ?");
@@ -139,6 +140,7 @@ public class HrPermissionListRepository {
         item.put("folio", HrPayloadUtils.safe(rs.getString("request_number")));
         item.put("employee", employee(rs.getLong("user_company_id"), rs.getString("user_name_snapshot"), rs.getString("user_position_snapshot"), rs.getString("user_department_snapshot")));
         item.put("type", HrPayloadUtils.safe(rs.getString("permission_type")));
+        item.put("payrollTreatment", HrPayloadUtils.safe(rs.getString("payroll_treatment")));
         item.put("startDate", asDate(rs.getObject("start_date", LocalDate.class)));
         item.put("endDate", asDate(rs.getObject("end_date", LocalDate.class)));
         item.put("days", rs.getBigDecimal("requested_days") == null ? BigDecimal.ZERO : rs.getBigDecimal("requested_days"));

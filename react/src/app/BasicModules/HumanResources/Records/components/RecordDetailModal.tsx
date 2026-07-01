@@ -26,6 +26,7 @@ interface RecordDetailModalProps {
   locale: string;
   onClose: () => void;
   record: EmployeeRecord | null;
+  onDownload: (record: EmployeeRecord) => Promise<void> | void;
   onEdit: (record: EmployeeRecord) => void;
   onDelete: (recordId: string) => Promise<void> | void;
 }
@@ -97,7 +98,17 @@ const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(lo
   minute: '2-digit',
 }).format(new Date(value));
 
-export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, record, onEdit, onDelete }: RecordDetailModalProps) {
+export function RecordDetailModal({
+  canManage,
+  copy,
+  isOpen,
+  locale,
+  onClose,
+  record,
+  onDownload,
+  onEdit,
+  onDelete,
+}: RecordDetailModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -112,19 +123,19 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-        <div className="sticky top-0 z-10 bg-[#59C3A5] px-6 py-5 text-white">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-[#C9EDE3] bg-[#F7FBFA] text-slate-950 shadow-2xl dark:border-[#2A6356] dark:bg-[#0D1F1B] dark:text-white">
+        <div className="sticky top-0 z-10 border-b border-[#59C3A5]/35 bg-[#59C3A5] px-6 py-5 text-white dark:bg-[#2E9D84]">
           <div className="mb-3 flex items-start justify-between">
             <div className="flex flex-wrap items-center gap-3">
-              <span className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold ${typeInfo.bgColor} ${typeInfo.color}`}>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white shadow-sm">
                 {typeInfo.icon}
                 {copy.types[record.type]}
               </span>
-              <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${statusInfo.bgColor} ${statusInfo.color}`}>
+              <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white shadow-sm">
                 {copy.status[record.status]}
               </span>
               {severityInfo ? (
-                <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${severityInfo.bgColor} ${severityInfo.color}`}>
+                <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-semibold ${severityInfo.bgColor} ${severityInfo.color}`}>
                   {copy.severity[record.severity!]}
                 </span>
               ) : null}
@@ -143,10 +154,10 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
           </p>
         </div>
 
-        <div className="space-y-6 bg-slate-50/70 p-6 dark:bg-slate-950/40">
-          <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 dark:border-blue-800 dark:from-blue-900/20 dark:to-blue-800/10">
+        <div className="space-y-6 bg-[#F7FBFA] p-6 dark:bg-[#0D1F1B]">
+          <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
             <div className="flex items-start gap-4">
-              <div className="rounded-xl bg-blue-500 p-3 shadow-sm">
+              <div className="rounded-xl bg-[#59C3A5] p-3 shadow-sm">
                 <User className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
@@ -159,14 +170,14 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
+            <div className="rounded-2xl border border-[#DCEFEA] bg-white p-5 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="h-5 w-5" />
                 <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.eventDate}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">{formatDate(record.eventDate, locale)}</p>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
+            <div className="rounded-2xl border border-[#DCEFEA] bg-white p-5 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <FileText className="h-5 w-5" />
                 <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.reportedBy}</span>
@@ -175,7 +186,7 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
             <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
               <FileText className="h-5 w-5" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.description}</h3>
@@ -186,7 +197,7 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
           </div>
 
           {record.actionsTaken ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <Pencil className="h-5 w-5" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.actionsTaken}</h3>
@@ -198,7 +209,7 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
           ) : null}
 
           {record.witnesses?.length ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <Users className="h-5 w-5" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.witnesses}</h3>
@@ -217,7 +228,7 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
           ) : null}
 
           {record.attachments?.length ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <Download className="h-5 w-5" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.attachments}</h3>
@@ -241,7 +252,7 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
                           window.open(attachment.url, '_blank', 'noopener,noreferrer');
                         }
                       }}
-                      className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                      className="rounded-lg p-2 text-[#1F8A70] transition-colors hover:bg-[#EAF8F4] dark:text-[#9BE4D0] dark:hover:bg-[#13362F]"
                     >
                       <Download className="h-5 w-5" />
                     </button>
@@ -264,18 +275,27 @@ export function RecordDetailModal({ canManage, copy, isOpen, locale, onClose, re
         </div>
 
         <div className="sticky bottom-0 flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
-          {canManage ? (
+          <div className="flex flex-wrap gap-2">
             <Button
-              className="gap-2 rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
-              onClick={() => setIsDeleteConfirmOpen(true)}
-              disabled={isDeleting}
+              className="gap-2 rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90"
+              onClick={() => {
+                void onDownload(record);
+              }}
             >
-              <Trash2 className="h-4 w-4" />
-              {isDeleting ? copy.actions.deleting : copy.actions.delete}
+              <Download className="h-4 w-4" />
+              {copy.actions.downloadPdf}
             </Button>
-          ) : (
-            <span />
-          )}
+            {canManage ? (
+              <Button
+                className="gap-2 rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4" />
+                {isDeleting ? copy.actions.deleting : copy.actions.delete}
+              </Button>
+            ) : null}
+          </div>
           <div className="flex gap-3">
             <Button className="rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.actions.close}</Button>
             {canManage ? (

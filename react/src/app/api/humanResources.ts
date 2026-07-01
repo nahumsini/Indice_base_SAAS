@@ -808,7 +808,7 @@ export interface PayrollLineItem {
   category: 'earning' | 'deduction' | 'employer_contribution' | 'provision';
   label: string;
   amount: number;
-  source_type: 'computed' | 'manual' | 'computed_tax' | 'adjustment';
+  source_type: 'computed' | 'manual' | 'computed_tax' | 'adjustment' | 'incentive';
   country_code?: string | null;
   jurisdiction_code?: string | null;
   tax_treatment?: string | null;

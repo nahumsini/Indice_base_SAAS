@@ -1,6 +1,7 @@
-import { Calendar, CheckCircle, Clock, Download, FileText, Trash2, User, X, XCircle } from 'lucide-react';
+import { BadgeDollarSign, Calendar, CheckCircle, Clock, Download, FileText, ShieldCheck, Trash2, User, X, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
+import { Textarea } from '../../../../components/ui/textarea';
 import type { PermissionItem } from '../types/permissions.types';
 import type { PermissionsTranslations } from '../translations';
 
@@ -10,8 +11,8 @@ interface PermissionDetailModalProps {
   locale: string;
   onClose: () => void;
   permission: PermissionItem | null;
-  onApprove?: (id: string) => Promise<void>;
-  onReject?: (id: string) => Promise<void>;
+  onApprove?: (id: string, reviewNotes?: string) => Promise<void>;
+  onReject?: (id: string, reviewNotes?: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   isManager?: boolean;
   isReviewing?: boolean;
@@ -33,12 +34,38 @@ const statusConfig: Record<PermissionItem['status'], { color: string; bgColor: s
   rejected: { color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800' },
 };
 
-const formatDate = (value: string, locale: string) => new Intl.DateTimeFormat(locale, {
-  weekday: 'long',
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-}).format(new Date(value));
+const payrollTreatmentConfig: Record<PermissionItem['payrollTreatment'], { color: string; bgColor: string }> = {
+  paid: { color: 'text-emerald-700 dark:text-emerald-300', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800' },
+  unpaid: { color: 'text-amber-700 dark:text-amber-300', bgColor: 'bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800' },
+};
+
+const parseDisplayDate = (value: string) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  return new Date(value);
+};
+
+const formatDate = (value: string | undefined, locale: string, fallback = '-') => {
+  if (!value) {
+    return fallback;
+  }
+
+  const date = parseDisplayDate(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value || fallback;
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+};
 
 const formatFileSize = (value?: number) => {
   if (!value) {
@@ -66,20 +93,25 @@ export function PermissionDetailModal({
   isReviewing = false,
 }: PermissionDetailModalProps) {
   const [localActionError, setLocalActionError] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
 
   useEffect(() => {
-    if (!isOpen) {
-      setLocalActionError('');
-    }
+    setLocalActionError('');
+    setReviewNotes('');
   }, [isOpen, permission?.id]);
 
   if (!isOpen || !permission) {
     return null;
   }
 
-  const typeInfo = typeConfig[permission.type];
-  const statusInfo = statusConfig[permission.status];
+  const typeInfo = typeConfig[permission.type] ?? typeConfig.other;
+  const statusInfo = statusConfig[permission.status] ?? statusConfig.pending;
+  const payrollTreatmentInfo = payrollTreatmentConfig[permission.payrollTreatment] ?? payrollTreatmentConfig.paid;
+  const typeLabel = copy.types[permission.type] ?? copy.types.other;
+  const statusLabel = copy.status[permission.status] ?? copy.status.pending;
+  const payrollTreatmentLabel = copy.payrollTreatment[permission.payrollTreatment] ?? copy.payrollTreatment.paid;
   const attachments = permission.attachments ?? [];
+  const trimmedReviewNotes = reviewNotes.trim();
 
   const handleApprove = async () => {
     if (!onApprove || isReviewing) {
@@ -89,7 +121,7 @@ export function PermissionDetailModal({
     setLocalActionError('');
 
     try {
-      await onApprove(permission.id);
+      await onApprove(permission.id, trimmedReviewNotes || undefined);
       onClose();
     } catch (error) {
       setLocalActionError(error instanceof Error ? error.message : '');
@@ -104,7 +136,7 @@ export function PermissionDetailModal({
     setLocalActionError('');
 
     try {
-      await onReject(permission.id);
+      await onReject(permission.id, trimmedReviewNotes || undefined);
       onClose();
     } catch (error) {
       setLocalActionError(error instanceof Error ? error.message : '');
@@ -128,32 +160,43 @@ export function PermissionDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-gray-800">
-        <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-6 py-5 dark:border-gray-700 dark:bg-gray-800">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-[#59C3A5]/25 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="sticky top-0 z-10 border-b border-[#59C3A5]/20 bg-[#59C3A5] px-6 py-5 text-white">
           <div className="mb-3 flex items-start justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${typeInfo.bgColor} ${typeInfo.color}`}>
-                {copy.types[permission.type]}
+                {typeLabel}
               </span>
               <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${statusInfo.bgColor} ${statusInfo.color}`}>
-                {copy.status[permission.status]}
+                {statusLabel}
+              </span>
+              <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${payrollTreatmentInfo.bgColor} ${payrollTreatmentInfo.color}`}>
+                {payrollTreatmentLabel}
               </span>
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="rounded-full border border-white/25 bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+              aria-label={copy.actions.close}
             >
-              <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              <X className="h-5 w-5" />
             </button>
           </div>
-          <h2 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">{copy.detail.title}</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{copy.detail.folio(permission.folio)}</p>
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="mb-1 text-2xl font-bold text-white">{copy.detail.title}</h2>
+              <p className="text-sm font-medium text-white/80">{copy.detail.folio(permission.folio)}</p>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6 p-6">
-          <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 dark:border-blue-800 dark:from-blue-900/20 dark:to-blue-800/10">
+          <div className="rounded-2xl border border-[#59C3A5]/25 bg-[#59C3A5]/5 p-6 dark:bg-[#59C3A5]/10">
             <div className="flex items-start gap-4">
-              <div className="rounded-xl bg-blue-500 p-3 shadow-sm">
+              <div className="rounded-xl bg-[#59C3A5] p-3 shadow-sm">
                 <User className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
@@ -169,7 +212,7 @@ export function PermissionDetailModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="h-5 w-5" />
@@ -198,7 +241,14 @@ export function PermissionDetailModal({
                 <FileText className="h-5 w-5" />
                 <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.type}</span>
               </div>
-              <p className="font-medium text-gray-900 dark:text-white">{copy.types[permission.type]}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{typeLabel}</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
+              <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <BadgeDollarSign className="h-5 w-5" />
+                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.payrollTreatment}</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white">{payrollTreatmentLabel}</p>
             </div>
           </div>
 
@@ -260,7 +310,7 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <CheckCircle className="h-5 w-5" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.status[permission.status]}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{statusLabel}</h3>
               </div>
               {permission.reviewNotes ? (
                 <div className="mb-3">
@@ -281,6 +331,22 @@ export function PermissionDetailModal({
             </div>
           ) : null}
 
+          {isManager && permission.status === 'pending' && onApprove && onReject ? (
+            <div className="rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-6 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10">
+              <div className="mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                <CheckCircle className="h-5 w-5 text-[#159A7D]" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.detail.reviewNotes}</h3>
+              </div>
+              <Textarea
+                value={reviewNotes}
+                onChange={(event) => setReviewNotes(event.target.value)}
+                rows={3}
+                maxLength={1000}
+                className="rounded-xl border-[#59C3A5]/20 bg-white dark:bg-slate-900"
+              />
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-4 border-t border-gray-200 pt-5 text-sm md:grid-cols-2 dark:border-gray-700">
             <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/30">
               <span className="mb-1 block font-medium text-gray-600 dark:text-gray-400">{copy.detail.created}</span>
@@ -297,18 +363,25 @@ export function PermissionDetailModal({
           </div>
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-900">
-          <div className="min-h-[20px] text-sm text-red-600 dark:text-red-300">
+        <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[#59C3A5]/20 bg-[#59C3A5] px-6 py-4">
+          <div className="min-h-[20px] text-sm font-medium text-white/90">
             {localActionError}
           </div>
-          <div className="flex gap-3">
-            <Button onClick={onClose} variant="outline" disabled={isReviewing}>{copy.actions.close}</Button>
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button
+              onClick={onClose}
+              variant="outline"
+              disabled={isReviewing}
+              className="rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            >
+              {copy.actions.close}
+            </Button>
             {isManager && permission.status === 'pending' && onApprove && onReject ? (
               <>
                 <Button
                   onClick={() => { void handleReject(); }}
                   variant="outline"
-                  className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+                  className="gap-2 rounded-xl border-white/30 bg-white/10 font-semibold text-white hover:bg-white/20 hover:text-white"
                   disabled={isReviewing}
                 >
                   <XCircle className="h-4 w-4" />
@@ -316,7 +389,7 @@ export function PermissionDetailModal({
                 </Button>
                 <Button
                   onClick={() => { void handleApprove(); }}
-                  className="gap-2 bg-green-600 text-white hover:bg-green-700"
+                  className="gap-2 rounded-xl bg-white font-semibold text-[#159A7D] shadow-sm hover:bg-slate-50"
                   disabled={isReviewing}
                 >
                   <CheckCircle className="h-4 w-4" />
@@ -328,7 +401,7 @@ export function PermissionDetailModal({
               <Button
                 onClick={() => { void handleDelete(); }}
                 variant="outline"
-                className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                className="gap-2 rounded-xl border-white/30 bg-white/10 font-semibold text-white hover:bg-white/20 hover:text-white"
                 disabled={isReviewing}
               >
                 <Trash2 className="h-4 w-4" />

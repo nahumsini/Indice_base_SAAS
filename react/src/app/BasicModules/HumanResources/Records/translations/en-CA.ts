@@ -40,6 +40,18 @@ export const enCA = {
     updated: 'Record updated successfully.',
     deleted: 'Record deleted successfully.',
   },
+  bulk: {
+    selected: (count: number) => `${count} selected`,
+    actions: 'Bulk actions',
+    downloadPdf: 'Selected PDFs',
+    markReviewed: 'Mark reviewed',
+    markResolved: 'Mark resolved',
+    delete: 'Delete',
+    clear: 'Clear selection',
+    selectedPage: 'Select visible records',
+    selectRecord: (record: string) => `Select ${record}`,
+    deleteConfirmItem: (count: number) => `${count} records`,
+  },
   columns: {
     id: 'Record',
     employee: 'Employee',

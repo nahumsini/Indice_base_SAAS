@@ -57,6 +57,9 @@ interface TabContentErrorBoundaryProps {
 
 interface TabContentErrorBoundaryState {
   hasError: boolean;
+  errorMessage?: string;
+  errorStack?: string;
+  componentStack?: string;
 }
 
 class TabContentErrorBoundary extends Component<TabContentErrorBoundaryProps, TabContentErrorBoundaryState> {
@@ -64,8 +67,17 @@ class TabContentErrorBoundary extends Component<TabContentErrorBoundaryProps, Ta
     hasError: false,
   };
 
-  static getDerivedStateFromError(): TabContentErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: unknown): TabContentErrorBoundaryState {
+    return {
+      hasError: true,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    };
+  }
+
+  componentDidCatch(error: unknown, errorInfo: { componentStack?: string }) {
+    console.error('Human Resources tab failed to render.', error, errorInfo);
+    this.setState({ componentStack: errorInfo.componentStack });
   }
 
   private handleReload = () => {
@@ -97,6 +109,18 @@ class TabContentErrorBoundary extends Component<TabContentErrorBoundaryProps, Ta
           >
             {copy.reload}
           </Button>
+          {import.meta.env.DEV ? (
+            <details className="mt-4 rounded-md border border-amber-200 bg-white/70 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-slate-950/40 dark:text-amber-100">
+              <summary className="cursor-pointer font-semibold">Detalle técnico local</summary>
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words">
+                {[
+                  this.state.errorMessage,
+                  this.state.errorStack,
+                  this.state.componentStack,
+                ].filter(Boolean).join('\n\n')}
+              </pre>
+            </details>
+          ) : null}
         </div>
       );
     }

@@ -10,6 +10,7 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrOperationalScope;
+import com.indice.erp.hr.incentives.HrIncentivePayrollSupplyService;
 import com.indice.erp.hr.payroll.engine.PayrollAttendanceInputService;
 import com.indice.erp.hr.payroll.engine.PayrollCalculatedLineItem;
 import com.indice.erp.hr.payroll.engine.PayrollCalculationContext;
@@ -70,6 +71,7 @@ public class HrPayrollService {
     private final PayrollSnapshotService payrollSnapshotService;
     private final PayrollRuleResolver payrollRuleResolver;
     private final ColombiaPayrollReportingService colombiaPayrollReportingService;
+    private final HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService;
 
     public HrPayrollService(
         JdbcTemplate jdbcTemplate,
@@ -80,7 +82,8 @@ public class HrPayrollService {
         PayrollManualAdjustmentService payrollManualAdjustmentService,
         PayrollSnapshotService payrollSnapshotService,
         PayrollRuleResolver payrollRuleResolver,
-        ColombiaPayrollReportingService colombiaPayrollReportingService
+        ColombiaPayrollReportingService colombiaPayrollReportingService,
+        HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrPayrollScopeAccess = hrPayrollScopeAccess;
@@ -91,6 +94,7 @@ public class HrPayrollService {
         this.payrollSnapshotService = payrollSnapshotService;
         this.payrollRuleResolver = payrollRuleResolver;
         this.colombiaPayrollReportingService = colombiaPayrollReportingService;
+        this.hrIncentivePayrollSupplyService = hrIncentivePayrollSupplyService;
     }
 
     public Map<String, Object> overview(long companyId) {
@@ -1171,7 +1175,7 @@ public class HrPayrollService {
                     (run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code, tax_treatment,
                      taxable, exempt, affects_social_security, affects_employer_cost, legal_classification, calculation_formula,
                      calculation_base, currency_code, display_order)
-                    VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, 0, ?, ?, ?, 'manual amount', ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?, 0, ?, ?, ?, 'manual adjustment amount', ?, ?, ?)
                     """,
                 lineId,
                 normalizedManual.code(),
@@ -1952,6 +1956,15 @@ public class HrPayrollService {
         );
 
         storeCalculatedLineItems(runLineId, result.items());
+        hrIncentivePayrollSupplyService.markApplicationsApplied(
+            companyId,
+            user.id(),
+            runId,
+            runLineId,
+            periodStartDate,
+            periodEndDate,
+            context.currency()
+        );
         payrollSnapshotService.persistLineSnapshot(runLineId, context, result);
         colombiaPayrollReportingService.persistDraftSnapshots(runLineId, context, result);
     }
@@ -1988,6 +2001,13 @@ public class HrPayrollService {
             periodEndDate,
             runId
         );
+        var incentiveAdjustments = hrIncentivePayrollSupplyService.loadApprovedAdjustments(
+            companyId,
+            user.id(),
+            periodStartDate,
+            periodEndDate,
+            nativeCurrency
+        );
         var context = new PayrollCalculationContext(
             companyId,
             user.userId(),
@@ -2004,7 +2024,7 @@ public class HrPayrollService {
             toSalarySnapshot(user),
             attendance,
             toEnginePreferences(preferences),
-            List.of(),
+            incentiveAdjustments,
             currencySnapshot(nativeCurrency, nativeCurrency, BigDecimal.ONE, periodEndDate),
             countryProfile,
             fiscalAccumulator
@@ -2085,7 +2105,8 @@ public class HrPayrollService {
             date,
             resolvePayrollStatus(record),
             record.firstCheckInAt(),
-            record.lastCheckOutAt()
+            record.lastCheckOutAt(),
+            record.leavePayrollTreatment()
         )));
         return result;
     }
@@ -2173,13 +2194,8 @@ public class HrPayrollService {
         var line = loadRunLine(runLineId);
         var run = loadRun(line.companyId(), line.runId());
         var payrollJurisdiction = resolvePayrollJurisdiction(line.companyId(), line.userCompanyId());
-        var manualAdjustments = loadRunLineItemsBySource(runLineId, "manual").stream()
-            .map((item) -> payrollManualAdjustmentService.normalize(
-                item.category(),
-                item.label(),
-                item.amount(),
-                isBlank(item.currencyCode()) ? line.currencyCodeSnapshot() : item.currencyCode()
-            ))
+        var manualAdjustments = loadRunLineAdjustmentItems(runLineId).stream()
+            .map((item) -> toStoredAdjustment(item, line.currencyCodeSnapshot()))
             .toList();
         var computation = calculateStoredLineWithEngine(
             line,
@@ -2248,12 +2264,12 @@ public class HrPayrollService {
         );
 
         jdbcTemplate.update(
-            "DELETE FROM payroll_run_line_items WHERE run_line_id = ? AND source_type <> 'manual'",
+            "DELETE FROM payroll_run_line_items WHERE run_line_id = ? AND source_type NOT IN ('manual', 'incentive')",
             runLineId
         );
 
         var computedItems = recalculated.items().stream()
-            .filter((item) -> !"manual".equals(item.sourceType()))
+            .filter((item) -> !"manual".equals(item.sourceType()) && !"incentive".equals(item.sourceType()))
             .toList();
         if (!computedItems.isEmpty()) {
             storeCalculatedLineItems(runLineId, computedItems);
@@ -2919,12 +2935,47 @@ public class HrPayrollService {
         );
     }
 
+    private List<PayrollRunLineItemRow> loadRunLineAdjustmentItems(long runLineId) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code,
+                       tax_treatment, taxable, exempt, affects_social_security, affects_employer_cost, legal_classification,
+                       rule_code, rule_set_id, calculation_formula, calculation_base, rate_applied, currency_code, display_order
+                FROM payroll_run_line_items
+                WHERE run_line_id = ? AND source_type IN ('manual', 'incentive')
+                ORDER BY display_order ASC, id ASC
+                """,
+            (rs, rowNum) -> mapRunLineItemRow(rs),
+            runLineId
+        );
+    }
+
+    private PayrollCalculationContext.ManualAdjustment toStoredAdjustment(
+        PayrollRunLineItemRow item,
+        String fallbackCurrency
+    ) {
+        return new PayrollCalculationContext.ManualAdjustment(
+            isBlank(item.code()) ? "MANUAL_EARNING" : item.code(),
+            isBlank(item.category()) ? "earning" : item.category(),
+            isBlank(item.label()) ? "Ajuste" : item.label(),
+            item.amount(),
+            isBlank(item.taxTreatment()) ? "manual_review" : item.taxTreatment(),
+            item.taxable(),
+            item.affectsSocialSecurity(),
+            item.affectsEmployerCost(),
+            isBlank(item.legalClassification()) ? "Ajuste de nómina" : item.legalClassification(),
+            isBlank(item.currencyCode()) ? fallbackCurrency : item.currencyCode(),
+            isBlank(item.sourceType()) ? "manual" : item.sourceType()
+        );
+    }
+
     private Map<LocalDate, PayrollDailyRecordRow> loadDailyRecords(long companyId, long userCompanyId, LocalDate startDate, LocalDate endDate) {
         var rows = jdbcTemplate.query(
             """
                 SELECT attendance_date,
                        system_status,
                        corrected_status,
+                       leave_payroll_treatment,
                        first_check_in_at,
                        last_check_out_at
                 FROM user_attendance_daily_records
@@ -2937,7 +2988,8 @@ public class HrPayrollService {
                 normalizeNullableAttendanceStatus(rs.getString("system_status")),
                 normalizeNullableAttendanceStatus(rs.getString("corrected_status")),
                 toLocalDateTime(rs.getTimestamp("first_check_in_at")),
-                toLocalDateTime(rs.getTimestamp("last_check_out_at"))
+                toLocalDateTime(rs.getTimestamp("last_check_out_at")),
+                normalizeNullablePayrollTreatment(rs.getString("leave_payroll_treatment"))
             ),
             companyId,
             userCompanyId,
@@ -3016,6 +3068,18 @@ public class HrPayrollService {
             return record.systemStatus();
         }
         return null;
+    }
+
+    private String normalizeNullablePayrollTreatment(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        var normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "paid", "paid_leave", "pagado", "con_goce" -> "paid";
+            case "unpaid", "unpaid_leave", "no_pagado", "sin_goce" -> "unpaid";
+            default -> null;
+        };
     }
 
     private BigDecimal scheduledHours(PayrollScheduleWindow window) {
@@ -4332,7 +4396,8 @@ public class HrPayrollService {
         String systemStatus,
         String correctedStatus,
         LocalDateTime firstCheckInAt,
-        LocalDateTime lastCheckOutAt
+        LocalDateTime lastCheckOutAt,
+        String leavePayrollTreatment
     ) {
     }
 

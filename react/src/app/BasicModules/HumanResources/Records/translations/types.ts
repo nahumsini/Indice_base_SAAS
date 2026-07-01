@@ -30,7 +30,7 @@ export type RecordHeaderCopy = Pick<RecordsTranslations, 'title' | 'subtitle' | 
 export type RecordFiltersCopy = Pick<RecordsTranslations, 'filters' | 'types' | 'severity' | 'status'>;
 export type RecordKpiCopy = RecordsTranslations['kpis'];
 export type RecordColumnsModalCopy = RecordsTranslations['columnsModal'];
-export type RecordsListCopy = Pick<RecordsTranslations, 'columns' | 'types' | 'severity' | 'list' | 'actions'>;
+export type RecordsListCopy = Pick<RecordsTranslations, 'columns' | 'types' | 'severity' | 'list' | 'actions' | 'bulk'>;
 export type RecordDetailCopy = Pick<RecordsTranslations, 'types' | 'severity' | 'status' | 'detail' | 'actions'>;
 export type CreateRecordModalCopy = Pick<
   RecordsTranslations,

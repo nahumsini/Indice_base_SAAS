@@ -26,6 +26,7 @@ import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -442,17 +443,22 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
     public void markPermissionLeaveDays(
         long companyId,
         long actorUserId,
+        long permissionRequestId,
         long userCompanyId,
         LocalDate startDate,
-        LocalDate endDate
+        LocalDate endDate,
+        String payrollTreatment
     ) {
         attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
+        var normalizedPayrollTreatment = normalizeLeavePayrollTreatment(payrollTreatment);
         for (var date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             rebuildDailyRecordProjection(companyId, userCompanyId, date);
             jdbcTemplate.update(
                 """
                     UPDATE user_attendance_daily_records
                     SET corrected_status = 'leave',
+                        leave_payroll_treatment = ?,
+                        permission_request_id = ?,
                         corrected_by = ?,
                         corrected_at = CURRENT_TIMESTAMP,
                         notes = NULL
@@ -460,12 +466,22 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
                       AND user_company_id = ?
                       AND attendance_date = ?
                     """,
+                normalizedPayrollTreatment,
+                permissionRequestId,
                 actorUserId,
                 companyId,
                 userCompanyId,
                 date
             );
         }
+    }
+
+    private String normalizeLeavePayrollTreatment(String payrollTreatment) {
+        var normalized = payrollTreatment == null ? "" : payrollTreatment.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "unpaid", "unpaid_leave", "no_pagado", "sin_goce" -> "unpaid";
+            default -> "paid";
+        };
     }
 
     private void requireManagedLocationPayload(long companyId, HrOperationalScope scope, Map<String, Object> payload) {

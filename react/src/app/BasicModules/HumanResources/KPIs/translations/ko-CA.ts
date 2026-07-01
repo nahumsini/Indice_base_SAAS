@@ -76,9 +76,9 @@ export const koCA = {
         description: '선택한 범위의 활성 직원입니다.',
       },
       attendance: {
-        title: '오늘 출근',
+        title: '관리 날짜 출근',
         target: (registered: number, total: number) => `${total}명 중 ${registered}명 출근 기록`,
-        description: '출근 관리에서 등록된 체크인입니다.',
+        description: '선택한 관리 날짜에 등록된 체크인입니다.',
       },
       late: {
         title: '지각 및 미기록',
@@ -94,6 +94,11 @@ export const koCA = {
         title: '자산 배정률',
         target: (assigned: number, maintenance: number) => `배정 ${assigned}건 · 정비 ${maintenance}건`,
         description: '활성 인력 대비 배정된 장비입니다.',
+      },
+      assetValue: {
+        title: '자산 가치',
+        target: (nativeBreakdown: string) => `기본 통화 합계: ${nativeBreakdown}`,
+        description: (currency: string) => `선호 통화(${currency}) 기준 추정값입니다.`,
       },
       records: {
         title: '기록 리스크',
@@ -118,6 +123,8 @@ export const koCA = {
       inactive: '비활성',
       terminated: '종료',
       attendanceToday: '오늘 출근',
+      attendanceControlDate: '출근 관리 날짜',
+      preferredCurrency: '선호 통화',
       onTime: '정시',
       late: '지각',
       leave: '휴가',
@@ -126,6 +133,7 @@ export const koCA = {
       noRecord: '미기록',
       pending: '대기',
       totalAssets: '자산',
+      totalAssetValue: '자산 가치',
       totalPermissions: '휴가 요청',
       totalRecords: '기록',
       readiness: '준비도',

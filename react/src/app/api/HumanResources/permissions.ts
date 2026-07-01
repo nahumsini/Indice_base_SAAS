@@ -12,6 +12,8 @@ export type BackendPermissionType =
 
 export type BackendPermissionStatus = 'pending' | 'approved' | 'rejected';
 
+export type BackendPermissionPayrollTreatment = 'paid' | 'unpaid';
+
 export interface BackendPermissionAttachment {
   id: number;
   fileName: string;
@@ -35,6 +37,7 @@ export interface BackendPermissionItem {
     department?: string;
   };
   type: BackendPermissionType;
+  payrollTreatment?: BackendPermissionPayrollTreatment;
   startDate: string;
   endDate: string;
   days: number;
@@ -79,6 +82,7 @@ export interface DeletePermissionResponse {
 
 export interface CreatePermissionPayload {
   type: BackendPermissionType;
+  payrollTreatment?: BackendPermissionPayrollTreatment;
   startDate: string;
   endDate: string;
   halfDay?: boolean;

@@ -48,8 +48,8 @@ public class HrPermissionCommandRepository {
                 """
                     INSERT INTO user_permission_requests
                     (company_id, user_company_id, user_id, user_name_snapshot, user_position_snapshot, user_department_snapshot,
-                     permission_type, start_date, end_date, requested_days, is_half_day, status, reason, created_by_user_id, updated_by_user_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+                     permission_type, payroll_treatment, start_date, end_date, requested_days, is_half_day, status, reason, created_by_user_id, updated_by_user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
                     """,
                 new String[] {"id"}
             );
@@ -60,13 +60,14 @@ public class HrPermissionCommandRepository {
             statement.setString(5, HrPayloadUtils.nullable(snapshot.position()));
             statement.setString(6, HrPayloadUtils.nullable(snapshot.department()));
             statement.setString(7, draft.type());
-            statement.setObject(8, draft.startDate());
-            statement.setObject(9, draft.endDate());
-            statement.setBigDecimal(10, draft.requestedDays());
-            statement.setBoolean(11, draft.halfDay());
-            statement.setString(12, draft.reason());
-            statement.setLong(13, actorUserId);
+            statement.setString(8, draft.payrollTreatment());
+            statement.setObject(9, draft.startDate());
+            statement.setObject(10, draft.endDate());
+            statement.setBigDecimal(11, draft.requestedDays());
+            statement.setBoolean(12, draft.halfDay());
+            statement.setString(13, draft.reason());
             statement.setLong(14, actorUserId);
+            statement.setLong(15, actorUserId);
             return statement;
         }, keyHolder);
         return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();

@@ -38,12 +38,15 @@ public class PayrollManualAdjustmentService {
         var items = new ArrayList<PayrollCalculatedLineItem>();
         for (var index = 0; index < adjustments.size(); index++) {
             var adjustment = adjustments.get(index);
+            var formula = "incentive".equalsIgnoreCase(adjustment.sourceType())
+                ? "approved incentive amount"
+                : "manual adjustment amount";
             items.add(new PayrollCalculatedLineItem(
                 adjustment.code(),
                 adjustment.category(),
                 adjustment.label(),
                 adjustment.amount(),
-                "manual",
+                adjustment.sourceType(),
                 1000 + index,
                 context.country(),
                 context.jurisdiction(),
@@ -55,7 +58,7 @@ public class PayrollManualAdjustmentService {
                 adjustment.legalClassification(),
                 "",
                 null,
-                "manual amount",
+                formula,
                 adjustment.amount(),
                 null,
                 adjustment.currency().isBlank() ? context.currency() : adjustment.currency()

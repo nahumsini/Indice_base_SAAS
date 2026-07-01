@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public record PayrollCalculationContext(
@@ -223,8 +224,36 @@ public record PayrollCalculationContext(
         boolean affectsSocialSecurity,
         boolean affectsEmployerCost,
         String legalClassification,
-        String currency
+        String currency,
+        String sourceType
     ) {
+        public ManualAdjustment(
+            String code,
+            String category,
+            String label,
+            BigDecimal amount,
+            String taxTreatment,
+            boolean taxable,
+            boolean affectsSocialSecurity,
+            boolean affectsEmployerCost,
+            String legalClassification,
+            String currency
+        ) {
+            this(
+                code,
+                category,
+                label,
+                amount,
+                taxTreatment,
+                taxable,
+                affectsSocialSecurity,
+                affectsEmployerCost,
+                legalClassification,
+                currency,
+                "manual"
+            );
+        }
+
         public ManualAdjustment {
             code = text(code);
             category = text(category);
@@ -233,6 +262,7 @@ public record PayrollCalculationContext(
             taxTreatment = text(taxTreatment);
             legalClassification = text(legalClassification);
             currency = text(currency);
+            sourceType = text(sourceType).isBlank() ? "manual" : text(sourceType).toLowerCase(Locale.ROOT);
         }
     }
 

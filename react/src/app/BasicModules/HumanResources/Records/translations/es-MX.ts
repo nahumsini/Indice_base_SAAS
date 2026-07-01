@@ -44,6 +44,18 @@ export const esMX = {
     updated: 'Acta actualizada correctamente.',
     deleted: 'Acta eliminada correctamente.',
   },
+  bulk: {
+    selected: (count: number) => `${count} seleccionadas`,
+    actions: 'Acciones masivas',
+    downloadPdf: 'PDF seleccionadas',
+    markReviewed: 'Marcar revisadas',
+    markResolved: 'Marcar resueltas',
+    delete: 'Eliminar',
+    clear: 'Limpiar selección',
+    selectedPage: 'Seleccionar actas visibles',
+    selectRecord: (record: string) => `Seleccionar ${record}`,
+    deleteConfirmItem: (count: number) => `${count} actas`,
+  },
   columns: {
     id: 'Acta',
     employee: 'Colaborador',

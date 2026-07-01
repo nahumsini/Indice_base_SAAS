@@ -76,9 +76,9 @@ export const esMX = {
         description: 'Colaboradores activos dentro del alcance seleccionado.',
       },
       attendance: {
-        title: 'Asistencia de hoy',
+        title: 'Asistencia del día de control',
         target: (registered: number, total: number) => `${registered} de ${total} colaboradores con asistencia`,
-        description: 'Entradas registradas desde el control de asistencia.',
+        description: 'Entradas registradas para la fecha de control seleccionada.',
       },
       late: {
         title: 'Retardos y sin registro',
@@ -94,6 +94,11 @@ export const esMX = {
         title: 'Cobertura de activos',
         target: (assigned: number, maintenance: number) => `${assigned} asignados · ${maintenance} en mantenimiento`,
         description: 'Equipo asignado comparado contra la plantilla activa.',
+      },
+      assetValue: {
+        title: 'Valor de activos',
+        target: (nativeBreakdown: string) => `Total nativo: ${nativeBreakdown}`,
+        description: (currency: string) => `Estimado en la divisa preferida (${currency}).`,
       },
       records: {
         title: 'Riesgo en actas',
@@ -118,6 +123,8 @@ export const esMX = {
       inactive: 'Inactivos',
       terminated: 'Terminados',
       attendanceToday: 'asistencia de hoy',
+      attendanceControlDate: 'Fecha de control de asistencia',
+      preferredCurrency: 'Divisa preferida',
       onTime: 'A tiempo',
       late: 'Retardo',
       leave: 'Permiso',
@@ -126,6 +133,7 @@ export const esMX = {
       noRecord: 'Sin registro',
       pending: 'Pendiente',
       totalAssets: 'Activos',
+      totalAssetValue: 'Valor de activos',
       totalPermissions: 'Permisos',
       totalRecords: 'Actas',
       readiness: 'Preparación',

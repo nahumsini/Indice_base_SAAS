@@ -76,9 +76,9 @@ export const zhCA = {
         description: '所选范围内的在职员工。',
       },
       attendance: {
-        title: '今日考勤',
+        title: '控制日期考勤',
         target: (registered: number, total: number) => `${total} 人中 ${registered} 人有考勤记录`,
-        description: '来自考勤控制概览的打卡记录。',
+        description: '所选控制日期的打卡记录。',
       },
       late: {
         title: '迟到与无记录',
@@ -94,6 +94,11 @@ export const zhCA = {
         title: '资产覆盖率',
         target: (assigned: number, maintenance: number) => `${assigned} 已分配 · ${maintenance} 维护中`,
         description: '已分配设备与在职人员的对比。',
+      },
+      assetValue: {
+        title: '资产价值',
+        target: (nativeBreakdown: string) => `原币总额：${nativeBreakdown}`,
+        description: (currency: string) => `按首选币种（${currency}）估算。`,
       },
       records: {
         title: '记录风险',
@@ -118,6 +123,8 @@ export const zhCA = {
       inactive: '停用',
       terminated: '离职',
       attendanceToday: '今日考勤',
+      attendanceControlDate: '考勤控制日期',
+      preferredCurrency: '首选币种',
       onTime: '准时',
       late: '迟到',
       leave: '请假',
@@ -126,6 +133,7 @@ export const zhCA = {
       noRecord: '无记录',
       pending: '待处理',
       totalAssets: '资产',
+      totalAssetValue: '资产价值',
       totalPermissions: '请假',
       totalRecords: '记录',
       readiness: '准备度',

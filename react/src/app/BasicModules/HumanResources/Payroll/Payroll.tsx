@@ -1,10 +1,8 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CalendarDays,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
   CheckCircle2,
   CreditCard,
   Download,
@@ -49,7 +47,6 @@ import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import {
   humanResourcesApi,
-  type HrUserDetailsResponse,
   type PayrollColombiaConfig,
   type PayrollColombiaEmployeeProfile,
   type PayrollColombiaNovelty,
@@ -90,33 +87,11 @@ import { PayrollOperationsPanel } from './components/PayrollOperationsPanel';
 import { PayrollRunActionsMenu } from './components/PayrollRunActionsMenu';
 import { PayrollSetupGuide } from './components/PayrollSetupGuide';
 import {
-  payrollBreakdownConfigByJurisdiction,
-  payrollDetailedColumnsByJurisdiction,
-  payrollEmployerSummaryConfigByJurisdiction,
-  payrollSimplifiedColumnsByJurisdiction,
-  payrollStatutoryColumnKeysByJurisdiction,
-} from './config/payrollColumns';
-import { QUEBEC_PROVINCE_NAME } from './config/payrollJurisdictions';
-import { VariablePayModal, type VariablePayItem } from './modules/payroll/components/VariablePayModal';
-import type {
-  PayrollDetailedColumnKey,
-  PayrollEditTableColumnKey,
-  PayrollEmployerSummaryMetricKey,
-  PayrollJurisdiction,
-} from './types/payrollJurisdiction';
-import {
   filterPayrollItemsByJurisdiction,
   groupPayrollEntitiesByJurisdiction,
   resolveJurisdictionProvinceLabel,
   resolveRunJurisdiction,
 } from './utils/payrollGrouping';
-import {
-  formatPayrollJurisdictionLabel,
-  parseUnsupportedPayrollCountryLabel,
-  parsePayrollJurisdictionLabel,
-  resolvePayrollJurisdiction,
-  resolvePayrollJurisdictionCountry,
-} from './utils/resolvePayrollJurisdiction';
 
 const PAYROLL_PRINT_REPORT_ID_PREFIX = 'IDX-PR';
 const payrollRateFieldKeys = [
@@ -310,6 +285,50 @@ const formatRunNativeBreakdown = (
   }))
   .join(' / ');
 
+const getPayrollLineItemDisplayLabel = (item: PayrollLineItem, copy: PayrollCopy) => {
+  const labelByCode: Record<string, string> = {
+    BASE_DAILY: copy.labels.periodSalary,
+    BASE_HOURLY: copy.labels.regularHours,
+    OVERTIME: copy.labels.overtime,
+    LEAVE_PAY: copy.labels.paidLeaveAmount,
+    ABSENCE_DEDUCTION: copy.labels.unpaidAttendanceDeduction,
+  };
+
+  return labelByCode[item.code] || item.label || item.code;
+};
+
+const getPayrollLineItemSourceLabel = (item: PayrollLineItem, copy: PayrollCopy) => {
+  switch (item.source_type) {
+    case 'manual':
+      return copy.labels.sourceManual;
+    case 'computed_tax':
+      return copy.labels.sourceTax;
+    case 'incentive':
+      return copy.labels.sourceIncentive;
+    case 'adjustment':
+      return copy.labels.sourceAdjustment;
+    case 'computed':
+    default:
+      return copy.labels.sourceComputed;
+  }
+};
+
+const getPayrollLineItemSourceClassName = (item: PayrollLineItem) => {
+  switch (item.source_type) {
+    case 'manual':
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200';
+    case 'computed_tax':
+      return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200';
+    case 'incentive':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200';
+    case 'adjustment':
+      return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-200';
+    case 'computed':
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  }
+};
+
 const formatDate = (value: string, locale: string, fallback: string) => {
   if (!value) {
     return fallback;
@@ -365,13 +384,6 @@ type PayrollDialogNotice = {
   message: string;
 };
 
-type PayrollRunEditForm = {
-  status: PayrollRunSummary['status'];
-  employeesCount: string;
-  netAmount: string;
-  jurisdiction: string;
-};
-
 type PayrollColombiaSetupContext = {
   run: PayrollRunSummary;
   line: PayrollRunLine;
@@ -389,423 +401,9 @@ type PayrollColombiaNoveltyForm = {
   ibc_impact_amount: number;
 };
 
-type PayrollEditTableRow = {
-  id: number | string;
-  jurisdiction: PayrollJurisdiction;
-  statutoryPayroll: boolean;
-  payrollMode: 'Statutory' | 'Internal only' | 'Pending setup';
-  employee: string;
-  unit: string;
-  business: string;
-  employmentType: PayrollDetailedRow['employmentType'];
-  province: string;
-  daysWorked: number;
-  daysAbsent: number;
-  periodSalary: number;
-  transportAllowance: number;
-  variablePayTotal: number;
-  variablePayItems: VariablePayItem[];
-  grossPay: number;
-  internalDeductions: number;
-  statutoryDeductions: number;
-  totalDeductions: number;
-  netPay: number;
-  status: 'Processed' | 'Draft' | 'Review' | 'Internal only';
-};
-
-type PayrollEditableAttendanceField =
-  | 'daysWorked'
-  | 'daysAbsent'
-  | 'daysPaid'
-  | 'overtimeHours'
-  | 'vacationDays'
-  | 'paidHolidays';
-
-type PayrollDetailedRow = {
-  id: number | string;
-  jurisdiction: PayrollJurisdiction;
-  country: string;
-  province: string;
-  employee: string;
-  rfc: string;
-  curp: string;
-  nss: string;
-  sin: string;
-  cpf: string;
-  pisPasep: string;
-  idNumber: string;
-  contractType: 'Indefinite' | 'Fixed-term' | 'Service contract' | 'Apprenticeship';
-  unit: string;
-  business: string;
-  statutoryPayroll: boolean;
-  payrollMode: 'Statutory' | 'Internal only' | 'Pending setup';
-  employmentType: 'Full-time' | 'Part-time' | 'Contract' | 'CLT' | 'Contractor' | 'Intern' | 'Temporary' | 'Apprentice';
-  payType: 'Hourly' | 'Salary' | 'Monthly';
-  hourlyRate: number;
-  monthlySalary: number;
-  contributionType: 'Fixed' | 'Variable' | 'Mixed';
-  dailyWage: number;
-  integratedDailyWage: number;
-  baseContributionSalary: number;
-  daysPaid: number;
-  absenceDays: number;
-  totalWorkedHours: number;
-  hoursPerDay: number;
-  overtimeHours: number;
-  nightSurcharge: number;
-  sundayHolidaySurcharge: number;
-  nightShiftPremium: number;
-  hazardUnhealthyPremium: number;
-  periodSalary: number;
-  overtimeAmount: number;
-  transportAllowance: number;
-  variablePayTotal: number;
-  bonusesCommissions: number;
-  vacationPay: number;
-  vacationBonusOneThird: number;
-  vacationPremium: number;
-  thirteenthSalaryProvision: number;
-  taxableBenefits: number;
-  proportionalChristmasBonus: number;
-  grossPay: number;
-  totalEarnings: number;
-  federalTax: number;
-  provincialTax: number;
-  quebecProvincialTax: number;
-  isrBeforeSubsidy: number;
-  employmentSubsidy: number;
-  finalIsr: number;
-  employeeImss: number;
-  employeeCpp: number;
-  employeeCpp2: number;
-  employeeEi: number;
-  employeeQpp: number;
-  employeeQpp2: number;
-  employeeQpip: number;
-  employeeHealth: number;
-  employeePension: number;
-  withholdingTax: number;
-  employeeInss: number;
-  irrf: number;
-  transportationVoucher: number;
-  mealBenefitsDeduction: number;
-  infonavitType: 'Percentage' | 'VSM' | 'Fixed Amount' | 'None';
-  infonavitDiscount: number;
-  otherDeductions: number;
-  loans: number;
-  otherDiscounts: number;
-  netAdjustment: number;
-  totalDeductions: number;
-  netPay: number;
-  employerImss: number;
-  employerInfonavit: number;
-  sar: number;
-  payrollStateTax: number;
-  occupationalRisk: number;
-  childcareImss: number;
-  employerCpp: number;
-  employerCpp2: number;
-  employerEi: number;
-  employerBenefits: number;
-  employerQpp: number;
-  employerQpp2: number;
-  employerQpip: number;
-  employerHealth: number;
-  employerPension: number;
-  arl: number;
-  retroactiveAdjustments: number;
-  payrollCorrections: number;
-  terminationSettlement: number;
-  terminationIndemnity: number;
-  severance: number;
-  severanceInterest: number;
-  serviceBonus: number;
-  vacationProvision: number;
-  familyCompensationFund: number;
-  icbf: number;
-  sena: number;
-  employerInss: number;
-  fgts: number;
-  ratWorkAccident: number;
-  thirdPartyContributions: number;
-  totalEmployerObligations: number;
-  totalPayrollCost: number;
-};
-
-type PayrollRow = PayrollDetailedRow & {
-  periodStartDate: string;
-  periodEndDate: string;
-};
-
-type ImssBreakdownRow = {
-  concept: string;
-  employer: number;
-  employee: number;
-};
-
-type PayrollEmployerSummary = Record<PayrollEmployerSummaryMetricKey, number>;
-
-type PayrollBreakdownModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  employee: PayrollRow | null;
-  copy: PayrollCopy['breakdown'];
-};
-
-const roundPayrollMoney = (value: number) => Math.round(value * 100) / 100;
-
-function getEffectivePayrollValues<T extends PayrollDetailedRow | PayrollRow>(row: T): T {
-  if (!row.statutoryPayroll) {
-    const internalDeductions = roundPayrollMoney(
-      row.otherDeductions || row.loans + row.otherDiscounts + row.netAdjustment,
-    );
-    const grossPay = roundPayrollMoney(row.grossPay || row.totalEarnings);
-    const internalNetPay = roundPayrollMoney(grossPay - internalDeductions);
-
-    return {
-      ...row,
-      federalTax: 0,
-      provincialTax: 0,
-      quebecProvincialTax: 0,
-      isrBeforeSubsidy: 0,
-      employmentSubsidy: 0,
-      finalIsr: 0,
-      employeeImss: 0,
-      employeeCpp: 0,
-      employeeCpp2: 0,
-      employeeEi: 0,
-      employeeQpp: 0,
-      employeeQpp2: 0,
-      employeeQpip: 0,
-      employeeHealth: 0,
-      employeePension: 0,
-      withholdingTax: 0,
-      employeeInss: 0,
-      irrf: 0,
-      transportationVoucher: 0,
-      mealBenefitsDeduction: 0,
-      infonavitDiscount: 0,
-      employerImss: 0,
-      employerInfonavit: 0,
-      sar: 0,
-      payrollStateTax: 0,
-      occupationalRisk: 0,
-      childcareImss: 0,
-      employerCpp: 0,
-      employerCpp2: 0,
-      employerEi: 0,
-      employerBenefits: 0,
-      employerQpp: 0,
-      employerQpp2: 0,
-      employerQpip: 0,
-      employerHealth: 0,
-      employerPension: 0,
-      arl: 0,
-      retroactiveAdjustments: 0,
-      payrollCorrections: 0,
-      terminationSettlement: 0,
-      terminationIndemnity: 0,
-      severance: 0,
-      severanceInterest: 0,
-      serviceBonus: 0,
-      vacationProvision: 0,
-      familyCompensationFund: 0,
-      icbf: 0,
-      sena: 0,
-      employerInss: 0,
-      fgts: 0,
-      ratWorkAccident: 0,
-      thirdPartyContributions: 0,
-      totalEmployerObligations: 0,
-      otherDeductions: internalDeductions,
-      totalDeductions: internalDeductions,
-      netPay: internalNetPay,
-      totalPayrollCost: internalNetPay,
-    };
-  }
-
-  return row;
-}
-
 const createPayrollPrintReportId = (runId: number) => (
   `${PAYROLL_PRINT_REPORT_ID_PREFIX}-${String(runId).padStart(4, '0')}`
 );
-
-const emptyEmployerSummary = (): PayrollEmployerSummary => ({
-  employerImss: 0,
-  employerInfonavit: 0,
-  sar: 0,
-  payrollStateTax: 0,
-  occupationalRisk: 0,
-  childcareImss: 0,
-  employerCpp: 0,
-  employerCpp2: 0,
-  employerEi: 0,
-  employerBenefits: 0,
-  employerQpp: 0,
-  employerQpp2: 0,
-  employerQpip: 0,
-  employerHealth: 0,
-  employerPension: 0,
-  arl: 0,
-  severance: 0,
-  severanceInterest: 0,
-  serviceBonus: 0,
-  vacationProvision: 0,
-  familyCompensationFund: 0,
-  icbf: 0,
-  sena: 0,
-  employerInss: 0,
-  fgts: 0,
-  ratWorkAccident: 0,
-  thirdPartyContributions: 0,
-  totalEmployerObligations: 0,
-  totalPayrollCost: 0,
-});
-
-const createEmptyCanadaStatutoryValues = () => ({
-  federalTax: 0,
-  provincialTax: 0,
-  quebecProvincialTax: 0,
-  employeeCpp: 0,
-  employeeCpp2: 0,
-  employeeEi: 0,
-  employeeQpp: 0,
-  employeeQpp2: 0,
-  employeeQpip: 0,
-  employerCpp: 0,
-  employerCpp2: 0,
-  employerEi: 0,
-  employerBenefits: 0,
-  employerQpp: 0,
-  employerQpp2: 0,
-  employerQpip: 0,
-  totalEmployerObligations: 0,
-});
-
-const emptyCanadaStandardStatutoryValues = () => createEmptyCanadaStatutoryValues();
-
-const emptyCanadaQuebecStatutoryValues = () => createEmptyCanadaStatutoryValues();
-
-const emptyUsaStatutoryValues = () => ({
-  federalTax: 0,
-  provincialTax: 0,
-  employeeCpp: 0,
-  employeeEi: 0,
-  employerCpp: 0,
-  employerEi: 0,
-  payrollStateTax: 0,
-  employerBenefits: 0,
-  totalEmployerObligations: 0,
-});
-
-const emptyBrazilStatutoryValues = () => ({
-  employeeInss: 0,
-  irrf: 0,
-  transportationVoucher: 0,
-  mealBenefitsDeduction: 0,
-  employerInss: 0,
-  fgts: 0,
-  ratWorkAccident: 0,
-  thirdPartyContributions: 0,
-  employerBenefits: 0,
-  totalEmployerObligations: 0,
-});
-
-const emptyColombiaStatutoryValues = () => ({
-  employeeHealth: 0,
-  employeePension: 0,
-  withholdingTax: 0,
-  employerHealth: 0,
-  employerPension: 0,
-  arl: 0,
-  retroactiveAdjustments: 0,
-  payrollCorrections: 0,
-  terminationSettlement: 0,
-  terminationIndemnity: 0,
-  severance: 0,
-  severanceInterest: 0,
-  serviceBonus: 0,
-  vacationProvision: 0,
-  familyCompensationFund: 0,
-  icbf: 0,
-  sena: 0,
-  totalEmployerObligations: 0,
-});
-
-const escapePrintHtml = (value: string) => value
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;');
-
-const printHtmlDocument = ({
-  title,
-  orientation,
-  bodyHtml,
-}: {
-  title: string;
-  orientation: 'portrait' | 'landscape';
-  bodyHtml: string;
-}) => {
-  const htmlDocument = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>${escapePrintHtml(title)}</title>
-    <style>
-      @page { size: A4 ${orientation}; margin: 10mm; }
-      html, body { margin: 0; padding: 0; color: #0f172a; font-family: "Segoe UI", Tahoma, sans-serif; }
-      body { padding: 14px; }
-      h1, h2, h3, p { margin: 0; }
-      .header { margin-bottom: 12px; }
-      .header h1 { font-size: 18px; color: #59C3A5; margin-bottom: 4px; }
-      .meta { font-size: 12px; color: #475569; margin-bottom: 2px; }
-      .badge { display: inline-block; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 2px 8px; font-size: 11px; color: #334155; }
-      .section { margin-top: 14px; }
-      .section h2 { font-size: 13px; margin-bottom: 8px; color: #0f172a; }
-      table { width: 100%; border-collapse: collapse; table-layout: auto; }
-      th, td { border: 1px solid #dbe3ee; padding: 6px 8px; font-size: 11px; vertical-align: top; }
-      th { background: #eef3fb; color: #0f172a; text-align: left; }
-      .num { text-align: right; font-variant-numeric: tabular-nums; }
-      .muted { color: #64748b; }
-      .note { margin-top: 10px; padding: 8px; border: 1px solid #facc15; background: #fef9c3; color: #854d0e; border-radius: 6px; font-size: 11px; }
-      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-      .card { border: 1px solid #dbe3ee; border-radius: 8px; padding: 8px; }
-      .card-title { font-size: 11px; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .02em; }
-      .card-value { font-size: 13px; font-weight: 600; color: #0f172a; }
-    </style>
-  </head>
-  <body>
-    ${bodyHtml}
-  </body>
-</html>`;
-
-  const blob = new Blob([htmlDocument], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-
-  const printWindow = window.open(blobUrl, '_blank');
-  if (!printWindow) {
-    URL.revokeObjectURL(blobUrl);
-    return false;
-  }
-
-  const cleanup = () => {
-    URL.revokeObjectURL(blobUrl);
-  };
-
-  printWindow.addEventListener('load', () => {
-    printWindow.focus();
-    printWindow.print();
-    setTimeout(cleanup, 30_000);
-  }, { once: true });
-
-  // Fallback cleanup if load event is not fired as expected.
-  setTimeout(cleanup, 60_000);
-
-  return true;
-};
 
 const downloadFile = async (path: string, filename: string) => {
   const response = await fetch(buildApiUrl(path), {
@@ -877,11 +475,6 @@ export default function Payroll() {
   const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
   const [isGovernmentReportingDialogOpen, setIsGovernmentReportingDialogOpen] = useState(false);
   const [isColombiaSetupDialogOpen, setIsColombiaSetupDialogOpen] = useState(false);
-  const [isEditRunDialogOpen, setIsEditRunDialogOpen] = useState(false);
-  const [isEditRunDetailLoading, setIsEditRunDetailLoading] = useState(false);
-  const [editRunDetail, setEditRunDetail] = useState<PayrollRunDetailResponse | null>(null);
-  const [editingRun, setEditingRun] = useState<PayrollRunSummary | null>(null);
-  const [editRunForm, setEditRunForm] = useState<PayrollRunEditForm | null>(null);
   const [printJob, setPrintJob] = useState<PayrollRunPdfDocumentProps | null>(null);
   const [runDialogNotice, setRunDialogNotice] = useState<PayrollDialogNotice | null>(null);
   const [preferencesForm, setPreferencesForm] = useState<PayrollPreferences>(defaultPayrollPreferences);
@@ -1428,58 +1021,6 @@ export default function Payroll() {
     }
   };
 
-  const openEditRunModal = async (run: PayrollRunSummary) => {
-    setEditingRun(run);
-    setEditRunDetail(null);
-    setIsEditRunDetailLoading(true);
-    setEditRunForm({
-      status: run.status,
-      employeesCount: String(run.users_count),
-      netAmount: String(run.net_amount),
-      jurisdiction: jurisdictionsByRunId[run.id] ?? '',
-    });
-    setIsEditRunDialogOpen(true);
-
-    try {
-      const detail = await humanResourcesApi.getPayrollRun(run.id);
-      setEditRunDetail(detail);
-    } catch {
-      setEditRunDetail(null);
-    } finally {
-      setIsEditRunDetailLoading(false);
-    }
-  };
-
-  const handleSaveEditedRun = () => {
-    if (!editingRun || !editRunForm) {
-      return;
-    }
-
-    const parsedEmployees = Number(editRunForm.employeesCount);
-    const parsedNetAmount = Number(editRunForm.netAmount);
-
-    setRuns((currentRuns) => currentRuns.map((run) => (
-      run.id === editingRun.id
-        ? {
-          ...run,
-          status: editRunForm.status,
-          users_count: Number.isFinite(parsedEmployees) ? Math.max(0, parsedEmployees) : run.users_count,
-          net_amount: Number.isFinite(parsedNetAmount) ? Math.max(0, parsedNetAmount) : run.net_amount,
-        }
-        : run
-    )));
-
-    setJurisdictionsByRunId((current) => ({
-      ...current,
-      [editingRun.id]: editRunForm.jurisdiction.trim(),
-    }));
-
-    setIsEditRunDialogOpen(false);
-    setEditingRun(null);
-    setEditRunForm(null);
-    setSuccessMessage(copy.success.runEdited);
-  };
-
   const handleProcessRunFromTable = async (run: PayrollRunSummary) => {
     try {
       await runBusyTask({
@@ -1962,7 +1503,6 @@ export default function Payroll() {
                             run={run}
                             isBusy={isSaving}
                             onOpen={() => void openRunDetail(run.id)}
-                            onEdit={() => void openEditRunModal(run)}
                             onProcess={() => void handleProcessRunFromTable(run)}
                             onApprove={() => void handleApproveRunFromTable(run)}
                             onMarkPaid={() => void handlePayRunFromTable(run)}
@@ -2056,2623 +1596,11 @@ export default function Payroll() {
         />
       ) : null}
 
-      {isEditRunDialogOpen && editingRun && editRunForm ? (
-        <PayrollEditRunDialog
-          copy={copy}
-          run={editingRun}
-          form={editRunForm}
-          unitLabel={resolveRunUnitLabel(editingRun)}
-          businessLabel={resolveRunBusinessLabel(editingRun)}
-          jurisdictionLabel={resolveRunJurisdictionLabel(editingRun)}
-          detail={editRunDetail}
-          isDetailLoading={isEditRunDetailLoading}
-          isOpen={isEditRunDialogOpen}
-          isSaving={isSaving}
-          onClose={() => {
-            setIsEditRunDialogOpen(false);
-            setEditRunDetail(null);
-            setEditingRun(null);
-            setEditRunForm(null);
-          }}
-          onChange={setEditRunForm}
-          onSave={handleSaveEditedRun}
-          onPrint={() => void handleDownload('pdf', editingRun)}
-          locale={currentLanguage.code}
-        />
-      ) : null}
-
       <PayrollRunPrintPortal
         job={printJob}
         onComplete={() => setPrintJob(null)}
       />
     </>
-  );
-}
-
-function PayrollEditRunDialog({
-  copy,
-  run,
-  form,
-  unitLabel,
-  businessLabel,
-  jurisdictionLabel,
-  detail,
-  isDetailLoading,
-  isOpen,
-  isSaving,
-  onClose,
-  onChange,
-  onSave,
-  onPrint,
-  locale,
-}: {
-  copy: PayrollCopy;
-  run: PayrollRunSummary;
-  form: PayrollRunEditForm;
-  unitLabel: string;
-  businessLabel: string;
-  jurisdictionLabel: string;
-  detail: PayrollRunDetailResponse | null;
-  isDetailLoading: boolean;
-  isOpen: boolean;
-  isSaving: boolean;
-  onClose: () => void;
-  onChange: (value: PayrollRunEditForm) => void;
-  onSave: () => void;
-  onPrint: () => void;
-  locale: string;
-}) {
-  const runLines = detail?.lines ?? [];
-  const editCopy = copy.editRun;
-  const noRowsLabel = editCopy.noRows;
-  const statusLabel = copy.statuses[form.status];
-  const payrollTypeLabel = copy.groupingModes[run.grouping_mode];
-  const frequencyLabel = copy.frequencies[run.pay_period];
-  const rawJurisdictionLabel = (form.jurisdiction.trim() || jurisdictionLabel).trim();
-  const fallbackJurisdictionMeta = parsePayrollJurisdictionLabel(rawJurisdictionLabel);
-  const unsupportedJurisdictionMeta = fallbackJurisdictionMeta ? null : parseUnsupportedPayrollCountryLabel(rawJurisdictionLabel);
-  const isUnsupportedJurisdiction = Boolean(unsupportedJurisdictionMeta);
-  const fallbackRunJurisdiction = fallbackJurisdictionMeta?.jurisdiction ?? 'MX';
-  const fallbackProvinceLabel = fallbackJurisdictionMeta?.province ?? '';
-
-  const aggregateLineAmount = (
-    line: PayrollRunLine,
-    category: PayrollLineItem['category'],
-  ) => line.items
-    .filter((item) => item.category === category)
-    .reduce((total, item) => total + item.amount, 0);
-
-  const roundMoney = (value: number) => Math.round(value * 100) / 100;
-  const formatAmount = (value?: number | null) => {
-    if (typeof value !== 'number' || Number.isNaN(value)) {
-      return '—';
-    }
-
-    return value.toLocaleString(locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
-  const [payrollViewMode, setPayrollViewMode] = useState<'simplified' | 'detailed'>('simplified');
-  const [sortColumn, setSortColumn] = useState<PayrollEditTableColumnKey>('employee');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [detailedSortColumn, setDetailedSortColumn] = useState<PayrollDetailedColumnKey>('employee');
-  const [detailedSortDirection, setDetailedSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [breakdownRow, setBreakdownRow] = useState<PayrollRow | null>(null);
-  const [variablePayByRow, setVariablePayByRow] = useState<Record<string, VariablePayItem[]>>({});
-  const [variablePayEditorRowId, setVariablePayEditorRowId] = useState<string | null>(null);
-  const [employeeProfilesById, setEmployeeProfilesById] = useState<Record<number, HrUserDetailsResponse['profile']>>({});
-  const runLineEmployeeIds = useMemo(
-    () => Array.from(new Set(
-      runLines
-        .map((line) => line.user_company_id)
-        .filter((employeeId): employeeId is number => Number.isFinite(employeeId)),
-    )),
-    [detail?.lines],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadEmployeeProfiles = async () => {
-      if (runLineEmployeeIds.length === 0) {
-        setEmployeeProfilesById((current) => (Object.keys(current).length === 0 ? current : {}));
-        return;
-      }
-
-      const resolvedProfiles = await Promise.all(runLineEmployeeIds.map(async (employeeId) => {
-        try {
-          const details = await humanResourcesApi.getHrUserDetails(employeeId);
-          return [employeeId, details.profile] as const;
-        } catch {
-          return [employeeId, {}] as const;
-        }
-      }));
-
-      if (cancelled) {
-        return;
-      }
-
-      setEmployeeProfilesById(Object.fromEntries(resolvedProfiles));
-    };
-
-    void loadEmployeeProfiles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [runLineEmployeeIds]);
-
-  const createVariablePayDefaults = (row: PayrollDetailedRow): VariablePayItem[] => [
-    {
-      id: `auto-bonus-1-${row.id}`,
-      type: 'bonus',
-      source: 'automatic',
-      name: 'Vacation premium',
-      amount: roundMoney(row.vacationPremium),
-      taxable: true,
-      included: row.vacationPremium !== 0,
-      metadata: {
-        integratesSBC: true,
-        applyToStatutoryPayroll: true,
-      },
-    },
-    {
-      id: `auto-bonus-2-${row.id}`,
-      type: 'bonus',
-      source: 'automatic',
-      name: 'Proportional Christmas bonus',
-      amount: roundMoney(row.proportionalChristmasBonus),
-      taxable: true,
-      included: row.proportionalChristmasBonus !== 0,
-      metadata: {
-        integratesSBC: true,
-        applyToStatutoryPayroll: true,
-      },
-    },
-    {
-      id: `auto-commission-${row.id}`,
-      type: 'commission',
-      source: 'automatic',
-      name: 'Sales commission',
-      amount: roundMoney(row.bonusesCommissions),
-      taxable: true,
-      included: row.bonusesCommissions !== 0,
-      metadata: {
-        baseAmount: roundMoney(row.bonusesCommissions),
-        commissionRate: row.bonusesCommissions !== 0 ? 100 : 0,
-        integratesSBC: true,
-        applyToStatutoryPayroll: true,
-      },
-    },
-    {
-      id: `auto-adjustment-${row.id}`,
-      type: 'adjustment',
-      source: 'automatic',
-      name: 'Overtime earnings',
-      amount: roundMoney(row.overtimeAmount),
-      taxable: true,
-      included: row.overtimeAmount !== 0,
-      metadata: {
-        integratesSBC: false,
-        applyToStatutoryPayroll: true,
-        affectsNetPay: true,
-      },
-    },
-  ];
-
-  const sumVariablePay = (items: VariablePayItem[]) => items
-    .filter((item) => item.included)
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const sumTaxableVariablePay = (items: VariablePayItem[]) => items
-    .filter((item) => item.included && item.taxable && (item.metadata?.applyToStatutoryPayroll ?? true))
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const getLineItemAmount = (line: PayrollRunLine, codes: string[]) => (
-    line.items
-      .filter((item) => codes.includes(item.code))
-      .reduce((total, item) => total + item.amount, 0)
-  );
-
-  const buildLineEmployerCosts = (
-    line: PayrollRunLine,
-    fallbackCosts: ReturnType<typeof emptyEmployerSummary>,
-  ) => {
-    const employerItems = line.items.filter((item) => item.category === 'employer_contribution');
-    if (employerItems.length === 0) {
-      return fallbackCosts;
-    }
-
-    const employerImss = roundMoney(getLineItemAmount(line, ['EMPLOYER_IMSS', 'EMPLOYER_RCV']));
-    const employerInfonavit = roundMoney(getLineItemAmount(line, ['EMPLOYER_INFONAVIT']));
-    const sar = roundMoney(getLineItemAmount(line, ['EMPLOYER_SAR']));
-    const payrollStateTax = roundMoney(getLineItemAmount(line, ['EMPLOYER_ISN']));
-    const occupationalRisk = roundMoney(getLineItemAmount(line, ['EMPLOYER_RISK']));
-    const childcareImss = roundMoney(getLineItemAmount(line, ['EMPLOYER_CHILDCARE']));
-    const totalEmployerObligations = roundMoney(
-      employerItems.reduce((total, item) => total + item.amount, 0),
-    );
-
-    return {
-      employerImss,
-      employerInfonavit,
-      sar,
-      payrollStateTax,
-      occupationalRisk,
-      childcareImss,
-      totalEmployerObligations,
-    };
-  };
-
-  const buildLineCanadaStandardValues = (
-    line: PayrollRunLine,
-    fallbackValues: ReturnType<typeof emptyCanadaStandardStatutoryValues>,
-  ) => {
-    if (!line.items.some((item) => item.source_type === 'computed_tax')) {
-      return fallbackValues;
-    }
-
-    const employerItems = line.items.filter((item) => item.category === 'employer_contribution');
-    return {
-      federalTax: roundMoney(getLineItemAmount(line, ['CAN_FED_TAX'])),
-      provincialTax: roundMoney(getLineItemAmount(line, ['CAN_PROV_TAX'])),
-      employeeCpp: roundMoney(getLineItemAmount(line, ['CPP'])),
-      employeeCpp2: roundMoney(getLineItemAmount(line, ['CPP2'])),
-      employeeEi: roundMoney(getLineItemAmount(line, ['EI'])),
-      employerCpp: roundMoney(getLineItemAmount(line, ['EMPLOYER_CPP'])),
-      employerCpp2: roundMoney(getLineItemAmount(line, ['EMPLOYER_CPP2'])),
-      employerEi: roundMoney(getLineItemAmount(line, ['EMPLOYER_EI'])),
-      employerBenefits: roundMoney(getLineItemAmount(line, ['EMPLOYER_VACATION_ACCRUAL'])),
-      totalEmployerObligations: roundMoney(
-        employerItems.reduce((total, item) => total + item.amount, 0),
-      ),
-    };
-  };
-
-  const buildLineCanadaQuebecValues = (
-    line: PayrollRunLine,
-    fallbackValues: ReturnType<typeof emptyCanadaQuebecStatutoryValues>,
-  ) => {
-    if (!line.items.some((item) => item.source_type === 'computed_tax')) {
-      return fallbackValues;
-    }
-
-    const employerItems = line.items.filter((item) => item.category === 'employer_contribution');
-    return {
-      federalTax: roundMoney(getLineItemAmount(line, ['CAN_FED_TAX'])),
-      quebecProvincialTax: roundMoney(getLineItemAmount(line, ['QC_PROV_TAX'])),
-      employeeQpp: roundMoney(getLineItemAmount(line, ['QPP'])),
-      employeeQpp2: roundMoney(getLineItemAmount(line, ['QPP2'])),
-      employeeQpip: roundMoney(getLineItemAmount(line, ['QPIP'])),
-      employeeEi: roundMoney(getLineItemAmount(line, ['EI'])),
-      employerQpp: roundMoney(getLineItemAmount(line, ['EMPLOYER_QPP'])),
-      employerQpp2: roundMoney(getLineItemAmount(line, ['EMPLOYER_QPP2'])),
-      employerQpip: roundMoney(getLineItemAmount(line, ['EMPLOYER_QPIP'])),
-      employerEi: roundMoney(getLineItemAmount(line, ['EMPLOYER_EI'])),
-      employerBenefits: roundMoney(getLineItemAmount(line, ['EMPLOYER_VACATION_ACCRUAL'])),
-      totalEmployerObligations: roundMoney(
-        employerItems.reduce((total, item) => total + item.amount, 0),
-      ),
-    };
-  };
-
-  const buildLineUsaValues = (
-    line: PayrollRunLine,
-    fallbackValues: ReturnType<typeof emptyUsaStatutoryValues>,
-  ) => {
-    if (!line.items.some((item) => item.source_type === 'computed_tax')) {
-      return fallbackValues;
-    }
-
-    const employerItems = line.items.filter((item) => item.category === 'employer_contribution');
-    return {
-      federalTax: roundMoney(getLineItemAmount(line, ['US_FED_TAX'])),
-      provincialTax: roundMoney(getLineItemAmount(line, ['US_STATE_TAX', 'US_CA_SDI', 'US_NY_PFL', 'US_WA_PFML'])),
-      employeeCpp: roundMoney(getLineItemAmount(line, ['US_SS_EMP'])),
-      employeeEi: roundMoney(getLineItemAmount(line, ['US_MEDICARE_EMP'])),
-      employerCpp: roundMoney(getLineItemAmount(line, ['EMPLOYER_US_SS'])),
-      employerEi: roundMoney(getLineItemAmount(line, ['EMPLOYER_US_MEDICARE'])),
-      payrollStateTax: roundMoney(getLineItemAmount(line, ['EMPLOYER_FUTA', 'EMPLOYER_SUTA', 'EMPLOYER_CA_ETT', 'EMPLOYER_WA_PFML'])),
-      employerBenefits: 0,
-      totalEmployerObligations: roundMoney(
-        employerItems.reduce((total, item) => total + item.amount, 0),
-      ),
-    };
-  };
-
-  const buildLineBrazilValues = (
-    line: PayrollRunLine,
-    fallbackValues: ReturnType<typeof emptyBrazilStatutoryValues>,
-  ) => {
-    if (!line.items.some((item) => item.source_type === 'computed_tax')) {
-      return fallbackValues;
-    }
-
-    const employerItems = line.items.filter((item) => item.category === 'employer_contribution');
-    return {
-      employeeInss: roundMoney(getLineItemAmount(line, ['BR_INSS_EMP'])),
-      irrf: roundMoney(getLineItemAmount(line, ['BR_IRRF'])),
-      transportationVoucher: roundMoney(getLineItemAmount(line, ['BR_VALE_TRANSPORTE'])),
-      mealBenefitsDeduction: roundMoney(getLineItemAmount(line, ['BR_BENEFITS_DEDUCTION'])),
-      employerInss: roundMoney(getLineItemAmount(line, ['EMPLOYER_BR_INSS'])),
-      fgts: roundMoney(getLineItemAmount(line, ['EMPLOYER_FGTS'])),
-      ratWorkAccident: roundMoney(getLineItemAmount(line, ['EMPLOYER_RAT'])),
-      thirdPartyContributions: roundMoney(getLineItemAmount(line, ['EMPLOYER_THIRD_PARTIES'])),
-      employerBenefits: roundMoney(getLineItemAmount(line, [
-        'EMPLOYER_BR_VACATION_PROVISION',
-        'EMPLOYER_BR_VACATION_BONUS_PROVISION',
-        'EMPLOYER_BR_13TH_SALARY_PROVISION',
-        'EMPLOYER_BR_FGTS_FINE_PROVISION',
-      ])),
-      totalEmployerObligations: roundMoney(
-        employerItems.reduce((total, item) => total + item.amount, 0),
-      ),
-    };
-  };
-
-  const buildLineColombiaValues = (
-    line: PayrollRunLine,
-    fallbackValues: ReturnType<typeof emptyColombiaStatutoryValues>,
-  ) => {
-    if (!line.items.some((item) => item.source_type === 'computed_tax')) {
-      return fallbackValues;
-    }
-
-    const employerItems = line.items.filter((item) => item.category === 'employer_contribution');
-    return {
-      employeeHealth: roundMoney(getLineItemAmount(line, ['CO_EPS_EMPLOYEE', 'CO_EPS_EMP'])),
-      employeePension: roundMoney(getLineItemAmount(line, ['CO_AFP_EMPLOYEE', 'CO_AFP_EMP'])),
-      withholdingTax: roundMoney(getLineItemAmount(line, ['CO_WITHHOLDING_TAX'])),
-      employerHealth: roundMoney(getLineItemAmount(line, ['CO_EPS_EMPLOYER', 'EMPLOYER_CO_EPS'])),
-      employerPension: roundMoney(getLineItemAmount(line, ['CO_AFP_EMPLOYER', 'EMPLOYER_CO_AFP'])),
-      arl: roundMoney(getLineItemAmount(line, ['CO_ARL', 'CO_ARL_EMPLOYER', 'EMPLOYER_CO_ARL'])),
-      retroactiveAdjustments: roundMoney(
-        getLineItemAmount(line, ['CO_RETROACTIVE_EARNING'])
-          - getLineItemAmount(line, ['CO_RETROACTIVE_DEDUCTION']),
-      ),
-      payrollCorrections: roundMoney(
-        getLineItemAmount(line, ['CO_CORRECTION_EARNING'])
-          - getLineItemAmount(line, ['CO_CORRECTION_DEDUCTION']),
-      ),
-      terminationSettlement: roundMoney(getLineItemAmount(line, [
-        'CO_TERMINATION_CESANTIAS',
-        'CO_TERMINATION_CESANTIAS_INTEREST',
-        'CO_TERMINATION_PRIMA',
-        'CO_TERMINATION_VACATION_COMPENSATION',
-      ])),
-      terminationIndemnity: roundMoney(getLineItemAmount(line, ['CO_TERMINATION_INDEMNITY'])),
-      severance: roundMoney(getLineItemAmount(line, ['CO_SEVERANCE_CESANTIAS', 'EMPLOYER_CO_CESANTIAS_PROVISION'])),
-      severanceInterest: roundMoney(getLineItemAmount(line, ['CO_SEVERANCE_INTEREST', 'EMPLOYER_CO_CESANTIAS_INTEREST'])),
-      serviceBonus: roundMoney(getLineItemAmount(line, ['CO_SERVICE_BONUS_PRIMA', 'EMPLOYER_CO_PRIMA_PROVISION'])),
-      vacationProvision: roundMoney(getLineItemAmount(line, ['CO_VACATION_PROVISION', 'EMPLOYER_CO_VACATION_PROVISION'])),
-      familyCompensationFund: roundMoney(getLineItemAmount(line, ['CO_CCF', 'CO_CCF_EMPLOYER', 'EMPLOYER_CO_CCF'])),
-      icbf: roundMoney(getLineItemAmount(line, ['CO_ICBF', 'CO_ICBF_EMPLOYER', 'EMPLOYER_CO_ICBF'])),
-      sena: roundMoney(getLineItemAmount(line, ['CO_SENA', 'CO_SENA_EMPLOYER', 'EMPLOYER_CO_SENA'])),
-      totalEmployerObligations: roundMoney(
-        employerItems.reduce((total, item) => total + item.amount, 0),
-      ),
-    };
-  };
-
-  const seedRunCountry = unsupportedJurisdictionMeta?.country || resolvePayrollJurisdictionCountry(fallbackRunJurisdiction);
-  const seedRunProvince = unsupportedJurisdictionMeta?.province || (
-    fallbackRunJurisdiction === 'CA_QUEBEC'
-      ? QUEBEC_PROVINCE_NAME
-      : fallbackRunJurisdiction === 'CA_STANDARD'
-        ? fallbackProvinceLabel || 'Ontario'
-        : fallbackProvinceLabel
-  );
-
-  const resolveEmployeeJurisdictionProfile = (employeeId: number | undefined, index: number) => {
-    const profile = employeeId ? employeeProfilesById[employeeId] : undefined;
-    const country = (profile?.registration_country || seedRunCountry).trim() || seedRunCountry;
-    const rawProvince = (profile?.state_province || seedRunProvince).trim();
-    const jurisdiction = resolvePayrollJurisdiction(country, rawProvince);
-    const province = jurisdiction === 'CA_QUEBEC'
-      ? QUEBEC_PROVINCE_NAME
-      : rawProvince;
-
-    return {
-      country,
-      province,
-      jurisdiction,
-      taxId: (profile?.tax_id || '').trim(),
-      socialSecurityNumber: (profile?.social_security_number || '').trim(),
-      sin: (profile?.social_security_number || String(100000000 + index).padStart(9, '0')).replace(/\s+/g, ''),
-    };
-  };
-
-  const detailedDetailRows: PayrollDetailedRow[] = runLines.map((line, index) => {
-    const fallbackJurisdictionProfile = resolveEmployeeJurisdictionProfile(line.user_company_id, index);
-    const snapshotCountry = (line.country_code || fallbackJurisdictionProfile.country).trim();
-    const snapshotProvince = (line.jurisdiction_code || fallbackJurisdictionProfile.province).trim();
-    const jurisdictionProfile = {
-      ...fallbackJurisdictionProfile,
-      country: snapshotCountry || fallbackJurisdictionProfile.country,
-      province: snapshotProvince || fallbackJurisdictionProfile.province,
-      jurisdiction: resolvePayrollJurisdiction(snapshotCountry || fallbackJurisdictionProfile.country, snapshotProvince),
-    };
-    const statutoryPayroll = line.include_in_fiscal;
-    const earnings = aggregateLineAmount(line, 'earning');
-    const deductions = aggregateLineAmount(line, 'deduction');
-    const employerItemsTotal = aggregateLineAmount(line, 'employer_contribution');
-    const dailySalary = 0;
-    const integratedDailySalary = 0;
-    const contributionBaseSalary = 0;
-    const daysPaid = line.days_payable;
-    const hoursPerDay = line.days_payable > 0 ? roundMoney(line.regular_hours / line.days_payable) : 0;
-    const overtimeHours = line.overtime_hours;
-    const totalWorkedHours = (daysPaid * hoursPerDay) + overtimeHours;
-    const periodSalary = roundMoney(getLineItemAmount(line, ['BASE_DAILY', 'BASE_HOURLY', 'LEAVE_PAY']));
-    const overtimeAmount = roundMoney(getLineItemAmount(line, ['OVERTIME']));
-    const bonusesCommissions = line.items
-      .filter((item) => item.category === 'earning' && /bonus|commission|bono|comision/i.test(`${item.code} ${item.label}`))
-      .reduce((total, item) => total + item.amount, 0);
-    const vacationPremium = line.items
-      .filter((item) => item.category === 'earning' && /vacation|prima vacacional/i.test(`${item.code} ${item.label}`))
-      .reduce((total, item) => total + item.amount, 0);
-    const proportionalChristmasBonus = line.items
-      .filter((item) => item.category === 'earning' && /christmas|aguinaldo/i.test(`${item.code} ${item.label}`))
-      .reduce((total, item) => total + item.amount, 0);
-    const variablePayTotal = roundMoney(overtimeAmount + bonusesCommissions + vacationPremium + proportionalChristmasBonus);
-    const vacationPay = roundMoney(getLineItemAmount(line, ['VACATION_PAY']));
-    const vacationBonusOneThird = roundMoney(getLineItemAmount(line, ['VACATION_BONUS_ONE_THIRD']));
-    const thirteenthSalaryProvision = roundMoney(getLineItemAmount(line, ['EMPLOYER_BR_13TH_SALARY_PROVISION']));
-    const nightSurcharge = roundMoney(getLineItemAmount(line, ['NIGHT_SURCHARGE']));
-    const sundayHolidaySurcharge = roundMoney(getLineItemAmount(line, ['SUNDAY_HOLIDAY_SURCHARGE']));
-    const transportAllowance = roundMoney(getLineItemAmount(line, ['TRANSPORT_ALLOWANCE']));
-    const nightShiftPremium = roundMoney(getLineItemAmount(line, ['NIGHT_SHIFT_PREMIUM']));
-    const hazardUnhealthyPremium = roundMoney(getLineItemAmount(line, ['HAZARD_UNHEALTHY_PREMIUM']));
-    const taxableBenefits = roundMoney(getLineItemAmount(line, ['TAXABLE_BENEFITS']));
-    const isCanadaStandard = jurisdictionProfile.jurisdiction === 'CA_STANDARD';
-    const isCanadaQuebec = jurisdictionProfile.jurisdiction === 'CA_QUEBEC';
-    const isUnitedStates = jurisdictionProfile.jurisdiction === 'US';
-    const isBrazil = jurisdictionProfile.jurisdiction === 'BR';
-    const isColombia = jurisdictionProfile.jurisdiction === 'CO';
-    const grossPay = roundMoney(line.gross_amount || earnings);
-    const totalEarnings = grossPay;
-    const isrBeforeSubsidy = line.items.find((item) => item.code === 'ISR')?.amount ?? 0;
-    const employmentSubsidy = line.items.find((item) => /subsidy/i.test(`${item.code} ${item.label}`))?.amount ?? 0;
-    const finalIsr = roundMoney(Math.max(0, isrBeforeSubsidy - employmentSubsidy));
-    const employeeImss = getLineItemAmount(line, ['IMSS_EMP', 'IMSS']);
-    const infonavitDiscount = line.items.find((item) => item.code === 'INFONAVIT')?.amount ?? 0;
-    const loans = line.items
-      .filter((item) => item.category === 'deduction' && /loan|prestamo/i.test(`${item.code} ${item.label}`))
-      .reduce((total, item) => total + item.amount, 0);
-    const computedTaxDeductions = line.items
-      .filter((item) => item.category === 'deduction' && item.source_type === 'computed_tax')
-      .reduce((total, item) => total + item.amount, 0);
-    const knownStatutoryDeductions = computedTaxDeductions;
-    const otherDiscounts = roundMoney(Math.max(0, deductions - knownStatutoryDeductions - loans));
-    const netAdjustment = 0;
-    const otherDeductions = roundMoney(Math.max(0, loans + otherDiscounts + netAdjustment));
-    const employerCosts = buildLineEmployerCosts(line, emptyEmployerSummary());
-    const canadaStandardFallbackValues = emptyCanadaStandardStatutoryValues();
-    const canadaQuebecFallbackValues = emptyCanadaQuebecStatutoryValues();
-    const canadaStandardValues = buildLineCanadaStandardValues(line, canadaStandardFallbackValues);
-    const canadaQuebecValues = buildLineCanadaQuebecValues(line, canadaQuebecFallbackValues);
-    const usaFallbackValues = emptyUsaStatutoryValues();
-    const usaValues = buildLineUsaValues(line, usaFallbackValues);
-    const brazilFallbackValues = emptyBrazilStatutoryValues();
-    const brazilValues = buildLineBrazilValues(line, brazilFallbackValues);
-    const colombiaFallbackValues = emptyColombiaStatutoryValues();
-    const colombiaValues = buildLineColombiaValues(line, colombiaFallbackValues);
-    const totalDeductions = roundMoney(line.deductions_amount || deductions);
-    const netPay = roundMoney(line.net_amount);
-
-    return {
-      id: line.id,
-      jurisdiction: jurisdictionProfile.jurisdiction,
-      country: jurisdictionProfile.country,
-      province: jurisdictionProfile.province,
-      employee: line.user_name,
-      rfc: jurisdictionProfile.taxId || `RFC${String(index + 1).padStart(13, '0')}`,
-      curp: `CURP${String(index + 1).padStart(14, '0')}`,
-      nss: jurisdictionProfile.socialSecurityNumber || String(10000000000 + index).padStart(11, '0'),
-      sin: jurisdictionProfile.sin,
-      cpf: jurisdictionProfile.taxId || String(10000000000 + index).padStart(11, '0'),
-      pisPasep: jurisdictionProfile.socialSecurityNumber || String(12000000000 + index).padStart(11, '0'),
-      idNumber: jurisdictionProfile.taxId || String(90000000 + index).padStart(8, '0'),
-      contractType: isColombia
-        ? line.salary_type === 'hourly'
-          ? 'Fixed-term'
-          : 'Indefinite'
-        : 'Indefinite',
-      unit: line.unit_name || unitLabel,
-      business: line.business_name || businessLabel,
-      statutoryPayroll,
-      payrollMode: statutoryPayroll ? 'Statutory' : 'Internal only',
-      employmentType: isBrazil
-        ? (line.salary_type === 'hourly' ? 'Temporary' : 'CLT')
-        : isColombia
-          ? (line.salary_type === 'hourly' ? 'Part-time' : 'Full-time')
-          : (line.salary_type === 'hourly' ? 'Part-time' : 'Full-time'),
-      payType: isBrazil || isColombia ? (line.salary_type === 'hourly' ? 'Hourly' : 'Monthly') : (line.salary_type === 'hourly' ? 'Hourly' : 'Salary'),
-      hourlyRate: roundMoney(line.hourly_rate_amount ?? (dailySalary / 8)),
-      monthlySalary: line.base_salary_amount,
-      contributionType: 'Fixed',
-      dailyWage: dailySalary,
-      integratedDailyWage: integratedDailySalary,
-      baseContributionSalary: contributionBaseSalary,
-      daysPaid,
-      absenceDays: line.absence_days,
-      totalWorkedHours,
-      hoursPerDay,
-      overtimeHours,
-      nightSurcharge,
-      sundayHolidaySurcharge,
-      nightShiftPremium,
-      hazardUnhealthyPremium,
-      periodSalary,
-      overtimeAmount,
-      transportAllowance,
-      variablePayTotal,
-      bonusesCommissions,
-      vacationPay,
-      vacationBonusOneThird,
-      vacationPremium,
-      thirteenthSalaryProvision,
-      taxableBenefits,
-      proportionalChristmasBonus,
-      grossPay,
-      totalEarnings,
-      federalTax: isCanadaStandard
-        ? canadaStandardValues.federalTax
-        : isCanadaQuebec
-          ? canadaQuebecValues.federalTax
-          : isUnitedStates
-            ? usaValues.federalTax
-            : 0,
-      provincialTax: isCanadaStandard
-        ? canadaStandardValues.provincialTax
-        : isUnitedStates
-          ? usaValues.provincialTax
-          : 0,
-      quebecProvincialTax: isCanadaQuebec ? canadaQuebecValues.quebecProvincialTax : 0,
-      isrBeforeSubsidy,
-      employmentSubsidy,
-      finalIsr,
-      employeeImss,
-      employeeCpp: isCanadaStandard
-        ? canadaStandardValues.employeeCpp
-        : isUnitedStates
-          ? usaValues.employeeCpp
-          : 0,
-      employeeCpp2: isCanadaStandard ? canadaStandardValues.employeeCpp2 : 0,
-      employeeEi: isCanadaStandard
-        ? canadaStandardValues.employeeEi
-        : isCanadaQuebec
-          ? canadaQuebecValues.employeeEi
-          : isUnitedStates
-            ? usaValues.employeeEi
-          : 0,
-      employeeHealth: isColombia ? colombiaValues.employeeHealth : 0,
-      employeePension: isColombia ? colombiaValues.employeePension : 0,
-      withholdingTax: isColombia ? colombiaValues.withholdingTax : 0,
-      employeeInss: isBrazil ? brazilValues.employeeInss : 0,
-      irrf: isBrazil ? brazilValues.irrf : 0,
-      transportationVoucher: isBrazil ? brazilValues.transportationVoucher : 0,
-      mealBenefitsDeduction: isBrazil ? brazilValues.mealBenefitsDeduction : 0,
-      employeeQpp: isCanadaQuebec ? canadaQuebecValues.employeeQpp : 0,
-      employeeQpp2: isCanadaQuebec ? canadaQuebecValues.employeeQpp2 : 0,
-      employeeQpip: isCanadaQuebec ? canadaQuebecValues.employeeQpip : 0,
-      infonavitType: infonavitDiscount > 0 ? 'Fixed Amount' : 'None',
-      infonavitDiscount,
-      otherDeductions,
-      loans,
-      otherDiscounts,
-      netAdjustment,
-      totalDeductions,
-      netPay,
-      employerImss: employerCosts.employerImss,
-      employerInfonavit: employerCosts.employerInfonavit,
-      sar: employerCosts.sar,
-      payrollStateTax: isUnitedStates ? usaValues.payrollStateTax : employerCosts.payrollStateTax,
-      occupationalRisk: employerCosts.occupationalRisk,
-      childcareImss: employerCosts.childcareImss,
-      employerCpp: isCanadaStandard
-        ? canadaStandardValues.employerCpp
-        : isUnitedStates
-          ? usaValues.employerCpp
-          : 0,
-      employerCpp2: isCanadaStandard ? canadaStandardValues.employerCpp2 : 0,
-      employerEi: isCanadaStandard
-        ? canadaStandardValues.employerEi
-        : isCanadaQuebec
-          ? canadaQuebecValues.employerEi
-          : isUnitedStates
-            ? usaValues.employerEi
-          : 0,
-      employerBenefits: isCanadaStandard || isCanadaQuebec
-        ? (isCanadaStandard ? canadaStandardValues.employerBenefits : canadaQuebecValues.employerBenefits)
-        : isUnitedStates
-          ? usaValues.employerBenefits
-        : isBrazil
-          ? brazilValues.employerBenefits
-        : 0,
-      employerQpp: isCanadaQuebec ? canadaQuebecValues.employerQpp : 0,
-      employerQpp2: isCanadaQuebec ? canadaQuebecValues.employerQpp2 : 0,
-      employerQpip: isCanadaQuebec ? canadaQuebecValues.employerQpip : 0,
-      employerHealth: isColombia ? colombiaValues.employerHealth : 0,
-      employerPension: isColombia ? colombiaValues.employerPension : 0,
-      arl: isColombia ? colombiaValues.arl : 0,
-      retroactiveAdjustments: isColombia ? colombiaValues.retroactiveAdjustments : 0,
-      payrollCorrections: isColombia ? colombiaValues.payrollCorrections : 0,
-      terminationSettlement: isColombia ? colombiaValues.terminationSettlement : 0,
-      terminationIndemnity: isColombia ? colombiaValues.terminationIndemnity : 0,
-      severance: isColombia ? colombiaValues.severance : 0,
-      severanceInterest: isColombia ? colombiaValues.severanceInterest : 0,
-      serviceBonus: isColombia ? colombiaValues.serviceBonus : 0,
-      vacationProvision: isColombia ? colombiaValues.vacationProvision : 0,
-      familyCompensationFund: isColombia ? colombiaValues.familyCompensationFund : 0,
-      icbf: isColombia ? colombiaValues.icbf : 0,
-      sena: isColombia ? colombiaValues.sena : 0,
-      employerInss: isBrazil ? brazilValues.employerInss : 0,
-      fgts: isBrazil ? brazilValues.fgts : 0,
-      ratWorkAccident: isBrazil ? brazilValues.ratWorkAccident : 0,
-      thirdPartyContributions: isBrazil ? brazilValues.thirdPartyContributions : 0,
-      totalEmployerObligations: isCanadaStandard
-        ? canadaStandardValues.totalEmployerObligations
-        : isCanadaQuebec
-          ? canadaQuebecValues.totalEmployerObligations
-          : isUnitedStates
-            ? usaValues.totalEmployerObligations
-          : isColombia
-            ? colombiaValues.totalEmployerObligations
-          : isBrazil
-            ? brazilValues.totalEmployerObligations
-          : employerCosts.totalEmployerObligations,
-      totalPayrollCost: roundMoney(grossPay + employerItemsTotal),
-    };
-  });
-
-  const baseDetailedRows = detailedDetailRows;
-
-  const [detailedAttendanceSelection, setDetailedAttendanceSelection] = useState<Record<string, Partial<Record<PayrollEditableAttendanceField, number>>>>({});
-  const [simplifiedAttendanceSelection, setSimplifiedAttendanceSelection] = useState<Record<string, Partial<Record<PayrollEditableAttendanceField, number>>>>({});
-
-  useEffect(() => {
-    setDetailedAttendanceSelection((current) => {
-      let hasChanges = false;
-      const next = { ...current };
-      baseDetailedRows.forEach((row) => {
-        const rowId = String(row.id);
-        if (!next[rowId]) {
-          next[rowId] = {
-            daysPaid: row.daysPaid,
-            overtimeHours: row.overtimeHours,
-          };
-          hasChanges = true;
-        }
-      });
-      return hasChanges ? next : current;
-    });
-  }, [baseDetailedRows]);
-
-  const detailedRows = useMemo(
-    () => baseDetailedRows.map((row) => {
-      const selected = detailedAttendanceSelection[String(row.id)];
-      const daysPaid = selected?.daysPaid ?? row.daysPaid;
-      const overtimeHours = selected?.overtimeHours ?? row.overtimeHours;
-      const totalWorkedHours = (daysPaid * row.hoursPerDay) + overtimeHours;
-      return {
-        ...row,
-        daysPaid,
-        overtimeHours,
-        totalWorkedHours,
-      };
-    }),
-    [baseDetailedRows, detailedAttendanceSelection],
-  );
-
-  const [statutorySelection, setStatutorySelection] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    setStatutorySelection((current) => {
-      let hasChanges = false;
-      const next = { ...current };
-      detailedRows.forEach((row) => {
-        const rowId = String(row.id);
-        if (next[rowId] === undefined) {
-          next[rowId] = row.statutoryPayroll;
-          hasChanges = true;
-        }
-      });
-      return hasChanges ? next : current;
-    });
-  }, [detailedRows]);
-
-  const detailedRowsWithMode = useMemo(
-    () => detailedRows.map((row) => {
-      const statutoryPayroll = statutorySelection[String(row.id)] ?? row.statutoryPayroll;
-      const payrollMode: PayrollDetailedRow['payrollMode'] = statutoryPayroll ? 'Statutory' : 'Internal only';
-      return {
-        ...row,
-        statutoryPayroll,
-        payrollMode,
-      };
-    }),
-    [detailedRows, statutorySelection],
-  );
-
-  useEffect(() => {
-    setVariablePayByRow((current) => {
-      let hasChanges = false;
-      const next = { ...current };
-      detailedRowsWithMode.forEach((row) => {
-        const rowId = String(row.id);
-        if (!next[rowId]) {
-          next[rowId] = createVariablePayDefaults(row);
-          hasChanges = true;
-        }
-      });
-      return hasChanges ? next : current;
-    });
-  }, [detailedRowsWithMode]);
-
-  const detailedRowsWithVariable = useMemo(
-    () => detailedRowsWithMode,
-    [detailedRowsWithMode],
-  );
-
-  const effectiveDetailedRows = useMemo(
-    () => detailedRowsWithVariable.map((row) => getEffectivePayrollValues(row)),
-    [detailedRowsWithVariable],
-  );
-
-  const detailedRowsByJurisdiction = useMemo(
-    () => groupPayrollEntitiesByJurisdiction(effectiveDetailedRows),
-    [effectiveDetailedRows],
-  );
-
-  const availableJurisdictions = useMemo(
-    () => Object.entries(detailedRowsByJurisdiction)
-      .flatMap(([jurisdiction, rows]) => rows.length > 0 ? [jurisdiction as PayrollJurisdiction] : []),
-    [detailedRowsByJurisdiction],
-  );
-
-  const activeRunJurisdiction = useMemo(
-    () => resolveRunJurisdiction(availableJurisdictions, fallbackRunJurisdiction),
-    [availableJurisdictions, fallbackRunJurisdiction],
-  );
-
-  const visibleDetailedRows = useMemo(
-    () => filterPayrollItemsByJurisdiction(effectiveDetailedRows, activeRunJurisdiction),
-    [activeRunJurisdiction, effectiveDetailedRows],
-  );
-
-  const activeProvinceLabel = useMemo(
-    () => resolveJurisdictionProvinceLabel(
-      visibleDetailedRows.map((row) => row.province),
-      fallbackProvinceLabel,
-      activeRunJurisdiction,
-    ),
-    [activeRunJurisdiction, fallbackProvinceLabel, visibleDetailedRows],
-  );
-
-  const derivedJurisdiction = useMemo(
-    () => formatPayrollJurisdictionLabel(activeRunJurisdiction, activeProvinceLabel),
-    [activeProvinceLabel, activeRunJurisdiction],
-  );
-  const displayJurisdictionLabel = isUnsupportedJurisdiction
-    ? rawJurisdictionLabel || unsupportedJurisdictionMeta?.country || editCopy.unsupportedBadge
-    : derivedJurisdiction;
-
-  const baseSimplifiedRows: PayrollEditTableRow[] = visibleDetailedRows.map((row) => {
-    const rowId = String(row.id);
-    const variablePayItems = variablePayByRow[rowId] ?? createVariablePayDefaults(row);
-    const variablePayTotal = row.variablePayTotal;
-    const statutoryPayroll = row.statutoryPayroll;
-    const payrollMode: PayrollEditTableRow['payrollMode'] = row.payrollMode;
-    const grossPay = row.grossPay;
-    const internalDeductions = roundMoney(row.otherDeductions || (row.loans + row.otherDiscounts + row.netAdjustment));
-    const statutoryDeductions = roundMoney(Math.max(0, row.totalDeductions - internalDeductions));
-    const totalDeductions = row.totalDeductions;
-
-    const normalizedStatus: PayrollEditTableRow['status'] = run.status === 'processed'
-      ? 'Processed'
-      : run.status === 'draft'
-        ? 'Draft'
-        : 'Review';
-
-    return {
-      id: row.id,
-      jurisdiction: row.jurisdiction,
-      statutoryPayroll,
-      payrollMode,
-      employee: row.employee,
-      unit: row.unit,
-      business: row.business,
-      employmentType: row.employmentType,
-      province: row.province,
-      daysWorked: row.daysPaid,
-      daysAbsent: row.absenceDays,
-      periodSalary: row.periodSalary,
-      transportAllowance: row.transportAllowance,
-      variablePayTotal,
-      variablePayItems,
-      grossPay,
-      internalDeductions,
-      statutoryDeductions,
-      totalDeductions,
-      netPay: row.netPay,
-      status: statutoryPayroll ? normalizedStatus : 'Internal only',
-    };
-  });
-
-  useEffect(() => {
-    setSimplifiedAttendanceSelection((current) => {
-      let hasChanges = false;
-      const next = { ...current };
-      baseSimplifiedRows.forEach((row) => {
-        const rowId = String(row.id);
-        if (!next[rowId]) {
-          next[rowId] = {
-            daysWorked: row.daysWorked,
-            daysAbsent: row.daysAbsent,
-          };
-          hasChanges = true;
-        }
-      });
-      return hasChanges ? next : current;
-    });
-  }, [baseSimplifiedRows]);
-
-  const simplifiedRows = useMemo(
-    () => baseSimplifiedRows.map((row) => ({
-      ...row,
-      daysWorked: simplifiedAttendanceSelection[String(row.id)]?.daysWorked ?? row.daysWorked,
-      daysAbsent: simplifiedAttendanceSelection[String(row.id)]?.daysAbsent ?? row.daysAbsent,
-    })),
-    [baseSimplifiedRows, simplifiedAttendanceSelection],
-  );
-
-  const simplifiedColumns = payrollSimplifiedColumnsByJurisdiction[activeRunJurisdiction];
-  const detailedColumns = payrollDetailedColumnsByJurisdiction[activeRunJurisdiction];
-  const activeEmployerSummaryConfig = payrollEmployerSummaryConfigByJurisdiction[activeRunJurisdiction];
-  const activeDetailedStatutoryColumns = payrollStatutoryColumnKeysByJurisdiction[activeRunJurisdiction];
-
-  const sortedSimplifiedRows = useMemo(() => {
-    const rows = [...simplifiedRows];
-    rows.sort((a, b) => {
-      const av = a[sortColumn];
-      const bv = b[sortColumn];
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return sortDirection === 'asc' ? av - bv : bv - av;
-      }
-      if (typeof av === 'boolean' && typeof bv === 'boolean') {
-        return sortDirection === 'asc'
-          ? Number(av) - Number(bv)
-          : Number(bv) - Number(av);
-      }
-      return sortDirection === 'asc'
-        ? String(av).localeCompare(String(bv))
-        : String(bv).localeCompare(String(av));
-    });
-    return rows;
-  }, [simplifiedRows, sortColumn, sortDirection]);
-
-  const sortedDetailedRows = useMemo(() => {
-    const rows = [...visibleDetailedRows];
-    rows.sort((a, b) => {
-      const av = a[detailedSortColumn];
-      const bv = b[detailedSortColumn];
-      if (typeof av === 'number' && typeof bv === 'number') {
-        return detailedSortDirection === 'asc' ? av - bv : bv - av;
-      }
-      return detailedSortDirection === 'asc'
-        ? String(av).localeCompare(String(bv))
-        : String(bv).localeCompare(String(av));
-    });
-    return rows;
-  }, [visibleDetailedRows, detailedSortColumn, detailedSortDirection]);
-
-  const totalSimplifiedNetPay = sortedSimplifiedRows.reduce((sum, row) => sum + row.netPay, 0);
-  const totalDetailedNetPay = sortedDetailedRows.reduce((sum, row) => sum + row.netPay, 0);
-
-  const employerSummary = useMemo(() => {
-    const statutoryTotals = sortedDetailedRows.reduce((totals, row) => {
-      if (!row.statutoryPayroll) {
-        return totals;
-      }
-
-      return {
-        employerImss: totals.employerImss + row.employerImss,
-        employerInfonavit: totals.employerInfonavit + row.employerInfonavit,
-        sar: totals.sar + row.sar,
-        payrollStateTax: totals.payrollStateTax + row.payrollStateTax,
-        occupationalRisk: totals.occupationalRisk + row.occupationalRisk,
-        childcareImss: totals.childcareImss + row.childcareImss,
-        employerCpp: totals.employerCpp + row.employerCpp,
-        employerCpp2: totals.employerCpp2 + row.employerCpp2,
-        employerEi: totals.employerEi + row.employerEi,
-        employerBenefits: totals.employerBenefits + row.employerBenefits,
-        employerQpp: totals.employerQpp + row.employerQpp,
-        employerQpp2: totals.employerQpp2 + row.employerQpp2,
-        employerQpip: totals.employerQpip + row.employerQpip,
-        employerHealth: totals.employerHealth + row.employerHealth,
-        employerPension: totals.employerPension + row.employerPension,
-        arl: totals.arl + row.arl,
-        severance: totals.severance + row.severance,
-        severanceInterest: totals.severanceInterest + row.severanceInterest,
-        serviceBonus: totals.serviceBonus + row.serviceBonus,
-        vacationProvision: totals.vacationProvision + row.vacationProvision,
-        familyCompensationFund: totals.familyCompensationFund + row.familyCompensationFund,
-        icbf: totals.icbf + row.icbf,
-        sena: totals.sena + row.sena,
-        employerInss: totals.employerInss + row.employerInss,
-        fgts: totals.fgts + row.fgts,
-        ratWorkAccident: totals.ratWorkAccident + row.ratWorkAccident,
-        thirdPartyContributions: totals.thirdPartyContributions + row.thirdPartyContributions,
-        totalEmployerObligations: totals.totalEmployerObligations + row.totalEmployerObligations,
-        totalPayrollCost: totals.totalPayrollCost,
-      };
-    }, emptyEmployerSummary());
-
-    return {
-      ...statutoryTotals,
-      totalPayrollCost: roundMoney(sortedDetailedRows.reduce((sum, row) => sum + row.totalPayrollCost, 0)),
-    };
-  }, [sortedDetailedRows]);
-
-  const totalPayrollCost = employerSummary.totalPayrollCost;
-
-  const runSummaryCards: Array<{ label: string; value: string; key?: 'status' }> = [
-    { label: copy.labels.frequency, value: frequencyLabel },
-    { label: copy.labels.payrollType, value: payrollTypeLabel },
-    { label: copy.labels.employees, value: String(visibleDetailedRows.length || run.users_count) },
-    { label: copy.labels.jurisdiction, value: displayJurisdictionLabel },
-    { label: copy.labels.status, value: statusLabel, key: 'status' as const },
-  ];
-
-  const attendanceMaxByField: Record<PayrollEditableAttendanceField, number> = {
-    daysWorked: 31,
-    daysAbsent: 31,
-    daysPaid: 31,
-    overtimeHours: 24,
-    vacationDays: 31,
-    paidHolidays: 31,
-  };
-
-  const simplifiedNonNumericColumns = new Set<PayrollEditTableColumnKey>([
-    'statutoryPayroll',
-    'employee',
-    'unit',
-    'business',
-    'employmentType',
-    'province',
-    'status',
-    'breakdown',
-  ]);
-
-  const detailedTextColumns = new Set<PayrollDetailedColumnKey>([
-    'employee',
-    'rfc',
-    'curp',
-    'nss',
-    'sin',
-    'cpf',
-    'pisPasep',
-    'idNumber',
-    'contractType',
-    'province',
-    'unit',
-    'business',
-    'employmentType',
-    'payType',
-    'contributionType',
-    'infonavitType',
-    'breakdown',
-  ]);
-
-  const detailedStatutoryColumnsForPrint = new Set<PayrollDetailedColumnKey>(activeDetailedStatutoryColumns);
-  const simplifiedStatusLabels: Record<PayrollEditTableRow['status'], string> = {
-    Processed: copy.statuses.processed,
-    Draft: copy.statuses.draft,
-    Review: copy.operationalStatus.review,
-    'Internal only': editCopy.internalOnly,
-  };
-
-  const renderAttendanceSelect = (
-    value: number,
-    onChangeValue: (nextValue: number) => void,
-    field: PayrollEditableAttendanceField,
-    alignCenter = false,
-  ) => (
-    <select
-      value={value}
-      onChange={(event) => onChangeValue(Number(event.target.value))}
-      disabled={isSaving}
-      className={`h-8 w-full min-w-[84px] rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-800 outline-none focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 ${alignCenter ? 'text-center' : ''}`}
-    >
-      {Array.from({ length: attendanceMaxByField[field] + 1 }, (_, option) => (
-        <option key={option} value={option}>{option}</option>
-      ))}
-    </select>
-  );
-
-  const renderSimplifiedCell = (row: PayrollEditTableRow, key: PayrollEditTableColumnKey) => {
-    const rowId = String(row.id);
-    switch (key) {
-      case 'statutoryPayroll':
-        return (
-          <TableCell className="sticky left-0 z-20 border-r border-slate-200 bg-white px-4 py-3 align-top dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={row.statutoryPayroll}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setStatutorySelection((current) => ({
-                    ...current,
-                    [rowId]: checked,
-                  }));
-                }}
-                disabled={isSaving}
-                className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
-              />
-              <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
-                {row.statutoryPayroll ? 'Statutory' : 'Internal only'}
-              </span>
-            </div>
-          </TableCell>
-        );
-      case 'employee':
-        return <TableCell className="px-4 py-3 align-top font-medium text-slate-900 dark:text-white">{row.employee}</TableCell>;
-      case 'employmentType':
-        return <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{row.employmentType}</TableCell>;
-      case 'province':
-        return <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{row.province || '—'}</TableCell>;
-      case 'unit':
-      case 'business':
-        return <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{row[key]}</TableCell>;
-      case 'daysWorked':
-        return (
-          <TableCell className="px-4 py-3 align-top">
-            {renderAttendanceSelect(
-              row.daysWorked,
-              (nextValue) => setSimplifiedAttendanceSelection((current) => ({
-                ...current,
-                [rowId]: { ...current[rowId], daysWorked: nextValue },
-              })),
-              'daysWorked',
-            )}
-          </TableCell>
-        );
-      case 'daysAbsent':
-        return (
-          <TableCell className="px-4 py-3 align-top">
-            {renderAttendanceSelect(
-              row.daysAbsent,
-              (nextValue) => setSimplifiedAttendanceSelection((current) => ({
-                ...current,
-                [rowId]: { ...current[rowId], daysAbsent: nextValue },
-              })),
-              'daysAbsent',
-            )}
-          </TableCell>
-        );
-      case 'variablePay': {
-        const bonusCount = row.variablePayItems.filter((item) => item.included && item.type === 'bonus').length;
-        const commissionCount = row.variablePayItems.filter((item) => item.included && item.type === 'commission').length;
-        const adjustmentCount = row.variablePayItems.filter((item) => item.included && item.type === 'adjustment').length;
-        const summaryPieces = [
-          bonusCount > 0 ? `${bonusCount} ${editCopy.bonuses}` : '',
-          commissionCount > 0 ? `${commissionCount} ${editCopy.commissions}` : '',
-          adjustmentCount > 0 ? `${adjustmentCount} ${editCopy.adjustments}` : '',
-        ].filter(Boolean);
-
-        return (
-          <TableCell className="px-4 py-3 align-top">
-            <div className="flex flex-col gap-1">
-              <span className="font-semibold text-emerald-700 dark:text-emerald-300">{formatAmount(row.variablePayTotal)}</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">{summaryPieces.length > 0 ? summaryPieces.join(' · ') : editCopy.noVariableItems}</span>
-              <div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 rounded-lg px-2.5"
-                  onClick={() => setVariablePayEditorRowId(rowId)}
-                >
-                  {editCopy.manage}
-                </Button>
-              </div>
-            </div>
-          </TableCell>
-        );
-      }
-      case 'grossPay':
-        return <TableCell className="px-4 py-3 align-top font-medium text-slate-900 dark:text-slate-100">{formatAmount(row.grossPay)}</TableCell>;
-      case 'transportAllowance':
-        return <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{formatAmount(row.transportAllowance)}</TableCell>;
-      case 'totalDeductions':
-        return (
-          <TableCell className="px-4 py-3 align-top font-medium text-rose-700 dark:text-rose-300">
-            <div className="flex flex-col">
-              <span>{formatAmount(row.totalDeductions)}</span>
-              {!row.statutoryPayroll && (
-                <span className="text-[11px] text-slate-500 dark:text-slate-400" title={editCopy.internalOnlyDeductionsHint}>
-                  {editCopy.internalOnlyDeductions}
-                </span>
-              )}
-            </div>
-          </TableCell>
-        );
-      case 'netPay':
-        return <TableCell className="px-4 py-3 align-top font-semibold text-[#59C3A5] dark:text-blue-300">{formatAmount(row.netPay)}</TableCell>;
-      case 'status':
-        return (
-          <TableCell className="px-4 py-3 align-top">
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${row.status === 'Processed'
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-              : row.status === 'Internal only'
-                ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
-                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}
-            >
-              {simplifiedStatusLabels[row.status]}
-            </span>
-          </TableCell>
-        );
-      case 'breakdown':
-        return (
-          <TableCell className="px-4 py-3 align-top text-right">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const detail = visibleDetailedRows.find((item) => String(item.id) === rowId);
-                if (!detail) return;
-                setBreakdownRow({
-                  ...detail,
-                  periodStartDate: run.period_start_date,
-                  periodEndDate: run.period_end_date,
-                });
-              }}
-              className="h-8 rounded-lg px-2.5"
-            >
-              <Info className="mr-1 h-3.5 w-3.5" />
-              {editCopy.breakdown}
-            </Button>
-          </TableCell>
-        );
-      default:
-        return <TableCell className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{formatAmount(row[key] as number)}</TableCell>;
-    }
-  };
-
-  const renderDetailedCell = (row: PayrollDetailedRow, key: PayrollDetailedColumnKey) => {
-    const rowId = String(row.id);
-    const effectiveRow = getEffectivePayrollValues(row);
-    const isStatutoryField = activeDetailedStatutoryColumns.includes(key);
-
-    if (isStatutoryField && !effectiveRow.statutoryPayroll) {
-      return (
-        <TableCell className="px-3 py-3 align-top text-right text-slate-400 dark:text-slate-500" title={editCopy.disabledInternalControl}>
-          —
-        </TableCell>
-      );
-    }
-
-    switch (key) {
-      case 'employee':
-        return <TableCell className="px-3 py-3 align-top font-medium text-slate-900 whitespace-nowrap dark:text-white">{effectiveRow.employee}</TableCell>;
-      case 'rfc':
-      case 'curp':
-      case 'nss':
-      case 'sin':
-      case 'cpf':
-      case 'pisPasep':
-      case 'idNumber':
-        return <TableCell className="px-3 py-3 align-top font-mono text-xs text-slate-700 whitespace-nowrap dark:text-slate-200">{effectiveRow[key]}</TableCell>;
-      case 'unit':
-      case 'business':
-      case 'province':
-      case 'employmentType':
-      case 'payType':
-      case 'contractType':
-      case 'contributionType':
-      case 'infonavitType':
-        return <TableCell className="px-3 py-3 align-top text-slate-700 whitespace-nowrap dark:text-slate-200">{effectiveRow[key]}</TableCell>;
-      case 'daysPaid':
-        return (
-          <TableCell className="px-3 py-3 align-top">
-            {renderAttendanceSelect(
-              effectiveRow.daysPaid,
-              (nextValue) => setDetailedAttendanceSelection((current) => ({
-                ...current,
-                [rowId]: { ...current[rowId], daysPaid: nextValue },
-              })),
-              'daysPaid',
-              true,
-            )}
-          </TableCell>
-        );
-      case 'overtimeHours':
-        return (
-          <TableCell className="px-3 py-3 align-top">
-            {renderAttendanceSelect(
-              effectiveRow.overtimeHours,
-              (nextValue) => setDetailedAttendanceSelection((current) => ({
-                ...current,
-                [rowId]: { ...current[rowId], overtimeHours: nextValue },
-              })),
-              'overtimeHours',
-              true,
-            )}
-          </TableCell>
-        );
-      case 'totalEarnings':
-      case 'employmentSubsidy':
-        return <TableCell className="px-3 py-3 align-top text-right font-medium text-emerald-700 dark:text-emerald-300">{formatAmount(effectiveRow[key])}</TableCell>;
-      case 'federalTax':
-      case 'provincialTax':
-      case 'quebecProvincialTax':
-      case 'isrBeforeSubsidy':
-      case 'finalIsr':
-      case 'employeeImss':
-      case 'employeeCpp':
-      case 'employeeCpp2':
-      case 'employeeEi':
-      case 'employeeInss':
-      case 'irrf':
-      case 'transportationVoucher':
-      case 'mealBenefitsDeduction':
-      case 'employeeQpp':
-      case 'employeeQpp2':
-      case 'employeeQpip':
-      case 'employeeHealth':
-      case 'employeePension':
-      case 'withholdingTax':
-      case 'infonavitDiscount':
-      case 'employerImss':
-      case 'employerInfonavit':
-      case 'sar':
-      case 'payrollStateTax':
-      case 'occupationalRisk':
-      case 'childcareImss':
-      case 'employerCpp':
-      case 'employerCpp2':
-      case 'employerEi':
-      case 'employerQpp':
-      case 'employerQpp2':
-      case 'employerQpip':
-      case 'loans':
-      case 'otherDeductions':
-      case 'otherDiscounts':
-      case 'netAdjustment':
-      case 'totalDeductions':
-        return <TableCell className="px-3 py-3 align-top text-right font-medium text-rose-700 dark:text-rose-300">{formatAmount(effectiveRow[key] as number)}</TableCell>;
-      case 'employerBenefits':
-      case 'employerHealth':
-      case 'employerPension':
-      case 'arl':
-      case 'severance':
-      case 'severanceInterest':
-      case 'serviceBonus':
-      case 'vacationProvision':
-      case 'familyCompensationFund':
-      case 'icbf':
-      case 'sena':
-      case 'employerInss':
-      case 'fgts':
-      case 'ratWorkAccident':
-      case 'thirdPartyContributions':
-      case 'totalEmployerObligations':
-        return <TableCell className="px-3 py-3 align-top text-right font-medium text-slate-900 dark:text-slate-100">{formatAmount(effectiveRow[key] as number)}</TableCell>;
-      case 'netPay':
-        return <TableCell className="px-3 py-3 align-top text-right font-semibold text-[#59C3A5] dark:text-blue-300">{formatAmount(effectiveRow.netPay)}</TableCell>;
-      case 'totalPayrollCost':
-        return <TableCell className="px-3 py-3 align-top text-right font-semibold text-[#59C3A5] dark:text-blue-300">{formatAmount(effectiveRow.totalPayrollCost)}</TableCell>;
-      case 'breakdown':
-        return (
-          <TableCell className="px-3 py-3 align-top text-right">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setBreakdownRow({
-                ...effectiveRow,
-                periodStartDate: run.period_start_date,
-                periodEndDate: run.period_end_date,
-              })}
-              className="h-8 rounded-lg px-2.5"
-            >
-              <Info className="mr-1 h-3.5 w-3.5" />
-              {editCopy.breakdown}
-            </Button>
-          </TableCell>
-        );
-      default:
-        return <TableCell className="px-3 py-3 align-top text-right text-slate-700 dark:text-slate-200">{formatAmount(effectiveRow[key] as number)}</TableCell>;
-    }
-  };
-
-  const formatSimplifiedPrintValue = (row: PayrollEditTableRow, key: PayrollEditTableColumnKey) => {
-    switch (key) {
-      case 'statutoryPayroll':
-        return row.statutoryPayroll ? editCopy.statutory : editCopy.internalOnly;
-      case 'employee':
-      case 'unit':
-      case 'business':
-      case 'employmentType':
-      case 'province':
-        return row[key] ? String(row[key]) : '—';
-      case 'status':
-        return simplifiedStatusLabels[row.status];
-      case 'daysWorked':
-      case 'daysAbsent':
-        return String(row[key]);
-      case 'variablePay': {
-        const bonusCount = row.variablePayItems.filter((item) => item.included && item.type === 'bonus').length;
-        const commissionCount = row.variablePayItems.filter((item) => item.included && item.type === 'commission').length;
-        const adjustmentCount = row.variablePayItems.filter((item) => item.included && item.type === 'adjustment').length;
-        const summaryParts = [
-          `${bonusCount} ${editCopy.bonuses}`,
-          `${commissionCount} ${editCopy.commissions}`,
-          `${adjustmentCount} ${editCopy.adjustments}`,
-        ].filter((entry) => !entry.startsWith('0 '));
-        return `${formatAmount(row.variablePayTotal)}${summaryParts.length ? ` (${summaryParts.join(' · ')})` : ''}`;
-      }
-      case 'breakdown':
-        return editCopy.availableInApp;
-      default:
-        return formatAmount(row[key] as number);
-    }
-  };
-
-  const formatDetailedPrintValue = (row: PayrollDetailedRow, key: PayrollDetailedColumnKey) => {
-    const effectiveRow = getEffectivePayrollValues(row);
-    if (detailedStatutoryColumnsForPrint.has(key) && !effectiveRow.statutoryPayroll) {
-      return '—';
-    }
-
-    if (key === 'breakdown') {
-      return editCopy.availableInApp;
-    }
-
-    const value = effectiveRow[key];
-    if (value === undefined || value === null || value === '') {
-      return '—';
-    }
-
-    if (typeof value === 'number') {
-      if (key === 'daysPaid' || key === 'totalWorkedHours' || key === 'hoursPerDay' || key === 'overtimeHours') {
-        return String(value);
-      }
-      return formatAmount(value);
-    }
-
-    return String(value);
-  };
-
-  const handlePrintMainPdf = () => {
-    if (isUnsupportedJurisdiction) {
-      return;
-    }
-
-    const printTitle = editCopy.printTitle(run.id, payrollViewMode === 'simplified' ? editCopy.printSimplified : editCopy.printDetailed);
-    const headerHtml = `
-      <div class="header">
-        <h1>${escapePrintHtml(printTitle)}</h1>
-        <p class="meta">${escapePrintHtml(editCopy.period)}: ${escapePrintHtml(formatDate(run.period_start_date, locale, run.period_start_date))} - ${escapePrintHtml(formatDate(run.period_end_date, locale, run.period_end_date))}</p>
-        <p class="meta">${escapePrintHtml(editCopy.unit)}: ${escapePrintHtml(unitLabel)} | ${escapePrintHtml(editCopy.business)}: ${escapePrintHtml(businessLabel)} | ${escapePrintHtml(editCopy.jurisdiction)}: ${escapePrintHtml(displayJurisdictionLabel)}</p>
-        <p class="meta">${escapePrintHtml(editCopy.status)}: ${escapePrintHtml(copy.statuses[form.status])}</p>
-      </div>
-    `;
-
-    const tableHtml = payrollViewMode === 'simplified'
-      ? `
-        <div class="section">
-          <h2>${escapePrintHtml(editCopy.simplifiedEmployees)}</h2>
-          <table>
-            <thead>
-              <tr>${simplifiedColumns.map((column) => `<th>${escapePrintHtml(column.label)}</th>`).join('')}</tr>
-            </thead>
-            <tbody>
-              ${sortedSimplifiedRows.map((row) => `<tr>${simplifiedColumns.map((column) => {
-        const value = formatSimplifiedPrintValue(row, column.key);
-        const isNumeric = !simplifiedNonNumericColumns.has(column.key);
-        return `<td class="${isNumeric ? 'num' : ''}">${escapePrintHtml(value)}</td>`;
-      }).join('')}</tr>`).join('')}
-            </tbody>
-          </table>
-          <p class="meta" style="margin-top:8px;">${escapePrintHtml(editCopy.totalNetPay)}: ${escapePrintHtml(formatAmount(totalSimplifiedNetPay))}</p>
-        </div>
-      `
-      : `
-        <div class="section">
-          <h2>${escapePrintHtml(editCopy.detailedEmployees)}</h2>
-          <table>
-            <thead>
-              <tr>${detailedColumns.map((column) => `<th>${escapePrintHtml(column.label)}</th>`).join('')}</tr>
-            </thead>
-            <tbody>
-              ${sortedDetailedRows.map((row) => `<tr>${detailedColumns.map((column) => {
-        const value = formatDetailedPrintValue(row, column.key);
-        const isNumeric = !detailedTextColumns.has(column.key);
-        return `<td class="${isNumeric ? 'num' : ''} ${value === '—' ? 'muted' : ''}">${escapePrintHtml(value)}</td>`;
-      }).join('')}</tr>`).join('')}
-            </tbody>
-          </table>
-          <p class="meta" style="margin-top:8px;">${escapePrintHtml(editCopy.totalNetPay)}: ${escapePrintHtml(formatAmount(totalDetailedNetPay))}</p>
-        </div>
-      `;
-
-    const summaryHtml = `
-      <div class="section">
-        <h2>${escapePrintHtml(editCopy.employerCostSummary)}</h2>
-        <p class="meta">${escapePrintHtml(activeEmployerSummaryConfig.helperText)}</p>
-        <div class="grid" style="margin-top:8px;">
-          ${activeEmployerSummaryConfig.metrics.map((metric) => `
-            <div class="card" style="${metric.accent === 'primary' ? 'border-color:#59C3A5;background:#eef4ff;' : ''}">
-              <p class="card-title" style="${metric.accent === 'primary' ? 'color:#59C3A5;' : ''}">${escapePrintHtml(metric.label)}</p>
-              <p class="card-value" style="${metric.accent === 'primary' ? 'color:#59C3A5;' : ''}">${escapePrintHtml(formatAmount(employerSummary[metric.key]))}</p>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-
-    const printed = printHtmlDocument({
-      title: printTitle,
-      orientation: 'landscape',
-      bodyHtml: `${headerHtml}${tableHtml}${summaryHtml}`,
-    });
-
-    if (!printed) {
-      onPrint();
-    }
-  };
-
-  const toggleSort = (column: PayrollEditTableColumnKey) => {
-    if (sortColumn === column) {
-      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-    setSortColumn(column);
-    setSortDirection('asc');
-  };
-
-  const toggleDetailedSort = (column: PayrollDetailedColumnKey) => {
-    if (detailedSortColumn === column) {
-      setDetailedSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
-      return;
-    }
-    setDetailedSortColumn(column);
-    setDetailedSortDirection('asc');
-  };
-
-  const variablePayEditorRow = variablePayEditorRowId
-    ? effectiveDetailedRows.find((row) => String(row.id) === variablePayEditorRowId) ?? null
-    : null;
-
-  return (
-    <>
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          onClose();
-        }
-      }}>
-        <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 z-[85] flex h-screen !w-screen max-h-none !max-w-none sm:!max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0 shadow-none dark:bg-slate-900 [&>button]:hidden">
-          <header className="border-b border-white/20 bg-[#59C3A5] px-6 py-5 text-white">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <DialogTitle className="text-2xl font-semibold tracking-tight">
-                  {copy.labels.edit} #{run.id} · {displayJurisdictionLabel}
-                </DialogTitle>
-                <DialogDescription className="mt-1 text-sm text-blue-100">
-                  {copy.labels.period}: {formatDate(run.period_start_date, locale, run.period_start_date)} - {formatDate(run.period_end_date, locale, run.period_end_date)}
-                </DialogDescription>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isSaving}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/50 bg-white/10 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label={copy.labels.close}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </header>
-
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 dark:bg-slate-950/40">
-            <div className="space-y-5 px-6 py-5">
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                  {runSummaryCards.map((card) => (
-                    <div key={card.label} className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/80">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{card.label}</p>
-                      {card.key === 'status' ? (
-                        <select
-                          value={form.status}
-                          onChange={(event) => onChange({
-                            ...form,
-                            status: event.target.value as PayrollRunSummary['status'],
-                          })}
-                          disabled={isSaving}
-                          className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                          aria-label={copy.labels.status}
-                        >
-                          <option value="draft">{copy.statuses.draft}</option>
-                          <option value="processed">{copy.statuses.processed}</option>
-                          <option value="approved">{copy.statuses.approved}</option>
-                          <option value="paid">{copy.statuses.paid}</option>
-                          <option value="cancelled">{copy.statuses.cancelled}</option>
-                        </select>
-                      ) : (
-                        <p className="mt-1 truncate text-sm font-medium text-slate-900 dark:text-white" title={String(card.value)}>{card.value}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {isUnsupportedJurisdiction ? (
-                <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm dark:border-amber-900/50 dark:bg-slate-900/70">
-                  <div className="max-w-3xl space-y-3">
-                    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
-                      {editCopy.unsupportedBadge}
-                    </span>
-                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
-                      {editCopy.unsupportedTitle(displayJurisdictionLabel)}
-                    </h4>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">
-                      {editCopy.unsupportedDescription}
-                    </p>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">
-                      {editCopy.unsupportedAction}
-                    </p>
-                  </div>
-                </section>
-              ) : (
-                <>
-                  <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/50">
-                    <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {editCopy.tableTitle}
-                        </h4>
-                        <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (payrollViewMode !== 'simplified') {
-                                setPayrollViewMode('simplified');
-                              }
-                            }}
-                            className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'simplified'
-                              ? 'bg-[#59C3A5] text-white shadow-sm'
-                              : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                              }`}
-                          >
-                            {editCopy.simplifiedMode}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (payrollViewMode !== 'detailed') {
-                                setPayrollViewMode('detailed');
-                              }
-                            }}
-                            className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${payrollViewMode === 'detailed'
-                              ? 'bg-[#59C3A5] text-white shadow-sm'
-                              : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                              }`}
-                          >
-                            {editCopy.detailedMode}
-                          </button>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        {editCopy.tableHint}
-                      </p>
-                    </div>
-
-                    {isDetailLoading ? (
-                      <div className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-                        <LoaderCircle className="mx-auto mb-3 h-5 w-5 animate-spin" />
-                        {copy.loading}
-                      </div>
-                    ) : payrollViewMode === 'simplified' ? (
-                      <div className="overflow-x-auto">
-                        <Table className="min-w-[2050px]">
-                          <TableHeader>
-                            <TableRow className="border-slate-200 bg-slate-50/90 dark:border-slate-700 dark:bg-slate-900/70">
-                              {simplifiedColumns.map((column) => (
-                                <TableHead
-                                  key={column.key}
-                                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap ${column.key === 'statutoryPayroll' ? 'sticky left-0 z-30 border-r border-slate-200 bg-slate-50/95 dark:border-slate-700 dark:bg-slate-900/95' : ''}`}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleSort(column.key)}
-                                    className="inline-flex items-center gap-1 text-left"
-                                  >
-                                    <span>{column.label}</span>
-                                    {sortColumn === column.key ? (
-                                      sortDirection === 'asc' ? (
-                                        <ChevronUp className="h-3.5 w-3.5" />
-                                      ) : (
-                                        <ChevronDown className="h-3.5 w-3.5" />
-                                      )
-                                    ) : (
-                                      <ChevronDown className="h-3.5 w-3.5 opacity-30" />
-                                    )}
-                                  </button>
-                                </TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sortedSimplifiedRows.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={simplifiedColumns.length} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-                                  {noRowsLabel}
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              <>
-                                {sortedSimplifiedRows.map((row) => (
-                                  <TableRow key={row.id} className="border-slate-200 dark:border-slate-700">
-                                    {simplifiedColumns.map((column) => (
-                                      <Fragment key={column.key}>{renderSimplifiedCell(row, column.key)}</Fragment>
-                                    ))}
-                                  </TableRow>
-                                ))}
-                                <TableRow className="border-slate-300 bg-slate-100/80 dark:border-slate-600 dark:bg-slate-800/70">
-                                  {simplifiedColumns.map((column, index) => {
-                                    if (column.key === 'netPay') {
-                                      return (
-                                        <TableCell key={column.key} className="px-4 py-3 align-top font-bold text-[#59C3A5] dark:text-blue-300">
-                                          {formatAmount(totalSimplifiedNetPay)}
-                                        </TableCell>
-                                      );
-                                    }
-                                    if (index === 0) {
-                                      return (
-                                        <TableCell key={column.key} className="sticky left-0 z-20 border-r border-slate-300 bg-slate-100/95 px-4 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-600 dark:bg-slate-800/95 dark:text-slate-300">
-                                          {editCopy.total}
-                                        </TableCell>
-                                      );
-                                    }
-                                    return <TableCell key={column.key} className="px-4 py-3 align-top" />;
-                                  })}
-                                </TableRow>
-                              </>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <Table className="min-w-[3500px]">
-                          <TableHeader>
-                            <TableRow className="border-slate-200 bg-slate-50/90 dark:border-slate-700 dark:bg-slate-900/70">
-                              {detailedColumns.map((column) => (
-                                <TableHead key={column.key} className="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 whitespace-nowrap">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleDetailedSort(column.key)}
-                                    className="inline-flex items-center gap-1 text-left"
-                                  >
-                                    <span>{column.label}</span>
-                                    {detailedSortColumn === column.key ? (
-                                      detailedSortDirection === 'asc' ? (
-                                        <ChevronUp className="h-3.5 w-3.5" />
-                                      ) : (
-                                        <ChevronDown className="h-3.5 w-3.5" />
-                                      )
-                                    ) : (
-                                      <ChevronDown className="h-3.5 w-3.5 opacity-30" />
-                                    )}
-                                  </button>
-                                </TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sortedDetailedRows.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={detailedColumns.length} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-                                  {noRowsLabel}
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              <>
-                                {sortedDetailedRows.map((row) => (
-                                  <TableRow key={row.id} className="border-slate-200 dark:border-slate-700">
-                                    {detailedColumns.map((column) => (
-                                      <Fragment key={column.key}>{renderDetailedCell(row, column.key)}</Fragment>
-                                    ))}
-                                  </TableRow>
-                                ))}
-                                <TableRow className="border-slate-300 bg-slate-100/80 dark:border-slate-600 dark:bg-slate-800/70">
-                                  {detailedColumns.map((column, index) => {
-                                    if (column.key === 'netPay') {
-                                      return (
-                                        <TableCell key={column.key} className="px-3 py-3 align-top text-right font-bold text-[#59C3A5] dark:text-blue-300">
-                                          {formatAmount(totalDetailedNetPay)}
-                                        </TableCell>
-                                      );
-                                    }
-                                    if (index === 0) {
-                                      return (
-                                        <TableCell key={column.key} className="px-3 py-3 align-top text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                                          {editCopy.total}
-                                        </TableCell>
-                                      );
-                                    }
-                                    return <TableCell key={column.key} className="px-3 py-3 align-top" />;
-                                  })}
-                                </TableRow>
-                              </>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{editCopy.employerCostSummary}</h4>
-                      <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{editCopy.readOnly}</span>
-                    </div>
-                    <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-                      {activeEmployerSummaryConfig.helperText}
-                    </p>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                      {activeEmployerSummaryConfig.metrics.map((metric) => (
-                        <div
-                          key={metric.key}
-                          className={metric.accent === 'primary'
-                            ? 'rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/5 px-3 py-2 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/20'
-                            : 'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60'}
-                        >
-                          <p className={metric.accent === 'primary'
-                            ? 'text-xs font-semibold uppercase tracking-wide text-[#59C3A5] dark:text-blue-300'
-                            : 'text-xs font-semibold uppercase tracking-wide text-slate-500'}
-                          >
-                            {metric.label}
-                          </p>
-                          <p className={metric.accent === 'primary'
-                            ? 'mt-1 text-sm font-bold text-[#59C3A5] dark:text-blue-300'
-                            : 'mt-1 text-sm font-semibold text-slate-900 dark:text-white'}
-                          >
-                            {formatAmount(employerSummary[metric.key])}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isSaving}
-              className="rounded-xl"
-            >
-              {copy.labels.cancel}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handlePrintMainPdf}
-              disabled={isSaving || isUnsupportedJurisdiction}
-              className="gap-2 rounded-xl"
-            >
-              <Printer className="h-4 w-4" />
-              {copy.labels.print}
-            </Button>
-            <Button
-              type="button"
-              onClick={onSave}
-              disabled={isSaving}
-              className="gap-2 rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
-            >
-              <Save className="h-4 w-4" />
-              {copy.labels.save}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <PayrollBreakdownModal
-        isOpen={Boolean(breakdownRow)}
-        onClose={() => setBreakdownRow(null)}
-        employee={breakdownRow}
-        copy={copy.breakdown}
-      />
-
-      <VariablePayModal
-        copy={copy.variablePay}
-        isOpen={Boolean(variablePayEditorRow)}
-        employeeName={variablePayEditorRow?.employee || copy.labels.employee}
-        items={variablePayEditorRow ? (variablePayByRow[String(variablePayEditorRow.id)] ?? createVariablePayDefaults(variablePayEditorRow)) : []}
-        onClose={() => setVariablePayEditorRowId(null)}
-        onSave={(nextItems) => {
-          if (!variablePayEditorRow) {
-            return;
-          }
-          setVariablePayByRow((current) => ({
-            ...current,
-            [String(variablePayEditorRow.id)]: nextItems,
-          }));
-          setVariablePayEditorRowId(null);
-        }}
-      />
-    </>
-  );
-}
-
-function PayrollBreakdownModal({
-  isOpen,
-  onClose,
-  employee,
-  copy,
-}: PayrollBreakdownModalProps) {
-  const formatCurrency = (value: number): string => value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-  const formatNumber = (value: number): string => value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-  type BreakdownValueRow = {
-    label: string;
-    value: number | string;
-    tone?: 'positive' | 'negative' | 'primary' | 'neutral';
-  };
-  const rowsCopy = copy.rows;
-
-  const formatBreakdownValue = (value: number | string) => (
-    typeof value === 'number' ? formatCurrency(value) : value
-  );
-
-  const toneClassName = (tone: BreakdownValueRow['tone']) => {
-    switch (tone) {
-      case 'positive':
-        return 'text-emerald-700 dark:text-emerald-300';
-      case 'negative':
-        return 'text-rose-700 dark:text-rose-300';
-      case 'primary':
-        return 'text-[#59C3A5] dark:text-blue-300';
-      default:
-        return 'text-slate-700 dark:text-slate-200';
-    }
-  };
-
-  const renderValueRows = (rows: BreakdownValueRow[]) => (
-    <div className="mt-3 space-y-2 text-sm">
-      {rows.map((row, index) => (
-        <div
-          key={`${row.label}-${index}`}
-          className={`flex items-center justify-between ${index === rows.length - 1 ? 'border-t border-slate-200 pt-2 font-semibold dark:border-slate-700' : ''}`}
-        >
-          <span>{row.label}</span>
-          <span className={toneClassName(row.tone)}>{formatBreakdownValue(row.value)}</span>
-        </div>
-      ))}
-    </div>
-  );
-
-  const buildPrintRows = (rows: BreakdownValueRow[]) => rows
-    .map((row) => `<tr><th>${escapePrintHtml(row.label)}</th><td class="${typeof row.value === 'number' ? 'num' : ''}">${escapePrintHtml(formatBreakdownValue(row.value))}</td></tr>`)
-    .join('');
-
-  const buildPrintSection = (title: string, rows: BreakdownValueRow[], note?: string) => `
-    <div class="section">
-      <h2>${escapePrintHtml(title)}</h2>
-      <table>
-        <tbody>${buildPrintRows(rows)}</tbody>
-      </table>
-      ${note ? `<p class="note">${escapePrintHtml(note)}</p>` : ''}
-    </div>
-  `;
-
-  const getImssBreakdown = (row: PayrollRow): ImssBreakdownRow[] => {
-    const employerSocialSecurity = row.employerImss
-      + row.occupationalRisk
-      + row.childcareImss
-      + row.sar
-      + row.employerInfonavit;
-    const employeeSocialSecurity = row.employeeImss + row.infonavitDiscount;
-
-    return [
-      {
-        concept: 'Cuota obrera IMSS',
-        employer: 0,
-        employee: row.employeeImss,
-      },
-      {
-        concept: 'Cuota patronal IMSS',
-        employer: row.employerImss,
-        employee: 0,
-      },
-      {
-        concept: 'Seguro de riesgos de trabajo',
-        employer: row.occupationalRisk,
-        employee: 0,
-      },
-      {
-        concept: 'Seguro de guarderías y prestaciones sociales',
-        employer: row.childcareImss,
-        employee: 0,
-      },
-      {
-        concept: 'SAR - Retiro',
-        employer: row.sar,
-        employee: 0,
-      },
-      {
-        concept: 'Aportación patronal INFONAVIT',
-        employer: row.employerInfonavit,
-        employee: 0,
-      },
-      {
-        concept: 'Descuento INFONAVIT',
-        employer: 0,
-        employee: row.infonavitDiscount,
-      },
-      {
-        concept: 'Total seguridad social y vivienda',
-        employer: employerSocialSecurity,
-        employee: employeeSocialSecurity,
-      },
-    ].map((item, index, arr) => {
-      if (index === arr.length - 1) {
-        return item;
-      }
-
-      return {
-        ...item,
-        employer: Math.round(item.employer * 100) / 100,
-        employee: Math.round(item.employee * 100) / 100,
-      };
-    });
-  };
-
-  const getJurisdictionContributionBreakdown = (row: PayrollRow): ImssBreakdownRow[] => {
-    if (row.jurisdiction === 'CA_STANDARD') {
-      return [
-        { concept: 'CPP', employer: row.employerCpp, employee: row.employeeCpp },
-        { concept: 'CPP2', employer: row.employerCpp2, employee: row.employeeCpp2 },
-        { concept: 'EI', employer: row.employerEi, employee: row.employeeEi },
-        { concept: 'Employer benefits', employer: row.employerBenefits, employee: 0 },
-        {
-          concept: 'Total statutory contributions',
-          employer: row.totalEmployerObligations,
-          employee: row.employeeCpp + row.employeeCpp2 + row.employeeEi,
-        },
-      ];
-    }
-
-    if (row.jurisdiction === 'CA_QUEBEC') {
-      return [
-        { concept: 'QPP', employer: row.employerQpp, employee: row.employeeQpp },
-        { concept: 'QPP2', employer: row.employerQpp2, employee: row.employeeQpp2 },
-        { concept: 'QPIP', employer: row.employerQpip, employee: row.employeeQpip },
-        { concept: 'EI', employer: row.employerEi, employee: row.employeeEi },
-        { concept: 'Employer benefits', employer: row.employerBenefits, employee: 0 },
-        {
-          concept: 'Total statutory contributions',
-          employer: row.totalEmployerObligations,
-          employee: row.employeeQpp + row.employeeQpp2 + row.employeeQpip + row.employeeEi,
-        },
-      ];
-    }
-
-    if (row.jurisdiction === 'US') {
-      return [
-        { concept: 'Social Security', employer: row.employerCpp, employee: row.employeeCpp },
-        { concept: 'Medicare', employer: row.employerEi, employee: row.employeeEi },
-        { concept: 'FUTA / SUTA / State employer programs', employer: row.payrollStateTax, employee: 0 },
-        { concept: 'Employer benefits', employer: row.employerBenefits, employee: 0 },
-      ];
-    }
-
-    if (row.jurisdiction === 'BR') {
-      return [
-        { concept: 'INSS segurado / INSS patronal', employer: row.employerInss, employee: row.employeeInss },
-        { concept: 'IRRF', employer: 0, employee: row.irrf },
-        { concept: 'FGTS', employer: row.fgts, employee: 0 },
-        { concept: 'RAT/SAT ajustado por FAP', employer: row.ratWorkAccident, employee: 0 },
-        { concept: 'Terceiros / Sistema S', employer: row.thirdPartyContributions, employee: 0 },
-      ];
-    }
-
-    if (row.jurisdiction === 'CO') {
-      return [
-        { concept: 'Health', employer: row.employerHealth, employee: row.employeeHealth },
-        { concept: 'Pension', employer: row.employerPension, employee: row.employeePension },
-        { concept: 'ARL', employer: row.arl, employee: 0 },
-        { concept: 'Family Compensation Fund', employer: row.familyCompensationFund, employee: 0 },
-        { concept: 'ICBF', employer: row.icbf, employee: 0 },
-        { concept: 'SENA', employer: row.sena, employee: 0 },
-      ];
-    }
-
-    return getImssBreakdown(row);
-  };
-
-  const periodLabel = employee
-    ? `${formatDate(employee.periodStartDate, 'en-US', employee.periodStartDate)} - ${formatDate(employee.periodEndDate, 'en-US', employee.periodEndDate)}`
-    : '';
-
-  const effectiveEmployee = employee ? getEffectivePayrollValues(employee) : null;
-  const activeJurisdiction = effectiveEmployee?.jurisdiction ?? 'MX';
-  const breakdownConfig = payrollBreakdownConfigByJurisdiction[activeJurisdiction];
-  const isCanadaStandard = activeJurisdiction === 'CA_STANDARD';
-  const isCanadaQuebec = activeJurisdiction === 'CA_QUEBEC';
-  const isUsaPayroll = activeJurisdiction === 'US';
-  const isBrazilPayroll = activeJurisdiction === 'BR';
-  const isColombiaPayroll = activeJurisdiction === 'CO';
-  const isCanadaPayroll = isCanadaStandard || isCanadaQuebec;
-  const usesGrossPayModel = activeJurisdiction === 'MX' || isCanadaPayroll || isUsaPayroll || isBrazilPayroll || isColombiaPayroll;
-  const jurisdictionLabel = effectiveEmployee
-    ? formatPayrollJurisdictionLabel(activeJurisdiction, effectiveEmployee.province)
-    : '';
-  const contributionBreakdown = effectiveEmployee ? getJurisdictionContributionBreakdown(effectiveEmployee) : [];
-
-  const summaryRows: BreakdownValueRow[] = !effectiveEmployee
-    ? []
-    : [
-      { label: rowsCopy.hrUserName, value: effectiveEmployee.employee },
-      { label: copy.jurisdiction, value: jurisdictionLabel || '—' },
-      { label: rowsCopy.unit, value: effectiveEmployee.unit || '—' },
-      { label: rowsCopy.business, value: effectiveEmployee.business || '—' },
-      ...(isCanadaPayroll
-        ? [
-          { label: copy.identity.sin, value: effectiveEmployee.sin || '—' },
-          { label: copy.identity.province, value: effectiveEmployee.province || '—' },
-          { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
-          { label: rowsCopy.payType, value: effectiveEmployee.payType },
-          { label: rowsCopy.dailySalary, value: effectiveEmployee.dailyWage },
-          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
-        ]
-        : isUsaPayroll
-          ? [
-            { label: copy.identity.ssnTaxId, value: effectiveEmployee.sin || '—' },
-            { label: copy.identity.state, value: effectiveEmployee.province || '—' },
-            { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
-            { label: rowsCopy.payType, value: effectiveEmployee.payType },
-            { label: rowsCopy.dailySalary, value: effectiveEmployee.dailyWage },
-            { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
-          ]
-        : isColombiaPayroll
-          ? [
-            { label: copy.identity.idNumber, value: effectiveEmployee.idNumber || '—' },
-            { label: copy.identity.contractType, value: effectiveEmployee.contractType },
-            { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
-            { label: rowsCopy.payType, value: effectiveEmployee.payType },
-            { label: rowsCopy.monthlySalary, value: effectiveEmployee.monthlySalary },
-            { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
-          ]
-        : isBrazilPayroll
-          ? [
-            { label: copy.identity.cpf, value: effectiveEmployee.cpf || '—' },
-            { label: copy.identity.pisPasep, value: effectiveEmployee.pisPasep || '—' },
-            { label: rowsCopy.employmentType, value: effectiveEmployee.employmentType },
-            { label: rowsCopy.payType, value: effectiveEmployee.payType },
-            { label: rowsCopy.monthlySalary, value: effectiveEmployee.monthlySalary },
-            { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay },
-          ]
-        : [
-          { label: copy.identity.rfc, value: effectiveEmployee.rfc },
-          { label: copy.identity.curp, value: effectiveEmployee.curp },
-          { label: copy.identity.nss, value: effectiveEmployee.nss },
-          { label: rowsCopy.dailySalary, value: effectiveEmployee.dailyWage },
-          { label: rowsCopy.sdi, value: effectiveEmployee.integratedDailyWage },
-          { label: rowsCopy.sbc, value: effectiveEmployee.baseContributionSalary },
-        ]),
-      { label: rowsCopy.daysPaid, value: String(effectiveEmployee.daysPaid) },
-      { label: rowsCopy.netPay, value: effectiveEmployee.netPay, tone: 'primary' },
-    ];
-
-  const earningsRows: BreakdownValueRow[] = !effectiveEmployee
-    ? []
-    : isCanadaPayroll
-      ? [
-        { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
-        { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
-        { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
-        { label: rowsCopy.vacationPay, value: effectiveEmployee.vacationPay },
-        { label: rowsCopy.taxableBenefits, value: effectiveEmployee.taxableBenefits },
-        { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
-      ]
-      : isUsaPayroll
-        ? [
-          { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
-          { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
-          { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
-          { label: rowsCopy.taxableBenefits, value: effectiveEmployee.taxableBenefits },
-          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
-        ]
-      : isColombiaPayroll
-        ? [
-          { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
-          { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
-          { label: rowsCopy.nightSurcharge, value: effectiveEmployee.nightSurcharge },
-          { label: rowsCopy.sundayHolidaySurcharge, value: effectiveEmployee.sundayHolidaySurcharge },
-          { label: rowsCopy.transportAllowance, value: effectiveEmployee.transportAllowance },
-          { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
-          { label: rowsCopy.retroactiveAdjustments, value: effectiveEmployee.retroactiveAdjustments },
-          { label: rowsCopy.payrollCorrections, value: effectiveEmployee.payrollCorrections },
-          { label: rowsCopy.terminationSettlement, value: effectiveEmployee.terminationSettlement },
-          { label: rowsCopy.terminationIndemnity, value: effectiveEmployee.terminationIndemnity },
-          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
-        ]
-      : isBrazilPayroll
-        ? [
-          { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
-          { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
-          { label: rowsCopy.variablePay, value: effectiveEmployee.variablePayTotal },
-          { label: rowsCopy.vacationPay, value: effectiveEmployee.vacationPay },
-          { label: rowsCopy.vacationBonusOneThird, value: effectiveEmployee.vacationBonusOneThird },
-          { label: rowsCopy.thirteenthSalaryProvision, value: effectiveEmployee.thirteenthSalaryProvision },
-          { label: rowsCopy.taxableBenefits, value: effectiveEmployee.taxableBenefits },
-          { label: rowsCopy.grossPay, value: effectiveEmployee.grossPay, tone: 'positive' },
-        ]
-      : [
-        { label: rowsCopy.periodSalary, value: effectiveEmployee.periodSalary },
-        { label: rowsCopy.overtimeAmount, value: effectiveEmployee.overtimeAmount },
-        { label: rowsCopy.bonusesCommissions, value: effectiveEmployee.bonusesCommissions },
-        { label: rowsCopy.vacationPremium, value: effectiveEmployee.vacationPremium },
-        { label: rowsCopy.proportionalChristmasBonus, value: effectiveEmployee.proportionalChristmasBonus },
-        { label: rowsCopy.totalEarnings, value: effectiveEmployee.totalEarnings, tone: 'positive' },
-      ];
-
-  const taxRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
-    ? []
-    : isCanadaStandard
-      ? [
-        { label: rowsCopy.federalTax, value: effectiveEmployee.federalTax, tone: 'negative' },
-        { label: rowsCopy.provincialTax, value: effectiveEmployee.provincialTax, tone: 'negative' },
-      ]
-      : isUsaPayroll
-        ? [
-          { label: rowsCopy.federalWithholding, value: effectiveEmployee.federalTax, tone: 'negative' },
-          { label: rowsCopy.stateWithholding, value: effectiveEmployee.provincialTax, tone: 'negative' },
-        ]
-      : isCanadaQuebec
-        ? [
-          { label: rowsCopy.federalTax, value: effectiveEmployee.federalTax, tone: 'negative' },
-          { label: rowsCopy.quebecProvincialTax, value: effectiveEmployee.quebecProvincialTax, tone: 'negative' },
-        ]
-        : isColombiaPayroll
-          ? []
-        : [
-          { label: rowsCopy.isrBeforeSubsidy, value: effectiveEmployee.isrBeforeSubsidy, tone: 'negative' },
-          { label: rowsCopy.employmentSubsidy, value: effectiveEmployee.employmentSubsidy, tone: 'positive' },
-          { label: rowsCopy.finalIsr, value: effectiveEmployee.finalIsr, tone: 'negative' },
-        ];
-
-  const employeeDeductionRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
-    ? []
-    : isCanadaStandard
-      ? [
-        { label: rowsCopy.employeeCpp, value: effectiveEmployee.employeeCpp, tone: 'negative' },
-        { label: rowsCopy.employeeCpp2, value: effectiveEmployee.employeeCpp2, tone: 'negative' },
-        { label: rowsCopy.employeeEi, value: effectiveEmployee.employeeEi, tone: 'negative' },
-        { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
-        { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-      ]
-      : isUsaPayroll
-        ? [
-          { label: rowsCopy.employeeSocialSecurity, value: effectiveEmployee.employeeCpp, tone: 'negative' },
-          { label: rowsCopy.employeeMedicare, value: effectiveEmployee.employeeEi, tone: 'negative' },
-          { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
-          { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-        ]
-      : isCanadaQuebec
-        ? [
-          { label: rowsCopy.employeeQpp, value: effectiveEmployee.employeeQpp, tone: 'negative' },
-          { label: rowsCopy.employeeQpp2, value: effectiveEmployee.employeeQpp2, tone: 'negative' },
-          { label: rowsCopy.employeeQpip, value: effectiveEmployee.employeeQpip, tone: 'negative' },
-          { label: rowsCopy.employeeEi, value: effectiveEmployee.employeeEi, tone: 'negative' },
-          { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
-          { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-        ]
-        : isColombiaPayroll
-          ? [
-            { label: rowsCopy.employeeHealth, value: effectiveEmployee.employeeHealth, tone: 'negative' },
-            { label: rowsCopy.employeePension, value: effectiveEmployee.employeePension, tone: 'negative' },
-            { label: rowsCopy.withholdingTax, value: effectiveEmployee.withholdingTax, tone: 'negative' },
-            { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
-            { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-          ]
-        : isBrazilPayroll
-          ? [
-            { label: rowsCopy.employeeInss, value: effectiveEmployee.employeeInss, tone: 'negative' },
-            { label: rowsCopy.irrf, value: effectiveEmployee.irrf, tone: 'negative' },
-            { label: rowsCopy.transportationVoucher, value: effectiveEmployee.transportationVoucher, tone: 'negative' },
-            { label: rowsCopy.mealBenefitsDeduction, value: effectiveEmployee.mealBenefitsDeduction, tone: 'negative' },
-            { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
-            { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-          ]
-        : [
-          { label: rowsCopy.employeeImss, value: effectiveEmployee.employeeImss, tone: 'negative' },
-          { label: rowsCopy.infonavitType, value: effectiveEmployee.infonavitType },
-          { label: rowsCopy.infonavitDiscount, value: effectiveEmployee.infonavitDiscount, tone: 'negative' },
-          { label: rowsCopy.loans, value: effectiveEmployee.loans, tone: 'negative' },
-          { label: rowsCopy.otherDiscounts, value: effectiveEmployee.otherDiscounts, tone: 'negative' },
-          { label: rowsCopy.netAdjustment, value: effectiveEmployee.netAdjustment, tone: effectiveEmployee.netAdjustment < 0 ? 'negative' : 'neutral' },
-          { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-        ];
-
-  const employerObligationRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
-    ? []
-    : isCanadaStandard
-      ? [
-        { label: rowsCopy.employerCpp, value: effectiveEmployee.employerCpp },
-        { label: rowsCopy.employerCpp2, value: effectiveEmployee.employerCpp2 },
-        { label: rowsCopy.employerEi, value: effectiveEmployee.employerEi },
-        { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
-        { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
-      ]
-      : isUsaPayroll
-        ? [
-          { label: rowsCopy.employerSocialSecurity, value: effectiveEmployee.employerCpp },
-          { label: rowsCopy.employerMedicare, value: effectiveEmployee.employerEi },
-          { label: rowsCopy.futaSuta, value: effectiveEmployee.payrollStateTax },
-          { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
-          { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
-        ]
-      : isCanadaQuebec
-        ? [
-          { label: rowsCopy.employerQpp, value: effectiveEmployee.employerQpp },
-          { label: rowsCopy.employerQpp2, value: effectiveEmployee.employerQpp2 },
-          { label: rowsCopy.employerQpip, value: effectiveEmployee.employerQpip },
-          { label: rowsCopy.employerEi, value: effectiveEmployee.employerEi },
-          { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
-          { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
-        ]
-        : isColombiaPayroll
-          ? [
-            { label: rowsCopy.employerHealth, value: effectiveEmployee.employerHealth },
-            { label: rowsCopy.employerPension, value: effectiveEmployee.employerPension },
-            { label: rowsCopy.arl, value: effectiveEmployee.arl },
-            { label: rowsCopy.familyCompensationFund, value: effectiveEmployee.familyCompensationFund },
-            { label: rowsCopy.icbf, value: effectiveEmployee.icbf },
-            { label: rowsCopy.sena, value: effectiveEmployee.sena },
-            { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
-          ]
-        : isBrazilPayroll
-          ? [
-            { label: rowsCopy.employerInss, value: effectiveEmployee.employerInss },
-            { label: rowsCopy.fgts, value: effectiveEmployee.fgts },
-            { label: rowsCopy.ratWorkAccident, value: effectiveEmployee.ratWorkAccident },
-            { label: rowsCopy.thirdPartyContributions, value: effectiveEmployee.thirdPartyContributions },
-            { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
-            { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
-          ]
-        : [
-          { label: rowsCopy.employerImss, value: effectiveEmployee.employerImss },
-          { label: rowsCopy.employerInfonavit, value: effectiveEmployee.employerInfonavit },
-          { label: rowsCopy.sar2, value: effectiveEmployee.sar },
-          { label: rowsCopy.payrollTaxStateTax, value: effectiveEmployee.payrollStateTax },
-          { label: rowsCopy.occupationalRisk, value: effectiveEmployee.occupationalRisk },
-          { label: rowsCopy.childcareImss, value: effectiveEmployee.childcareImss },
-          { label: rowsCopy.totalEmployerObligations, value: effectiveEmployee.totalEmployerObligations, tone: 'primary' },
-        ];
-
-  const internalOnlyRows: BreakdownValueRow[] = !effectiveEmployee
-    ? []
-    : isColombiaPayroll || isCanadaPayroll || isUsaPayroll || isBrazilPayroll
-      ? [
-        { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDeductions, tone: 'negative' },
-        { label: rowsCopy.totalInternalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-      ]
-      : [
-        { label: rowsCopy.loans, value: effectiveEmployee.loans, tone: 'negative' },
-        { label: rowsCopy.otherDeductions, value: effectiveEmployee.otherDiscounts, tone: 'negative' },
-        { label: rowsCopy.netAdjustment, value: effectiveEmployee.netAdjustment, tone: effectiveEmployee.netAdjustment < 0 ? 'negative' : 'neutral' },
-        { label: rowsCopy.totalInternalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-      ];
-
-  const benefitsRows: BreakdownValueRow[] = !effectiveEmployee || !effectiveEmployee.statutoryPayroll
-    ? []
-    : isColombiaPayroll
-      ? [
-        { label: rowsCopy.severance, value: effectiveEmployee.severance },
-        { label: rowsCopy.severanceInterest, value: effectiveEmployee.severanceInterest },
-        { label: rowsCopy.serviceBonus, value: effectiveEmployee.serviceBonus },
-        { label: rowsCopy.vacationProvision, value: effectiveEmployee.vacationProvision },
-      ]
-      : isBrazilPayroll
-        ? [
-          { label: rowsCopy.transportationVoucher, value: effectiveEmployee.transportationVoucher, tone: 'negative' },
-          { label: rowsCopy.mealBenefitsDeduction, value: effectiveEmployee.mealBenefitsDeduction, tone: 'negative' },
-          { label: rowsCopy.employerBenefits, value: effectiveEmployee.employerBenefits },
-        ]
-        : [];
-
-  const finalCalculationRows: BreakdownValueRow[] = !effectiveEmployee
-    ? []
-    : [
-      {
-        label: usesGrossPayModel ? rowsCopy.grossPay : rowsCopy.totalEarnings,
-        value: usesGrossPayModel ? effectiveEmployee.grossPay : effectiveEmployee.totalEarnings,
-        tone: 'positive',
-      },
-      { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-      { label: rowsCopy.netPay, value: effectiveEmployee.netPay, tone: 'primary' },
-      {
-        label: effectiveEmployee.statutoryPayroll
-          ? copy.formulas.costWithEmployer
-          : copy.formulas.costInternal,
-        value: effectiveEmployee.totalPayrollCost,
-        tone: 'primary',
-      },
-    ];
-
-  const headerIdentityLine = !effectiveEmployee
-    ? ''
-    : isCanadaPayroll
-      ? `${copy.identity.sin}: ${effectiveEmployee.sin || '—'} | ${copy.identity.province}: ${effectiveEmployee.province || '—'}`
-      : isUsaPayroll
-        ? `${copy.identity.ssnTaxId}: ${effectiveEmployee.sin || '—'} | ${copy.identity.state}: ${effectiveEmployee.province || '—'}`
-      : isColombiaPayroll
-        ? `${copy.identity.idNumber}: ${effectiveEmployee.idNumber || '—'} | ${copy.identity.contractType}: ${effectiveEmployee.contractType}`
-      : isBrazilPayroll
-        ? `${copy.identity.cpf}: ${effectiveEmployee.cpf || '—'} | ${copy.identity.pisPasep}: ${effectiveEmployee.pisPasep || '—'}`
-      : `RFC: ${effectiveEmployee.rfc} | CURP: ${effectiveEmployee.curp} | NSS: ${effectiveEmployee.nss}`;
-
-  const handlePrintBreakdownPdf = () => {
-    if (!effectiveEmployee) {
-      return;
-    }
-
-    const title = copy.printTitle(effectiveEmployee.employee);
-    const headerHtml = `
-      <div class="header">
-        <h1>${escapePrintHtml(title)}</h1>
-        <p class="meta">${escapePrintHtml(copy.period)}: ${escapePrintHtml(periodLabel)}</p>
-        <p class="meta">${escapePrintHtml(copy.jurisdiction)}: ${escapePrintHtml(jurisdictionLabel || '—')}</p>
-        <p class="meta">${escapePrintHtml(headerIdentityLine)}</p>
-        <p class="meta"><span class="badge">${escapePrintHtml(effectiveEmployee.statutoryPayroll ? copy.statutoryPayroll : copy.internalOnlyPayroll)}</span></p>
-      </div>
-    `;
-
-    const earningsHtml = buildPrintSection(copy.earnings, earningsRows);
-    const taxHtml = effectiveEmployee.statutoryPayroll && taxRows.length > 0
-      ? buildPrintSection(breakdownConfig.taxSectionTitle, taxRows)
-      : '';
-    const deductionsHtml = effectiveEmployee.statutoryPayroll
-      ? buildPrintSection(breakdownConfig.employeeDeductionsTitle, employeeDeductionRows)
-      : buildPrintSection(copy.internalDeductions, internalOnlyRows, breakdownConfig.internalOnlyNotice);
-    const employerHtml = effectiveEmployee.statutoryPayroll
-      ? buildPrintSection(
-        breakdownConfig.employerObligationsTitle,
-        employerObligationRows,
-        breakdownConfig.employerObligationsDescription,
-      )
-      : '';
-    const benefitsHtml = effectiveEmployee.statutoryPayroll && benefitsRows.length > 0
-      ? buildPrintSection(breakdownConfig.benefitsSectionTitle || copy.benefitsVouchers, benefitsRows)
-      : '';
-    const contributionHtml = effectiveEmployee.statutoryPayroll
-      ? `
-        <div class="section">
-          <h2>${escapePrintHtml(breakdownConfig.contributionBreakdownTitle)}</h2>
-          <table>
-            <thead><tr><th>${escapePrintHtml(copy.concept)}</th><th class="num">${escapePrintHtml(copy.employer)}</th><th class="num">${escapePrintHtml(copy.employee)}</th></tr></thead>
-            <tbody>
-              ${contributionBreakdown.map((row) => `<tr><td>${escapePrintHtml(row.concept)}</td><td class="num">${escapePrintHtml(formatNumber(row.employer))}</td><td class="num">${escapePrintHtml(formatNumber(row.employee))}</td></tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      `
-      : '';
-    const finalHtml = buildPrintSection(breakdownConfig.finalCalculationTitle, finalCalculationRows);
-
-    printHtmlDocument({
-      title,
-      orientation: 'portrait',
-      bodyHtml: `${headerHtml}${earningsHtml}${taxHtml}${deductionsHtml}${employerHtml}${contributionHtml}${benefitsHtml}${finalHtml}`,
-    });
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
-      <DialogContent className="z-[130] !flex h-[min(90vh,920px)] max-h-[calc(100vh-3rem)] max-w-[900px] flex-col gap-0 overflow-hidden rounded-[30px] border border-slate-200 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#59C3A5] px-5 py-4 text-left text-white sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="text-xl font-semibold">{copy.title}</DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-blue-100">
-                {employee ? `${employee.employee} · ${periodLabel}` : copy.noRowSelected}
-              </DialogDescription>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/60 bg-white/10 transition-colors hover:bg-white/20"
-              aria-label={copy.closeLabel}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </DialogHeader>
-
-        {!effectiveEmployee ? (
-          <div className="flex flex-1 items-center justify-center px-6 text-sm text-slate-500 dark:text-slate-400">
-            {copy.noRowSelected}
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-950/40 sm:px-6">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="inline-flex rounded-full border border-[#59C3A5]/20 bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-[#59C3A5]/40 dark:text-blue-300">
-                  {jurisdictionLabel}
-                </span>
-                {!isCanadaPayroll && !isUsaPayroll && !isBrazilPayroll && !isColombiaPayroll && (
-                  <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
-                    {effectiveEmployee.contributionType}
-                  </span>
-                )}
-                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${effectiveEmployee.statutoryPayroll
-                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-300'
-                  : 'border border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200'}`}
-                >
-                  {effectiveEmployee.statutoryPayroll ? copy.calculated : copy.internalOnly}
-                </span>
-              </div>
-              {!effectiveEmployee.statutoryPayroll && (
-                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
-                  {breakdownConfig.internalOnlyNotice}
-                </p>
-              )}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {summaryRows.map((row) => (
-                  <div key={row.label}>
-                    <p className="text-xs text-slate-500">{row.label}</p>
-                    <p className={`text-sm font-medium ${row.tone === 'primary' ? 'text-[#59C3A5] dark:text-blue-300' : 'text-slate-900 dark:text-white'}`}>
-                      {formatBreakdownValue(row.value)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{copy.earnings}</h4>
-                {renderValueRows(earningsRows)}
-              </section>
-
-              {effectiveEmployee.statutoryPayroll ? (
-                <>
-                  {taxRows.length > 0 && (
-                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.taxSectionTitle}</h4>
-                      {!isCanadaPayroll && !isUsaPayroll && !isBrazilPayroll && !isColombiaPayroll && (
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {copy.isrHint}
-                        </p>
-                      )}
-                      {renderValueRows(taxRows)}
-                    </section>
-                  )}
-
-                  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.employeeDeductionsTitle}</h4>
-                    {renderValueRows(employeeDeductionRows)}
-                  </section>
-
-                  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.employerObligationsTitle}</h4>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{breakdownConfig.employerObligationsDescription}</p>
-                    {renderValueRows(employerObligationRows)}
-                  </section>
-
-                </>
-              ) : (
-                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{copy.internalDeductions}</h4>
-                  {renderValueRows(internalOnlyRows)}
-                </section>
-              )}
-            </div>
-
-            {effectiveEmployee.statutoryPayroll && (
-              <>
-                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.contributionBreakdownTitle}</h4>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full min-w-[560px] border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700">
-                          <th className="py-2 pr-3">{copy.concept}</th>
-                          <th className="py-2 px-3 text-right">{copy.employer}</th>
-                          <th className="py-2 pl-3 text-right">{copy.employee}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {contributionBreakdown.map((row) => (
-                          <tr key={row.concept} className="border-b border-slate-100 dark:border-slate-800">
-                            <td className="py-2 pr-3 text-slate-700 dark:text-slate-200">{row.concept}</td>
-                            <td className="py-2 px-3 text-right text-slate-900 dark:text-slate-100">{formatNumber(row.employer)}</td>
-                            <td className="py-2 pl-3 text-right text-slate-900 dark:text-slate-100">{formatNumber(row.employee)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-
-                {benefitsRows.length > 0 && (
-                  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{breakdownConfig.benefitsSectionTitle || copy.benefitsVouchers}</h4>
-                    {renderValueRows(benefitsRows)}
-                  </section>
-                )}
-              </>
-            )}
-
-            <section className="rounded-2xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-4 shadow-sm dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/20">
-              <h4 className="text-sm font-semibold text-[#59C3A5] dark:text-blue-300">{breakdownConfig.finalCalculationTitle}</h4>
-              <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-[#59C3A5]/20 bg-white px-3 py-3 dark:border-[#59C3A5]/40 dark:bg-slate-900/60">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {usesGrossPayModel ? copy.formulas.netFromGross : copy.formulas.netFromEarnings}
-                  </p>
-                  {renderValueRows([
-                    {
-                      label: usesGrossPayModel ? rowsCopy.grossPay : rowsCopy.totalEarnings,
-                      value: usesGrossPayModel ? effectiveEmployee.grossPay : effectiveEmployee.totalEarnings,
-                      tone: 'positive',
-                    },
-                    { label: rowsCopy.totalDeductions, value: effectiveEmployee.totalDeductions, tone: 'negative' },
-                    { label: rowsCopy.netPay, value: effectiveEmployee.netPay, tone: 'primary' },
-                  ])}
-                </div>
-                <div className="rounded-xl border border-[#59C3A5]/20 bg-white px-3 py-3 dark:border-[#59C3A5]/40 dark:bg-slate-900/60">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {effectiveEmployee.statutoryPayroll
-                      ? copy.formulas.costWithEmployer
-                      : copy.formulas.costInternal}
-                  </p>
-                  {renderValueRows([
-                    { label: rowsCopy.netPay, value: effectiveEmployee.netPay },
-                    ...(effectiveEmployee.statutoryPayroll
-                      ? [{ label: rowsCopy.employerObligations, value: effectiveEmployee.totalEmployerObligations }]
-                      : []),
-                    { label: rowsCopy.totalPayrollCost, value: effectiveEmployee.totalPayrollCost, tone: 'primary' },
-                  ])}
-                </div>
-              </div>
-            </section>
-          </div>
-        )}
-
-        <DialogFooter className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900 sm:px-6">
-          <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">{copy.closeLabel}</Button>
-          <Button type="button" onClick={handlePrintBreakdownPdf} className="gap-2 rounded-xl bg-[#59C3A5] text-white hover:bg-[#3AAE90]">
-            <Printer className="h-4 w-4" />
-            {copy.printBreakdown}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -5485,6 +2413,9 @@ function PayrollRunDialog({
   const canApprove = detail?.run.status === 'processed';
   const canPay = detail?.run.status === 'approved';
   const canCancel = detail && detail.run.status !== 'paid' && detail.run.status !== 'cancelled';
+  const runCurrency = detail?.run.currency_code || 'USD';
+  const selectedLineCurrency = selectedLine?.currency_code || runCurrency;
+  const selectedLineHasIncentives = selectedLine?.items.some((item) => item.source_type === 'incentive') ?? false;
 
   useEffect(() => {
     if (!isOpen) {
@@ -5513,33 +2444,41 @@ function PayrollRunDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/55 px-4 py-8 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[140] overflow-y-auto bg-black/55 px-4 py-8 backdrop-blur-[2px]">
       <div className="flex min-h-full items-start justify-center">
         <div
-          className="relative w-full max-w-[96vw] rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.28)] dark:border-slate-700 dark:bg-slate-950"
+          className="relative w-full max-w-[96vw] overflow-hidden rounded-lg border border-[#59C3A5]/25 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)] dark:border-[#59C3A5]/30 dark:bg-slate-950"
           onClick={(event) => event.stopPropagation()}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSaving}
-            className="absolute right-4 top-4 rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-60 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-            aria-label={copy.labels.close}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="relative bg-[#59C3A5] px-6 py-5 pr-16 text-white">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving}
+              className="absolute right-4 top-4 rounded-full border border-white/30 bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:opacity-60"
+              aria-label={copy.labels.close}
+            >
+              <X className="h-5 w-5" />
+            </button>
 
-          <div className="mb-6 pr-10">
-            <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
-              {detail ? `${copy.labels.detail} #${detail.run.id}` : copy.labels.detail}
-            </h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              {detail
-                ? `${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
-                : copy.labels.currentRun}
-            </p>
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">
+                <Wallet className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-xl font-bold">
+                  {detail ? `${copy.labels.detail} #${detail.run.id}` : copy.labels.detail}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-white/85">
+                  {detail
+                    ? `${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
+                    : copy.labels.currentRun}
+                </p>
+              </div>
+            </div>
           </div>
 
+          <div className="bg-slate-50 p-6 dark:bg-slate-950">
           {notice ? (
             <div
               className={`mb-6 rounded-xl border px-4 py-3 text-sm ${notice.tone === 'success'
@@ -5552,11 +2491,18 @@ function PayrollRunDialog({
           ) : null}
 
           {detail ? (
+            <div className="mb-5 flex items-start gap-2 rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 text-sm font-semibold text-[#177d66] dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/15 dark:text-[#B8F2E3]">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{copy.labels.nativeCurrencyNotice}</span>
+            </div>
+          ) : null}
+
+          {detail ? (
             <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
               <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                <div className="rounded-lg border border-[#59C3A5]/20 bg-white p-4 shadow-sm dark:border-[#59C3A5]/25 dark:bg-slate-900/70">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                    <span className="rounded-full bg-[#59C3A5]/15 px-2.5 py-1 text-xs font-bold text-[#177d66] dark:bg-[#59C3A5]/20 dark:text-[#B8F2E3]">
                       {copy.statuses[detail.run.status]}
                     </span>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -5569,9 +2515,9 @@ function PayrollRunDialog({
 
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <DetailMetric label={copy.labels.employees} value={String(detail.run.users_count)} />
-                    <DetailMetric label={copy.labels.gross} value={formatCurrency(detail.run.gross_amount, locale)} />
-                    <DetailMetric label={copy.labels.deductions} value={formatCurrency(detail.run.deductions_amount, locale)} />
-                    <DetailMetric label={copy.labels.net} value={formatCurrency(detail.run.net_amount, locale)} />
+                    <DetailMetric label={copy.labels.gross} value={formatCurrency(detail.run.gross_amount, locale, runCurrency)} />
+                    <DetailMetric label={copy.labels.deductions} value={formatCurrency(detail.run.deductions_amount, locale, runCurrency)} />
+                    <DetailMetric label={copy.labels.net} value={formatCurrency(detail.run.net_amount, locale, runCurrency)} />
                   </div>
                 </div>
 
@@ -5582,8 +2528,8 @@ function PayrollRunDialog({
                       type="button"
                       onClick={() => onSelectLine(line.id)}
                       className={`w-full rounded-lg border px-4 py-4 text-left transition-all ${selectedLineId === line.id
-                        ? 'border-blue-700 bg-blue-50 shadow-sm dark:border-blue-400 dark:bg-blue-950/20'
-                        : 'border-gray-200 bg-white hover:border-blue-300 dark:border-gray-700 dark:bg-gray-800'
+                        ? 'border-[#59C3A5] bg-[#59C3A5]/10 shadow-sm dark:border-[#59C3A5] dark:bg-[#59C3A5]/15'
+                        : 'border-gray-200 bg-white hover:border-[#59C3A5]/50 dark:border-gray-700 dark:bg-gray-800'
                         }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -5594,7 +2540,7 @@ function PayrollRunDialog({
                           </p>
                         </div>
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {formatCurrency(line.net_amount, locale)}
+                          {formatCurrency(line.net_amount, locale, line.currency_code || runCurrency)}
                         </p>
                       </div>
                     </button>
@@ -5605,7 +2551,7 @@ function PayrollRunDialog({
               <div className="space-y-4">
                 {selectedLine ? (
                   <>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
+                    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{copy.labels.employee}</p>
@@ -5638,11 +2584,11 @@ function PayrollRunDialog({
                         <DetailMetric label={copy.labels.daysPayable} value={String(selectedLine.days_payable)} />
                         <DetailMetric label={copy.labels.leaveDays} value={String(selectedLine.leave_days)} />
                         <DetailMetric label={copy.labels.absenceDays} value={String(selectedLine.absence_days)} />
-                        <DetailMetric label="Sin registro" value={String(selectedLine.missing_attendance_days ?? 0)} />
+                        <DetailMetric label={copy.labels.noAttendanceRecords} value={String(selectedLine.missing_attendance_days ?? 0)} />
                         <DetailMetric label={copy.labels.regularHours} value={String(selectedLine.regular_hours)} />
                         <DetailMetric label={copy.labels.overtimeHours} value={String(selectedLine.overtime_hours)} />
                         <DetailMetric label={copy.labels.lateCount} value={String(selectedLine.late_count)} />
-                        <DetailMetric label={copy.labels.net} value={formatCurrency(selectedLine.net_amount, locale)} />
+                        <DetailMetric label={copy.labels.net} value={formatCurrency(selectedLine.net_amount, locale, selectedLineCurrency)} />
                       </div>
 
                       {selectedLine.attendance_warnings?.length ? (
@@ -5658,7 +2604,7 @@ function PayrollRunDialog({
                       ) : null}
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
+                    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.lineEditor}</h4>
 
                       <div className="mt-4 space-y-4">
@@ -5678,7 +2624,7 @@ function PayrollRunDialog({
                             value={lineDraft.notes}
                             disabled={!isDraft}
                             onChange={(event) => onChangeDraft({ ...lineDraft, notes: event.target.value })}
-                            className="min-h-[88px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-700 focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                            className="min-h-[88px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                           />
                         </div>
 
@@ -5750,7 +2696,7 @@ function PayrollRunDialog({
                                       );
                                       onChangeDraft({ ...lineDraft, manual_items: manualItems });
                                     }}
-                                    className="min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    className="min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                   >
                                     <option value="earning">{copy.itemCategories.earning}</option>
                                     <option value="deduction">{copy.itemCategories.deduction}</option>
@@ -5770,7 +2716,7 @@ function PayrollRunDialog({
                                       );
                                       onChangeDraft({ ...lineDraft, manual_items: manualItems });
                                     }}
-                                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                   />
                                   <input
                                     type="number"
@@ -5786,7 +2732,7 @@ function PayrollRunDialog({
                                       );
                                       onChangeDraft({ ...lineDraft, manual_items: manualItems });
                                     }}
-                                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-700 focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                                   />
                                   {isDraft ? (
                                     <Button
@@ -5811,26 +2757,41 @@ function PayrollRunDialog({
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70">
                           <h5 className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.detail}</h5>
+                          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.labels.payrollEngineDetail}</p>
                           <div className="mt-3 grid gap-2 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
                             <span>{selectedLine.calculation_source || 'payroll_calculation_engine'}</span>
                             <span>{selectedLine.calculation_timestamp || '—'}</span>
                             <span>{selectedLine.statutory_compliance === false ? 'Cálculo operativo' : 'Cumplimiento fiscal activo'}</span>
                           </div>
+                          {selectedLineHasIncentives ? (
+                            <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+                              <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                              <span>{copy.labels.incentiveLockedNotice}</span>
+                            </div>
+                          ) : null}
                           <div className="mt-3 space-y-2">
                             {selectedLine.items.map((item) => (
-                              <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
-                                <div>
-                                  <p className="font-medium text-gray-900 dark:text-white">{item.label}</p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                              <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-semibold text-gray-900 dark:text-white">{getPayrollLineItemDisplayLabel(item, copy)}</p>
+                                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${getPayrollLineItemSourceClassName(item)}`}>
+                                      {getPayrollLineItemSourceLabel(item, copy)}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     {copy.itemCategories[item.category as keyof typeof copy.itemCategories] ?? item.category} · {item.code}
                                     {item.rule_code ? ` · ${item.rule_code}` : ''}
                                     {item.rate_applied ? ` · ${(item.rate_applied * 100).toFixed(2)}%` : ''}
                                   </p>
+                                  {item.calculation_formula ? (
+                                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{item.calculation_formula}</p>
+                                  ) : null}
                                 </div>
-                                <p className="font-semibold text-gray-900 dark:text-white">
-                                  {formatCurrency(item.amount, locale)}
+                                <p className="shrink-0 font-semibold text-gray-900 dark:text-white">
+                                  {formatCurrency(item.amount, locale, item.currency_code || selectedLineCurrency)}
                                 </p>
                               </div>
                             ))}
@@ -5851,58 +2812,59 @@ function PayrollRunDialog({
               {copy.loading}
             </div>
           )}
+          </div>
 
-          <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end dark:border-slate-700">
+          <div className="flex flex-col-reverse gap-2 border-t border-white/15 bg-[#59C3A5] px-6 py-4 sm:flex-row sm:justify-end">
             {detail ? (
               <>
                 <div className="flex flex-wrap gap-2 sm:mr-auto">
-                  <Button variant="outline" onClick={() => onDownloadCsv(detail.run)} className="gap-2 rounded-xl" disabled={isSaving}>
+                  <Button variant="outline" onClick={() => onDownloadCsv(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
                     {activeBusyKind === 'download-csv' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     {copy.labels.exportCsv}
                   </Button>
-                  <Button variant="outline" onClick={() => onDownloadPdf(detail.run)} className="gap-2 rounded-xl" disabled={isSaving}>
+                  <Button variant="outline" onClick={() => onDownloadPdf(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
                     {activeBusyKind === 'download-pdf' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                     {copy.labels.exportPdf}
                   </Button>
-                  <Button variant="outline" onClick={() => onOpenGovernmentReporting(detail.run)} className="gap-2 rounded-xl" disabled={isSaving}>
+                  <Button variant="outline" onClick={() => onOpenGovernmentReporting(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
                     {activeBusyKind === 'government-reporting' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
                     PILA / DIAN
                   </Button>
                   {canProcess ? (
-                    <Button onClick={onProcess} disabled={isSaving} className="gap-2 rounded-xl">
+                    <Button onClick={onProcess} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
                       {activeBusyKind === 'process-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
                       {copy.labels.process}
                     </Button>
                   ) : null}
                   {canApprove ? (
-                    <Button onClick={onApprove} disabled={isSaving} className="gap-2 rounded-xl">
+                    <Button onClick={onApprove} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
                       {activeBusyKind === 'approve-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                       {copy.labels.approve}
                     </Button>
                   ) : null}
                   {canPay ? (
-                    <Button onClick={onPay} disabled={isSaving} className="gap-2 rounded-xl">
+                    <Button onClick={onPay} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
                       {activeBusyKind === 'mark-paid' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
                       {copy.labels.pay}
                     </Button>
                   ) : null}
                   {canCancel ? (
-                    <Button variant="outline" onClick={onCancel} disabled={isSaving} className="gap-2 rounded-xl">
+                    <Button variant="outline" onClick={onCancel} disabled={isSaving} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20">
                       {activeBusyKind === 'cancel-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                       {copy.labels.cancelRun}
                     </Button>
                   ) : null}
                 </div>
                 {isDraft ? (
-                  <Button onClick={onSaveLine} disabled={isSaving || !selectedLine} className="gap-2 rounded-xl bg-slate-950 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100">
+                  <Button onClick={onSaveLine} disabled={isSaving || !selectedLine} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
                     {activeBusyKind === 'save-line' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {copy.labels.saveLine}
                   </Button>
                 ) : null}
-                <Button variant="outline" className="rounded-xl" onClick={onClose}>{copy.labels.closeDetail}</Button>
+                <Button variant="outline" className="rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.labels.closeDetail}</Button>
               </>
             ) : (
-              <Button variant="outline" className="rounded-xl" onClick={onClose}>{copy.labels.close}</Button>
+              <Button variant="outline" className="rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.labels.close}</Button>
             )}
           </div>
         </div>

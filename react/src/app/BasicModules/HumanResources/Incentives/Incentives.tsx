@@ -1,18 +1,28 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
-import { RHIncentivo, rhColaboradores, rhIncentivosSeed } from '../mockData';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
+import { hrIncentivesApi, type BackendHrIncentive, type CreateHrIncentivePayload } from '../../../api/HumanResources/incentives';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { defaultBusinessCurrency, hrPreferredCurrencyStorageKey, isBusinessCurrencyCode } from '../../shared/businessCurrency';
 import type { IncentiveColumn } from './components/IncentiveColumnsModal';
 import { IncentiveFilters } from './components/IncentiveFilters';
 import { IncentiveHeaderBar } from './components/IncentiveHeaderBar';
 import { IncentiveKpiStrip } from './components/IncentiveKpiStrip';
 import { IncentivesTable, type IncentiveColumnId } from './components/IncentivesTable';
 import { useIncentivesTranslations } from './hooks/useIncentivesTranslations';
+import type { RHIncentivo } from './types';
 
 const LazyIncentiveColumnsModal = lazy(() =>
   import('./components/IncentiveColumnsModal').then((module) => ({ default: module.IncentiveColumnsModal })),
 );
-const LazyNuevoIncentivoModal = lazy(() =>
-  import('../../../components/NuevoIncentivoModal').then((module) => ({ default: module.NuevoIncentivoModal })),
+const LazyIncentiveFormModal = lazy(() =>
+  import('./components/IncentiveFormModal').then((module) => ({ default: module.IncentiveFormModal })),
 );
+
+type IncentiveViewModel = RHIncentivo & {
+  appliedCount: number;
+  backendId: number;
+  eligibleCount: number;
+};
 
 const defaultVisibleIncentiveColumns: IncentiveColumnId[] = [
   'incentive',
@@ -25,7 +35,16 @@ const defaultVisibleIncentiveColumns: IncentiveColumnId[] = [
 
 export default function Incentives() {
   const copy = useIncentivesTranslations();
-  const [incentivos, setIncentivos] = useState<RHIncentivo[]>(rhIncentivosSeed);
+  const [storedPreferredCurrency] = useLocalStorageState<string>(
+    hrPreferredCurrencyStorageKey,
+    defaultBusinessCurrency,
+  );
+  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
+    ? storedPreferredCurrency
+    : defaultBusinessCurrency;
+  const [incentivos, setIncentivos] = useState<IncentiveViewModel[]>([]);
+  const [employees, setEmployees] = useState<BackendHrUser[]>([]);
+  const [eligibleTotal, setEligibleTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | RHIncentivo['tipo']>('all');
   const [selectedStatus, setSelectedStatus] = useState<'all' | RHIncentivo['estado']>('all');
@@ -33,6 +52,33 @@ export default function Incentives() {
   const [visibleColumns, setVisibleColumns] = useState<IncentiveColumnId[]>(defaultVisibleIncentiveColumns);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadIncentives = async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const [incentivesResponse, usersResponse] = await Promise.all([
+        hrIncentivesApi.list(),
+        humanResourcesApi.listHrUsers(),
+      ]);
+      setEmployees(usersResponse.items);
+      setEligibleTotal(Number(usersResponse.summary?.active_count ?? usersResponse.items.length));
+      setIncentivos(incentivesResponse.items.map(mapIncentive));
+      setSelectedIncentiveIds((current) => current.filter((id) => incentivesResponse.items.some((item) => item.incentive_code === id)));
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'No se pudieron cargar los incentivos.');
+      setIncentivos([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadIncentives();
+  }, []);
 
   const activeCount = incentivos.filter((incentivo) => incentivo.estado === 'Activo').length;
   const scheduledCount = incentivos.filter((incentivo) => incentivo.estado === 'Programado').length;
@@ -129,7 +175,7 @@ export default function Incentives() {
         copy={copy}
         activeCount={activeCount}
         automatedCount={automaticCount}
-        eligibleCount={rhColaboradores.length}
+        eligibleCount={eligibleTotal}
         manualCount={manualCount}
         pausedCount={pausedCount}
         scheduledCount={scheduledCount}
@@ -138,9 +184,15 @@ export default function Incentives() {
         visibleCount={filteredIncentives.length}
       />
 
+      {loadError ? (
+        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          {loadError}
+        </div>
+      ) : null}
+
       <IncentivesTable
         copy={copy}
-        incentives={filteredIncentives}
+        incentives={isLoading ? [] : filteredIncentives}
         selectedIds={selectedIncentiveIds}
         visibleColumns={visibleColumns}
         onToggleRow={handleToggleRow}
@@ -160,40 +212,62 @@ export default function Incentives() {
         ) : null}
 
         {isModalOpen ? (
-          <LazyNuevoIncentivoModal
+          <LazyIncentiveFormModal
+            defaultCurrency={preferredCurrency}
+            employees={employees}
             isOpen={isModalOpen}
+            isSaving={isSaving}
             onClose={() => setIsModalOpen(false)}
-            onSave={(data) => {
-              const nextId = `INC-${210 + incentivos.length + 1}`;
-              setIncentivos((prev) => [
-                {
-                  id: nextId,
-                  nombre: data.nombre,
-                  tipo: data.tipo === 'manual' ? 'Manual' : 'Automatizado',
-                  alcance:
-                    data.tipo === 'manual'
-                      ? copy.newIncentive.selectedCollaborators(data.colaboradoresSeleccionados.length)
-                      : copy.newIncentive.automatedRule,
-                  monto:
-                    data.tipo === 'manual'
-                      ? `$${data.montoManual || '0'} ${copy.newIncentive.fixed}`
-                      : `${data.montoAutomatizado || '0'} ${data.tipoMontoAuto === 'porcentaje' ? '%' : copy.newIncentive.fixed}`,
-                  aplicacion: data.aplicacion === 'especifica' ? data.fechaEspecifica || copy.newIncentive.pending : copy.newIncentive.nextPayroll,
-                  estado: data.activo ? 'Activo' : 'Pausado',
-                },
-                ...prev,
-              ]);
-              setIsModalOpen(false);
+            onSave={async (payload: CreateHrIncentivePayload) => {
+              setIsSaving(true);
+              try {
+                await hrIncentivesApi.create(payload);
+                await loadIncentives();
+                setIsModalOpen(false);
+              } finally {
+                setIsSaving(false);
+              }
             }}
-            colaboradores={rhColaboradores.map(({ id, nombre, puesto, unidad }) => ({
-              id,
-              nombre,
-              puesto,
-              unidad,
-            }))}
           />
         ) : null}
       </Suspense>
     </>
   );
+}
+
+function mapIncentive(incentive: BackendHrIncentive): IncentiveViewModel {
+  return {
+    id: incentive.incentive_code,
+    backendId: incentive.id,
+    nombre: incentive.name,
+    tipo: incentive.incentive_type === 'kpi' ? 'Automatizado' : 'Manual',
+    alcance: incentive.scope_summary || `${incentive.eligible_count} colaboradores`,
+    monto: formatMoney(incentive.amount, incentive.currency_code),
+    aplicacion: incentive.application_mode === 'specific_date'
+      ? formatDate(incentive.effective_start_date)
+      : 'Siguiente nómina',
+    estado: mapStatus(incentive.status),
+    eligibleCount: Number(incentive.eligible_count ?? 0),
+    appliedCount: Number(incentive.applied_count ?? 0),
+  };
+}
+
+function mapStatus(status: BackendHrIncentive['status']): RHIncentivo['estado'] {
+  if (status === 'scheduled') return 'Programado';
+  if (status === 'paused') return 'Pausado';
+  return 'Activo';
+}
+
+function formatMoney(amount: number, currencyCode: string) {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: currencyCode || 'MXN',
+    maximumFractionDigits: 2,
+  }).format(Number(amount || 0));
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return 'Pendiente';
+  const date = new Date(`${value}T00:00:00`);
+  return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 }

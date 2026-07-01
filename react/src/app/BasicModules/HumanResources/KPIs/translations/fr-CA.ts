@@ -76,9 +76,9 @@ export const frCA = {
         description: 'Employés actifs dans le périmètre sélectionné.',
       },
       attendance: {
-        title: 'Présence du jour',
+        title: 'Présence de la date de contrôle',
         target: (registered: number, total: number) => `${registered} sur ${total} employés avec présence`,
-        description: 'Entrées enregistrées depuis le contrôle de présence.',
+        description: 'Entrées enregistrées pour la date de contrôle sélectionnée.',
       },
       late: {
         title: 'Retards et sans relevé',
@@ -94,6 +94,11 @@ export const frCA = {
         title: 'Couverture des actifs',
         target: (assigned: number, maintenance: number) => `${assigned} assignés · ${maintenance} en maintenance`,
         description: 'Équipement assigné comparé à l’effectif actif.',
+      },
+      assetValue: {
+        title: 'Valeur des actifs',
+        target: (nativeBreakdown: string) => `Total natif : ${nativeBreakdown}`,
+        description: (currency: string) => `Estimation dans la devise préférée (${currency}).`,
       },
       records: {
         title: 'Risque des dossiers',
@@ -118,6 +123,8 @@ export const frCA = {
       inactive: 'Inactifs',
       terminated: 'Terminés',
       attendanceToday: 'présence du jour',
+      attendanceControlDate: 'Date de contrôle de présence',
+      preferredCurrency: 'Devise préférée',
       onTime: 'À l’heure',
       late: 'Retard',
       leave: 'Congé',
@@ -126,6 +133,7 @@ export const frCA = {
       noRecord: 'Sans relevé',
       pending: 'En attente',
       totalAssets: 'Actifs',
+      totalAssetValue: 'Valeur des actifs',
       totalPermissions: 'Congés',
       totalRecords: 'Dossiers',
       readiness: 'Préparation',

@@ -35,6 +35,7 @@ const defaultFilters: PermissionFilterState = {
   search: '',
   status: 'all',
   type: 'all',
+  payrollTreatment: 'all',
   employee: 'all',
 };
 
@@ -42,6 +43,7 @@ const defaultVisiblePermissionColumns: PermissionColumnId[] = [
   'folio',
   'employee',
   'type',
+  'payrollTreatment',
   'startDate',
   'endDate',
   'days',
@@ -50,6 +52,8 @@ const defaultVisiblePermissionColumns: PermissionColumnId[] = [
 ];
 
 type PermissionViewMode = 'management' | 'self';
+
+const normalizeSearchText = (value: unknown) => String(value ?? '').toLowerCase().trim();
 
 export default function Permissions() {
   const copy = usePermissionsTranslations();
@@ -78,23 +82,32 @@ export default function Permissions() {
 
   const permissionColumns = useMemo<PermissionColumn[]>(
     () => [
-      { id: 'folio', label: copy.columns.folio, locked: true },
-      { id: 'employee', label: copy.columns.employee, locked: true },
-      { id: 'type', label: copy.columns.type },
-      { id: 'startDate', label: copy.columns.startDate },
-      { id: 'endDate', label: copy.columns.endDate },
-      { id: 'days', label: copy.columns.days },
-      { id: 'status', label: copy.columns.status },
-      { id: 'actions', label: copy.columns.actions, locked: true },
+      { id: 'folio', label: copy.columns.folio, locked: true, visible: true },
+      { id: 'employee', label: copy.columns.employee, locked: true, visible: true },
+      { id: 'type', label: copy.columns.type, visible: defaultVisiblePermissionColumns.includes('type') },
+      { id: 'payrollTreatment', label: copy.columns.payrollTreatment, visible: defaultVisiblePermissionColumns.includes('payrollTreatment') },
+      { id: 'startDate', label: copy.columns.startDate, visible: defaultVisiblePermissionColumns.includes('startDate') },
+      { id: 'endDate', label: copy.columns.endDate, visible: defaultVisiblePermissionColumns.includes('endDate') },
+      { id: 'days', label: copy.columns.days, visible: defaultVisiblePermissionColumns.includes('days') },
+      { id: 'status', label: copy.columns.status, visible: defaultVisiblePermissionColumns.includes('status') },
+      { id: 'actions', label: copy.columns.actions, locked: true, visible: true },
     ],
     [copy],
   );
 
+  const columnsForModal = useMemo<PermissionColumn[]>(
+    () => permissionColumns.map((column) => ({
+      ...column,
+      visible: column.locked ? true : visiblePermissionColumns.includes(column.id),
+    })),
+    [permissionColumns, visiblePermissionColumns],
+  );
+
   const filteredPermissions = useMemo(() => permissions.filter((permission) => {
-    const searchLower = filters.search.toLowerCase().trim();
+    const searchLower = normalizeSearchText(filters.search);
     if (searchLower) {
-      const matchesSearch = permission.employee.name.toLowerCase().includes(searchLower)
-        || permission.folio.toLowerCase().includes(searchLower);
+      const matchesSearch = normalizeSearchText(permission.employee.name).includes(searchLower)
+        || normalizeSearchText(permission.folio).includes(searchLower);
       if (!matchesSearch) {
         return false;
       }
@@ -105,6 +118,10 @@ export default function Permissions() {
     }
 
     if (filters.type !== 'all' && permission.type !== filters.type) {
+      return false;
+    }
+
+    if (filters.payrollTreatment !== 'all' && permission.payrollTreatment !== filters.payrollTreatment) {
       return false;
     }
 
@@ -261,6 +278,7 @@ export default function Permissions() {
         async () => {
           const created = await permissionsApi.createMyPermission({
             type: data.type,
+            payrollTreatment: data.payrollTreatment,
             startDate: data.startDate,
             endDate: data.endDate,
             halfDay: data.halfDay,
@@ -285,6 +303,7 @@ export default function Permissions() {
   const handleReviewAction = async (
     permissionId: string,
     action: 'approve' | 'reject',
+    reviewNotes?: string,
   ) => {
     setBusyPermissionId(permissionId);
     setSuccessMessage('');
@@ -296,8 +315,8 @@ export default function Permissions() {
         copy.loading.reviewingDescription,
         () => (
           action === 'approve'
-            ? permissionsApi.approvePermission(permissionId)
-            : permissionsApi.rejectPermission(permissionId)
+            ? permissionsApi.approvePermission(permissionId, { reviewNotes })
+            : permissionsApi.rejectPermission(permissionId, { reviewNotes })
         ),
       );
       const updatedPermission = mapBackendPermission(response.permission);
@@ -316,8 +335,8 @@ export default function Permissions() {
     }
   };
 
-  const handleApprove = (permissionId: string) => handleReviewAction(permissionId, 'approve');
-  const handleReject = (permissionId: string) => handleReviewAction(permissionId, 'reject');
+  const handleApprove = (permissionId: string, reviewNotes?: string) => handleReviewAction(permissionId, 'approve', reviewNotes);
+  const handleReject = (permissionId: string, reviewNotes?: string) => handleReviewAction(permissionId, 'reject', reviewNotes);
 
   const handleDelete = async (permissionId: string) => {
     setBusyPermissionId(permissionId);
@@ -342,18 +361,20 @@ export default function Permissions() {
     }
   };
 
-  const handleToggleColumn = (columnId: string) => {
-    const column = permissionColumns.find((item) => item.id === columnId);
-    if (column?.locked) {
-      return;
-    }
-
-    setVisiblePermissionColumns((current) => (
-      current.includes(columnId as PermissionColumnId)
-        ? current.filter((id) => id !== columnId)
-        : [...current, columnId as PermissionColumnId]
-    ));
+  const handleApplyColumns = (columns: PermissionColumn[]) => {
+    const nextVisibleColumns = columns
+      .filter((column) => column.locked || column.visible)
+      .map((column) => column.id);
+    setVisiblePermissionColumns(nextVisibleColumns);
   };
+
+  const treatmentCounts = useMemo(() => filteredPermissions.reduce(
+    (accumulator, permission) => {
+      accumulator[permission.payrollTreatment] += 1;
+      return accumulator;
+    },
+    { paid: 0, unpaid: 0 },
+  ), [filteredPermissions]);
 
   return (
     <div className="space-y-6">
@@ -377,7 +398,9 @@ export default function Permissions() {
         approved={summary.approved}
         pending={summary.pending}
         rejected={summary.rejected}
+        paid={treatmentCounts.paid}
         total={summary.total}
+        unpaid={treatmentCounts.unpaid}
         visible={filteredPermissions.length}
       />
 
@@ -396,12 +419,10 @@ export default function Permissions() {
       <Suspense fallback={null}>
         {isColumnsModalOpen ? (
           <LazyPermissionColumnsModal
-            columns={permissionColumns}
-            copy={copy.columnsModal}
+            columns={columnsForModal}
             isOpen={isColumnsModalOpen}
-            visibleColumns={visiblePermissionColumns}
             onClose={() => setIsColumnsModalOpen(false)}
-            onToggleColumn={handleToggleColumn}
+            onApplyColumns={handleApplyColumns}
           />
         ) : null}
 
