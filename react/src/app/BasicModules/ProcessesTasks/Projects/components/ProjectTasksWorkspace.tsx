@@ -16,10 +16,13 @@ import {
   Download,
   FileText,
   FolderOpen,
+  Gauge,
   ListChecks,
   Pencil,
   Plus,
+  Target,
   Trash2,
+  UserRound,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -182,6 +185,30 @@ const statusClasses: Record<DisplayTaskStatus, string> = {
     'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300',
   overdue:
     'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300',
+};
+
+const ganttBarClasses: Record<DisplayTaskStatus, string> = {
+  pending:
+    'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-700/80 dark:text-slate-100',
+  in_progress:
+    'border-[#F4C84A]/60 bg-[#F4C84A]/25 text-slate-950 dark:border-[#F4C84A]/55 dark:bg-[#F4C84A]/25 dark:text-[#FEF3C7]',
+  completed:
+    'border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-100',
+  cancelled:
+    'border-red-300 bg-red-100 text-red-900 dark:border-red-900/70 dark:bg-red-950/70 dark:text-red-100',
+  paused:
+    'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/70 dark:text-amber-100',
+  overdue:
+    'border-red-300 bg-red-100 text-red-900 ring-1 ring-red-200 dark:border-red-900/70 dark:bg-red-950/70 dark:text-red-100 dark:ring-red-900/50',
+};
+
+const ganttProgressClasses: Record<DisplayTaskStatus, string> = {
+  pending: 'bg-slate-400 dark:bg-slate-300',
+  in_progress: 'bg-[#F4C84A]',
+  completed: 'bg-emerald-500',
+  cancelled: 'bg-red-500',
+  paused: 'bg-amber-500',
+  overdue: 'bg-red-500',
 };
 
 const NO_UNIT_VALUE = '__no_unit__';
@@ -830,7 +857,7 @@ export function ProjectTasksWorkspace({
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [workspaceViewMode, setWorkspaceViewMode] = useState<WorkspaceViewMode>('diagram');
+  const [workspaceViewMode, setWorkspaceViewMode] = useState<WorkspaceViewMode>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [responsibleFilter, setResponsibleFilter] = useState<OptionFilter>('all');
@@ -903,6 +930,7 @@ export function ProjectTasksWorkspace({
   }, []);
 
   useEffect(() => {
+    setWorkspaceViewMode('table');
     setTaskForm(createDefaultTaskForm(project));
     setEditingTaskId(null);
     setReportTask(null);
@@ -1167,6 +1195,43 @@ export function ProjectTasksWorkspace({
 
     return { audited, averageCompletion, completed, open, overdue, total };
   }, [filteredTasks]);
+
+  const projectContextItems = useMemo(
+    () => [
+      { label: copy.header.context.folio, value: project.folio },
+      { label: copy.header.context.status, value: copy.projectStatuses[project.status] },
+      {
+        label: copy.header.context.priority,
+        value: project.priority ? copy.projectPriorities[project.priority] : copy.emptyContext.noPriority,
+      },
+      { label: copy.header.context.responsible, value: project.ownerName ?? copy.emptyContext.noResponsible },
+      {
+        label: copy.header.context.scope,
+        value: [project.unitName, project.businessName].filter(Boolean).join(' / ') || copy.emptyContext.noScope,
+      },
+      {
+        label: copy.header.context.dueDate,
+        value: project.dueDate ? formatDate(project.dueDate, false, copy.emptyContext.noDate) : copy.emptyContext.noDate,
+      },
+    ],
+    [copy, project],
+  );
+
+  const projectInsight = useMemo(() => {
+    if (metrics.total === 0) {
+      return copy.header.insights.empty(project.name);
+    }
+
+    if (metrics.overdue > 0) {
+      return copy.header.insights.overdue(project.name, metrics.open, metrics.overdue, metrics.averageCompletion);
+    }
+
+    if (metrics.open > 0) {
+      return copy.header.insights.active(project.name, metrics.open, metrics.completed, metrics.averageCompletion);
+    }
+
+    return copy.header.insights.complete(project.name, metrics.completed, metrics.audited);
+  }, [copy.header.insights, metrics, project.name]);
 
   const visibleColumns = useMemo(() => columns.filter((column) => column.visible), [columns]);
   const tableColumnCount = visibleColumns.length + fixedColumns.length + 1;
@@ -2001,7 +2066,7 @@ export function ProjectTasksWorkspace({
               <SelectValue placeholder={taskCopy.columns.predecessor.label} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_PREDECESSOR_VALUE}>Sin predecesora</SelectItem>
+              <SelectItem value={NO_PREDECESSOR_VALUE}>{copy.gantt.noPredecessor}</SelectItem>
               {availablePredecessors.map((option) => (
                 <SelectItem key={option.taskId} value={String(option.taskId)}>
                   {option.folio} · {option.title}
@@ -2187,6 +2252,8 @@ export function ProjectTasksWorkspace({
   const renderTaskDiagram = () => {
     const dayCount = Math.max(taskTimeline.days.length, 1);
     const ganttDateFormatter = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short' });
+    const todayKey = toDateInputValue(new Date());
+    const todayIndex = taskTimeline.days.findIndex((day) => toDateInputValue(day) === todayKey);
 
     if (isLoadingTasks) {
       return (
@@ -2207,19 +2274,39 @@ export function ProjectTasksWorkspace({
     return (
       <div className="overflow-x-auto">
         <div className="min-w-[1080px]">
-          <div className="grid border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr' }}>
-            <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
-              {taskCopy.columns.title.label}
+          <div className="grid border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" style={{ gridTemplateColumns: 'minmax(340px, 400px) 1fr' }}>
+            <div className="border-r border-slate-200 px-5 py-3 dark:border-slate-700">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                {copy.gantt.taskColumn}
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.gantt.timelineRange}</p>
             </div>
             <div className="grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(56px, 1fr))` }}>
-              {taskTimeline.days.map((day) => (
-                <div key={day.toISOString()} className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700">
+              {taskTimeline.days.map((day) => {
+                const isToday = toDateInputValue(day) === todayKey;
+
+                return (
+                <div
+                  key={day.toISOString()}
+                  className={cn(
+                    'border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700',
+                    isToday && 'bg-[#F4C84A]/20 dark:bg-[#F4C84A]/15',
+                  )}
+                >
                   <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
                     {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
+                  <p className={cn('mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100', isToday && 'text-[#9A6B05] dark:text-[#FEF3C7]')}>
+                    {day.getDate()}
+                  </p>
+                  {isToday ? (
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#9A6B05] dark:text-[#FEF3C7]">
+                      {copy.gantt.today}
+                    </p>
+                  ) : null}
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
 
@@ -2242,10 +2329,10 @@ export function ProjectTasksWorkspace({
               <div
                 key={task.taskId}
                 className={cn(
-                  'grid min-h-[104px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
+                  'grid min-h-[118px] border-b border-slate-200 last:border-b-0 dark:border-slate-700',
                   rowSelection.isSelected(task.taskId) && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                 )}
-                style={{ gridTemplateColumns: 'minmax(300px, 360px) 1fr' }}
+                style={{ gridTemplateColumns: 'minmax(340px, 400px) 1fr' }}
               >
                 <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
                   <div className="flex flex-wrap items-center gap-2">
@@ -2257,17 +2344,25 @@ export function ProjectTasksWorkspace({
                     </Badge>
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{task.title}</p>
-                  <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                    {task.assignedName ?? taskCopy.common.unassigned} ·{' '}
-                    {ganttDates
-                      ? `${ganttDateFormatter.format(dateFromTaskTimelineValue(ganttDates.start)!)} - ${ganttDateFormatter.format(dateFromTaskTimelineValue(ganttDates.end)!)}`
-                      : taskCopy.common.noDate}
-                  </p>
-                  {ganttDates ? (
-                    <p className="mt-2 text-xs font-semibold text-[#9A6B05] dark:text-[#FEF3C7]">
-                      {duration}d
-                    </p>
-                  ) : null}
+                  <div className="mt-2 grid gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <UserRound className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{task.assignedName ?? taskCopy.common.unassigned}</span>
+                    </div>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <CalendarRange className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">
+                        {ganttDates
+                          ? `${ganttDateFormatter.format(dateFromTaskTimelineValue(ganttDates.start)!)} - ${ganttDateFormatter.format(dateFromTaskTimelineValue(ganttDates.end)!)}`
+                          : taskCopy.common.noDate}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 font-semibold text-[#9A6B05] dark:text-[#FEF3C7]">
+                      <Gauge className="h-3.5 w-3.5" />
+                      <span>{clampPercent(task.completionPercent)}%</span>
+                      {ganttDates ? <span>- {copy.gantt.duration(duration)}</span> : null}
+                    </div>
+                  </div>
                   {ganttDates ? (
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <div className="space-y-1">
@@ -2304,10 +2399,10 @@ export function ProjectTasksWorkspace({
                     }}
                   >
                     <SelectTrigger className="mt-3 h-9 w-full rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
-                      <SelectValue placeholder="Predecesora" />
+                      <SelectValue placeholder={taskCopy.columns.predecessor.label} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NO_PREDECESSOR_VALUE}>Sin predecesora</SelectItem>
+                      <SelectItem value={NO_PREDECESSOR_VALUE}>{copy.gantt.noPredecessor}</SelectItem>
                       {availablePredecessors.map((option) => (
                         <SelectItem key={option.taskId} value={String(option.taskId)}>
                           {option.folio} · {option.title}
@@ -2321,16 +2416,33 @@ export function ProjectTasksWorkspace({
                   data-task-gantt-track="true"
                   style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(56px, 1fr))` }}
                 >
-                  {taskTimeline.days.map((day) => (
-                    <div key={`${task.taskId}-${day.toISOString()}`} className="border-r border-slate-200 last:border-r-0 dark:border-slate-700" />
-                  ))}
+                  {taskTimeline.days.map((day) => {
+                    const isToday = toDateInputValue(day) === todayKey;
+
+                    return (
+                      <div
+                        key={`${task.taskId}-${day.toISOString()}`}
+                        className={cn(
+                          'border-r border-slate-200 last:border-r-0 dark:border-slate-700',
+                          isToday && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/10',
+                        )}
+                      />
+                    );
+                  })}
+                  {todayIndex >= 0 ? (
+                    <div
+                      className="pointer-events-none absolute bottom-0 top-0 z-10 w-0.5 bg-[#F4C84A]"
+                      style={{ left: `calc(${((todayIndex + 0.5) / dayCount) * 100}%)` }}
+                    />
+                  ) : null}
                   {range ? (
                     <div
                       role="button"
                       tabIndex={0}
                       aria-label={task.title}
                       className={cn(
-                        'absolute inset-y-5 rounded-xl border border-[#F4C84A]/45 bg-[#F4C84A]/20 px-4 py-2 shadow-sm outline-none transition-shadow dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/25',
+                        'absolute inset-y-5 rounded-xl border px-4 py-2 shadow-sm outline-none transition-shadow',
+                        ganttBarClasses[displayStatus],
                         isDragging ? 'z-20 cursor-grabbing shadow-lg ring-2 ring-[#F4C84A]/35' : 'cursor-grab hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#F4C84A]/35',
                         isPending && 'cursor-not-allowed opacity-60',
                       )}
@@ -2355,11 +2467,11 @@ export function ProjectTasksWorkspace({
                           <span className="block truncate text-xs font-semibold text-slate-900 dark:text-white">{task.title}</span>
                           {task.predecessorTaskFolio ? (
                             <span className="mt-1 inline-flex max-w-full items-center rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-semibold text-[#9A6B05] dark:bg-slate-900/45 dark:text-[#FEF3C7]">
-                              Depende de {task.predecessorTaskFolio}
+                              {copy.gantt.dependsOn(task.predecessorTaskFolio)}
                             </span>
                           ) : null}
                           <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/70 dark:bg-slate-900/40">
-                            <span className="block h-full rounded-full bg-[#F4C84A]" style={{ width: `${clampPercent(task.completionPercent)}%` }} />
+                            <span className={cn('block h-full rounded-full', ganttProgressClasses[displayStatus])} style={{ width: `${clampPercent(task.completionPercent)}%` }} />
                           </span>
                         </div>
                         <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">{clampPercent(task.completionPercent)}%</span>
@@ -2391,23 +2503,48 @@ export function ProjectTasksWorkspace({
 
   return (
     <section className="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0">
+      <div className="border-b border-[#F4C84A]/35 bg-gradient-to-r from-[#FFF8DF] via-white to-[#F8FAFC] px-5 py-5 dark:border-[#F4C84A]/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]">
-                {project.folio}
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4C84A] text-slate-950 shadow-sm">
+                <FolderOpen className="h-5 w-5" />
+              </span>
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/45 bg-white/80 px-3 py-1 font-semibold text-[#9A6B05] dark:bg-slate-800/80 dark:text-[#FEF3C7]">
+                {copy.header.eyebrow}
               </Badge>
-              <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', project.status === 'cancelled' ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300' : project.status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9A6B05] dark:text-[#FEF3C7]')}>
+                {copy.projectStatuses[project.status]}
+              </Badge>
+              <Badge variant="outline" className="rounded-full border-slate-200 bg-white/80 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
                 {copy.header.tasksCount(metrics.total)}
               </Badge>
             </div>
-            <h3 className="mt-3 text-xl font-bold text-slate-900 dark:text-white">{copy.header.title(project.name)}</h3>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-              {copy.header.subtitle}
-            </p>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9A6B05] dark:text-[#FEF3C7]">
+                  {project.folio}
+                </p>
+                <h3 className="mt-1 break-words text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                  {project.name}
+                </h3>
+                <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  {copy.header.subtitle}
+                </p>
+              </div>
+              <div className="grid min-w-[220px] grid-cols-2 gap-2 rounded-2xl border border-[#F4C84A]/35 bg-white/80 p-3 dark:border-[#F4C84A]/25 dark:bg-slate-800/80">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.metrics.productivity}</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{metrics.averageCompletion}%</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.metrics.open}</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{metrics.open}</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
               <button
                 type="button"
@@ -2460,7 +2597,23 @@ export function ProjectTasksWorkspace({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+          {projectContextItems.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{item.label}</p>
+              <p className="mt-1 truncate text-sm font-bold text-slate-950 dark:text-white" title={item.value}>
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-medium text-[#7A5404] dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
+          <Target className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{projectInsight}</span>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-4">
           <div className="space-y-2 xl:col-span-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
             <Input
@@ -2501,14 +2654,6 @@ export function ProjectTasksWorkspace({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{copy.metrics.open}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{metrics.open}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{copy.metrics.productivity}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{metrics.averageCompletion}%</p>
           </div>
         </div>
 

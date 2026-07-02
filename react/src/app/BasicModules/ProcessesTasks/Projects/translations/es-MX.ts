@@ -180,6 +180,7 @@ export const esMX: ProjectsTranslations = {
   },
   workspace: {
     header: {
+      eyebrow: 'Proyecto seleccionado',
       tasksCount: (count: number) => `${count} tareas`,
       title: (projectName: string) => `Tareas de ${projectName}`,
       subtitle:
@@ -187,6 +188,40 @@ export const esMX: ProjectsTranslations = {
       closePanel: 'Cerrar panel',
       columns: 'Columnas',
       createTask: 'Crear tarea',
+      context: {
+        folio: 'Folio',
+        status: 'Estado',
+        priority: 'Prioridad',
+        responsible: 'Responsable',
+        scope: 'Unidad / negocio',
+        dueDate: 'Vencimiento',
+      },
+      insights: {
+        empty: (projectName: string) => `${projectName} todavia no tiene tareas. Crea la primera tarea para iniciar la ejecucion.`,
+        overdue: (projectName: string, open: number, overdue: number, progress: number) =>
+          `${projectName} requiere atencion: ${overdue} tareas vencidas, ${open} abiertas y ${progress}% de avance.`,
+        active: (projectName: string, open: number, completed: number, progress: number) =>
+          `${projectName} esta en ejecucion: ${open} tareas abiertas, ${completed} completadas y ${progress}% de avance.`,
+        complete: (projectName: string, completed: number, audited: number) =>
+          `${projectName} tiene ${completed} tareas completadas y ${audited} auditadas listas para revision.`,
+      },
+    },
+    projectStatuses: {
+      active: 'Activo',
+      paused: 'Pausado',
+      completed: 'Completado',
+      cancelled: 'Cancelado',
+    },
+    projectPriorities: {
+      low: 'Baja',
+      medium: 'Media',
+      high: 'Alta',
+    },
+    emptyContext: {
+      noPriority: 'Sin prioridad',
+      noResponsible: 'Sin responsable',
+      noScope: 'Sin unidad o negocio',
+      noDate: 'Sin fecha',
     },
     filters: {
       search: 'Buscar',
@@ -205,6 +240,14 @@ export const esMX: ProjectsTranslations = {
     table: {
       loading: 'Cargando tareas del proyecto...',
       empty: 'Este proyecto todavia no tiene tareas con los filtros actuales.',
+    },
+    gantt: {
+      taskColumn: 'Linea de tiempo',
+      timelineRange: 'Arrastra las barras para mover o ajustar fechas.',
+      today: 'Hoy',
+      duration: (days: number) => `${days}d`,
+      dependsOn: (folio: string) => `Depende de ${folio}`,
+      noPredecessor: 'Sin predecesora',
     },
     bulk: {
       selectedLabel: (count: number) => `${count} seleccionada${count === 1 ? '' : 's'}`,

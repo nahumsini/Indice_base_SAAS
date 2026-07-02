@@ -183,6 +183,7 @@ export const koCA: ProjectsTranslations = {
   },
   workspace: {
     header: {
+      eyebrow: 'Selected project',
       tasksCount: (count: number) => `${count}개 작업`,
       title: (projectName: string) => `${projectName} 작업`,
       subtitle:
@@ -190,6 +191,40 @@ export const koCA: ProjectsTranslations = {
       closePanel: '패널 닫기',
       columns: '열',
       createTask: '작업 만들기',
+      context: {
+        folio: 'Folio',
+        status: 'Status',
+        priority: 'Priority',
+        responsible: 'Responsible',
+        scope: 'Scope',
+        dueDate: 'Due date',
+      },
+      insights: {
+        empty: (projectName: string) => `${projectName} has no tasks yet. Create the first task to start execution.`,
+        overdue: (projectName: string, open: number, overdue: number, progress: number) =>
+          `${projectName} needs attention: ${overdue} overdue tasks, ${open} open tasks, and ${progress}% progress.`,
+        active: (projectName: string, open: number, completed: number, progress: number) =>
+          `${projectName} is moving: ${open} open tasks, ${completed} completed tasks, and ${progress}% progress.`,
+        complete: (projectName: string, completed: number, audited: number) =>
+          `${projectName} has ${completed} completed tasks and ${audited} audited tasks ready for review.`,
+      },
+    },
+    projectStatuses: {
+      active: 'Active',
+      paused: 'Paused',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    },
+    projectPriorities: {
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
+    },
+    emptyContext: {
+      noPriority: 'No priority',
+      noResponsible: 'Unassigned',
+      noScope: 'No unit or business',
+      noDate: 'No date',
     },
     filters: {
       search: '검색',
@@ -208,6 +243,14 @@ export const koCA: ProjectsTranslations = {
     table: {
       loading: '프로젝트 작업을 불러오는 중...',
       empty: '이 프로젝트에는 현재 필터와 일치하는 작업이 없습니다.',
+    },
+    gantt: {
+      taskColumn: 'Task timeline',
+      timelineRange: 'Drag bars to move or adjust dates.',
+      today: 'Today',
+      duration: (days: number) => `${days}d`,
+      dependsOn: (folio: string) => `Depends on ${folio}`,
+      noPredecessor: 'No predecessor',
     },
     bulk: {
       selectedLabel: (count: number) => `${count}개 선택됨`,

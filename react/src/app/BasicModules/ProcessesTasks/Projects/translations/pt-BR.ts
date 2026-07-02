@@ -182,6 +182,7 @@ export const ptBR: ProjectsTranslations = {
   },
   workspace: {
     header: {
+      eyebrow: 'Selected project',
       tasksCount: (count: number) => `${count} tarefas`,
       title: (projectName: string) => `Tarefas de ${projectName}`,
       subtitle:
@@ -189,6 +190,40 @@ export const ptBR: ProjectsTranslations = {
       closePanel: 'Fechar painel',
       columns: 'Colunas',
       createTask: 'Criar tarefa',
+      context: {
+        folio: 'Folio',
+        status: 'Status',
+        priority: 'Priority',
+        responsible: 'Responsible',
+        scope: 'Scope',
+        dueDate: 'Due date',
+      },
+      insights: {
+        empty: (projectName: string) => `${projectName} has no tasks yet. Create the first task to start execution.`,
+        overdue: (projectName: string, open: number, overdue: number, progress: number) =>
+          `${projectName} needs attention: ${overdue} overdue tasks, ${open} open tasks, and ${progress}% progress.`,
+        active: (projectName: string, open: number, completed: number, progress: number) =>
+          `${projectName} is moving: ${open} open tasks, ${completed} completed tasks, and ${progress}% progress.`,
+        complete: (projectName: string, completed: number, audited: number) =>
+          `${projectName} has ${completed} completed tasks and ${audited} audited tasks ready for review.`,
+      },
+    },
+    projectStatuses: {
+      active: 'Active',
+      paused: 'Paused',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    },
+    projectPriorities: {
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
+    },
+    emptyContext: {
+      noPriority: 'No priority',
+      noResponsible: 'Unassigned',
+      noScope: 'No unit or business',
+      noDate: 'No date',
     },
     filters: {
       search: 'Buscar',
@@ -207,6 +242,14 @@ export const ptBR: ProjectsTranslations = {
     table: {
       loading: 'Carregando tarefas do projeto...',
       empty: 'Este projeto ainda não tem tarefas que correspondam aos filtros atuais.',
+    },
+    gantt: {
+      taskColumn: 'Task timeline',
+      timelineRange: 'Drag bars to move or adjust dates.',
+      today: 'Today',
+      duration: (days: number) => `${days}d`,
+      dependsOn: (folio: string) => `Depends on ${folio}`,
+      noPredecessor: 'No predecessor',
     },
     bulk: {
       selectedLabel: (count: number) => `${count} selecionada${count === 1 ? '' : 's'}`,

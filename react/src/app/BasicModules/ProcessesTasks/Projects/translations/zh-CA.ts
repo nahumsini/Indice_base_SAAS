@@ -183,6 +183,7 @@ export const zhCA: ProjectsTranslations = {
   },
   workspace: {
     header: {
+      eyebrow: 'Selected project',
       tasksCount: (count: number) => `${count} 个任务`,
       title: (projectName: string) => `${projectName} 的任务`,
       subtitle:
@@ -190,6 +191,40 @@ export const zhCA: ProjectsTranslations = {
       closePanel: '关闭面板',
       columns: '列',
       createTask: '创建任务',
+      context: {
+        folio: 'Folio',
+        status: 'Status',
+        priority: 'Priority',
+        responsible: 'Responsible',
+        scope: 'Scope',
+        dueDate: 'Due date',
+      },
+      insights: {
+        empty: (projectName: string) => `${projectName} has no tasks yet. Create the first task to start execution.`,
+        overdue: (projectName: string, open: number, overdue: number, progress: number) =>
+          `${projectName} needs attention: ${overdue} overdue tasks, ${open} open tasks, and ${progress}% progress.`,
+        active: (projectName: string, open: number, completed: number, progress: number) =>
+          `${projectName} is moving: ${open} open tasks, ${completed} completed tasks, and ${progress}% progress.`,
+        complete: (projectName: string, completed: number, audited: number) =>
+          `${projectName} has ${completed} completed tasks and ${audited} audited tasks ready for review.`,
+      },
+    },
+    projectStatuses: {
+      active: 'Active',
+      paused: 'Paused',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    },
+    projectPriorities: {
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
+    },
+    emptyContext: {
+      noPriority: 'No priority',
+      noResponsible: 'Unassigned',
+      noScope: 'No unit or business',
+      noDate: 'No date',
     },
     filters: {
       search: '搜索',
@@ -208,6 +243,14 @@ export const zhCA: ProjectsTranslations = {
     table: {
       loading: '正在加载项目任务...',
       empty: '该项目当前没有符合筛选条件的任务。',
+    },
+    gantt: {
+      taskColumn: 'Task timeline',
+      timelineRange: 'Drag bars to move or adjust dates.',
+      today: 'Today',
+      duration: (days: number) => `${days}d`,
+      dependsOn: (folio: string) => `Depends on ${folio}`,
+      noPredecessor: 'No predecessor',
     },
     bulk: {
       selectedLabel: (count: number) => `已选择 ${count} 个`,

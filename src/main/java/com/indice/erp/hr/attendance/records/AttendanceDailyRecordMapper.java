@@ -91,10 +91,11 @@ class AttendanceDailyRecordMapper {
                        SELECT e.photo_url
                        FROM user_attendance_events e
                        WHERE e.company_id = r.company_id
-                         AND %s = %s
-                         AND e.attendance_date = r.attendance_date
-                         AND e.event_type = 'check_in'
-                       ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
+                          AND %s = %s
+                          AND e.attendance_date = r.attendance_date
+                          AND e.event_type = 'check_in'
+                          AND e.photo_deleted_at IS NULL
+                        ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
                                 e.event_timestamp ASC,
                                 e.id ASC
                        LIMIT 1
@@ -103,10 +104,11 @@ class AttendanceDailyRecordMapper {
                        SELECT e.photo_url
                        FROM user_attendance_events e
                        WHERE e.company_id = r.company_id
-                         AND %s = %s
-                         AND e.attendance_date = r.attendance_date
-                         AND e.event_type = 'check_out'
-                       ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
+                          AND %s = %s
+                          AND e.attendance_date = r.attendance_date
+                          AND e.event_type = 'check_out'
+                          AND e.photo_deleted_at IS NULL
+                        ORDER BY CASE WHEN COALESCE(TRIM(e.photo_url), '') = '' THEN 1 ELSE 0 END ASC,
                                 e.event_timestamp DESC,
                                 e.id DESC
                        LIMIT 1
