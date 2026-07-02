@@ -5,6 +5,7 @@ import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
 import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
+import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -147,6 +148,19 @@ public class FinanceExpensesController {
             return access.error();
         }
         return ResponseEntity.ok(expenseService.recordPayment(access.context(), expenseId, request));
+    }
+
+    @PostMapping("/{expenseId}/status")
+    public ResponseEntity<?> updateStatus(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long expenseId,
+            @Valid @RequestBody UpdateExpenseStatusRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.updateStatus(access.context(), expenseId, request));
     }
 
     @PostMapping("/{expenseId}/close")

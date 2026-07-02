@@ -1,9 +1,10 @@
-import { AlertTriangle, CheckCircle2, CircleDollarSign, Clock3, ReceiptText } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDollarSign, Clock3, Percent, ReceiptText, WalletCards } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseTotals } from '../../types/expenseView.types';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
+import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
 
 type ExpensesSummaryProps = {
   expenses: Expense[];
@@ -32,44 +33,52 @@ const statusConfig: Array<Omit<StatusMetric, 'amount' | 'amountLabel' | 'count' 
 export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
   const t = useFinanceTranslations();
   const totalAmount = Math.max(totals.total, 0);
-  const totalAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.amount, (expense) => expense.currency);
-  const paidAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.amountPaid || 0, (expense) => expense.currency);
+  const paidPercentage = totalAmount > 0 ? Math.min(100, Math.max(0, (totals.paid / totalAmount) * 100)) : 0;
+  const totalAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.total, (expense) => expense.currency);
+  const paidAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => getExpensePaidAmount(expense), (expense) => expense.currency);
   const openAmountLabel = formatBusinessCurrencyBreakdown(
     expenses,
-    (expense) => Math.max(expense.amount - (expense.amountPaid || 0), 0),
+    (expense) => getExpenseBalance(expense),
     (expense) => expense.currency,
   );
-  const overdueExpenses = expenses.filter(expense => expense.status === 'overdue');
-  const overdueAmountLabel = formatBusinessCurrencyBreakdown(overdueExpenses, (expense) => expense.amount, (expense) => expense.currency);
+  const overdueExpenses = expenses.filter(expense => isExpenseEffectivelyOverdue(expense));
+  const overdueAmountLabel = formatBusinessCurrencyBreakdown(overdueExpenses, (expense) => getExpenseBalance(expense), (expense) => expense.currency);
   const statusMetrics = statusConfig.map(config => {
-    const statusExpenses = expenses.filter(expense => expense.status === config.status);
-    const amount = statusExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const statusExpenses = expenses.filter(expense => getEffectiveExpenseStatus(expense) === config.status);
+    const amount = config.status === 'paid'
+      ? statusExpenses.reduce((sum, expense) => sum + getExpensePaidAmount(expense), 0)
+      : statusExpenses.reduce((sum, expense) => sum + getExpenseBalance(expense), 0);
     return {
       ...config,
       amount,
-      amountLabel: formatBusinessCurrencyBreakdown(statusExpenses, (expense) => expense.amount, (expense) => expense.currency),
+      amountLabel: formatBusinessCurrencyBreakdown(
+        statusExpenses,
+        (expense) => (config.status === 'paid' ? getExpensePaidAmount(expense) : getExpenseBalance(expense)),
+        (expense) => expense.currency,
+      ),
       count: statusExpenses.length,
       label: t.expenses.table.statuses[config.status] ?? config.status,
       percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
     };
   });
 
-  const openPaymentCount = expenses.filter(expense => expense.status === 'pending' || expense.status === 'partial' || expense.status === 'overdue').length;
+  const openPaymentCount = expenses.filter(expense => getExpenseBalance(expense) > 0 && getEffectiveExpenseStatus(expense) !== 'paid').length;
   const insight = totals.overdueCount > 0
-    ? t.kpis.summaryCopy.overdue(totals.overdueCount)
+    ? `${totals.overdueCount} ${totals.overdueCount === 1 ? 'cuenta vencida requiere' : 'cuentas vencidas requieren'} atención; saldo vencido ${overdueAmountLabel}.`
     : openPaymentCount > 0
-      ? t.kpis.summaryCopy.unpaid(openPaymentCount)
-      : t.kpis.summaryCopy.noOverdue;
+      ? `Hay ${openPaymentCount} ${openPaymentCount === 1 ? 'cuenta con saldo abierto' : 'cuentas con saldo abierto'}; cumplimiento actual ${paidPercentage.toFixed(0)}%.`
+      : 'Todas las cuentas visibles están pagadas o auditadas.';
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={<ReceiptText className="h-4 w-4" />} label={t.expenses.summary.records(expenses.length)} value={totalAmountLabel} />
-            <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.statuses.pending} value={openAmountLabel} valueClassName="text-amber-600 dark:text-amber-400" />
-            <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={t.statuses.paid} value={paidAmountLabel} valueClassName="text-[#147514]" />
-            <Metric icon={<Clock3 className="h-4 w-4" />} label={t.statuses.overdue} value={overdueAmountLabel} valueClassName="text-rose-600 dark:text-rose-400" />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <Metric icon={<ReceiptText className="h-4 w-4" />} label={`Total visible · ${expenses.length}`} value={totalAmountLabel} />
+            <Metric icon={<CheckCircle2 className="h-4 w-4" />} label="Pagado" value={paidAmountLabel} valueClassName="text-[#147514]" />
+            <Metric icon={<CircleDollarSign className="h-4 w-4" />} label="Saldo por pagar" value={openAmountLabel} valueClassName="text-amber-600 dark:text-amber-400" />
+            <Metric icon={<Clock3 className="h-4 w-4" />} label="Vencido" value={overdueAmountLabel} valueClassName="text-rose-600 dark:text-rose-400" />
+            <Metric icon={<Percent className="h-4 w-4" />} label="Cumplimiento" value={`${paidPercentage.toFixed(0)}%`} valueClassName="text-sky-600 dark:text-sky-400" />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -80,7 +89,12 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
             ) : null}
             {openPaymentCount > 0 ? (
               <AlertChip tone="warning" icon={<Clock3 className="h-3.5 w-3.5" />}>
-                {t.expenses.summary.records(openPaymentCount)}
+                {openPaymentCount} con saldo
+              </AlertChip>
+            ) : null}
+            {totalAmount > 0 ? (
+              <AlertChip tone={paidPercentage >= 80 ? 'success' : 'warning'} icon={<WalletCards className="h-3.5 w-3.5" />}>
+                {paidPercentage.toFixed(0)}% pagado
               </AlertChip>
             ) : null}
           </div>
@@ -141,10 +155,12 @@ function Metric({
   );
 }
 
-function AlertChip({ children, icon, tone }: { children: ReactNode; icon: ReactNode; tone: 'danger' | 'warning' }) {
+function AlertChip({ children, icon, tone }: { children: ReactNode; icon: ReactNode; tone: 'danger' | 'success' | 'warning' }) {
   const toneClass = tone === 'danger'
     ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300'
-    : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300';
+    : tone === 'success'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300'
+      : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300';
 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${toneClass}`}>

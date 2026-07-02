@@ -42,7 +42,12 @@ export function useExpenseColumns() {
     });
   };
 
+  const applyColumns = (nextColumns: ColumnConfig[]) => {
+    setColumns(nextColumns);
+  };
+
   return {
+    applyColumns,
     columns,
     handleDragEnd,
     handleDragOver,

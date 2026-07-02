@@ -1,4 +1,4 @@
-import { CheckCircle2, Copy, HandCoins, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { CheckCircle2, Copy, HandCoins, Loader2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
@@ -10,6 +10,7 @@ type ExpenseRowActionsProps = {
   onMarkPaid: (expenseId: string) => void;
   onRecordPayment: (expenseId: string) => void;
   onStartEdit: () => void;
+  isDeletePending?: boolean;
   showAudit?: boolean;
   showMarkPaid?: boolean;
   showRecordPayment?: boolean;
@@ -26,6 +27,7 @@ export function ExpenseRowActions({
   onMarkPaid,
   onRecordPayment,
   onStartEdit,
+  isDeletePending = false,
   showAudit = true,
   showMarkPaid = true,
   showRecordPayment = true,
@@ -37,8 +39,13 @@ export function ExpenseRowActions({
       <ActionButton label={t.common.duplicate} colorClass="border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300" onClick={() => onDuplicate(expenseId)}>
         <Copy className="h-4 w-4 text-blue-600" />
       </ActionButton>
-      <ActionButton label={t.common.delete} colorClass="border-rose-100 bg-rose-50/60 text-rose-600 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20" onClick={() => onDelete(expenseId)}>
-        <Trash2 className="h-4 w-4 text-red-600" />
+      <ActionButton
+        label={t.common.delete}
+        colorClass="border-rose-100 bg-rose-50/60 text-rose-600 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20"
+        disabled={isDeletePending}
+        onClick={() => onDelete(expenseId)}
+      >
+        {isDeletePending ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <Trash2 className="h-4 w-4 text-red-600" />}
       </ActionButton>
       <ActionButton label={t.common.edit} colorClass="border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300" onClick={onStartEdit}>
         <Pencil className="h-4 w-4 text-amber-600" />
@@ -65,16 +72,25 @@ export function ExpenseRowActions({
 function ActionButton({
   children,
   colorClass,
+  disabled = false,
   label,
   onClick,
 }: {
   children: ReactNode;
   colorClass: string;
+  disabled?: boolean;
   label: string;
   onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className={`${tableActionButtonBaseClass} ${colorClass}`} title={label} aria-label={label} type="button">
+    <button
+      aria-label={label}
+      className={`${tableActionButtonBaseClass} ${colorClass} disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none`}
+      disabled={disabled}
+      onClick={onClick}
+      title={label}
+      type="button"
+    >
       {children}
     </button>
   );

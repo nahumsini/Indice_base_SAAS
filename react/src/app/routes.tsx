@@ -7,6 +7,7 @@ import { SalesCrmProvider } from './BasicModules/Sales/salesCrmContext';
 
 const App = lazy(() => import('./App'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
+const ExpensesPayablesKiosk = lazy(() => import('./BasicModules/Expenses/Kiosk/PayablesKioskPage'));
 const ProcessTasksKiosk = lazy(() => import('./BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage'));
 const PettyCashKiosk = lazy(() => import('./BasicModules/PettyCash/Kiosk/PublicPettyCashKioskPage'));
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
@@ -184,6 +185,22 @@ function PettyCashKioskRoute() {
   );
 }
 
+function ExpensesPayablesKioskRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Loading payable account kiosk"
+          description="Preparing the expenses kiosk."
+        />
+      )}
+    >
+      <ExpensesPayablesKiosk />
+    </Suspense>
+  );
+}
+
 function PublicCatalogRoute() {
   return (
     <Suspense fallback={null}>
@@ -300,6 +317,12 @@ export const router = createBrowserRouter([
   {
     path: '/petty-cash/kiosk/:fundToken',
     element: <PettyCashKioskRoute />,
+  },
+  {
+    path: '/expenses/kiosk/cuentas-por-pagar',
+    element: <ExpensesPayablesKioskRoute />,
+    errorElement: <WorkspaceRouteError />,
+    loader: requireAuthenticatedSession,
   },
   {
     path: '/public-catalog/:publicAccessToken',

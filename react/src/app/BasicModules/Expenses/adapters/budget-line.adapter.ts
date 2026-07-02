@@ -49,6 +49,12 @@ const toBudgetLineName = (expense: Expense) => {
   return `${concept}${uniqueSuffix}`.slice(0, 160);
 };
 
+const budgetExpenseStatuses: Expense['status'][] = ['paid', 'pending', 'partial', 'overdue', 'audited'];
+
+const isBudgetExpenseStatus = (value: unknown): value is Expense['status'] => (
+  typeof value === 'string' && budgetExpenseStatuses.includes(value as Expense['status'])
+);
+
 export const toFinanceBudgetLine = (budgetLine: BudgetLineApiDto): FinanceBudgetLine => ({
   id: String(budgetLine.id),
   companyId: String(budgetLine.companyId),
@@ -76,6 +82,16 @@ export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
   const customFields = asObject(budgetLine.customFields);
   const scheduledDate = toLocalBudgetDate(asString(customFields.dueDate, customFields.startDate as string | undefined), getDefaultBudgetDate());
   const plannedAmount = asNumber(budgetLine.plannedAmount);
+  const amountPaid = Math.min(plannedAmount, asNumber(customFields.amountPaid, asNumber(budgetLine.actualExpenseAmount)));
+  const customStatus = customFields.legacyStatus;
+  const status = isBudgetExpenseStatus(customStatus)
+    ? customStatus
+    : budgetLine.status === 'CLOSED'
+      ? 'paid'
+      : amountPaid > 0
+        ? 'partial'
+        : 'pending';
+  const paymentDate = asString(customFields.paymentDate, undefined);
 
   return {
     id: `budget-line-${budgetLine.id}`,
@@ -106,19 +122,20 @@ export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
     taxRegion: asString(customFields.taxRegion, undefined),
     taxSpecialAmount: asNumber(customFields.taxSpecialAmount, undefined),
     amount: plannedAmount - asNumber(customFields.taxes),
-    amountPaid: asNumber(budgetLine.actualExpenseAmount),
+    amountPaid,
     currency: budgetLine.currencyCode,
     dueDate: scheduledDate,
     date: scheduledDate,
     paymentMethod: 'transfer',
     accountingAccount: asString(customFields.accountingAccount, 'Gastos Operativos'),
-    status: budgetLine.status === 'CLOSED' ? 'paid' : 'pending',
+    status,
     attachments: [],
     costCenter: undefined,
     type: 'budget',
     frequency: asString(customFields.frequency, 'once') as Expense['frequency'],
     duration: asNumber(customFields.duration, 1),
     startDate: customFields.startDate ? toLocalBudgetDate(asString(customFields.startDate)) : scheduledDate,
+    paymentDate: paymentDate ? toLocalBudgetDate(paymentDate) : undefined,
     projected: true,
     createdAt: toDate(budgetLine.createdAt, scheduledDate),
     updatedAt: toDate(budgetLine.updatedAt ?? budgetLine.createdAt, scheduledDate),
@@ -137,11 +154,14 @@ export const toBudgetLineApiRequest = (expense: Expense): BudgetLineApiRequest =
   description: optionalString(expense.description),
   customFields: compactObject({
     accountingAccount: expense.accountingAccount,
+    amountPaid: expense.amountPaid,
     concept: expense.concept,
     dueDate: toDateInputValue(expense.dueDate),
     duration: expense.duration,
     folio: expense.folio,
     frequency: expense.frequency,
+    legacyStatus: expense.status,
+    paymentDate: toDateInputValue(expense.paymentDate),
     providerId: expense.providerId,
     providerName: expense.providerName,
     startDate: toDateInputValue(expense.startDate),

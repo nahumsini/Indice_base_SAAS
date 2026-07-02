@@ -10,7 +10,8 @@ import { DEFAULT_FINANCE_CURRENCY, isFinanceCurrencyOption } from '../constants/
 import { hrPreferredCurrencyStorageKey } from '../../shared/businessCurrency';
 import { mockExpenses, mockProviders } from '../data/expenses.mock';
 import { accountingAccountsService, expensesService, toFinanceApiErrorMessage } from '../services';
-import type { Expense, Provider } from '../types/expenses.types';
+import { budgetLinesService } from '../services/budget-lines.service';
+import type { Expense, ExpenseStatus, Provider } from '../types/expenses.types';
 import type { ExpenseListFilters } from '../types/expenseView.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { calculateExpenseTotals, filterExpenses } from '../utils/expenseFilters';
@@ -24,6 +25,7 @@ import { ExpensesSummary } from '../components/kpis/ExpensesSummary';
 import { ColumnConfigurationModal } from '../components/table/ColumnConfigurationModal';
 import { ExpenseFormModal } from '../components/modals/ExpenseFormModal';
 import type { ExpenseFormValues } from '../components/modals/ExpenseFormModal';
+import { PayableAccountDialog, type PayableAccountValues } from '../components/modals/PayableAccountDialog';
 import { QuickExpenseDialog, type QuickExpenseValues } from '../components/modals/QuickExpenseDialog';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { AttachmentsModal } from './components/AttachmentsModal';
@@ -67,11 +69,15 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const [accountingAccountOptions, setAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+  const [isPayableAccountModalOpen, setIsPayableAccountModalOpen] = useState(false);
+  const [isPayableAccountSubmitting, setIsPayableAccountSubmitting] = useState(false);
   const [isQuickExpenseModalOpen, setIsQuickExpenseModalOpen] = useState(false);
   const [isQuickExpenseSubmitting, setIsQuickExpenseSubmitting] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [deletingExpenseIds, setDeletingExpenseIds] = useState<Set<string>>(() => new Set());
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(hrPreferredCurrencyStorageKey, DEFAULT_FINANCE_CURRENCY);
+  const deletingExpenseIdsRef = useRef<Set<string>>(new Set());
   const saveTimeoutsRef = useRef<Record<string, number>>({});
   const expenses = controlledExpenses ?? localExpenses;
   const setExpenses = onExpensesChange ?? setLocalExpenses;
@@ -81,8 +87,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
 
   const { attachmentsExpense, closeAttachmentsModal, getExpenseAttachments, openAttachmentsModal, saveExpenseAttachments } =
     useExpenseAttachments();
-  const { columns, handleDragEnd, handleDragOver, handleDragStart, hideOptionalColumns, showAllColumns, updateColumnVisibility } =
-    useExpenseColumns();
+  const { applyColumns, columns } = useExpenseColumns();
   const translatedColumns = useMemo(() => (
     columns.map(column => ({
       ...column,
@@ -179,6 +184,19 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     setIsQuickExpenseModalOpen(true);
   };
 
+  const openPayableAccountModal = () => {
+    if (createExpenseDisabled) {
+      setFailureToastMessage(createExpenseDisabledReason);
+      return;
+    }
+    setEditingExpense(null);
+    setIsPayableAccountModalOpen(true);
+  };
+
+  const openPayablesKiosk = () => {
+    window.open('/expenses/kiosk/cuentas-por-pagar', '_blank', 'noopener,noreferrer');
+  };
+
   const handleQuickExpenseSubmit = async ({ amount, concept }: QuickExpenseValues) => {
     setIsQuickExpenseSubmitting(true);
     try {
@@ -213,10 +231,15 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   };
 
   const persistExpenseUpdate = useCallback((expense: Expense) => {
-    if (!isBackendId(expense.id) || expense.type === 'budget') return;
     window.clearTimeout(saveTimeoutsRef.current[expense.id]);
     saveTimeoutsRef.current[expense.id] = window.setTimeout(() => {
-      expensesService.updateExpense(expense, providers)
+      const saveOperation = expense.type === 'budget'
+        ? budgetLinesService.updateBudgetLineFromExpense(expense)
+        : isBackendId(expense.id)
+          ? expensesService.updateExpense(expense, providers)
+          : Promise.resolve(expense);
+
+      saveOperation
         .then(savedExpense => {
           setExpenses(currentExpenses => currentExpenses.map(item => (
             item.id === expense.id ? savedExpense : item
@@ -236,10 +259,11 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     const paymentDate = inputPaymentDate ?? editingExpense?.paymentDate;
     const recordDate = editingExpense?.date ?? inputPaymentDate ?? now;
     const dueDate = inputDueDate ?? editingExpense?.dueDate ?? now;
+    const previousAmountPaid = editingExpense?.amountPaid ?? 0;
     const amountPaid = values.status === 'paid' || values.status === 'audited'
       ? values.total
-      : values.status === 'partial'
-        ? Math.min(editingExpense?.amountPaid ?? 0, values.total)
+      : values.status === 'partial' || values.status === 'overdue'
+        ? Math.min(previousAmountPaid, values.total)
         : 0;
     const draftExpense: Expense = {
       ...(editingExpense ?? {}),
@@ -281,9 +305,11 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     };
 
     try {
-      const savedExpense = editingExpense && isBackendId(editingExpense.id) && editingExpense.type !== 'budget'
-        ? await expensesService.updateExpense(draftExpense, providers)
-        : await expensesService.createExpense(draftExpense, providers);
+      const savedExpense = editingExpense?.type === 'budget'
+        ? await budgetLinesService.updateBudgetLineFromExpense(draftExpense)
+        : editingExpense && isBackendId(editingExpense.id)
+          ? await expensesService.updateExpense(draftExpense, providers)
+          : await expensesService.createExpense(draftExpense, providers);
 
       setExpenses(currentExpenses => (
         editingExpense
@@ -303,17 +329,101 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     }
   };
 
-  const handleDelete = (id: string) => {
-    const expense = expenses.find(item => item.id === id);
-    setExpenses(currentExpenses => currentExpenses.filter(item => item.id !== id));
-    if (!expense || !isBackendId(id) || expense.type === 'budget') return;
+  const handlePayableAccountSubmit = async (values: PayableAccountValues) => {
+    const provider = providers.find(item => item.id === values.providerId);
+    const now = new Date();
+    const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : now;
+    const payableExpense: Expense = {
+      id: `payable-${Date.now()}`,
+      folio: createExpenseFolio(expenses).replace('EXP-', 'CXP-'),
+      businessUnit: '',
+      business: '',
+      concept: values.concept,
+      description: values.notes,
+      category: mockExpenses[0].category,
+      providerId: values.providerId,
+      providerName: provider?.name,
+      requestedByUserId: currentUser?.id,
+      total: values.total,
+      taxes: values.taxes,
+      taxIncluded: values.taxIncluded,
+      taxMode: values.taxMode,
+      taxRate: values.taxRate,
+      amount: values.amount,
+      amountPaid: 0,
+      currency: values.currency,
+      dueDate,
+      date: now,
+      paymentMethod: 'transfer',
+      accountingAccount: '',
+      status: 'pending',
+      attachments: values.attachments,
+      notes: values.notes,
+      type: 'payable',
+      createdAt: now,
+      updatedAt: now,
+    };
 
-    expensesService.deleteExpense(id)
-      .then(() => setSuccessToastMessage(t.expenses.messages.deleted))
-      .catch(error => {
-        setExpenses(currentExpenses => [expense, ...currentExpenses]);
+    setIsPayableAccountSubmitting(true);
+    try {
+      const savedExpense = await expensesService.createPayableAccount(payableExpense, providers);
+      setExpenses(currentExpenses => [savedExpense, ...currentExpenses]);
+      setSuccessToastMessage('Cuenta por pagar registrada.');
+      setIsPayableAccountModalOpen(false);
+    } catch (error) {
+      setExpenses(currentExpenses => [payableExpense, ...currentExpenses]);
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
+    } finally {
+      setIsPayableAccountSubmitting(false);
+    }
+  };
+
+  const setExpenseDeleting = (id: string, isDeleting: boolean) => {
+    const nextIds = new Set(deletingExpenseIdsRef.current);
+    if (isDeleting) {
+      nextIds.add(id);
+    } else {
+      nextIds.delete(id);
+    }
+    deletingExpenseIdsRef.current = nextIds;
+    setDeletingExpenseIds(nextIds);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (deletingExpenseIdsRef.current.has(id)) return;
+    const expense = expenses.find(item => item.id === id);
+    if (!expense) return;
+
+    if (expense.type === 'budget') {
+      setExpenseDeleting(id, true);
+      try {
+        await budgetLinesService.deleteBudgetLine(id);
+        setExpenses(currentExpenses => currentExpenses.filter(item => item.id !== id));
+        setSuccessToastMessage(t.expenses.messages.deleted);
+      } catch (error) {
         setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.deleteFailed));
-      });
+      } finally {
+        setExpenseDeleting(id, false);
+      }
+      return;
+    }
+
+    if (!isBackendId(id)) {
+      setExpenses(currentExpenses => currentExpenses.filter(item => item.id !== id));
+      setSuccessToastMessage(t.expenses.messages.deleted);
+      return;
+    }
+
+    setExpenseDeleting(id, true);
+    try {
+      await expensesService.deleteExpense(id);
+      setExpenses(currentExpenses => currentExpenses.filter(item => item.id !== id));
+      setSuccessToastMessage(t.expenses.messages.deleted);
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.deleteFailed));
+    } finally {
+      setExpenseDeleting(id, false);
+    }
   };
 
   const handleSaveAttachments = (attachments: string[]) => {
@@ -332,6 +442,33 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     persistExpenseUpdate(updatedExpense);
   };
 
+  const handleExpenseStatusChange = async (expense: Expense, status: ExpenseStatus) => {
+    try {
+      if (expense.type === 'budget') {
+        const updatedExpense = applyExpenseStatus(expense, status);
+        const savedExpense = await budgetLinesService.updateBudgetLineFromExpense(updatedExpense);
+        setSuccessToastMessage(t.expenses.messages.saved);
+        return savedExpense;
+      }
+
+      if (isBackendId(expense.id)) {
+        const paidAmount = status === 'partial'
+          ? Math.max(0.01, Math.min(expense.amountPaid && expense.amountPaid < expense.total ? expense.amountPaid : expense.total / 2, expense.total - 0.01))
+          : undefined;
+        const savedExpense = await expensesService.updateExpenseStatus(expense.id, status, providers, paidAmount, new Date());
+        setSuccessToastMessage(t.expenses.messages.saved);
+        return savedExpense;
+      }
+
+      const updatedExpense = applyExpenseStatus(expense, status);
+      setSuccessToastMessage(t.expenses.messages.saved);
+      return updatedExpense;
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
+      return null;
+    }
+  };
+
   const ensureExpensePayable = async (expense: Expense) => {
     if (!isBackendId(expense.id) || expense.type === 'budget') {
       return expense;
@@ -348,34 +485,17 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   };
 
   const handleMarkExpensePaid = async (expense: Expense) => {
-    try {
-      const payableExpense = await ensureExpensePayable(expense);
-      const remainingAmount = Math.max(payableExpense.total - (payableExpense.amountPaid ?? 0), 0);
-      if (remainingAmount <= 0) return payableExpense;
-
-      const savedExpense = isBackendId(payableExpense.id) && payableExpense.type !== 'budget'
-        ? await expensesService.recordExpensePayment(payableExpense.id, remainingAmount, new Date(), providers)
-        : { ...payableExpense, amountPaid: payableExpense.total, paymentDate: new Date(), status: 'paid' as const };
-
-      setSuccessToastMessage(t.expenses.messages.saved);
-      return savedExpense;
-    } catch (error) {
-      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
-      return null;
-    }
+    return handleExpenseStatusChange(expense, 'paid');
   };
 
   const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentDate: Date) => {
     try {
       const payableExpense = await ensureExpensePayable(expense);
-      const savedExpense = isBackendId(payableExpense.id) && payableExpense.type !== 'budget'
-        ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentDate, providers)
-        : {
-          ...payableExpense,
-          amountPaid: Math.min(payableExpense.total, (payableExpense.amountPaid ?? 0) + amount),
-          paymentDate,
-          status: (payableExpense.amountPaid ?? 0) + amount >= payableExpense.total ? 'paid' as const : 'partial' as const,
-        };
+      const savedExpense = payableExpense.type === 'budget'
+        ? await budgetLinesService.updateBudgetLineFromExpense(applyExpensePayment(payableExpense, amount, paymentDate))
+        : isBackendId(payableExpense.id)
+          ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentDate, providers)
+          : applyExpensePayment(payableExpense, amount, paymentDate);
 
       setSuccessToastMessage(t.expenses.messages.saved);
       return savedExpense;
@@ -413,7 +533,9 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         createExpenseDisabled={createExpenseDisabled}
         createExpenseDisabledReason={createExpenseDisabledReason}
         onConfigureColumns={() => setIsColumnModalOpen(true)}
+        onCreatePayableAccount={openPayableAccountModal}
         onCreateExpense={openCreateExpenseModal}
+        onOpenPayablesKiosk={openPayablesKiosk}
         onPreferredCurrencyChange={handlePreferredCurrencyChange}
         preferredCurrency={preferredCurrency}
       />
@@ -433,12 +555,12 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         actionVisibility={{ showAudit: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={translatedColumns}
+        deletingExpenseIds={deletingExpenseIds}
         expenses={filteredExpenses}
         getAttachments={getExpenseAttachments}
         onDeleteExpense={handleDelete}
         onDuplicateExpense={handleDuplicate}
         onEditExpense={(expense) => {
-          if (expense.type === 'budget') return;
           setEditingExpense(expense);
           setIsAddExpenseModalOpen(true);
         }}
@@ -447,6 +569,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         onOpenAttachments={openAttachmentsModal}
         onPersistExpenseUpdate={persistExpenseUpdate}
         onRecordExpensePayment={handleRecordExpensePayment}
+        onStatusChange={handleExpenseStatusChange}
         businessOptions={businessOptions}
         providers={providers}
         unitOptions={unitOptions}
@@ -456,15 +579,11 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       {isColumnModalOpen && (
         <ColumnConfigurationModal
           columns={translatedColumns}
-          description={t.expenses.columnModalDescription}
-          onApply={() => setIsColumnModalOpen(false)}
           onClose={() => setIsColumnModalOpen(false)}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
-          onDragStart={handleDragStart}
-          onHideOptionalColumns={hideOptionalColumns}
-          onShowAllColumns={showAllColumns}
-          onUpdateVisibility={updateColumnVisibility}
+          onSaveColumns={(nextColumns) => {
+            applyColumns(nextColumns);
+            setIsColumnModalOpen(false);
+          }}
         />
       )}
 
@@ -491,6 +610,15 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
           onSubmitExpense={handleExpenseSubmit}
         />
       )}
+
+      <PayableAccountDialog
+        currency={preferredCurrency}
+        isSubmitting={isPayableAccountSubmitting}
+        onOpenChange={setIsPayableAccountModalOpen}
+        onSubmit={handlePayableAccountSubmit}
+        open={isPayableAccountModalOpen}
+        providers={providers}
+      />
 
       <Button
         type="button"
@@ -522,4 +650,42 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       />
     </div>
   );
+}
+
+function applyExpenseStatus(expense: Expense, status: ExpenseStatus): Expense {
+  const paymentDate = new Date();
+  if (status === 'paid' || status === 'audited') {
+    return { ...expense, amountPaid: expense.total, paymentDate, status, updatedAt: paymentDate };
+  }
+
+  if (status === 'partial') {
+    const fallbackPaidAmount = Math.max(0.01, Math.min(expense.total / 2, Math.max(expense.total - 0.01, 0)));
+    const amountPaid = (expense.amountPaid ?? 0) > 0 && (expense.amountPaid ?? 0) < expense.total
+      ? expense.amountPaid
+      : fallbackPaidAmount;
+    return { ...expense, amountPaid, paymentDate, status, updatedAt: paymentDate };
+  }
+
+  if (status === 'overdue') {
+    return {
+      ...expense,
+      amountPaid: Math.min(expense.amountPaid ?? 0, expense.total),
+      paymentDate: expense.paymentDate,
+      status,
+      updatedAt: new Date(),
+    };
+  }
+
+  return { ...expense, amountPaid: 0, paymentDate: undefined, status, updatedAt: new Date() };
+}
+
+function applyExpensePayment(expense: Expense, amount: number, paymentDate: Date): Expense {
+  const amountPaid = Math.min(expense.total, (expense.amountPaid ?? 0) + amount);
+  return {
+    ...expense,
+    amountPaid,
+    paymentDate,
+    status: amountPaid >= expense.total ? 'paid' : 'partial',
+    updatedAt: new Date(),
+  };
 }

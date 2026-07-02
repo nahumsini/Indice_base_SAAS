@@ -6,6 +6,7 @@ import com.indice.erp.finance.budgetlines.BudgetLineRollupService;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
+import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.finance.status.ExpenseStatus;
@@ -100,17 +101,41 @@ class ExpenseServiceTest {
     }
 
     @Test
-    void updateDraftOnlyAllowsDraftRecords() {
+    void updateDraftRejectsTerminalRecords() {
         var service = service();
         var context = context();
         var request = updateRequest(null, null, "EXP-003");
         when(repository.findById(context, 11L))
-            .thenReturn(Optional.of(record(11L, ExpenseStatus.APPROVED, "Approved expense")));
+            .thenReturn(Optional.of(record(11L, ExpenseStatus.CANCELLED, "Cancelled expense")));
 
         var error = assertThrows(FinanceApiException.class, () -> service.updateDraft(context, 11L, request));
 
         assertEquals(HttpStatus.CONFLICT, error.status());
         verify(repository, never()).update(any(), eq(11L), any());
+    }
+
+    @Test
+    void updateDraftPersistsValidatedApprovedChanges() {
+        var service = service();
+        var context = context();
+        var request = updateRequest(null, null, "EXP-003");
+        var command = ArgumentCaptor.forClass(ExpenseDraftCommand.class);
+        var existing = recordWithPayment(11L, ExpenseStatus.APPROVED, "Approved expense",
+            new BigDecimal("25.00"), new BigDecimal("91.00"));
+        var updated = recordWithPayment(11L, ExpenseStatus.APPROVED, "Updated supplies",
+            new BigDecimal("25.00"), new BigDecimal("91.00"));
+
+        when(repository.findById(context, 11L)).thenReturn(Optional.of(existing), Optional.of(updated));
+        when(accessService.containsAssignment(context, null, null)).thenReturn(true);
+        when(repository.update(eq(context), eq(11L), command.capture())).thenReturn(true);
+
+        var response = service.updateDraft(context, 11L, request);
+
+        assertEquals("Updated supplies", response.concept());
+        assertEquals(new BigDecimal("25.00"), command.getValue().paidAmount());
+        assertEquals(new BigDecimal("91.00"), command.getValue().balanceAmount());
+        verify(referenceValidator).validateUpdate(eq(context), any(ExpenseScopedAssignment.class), eq(request));
+        verify(repository).update(eq(context), eq(11L), any());
     }
 
     @Test
@@ -210,6 +235,92 @@ class ExpenseServiceTest {
         verify(budgetLineRollupService).refreshExpenseImpact(context, 44L);
     }
 
+    @Test
+    void recordPaymentDerivesFullPaymentAmounts() {
+        var service = service();
+        var context = context();
+        when(repository.findById(context, 22L))
+            .thenReturn(Optional.of(record(22L, ExpenseStatus.APPROVED, "Approved")))
+            .thenReturn(Optional.of(recordWithPaymentStatus(22L, ExpenseStatus.PAID, PaymentStatus.PAID, "Approved",
+                new BigDecimal("116.00"), new BigDecimal("0.00"))));
+        when(workflowRepository.recordPayment(
+            context,
+            22L,
+            new BigDecimal("116.00"),
+            new BigDecimal("0.00"),
+            ExpenseStatus.PAID,
+            PaymentStatus.PAID,
+            LocalDate.of(2026, 6, 16)
+        )).thenReturn(true);
+
+        var response = service.recordPayment(context, 22L,
+            new RecordExpensePaymentRequest(new BigDecimal("116.00"), LocalDate.of(2026, 6, 16)));
+
+        assertEquals(ExpenseStatus.PAID, response.status());
+        assertEquals(PaymentStatus.PAID, response.paymentStatus());
+        assertEquals(new BigDecimal("116.00"), response.paidAmount());
+        assertEquals(new BigDecimal("0.00"), response.balanceAmount());
+    }
+
+    @Test
+    void recordPaymentRejectsAmountsAboveBalance() {
+        var service = service();
+        var context = context();
+        when(repository.findById(context, 23L))
+            .thenReturn(Optional.of(recordWithPayment(23L, ExpenseStatus.PARTIALLY_PAID, "Partial",
+                new BigDecimal("50.00"), new BigDecimal("66.00"))));
+
+        var error = assertThrows(FinanceApiException.class, () -> service.recordPayment(context, 23L,
+            new RecordExpensePaymentRequest(new BigDecimal("70.00"), LocalDate.of(2026, 6, 17))));
+
+        assertEquals(HttpStatus.BAD_REQUEST, error.status());
+        verify(workflowRepository, never()).recordPayment(any(), eq(23L), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateStatusToOverduePreservesExistingPaymentAmounts() {
+        var service = service();
+        var context = context();
+        var existing = recordWithPayment(24L, ExpenseStatus.PARTIALLY_PAID, "Partial",
+            new BigDecimal("30.00"), new BigDecimal("86.00"));
+        var updated = recordWithPaymentStatus(24L, ExpenseStatus.PARTIALLY_PAID, PaymentStatus.OVERDUE, "Partial",
+            new BigDecimal("30.00"), new BigDecimal("86.00"));
+
+        when(repository.findById(context, 24L)).thenReturn(Optional.of(existing), Optional.of(updated));
+        when(workflowRepository.applyManualStatus(
+            context,
+            24L,
+            new BigDecimal("30.00"),
+            new BigDecimal("86.00"),
+            ExpenseStatus.PARTIALLY_PAID,
+            PaymentStatus.OVERDUE,
+            null,
+            null,
+            null
+        )).thenReturn(true);
+
+        var response = service.updateStatus(context, 24L,
+            new UpdateExpenseStatusRequest("overdue", null, LocalDate.of(2026, 6, 18)));
+
+        assertEquals(ExpenseStatus.PARTIALLY_PAID, response.status());
+        assertEquals(PaymentStatus.OVERDUE, response.paymentStatus());
+        assertEquals(new BigDecimal("30.00"), response.paidAmount());
+        assertEquals(new BigDecimal("86.00"), response.balanceAmount());
+    }
+
+    @Test
+    void listNormalizesOverduePaymentsBeforeReturningRows() {
+        var service = service();
+        var context = context();
+        when(repository.findAll(context)).thenReturn(java.util.List.of(record(25L, ExpenseStatus.APPROVED, "Due expense")));
+
+        var response = service.list(context);
+
+        assertEquals(1, response.count());
+        verify(workflowRepository).markOverduePayments(eq(context), any(LocalDate.class));
+        verify(repository).findAll(context);
+    }
+
     private ExpenseService service() {
         return new ExpenseService(
             repository,
@@ -289,6 +400,17 @@ class ExpenseServiceTest {
             String concept,
             BigDecimal paidAmount,
             BigDecimal balanceAmount) {
+        var paymentStatus = paidAmount.compareTo(BigDecimal.ZERO) > 0 ? PaymentStatus.PARTIALLY_PAID : PaymentStatus.UNPAID;
+        return recordWithPaymentStatus(id, status, paymentStatus, concept, paidAmount, balanceAmount);
+    }
+
+    private ExpenseRecord recordWithPaymentStatus(
+            long id,
+            ExpenseStatus status,
+            PaymentStatus paymentStatus,
+            String concept,
+            BigDecimal paidAmount,
+            BigDecimal balanceAmount) {
         return new ExpenseRecord(
             id,
             7L,
@@ -317,7 +439,7 @@ class ExpenseServiceTest {
             null,
             null,
             status,
-            paidAmount.compareTo(BigDecimal.ZERO) > 0 ? PaymentStatus.PARTIALLY_PAID : PaymentStatus.UNPAID,
+            paymentStatus,
             null,
             0,
             1L,

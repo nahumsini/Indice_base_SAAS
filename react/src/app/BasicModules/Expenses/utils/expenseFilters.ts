@@ -4,6 +4,38 @@ import type { ExpenseListFilters, ExpenseTotals } from '../types/expenseView.typ
 const includesSearch = (value: string | undefined, search: string) =>
   Boolean(value?.toLowerCase().includes(search));
 
+const startOfLocalDay = (dateValue: Date) => {
+  const date = new Date(dateValue);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+export const getExpensePaidAmount = (expense: Expense) => Math.max(expense.amountPaid ?? 0, 0);
+
+export const getExpenseBalance = (expense: Expense) => Math.max(expense.total - getExpensePaidAmount(expense), 0);
+
+export const isExpensePastDue = (expense: Expense, referenceDate = new Date()) => (
+  Boolean(expense.dueDate)
+  && startOfLocalDay(expense.dueDate).getTime() < startOfLocalDay(referenceDate).getTime()
+);
+
+export const isExpenseEffectivelyOverdue = (expense: Expense, referenceDate = new Date()) => (
+  expense.status === 'overdue'
+  || (
+    expense.status !== 'paid'
+    && expense.status !== 'audited'
+    && getExpenseBalance(expense) > 0
+    && isExpensePastDue(expense, referenceDate)
+  )
+);
+
+export const getEffectiveExpenseStatus = (expense: Expense): Expense['status'] => {
+  if (expense.status === 'audited') return 'audited';
+  if (isExpenseEffectivelyOverdue(expense)) return 'overdue';
+  if (getExpenseBalance(expense) <= 0) return 'paid';
+  return expense.status;
+};
+
 const isInPeriod = (dateValue: Date, periodFilter: ExpenseListFilters['periodFilter']) => {
   const date = new Date(dateValue);
   const now = new Date();
@@ -47,24 +79,24 @@ export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters)
     const matchesUnit = filters.businessUnitFilter === 'all' || expense.businessUnit === filters.businessUnitFilter;
     const matchesBusiness = filters.businessFilter === 'all' || expense.business === filters.businessFilter;
     const matchesProvider = filters.providerFilter === 'all' || expense.providerId === filters.providerFilter;
-    const matchesStatus = filters.statusFilter === 'all' || expense.status === filters.statusFilter;
+    const matchesStatus = filters.statusFilter === 'all' || getEffectiveExpenseStatus(expense) === filters.statusFilter;
 
     return matchesSearch && matchesPeriod && matchesUnit && matchesBusiness && matchesProvider && matchesStatus;
   });
 };
 
 export const calculateExpenseTotals = (expenses: Expense[]): ExpenseTotals => {
-  const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const paid = expenses.reduce((sum, expense) => sum + (expense.amountPaid || 0), 0);
+  const total = expenses.reduce((sum, expense) => sum + expense.total, 0);
+  const paid = expenses.reduce((sum, expense) => sum + getExpensePaidAmount(expense), 0);
   const overdue = expenses
-    .filter(expense => expense.status === 'overdue')
-    .reduce((sum, expense) => sum + expense.amount, 0);
+    .filter(expense => isExpenseEffectivelyOverdue(expense))
+    .reduce((sum, expense) => sum + getExpenseBalance(expense), 0);
 
   return {
     total,
     paid,
     pending: total - paid,
     overdue,
-    overdueCount: expenses.filter(expense => expense.status === 'overdue').length,
+    overdueCount: expenses.filter(expense => isExpenseEffectivelyOverdue(expense)).length,
   };
 };

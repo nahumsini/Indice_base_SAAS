@@ -12,6 +12,7 @@ type ExpenseMobileCardsProps = {
   emptyMessage: string;
   emptyTitle: string;
   expenses: Expense[];
+  deletingExpenseIds?: Set<string>;
   getAttachments: (expense: Expense) => string[];
   isColumnVisible: (key: string) => boolean;
   isSelected: (expenseId: string) => boolean;
@@ -31,6 +32,7 @@ export function ExpenseMobileCards({
   emptyMessage,
   emptyTitle,
   expenses,
+  deletingExpenseIds = new Set<string>(),
   getAttachments,
   isColumnVisible,
   isSelected,
@@ -65,6 +67,7 @@ export function ExpenseMobileCards({
           attachmentsCount={getAttachments(expense).length}
           expense={expense}
           isColumnVisible={isColumnVisible}
+          isDeletePending={deletingExpenseIds.has(expense.id)}
           isSelected={isSelected(expense.id)}
           options={options}
           onAudit={onAudit}
@@ -86,6 +89,7 @@ function ExpenseMobileCard({
   attachmentsCount,
   expense,
   isColumnVisible,
+  isDeletePending,
   isSelected,
   onAudit,
   onDelete,
@@ -101,6 +105,7 @@ function ExpenseMobileCard({
   attachmentsCount: number;
   expense: Expense;
   isColumnVisible: (key: string) => boolean;
+  isDeletePending: boolean;
   isSelected: boolean;
   options: EditableExpenseRowOptions;
   onAudit: (expenseId: string) => void;
@@ -194,6 +199,7 @@ function ExpenseMobileCard({
             onMarkPaid={onMarkPaid}
             onRecordPayment={onRecordPayment}
             onStartEdit={onEdit}
+            isDeletePending={isDeletePending}
             showAudit={actionVisibility?.showAudit}
             showMarkPaid={actionVisibility?.showMarkPaid}
             showRecordPayment={actionVisibility?.showRecordPayment}

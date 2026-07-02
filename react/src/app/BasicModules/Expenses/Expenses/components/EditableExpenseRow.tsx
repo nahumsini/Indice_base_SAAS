@@ -41,11 +41,13 @@ type EditableExpenseRowProps = {
   columnWidths: Record<string, number>;
   isEditing: boolean;
   isColumnVisible: (key: string) => boolean;
+  isDeletePending?: boolean;
   options: EditableExpenseRowOptions;
   workflow: ExpenseWorkflowState;
   isSelected: boolean;
   onStartEdit: (expenseId: string) => void;
   onSelectionChange: (expenseId: string, selected: boolean) => void;
+  onStatusChange?: (expenseId: string, status: ExpenseStatus) => void;
   onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
   onUpdateWorkflow: (expenseId: string, updates: Partial<ExpenseWorkflowState>) => void;
   onOpenAttachments: (expense: Expense) => void;
@@ -70,11 +72,13 @@ export function EditableExpenseRow({
   columnWidths,
   isEditing,
   isColumnVisible,
+  isDeletePending = false,
   isSelected,
   options,
   workflow,
   onStartEdit,
   onSelectionChange,
+  onStatusChange,
   onUpdateExpense,
   onUpdateWorkflow,
   onOpenAttachments,
@@ -262,7 +266,18 @@ export function EditableExpenseRow({
       {isColumnVisible('status') && (
         <td className="px-6 py-4" style={{ width: columnWidths.status, minWidth: columnWidths.status }}>
           {isEditing ? (
-            <EditableSelect ariaLabel={`${t.expenses.columns.status.label} ${expense.folio}`} value={expense.status} options={options.statuses} onChange={(status) => onUpdateExpense(expense.id, { status })} />
+            <EditableSelect
+              ariaLabel={`${t.expenses.columns.status.label} ${expense.folio}`}
+              value={expense.status}
+              options={options.statuses}
+              onChange={(status) => {
+                if (onStatusChange) {
+                  onStatusChange(expense.id, status);
+                  return;
+                }
+                onUpdateExpense(expense.id, { status });
+              }}
+            />
           ) : (
             <button
               type="button"
@@ -336,6 +351,7 @@ export function EditableExpenseRow({
           onMarkPaid={onMarkPaid}
           onRecordPayment={onRecordPayment}
           onStartEdit={startActionEdit}
+          isDeletePending={isDeletePending}
           showAudit={actionVisibility?.showAudit}
           showMarkPaid={actionVisibility?.showMarkPaid}
           showRecordPayment={actionVisibility?.showRecordPayment}

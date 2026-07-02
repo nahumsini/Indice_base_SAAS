@@ -6,7 +6,7 @@ import {
 } from '../adapters/expense.adapter';
 import { EXPENSE_COLUMN_CONTRACT } from '../types/expense-column-contract.types';
 import { createEmptyFinancialOverview } from '../types/financial-overview.types';
-import type { Expense } from '../types/expenses.types';
+import type { Expense, ExpenseStatus } from '../types/expenses.types';
 import type { ExpenseColumnContract } from '../types/expense-column-contract.types';
 import type { FinancialOverview } from '../types/financial-overview.types';
 import type { FinanceExpense, FinancePurchaseOrder } from '../types/finance-domain.types';
@@ -39,6 +39,14 @@ export const expensesService = {
     const response = await apiClient<ExpenseApiDto>(
       expensesPath,
       jsonMutation('POST', toExpenseApiRequest(expense)),
+    );
+    return toExpense(response, providers);
+  },
+
+  async createPayableAccount(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(
+      expensesPath,
+      jsonMutation('POST', toExpenseApiRequest({ ...expense, type: 'payable', status: expense.status ?? 'pending' })),
     );
     return toExpense(response, providers);
   },
@@ -76,6 +84,24 @@ export const expensesService = {
       jsonMutation('POST', {
         amount,
         paymentDate: paymentDate.toISOString().slice(0, 10),
+      }),
+    );
+    return toExpense(response, providers);
+  },
+
+  async updateExpenseStatus(
+    expenseId: string,
+    status: ExpenseStatus,
+    providers: Array<{ id: string; name: string }> = [],
+    paidAmount?: number,
+    paymentDate?: Date,
+  ): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(
+      `${expensesPath}/${expenseId}/status`,
+      jsonMutation('POST', {
+        status,
+        paidAmount,
+        paymentDate: paymentDate ? paymentDate.toISOString().slice(0, 10) : undefined,
       }),
     );
     return toExpense(response, providers);

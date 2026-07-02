@@ -1,4 +1,4 @@
-import { Check, HandCoins, X } from 'lucide-react';
+import { Check, HandCoins, Loader2, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { Expense } from '../../types/expenses.types';
@@ -7,7 +7,7 @@ import { formatCurrency } from '../../utils/expenses.utils';
 type ExpensePaymentModalProps = {
   expense: Expense;
   onClose: () => void;
-  onSubmit: (expenseId: string, amount: number, paymentDate: Date) => void;
+  onSubmit: (expenseId: string, amount: number, paymentDate: Date) => void | Promise<void>;
 };
 
 const inputClass =
@@ -17,6 +17,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePayme
   const t = useFinanceTranslations();
   const [amount, setAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(formatDateInputValue(new Date()));
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentPaid = Math.min(expense.amountPaid ?? 0, expense.total);
   const remainingBalance = Math.max(expense.total - currentPaid, 0);
@@ -24,16 +25,25 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePayme
   const nextPaid = Math.min(expense.total, currentPaid + paymentAmount);
   const newBalance = Math.max(expense.total - nextPaid, 0);
   const exceedsBalance = paymentAmount > remainingBalance;
-  const canSubmit = remainingBalance > 0 && paymentAmount > 0 && !exceedsBalance;
+  const canSubmit = remainingBalance > 0 && paymentAmount > 0 && !exceedsBalance && !isSubmitting;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleClose = () => {
+    if (!isSubmitting) onClose();
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
-    onSubmit(expense.id, paymentAmount, toDateValue(paymentDate));
+    setIsSubmitting(true);
+    try {
+      await onSubmit(expense.id, paymentAmount, toDateValue(paymentDate));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={handleClose}>
       <form
         onSubmit={handleSubmit}
         onClick={(event) => event.stopPropagation()}
@@ -49,7 +59,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePayme
               <p className="mt-1 max-w-xl text-sm leading-5 text-white/80">{t.expenses.payment.subtitle}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
+          <button type="button" onClick={handleClose} disabled={isSubmitting} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -111,11 +121,11 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePayme
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-[#0b3f1b]">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">
+          <button type="button" onClick={handleClose} disabled={isSubmitting} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-60">
             {t.common.cancel}
           </button>
           <button type="submit" disabled={!canSubmit} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
-            <Check className="h-4 w-4" />
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {t.expenses.payment.save}
           </button>
         </div>

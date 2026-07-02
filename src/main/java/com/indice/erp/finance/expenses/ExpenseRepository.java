@@ -117,22 +117,19 @@ class ExpenseRepository {
                     currency_code = ?,
                     expense_date = ?,
                     due_date = ?,
-                    requested_by_user_id = ?,
-                    approved_by_user_id = ?,
-                    performed_by_user_id = ?,
-                    payment_date = NULL,
-                    close_date = NULL,
-                    payment_status = ?,
-                    updated_by_user_id = ?,
-                    custom_fields_json = ?,
-                    metadata_json = ?,
+	                    requested_by_user_id = ?,
+	                    approved_by_user_id = ?,
+	                    performed_by_user_id = ?,
+	                    updated_by_user_id = ?,
+	                    custom_fields_json = ?,
+	                    metadata_json = ?,
                     version = version + 1
-                WHERE company_id = ?
-                  AND id = ?
-                  AND deleted_at IS NULL
-                  AND status = ?
-                """
-            );
+	                WHERE company_id = ?
+	                  AND id = ?
+	                  AND deleted_at IS NULL
+	                  AND status NOT IN (?, ?)
+	                """
+	            );
             bindUpdate(statement, context, expenseId, command);
             return statement;
         });
@@ -219,14 +216,14 @@ class ExpenseRepository {
         setNullableLong(statement, 20, command.requestedByUserId());
         setNullableLong(statement, 21, command.approvedByUserId());
         setNullableLong(statement, 22, command.performedByUserId());
-        statement.setString(23, PaymentStatus.UNPAID.name());
-        setNullableLong(statement, 24, command.updatedByUserId());
-        statement.setString(25, command.customFieldsJson());
-        statement.setString(26, command.metadataJson());
-        statement.setLong(27, context.companyId());
-        statement.setLong(28, expenseId);
-        statement.setString(29, ExpenseStatus.DRAFT.name());
-    }
+	        setNullableLong(statement, 23, command.updatedByUserId());
+	        statement.setString(24, command.customFieldsJson());
+	        statement.setString(25, command.metadataJson());
+	        statement.setLong(26, context.companyId());
+	        statement.setLong(27, expenseId);
+	        statement.setString(28, ExpenseStatus.CANCELLED.name());
+	        statement.setString(29, ExpenseStatus.REJECTED.name());
+	    }
 
     private void appendScopeParam(List<Object> params, FinanceScope scope) {
         switch (scope.type()) {

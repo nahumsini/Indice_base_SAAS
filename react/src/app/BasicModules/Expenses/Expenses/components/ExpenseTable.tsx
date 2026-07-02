@@ -19,6 +19,8 @@ import { ExpenseBulkActionsBar } from '../../components/table/ExpenseBulkActions
 import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeaderRow';
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
+import { getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import {
   EditableExpenseRow,
   type EditableExpenseRowOptions,
@@ -27,10 +29,17 @@ import {
 } from './EditableExpenseRow';
 import { ExpenseMobileCards } from './ExpenseMobileCards';
 
+type MoneySummary = {
+  key: string;
+  label: string;
+  value: string;
+};
+
 type ExpenseTableProps = {
   actionVisibility?: ExpenseRowActionVisibility;
   accountingAccountOptions?: FinanceReferenceOption[];
   columns: ColumnConfig[];
+  deletingExpenseIds?: Set<string>;
   emptyMessage?: string;
   emptyTitle?: string;
   expenses: Expense[];
@@ -43,6 +52,7 @@ type ExpenseTableProps = {
   onOpenAttachments: (expense: Expense) => void;
   onPersistExpenseUpdate?: (expense: Expense) => void;
   onRecordExpensePayment?: (expense: Expense, amount: number, paymentDate: Date) => Promise<Expense | null>;
+  onStatusChange?: (expense: Expense, status: ExpenseStatus) => Promise<Expense | null>;
   businessOptions?: FinanceReferenceOption[];
   providers?: Provider[];
   unitOptions?: FinanceReferenceOption[];
@@ -53,6 +63,7 @@ export function ExpenseTable({
   actionVisibility,
   accountingAccountOptions = [],
   columns,
+  deletingExpenseIds = new Set<string>(),
   emptyMessage,
   emptyTitle,
   expenses,
@@ -65,6 +76,7 @@ export function ExpenseTable({
   onOpenAttachments,
   onPersistExpenseUpdate,
   onRecordExpensePayment,
+  onStatusChange,
   businessOptions = [],
   providers = mockProviders,
   unitOptions = [],
@@ -105,6 +117,12 @@ export function ExpenseTable({
   const visibleColumnCount = useMemo(() => (
     columns.filter(column => column.key !== 'actions' && column.visible).length + 2
   ), [columns]);
+  const filteredMoneySummaries = useMemo(() => getMoneySummaries(sortedExpenses, columns), [columns, sortedExpenses]);
+  const selectedExpenses = useMemo(
+    () => sortedExpenses.filter(expense => rowSelection.selectedIds.has(expense.id)),
+    [rowSelection.selectedIds, sortedExpenses],
+  );
+  const selectedMoneySummaries = useMemo(() => getMoneySummaries(selectedExpenses, columns), [columns, selectedExpenses]);
   const paymentExpense = useMemo(
     () => expenses.find(expense => expense.id === paymentExpenseId) ?? null,
     [expenses, paymentExpenseId],
@@ -204,7 +222,9 @@ export function ExpenseTable({
   };
 
   const handleBulkStatusChange = (status: ExpenseStatus) => {
-    applyBulkExpenseUpdates(() => ({ status }));
+    rowSelection.selectedIdList.forEach(id => {
+      void handleStatusChange(id, status);
+    });
   };
 
   const updateSelectedWorkflowState = (updates: Partial<ExpenseWorkflowState>) => {
@@ -240,12 +260,9 @@ export function ExpenseTable({
   };
 
   const handleBulkMarkPaid = () => {
-    const paymentDate = new Date();
-    applyBulkExpenseUpdates(expense => ({
-      amountPaid: expense.total,
-      paymentDate,
-      status: 'paid',
-    }));
+    rowSelection.selectedIdList.forEach(id => {
+      void handlePay(id);
+    });
   };
 
   const updateExpenseWorkflow = (expenseId: string, updates: Partial<ExpenseWorkflowState>) => {
@@ -285,6 +302,7 @@ export function ExpenseTable({
   };
 
   const handleDelete = (id: string) => {
+    if (deletingExpenseIds.has(id)) return;
     if (onDeleteExpense) {
       onDeleteExpense(id);
       return;
@@ -301,6 +319,25 @@ export function ExpenseTable({
     onExpensesChange(prev => prev.map(expense => (expense.id === savedExpense.id ? savedExpense : expense)));
   };
 
+  const handleStatusChange = async (id: string, status: ExpenseStatus) => {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense) return;
+    const optimisticExpense = {
+      ...expense,
+      ...getStatusPatch(expense, status),
+      updatedAt: new Date(),
+    };
+    onExpensesChange(prev => prev.map(item => (item.id === id ? optimisticExpense : item)));
+
+    if (onStatusChange) {
+      const savedExpense = await onStatusChange(expense, status);
+      if (savedExpense) replaceSavedExpense(savedExpense);
+      return;
+    }
+
+    onPersistExpenseUpdate?.(optimisticExpense);
+  };
+
   const handlePay = async (id: string) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
@@ -309,7 +346,7 @@ export function ExpenseTable({
       if (savedExpense) replaceSavedExpense(savedExpense);
       return;
     }
-    updateExpense(id, { amountPaid: expense.total, paymentDate: new Date(), status: 'paid' });
+    void handleStatusChange(id, 'paid');
   };
 
   const handleRecordPayment = async (id: string, amount: number, paymentDate: Date) => {
@@ -317,8 +354,10 @@ export function ExpenseTable({
     if (!expense) return;
     if (onRecordExpensePayment) {
       const savedExpense = await onRecordExpensePayment(expense, amount, paymentDate);
-      if (savedExpense) replaceSavedExpense(savedExpense);
-      setPaymentExpenseId(null);
+      if (savedExpense) {
+        replaceSavedExpense(savedExpense);
+        setPaymentExpenseId(null);
+      }
       return;
     }
 
@@ -359,6 +398,7 @@ export function ExpenseTable({
         emptyMessage={effectiveEmptyMessage}
         emptyTitle={effectiveEmptyTitle}
         expenses={paginatedExpenses}
+        deletingExpenseIds={deletingExpenseIds}
         getAttachments={getAttachments}
         isColumnVisible={isColumnVisible}
         isSelected={rowSelection.isSelected}
@@ -409,11 +449,13 @@ export function ExpenseTable({
                   columnWidths={columnWidths}
                   isEditing={editingRowId === expense.id}
                   isColumnVisible={isColumnVisible}
+                  isDeletePending={deletingExpenseIds.has(expense.id)}
                   isSelected={rowSelection.isSelected(expense.id)}
                   options={editableRowOptions}
                   workflow={workflowByExpenseId[expense.id] ?? getDefaultExpenseWorkflow(expense)}
                   onStartEdit={setEditingRowId}
                   onSelectionChange={rowSelection.toggleSelection}
+                  onStatusChange={handleStatusChange}
                   onUpdateExpense={updateExpense}
                   onUpdateWorkflow={updateExpenseWorkflow}
                   onOpenAttachments={onOpenAttachments}
@@ -429,22 +471,45 @@ export function ExpenseTable({
           </tbody>
           </table>
         </div>
+        <ExpenseTablePagination
+          attached
+          currentPage={currentPage}
+          moneySummaries={filteredMoneySummaries}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setCurrentPage(1);
+          }}
+          pageEnd={paginationEnd}
+          pageSize={pageSize}
+          pageStart={paginationStart}
+          selectedCount={rowSelection.selectedCount}
+          selectedMoneySummaries={selectedMoneySummaries}
+          t={t}
+          totalCount={sortedExpenses.length}
+          totalPages={totalPages}
+        />
       </div>
 
-      <ExpenseTablePagination
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={(nextPageSize) => {
-          setPageSize(nextPageSize);
-          setCurrentPage(1);
-        }}
-        pageEnd={paginationEnd}
-        pageSize={pageSize}
-        pageStart={paginationStart}
-        t={t}
-        totalCount={sortedExpenses.length}
-        totalPages={totalPages}
-      />
+      <div className="md:hidden">
+        <ExpenseTablePagination
+          currentPage={currentPage}
+          moneySummaries={filteredMoneySummaries}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setCurrentPage(1);
+          }}
+          pageEnd={paginationEnd}
+          pageSize={pageSize}
+          pageStart={paginationStart}
+          selectedCount={rowSelection.selectedCount}
+          selectedMoneySummaries={selectedMoneySummaries}
+          t={t}
+          totalCount={sortedExpenses.length}
+          totalPages={totalPages}
+        />
+      </div>
 
       {paymentExpense && (
         <ExpensePaymentModal
@@ -458,22 +523,30 @@ export function ExpenseTable({
 }
 
 function ExpenseTablePagination({
+  attached = false,
   currentPage,
+  moneySummaries = [],
   onPageChange,
   onPageSizeChange,
   pageEnd,
   pageSize,
   pageStart,
+  selectedCount = 0,
+  selectedMoneySummaries = [],
   t,
   totalCount,
   totalPages,
 }: {
+  attached?: boolean;
   currentPage: number;
+  moneySummaries?: MoneySummary[];
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   pageEnd: number;
   pageSize: number;
   pageStart: number;
+  selectedCount?: number;
+  selectedMoneySummaries?: MoneySummary[];
   t: ReturnType<typeof useFinanceTranslations>;
   totalCount: number;
   totalPages: number;
@@ -482,46 +555,131 @@ function ExpenseTablePagination({
   const hasNextPage = currentPage < totalPages;
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        {t.common.showing(pageStart, pageEnd, totalCount)}
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-          <span>{t.common.rowsPerPage}</span>
-          <select
-            aria-label={t.common.rowsPerPage}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-            value={pageSize}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
+    <div className={`bg-white dark:bg-slate-800 ${
+      attached
+        ? 'border-t border-slate-200 dark:border-slate-700'
+        : 'rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700'
+    }`}>
+      {moneySummaries.length > 0 ? (
+        <MoneySummaryStrip label="Totales filtrados" summaries={moneySummaries} />
+      ) : null}
+      {selectedCount > 0 && selectedMoneySummaries.length > 0 ? (
+        <MoneySummaryStrip
+          emphasis
+          label={`${selectedCount} ${selectedCount === 1 ? 'fila seleccionada' : 'filas seleccionadas'}`}
+          summaries={selectedMoneySummaries}
+        />
+      ) : null}
+      <div className={`${moneySummaries.length > 0 || selectedMoneySummaries.length > 0 ? 'border-t border-slate-100 dark:border-slate-700/70' : ''} flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {t.common.showing(pageStart, pageEnd, totalCount)}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+            <span>{t.common.rowsPerPage}</span>
+            <select
+              aria-label={t.common.rowsPerPage}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              value={pageSize}
+              onChange={(event) => onPageSizeChange(Number(event.target.value))}
+            >
+              {[10, 25, 50, 100, 200].map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={!hasPreviousPage}
+            onClick={() => onPageChange(currentPage - 1)}
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
           >
-            {[10, 25, 50].map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          disabled={!hasPreviousPage}
-          onClick={() => onPageChange(currentPage - 1)}
-          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-        >
-          {t.common.previous}
-        </button>
-        <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-          {currentPage}/{totalPages}
-        </span>
-        <button
-          type="button"
-          disabled={!hasNextPage}
-          onClick={() => onPageChange(currentPage + 1)}
-          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-        >
-          {t.common.next}
-        </button>
+            {t.common.previous}
+          </button>
+          <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            {currentPage}/{totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={!hasNextPage}
+            onClick={() => onPageChange(currentPage + 1)}
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            {t.common.next}
+          </button>
+        </div>
       </div>
     </div>
   );
+}
+
+function MoneySummaryStrip({ emphasis = false, label, summaries }: { emphasis?: boolean; label: string; summaries: MoneySummary[] }) {
+  return (
+    <div className={`flex flex-col gap-2 px-4 py-3 ${emphasis ? 'bg-[#147514]/5 dark:bg-emerald-400/10' : ''} lg:flex-row lg:items-center lg:justify-between`}>
+      <span className={`text-xs font-extrabold uppercase tracking-[0.18em] ${emphasis ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}>
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-2">
+        {summaries.map(summary => (
+          <span
+            key={summary.key}
+            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-sm ${
+              emphasis
+                ? 'border-[#147514]/20 bg-white text-slate-700 dark:border-emerald-400/20 dark:bg-slate-900 dark:text-slate-200'
+                : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+            }`}
+          >
+            <span className="font-bold text-slate-500 dark:text-slate-400">{summary.label}</span>
+            <strong className="font-extrabold text-slate-900 dark:text-white">{summary.value}</strong>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getMoneySummaries(expenses: Expense[], columns: ColumnConfig[]): MoneySummary[] {
+  const visibleLabels = new Map(columns.filter(column => column.visible).map(column => [column.key, column.label]));
+  const monetaryColumns = [
+    { key: 'amount', getValue: (expense: Expense) => expense.amount },
+    { key: 'taxes', getValue: (expense: Expense) => expense.taxes },
+    { key: 'total', getValue: (expense: Expense) => expense.total },
+    { key: 'amountPaid', getValue: (expense: Expense) => getExpensePaidAmount(expense) },
+    { key: 'balance', getValue: (expense: Expense) => getExpenseBalance(expense) },
+  ];
+
+  return monetaryColumns
+    .filter(column => visibleLabels.has(column.key))
+    .map(column => ({
+      key: column.key,
+      label: visibleLabels.get(column.key) ?? column.key,
+      value: formatBusinessCurrencyBreakdown(expenses, column.getValue, expense => expense.currency),
+    }));
+}
+
+function getStatusPatch(expense: Expense, status: ExpenseStatus): Partial<Expense> {
+  const paymentDate = new Date();
+  if (status === 'paid' || status === 'audited') {
+    return { amountPaid: expense.total, paymentDate, status };
+  }
+
+  if (status === 'partial') {
+    const fallbackPaidAmount = Math.max(0.01, Math.min(expense.total / 2, Math.max(expense.total - 0.01, 0)));
+    const amountPaid = (expense.amountPaid ?? 0) > 0 && (expense.amountPaid ?? 0) < expense.total
+      ? expense.amountPaid
+      : fallbackPaidAmount;
+    return { amountPaid, paymentDate, status };
+  }
+
+  if (status === 'overdue') {
+    return {
+      amountPaid: Math.min(getExpensePaidAmount(expense), expense.total),
+      paymentDate: expense.paymentDate,
+      status,
+    };
+  }
+
+  return { amountPaid: 0, paymentDate: undefined, status };
 }
 
 function useEditableRowOptions(

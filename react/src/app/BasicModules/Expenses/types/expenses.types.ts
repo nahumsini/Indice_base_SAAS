@@ -2,7 +2,7 @@
 
 export type ExpenseStatus = 'paid' | 'pending' | 'partial' | 'overdue' | 'audited';
 export type PaymentMethod = 'cash' | 'credit_card' | 'debit_card' | 'transfer' | 'check';
-export type ExpenseEntryType = 'real' | 'budget';
+export type ExpenseEntryType = 'real' | 'budget' | 'payable';
 export type ExpenseFrequency = 'once' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'annual';
 export type ExpenseTaxMode = 'none' | 'auto' | 'manual';
 

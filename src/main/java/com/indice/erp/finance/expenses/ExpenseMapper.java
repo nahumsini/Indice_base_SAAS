@@ -91,19 +91,24 @@ public class ExpenseMapper {
             FinanceJsonSupport.toJson(request.metadata()), true);
     }
 
-    public ExpenseDraftCommand toUpdateCommand(
+	    public ExpenseDraftCommand toUpdateCommand(
             FinanceContext context,
             UpdateExpenseRequest request,
             ExpenseScopedAssignment assignment,
             ExpenseRecord existing) {
-        return newCommand(context, assignment, request.providerId(), request.budgetLineId(),
-            request.accountingAccountId(), request.paymentAccountId(), request.purchaseOrderId(), request.folio(), request.concept(),
-            request.description(), request.expenseType(), request.subtotalAmount(), request.taxAmount(),
-            request.totalAmount(), request.currencyCode(), request.expenseDate(), request.dueDate(),
-            defaultUserId(request.requestedByUserId(), defaultUserId(existing.requestedByUserId(), context.userId())),
-            request.approvedByUserId(), request.performedByUserId(),
-            FinanceJsonSupport.toJson(request.customFields()), FinanceJsonSupport.toJson(request.metadata()), false);
-    }
+            var paidAmount = existing.paidAmount().min(request.totalAmount()).max(BigDecimal.ZERO);
+            var balanceAmount = request.totalAmount().subtract(paidAmount).max(BigDecimal.ZERO);
+	        return new ExpenseDraftCommand(
+	            assignment.unitId(), assignment.businessId(), request.providerId(), request.budgetLineId(),
+	            request.accountingAccountId(), request.paymentAccountId(), request.purchaseOrderId(), trim(request.folio()),
+	            trim(request.concept()), trim(request.description()), request.expenseType(), request.subtotalAmount(),
+	            request.taxAmount(), request.totalAmount(), paidAmount, balanceAmount,
+	            request.currencyCode().trim().toUpperCase(Locale.ROOT), request.expenseDate(), request.dueDate(),
+	            defaultUserId(request.requestedByUserId(), defaultUserId(existing.requestedByUserId(), context.userId())),
+	            request.approvedByUserId(), request.performedByUserId(), null, context.userId(),
+	            FinanceJsonSupport.toJson(request.customFields()), FinanceJsonSupport.toJson(request.metadata())
+	        );
+	    }
 
     private ExpenseDraftCommand newCommand(
             FinanceContext context,

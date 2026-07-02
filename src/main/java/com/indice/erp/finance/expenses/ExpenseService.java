@@ -9,10 +9,13 @@ import com.indice.erp.finance.expenses.dto.ExpenseResponse;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
 import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
+import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.status.ExpenseStatus;
 import com.indice.erp.finance.status.PaymentStatus;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
@@ -43,16 +46,18 @@ public class ExpenseService {
         this.referenceValidator = referenceValidator;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ExpenseListResponse list(FinanceContext context) {
+        workflowRepository.markOverduePayments(context, LocalDate.now());
         var expenses = repository.findAll(context).stream()
             .map(mapper::toResponse)
             .toList();
         return new ExpenseListResponse(expenses, expenses.size());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ExpenseResponse get(FinanceContext context, long expenseId) {
+        workflowRepository.markOverduePayments(context, LocalDate.now());
         return mapper.toResponse(requireExpense(context, expenseId));
     }
 
@@ -67,13 +72,16 @@ public class ExpenseService {
     @Transactional
     public ExpenseResponse updateDraft(FinanceContext context, long expenseId, UpdateExpenseRequest request) {
         var existing = requireExpense(context, expenseId);
-        validator.requireDraft(existing, "updated");
+        if (List.of(ExpenseStatus.CANCELLED, ExpenseStatus.REJECTED).contains(existing.status())) {
+            throw FinanceApiException.conflict("Cancelled or rejected expenses cannot be updated.");
+        }
         var assignment = validator.validateUpdate(context, request);
         referenceValidator.validateUpdate(context, assignment, request);
         var command = mapper.toUpdateCommand(context, request, assignment, existing);
         if (!repository.update(context, expenseId, command)) {
-            throw FinanceApiException.conflict("Only draft expenses can be updated.");
+            throw FinanceApiException.conflict("Expense could not be updated.");
         }
+        refreshBudgetLine(context, existing.budgetLineId());
         return get(context, expenseId);
     }
 
@@ -153,6 +161,75 @@ public class ExpenseService {
     }
 
     @Transactional
+    public ExpenseResponse updateStatus(FinanceContext context, long expenseId, UpdateExpenseStatusRequest request) {
+        var existing = requireExpense(context, expenseId);
+        if (List.of(ExpenseStatus.CANCELLED, ExpenseStatus.REJECTED).contains(existing.status())) {
+            throw FinanceApiException.conflict("Cancelled or rejected expenses cannot change status.");
+        }
+
+        var targetStatus = normalizeLegacyStatus(request.status());
+        var total = existing.totalAmount().max(BigDecimal.ZERO);
+        var paymentDate = request.paymentDate() == null ? LocalDate.now() : request.paymentDate();
+
+        BigDecimal paidAmount;
+        BigDecimal balanceAmount;
+        ExpenseStatus nextStatus;
+        PaymentStatus nextPaymentStatus;
+        LocalDate nextPaymentDate = null;
+        LocalDate closeDate = null;
+        String auditStatus = null;
+
+        switch (targetStatus) {
+            case "pending" -> {
+                paidAmount = BigDecimal.ZERO;
+                balanceAmount = total;
+                nextStatus = ExpenseStatus.APPROVED;
+                nextPaymentStatus = PaymentStatus.UNPAID;
+            }
+            case "overdue" -> {
+                paidAmount = existing.paidAmount().min(total).max(BigDecimal.ZERO);
+                balanceAmount = total.subtract(paidAmount).max(BigDecimal.ZERO);
+                nextStatus = paidAmount.compareTo(BigDecimal.ZERO) > 0
+                    ? ExpenseStatus.PARTIALLY_PAID
+                    : ExpenseStatus.APPROVED;
+                nextPaymentStatus = PaymentStatus.OVERDUE;
+                nextPaymentDate = existing.paymentDate();
+            }
+            case "partial" -> {
+                paidAmount = resolvePartialPaidAmount(total, request.paidAmount(), existing.paidAmount());
+                balanceAmount = total.subtract(paidAmount).max(BigDecimal.ZERO);
+                nextStatus = ExpenseStatus.PARTIALLY_PAID;
+                nextPaymentStatus = PaymentStatus.PARTIALLY_PAID;
+                nextPaymentDate = paymentDate;
+            }
+            case "paid" -> {
+                paidAmount = total;
+                balanceAmount = BigDecimal.ZERO;
+                nextStatus = ExpenseStatus.PAID;
+                nextPaymentStatus = PaymentStatus.PAID;
+                nextPaymentDate = paymentDate;
+            }
+            case "audited" -> {
+                paidAmount = total;
+                balanceAmount = BigDecimal.ZERO;
+                nextStatus = ExpenseStatus.CLOSED;
+                nextPaymentStatus = PaymentStatus.PAID;
+                nextPaymentDate = existing.paymentDate() == null ? paymentDate : existing.paymentDate();
+                closeDate = LocalDate.now();
+                auditStatus = "AUDITED";
+            }
+            default -> throw FinanceApiException.badRequest("Unsupported expense status.");
+        }
+
+        if (!workflowRepository.applyManualStatus(context, expenseId, paidAmount, balanceAmount,
+                nextStatus, nextPaymentStatus, nextPaymentDate, auditStatus, closeDate)) {
+            throw FinanceApiException.conflict("Expense status could not be updated.");
+        }
+        refreshBudgetLine(context, existing.budgetLineId());
+        return get(context, expenseId);
+    }
+
+    @Transactional
     public ExpenseResponse close(FinanceContext context, long expenseId) {
         var existing = requireExpense(context, expenseId);
         requireStatus(existing, List.of(ExpenseStatus.PAID), "closed");
@@ -190,5 +267,30 @@ public class ExpenseService {
 
     private void refreshBudgetLine(FinanceContext context, Long budgetLineId) {
         budgetLineRollupService.refreshExpenseImpact(context, budgetLineId);
+    }
+
+    private String normalizeLegacyStatus(String status) {
+        var normalized = status == null ? "" : status.trim().toLowerCase(java.util.Locale.ROOT);
+        if (List.of("pending", "overdue", "partial", "paid", "audited").contains(normalized)) {
+            return normalized;
+        }
+        throw FinanceApiException.badRequest("Unsupported expense status.");
+    }
+
+    private BigDecimal resolvePartialPaidAmount(BigDecimal total, BigDecimal requestedAmount, BigDecimal currentAmount) {
+        if (isPositiveBelowTotal(requestedAmount, total)) {
+            return requestedAmount;
+        }
+        if (isPositiveBelowTotal(currentAmount, total)) {
+            return currentAmount;
+        }
+        if (total.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return total.divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isPositiveBelowTotal(BigDecimal amount, BigDecimal total) {
+        return amount != null && amount.compareTo(BigDecimal.ZERO) > 0 && amount.compareTo(total) < 0;
     }
 }

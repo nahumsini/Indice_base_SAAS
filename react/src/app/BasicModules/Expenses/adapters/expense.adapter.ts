@@ -51,10 +51,10 @@ const canonicalToLegacyStatus = (
   customFields: Record<string, unknown>,
 ): LegacyExpenseStatus => {
   const customStatus = customFields.legacyStatus;
+  if (paymentStatus === 'OVERDUE') return 'overdue';
   if (isLegacyExpenseStatus(customStatus) && ['DRAFT', 'PENDING_APPROVAL', 'APPROVED'].includes(status)) {
     return customStatus;
   }
-  if (paymentStatus === 'OVERDUE') return 'overdue';
   if (status === 'PARTIALLY_PAID' || paymentStatus === 'PARTIALLY_PAID') return 'partial';
   if (status === 'CLOSED') return 'audited';
   if (status === 'PAID' || paymentStatus === 'PAID') return 'paid';
@@ -135,12 +135,12 @@ export const toFinanceExpense = (expense: Expense, companyId = 'mock-company'): 
     balance: Math.max(expense.total - paidAmount, 0),
     currency: expense.currency,
     expenseDate: toIsoDate(expense.date) ?? '',
-	    dueDate: toIsoDate(expense.dueDate),
-	    paidDate: toIsoDate(expense.paymentDate),
-	    requestedByUserId: expense.requestedByUserId,
-	    approvedByUserId: expense.approvedByUserId,
-	    performedByUserId: expense.performedByUserId,
-	    status: legacyExpenseStatusMap[expense.status],
+    dueDate: toIsoDate(expense.dueDate),
+    paidDate: toIsoDate(expense.paymentDate),
+    requestedByUserId: expense.requestedByUserId,
+    approvedByUserId: expense.approvedByUserId,
+    performedByUserId: expense.performedByUserId,
+    status: legacyExpenseStatusMap[expense.status],
     paymentStatus: legacyPaymentStatusMap[expense.status],
     createdAt: toIsoDate(expense.createdAt),
     updatedAt: toIsoDate(expense.updatedAt),
@@ -156,22 +156,22 @@ export const toExpense = (
   providers: Array<{ id: string; name: string }> = [],
 ): Expense => {
   const customFields = asObject(expense.customFields);
-	  const providerId = expense.providerId ? String(expense.providerId) : asString(customFields.providerId, undefined);
-	  const attachments = asStringArray(customFields.attachments);
-	  const status = canonicalToLegacyStatus(expense.status, expense.paymentStatus, customFields);
-	  const amountPaid = asNumber(customFields.amountPaid, asNumber(expense.paidAmount));
-	  const paymentDate = asString(customFields.paymentDate, expense.paymentDate ?? undefined);
-	  const expenseDate = toDate(expense.expenseDate);
-	  const dueDate = toDate(expense.dueDate, expenseDate);
-	  const requestedByUserId = expense.requestedByUserId ? String(expense.requestedByUserId) : undefined;
-	  const approvedByUserId = expense.approvedByUserId ? String(expense.approvedByUserId) : undefined;
-	  const performedByUserId = expense.performedByUserId ? String(expense.performedByUserId) : undefined;
+  const providerId = expense.providerId ? String(expense.providerId) : asString(customFields.providerId, undefined);
+  const attachments = asStringArray(customFields.attachments);
+  const status = canonicalToLegacyStatus(expense.status, expense.paymentStatus, customFields);
+  const amountPaid = asNumber(expense.paidAmount, asNumber(customFields.amountPaid));
+  const paymentDate = expense.paymentDate ?? asString(customFields.paymentDate, undefined);
+  const expenseDate = toDate(expense.expenseDate);
+  const dueDate = toDate(expense.dueDate, expenseDate);
+  const requestedByUserId = expense.requestedByUserId ? String(expense.requestedByUserId) : undefined;
+  const approvedByUserId = expense.approvedByUserId ? String(expense.approvedByUserId) : undefined;
+  const performedByUserId = expense.performedByUserId ? String(expense.performedByUserId) : undefined;
 
-	  return {
-	    id: String(expense.id),
-	    folio: expense.folio,
-	    businessUnit: expense.unitId ? String(expense.unitId) : '',
-	    business: expense.businessId ? String(expense.businessId) : '',
+  return {
+    id: String(expense.id),
+    folio: expense.folio,
+    businessUnit: expense.unitId ? String(expense.unitId) : '',
+    business: expense.businessId ? String(expense.businessId) : '',
     concept: expense.concept,
     description: expense.description ?? asString(customFields.description, ''),
     category: defaultCategory,
@@ -194,16 +194,16 @@ export const toExpense = (
     paymentDate: paymentDate ? toDate(paymentDate) : undefined,
     date: expenseDate,
     paymentMethod: asString(customFields.paymentMethod, 'transfer') as Expense['paymentMethod'],
-	    accountingAccount: expense.accountingAccountId ? String(expense.accountingAccountId) : asString(customFields.accountingAccount, undefined),
+    accountingAccount: expense.accountingAccountId ? String(expense.accountingAccountId) : asString(customFields.accountingAccount, undefined),
     paymentAccountId: expense.paymentAccountId ? String(expense.paymentAccountId) : asString(customFields.paymentAccountId, undefined),
-	    status,
-	    backendPaymentStatus: expense.paymentStatus,
-	    backendStatus: expense.status,
-	    approver: approvedByUserId,
-	    requestedByUserId,
-	    approvedByUserId,
-	    performedByUserId,
-	    notes: asString(customFields.notes, undefined),
+    status,
+    backendPaymentStatus: expense.paymentStatus,
+    backendStatus: expense.status,
+    approver: approvedByUserId,
+    requestedByUserId,
+    approvedByUserId,
+    performedByUserId,
+    notes: asString(customFields.notes, undefined),
     attachments: attachments.length > 0 ? attachments : Array.from({ length: expense.attachmentCount ?? 0 }, (_, index) => `Archivo ${index + 1}`),
     costCenter: asString(customFields.costCenter, undefined),
     type: asString(customFields.entryType, 'real') as Expense['type'],
@@ -220,7 +220,7 @@ export const toExpenseApiRequest = (expense: Expense): ExpenseApiRequest => ({
   unitId: numericId(expense.businessUnit) ?? null,
   businessId: numericId(expense.business) ?? null,
   providerId: numericId(expense.providerId) ?? null,
-  budgetLineId: numericId(expense.id.startsWith('budget-line-') ? expense.id : undefined) ?? null,
+  budgetLineId: numericId(expense.id.startsWith('budget-line-') ? expense.id.replace('budget-line-', '') : undefined) ?? null,
   accountingAccountId: numericId(expense.accountingAccount) ?? null,
   paymentAccountId: numericId(expense.paymentAccountId) ?? null,
   folio: expense.folio.trim(),
@@ -236,13 +236,13 @@ export const toExpenseApiRequest = (expense: Expense): ExpenseApiRequest => ({
   requestedByUserId: numericId(expense.requestedByUserId) ?? null,
   approvedByUserId: numericId(expense.approvedByUserId) ?? null,
   performedByUserId: numericId(expense.performedByUserId) ?? null,
-	  customFields: compactObject({
-	    accountingAccount: expense.accountingAccount,
-	    amountPaid: expense.amountPaid,
-	    attachments: expense.attachments,
-	    costCenter: expense.costCenter,
-	    duration: expense.duration,
-	    entryType: expense.type ?? 'real',
+  customFields: compactObject({
+    accountingAccount: expense.accountingAccount,
+    amountPaid: expense.amountPaid,
+    attachments: expense.attachments,
+    costCenter: expense.costCenter,
+    duration: expense.duration,
+    entryType: expense.type ?? 'real',
     frequency: expense.frequency,
     legacyStatus: expense.status,
     notes: expense.notes,
