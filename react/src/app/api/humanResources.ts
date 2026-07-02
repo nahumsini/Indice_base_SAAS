@@ -509,6 +509,10 @@ export interface AttendanceControlAssignment {
   last_location?: AttendanceControlLocation | null;
   first_photo_url?: string | null;
   last_photo_url?: string | null;
+  first_photo_expired?: boolean;
+  last_photo_expired?: boolean;
+  first_photo_retained_until?: string | null;
+  last_photo_retained_until?: string | null;
   first_latitude?: number | null;
   first_longitude?: number | null;
   last_latitude?: number | null;

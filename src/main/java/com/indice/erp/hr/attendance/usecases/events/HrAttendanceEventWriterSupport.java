@@ -45,8 +45,8 @@ public abstract class HrAttendanceEventWriterSupport extends HrAttendanceEventRe
                 """
                     INSERT INTO user_attendance_events
                     (company_id, user_id, user_company_id, event_type, event_timestamp, attendance_date, location_id, kiosk_device_id,
-                     latitude, longitude, photo_url, source, auth_method, result_status, event_kind, notes, metadata_json, supersedes_event_id, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?)
+                     latitude, longitude, photo_url, photo_retained_until, source, auth_method, result_status, event_kind, notes, metadata_json, supersedes_event_id, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?)
                     """,
                 new String[] {"id"}
             );
@@ -69,14 +69,15 @@ public abstract class HrAttendanceEventWriterSupport extends HrAttendanceEventRe
                 statement.setBigDecimal(10, longitude);
             }
             statement.setString(11, nullable(photoObjectKey));
-            statement.setString(12, source);
-            statement.setString(13, authMethod);
-            statement.setString(14, resultStatus);
-            statement.setString(15, eventKind);
-            statement.setString(16, nullable(notes));
-            statement.setString(17, metadataJson);
-            setNullableLong(statement, 18, supersedesEventId);
-            setNullableLong(statement, 19, createdBy);
+            setNullableTimestamp(statement, 12, retainedUntil(eventTimestamp, photoObjectKey));
+            statement.setString(13, source);
+            statement.setString(14, authMethod);
+            statement.setString(15, resultStatus);
+            statement.setString(16, eventKind);
+            statement.setString(17, nullable(notes));
+            statement.setString(18, metadataJson);
+            setNullableLong(statement, 19, supersedesEventId);
+            setNullableLong(statement, 20, createdBy);
             return statement;
         }, keyHolder);
 
@@ -110,8 +111,8 @@ public abstract class HrAttendanceEventWriterSupport extends HrAttendanceEventRe
                 """
                     INSERT INTO user_attendance_events
                     (company_id, user_id, user_company_id, event_type, event_timestamp, attendance_date, location_id, kiosk_device_id,
-                     latitude, longitude, photo_url, source, auth_method, result_status, event_kind, notes, metadata_json, supersedes_event_id, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?)
+                     latitude, longitude, photo_url, photo_retained_until, source, auth_method, result_status, event_kind, notes, metadata_json, supersedes_event_id, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?)
                     """,
                 new String[] {"id"}
             );
@@ -134,17 +135,33 @@ public abstract class HrAttendanceEventWriterSupport extends HrAttendanceEventRe
                 statement.setBigDecimal(10, longitude);
             }
             statement.setString(11, nullable(photoObjectKey));
-            statement.setString(12, source);
-            statement.setString(13, authMethod);
-            statement.setString(14, resultStatus);
-            statement.setString(15, eventKind);
-            statement.setString(16, nullable(notes));
-            statement.setString(17, metadataJson);
-            setNullableLong(statement, 18, supersedesEventId);
-            statement.setLong(19, createdBy);
+            setNullableTimestamp(statement, 12, retainedUntil(eventTimestamp, photoObjectKey));
+            statement.setString(13, source);
+            statement.setString(14, authMethod);
+            statement.setString(15, resultStatus);
+            statement.setString(16, eventKind);
+            statement.setString(17, nullable(notes));
+            statement.setString(18, metadataJson);
+            setNullableLong(statement, 19, supersedesEventId);
+            statement.setLong(20, createdBy);
             return statement;
         }, keyHolder);
 
         return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+    }
+
+    private LocalDateTime retainedUntil(LocalDateTime eventTimestamp, String photoObjectKey) {
+        if (photoObjectKey == null || photoObjectKey.isBlank()) {
+            return null;
+        }
+        return eventTimestamp.plusDays(30);
+    }
+
+    private void setNullableTimestamp(java.sql.PreparedStatement statement, int parameterIndex, LocalDateTime value) throws java.sql.SQLException {
+        if (value == null) {
+            statement.setNull(parameterIndex, Types.TIMESTAMP);
+        } else {
+            statement.setTimestamp(parameterIndex, Timestamp.valueOf(value));
+        }
     }
 }

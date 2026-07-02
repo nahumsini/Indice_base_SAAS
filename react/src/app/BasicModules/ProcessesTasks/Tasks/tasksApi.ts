@@ -1,4 +1,5 @@
 import { apiClient } from '../../../lib/apiClient';
+import { uploadToPresignedStorage } from '../shared/storageUpload';
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'paused';
 export type TaskPriority = 'low' | 'medium' | 'high';
@@ -359,21 +360,7 @@ export async function uploadTaskAttachment(
   contentType: string,
   uploadHeaders: Record<string, string> = {},
 ) {
-  const headers = new Headers(uploadHeaders);
-
-  if (contentType && !headers.has('Content-Type')) {
-    headers.set('Content-Type', contentType);
-  }
-
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers,
-    body: file,
-  });
-
-  if (!response.ok) {
-    throw new Error('Task attachment upload failed.');
-  }
+  return uploadToPresignedStorage(uploadUrl, file, contentType, uploadHeaders);
 }
 
 export async function registerTaskAttachment(taskId: number, payload: RegisterTaskAttachmentPayload) {

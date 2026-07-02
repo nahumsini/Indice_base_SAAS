@@ -63,6 +63,7 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
         var currentAssignments = loadCurrentAssignments(companyId, date);
         var scheduleRulesByUser = loadScheduleRules(companyId, date);
         var dailyRecordsByUser = attendanceDailyRecordRepository.loadDailyRecords(companyId, date);
+        var photoRetentionByUser = loadControlPhotoRetentionStateByUser(companyId, date, visibleUserIds);
         var businessLocationsByBusiness = groupLocationsByBusiness(locations);
         var accessProfilesByUser = attendanceAccessService.loadAccessProfilesByUser(companyId);
         var latestEventByUser = new HashMap<Long, ControlActivityRow>();
@@ -131,6 +132,7 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
             var lastPhotoObjectKey = dailyRecord != null && !isBlank(dailyRecord.lastPhotoObjectKey())
                 ? dailyRecord.lastPhotoObjectKey()
                 : photoObjectKeys == null ? null : photoObjectKeys.get("last_check_out");
+            var retentionState = photoRetentionByUser.getOrDefault(user.id(), new PhotoRetentionState());
 
             var item = new LinkedHashMap<String, Object>();
             item.put("user_company_id", user.id());
@@ -162,6 +164,10 @@ public abstract class HrAttendanceControlOverviewUseCase extends HrAttendanceCal
             item.put("last_location", dailyRecord != null ? toLocationMap(dailyRecord.lastLocation()) : null);
             item.put("first_photo_url", attendancePhotoService.signedAttendancePhotoUrl(firstPhotoObjectKey));
             item.put("last_photo_url", attendancePhotoService.signedAttendancePhotoUrl(lastPhotoObjectKey));
+            item.put("first_photo_expired", retentionState.isExpired("check_in"));
+            item.put("last_photo_expired", retentionState.isExpired("check_out"));
+            item.put("first_photo_retained_until", retentionState.retainedUntil("check_in"));
+            item.put("last_photo_retained_until", retentionState.retainedUntil("check_out"));
             item.put("first_latitude", dailyRecord != null ? dailyRecord.firstLatitude() : null);
             item.put("first_longitude", dailyRecord != null ? dailyRecord.firstLongitude() : null);
             item.put("last_latitude", dailyRecord != null ? dailyRecord.lastLatitude() : null);

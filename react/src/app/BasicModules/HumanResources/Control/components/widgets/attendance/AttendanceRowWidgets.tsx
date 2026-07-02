@@ -78,6 +78,8 @@ export function ControlAttendanceRow({
             time={checkInTime}
             location={assignment.first_location?.name ?? assignment.latest_event?.location_name ?? null}
             photoUrl={checkInPhotoUrl}
+            photoExpired={assignment.first_photo_expired}
+            retainedUntil={assignment.first_photo_retained_until}
             latitude={assignment.first_latitude ?? null}
             longitude={assignment.first_longitude ?? null}
             copy={copy}
@@ -88,6 +90,8 @@ export function ControlAttendanceRow({
             time={checkOutTime}
             location={assignment.last_location?.name ?? assignment.latest_event?.location_name ?? null}
             photoUrl={checkOutPhotoUrl}
+            photoExpired={assignment.last_photo_expired}
+            retainedUntil={assignment.last_photo_retained_until}
             latitude={assignment.last_latitude ?? null}
             longitude={assignment.last_longitude ?? null}
             copy={copy}
@@ -160,6 +164,8 @@ export function AttendanceMomentPanel({
   time,
   location,
   photoUrl,
+  photoExpired,
+  retainedUntil,
   latitude,
   longitude,
   copy,
@@ -169,6 +175,8 @@ export function AttendanceMomentPanel({
   time: string;
   location: string | null;
   photoUrl?: string | null;
+  photoExpired?: boolean;
+  retainedUntil?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   copy: AttendanceControlCopy;
@@ -180,7 +188,7 @@ export function AttendanceMomentPanel({
   const mapsUrl = buildGoogleMapsUrl({ latitude, longitude, location });
 
   return (
-    <div className="flex min-w-0 items-start justify-between gap-2 rounded-lg border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
+    <div className="grid min-w-0 grid-cols-[1fr_auto] gap-3 rounded-lg border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
       <div className="min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
         <p className={`mt-1 truncate text-sm font-semibold ${isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{time}</p>
@@ -190,11 +198,20 @@ export function AttendanceMomentPanel({
           mapsUrl={mapsUrl}
           title={coordinateLabel || locationLabel}
         />
+        <p className="mt-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+          {photoExpired
+            ? copy.labels.photoExpiredAfterRetention
+            : photoUrl
+              ? copy.labels.photoRetainedForRetention
+              : copy.labels.noPhotoEvidenceShort}
+          {retainedUntil && photoUrl ? ` · ${copy.labels.photoRetainedUntil(formatShortDate(retainedUntil))}` : ''}
+        </p>
       </div>
       <AttendanceEvidenceThumbnail
         copy={copy}
         label={label}
         photoUrl={photoUrl}
+        photoExpired={photoExpired}
         onPreviewPhoto={onPreviewPhoto}
       />
     </div>
@@ -275,25 +292,46 @@ function buildGoogleMapsUrl({
     : '';
 }
 
+function formatShortDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 function AttendanceEvidenceThumbnail({
   copy,
   label,
   photoUrl,
+  photoExpired,
   onPreviewPhoto,
 }: {
   copy: AttendanceControlCopy;
   label: string;
   photoUrl?: string | null;
+  photoExpired?: boolean;
   onPreviewPhoto?: (photoUrl: string, label: string) => void;
 }) {
   if (!photoUrl) {
-    return null;
+    return (
+      <div
+        className={`mt-0.5 flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border ${
+          photoExpired
+            ? 'border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300'
+            : 'border-gray-200 bg-white text-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-600'
+        }`}
+        title={photoExpired ? copy.labels.photoExpiredTooltip : copy.labels.noPhotoTooltip}
+      >
+        <ImageIcon className="h-4 w-4" />
+      </div>
+    );
   }
 
   return (
     <button
       type="button"
-      className="relative mt-0.5 flex h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-[#59C3A5]/15 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition hover:scale-[1.03] hover:border-[#59C3A5]/40 focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/30 dark:border-gray-700 dark:bg-gray-900"
+      className="relative mt-0.5 flex h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#59C3A5]/15 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition hover:scale-[1.03] hover:border-[#59C3A5]/40 focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/30 dark:border-gray-700 dark:bg-gray-900"
       onClick={(event) => {
         event.stopPropagation();
         onPreviewPhoto?.(photoUrl, label);

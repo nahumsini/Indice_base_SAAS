@@ -1,4 +1,5 @@
 import { apiClient } from '../../../lib/apiClient';
+import { uploadToPresignedStorage } from '../shared/storageUpload';
 
 export interface ProcessTaskKiosk {
   id: number;
@@ -283,19 +284,5 @@ export async function uploadPublicTaskAttachment(
   contentType: string,
   uploadHeaders: Record<string, string> = {},
 ) {
-  const headers = new Headers(uploadHeaders);
-
-  if (contentType && !headers.has('Content-Type')) {
-    headers.set('Content-Type', contentType);
-  }
-
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers,
-    body: file,
-  });
-
-  if (!response.ok) {
-    throw new Error('TASK_EVIDENCE_UPLOAD_FAILED');
-  }
+  return uploadToPresignedStorage(uploadUrl, file, contentType, uploadHeaders);
 }

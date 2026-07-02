@@ -75,6 +75,8 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
                    COALESCE(e.result_status, '') AS result_status,
                    e.event_timestamp,
                    COALESCE(e.photo_url, '') AS photo_object_key,
+                   e.photo_retained_until,
+                   e.photo_deleted_at,
                    COALESCE(e.notes, '') AS notes,
                    COALESCE(CAST(e.metadata_json AS CHAR), '') AS metadata_json
             FROM user_attendance_events e
@@ -101,6 +103,10 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
         return loadControlPhotoObjectKeysByUser(companyId, date, null);
     }
 
+    protected Map<Long, PhotoRetentionState> loadControlPhotoRetentionStateByUser(long companyId, LocalDate date) {
+        return loadControlPhotoRetentionStateByUser(companyId, date, null);
+    }
+
     protected Map<Long, Map<String, String>> loadControlPhotoObjectKeysByUser(
         long companyId,
         LocalDate date,
@@ -121,9 +127,10 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
             FROM user_attendance_events e
             WHERE e.company_id = ?
               AND e.attendance_date = ?
-              AND e.event_type IN ('check_in', 'check_out')
-              AND COALESCE(TRIM(e.photo_url), '') <> ''
-              AND COALESCE(e.result_status, 'success') IN ('success', 'overridden')
+               AND e.event_type IN ('check_in', 'check_out')
+               AND COALESCE(TRIM(e.photo_url), '') <> ''
+               AND e.photo_deleted_at IS NULL
+               AND COALESCE(e.result_status, 'success') IN ('success', 'overridden')
             """;
         if (userCompanyIds != null) {
             sql += " AND e.user_company_id IN (" + placeholders(userCompanyIds.size()) + ")";
@@ -147,6 +154,81 @@ public abstract class HrAttendanceControlActivitySupport extends HrAttendanceEve
             parameters.toArray()
         );
         return photosByUser;
+    }
+
+    protected Map<Long, PhotoRetentionState> loadControlPhotoRetentionStateByUser(
+        long companyId,
+        LocalDate date,
+        Collection<Long> userCompanyIds
+    ) {
+        if (userCompanyIds != null && userCompanyIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        var retentionByUser = new HashMap<Long, PhotoRetentionState>();
+        var parameters = new ArrayList<Object>();
+        parameters.add(companyId);
+        parameters.add(date);
+        var sql = """
+            SELECT e.user_company_id,
+                   COALESCE(e.event_type, '') AS event_type,
+                   e.photo_retained_until,
+                   e.photo_deleted_at
+            FROM user_attendance_events e
+            WHERE e.company_id = ?
+              AND e.attendance_date = ?
+              AND e.event_type IN ('check_in', 'check_out')
+              AND COALESCE(TRIM(e.photo_url), '') <> ''
+              AND COALESCE(e.result_status, 'success') IN ('success', 'overridden')
+            """;
+        if (userCompanyIds != null) {
+            sql += " AND e.user_company_id IN (" + placeholders(userCompanyIds.size()) + ")";
+            parameters.addAll(userCompanyIds);
+        }
+        sql += " ORDER BY e.event_timestamp ASC, e.id ASC";
+
+        jdbcTemplate.query(
+            sql,
+            rs -> {
+                var userCompanyId = rs.getLong("user_company_id");
+                var eventType = safe(rs.getString("event_type"));
+                var state = retentionByUser.computeIfAbsent(userCompanyId, ignored -> new PhotoRetentionState());
+                if ("check_in".equals(eventType)) {
+                    state.putFirstCheckIn(toIsoString(toLocalDateTime(rs.getTimestamp("photo_retained_until"))), rs.getTimestamp("photo_deleted_at") != null);
+                } else if ("check_out".equals(eventType)) {
+                    state.putLastCheckOut(toIsoString(toLocalDateTime(rs.getTimestamp("photo_retained_until"))), rs.getTimestamp("photo_deleted_at") != null);
+                }
+            },
+            parameters.toArray()
+        );
+        return retentionByUser;
+    }
+
+    protected static final class PhotoRetentionState {
+        private String firstCheckInRetainedUntil;
+        private String lastCheckOutRetainedUntil;
+        private boolean firstCheckInExpired;
+        private boolean lastCheckOutExpired;
+
+        boolean isExpired(String eventType) {
+            return "check_in".equals(eventType) ? firstCheckInExpired : lastCheckOutExpired;
+        }
+
+        String retainedUntil(String eventType) {
+            return "check_in".equals(eventType) ? firstCheckInRetainedUntil : lastCheckOutRetainedUntil;
+        }
+
+        void putFirstCheckIn(String retainedUntil, boolean expired) {
+            if (firstCheckInRetainedUntil == null) {
+                firstCheckInRetainedUntil = retainedUntil;
+                firstCheckInExpired = expired;
+            }
+        }
+
+        void putLastCheckOut(String retainedUntil, boolean expired) {
+            lastCheckOutRetainedUntil = retainedUntil;
+            lastCheckOutExpired = expired;
+        }
     }
 
     private ControlActivityRow mapControlActivityRow(java.sql.ResultSet rs) throws java.sql.SQLException {
