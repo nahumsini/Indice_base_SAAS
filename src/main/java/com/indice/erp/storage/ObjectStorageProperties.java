@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 public class ObjectStorageProperties {
 
     private String provider = "none";
+    private boolean required;
     private final Minio minio = new Minio();
 
     public String getProvider() {
@@ -16,6 +17,14 @@ public class ObjectStorageProperties {
 
     public void setProvider(String provider) {
         this.provider = provider == null ? "none" : provider.trim().toLowerCase();
+    }
+
+    public boolean isRequired() {
+        return required;
+    }
+
+    public void setRequired(boolean required) {
+        this.required = required;
     }
 
     public Minio getMinio() {

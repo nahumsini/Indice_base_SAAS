@@ -25,7 +25,21 @@ echo "Checking web at ${WEB_PUBLIC_URL}"
 curl --fail --silent --show-error "${WEB_PUBLIC_URL}" >/dev/null
 
 echo "Checking backend health via web proxy"
-curl --fail --silent --show-error "${WEB_PUBLIC_URL}/api/v1/health" >/dev/null
+backend_health="$(curl --fail --silent --show-error "${WEB_PUBLIC_URL}/api/v1/health")"
+
+if [[ "${EXPECT_OBJECT_STORAGE:-true}" == "true" ]]; then
+  if ! printf '%s' "${backend_health}" | grep -q '"storage"[[:space:]]*:'; then
+    echo "Backend health does not expose object storage status." >&2
+    echo "${backend_health}" >&2
+    exit 1
+  fi
+
+  if ! printf '%s' "${backend_health}" | grep -q '"enabled"[[:space:]]*:[[:space:]]*true'; then
+    echo "Object storage is not enabled in backend health." >&2
+    echo "${backend_health}" >&2
+    exit 1
+  fi
+fi
 
 echo "Checking MinIO health at ${MINIO_PUBLIC_ENDPOINT}"
 curl --fail --silent --show-error "${MINIO_PUBLIC_ENDPOINT}/minio/health/live" >/dev/null
