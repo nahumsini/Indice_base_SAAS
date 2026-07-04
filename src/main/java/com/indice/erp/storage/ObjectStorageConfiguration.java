@@ -1,6 +1,9 @@
 package com.indice.erp.storage;
 
 import io.minio.MinioClient;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -20,13 +23,54 @@ public class ObjectStorageConfiguration {
     }
 
     private MinioClient buildClient(String endpoint, String accessKey, String secretKey) {
+        var runtimeEndpoint = endpointForRuntime(stripTrailingSlash(endpoint), this::hostResolves);
         return MinioClient.builder()
-            .endpoint(stripTrailingSlash(endpoint))
+            .endpoint(runtimeEndpoint)
             .credentials(accessKey, secretKey)
             .build();
     }
 
     private String stripTrailingSlash(String value) {
         return value == null ? null : value.replaceAll("/+$", "");
+    }
+
+    static String endpointForRuntime(String endpoint, HostResolver resolver) {
+        if (endpoint == null || endpoint.isBlank()) {
+            return endpoint;
+        }
+
+        try {
+            var uri = new URI(endpoint);
+            var host = uri.getHost();
+            if (!"minio".equalsIgnoreCase(host) || resolver.resolves(host)) {
+                return endpoint;
+            }
+
+            return new URI(
+                uri.getScheme(),
+                uri.getUserInfo(),
+                "127.0.0.1",
+                uri.getPort(),
+                uri.getPath(),
+                uri.getQuery(),
+                uri.getFragment()
+            ).toString();
+        } catch (URISyntaxException ex) {
+            return endpoint;
+        }
+    }
+
+    private boolean hostResolves(String host) {
+        try {
+            InetAddress.getAllByName(host);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    @FunctionalInterface
+    interface HostResolver {
+        boolean resolves(String host);
     }
 }
