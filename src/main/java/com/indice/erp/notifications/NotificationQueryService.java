@@ -18,17 +18,20 @@ class NotificationQueryService {
     private final JdbcTemplate jdbcTemplate;
     private final HrAnnouncementPublisher publisher;
     private final NotificationSyncSvc syncSvc;
+    private final OperationalNotificationSyncService operationalSyncService;
     private final NotificationResponseFactory responseFactory;
 
     NotificationQueryService(
         JdbcTemplate jdbcTemplate,
         HrAnnouncementPublisher publisher,
         NotificationSyncSvc syncSvc,
+        OperationalNotificationSyncService operationalSyncService,
         NotificationResponseFactory responseFactory
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.publisher = publisher;
         this.syncSvc = syncSvc;
+        this.operationalSyncService = operationalSyncService;
         this.responseFactory = responseFactory;
     }
 
@@ -36,6 +39,7 @@ class NotificationQueryService {
         publisher.publishDueAnnouncements();
         syncSvc.syncVisible(actor);
         syncSvc.syncProcessTaskSignals(actor);
+        operationalSyncService.sync(actor);
 
         var items = new ArrayList<Map<String, Object>>();
         items.addAll(jdbcTemplate.query(sql() + " ORDER BY d.delivered_at DESC, d.id DESC LIMIT 50",

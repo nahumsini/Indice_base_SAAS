@@ -39,6 +39,10 @@ export const getNotificationStyle = (notification: AppNotification) => {
         type: 'alert',
       };
     case 'task_overdue':
+    case 'expense_due':
+    case 'expense_pending_approval':
+    case 'pos_stock_low':
+    case 'sales_invoice_overdue':
       return {
         emoji: '!',
         color: 'red',
@@ -46,6 +50,10 @@ export const getNotificationStyle = (notification: AppNotification) => {
         type: 'alert',
       };
     case 'task_pending_audit':
+    case 'expense_submitted':
+    case 'pos_purchase_pending':
+    case 'sales_quote_follow_up':
+    case 'sales_order_ready':
       return {
         emoji: '?',
         color: 'blue',
@@ -53,6 +61,10 @@ export const getNotificationStyle = (notification: AppNotification) => {
         type: 'info',
       };
     case 'task_audited':
+    case 'expense_paid':
+    case 'pos_shift_opened':
+    case 'pos_shift_closed':
+    case 'sales_customer_activity':
       return {
         emoji: 'ok',
         color: 'green',

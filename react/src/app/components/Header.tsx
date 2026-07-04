@@ -251,7 +251,6 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               unreadCount={unreadCount}
               loading={notifications.loading}
               error={notifications.error}
-              moduleLabel={t.modules.recursosHumanos}
               onOpenChange={handleNotificationMenuOpenChange}
               onOpenAll={openNotificationCenter}
               onOpenItem={openNotificationItem}
@@ -379,7 +378,6 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         summary={notifications.summary}
         loading={notifications.loading}
         error={notifications.error}
-        moduleLabel={t.modules.recursosHumanos}
         onClose={() => setIsNotificationCenterOpen(false)}
         onRefresh={() => void notifications.refresh()}
         onOpenItem={openNotificationItem}

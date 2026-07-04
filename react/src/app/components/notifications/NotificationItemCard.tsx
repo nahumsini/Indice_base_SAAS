@@ -1,35 +1,48 @@
-import { Check, Trash2 } from 'lucide-react';
+import { AlertTriangle, Bell, Check, CheckCircle2, ClipboardList, Megaphone, Trash2 } from 'lucide-react';
 import type { AppNotification } from '../../api/notifications';
+import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { formatNotificationTime } from './notificationTime';
 import { getModuleColorClasses, getNotificationStyle } from './notificationStyles';
+import { getNotificationModule, getNotificationPriority, type NotificationPriority } from './notificationCatalog';
+import type { NotificationCenterCopy } from './notificationCenterCopy';
 
 interface NotificationItemCardProps {
   notification: AppNotification;
-  moduleLabel: string;
   locale: string;
+  copy: NotificationCenterCopy;
   onOpen: (notification: AppNotification) => void;
   onMarkRead: (notificationId: number) => void;
   onDismiss: (notificationId: number) => void;
 }
 
+const priorityTone: Record<NotificationPriority, string> = {
+  high: 'border-red-200 bg-red-50 text-red-700',
+  medium: 'border-amber-200 bg-amber-50 text-amber-700',
+  low: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+};
+
 export function NotificationItemCard({
   notification,
-  moduleLabel,
   locale,
+  copy,
   onOpen,
   onMarkRead,
   onDismiss,
 }: NotificationItemCardProps) {
   const style = getNotificationStyle(notification);
   const colorClasses = getModuleColorClasses(style.color);
+  const moduleMeta = getNotificationModule(notification);
+  const priority = getNotificationPriority(notification);
+  const Icon = getNotificationIcon(notification, priority);
+  const priorityLabel = getPriorityLabel(priority, copy);
 
   return (
     <div
-      className={`group relative rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md hover:border-[#2563EB] ${
+      className={`group relative rounded-xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md ${
         notification.is_unread
-          ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
-          : 'bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
+          ? 'border-blue-200 bg-blue-50/60'
+          : 'border-gray-200 bg-white'
       }`}
       role="button"
       tabIndex={0}
@@ -42,33 +55,46 @@ export function NotificationItemCard({
       }}
     >
       <div className="flex gap-4">
-        <div className={`flex-shrink-0 w-12 h-12 rounded-lg ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center text-xl`}>
-          {style.emoji}
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${colorClasses.bg} ${colorClasses.border}`}>
+          <Icon className={`h-5 w-5 ${colorClasses.text}`} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className={`font-semibold break-words ${notification.is_unread ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h3 className={`min-w-0 break-words font-bold ${notification.is_unread ? 'text-gray-950' : 'text-gray-700'}`}>
                   {notification.title}
                 </h3>
-                {notification.is_unread && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
+                {notification.is_unread && <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />}
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 break-words line-clamp-2">
+              <p className="mt-1 line-clamp-2 break-words text-sm text-gray-600">
                 {notification.description}
               </p>
             </div>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <span className={`inline-flex max-w-full items-center truncate rounded border px-2 py-0.5 text-xs font-medium ${colorClasses.bg} ${colorClasses.text} ${colorClasses.border}`}>
-                {moduleLabel}
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {formatNotificationTime(notification.created_at, locale)}
-              </span>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Badge variant="outline" className={priorityTone[priority]}>{priorityLabel}</Badge>
+              <Badge variant="outline" className={`${colorClasses.bg} ${colorClasses.text} ${colorClasses.border}`}>
+                {moduleMeta.label}
+              </Badge>
             </div>
-            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs font-medium text-gray-500">
+              {formatNotificationTime(notification.created_at, locale)}
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpen(notification);
+                }}
+                className="h-8 text-xs"
+              >
+                {copy.open}
+              </Button>
               {notification.is_unread && (
                 <Button
                   variant="ghost"
@@ -77,10 +103,10 @@ export function NotificationItemCard({
                     event.stopPropagation();
                     onMarkRead(notification.id);
                   }}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs text-blue-700 hover:bg-blue-50"
                 >
-                  <Check className="h-3 w-3 mr-1" />
-                  Marcar leída
+                  <Check className="h-3.5 w-3.5" />
+                  {copy.markRead}
                 </Button>
               )}
               <Button
@@ -90,9 +116,10 @@ export function NotificationItemCard({
                   event.stopPropagation();
                   onDismiss(notification.id);
                 }}
-                className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                className="h-8 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                aria-label={copy.dismiss}
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
@@ -100,4 +127,30 @@ export function NotificationItemCard({
       </div>
     </div>
   );
+}
+
+function getNotificationIcon(notification: AppNotification, priority: NotificationPriority) {
+  if (priority === 'high') {
+    return AlertTriangle;
+  }
+  if (notification.source_type === 'announcement') {
+    return Megaphone;
+  }
+  if (notification.source_subtype.includes('task')) {
+    return ClipboardList;
+  }
+  if (priority === 'low') {
+    return CheckCircle2;
+  }
+  return Bell;
+}
+
+function getPriorityLabel(priority: NotificationPriority, copy: NotificationCenterCopy) {
+  if (priority === 'high') {
+    return copy.highPriority;
+  }
+  if (priority === 'medium') {
+    return copy.mediumPriority;
+  }
+  return copy.lowPriority;
 }
