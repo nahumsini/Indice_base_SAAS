@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
 import { CommissionManagementModal } from './components/CommissionManagementModal';
 import { CommissionRulesModal } from './components/CommissionRulesModal';
@@ -19,7 +19,6 @@ import type { CommissionRule, CommissionViewMode } from './types/commissions';
 import type { SaleRecord } from './types/salesTypes';
 import { calculateCommissionRecords } from './utils/commissionRules';
 import { useSalesCrm } from '../salesCrmContext';
-import { defaultSalesCurrency, isSalesCurrencyCode } from '../utils/salesCurrency';
 
 const cancelDialogActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -86,13 +85,7 @@ export default function Sales() {
     updateQuoteStatus,
     updateOpportunity,
   } = useSalesCrm();
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    'indice.sales.salesPreferredCurrency',
-    defaultSalesCurrency,
-  );
-  const preferredCurrency = isSalesCurrencyCode(storedPreferredCurrency)
-    ? storedPreferredCurrency
-    : defaultSalesCurrency;
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
   const {
     records,
     filteredRecords,
@@ -108,7 +101,7 @@ export default function Sales() {
     businesses,
     createSaleRecord,
     updateSaleRecord,
-  } = useSalesRecords(preferredCurrency);
+  } = useSalesRecords(preferredCurrency, exchangeRatesPerUsd);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
@@ -181,8 +174,6 @@ export default function Sales() {
     <section className="space-y-5">
       <SalesHeader
         t={t}
-        preferredCurrency={preferredCurrency}
-        onPreferredCurrencyChange={setStoredPreferredCurrency}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
         onOpenCommissionRules={() => setIsCommissionRulesOpen(true)}
         onCreateSale={handleCreateSale}

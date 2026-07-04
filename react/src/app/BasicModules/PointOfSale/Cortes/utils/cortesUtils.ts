@@ -4,6 +4,7 @@ import type {
   PosCashClosingSummaryRow,
 } from '../types/cashClosingHistory.types';
 import {
+  type BusinessExchangeRatesPerUsd,
   defaultBusinessCurrency,
   formatBusinessCurrencyAmount,
   normalizeBusinessCurrencyCode,
@@ -129,14 +130,16 @@ export const convertClosingAmount = (
   amount: number,
   row: PosCashClosingSummaryRow,
   preferredCurrency = defaultBusinessCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) => (
-  convertPosDisplayCurrencyAmount(amount, getClosingCurrency(row), preferredCurrency)
+  convertPosDisplayCurrencyAmount(amount, getClosingCurrency(row), preferredCurrency, exchangeRatesPerUsd)
 );
 
 export const formatClosingAmount = (
   amount: number,
   row: PosCashClosingSummaryRow,
   preferredCurrency = defaultBusinessCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) => {
   const nativeCurrency = getClosingCurrency(row);
   const preferred = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
@@ -147,7 +150,7 @@ export const formatClosingAmount = (
   }
 
   return {
-    convertedLabel: formatCurrency(convertClosingAmount(amount, row, preferred), preferred),
+    convertedLabel: formatCurrency(convertClosingAmount(amount, row, preferred, exchangeRatesPerUsd), preferred),
     nativeCurrency,
     nativeLabel,
   };
@@ -202,6 +205,7 @@ export const getPaymentTotal = (
 export const buildCortesAnalytics = (
   rows: PosCashClosingSummaryRow[],
   preferredCurrency = defaultBusinessCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ): CortesAnalytics => {
   const preferred = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
   const totalsByCurrency = new Map<string, number>();
@@ -220,10 +224,14 @@ export const buildCortesAnalytics = (
       ...currentAnalytics,
       balancedCount: currentAnalytics.balancedCount + (status === 'balanced' ? 1 : 0),
       closingCount: currentAnalytics.closingCount + 1,
-      convertedCountedCash: currentAnalytics.convertedCountedCash + convertClosingAmount(countedCash, row, preferred),
-      convertedExpectedCash: currentAnalytics.convertedExpectedCash + convertClosingAmount(expectedCash, row, preferred),
-      convertedNetDifference: currentAnalytics.convertedNetDifference + convertClosingAmount(netDifference, row, preferred),
-      convertedSales: currentAnalytics.convertedSales + convertClosingAmount(totalSales, row, preferred),
+      convertedCountedCash: currentAnalytics.convertedCountedCash
+        + convertClosingAmount(countedCash, row, preferred, exchangeRatesPerUsd),
+      convertedExpectedCash: currentAnalytics.convertedExpectedCash
+        + convertClosingAmount(expectedCash, row, preferred, exchangeRatesPerUsd),
+      convertedNetDifference: currentAnalytics.convertedNetDifference
+        + convertClosingAmount(netDifference, row, preferred, exchangeRatesPerUsd),
+      convertedSales: currentAnalytics.convertedSales
+        + convertClosingAmount(totalSales, row, preferred, exchangeRatesPerUsd),
       countedCash: currentAnalytics.countedCash + countedCash,
       expectedCash: currentAnalytics.expectedCash + expectedCash,
       netDifference: currentAnalytics.netDifference + netDifference,
@@ -321,6 +329,7 @@ export const sortCortesRows = (
 export const groupCortesByDate = (
   rows: PosCashClosingSummaryRow[],
   preferredCurrency = defaultBusinessCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) => {
   const groups = new Map<string, PosCashClosingSummaryRow[]>();
 
@@ -332,7 +341,7 @@ export const groupCortesByDate = (
   return Array.from(groups.entries())
     .sort(([firstDate], [secondDate]) => secondDate.localeCompare(firstDate))
     .map(([date, dateRows]) => ({
-      analytics: buildCortesAnalytics(dateRows, preferredCurrency),
+      analytics: buildCortesAnalytics(dateRows, preferredCurrency, exchangeRatesPerUsd),
       date,
       rows: dateRows,
     }));

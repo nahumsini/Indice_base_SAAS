@@ -3,11 +3,20 @@ import type { ReactNode } from 'react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseTotals } from '../../types/expenseView.types';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
-import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
+import {
+  convertBusinessCurrencyAmount,
+  defaultBusinessCurrency,
+  formatBusinessCurrencyAmount,
+  formatBusinessCurrencyBreakdown,
+  normalizeBusinessCurrencyCode,
+  type BusinessExchangeRatesPerUsd,
+} from '../../../shared/businessCurrency';
 import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
 
 type ExpensesSummaryProps = {
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   expenses: Expense[];
+  preferredCurrency?: string;
   totals: ExpenseTotals;
 };
 
@@ -30,32 +39,44 @@ const statusConfig: Array<Omit<StatusMetric, 'amount' | 'amountLabel' | 'count' 
   { status: 'overdue', dotClass: 'bg-rose-500', barClass: 'bg-rose-500', valueClassName: 'text-rose-600 dark:text-rose-400' },
 ];
 
-export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
+export function ExpensesSummary({
+  exchangeRatesPerUsd,
+  expenses,
+  preferredCurrency = defaultBusinessCurrency,
+  totals,
+}: ExpensesSummaryProps) {
   const t = useFinanceTranslations();
+  const normalizedPreferredCurrency = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
+  const convertExpenseDisplayAmount = (amount: number, expense: Expense) => convertBusinessCurrencyAmount(
+    amount,
+    normalizeBusinessCurrencyCode(expense.currency),
+    normalizedPreferredCurrency,
+    exchangeRatesPerUsd,
+  );
   const totalAmount = Math.max(totals.total, 0);
   const paidPercentage = totalAmount > 0 ? Math.min(100, Math.max(0, (totals.paid / totalAmount) * 100)) : 0;
-  const totalAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.total, (expense) => expense.currency);
-  const paidAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => getExpensePaidAmount(expense), (expense) => expense.currency);
-  const openAmountLabel = formatBusinessCurrencyBreakdown(
+  const totalAmountLabel = formatBusinessCurrencyAmount(totalAmount, normalizedPreferredCurrency);
+  const paidAmountLabel = formatBusinessCurrencyAmount(totals.paid, normalizedPreferredCurrency);
+  const openAmountLabel = formatBusinessCurrencyAmount(totals.pending, normalizedPreferredCurrency);
+  const nativeTotalAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.total, (expense) => expense.currency);
+  const nativeOpenAmountLabel = formatBusinessCurrencyBreakdown(
     expenses,
     (expense) => getExpenseBalance(expense),
     (expense) => expense.currency,
   );
   const overdueExpenses = expenses.filter(expense => isExpenseEffectivelyOverdue(expense));
-  const overdueAmountLabel = formatBusinessCurrencyBreakdown(overdueExpenses, (expense) => getExpenseBalance(expense), (expense) => expense.currency);
+  const overdueAmountLabel = formatBusinessCurrencyAmount(totals.overdue, normalizedPreferredCurrency);
+  const nativeCurrencies = new Set(expenses.map(expense => normalizeBusinessCurrencyCode(expense.currency)));
+  const showNativeBreakdown = nativeCurrencies.size > 1 || (nativeCurrencies.size === 1 && !nativeCurrencies.has(normalizedPreferredCurrency));
   const statusMetrics = statusConfig.map(config => {
     const statusExpenses = expenses.filter(expense => getEffectiveExpenseStatus(expense) === config.status);
     const amount = config.status === 'paid'
-      ? statusExpenses.reduce((sum, expense) => sum + getExpensePaidAmount(expense), 0)
-      : statusExpenses.reduce((sum, expense) => sum + getExpenseBalance(expense), 0);
+      ? statusExpenses.reduce((sum, expense) => sum + convertExpenseDisplayAmount(getExpensePaidAmount(expense), expense), 0)
+      : statusExpenses.reduce((sum, expense) => sum + convertExpenseDisplayAmount(getExpenseBalance(expense), expense), 0);
     return {
       ...config,
       amount,
-      amountLabel: formatBusinessCurrencyBreakdown(
-        statusExpenses,
-        (expense) => (config.status === 'paid' ? getExpensePaidAmount(expense) : getExpenseBalance(expense)),
-        (expense) => expense.currency,
-      ),
+      amountLabel: formatBusinessCurrencyAmount(amount, normalizedPreferredCurrency),
       count: statusExpenses.length,
       label: t.expenses.table.statuses[config.status] ?? config.status,
       percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
@@ -97,6 +118,11 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
                 {paidPercentage.toFixed(0)}% pagado
               </AlertChip>
             ) : null}
+            {showNativeBreakdown ? (
+              <AlertChip tone="success" icon={<WalletCards className="h-3.5 w-3.5" />}>
+                Nativo: {nativeTotalAmountLabel}
+              </AlertChip>
+            ) : null}
           </div>
         </div>
 
@@ -123,7 +149,7 @@ export function ExpensesSummary({ expenses, totals }: ExpensesSummaryProps) {
             ))}
           </div>
           <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-slate-200">
-            {insight}
+            {showNativeBreakdown ? `${insight} Saldo nativo: ${nativeOpenAmountLabel}.` : insight}
           </div>
         </div>
       </div>

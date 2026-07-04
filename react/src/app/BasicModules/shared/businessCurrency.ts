@@ -19,13 +19,31 @@ export const businessCurrencyCodes = businessCurrencyOptions.map((option) => opt
 export type BusinessCurrencyCode = (typeof businessCurrencyOptions)[number]['code'];
 export type BusinessExchangeRatesPerUsd = Record<BusinessCurrencyCode, number>;
 export type BusinessExchangeRateMode = 'daily_reference' | 'manual';
-export type BusinessExchangeRateSource = 'internal_daily_reference' | 'manual_override';
+export type BusinessExchangeRateSource = 'official_daily_reference' | 'internal_daily_reference' | 'manual_override';
+
+export interface BusinessExchangeRateSourceDetail {
+  currencyCode: BusinessCurrencyCode;
+  ratePerUsd: number;
+  observedDate: string;
+  institution: string;
+  dataset: string;
+  sourceUrl: string;
+  licenseUrl: string;
+  status: 'official' | 'fallback' | string;
+  note?: string;
+}
 
 export interface BusinessExchangeRateMetadata {
   mode: BusinessExchangeRateMode;
   source: BusinessExchangeRateSource;
   sourceDate: string;
   updatedAt: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  licenseUrl?: string;
+  sourceSummary?: string;
+  sourceDetails?: BusinessExchangeRateSourceDetail[];
+  warnings?: string[];
 }
 
 export interface BusinessExchangeRateSettings {
@@ -34,6 +52,7 @@ export interface BusinessExchangeRateSettings {
 }
 
 export const businessExchangeBaseCurrency: BusinessCurrencyCode = 'USD';
+export const businessExchangeOfficialDailySource: BusinessExchangeRateSource = 'official_daily_reference';
 export const businessExchangeDailyReferenceSource: BusinessExchangeRateSource = 'internal_daily_reference';
 export const businessExchangeManualSource: BusinessExchangeRateSource = 'manual_override';
 
@@ -85,7 +104,9 @@ function isBusinessExchangeRateMode(value: unknown): value is BusinessExchangeRa
 }
 
 function isBusinessExchangeRateSource(value: unknown): value is BusinessExchangeRateSource {
-  return value === businessExchangeDailyReferenceSource || value === businessExchangeManualSource;
+  return value === businessExchangeOfficialDailySource
+    || value === businessExchangeDailyReferenceSource
+    || value === businessExchangeManualSource;
 }
 
 export function normalizeBusinessCurrencyCode(value?: string | null, fallback = defaultBusinessCurrency) {
@@ -114,6 +135,45 @@ export function normalizeBusinessExchangeRatesPerUsd(
   return normalizedRates;
 }
 
+function normalizeBusinessExchangeRateSourceDetails(value?: unknown): BusinessExchangeRateSourceDetail[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!isPlainRecord(item)) {
+      return [];
+    }
+
+    const currencyCode = String(item.currencyCode ?? '').trim().toUpperCase();
+    if (!isBusinessCurrencyCode(currencyCode)) {
+      return [];
+    }
+
+    const ratePerUsd = Number(item.ratePerUsd);
+
+    return [{
+      currencyCode,
+      ratePerUsd: Number.isFinite(ratePerUsd) && ratePerUsd > 0
+        ? ratePerUsd
+        : defaultBusinessExchangeRatesPerUsd[currencyCode],
+      observedDate: typeof item.observedDate === 'string' ? item.observedDate : '',
+      institution: typeof item.institution === 'string' ? item.institution : '',
+      dataset: typeof item.dataset === 'string' ? item.dataset : '',
+      sourceUrl: typeof item.sourceUrl === 'string' ? item.sourceUrl : '',
+      licenseUrl: typeof item.licenseUrl === 'string' ? item.licenseUrl : '',
+      status: typeof item.status === 'string' ? item.status : 'official',
+      note: typeof item.note === 'string' ? item.note : undefined,
+    }];
+  });
+}
+
+function normalizeBusinessExchangeRateWarnings(value?: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+}
+
 export function createBusinessDailyExchangeRateSettings(date = new Date()): BusinessExchangeRateSettings {
   const sourceDate = getBusinessExchangeDateValue(date);
 
@@ -124,6 +184,40 @@ export function createBusinessDailyExchangeRateSettings(date = new Date()): Busi
       source: businessExchangeDailyReferenceSource,
       sourceDate,
       updatedAt: getBusinessExchangeTimestamp(date),
+      sourceName: 'Referencia diaria interna',
+      sourceSummary: 'Tasas internas usadas como respaldo operativo cuando una fuente oficial no esta disponible.',
+    },
+  };
+}
+
+export function createBusinessOfficialExchangeRateSettings(
+  ratesPerUsd: Partial<Record<string, string | number | null>>,
+  metadata: Partial<BusinessExchangeRateMetadata> = {},
+  date = new Date(),
+): BusinessExchangeRateSettings {
+  const sourceDate = typeof metadata.sourceDate === 'string' && metadata.sourceDate.trim()
+    ? metadata.sourceDate
+    : getBusinessExchangeDateValue(date);
+
+  return {
+    ratesPerUsd: normalizeBusinessExchangeRatesPerUsd(ratesPerUsd),
+    metadata: {
+      mode: 'daily_reference',
+      source: businessExchangeOfficialDailySource,
+      sourceDate,
+      updatedAt: typeof metadata.updatedAt === 'string' && metadata.updatedAt.trim()
+        ? metadata.updatedAt
+        : getBusinessExchangeTimestamp(date),
+      sourceName: typeof metadata.sourceName === 'string' && metadata.sourceName.trim()
+        ? metadata.sourceName
+        : 'Fuentes oficiales',
+      sourceUrl: typeof metadata.sourceUrl === 'string' ? metadata.sourceUrl : '',
+      licenseUrl: typeof metadata.licenseUrl === 'string' ? metadata.licenseUrl : '',
+      sourceSummary: typeof metadata.sourceSummary === 'string' && metadata.sourceSummary.trim()
+        ? metadata.sourceSummary
+        : 'Tasas informativas consultadas desde fuentes oficiales disponibles para estimaciones operativas.',
+      sourceDetails: normalizeBusinessExchangeRateSourceDetails(metadata.sourceDetails),
+      warnings: normalizeBusinessExchangeRateWarnings(metadata.warnings),
     },
   };
 }
@@ -179,6 +273,20 @@ export function normalizeBusinessExchangeRateSettings(value?: unknown): Business
   const updatedAt = typeof metadataRecord?.updatedAt === 'string' && metadataRecord.updatedAt.trim()
     ? metadataRecord.updatedAt
     : fallbackUpdatedAt;
+  const sourceName = typeof metadataRecord?.sourceName === 'string' && metadataRecord.sourceName.trim()
+    ? metadataRecord.sourceName
+    : undefined;
+  const sourceUrl = typeof metadataRecord?.sourceUrl === 'string'
+    ? metadataRecord.sourceUrl
+    : undefined;
+  const licenseUrl = typeof metadataRecord?.licenseUrl === 'string'
+    ? metadataRecord.licenseUrl
+    : undefined;
+  const sourceSummary = typeof metadataRecord?.sourceSummary === 'string' && metadataRecord.sourceSummary.trim()
+    ? metadataRecord.sourceSummary
+    : undefined;
+  const sourceDetails = normalizeBusinessExchangeRateSourceDetails(metadataRecord?.sourceDetails);
+  const warnings = normalizeBusinessExchangeRateWarnings(metadataRecord?.warnings);
 
   return {
     ratesPerUsd,
@@ -187,6 +295,12 @@ export function normalizeBusinessExchangeRateSettings(value?: unknown): Business
       source,
       sourceDate,
       updatedAt,
+      sourceName,
+      sourceUrl,
+      licenseUrl,
+      sourceSummary,
+      sourceDetails,
+      warnings,
     },
   };
 }

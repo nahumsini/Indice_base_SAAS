@@ -3,11 +3,9 @@ import { Plus } from 'lucide-react';
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { Button } from '../../../components/ui/button';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { isBackendId } from '../adapters/adapter.utils';
 import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
-import { DEFAULT_FINANCE_CURRENCY, isFinanceCurrencyOption } from '../constants/financeCurrencyOptions';
-import { hrPreferredCurrencyStorageKey } from '../../shared/businessCurrency';
 import { mockExpenses, mockProviders } from '../data/expenses.mock';
 import { accountingAccountsService, expensesService, toFinanceApiErrorMessage } from '../services';
 import { budgetLinesService } from '../services/budget-lines.service';
@@ -76,12 +74,11 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingExpenseIds, setDeletingExpenseIds] = useState<Set<string>>(() => new Set());
   const [successToastMessage, setSuccessToastMessage] = useState('');
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(hrPreferredCurrencyStorageKey, DEFAULT_FINANCE_CURRENCY);
   const deletingExpenseIdsRef = useRef<Set<string>>(new Set());
   const saveTimeoutsRef = useRef<Record<string, number>>({});
   const expenses = controlledExpenses ?? localExpenses;
   const setExpenses = onExpensesChange ?? setLocalExpenses;
-  const preferredCurrency = isFinanceCurrencyOption(storedPreferredCurrency) ? storedPreferredCurrency : DEFAULT_FINANCE_CURRENCY;
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
   const { businessOptions: referenceBusinessOptions, currentUser, isLoadingReferenceData, unitOptions: referenceUnitOptions, userOptions } =
     useFinanceReferenceData(setFailureToastMessage);
 
@@ -119,17 +116,14 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const createExpenseDisabled = isLoadingReferenceData;
   const createExpenseDisabledReason = t.expenses.createDisabledReason;
   const filteredExpenses = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
-  const totals = useMemo(() => calculateExpenseTotals(filteredExpenses), [filteredExpenses]);
+  const totals = useMemo(
+    () => calculateExpenseTotals(filteredExpenses, preferredCurrency, exchangeRatesPerUsd),
+    [exchangeRatesPerUsd, filteredExpenses, preferredCurrency],
+  );
 
   useEffect(() => () => {
     Object.values(saveTimeoutsRef.current).forEach(timeoutId => window.clearTimeout(timeoutId));
   }, []);
-
-  useEffect(() => {
-    if (storedPreferredCurrency !== preferredCurrency) {
-      setStoredPreferredCurrency(preferredCurrency);
-    }
-  }, [preferredCurrency, setStoredPreferredCurrency, storedPreferredCurrency]);
 
   useEffect(() => {
     let isMounted = true;
@@ -169,10 +163,6 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     }
     setEditingExpense(null);
     setIsAddExpenseModalOpen(true);
-  };
-
-  const handlePreferredCurrencyChange = (currency: string) => {
-    setStoredPreferredCurrency(isFinanceCurrencyOption(currency) ? currency : DEFAULT_FINANCE_CURRENCY);
   };
 
   const openQuickExpenseModal = () => {
@@ -536,8 +526,6 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         onCreatePayableAccount={openPayableAccountModal}
         onCreateExpense={openCreateExpenseModal}
         onOpenPayablesKiosk={openPayablesKiosk}
-        onPreferredCurrencyChange={handlePreferredCurrencyChange}
-        preferredCurrency={preferredCurrency}
       />
 
       <ExpensesFilters
@@ -549,7 +537,12 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         onFiltersChange={setFilters}
       />
 
-      <ExpensesSummary expenses={filteredExpenses} totals={totals} />
+      <ExpensesSummary
+        exchangeRatesPerUsd={exchangeRatesPerUsd}
+        expenses={filteredExpenses}
+        preferredCurrency={preferredCurrency}
+        totals={totals}
+      />
 
       <ExpenseTable
         actionVisibility={{ showAudit: false }}

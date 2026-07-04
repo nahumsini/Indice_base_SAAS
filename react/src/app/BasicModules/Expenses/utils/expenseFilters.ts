@@ -1,5 +1,11 @@
 import type { Expense } from '../types/expenses.types';
 import type { ExpenseListFilters, ExpenseTotals } from '../types/expenseView.types';
+import {
+  convertBusinessCurrencyAmount,
+  defaultBusinessCurrency,
+  normalizeBusinessCurrencyCode,
+  type BusinessExchangeRatesPerUsd,
+} from '../../shared/businessCurrency';
 
 const includesSearch = (value: string | undefined, search: string) =>
   Boolean(value?.toLowerCase().includes(search));
@@ -13,6 +19,18 @@ const startOfLocalDay = (dateValue: Date) => {
 export const getExpensePaidAmount = (expense: Expense) => Math.max(expense.amountPaid ?? 0, 0);
 
 export const getExpenseBalance = (expense: Expense) => Math.max(expense.total - getExpensePaidAmount(expense), 0);
+
+const convertExpenseAmount = (
+  amount: number,
+  expense: Expense,
+  preferredCurrency = defaultBusinessCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
+) => convertBusinessCurrencyAmount(
+  amount,
+  normalizeBusinessCurrencyCode(expense.currency),
+  normalizeBusinessCurrencyCode(preferredCurrency),
+  exchangeRatesPerUsd,
+);
 
 export const isExpensePastDue = (expense: Expense, referenceDate = new Date()) => (
   Boolean(expense.dueDate)
@@ -85,17 +103,27 @@ export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters)
   });
 };
 
-export const calculateExpenseTotals = (expenses: Expense[]): ExpenseTotals => {
-  const total = expenses.reduce((sum, expense) => sum + expense.total, 0);
-  const paid = expenses.reduce((sum, expense) => sum + getExpensePaidAmount(expense), 0);
+export const calculateExpenseTotals = (
+  expenses: Expense[],
+  preferredCurrency = defaultBusinessCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
+): ExpenseTotals => {
+  const total = expenses.reduce((sum, expense) => (
+    sum + convertExpenseAmount(expense.total, expense, preferredCurrency, exchangeRatesPerUsd)
+  ), 0);
+  const paid = expenses.reduce((sum, expense) => (
+    sum + convertExpenseAmount(getExpensePaidAmount(expense), expense, preferredCurrency, exchangeRatesPerUsd)
+  ), 0);
   const overdue = expenses
     .filter(expense => isExpenseEffectivelyOverdue(expense))
-    .reduce((sum, expense) => sum + getExpenseBalance(expense), 0);
+    .reduce((sum, expense) => (
+      sum + convertExpenseAmount(getExpenseBalance(expense), expense, preferredCurrency, exchangeRatesPerUsd)
+    ), 0);
 
   return {
     total,
     paid,
-    pending: total - paid,
+    pending: Math.max(total - paid, 0),
     overdue,
     overdueCount: expenses.filter(expense => isExpenseEffectivelyOverdue(expense)).length,
   };

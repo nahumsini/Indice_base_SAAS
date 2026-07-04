@@ -1,21 +1,16 @@
-import { Banknote, Coins, Columns3, Printer, RefreshCw } from 'lucide-react';
-import { businessCurrencyOptions } from '../../../shared/businessCurrency';
+import { Banknote, Columns3, Printer, RefreshCw } from 'lucide-react';
 
 interface CortesHeaderProps {
   loading: boolean;
-  preferredCurrency: string;
   onColumns: () => void;
   onPrintReport: () => void;
-  onPreferredCurrencyChange: (currency: string) => void;
   onRefresh: () => void;
 }
 
 export function CortesHeader({
   loading,
-  preferredCurrency,
   onColumns,
   onPrintReport,
-  onPreferredCurrencyChange,
   onRefresh,
 }: CortesHeaderProps) {
   return (
@@ -32,22 +27,6 @@ export function CortesHeader({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none transition hover:bg-[#FF6B5E]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
-            <Coins className="h-4 w-4 text-[#FF6B5E]" />
-            <span>Divisa</span>
-            <select
-              aria-label="Divisa preferida de cortes"
-              value={preferredCurrency}
-              onChange={(event) => onPreferredCurrencyChange(event.target.value)}
-              className="bg-transparent text-sm font-black outline-none"
-            >
-              {businessCurrencyOptions.map((option) => (
-                <option key={option.code} value={option.code}>
-                  {option.code}
-                </option>
-              ))}
-            </select>
-          </label>
           <button
             type="button"
             onClick={onColumns}

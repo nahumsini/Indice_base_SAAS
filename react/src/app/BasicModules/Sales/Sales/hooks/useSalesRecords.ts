@@ -5,6 +5,7 @@ import { getCustomerLifecycleSignals } from '../../utils/customerLifecycle';
 import { validateSaleDraftForBackendReadiness } from '../../services/salesWorkflowBridge';
 import { useSalesCrm } from '../../salesCrmContext';
 import { defaultSalesCurrency } from '../../utils/salesCurrency';
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import { calculateCommissionAmount } from '../utils/salesFormatters';
 import { calculateSalesMetrics } from '../utils/salesMetrics';
 import { defaultVisibleSalesColumns } from '../utils/salesStatuses';
@@ -154,7 +155,10 @@ function uniqueBusinesses(records: SaleRecord[]) {
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function useSalesRecords(preferredCurrency = defaultSalesCurrency) {
+export function useSalesRecords(
+  preferredCurrency = defaultSalesCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
+) {
   const {
     salesRecords: records,
     postSaleCases,
@@ -182,8 +186,8 @@ export function useSalesRecords(preferredCurrency = defaultSalesCurrency) {
   );
 
   const metrics = useMemo(
-    () => calculateSalesMetrics(filteredRecords, lifecycleByRecordId, preferredCurrency),
-    [filteredRecords, lifecycleByRecordId, preferredCurrency],
+    () => calculateSalesMetrics(filteredRecords, lifecycleByRecordId, preferredCurrency, exchangeRatesPerUsd),
+    [exchangeRatesPerUsd, filteredRecords, lifecycleByRecordId, preferredCurrency],
   );
   const sellers = useMemo(() => uniqueOptions(records.map((record) => record.sellerName)), [records]);
   const customers = useMemo(() => uniqueOptions(records.map((record) => record.customerName)), [records]);

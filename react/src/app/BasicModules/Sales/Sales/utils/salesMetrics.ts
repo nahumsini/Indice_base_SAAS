@@ -6,18 +6,25 @@ import {
   normalizeSalesCurrencyCode,
 } from '../../utils/salesCurrency';
 import { convertSalesCurrencyAmount } from '../../utils/salesCurrencyConversion';
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 
 function roundCurrencyAmount(value: number) {
   return Number(value.toFixed(2));
 }
 
-function getConvertedSalesTotal(records: SaleRecord[], preferredCurrency: string) {
+function getConvertedSalesTotal(
+  records: SaleRecord[],
+  preferredCurrency: string,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
+  getAmount: (record: SaleRecord) => number = (record) => record.totalAmount,
+) {
   return roundCurrencyAmount(records.reduce((total, record) => (
     total + convertSalesCurrencyAmount(
-      record.totalAmount,
+      getAmount(record),
       record.currency,
       preferredCurrency,
       record.saleDate,
+      exchangeRatesPerUsd,
     ).amount
   ), 0));
 }
@@ -35,15 +42,24 @@ export function calculateSalesMetrics(
   records: SaleRecord[],
   lifecycleByRecordId: Record<string, SaleLifecycleSignals> = {},
   preferredCurrency = defaultSalesCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ): SalesMetrics {
   const normalizedPreferredCurrency = normalizeSalesCurrencyCode(preferredCurrency);
-  const totalSalesAmount = getConvertedSalesTotal(records, normalizedPreferredCurrency);
-  const totalCommissions = records.reduce((total, record) => total + record.commissionAmount, 0);
+  const totalSalesAmount = getConvertedSalesTotal(records, normalizedPreferredCurrency, exchangeRatesPerUsd);
+  const totalCommissions = getConvertedSalesTotal(
+    records,
+    normalizedPreferredCurrency,
+    exchangeRatesPerUsd,
+    (record) => record.commissionAmount,
+  );
   const salesCount = records.length;
   const getLifecycle = (record: SaleRecord) => lifecycleByRecordId[record.id];
   const recurringRecords = records.filter((record) => getLifecycle(record)?.relationship === 'recurring');
   const renewalRecords = records.filter((record) => getLifecycle(record)?.relationship === 'renewal');
   const recoveredRecords = records.filter((record) => getLifecycle(record)?.relationship === 'recovered');
+  const recurringRevenue = getConvertedSalesTotal(recurringRecords, normalizedPreferredCurrency, exchangeRatesPerUsd);
+  const renewalRevenue = getConvertedSalesTotal(renewalRecords, normalizedPreferredCurrency, exchangeRatesPerUsd);
+  const recoveredRevenue = getConvertedSalesTotal(recoveredRecords, normalizedPreferredCurrency, exchangeRatesPerUsd);
   const totalSalesNativeLabel = formatSalesCurrencyBreakdown(records, (record) => record.totalAmount, (record) => record.currency);
   const preferredRevenueLabel = formatSalesCurrencyAmount(totalSalesAmount, normalizedPreferredCurrency);
   const operationalBuckets = records.reduce(
@@ -110,12 +126,12 @@ export function calculateSalesMetrics(
       || ['at_risk', 'lost'].includes(getLifecycle(record)?.health ?? '')
     )).length,
     deliveryProgress: salesCount > 0 ? Math.round((deliveredSales / salesCount) * 100) : 0,
-    recurringRevenue: getConvertedSalesTotal(recurringRecords, normalizedPreferredCurrency),
-    recurringRevenueLabel: formatSalesCurrencyAmount(getConvertedSalesTotal(recurringRecords, normalizedPreferredCurrency), normalizedPreferredCurrency),
-    renewalRevenue: getConvertedSalesTotal(renewalRecords, normalizedPreferredCurrency),
-    renewalRevenueLabel: formatSalesCurrencyAmount(getConvertedSalesTotal(renewalRecords, normalizedPreferredCurrency), normalizedPreferredCurrency),
-    recoveredRevenue: getConvertedSalesTotal(recoveredRecords, normalizedPreferredCurrency),
-    recoveredRevenueLabel: formatSalesCurrencyAmount(getConvertedSalesTotal(recoveredRecords, normalizedPreferredCurrency), normalizedPreferredCurrency),
+    recurringRevenue,
+    recurringRevenueLabel: formatSalesCurrencyAmount(recurringRevenue, normalizedPreferredCurrency),
+    renewalRevenue,
+    renewalRevenueLabel: formatSalesCurrencyAmount(renewalRevenue, normalizedPreferredCurrency),
+    recoveredRevenue,
+    recoveredRevenueLabel: formatSalesCurrencyAmount(recoveredRevenue, normalizedPreferredCurrency),
     customersAtRisk,
     pendingFinanceValidation,
     pendingInventoryMovement,

@@ -1,5 +1,6 @@
 import { ArrowDownUp, Download, Eye, Loader2, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import { cortesColumnLabels, type CortesColumnId } from '../utils/cortesColumns';
 import {
@@ -20,6 +21,7 @@ interface CortesTableProps {
   sortKey: CortesSortKey;
   visibleColumns: CortesColumnId[];
   allVisibleSelected: boolean;
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   onDownload: (row: PosCashClosingSummaryRow) => void;
   onPrint: (row: PosCashClosingSummaryRow) => void;
   onSelect: (row: PosCashClosingSummaryRow) => void;
@@ -51,6 +53,7 @@ export function CortesTable({
   sortKey,
   visibleColumns,
   allVisibleSelected,
+  exchangeRatesPerUsd,
   onDownload,
   onPrint,
   onSelect,
@@ -132,7 +135,12 @@ export function CortesTable({
                 </td>
                 {visibleColumns.map((column) => (
                   <td key={`${row.id}-${column}`} className="px-5 py-4 align-middle text-slate-700 dark:text-slate-200">
-                    <CortesTableCell column={column} preferredCurrency={preferredCurrency} row={row} />
+                    <CortesTableCell
+                      column={column}
+                      exchangeRatesPerUsd={exchangeRatesPerUsd}
+                      preferredCurrency={preferredCurrency}
+                      row={row}
+                    />
                   </td>
                 ))}
                 <td className="px-5 py-4 text-right">
@@ -168,10 +176,12 @@ export function CortesTable({
 
 function CortesTableCell({
   column,
+  exchangeRatesPerUsd,
   preferredCurrency,
   row,
 }: {
   column: CortesColumnId;
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   preferredCurrency: string;
   row: PosCashClosingSummaryRow;
 }) {
@@ -204,18 +214,41 @@ function CortesTableCell({
     return <strong className="text-slate-950 dark:text-white">{row.ticketsCount}</strong>;
   }
   if (column === 'totalSales') {
-    return <MoneyCell amount={toNumber(row.totalSalesAmount)} preferredCurrency={preferredCurrency} row={row} strong />;
+    return (
+      <MoneyCell
+        amount={toNumber(row.totalSalesAmount)}
+        exchangeRatesPerUsd={exchangeRatesPerUsd}
+        preferredCurrency={preferredCurrency}
+        row={row}
+        strong
+      />
+    );
   }
   if (column === 'expected') {
-    return <MoneyCell amount={toNumber(row.expectedCashAmount)} preferredCurrency={preferredCurrency} row={row} />;
+    return (
+      <MoneyCell
+        amount={toNumber(row.expectedCashAmount)}
+        exchangeRatesPerUsd={exchangeRatesPerUsd}
+        preferredCurrency={preferredCurrency}
+        row={row}
+      />
+    );
   }
   if (column === 'counted') {
-    return <MoneyCell amount={toNumber(row.countedCashAmount)} preferredCurrency={preferredCurrency} row={row} />;
+    return (
+      <MoneyCell
+        amount={toNumber(row.countedCashAmount)}
+        exchangeRatesPerUsd={exchangeRatesPerUsd}
+        preferredCurrency={preferredCurrency}
+        row={row}
+      />
+    );
   }
   if (column === 'difference') {
     return (
       <MoneyCell
         amount={toNumber(row.overShortAmount)}
+        exchangeRatesPerUsd={exchangeRatesPerUsd}
         preferredCurrency={preferredCurrency}
         row={row}
         strong
@@ -229,18 +262,25 @@ function CortesTableCell({
 
 function MoneyCell({
   amount,
+  exchangeRatesPerUsd,
   preferredCurrency,
   row,
   strong = false,
   tone = 'neutral',
 }: {
   amount: number;
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   preferredCurrency: string;
   row: PosCashClosingSummaryRow;
   strong?: boolean;
   tone?: 'danger' | 'neutral' | 'success' | 'warning';
 }) {
-  const { convertedLabel, nativeCurrency, nativeLabel } = formatClosingAmount(amount, row, preferredCurrency);
+  const { convertedLabel, nativeCurrency, nativeLabel } = formatClosingAmount(
+    amount,
+    row,
+    preferredCurrency,
+    exchangeRatesPerUsd,
+  );
   const isConverted = nativeCurrency !== preferredCurrency;
   const className = tone === 'danger'
     ? 'text-rose-600'

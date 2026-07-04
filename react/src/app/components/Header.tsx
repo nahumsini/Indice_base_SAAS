@@ -139,11 +139,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
 
   const unreadCount = notifications.summary?.unread_count ?? 0;
   const showPreferredCurrencyControl = [
+    '/expenses',
     '/human-resources/collaborators',
     '/human-resources/payroll',
     '/human-resources/assets',
     '/human-resources/incentives',
     '/human-resources/kpis',
+    '/point-of-sale',
+    '/sales',
   ].some((pathPrefix) => pathname.startsWith(pathPrefix));
   const currentUserInitials = currentUserName
     .split(/\s+/)
@@ -369,6 +372,12 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             </DropdownMenu>
           </div>
         </div>
+
+        {showPreferredCurrencyControl ? (
+          <div className="mt-3 flex lg:hidden">
+            <PreferredCurrencyControl />
+          </div>
+        ) : null}
       </div>
 
       {/* Centro de Notificaciones Modal */}

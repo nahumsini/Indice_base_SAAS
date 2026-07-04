@@ -1,4 +1,5 @@
 import type { SalesOpportunity, SalesQuote } from '../../salesCrmContext';
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import {
   defaultSalesCurrency,
   formatSalesCurrencyAmount,
@@ -51,6 +52,7 @@ export function getOpportunityPipelineTotals(
   opportunity: SalesOpportunity,
   quotes: SalesQuote[],
   preferredCurrency = defaultSalesCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ): OpportunityPipelineTotals {
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
   const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
@@ -69,7 +71,13 @@ export function getOpportunityPipelineTotals(
   }
 
   const convertedTotal = linkedQuotes.reduce((total, quote) => (
-    total + convertSalesCurrencyAmount(quote.total, getQuoteCurrency(quote), currency, exchangeRateDate).amount
+    total + convertSalesCurrencyAmount(
+      quote.total,
+      getQuoteCurrency(quote),
+      currency,
+      exchangeRateDate,
+      exchangeRatesPerUsd,
+    ).amount
   ), 0);
 
   return {
@@ -87,13 +95,20 @@ export function getProspectosPipelineSummary(
   opportunities: SalesOpportunity[],
   quotes: SalesQuote[],
   preferredCurrency = defaultSalesCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const visibleOpportunityIds = new Set(opportunities.map((opportunity) => opportunity.id));
   const visibleQuotes = quotes.filter((quote) => quote.opportunityId && visibleOpportunityIds.has(quote.opportunityId));
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
   const exchangeRateDate = getTodayIsoDate();
   const convertedTotal = visibleQuotes.reduce((total, quote) => (
-    total + convertSalesCurrencyAmount(quote.total, getQuoteCurrency(quote), currency, exchangeRateDate).amount
+    total + convertSalesCurrencyAmount(
+      quote.total,
+      getQuoteCurrency(quote),
+      currency,
+      exchangeRateDate,
+      exchangeRatesPerUsd,
+    ).amount
   ), 0);
   const totalsByCurrency = getTotalsByCurrency(visibleQuotes);
 

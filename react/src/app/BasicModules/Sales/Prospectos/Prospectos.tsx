@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useLanguage } from '../../../shared/context';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import {
   salesOwners,
   type OpportunityStage,
@@ -18,7 +18,6 @@ import {
   ownerOptionValue,
   type SalesOwnerOption,
 } from '../utils/salesOwnerOptions';
-import { defaultSalesCurrency, isSalesCurrencyCode } from '../utils/salesCurrency';
 import { normalizeTextKey } from '../utils/salesTextUtils';
 import { useQuotesTranslations } from '../Cotizacion/translations';
 import { SalesDetailModal } from '../Sales/components/SalesDetailModal';
@@ -101,10 +100,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [temperatureFilter, setTemperatureFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    'indice.sales.pipelinePreferredCurrency',
-    defaultSalesCurrency,
-  );
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
   const [form, setForm] = useState<OpportunityFormState>({
     ...initialOpportunityForm,
     contactId: contacts[0]?.id ?? '',
@@ -232,13 +228,11 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   const canViewAllVisibleOpportunities = canViewAllOpportunities(currentUserRole);
   const shouldScopeOpportunitiesByOwner = currentUserRole !== null && !canViewAllVisibleOpportunities;
-  const preferredPipelineCurrency = isSalesCurrencyCode(storedPreferredCurrency)
-    ? storedPreferredCurrency
-    : defaultSalesCurrency;
+  const preferredPipelineCurrency = preferredCurrency;
   const {
     createSaleRecord,
     updateSaleRecord,
-  } = useSalesRecords(preferredPipelineCurrency);
+  } = useSalesRecords(preferredPipelineCurrency, exchangeRatesPerUsd);
   const defaultOwnerValue = currentUserCompanyId
     ? `user-company:${currentUserCompanyId}`
     : ownerSelectOptions[0]?.value ?? fallbackOwnerValue(initialOpportunityForm.owner);
@@ -273,11 +267,17 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   );
 
   const tableOpportunities = useMemo(
-    () => sortOpportunities(periodScopedOpportunities, sortState, quotes, preferredPipelineCurrency),
-    [periodScopedOpportunities, preferredPipelineCurrency, quotes, sortState],
+    () => sortOpportunities(periodScopedOpportunities, sortState, quotes, preferredPipelineCurrency, exchangeRatesPerUsd),
+    [exchangeRatesPerUsd, periodScopedOpportunities, preferredPipelineCurrency, quotes, sortState],
   );
 
-  const metrics = useProspectosMetrics(filteredOpportunities, quotes, preferredPipelineCurrency, periodFilter);
+  const metrics = useProspectosMetrics(
+    filteredOpportunities,
+    quotes,
+    preferredPipelineCurrency,
+    periodFilter,
+    exchangeRatesPerUsd,
+  );
   const showConvertedPipeline = metrics.pipelineQuoteCount > 0 && (
     metrics.hasMultiplePipelineCurrencies
     || metrics.pipelineCurrencyTotals.some((total) => total.currency !== preferredPipelineCurrency)
@@ -496,8 +496,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onCreateSale={handleOpenCreateSale}
         onCreateQuote={handleOpenCreateQuote}
         onCreateOpportunity={handleOpenCreateOpportunity}
-        onPreferredCurrencyChange={setStoredPreferredCurrency}
-        preferredCurrency={preferredPipelineCurrency}
       />
 
       {learningModeActive ? <ProspectosLearningGuide copy={learningCopy} /> : null}
@@ -558,6 +556,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           quotes={quotes}
           visibleColumns={localizedVisibleColumns}
           columnWidths={columnWidths}
+          exchangeRatesPerUsd={exchangeRatesPerUsd}
           preferredCurrency={preferredPipelineCurrency}
           tableMinWidth={tableMinWidth}
           sortState={sortState}

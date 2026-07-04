@@ -12,26 +12,20 @@ import {
 import {
   businessCurrencyOptions,
   businessExchangeBaseCurrency,
-  createBusinessDailyExchangeRateSettings,
+  businessExchangeOfficialDailySource,
   createBusinessManualExchangeRateSettings,
-  defaultBusinessExchangeRatesPerUsd,
   getBusinessExchangeRatePerUsd,
   type BusinessCurrencyCode,
   type BusinessExchangeRatesPerUsd,
 } from './businessCurrency';
 import { usePreferredBusinessCurrency } from './BusinessCurrencyContext';
 
-function formatExchangeRate(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 6,
-    minimumFractionDigits: 0,
-  }).format(value);
-}
-
 export function PreferredCurrencyControl() {
   const {
     exchangeRateMetadata,
     exchangeRatesPerUsd,
+    isLoadingDailyExchangeRates,
+    loadDailyExchangeRateSettings,
     preferredCurrency,
     setExchangeRateSettings,
     setPreferredCurrency,
@@ -48,11 +42,11 @@ export function PreferredCurrencyControl() {
     : 'Tasa diaria';
   const exchangeRateSourceLabel = exchangeRateMetadata.mode === 'manual'
     ? 'Manual'
-    : 'Referencia diaria interna';
-  const preferredExchangeRate = getBusinessExchangeRatePerUsd(preferredCurrency, exchangeRatesPerUsd);
-  const preferredExchangeRateLabel = preferredCurrency === businessExchangeBaseCurrency
-    ? 'Base USD'
-    : `1 USD = ${formatExchangeRate(preferredExchangeRate)} ${preferredCurrency}`;
+    : exchangeRateMetadata.source === businessExchangeOfficialDailySource
+      ? 'Fuentes oficiales'
+      : 'Referencia interna';
+  const sourceDetails = exchangeRateMetadata.sourceDetails ?? [];
+  const sourceWarnings = exchangeRateMetadata.warnings ?? [];
 
   useEffect(() => {
     setDraftExchangeRates(
@@ -86,14 +80,13 @@ export function PreferredCurrencyControl() {
     setIsExchangeRatePanelOpen(false);
   };
 
-  const handleResetExchangeRates = () => {
-    const dailyExchangeRateSettings = createBusinessDailyExchangeRateSettings();
-    setExchangeRateSettings(dailyExchangeRateSettings);
+  const handleLoadDailyExchangeRates = async () => {
+    const dailyExchangeRateSettings = await loadDailyExchangeRateSettings();
     setDraftExchangeRates(
       Object.fromEntries(
         editableCurrencyOptions.map((option) => [
           option.code,
-          String(defaultBusinessExchangeRatesPerUsd[option.code]),
+          String(getBusinessExchangeRatePerUsd(option.code, dailyExchangeRateSettings.ratesPerUsd)),
         ]),
       ),
     );
@@ -101,10 +94,22 @@ export function PreferredCurrencyControl() {
     setIsExchangeRatePanelOpen(false);
   };
 
+  const handleResetDraftExchangeRates = () => {
+    setDraftExchangeRates(
+      Object.fromEntries(
+        editableCurrencyOptions.map((option) => [
+          option.code,
+          String(getBusinessExchangeRatePerUsd(option.code, exchangeRatesPerUsd)),
+        ]),
+      ),
+    );
+    setExchangeRateError('');
+  };
+
   return (
-    <div className="relative flex min-h-10 items-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white/90 px-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur dark:border-[#59C3A5]/40 dark:bg-slate-800/90 dark:text-slate-100">
+    <div className="relative flex min-h-10 w-full max-w-full items-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white/90 px-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur dark:border-[#59C3A5]/40 dark:bg-slate-800/90 dark:text-slate-100 lg:w-auto">
       <Coins className="h-4 w-4 text-[#59C3A5]" />
-      <span className="hidden xl:inline">Divisa preferida</span>
+      <span className="hidden xl:inline">Divisa</span>
       <Select value={preferredCurrency} onValueChange={setPreferredCurrency}>
         <SelectTrigger
           aria-label="Divisa preferida"
@@ -125,11 +130,11 @@ export function PreferredCurrencyControl() {
         variant="outline"
         aria-expanded={isExchangeRatePanelOpen}
         onClick={() => setIsExchangeRatePanelOpen((current) => !current)}
-        className="h-8 max-w-[220px] gap-1.5 rounded-lg border-[#59C3A5]/30 bg-[#59C3A5]/10 px-2 text-xs font-black text-[#177d66] shadow-none hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/20 dark:text-emerald-200"
+        className="h-8 min-w-0 max-w-[160px] gap-1.5 rounded-lg border-[#59C3A5]/30 bg-[#59C3A5]/10 px-2 text-xs font-black text-[#177d66] shadow-none hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/20 dark:text-emerald-200 sm:max-w-[220px]"
       >
         <BadgeDollarSign className="h-3.5 w-3.5 shrink-0" />
         <span>TC</span>
-        <span className="truncate">{preferredExchangeRateLabel}</span>
+        <span className="truncate">Base {businessExchangeBaseCurrency}</span>
         <span className="hidden max-w-[90px] truncate text-[#4f8d7c] dark:text-emerald-100 2xl:inline">
           {exchangeRateModeLabel}
         </span>
@@ -142,14 +147,44 @@ export function PreferredCurrencyControl() {
           </div>
           <div className="mb-3 rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/10 px-3 py-2 text-xs font-bold text-slate-600 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/15 dark:text-slate-200">
             <p>
-              Base: {businessExchangeBaseCurrency} - Fuente: {exchangeRateSourceLabel} - Fecha: {exchangeRateMetadata.sourceDate} - {exchangeRateModeLabel}
+              Base: {businessExchangeBaseCurrency} · Fuente: {exchangeRateSourceLabel} · Fecha: {exchangeRateMetadata.sourceDate} · {exchangeRateModeLabel}
             </p>
             <p className="mt-1 font-semibold text-slate-500 dark:text-slate-300">
-              {exchangeRateMetadata.mode === 'manual'
-                ? 'Si editas la tasa, se conserva como referencia manual hasta que cargues la tasa del dia.'
-                : 'Cargar tasa del dia reemplaza cualquier tasa manual con la referencia diaria disponible.'}
+              Cargar tasa del día reemplaza la tasa manual con la referencia diaria disponible.
+              {' '}Si editas una tasa manual, se conserva hasta que la cambies o restablezcas.
             </p>
+            {exchangeRateMetadata.sourceSummary ? (
+              <p className="mt-1 font-semibold text-slate-500 dark:text-slate-300">
+                {exchangeRateMetadata.sourceSummary}
+              </p>
+            ) : null}
           </div>
+          {sourceDetails.length > 0 ? (
+            <div className="mb-3 max-h-28 overflow-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              <p className="mb-1 font-black text-slate-700 dark:text-slate-100">Fuentes aplicadas</p>
+              <div className="space-y-1.5">
+                {sourceDetails.map((source) => (
+                  <div key={`${source.currencyCode}-${source.institution}`} className="flex items-start justify-between gap-3">
+                    <span className="font-bold text-slate-700 dark:text-slate-100">
+                      {source.currencyCode}
+                    </span>
+                    <span className="flex-1">
+                      {source.institution}
+                      {source.status === 'fallback' ? ' · respaldo interno' : ''}
+                      {source.observedDate ? ` · ${source.observedDate}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {sourceWarnings.length > 0 ? (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+              {sourceWarnings.slice(0, 2).map((warning) => (
+                <p key={warning}>{warning}</p>
+              ))}
+            </div>
+          ) : null}
           <div className="space-y-3">
             {editableCurrencyOptions.map((option) => (
               <label key={option.code} className="grid gap-1.5">
@@ -180,10 +215,19 @@ export function PreferredCurrencyControl() {
             <Button
               type="button"
               variant="outline"
-              onClick={handleResetExchangeRates}
+              disabled={isLoadingDailyExchangeRates}
+              onClick={handleLoadDailyExchangeRates}
               className="h-9 rounded-lg border-slate-200 px-3 text-sm font-bold text-slate-700 shadow-none dark:border-slate-700 dark:text-slate-200"
             >
-              Cargar tasa del dia
+              {isLoadingDailyExchangeRates ? 'Cargando tasa...' : 'Cargar tasa del día'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleResetDraftExchangeRates}
+              className="h-9 rounded-lg border-slate-200 px-3 text-sm font-bold text-slate-700 shadow-none dark:border-slate-700 dark:text-slate-200"
+            >
+              Restablecer manual
             </Button>
             <Button
               type="button"
@@ -193,6 +237,9 @@ export function PreferredCurrencyControl() {
               Aplicar
             </Button>
           </div>
+          <p className="mt-3 text-[11px] font-semibold leading-relaxed text-slate-500 dark:text-slate-400">
+            Tasa informativa para estimaciones operativas. No representa una cotización para compraventa de divisas.
+          </p>
         </div>
       ) : null}
     </div>

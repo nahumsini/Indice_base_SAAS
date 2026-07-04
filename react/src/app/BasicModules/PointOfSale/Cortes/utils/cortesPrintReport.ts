@@ -1,3 +1,4 @@
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import {
   type CortesAnalytics,
@@ -14,6 +15,7 @@ interface CortesPrintReportParams {
   analytics: CortesAnalytics;
   cashRegisterLabel: string;
   cashierLabel: string;
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   filters: CortesFilters;
   preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
@@ -102,6 +104,7 @@ export function buildCortesPrintReportHtml({
   analytics,
   cashRegisterLabel,
   cashierLabel,
+  exchangeRatesPerUsd,
   filters,
   preferredCurrency,
   rows,
@@ -156,10 +159,30 @@ export function buildCortesPrintReportHtml({
 
   const tableRows = rows.length > 0
     ? rows.map((row) => {
-      const sales = formatClosingAmount(toNumber(row.totalSalesAmount), row, preferredCurrency);
-      const expected = formatClosingAmount(toNumber(row.expectedCashAmount), row, preferredCurrency);
-      const counted = formatClosingAmount(toNumber(row.countedCashAmount), row, preferredCurrency);
-      const difference = formatClosingAmount(toNumber(row.overShortAmount), row, preferredCurrency);
+      const sales = formatClosingAmount(
+        toNumber(row.totalSalesAmount),
+        row,
+        preferredCurrency,
+        exchangeRatesPerUsd,
+      );
+      const expected = formatClosingAmount(
+        toNumber(row.expectedCashAmount),
+        row,
+        preferredCurrency,
+        exchangeRatesPerUsd,
+      );
+      const counted = formatClosingAmount(
+        toNumber(row.countedCashAmount),
+        row,
+        preferredCurrency,
+        exchangeRatesPerUsd,
+      );
+      const difference = formatClosingAmount(
+        toNumber(row.overShortAmount),
+        row,
+        preferredCurrency,
+        exchangeRatesPerUsd,
+      );
       const differenceAmount = toNumber(row.overShortAmount);
       const differenceClass = differenceAmount < 0 ? 'risk' : differenceAmount > 0 ? 'warning' : 'ok';
 

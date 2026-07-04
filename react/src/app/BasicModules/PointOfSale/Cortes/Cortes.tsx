@@ -8,8 +8,7 @@ import { CortesDayView } from './components/CortesDayView';
 import { CortesFiltersBar, type CortesFilterOption } from './components/CortesFiltersBar';
 import { CortesHeader } from './components/CortesHeader';
 import { CortesKpiArea } from './components/CortesKpiArea';
-import { defaultBusinessCurrency, normalizeBusinessCurrencyCode } from '../../shared/businessCurrency';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { CortesTable } from './components/CortesTable';
 import { useCashClosingHistory } from './hooks/useCashClosingHistory';
 import { cashClosingsApi } from './services/cashClosingsApi';
@@ -89,11 +88,7 @@ export default function Cortes() {
   const [cashRegisters, setCashRegisters] = useState<PosCashRegisterResponse[]>([]);
   const [shifts, setShifts] = useState<PosShiftResponse[]>([]);
   const [filterOptionsError, setFilterOptionsError] = useState('');
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    'indice.pos.cortesPreferredCurrency',
-    defaultBusinessCurrency,
-  );
-  const preferredCurrency = normalizeBusinessCurrencyCode(storedPreferredCurrency, defaultBusinessCurrency);
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
 
   const {
     clearSelectedDetail,
@@ -169,8 +164,8 @@ export default function Cortes() {
   const allVisibleSelected = visibleRows.length > 0 && visibleRows.every((row) => selectedRowIds.includes(row.id));
 
   const analytics = useMemo(
-    () => buildCortesAnalytics(visibleRows, preferredCurrency),
-    [preferredCurrency, visibleRows],
+    () => buildCortesAnalytics(visibleRows, preferredCurrency, exchangeRatesPerUsd),
+    [exchangeRatesPerUsd, preferredCurrency, visibleRows],
   );
 
   const warehouseOptions = useMemo<CortesFilterOption[]>(() => (
@@ -315,11 +310,12 @@ export default function Cortes() {
         : 'Reporte preparado con filas visibles porque no fue posible consultar el historial completo.');
     }
 
-    const reportAnalytics = buildCortesAnalytics(reportRows, preferredCurrency);
+    const reportAnalytics = buildCortesAnalytics(reportRows, preferredCurrency, exchangeRatesPerUsd);
     const reportHtml = buildCortesPrintReportHtml({
       analytics: reportAnalytics,
       cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
       cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
+      exchangeRatesPerUsd,
       filters,
       preferredCurrency,
       rows: reportRows,
@@ -350,9 +346,10 @@ export default function Cortes() {
 
     const reportRows = sortCortesRows(selectedRows, sortKey, sortDirection);
     const reportHtml = buildCortesPrintReportHtml({
-      analytics: buildCortesAnalytics(reportRows, preferredCurrency),
+      analytics: buildCortesAnalytics(reportRows, preferredCurrency, exchangeRatesPerUsd),
       cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
       cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
+      exchangeRatesPerUsd,
       filters,
       preferredCurrency,
       rows: reportRows,
@@ -385,10 +382,8 @@ export default function Cortes() {
     <div className="space-y-6">
       <CortesHeader
         loading={loading}
-        preferredCurrency={preferredCurrency}
         onColumns={() => setIsColumnsOpen(true)}
         onPrintReport={printFilteredReport}
-        onPreferredCurrencyChange={setStoredPreferredCurrency}
         onRefresh={() => {
           refresh();
           setNotice('Cortes actualizados desde el historial real de POS.');
@@ -448,6 +443,7 @@ export default function Cortes() {
           />
           <CortesTable
             allVisibleSelected={allVisibleSelected}
+            exchangeRatesPerUsd={exchangeRatesPerUsd}
             preferredCurrency={preferredCurrency}
             loading={loading}
             rows={visibleRows}
@@ -464,7 +460,12 @@ export default function Cortes() {
           />
         </>
       ) : (
-        <CortesDayView preferredCurrency={preferredCurrency} rows={visibleRows} onSelect={openDetail} />
+        <CortesDayView
+          exchangeRatesPerUsd={exchangeRatesPerUsd}
+          preferredCurrency={preferredCurrency}
+          rows={visibleRows}
+          onSelect={openDetail}
+        />
       )}
 
       <div className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">

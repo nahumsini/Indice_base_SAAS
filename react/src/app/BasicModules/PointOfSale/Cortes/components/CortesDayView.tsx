@@ -1,4 +1,5 @@
 import { CalendarDays, ChevronRight } from 'lucide-react';
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import {
   formatClosingAmount,
@@ -10,17 +11,19 @@ import {
 } from '../utils/cortesUtils';
 
 interface CortesDayViewProps {
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
   onSelect: (row: PosCashClosingSummaryRow) => void;
 }
 
 export function CortesDayView({
+  exchangeRatesPerUsd,
   preferredCurrency,
   rows,
   onSelect,
 }: CortesDayViewProps) {
-  const groups = groupCortesByDate(rows, preferredCurrency);
+  const groups = groupCortesByDate(rows, preferredCurrency, exchangeRatesPerUsd);
 
   return (
     <section className="space-y-4">
@@ -70,10 +73,24 @@ export function CortesDayView({
 
                 <div className="grid gap-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:grid-cols-4 md:min-w-[520px]">
                   <span>{row.ticketsCount} tickets</span>
-                  <span>{formatClosingAmount(toNumber(row.totalSalesAmount), row, preferredCurrency).nativeLabel}</span>
-                  <span>Contado {formatClosingAmount(toNumber(row.countedCashAmount), row, preferredCurrency).nativeLabel}</span>
+                  <span>
+                    {formatClosingAmount(toNumber(row.totalSalesAmount), row, preferredCurrency, exchangeRatesPerUsd).nativeLabel}
+                  </span>
+                  <span>
+                    Contado {formatClosingAmount(
+                      toNumber(row.countedCashAmount),
+                      row,
+                      preferredCurrency,
+                      exchangeRatesPerUsd,
+                    ).nativeLabel}
+                  </span>
                   <span className={toNumber(row.overShortAmount) === 0 ? 'text-emerald-600' : 'text-amber-700'}>
-                    {toNumber(row.overShortAmount) > 0 ? '+' : ''}{formatClosingAmount(toNumber(row.overShortAmount), row, preferredCurrency).nativeLabel}
+                    {toNumber(row.overShortAmount) > 0 ? '+' : ''}{formatClosingAmount(
+                      toNumber(row.overShortAmount),
+                      row,
+                      preferredCurrency,
+                      exchangeRatesPerUsd,
+                    ).nativeLabel}
                   </span>
                 </div>
 

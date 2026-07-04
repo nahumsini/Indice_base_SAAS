@@ -25,6 +25,7 @@ import {
 } from '../../../../components/ui/select';
 import { TableCell, TableRow } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import { OpportunityCommercialValueCell } from '../components/OpportunityCommercialValueCell';
 import { OpportunityPipelineCell } from '../components/OpportunityPipelineCell';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
@@ -144,6 +145,7 @@ export function ProspectosTableRow({
   quotes,
   visibleColumns,
   columnWidths,
+  exchangeRatesPerUsd,
   preferredCurrency,
   ownerSelectOptions,
   resolveOpportunityOwnerValue,
@@ -160,6 +162,7 @@ export function ProspectosTableRow({
   quotes: SalesQuote[];
   visibleColumns: Array<{ id: string }>;
   columnWidths: Record<OpportunityColumnId, number>;
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   preferredCurrency: string;
   ownerSelectOptions: Array<{ value: string; label: string }>;
   resolveOpportunityOwnerValue: (opportunity: SalesOpportunity) => string;
@@ -172,7 +175,7 @@ export function ProspectosTableRow({
   onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
 }) {
   const quoteSignal = getOpportunityQuoteSignal(opportunity, quotes);
-  const pipeline = getOpportunityPipelineTotals(opportunity, quotes, preferredCurrency);
+  const pipeline = getOpportunityPipelineTotals(opportunity, quotes, preferredCurrency, exchangeRatesPerUsd);
   const commercialFilesCount = opportunity.files.length + quoteSignal.quoteCount;
 
   const renderOpportunityCell = (columnId: OpportunityColumnId) => {

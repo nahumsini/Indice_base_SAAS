@@ -1,15 +1,8 @@
-import { defaultSalesCurrency, normalizeSalesCurrencyCode } from './salesCurrency';
+import { normalizeSalesCurrencyCode } from './salesCurrency';
 import { getTodayIsoDate } from './salesCrmUtils';
+import { getBusinessExchangeRatePerUsd, type BusinessExchangeRatesPerUsd } from '../../shared/businessCurrency';
 
-const referenceRatesToMxn: Record<string, number> = {
-  MXN: 1,
-  CAD: 13.55,
-  USD: 18.45,
-  COP: 0.0046,
-  BRL: 3.35,
-};
-
-const exchangeRateSource = 'local_daily_reference';
+const exchangeRateSource = 'global_preferred_currency_settings';
 
 function roundCurrencyAmount(value: number) {
   return Number(value.toFixed(2));
@@ -19,20 +12,19 @@ function roundExchangeRate(value: number) {
   return Number(value.toFixed(8));
 }
 
-function getReferenceRateToMxn(currency: string) {
-  return referenceRatesToMxn[currency] ?? referenceRatesToMxn[defaultSalesCurrency];
-}
-
 export function getSalesExchangeSnapshot(
   sourceCurrency?: string | null,
   targetCurrency?: string | null,
   date = getTodayIsoDate(),
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const source = normalizeSalesCurrencyCode(sourceCurrency);
   const target = normalizeSalesCurrencyCode(targetCurrency);
+  const sourceRatePerUsd = getBusinessExchangeRatePerUsd(source, exchangeRatesPerUsd);
+  const targetRatePerUsd = getBusinessExchangeRatePerUsd(target, exchangeRatesPerUsd);
   const exchangeRate = source === target
     ? 1
-    : getReferenceRateToMxn(source) / getReferenceRateToMxn(target);
+    : targetRatePerUsd / sourceRatePerUsd;
 
   return {
     sourceCurrency: source,
@@ -48,8 +40,9 @@ export function convertSalesCurrencyAmount(
   sourceCurrency?: string | null,
   targetCurrency?: string | null,
   date = getTodayIsoDate(),
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
-  const snapshot = getSalesExchangeSnapshot(sourceCurrency, targetCurrency, date);
+  const snapshot = getSalesExchangeSnapshot(sourceCurrency, targetCurrency, date, exchangeRatesPerUsd);
 
   return {
     amount: roundCurrencyAmount((Number.isFinite(amount) ? amount : 0) * snapshot.exchangeRate),

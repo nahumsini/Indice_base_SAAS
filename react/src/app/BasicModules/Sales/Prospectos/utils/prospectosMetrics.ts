@@ -4,6 +4,7 @@ import {
   type SalesQuote,
   type SalesOpportunity,
 } from '../../salesCrmContext';
+import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import {
   defaultSalesCurrency,
   formatSalesCurrencyAmount,
@@ -154,11 +155,18 @@ function summarizeClosedOpportunityValue(
   opportunities: SalesOpportunity[],
   quotes: SalesQuote[],
   preferredCurrency = defaultSalesCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
   const lines = opportunities.flatMap((opportunity) => getClosedOpportunityValueLines(opportunity, quotes));
   const convertedTotal = lines.reduce((total, line) => (
-    total + convertSalesCurrencyAmount(line.amount, line.currency, currency, line.exchangeDate).amount
+    total + convertSalesCurrencyAmount(
+      line.amount,
+      line.currency,
+      currency,
+      line.exchangeDate,
+      exchangeRatesPerUsd,
+    ).amount
   ), 0);
 
   return {
@@ -175,6 +183,7 @@ export function getOpportunitySortValue(
   columnId: OpportunityColumnId,
   quotes: SalesQuote[] = [],
   preferredCurrency = defaultSalesCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ): OpportunitySortValue {
   switch (columnId) {
     case 'opportunity':
@@ -200,7 +209,7 @@ export function getOpportunitySortValue(
     case 'quoteSignal':
       return getOpportunityQuoteSignal(opportunity, quotes).totalQuotedValue;
     case 'pipeline':
-      return getOpportunityPipelineTotals(opportunity, quotes, preferredCurrency).convertedTotal;
+      return getOpportunityPipelineTotals(opportunity, quotes, preferredCurrency, exchangeRatesPerUsd).convertedTotal;
     case 'expectedCloseDate':
       return opportunity.expectedCloseDate || null;
     case 'nextAction':
@@ -225,10 +234,11 @@ export function sortOpportunities(
   sortState: OpportunitySortState,
   quotes: SalesQuote[] = [],
   preferredCurrency = defaultSalesCurrency,
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   return [...opportunities].sort((left, right) => {
-    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes, preferredCurrency);
-    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes, preferredCurrency);
+    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes, preferredCurrency, exchangeRatesPerUsd);
+    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes, preferredCurrency, exchangeRatesPerUsd);
 
     if (leftValue === null && rightValue === null) {
       return 0;
@@ -295,6 +305,7 @@ export function calculateProspectosMetrics(
   quotes: SalesQuote[] = [],
   preferredCurrency = defaultSalesCurrency,
   periodFilter: OpportunityPeriodFilter = 'all',
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const periodRange = getOpportunityPeriodRange(periodFilter);
   const periodOpportunities = filterOpportunitiesForPeriodView(opportunities, periodFilter);
@@ -316,9 +327,9 @@ export function calculateProspectosMetrics(
     const schedule = getOpportunitySchedule(opportunity);
     return opportunity.status === 'Overdue' || Boolean(schedule.date && schedule.date < todayInputValue);
   }).length;
-  const pipelineSummary = getProspectosPipelineSummary(openOpportunities, quotes, preferredCurrency);
-  const wonSummary = summarizeClosedOpportunityValue(periodWonOpportunities, quotes, preferredCurrency);
-  const lostSummary = summarizeClosedOpportunityValue(periodLostOpportunities, quotes, preferredCurrency);
+  const pipelineSummary = getProspectosPipelineSummary(openOpportunities, quotes, preferredCurrency, exchangeRatesPerUsd);
+  const wonSummary = summarizeClosedOpportunityValue(periodWonOpportunities, quotes, preferredCurrency, exchangeRatesPerUsd);
+  const lostSummary = summarizeClosedOpportunityValue(periodLostOpportunities, quotes, preferredCurrency, exchangeRatesPerUsd);
   const periodClosedCount = periodClosedOpportunities.length;
   const periodConversionRate = periodClosedCount > 0
     ? Math.round((periodWonOpportunities.length / periodClosedCount) * 100)

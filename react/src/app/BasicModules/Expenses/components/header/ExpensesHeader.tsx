@@ -1,13 +1,5 @@
-import { Coins, Columns3, Landmark, Plus, ReceiptText, Store } from 'lucide-react';
+import { Columns3, Landmark, Plus, ReceiptText, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../../components/ui/select';
-import { financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 
 type ExpensesHeaderProps = {
@@ -17,8 +9,6 @@ type ExpensesHeaderProps = {
   onCreatePayableAccount: () => void;
   onCreateExpense: () => void;
   onOpenPayablesKiosk: () => void;
-  onPreferredCurrencyChange: (currency: string) => void;
-  preferredCurrency: string;
 };
 
 export function ExpensesHeader({
@@ -28,8 +18,6 @@ export function ExpensesHeader({
   onCreatePayableAccount,
   onCreateExpense,
   onOpenPayablesKiosk,
-  onPreferredCurrencyChange,
-  preferredCurrency,
 }: ExpensesHeaderProps) {
   const t = useFinanceTranslations();
 
@@ -51,24 +39,6 @@ export function ExpensesHeader({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex h-11 items-center gap-2 rounded-xl border border-[#147514]/25 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none dark:border-emerald-400/25 dark:bg-slate-800 dark:text-slate-100">
-            <Coins className="h-4 w-4 text-[#147514]" />
-            <span>{t.expenses.preferredCurrency}</span>
-            <Select value={preferredCurrency} onValueChange={onPreferredCurrencyChange}>
-              <SelectTrigger
-                aria-label={t.expenses.preferredCurrency}
-                className="h-8 w-[92px] rounded-lg border-slate-200 bg-slate-50 px-2 text-sm font-bold text-slate-900 shadow-none dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {financeCurrencySelectOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <Button
             disabled={createExpenseDisabled}
             onClick={onCreatePayableAccount}
