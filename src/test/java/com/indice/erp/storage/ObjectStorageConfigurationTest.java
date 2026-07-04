@@ -14,15 +14,34 @@ class ObjectStorageConfigurationTest {
     }
 
     @Test
-    void fallsBackToLocalhostWhenMinioHostnameDoesNotResolve() {
-        var endpoint = ObjectStorageConfiguration.endpointForRuntime("http://minio:9000", host -> false);
+    void fallsBackToReachableDockerGatewayWhenMinioHostnameDoesNotResolve() {
+        var endpoint = ObjectStorageConfiguration.endpointForRuntime(
+            "http://minio:9000",
+            host -> false,
+            candidate -> "http://172.17.0.1:9000".equals(candidate)
+        );
 
-        assertThat(endpoint).isEqualTo("http://127.0.0.1:9000");
+        assertThat(endpoint).isEqualTo("http://172.17.0.1:9000");
+    }
+
+    @Test
+    void keepsOriginalMinioEndpointWhenNoFallbackEndpointIsReachable() {
+        var endpoint = ObjectStorageConfiguration.endpointForRuntime(
+            "http://minio:9000",
+            host -> false,
+            candidate -> false
+        );
+
+        assertThat(endpoint).isEqualTo("http://minio:9000");
     }
 
     @Test
     void keepsNonMinioEndpointUnchanged() {
-        var endpoint = ObjectStorageConfiguration.endpointForRuntime("http://storage.internal:9000", host -> false);
+        var endpoint = ObjectStorageConfiguration.endpointForRuntime(
+            "http://storage.internal:9000",
+            host -> false,
+            candidate -> false
+        );
 
         assertThat(endpoint).isEqualTo("http://storage.internal:9000");
     }
