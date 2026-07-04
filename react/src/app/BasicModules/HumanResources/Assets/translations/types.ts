@@ -26,7 +26,7 @@ export type AssetsLocale =
   | 'zh-CA';
 
 export type AssetsTranslations = WidenLiterals<typeof enCA>;
-export type AssetHeaderCopy = Pick<AssetsTranslations, 'title' | 'subtitle' | 'newAsset' | 'columnPicker' | 'preferredCurrency' | 'exchangeRates'>;
+export type AssetHeaderCopy = Pick<AssetsTranslations, 'title' | 'subtitle' | 'newAsset' | 'columnPicker'>;
 export type AssetFiltersCopy = Pick<AssetsTranslations, 'filtersPanel' | 'filters' | 'addNewAsset'>;
 export type AssetKpiCopy = Pick<AssetsTranslations, 'cards' | 'kpis'>;
 export type AssetColumnPickerCopy = AssetsTranslations['columnPicker'];

@@ -31,14 +31,32 @@ public class StatusController {
 
     @GetMapping("/api/v1/health")
     public Map<String, Object> health() {
+        var minio = objectStorageProperties.getMinio();
         return Map.of(
             "name", "indice-erp-api",
             "status", "ok",
             "storage", Map.of(
                 "enabled", objectStorageService.isEnabled(),
                 "provider", objectStorageProperties.getProvider(),
-                "required", objectStorageProperties.isRequired()
+                "required", objectStorageProperties.isRequired(),
+                "service", objectStorageService.getClass().getSimpleName(),
+                "minio", Map.of(
+                    "endpointConfigured", hasText(minio.getEndpoint()),
+                    "publicEndpointConfigured", hasText(minio.getPublicEndpoint()),
+                    "documentsBucket", safeText(minio.getBucketDocuments()),
+                    "attendanceBucket", safeText(minio.getBucketAttendance()),
+                    "biometricBucket", safeText(minio.getBucketBiometric()),
+                    "salesDocumentsBucket", safeText(minio.getBucketSalesDocuments())
+                )
             )
         );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String safeText(String value) {
+        return value == null ? "" : value;
     }
 }

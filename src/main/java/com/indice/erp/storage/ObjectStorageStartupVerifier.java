@@ -19,10 +19,11 @@ public class ObjectStorageStartupVerifier {
 
     @PostConstruct
     void verifyStorage() {
+        if (properties.isRequired() && !objectStorageService.isEnabled()) {
+            throw new IllegalStateException("Object storage is required but is not enabled.");
+        }
+
         if (!properties.isMinioEnabled()) {
-            if (properties.isRequired()) {
-                throw new IllegalStateException("Object storage is required but is not enabled.");
-            }
             return;
         }
 

@@ -25,6 +25,7 @@ import { authApi } from './api/auth';
 import { buildDefaultModuleCatalog, routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
 import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
+import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -639,35 +640,37 @@ export default function App() {
       translate="no"
       className={`notranslate min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}
     >
-      <Header 
-        learningModeActive={learningModeActive} 
-        onToggleLearningMode={toggleLearningMode}
-        darkMode={darkMode}
-        onToggleDarkMode={toggleDarkMode}
-      />
-      <LoadingBarOverlay
-        isVisible={isModuleNavigationLoading}
-        title="Loading module"
-        description="Preparing the latest data before the screen becomes active."
-        className="z-[160]"
-      />
-      <Suspense
-        fallback={(
-          <LoadingBarOverlay
-            isVisible
-            title="Loading module"
-            description="Downloading only the workspace you opened."
-            className="z-[150]"
-          />
-        )}
-      >
-        {pageContent}
-      </Suspense>
-      <SuccessToast
-        isVisible={Boolean(successToastMessage)}
-        message={successToastMessage}
-        onClose={() => setSuccessToastMessage('')}
-      />
+      <BusinessCurrencyProvider>
+        <Header
+          learningModeActive={learningModeActive}
+          onToggleLearningMode={toggleLearningMode}
+          darkMode={darkMode}
+          onToggleDarkMode={toggleDarkMode}
+        />
+        <LoadingBarOverlay
+          isVisible={isModuleNavigationLoading}
+          title="Loading module"
+          description="Preparing the latest data before the screen becomes active."
+          className="z-[160]"
+        />
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading module"
+              description="Downloading only the workspace you opened."
+              className="z-[150]"
+            />
+          )}
+        >
+          {pageContent}
+        </Suspense>
+        <SuccessToast
+          isVisible={Boolean(successToastMessage)}
+          message={successToastMessage}
+          onClose={() => setSuccessToastMessage('')}
+        />
+      </BusinessCurrencyProvider>
     </div>
   );
 }

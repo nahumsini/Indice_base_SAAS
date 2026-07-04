@@ -11,7 +11,6 @@ import type { EmployeeDocumentType } from './components/CreateEmployeeModal';
 import { OperationalBulkActionsBar, useRowSelection } from '../../shared/operational';
 import { EmployeeAccessActions } from '../Control/components/EmployeeAccessActions';
 import { useLanguage } from '../../../shared/context';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import {
   humanResourcesApi,
   type AttendanceAccessProfile,
@@ -33,14 +32,7 @@ import {
   documentTypeOrder,
   employeePageSizeOptions,
 } from './constants/employees.constants';
-import {
-  createBusinessDailyExchangeRateSettings,
-  defaultBusinessCurrency,
-  hrExchangeRateSettingsStorageKey,
-  hrPreferredCurrencyStorageKey,
-  isBusinessCurrencyCode,
-  normalizeBusinessExchangeRateSettings,
-} from '../../shared/businessCurrency';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { uploadEmployeeDocument } from './utils/employees.documents';
 import { downloadEmployeesCsv } from './utils/employees.export';
 import { summarizeEmployeePayroll } from './utils/employees.payroll';
@@ -59,23 +51,7 @@ const toNullableNumber = (value: string) => {
 export default function Employees() {
   const { currentLanguage } = useLanguage();
   const copy = useEmployeesTranslations();
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    hrPreferredCurrencyStorageKey,
-    defaultBusinessCurrency,
-  );
-  const [storedExchangeRateSettings, setStoredExchangeRateSettings] =
-    useLocalStorageState<unknown>(
-      hrExchangeRateSettingsStorageKey,
-      createBusinessDailyExchangeRateSettings(),
-    );
-  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
-    ? storedPreferredCurrency
-    : defaultBusinessCurrency;
-  const exchangeRateSettings = useMemo(
-    () => normalizeBusinessExchangeRateSettings(storedExchangeRateSettings),
-    [storedExchangeRateSettings],
-  );
-  const { metadata: exchangeRateMetadata, ratesPerUsd: exchangeRatesPerUsd } = exchangeRateSettings;
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
 
   const {
     attendanceLocations,
@@ -361,16 +337,9 @@ export default function Employees() {
       <EmployeesHeaderActions
         addEmployeeLabel={copy.addEmployee}
         configureColumnsLabel={copy.configureColumns}
-        exchangeRateCopy={copy.exchangeRates}
-        exchangeRateMetadata={exchangeRateMetadata}
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
         headingIcon={<span className="text-2xl">👥</span>}
         onConfigureColumns={() => setIsColumnsModalOpen(true)}
         onCreateEmployee={openCreateEmployeeModal}
-        onExchangeRateSettingsChange={setStoredExchangeRateSettings}
-        onPreferredCurrencyChange={setStoredPreferredCurrency}
-        preferredCurrency={preferredCurrency}
-        preferredCurrencyLabel={copy.preferredCurrency}
         subtitle={copy.subtitle}
         title={copy.title}
       />

@@ -47,20 +47,13 @@ import {
 } from '../../../api/humanResources';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { cn } from '../../../components/ui/utils';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { useLanguage } from '../../../shared/context';
 import {
-  businessCurrencyOptions,
   convertBusinessCurrencyAmount,
-  createBusinessDailyExchangeRateSettings,
-  defaultBusinessCurrency,
   formatBusinessCurrencyAmount,
   formatBusinessCurrencyBreakdown,
-  hrExchangeRateSettingsStorageKey,
-  hrPreferredCurrencyStorageKey,
-  isBusinessCurrencyCode,
-  normalizeBusinessExchangeRateSettings,
 } from '../../shared/businessCurrency';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { useKPIsTranslations } from './hooks/useKPIsTranslations';
 import type { KPIsTranslations } from './translations';
 import { printKpisReport } from './utils/kpisPrintReport';
@@ -501,22 +494,7 @@ function SelectField({
 export default function KPIs() {
   const copy = useKPIsTranslations();
   const { currentLanguage } = useLanguage();
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    hrPreferredCurrencyStorageKey,
-    defaultBusinessCurrency,
-  );
-  const [storedExchangeRateSettings] = useLocalStorageState<unknown>(
-    hrExchangeRateSettingsStorageKey,
-    createBusinessDailyExchangeRateSettings(),
-  );
-  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
-    ? storedPreferredCurrency
-    : defaultBusinessCurrency;
-  const exchangeRateSettings = useMemo(
-    () => normalizeBusinessExchangeRateSettings(storedExchangeRateSettings),
-    [storedExchangeRateSettings],
-  );
-  const { ratesPerUsd: exchangeRatesPerUsd } = exchangeRateSettings;
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
   const [employeeSummary, setEmployeeSummary] = useState(emptyHrSummary);
   const [attendanceOverview, setAttendanceOverview] = useState<AttendanceControlOverviewResponse | null>(null);
@@ -1266,22 +1244,6 @@ export default function KPIs() {
             </div>
           </div>
           <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:justify-end">
-            <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none dark:border-[#59C3A5]/40 dark:bg-slate-800 dark:text-slate-100 sm:w-auto">
-              <Coins className="h-4 w-4 text-[#59C3A5]" />
-              <span className="min-w-0">{copy.dashboard.labels.preferredCurrency}</span>
-              <select
-                aria-label={copy.dashboard.labels.preferredCurrency}
-                value={preferredCurrency}
-                onChange={(event) => setStoredPreferredCurrency(event.target.value)}
-                className="h-8 w-[92px] shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2 text-sm font-bold text-slate-900 shadow-none outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-              >
-                {businessCurrencyOptions.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.code}
-                  </option>
-                ))}
-              </select>
-            </label>
             <button
               type="button"
               onClick={() => void loadDashboard()}

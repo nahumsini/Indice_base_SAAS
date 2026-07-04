@@ -25,16 +25,11 @@ import {
 } from '../shared/StandardTableControls';
 import {
   convertBusinessCurrencyAmount,
-  createBusinessDailyExchangeRateSettings,
-  defaultBusinessCurrency,
   formatBusinessCurrencyAmount,
   formatBusinessCurrencyBreakdown,
-  hrExchangeRateSettingsStorageKey,
-  hrPreferredCurrencyStorageKey,
-  isBusinessCurrencyCode,
   normalizeBusinessCurrencyCode,
-  normalizeBusinessExchangeRateSettings,
 } from '../../shared/businessCurrency';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import type { AddNewAssetDraft, AddNewAssetOption } from './AddNewAssests';
 import type { AssetColumnConfig } from './AssetColumnsModal';
 import { assetTypeOptionByValue } from './constants/assetCatalog';
@@ -88,14 +83,7 @@ export default function Assets() {
     'indice.hr.assets.visibleColumns.v2',
     allAssetColumnIds,
   );
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    hrPreferredCurrencyStorageKey,
-    defaultBusinessCurrency,
-  );
-  const [storedExchangeRateSettings, setStoredExchangeRateSettings] = useLocalStorageState<unknown>(
-    hrExchangeRateSettingsStorageKey,
-    createBusinessDailyExchangeRateSettings(),
-  );
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | AssetType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | HrAssetStatus>('all');
@@ -121,15 +109,6 @@ export default function Assets() {
   const [sortDirection, setSortDirection] = useState<StandardSortDirection>('asc');
   const [pageSize, setPageSize] = useState(defaultAssetsPageSize);
   const [currentPage, setCurrentPage] = useState(1);
-  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
-    ? storedPreferredCurrency
-    : defaultBusinessCurrency;
-  const exchangeRateSettings = useMemo(
-    () => normalizeBusinessExchangeRateSettings(storedExchangeRateSettings),
-    [storedExchangeRateSettings],
-  );
-  const { metadata: exchangeRateMetadata, ratesPerUsd: exchangeRatesPerUsd } = exchangeRateSettings;
-
   const normalizedVisibleColumnIds = useMemo(() => {
     const nextVisible = allAssetColumnIds.filter(
       (columnId) => visibleColumnIds.includes(columnId) || lockedAssetColumnIds.includes(columnId),
@@ -587,14 +566,8 @@ export default function Assets() {
       <AssetHeaderBar
         canManage={canManageAssets}
         copy={t}
-        exchangeRateMetadata={exchangeRateMetadata}
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
         onAdd={handleCreateAsset}
         onColumns={() => setIsColumnsModalOpen(true)}
-        onExchangeRateSettingsChange={setStoredExchangeRateSettings}
-        onPreferredCurrencyChange={setStoredPreferredCurrency}
-        preferredCurrency={preferredCurrency}
-        preferredCurrencyLabel={t.preferredCurrency}
       />
 
       <AssetFilters

@@ -43,7 +43,6 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { ApiClientError, buildApiUrl } from '../../../lib/apiClient';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import {
   humanResourcesApi,
@@ -64,16 +63,12 @@ import {
 import { useLanguage } from '../../../shared/context';
 import {
   convertBusinessCurrencyAmount,
-  createBusinessDailyExchangeRateSettings,
   defaultBusinessCurrency,
   formatBusinessCurrencyAmount,
-  hrExchangeRateSettingsStorageKey,
-  hrPreferredCurrencyStorageKey,
-  isBusinessCurrencyCode,
   normalizeBusinessCurrencyCode,
-  normalizeBusinessExchangeRateSettings,
   type BusinessExchangeRatesPerUsd,
 } from '../../shared/businessCurrency';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { usePayrollTranslations } from './hooks/usePayrollTranslations';
 import type { PayrollTranslations } from './translations';
 import {
@@ -426,22 +421,7 @@ const downloadFile = async (path: string, filename: string) => {
 export default function Payroll() {
   const { currentLanguage } = useLanguage();
   const copy = usePayrollTranslations();
-  const [storedPreferredCurrency, setStoredPreferredCurrency] = useLocalStorageState<string>(
-    hrPreferredCurrencyStorageKey,
-    defaultBusinessCurrency,
-  );
-  const [storedExchangeRateSettings, setStoredExchangeRateSettings] = useLocalStorageState<unknown>(
-    hrExchangeRateSettingsStorageKey,
-    createBusinessDailyExchangeRateSettings(),
-  );
-  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
-    ? storedPreferredCurrency
-    : defaultBusinessCurrency;
-  const exchangeRateSettings = useMemo(
-    () => normalizeBusinessExchangeRateSettings(storedExchangeRateSettings),
-    [storedExchangeRateSettings],
-  );
-  const { metadata: exchangeRateMetadata, ratesPerUsd: exchangeRatesPerUsd } = exchangeRateSettings;
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
 
   const [overview, setOverview] = useState<PayrollOverviewResponse | null>(null);
   const [runs, setRuns] = useState<PayrollRunSummary[]>([]);
@@ -1213,15 +1193,8 @@ export default function Payroll() {
 
       <PayrollHeaderBar
         copy={copy.header}
-        exchangeRateCopy={copy.exchangeRates}
-        exchangeRateMetadata={exchangeRateMetadata}
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
         isBusy={isSaving}
-        onExchangeRateSettingsChange={setStoredExchangeRateSettings}
         onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
-        preferredCurrency={preferredCurrency}
-        preferredCurrencyLabel={copy.labels.preferredCurrency}
-        onPreferredCurrencyChange={setStoredPreferredCurrency}
       />
 
       {isLoading ? (

@@ -1,8 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { hrIncentivesApi, type BackendHrIncentive, type CreateHrIncentivePayload } from '../../../api/HumanResources/incentives';
-import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
-import { defaultBusinessCurrency, hrPreferredCurrencyStorageKey, isBusinessCurrencyCode } from '../../shared/businessCurrency';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import type { IncentiveColumn } from './components/IncentiveColumnsModal';
 import { IncentiveFilters } from './components/IncentiveFilters';
 import { IncentiveHeaderBar } from './components/IncentiveHeaderBar';
@@ -35,13 +34,7 @@ const defaultVisibleIncentiveColumns: IncentiveColumnId[] = [
 
 export default function Incentives() {
   const copy = useIncentivesTranslations();
-  const [storedPreferredCurrency] = useLocalStorageState<string>(
-    hrPreferredCurrencyStorageKey,
-    defaultBusinessCurrency,
-  );
-  const preferredCurrency = isBusinessCurrencyCode(storedPreferredCurrency)
-    ? storedPreferredCurrency
-    : defaultBusinessCurrency;
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [incentivos, setIncentivos] = useState<IncentiveViewModel[]>([]);
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
   const [eligibleTotal, setEligibleTotal] = useState(0);

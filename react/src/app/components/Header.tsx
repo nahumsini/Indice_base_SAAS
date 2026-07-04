@@ -1,5 +1,5 @@
 import { Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCent
 import type { AppNotification } from '../api/notifications';
 import { NotificationMenu } from './notifications/NotificationMenu';
 import { useNotifications } from './notifications/useNotifications';
+import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurrencyControl';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -38,6 +39,7 @@ const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
 
 export function Header({ learningModeActive, onToggleLearningMode, darkMode, onToggleDarkMode }: HeaderProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { currentLanguage, setCurrentLanguage, t } = useLanguage();
   const currentHour = new Date().getHours();
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
@@ -136,6 +138,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   });
 
   const unreadCount = notifications.summary?.unread_count ?? 0;
+  const showPreferredCurrencyControl = [
+    '/human-resources/collaborators',
+    '/human-resources/payroll',
+    '/human-resources/assets',
+    '/human-resources/incentives',
+    '/human-resources/kpis',
+  ].some((pathPrefix) => pathname.startsWith(pathPrefix));
   const currentUserInitials = currentUserName
     .split(/\s+/)
     .filter(Boolean)
@@ -229,6 +238,12 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
 
           {/* Sección derecha - Acciones */}
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            {showPreferredCurrencyControl ? (
+              <div className="hidden lg:flex">
+                <PreferredCurrencyControl />
+              </div>
+            ) : null}
+
             {/* Notificaciones */}
             <NotificationMenu
               open={isNotificationMenuOpen}
