@@ -1,3 +1,4 @@
+import { Ban, FileCheck2, ReceiptText, WalletCards } from 'lucide-react';
 import type { EmployeeModalTranslations } from '../../../translations/types';
 import { AutoAssignedOrganizationField } from '../fields/AutoAssignedOrganizationField';
 import { CreatableOptionField } from '../fields/CreatableOptionField';
@@ -14,6 +15,37 @@ import type {
 import type { EmployeeValidationErrors } from '../validation';
 import { JobStep } from './JobStep';
 import { ScheduleOnHireFields } from './ScheduleOnHireFields';
+
+const payrollTreatmentOptions = [
+  {
+    value: 'fiscal_payroll',
+    label: 'Nómina fiscal',
+    description: 'Calcula impuestos, seguridad social y aportaciones patronales.',
+    Icon: FileCheck2,
+    tone: 'emerald',
+  },
+  {
+    value: 'operational_payroll',
+    label: 'Nómina operativa',
+    description: 'Paga desde nómina interna sin cálculo fiscal.',
+    Icon: WalletCards,
+    tone: 'sky',
+  },
+  {
+    value: 'accounts_payable',
+    label: 'Cuenta por pagar',
+    description: 'Al aprobar la corrida crea una cuenta por pagar en Gastos.',
+    Icon: ReceiptText,
+    tone: 'amber',
+  },
+  {
+    value: 'no_payroll',
+    label: 'Sin nómina',
+    description: 'No se incluye en corridas automáticas.',
+    Icon: Ban,
+    tone: 'slate',
+  },
+] as const;
 
 interface JobStepFieldsProps {
   businessBelongingHelper: string;
@@ -63,6 +95,8 @@ export function JobStepFields({
   const compensationHelperText = formData.salaryType === 'hourly'
     ? copy.helpers.hourlySalaryMeaning
     : copy.helpers.salaryPeriodMeaning;
+  const activePayrollTreatment = payrollTreatmentOptions.find((option) => option.value === formData.payrollTreatment)
+    ?? payrollTreatmentOptions[0];
 
   return (
     <JobStep
@@ -161,6 +195,57 @@ export function JobStepFields({
             onFieldChange={onFieldChange}
           />
         ) : undefined,
+        payrollTreatment: (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+            <input type="hidden" name="payrollTreatment" value={activePayrollTreatment.value} />
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                  Ruta de pago
+                </p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {activePayrollTreatment.label}
+                </p>
+              </div>
+              <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300">
+                Motor de nómina
+              </span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {payrollTreatmentOptions.map(({ value, label, description, Icon }) => {
+                const isSelected = formData.payrollTreatment === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => onFieldChange('payrollTreatment', value)}
+                    className={[
+                      'flex min-h-[88px] items-start gap-3 rounded-xl border p-3 text-left transition',
+                      isSelected
+                        ? 'border-emerald-300 bg-white text-slate-950 shadow-sm ring-2 ring-emerald-100 dark:border-emerald-700 dark:bg-slate-900 dark:text-white dark:ring-emerald-900/40'
+                        : 'border-slate-200 bg-white/70 text-slate-600 hover:border-emerald-200 hover:bg-white dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:border-emerald-800',
+                    ].join(' ')}
+                  >
+                    <span className={[
+                      'grid h-9 w-9 shrink-0 place-items-center rounded-lg',
+                      isSelected
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+                    ].join(' ')}>
+                      <Icon size={17} strokeWidth={2.4} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black">{label}</span>
+                      <span className="mt-1 block text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+                        {description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ),
         salaryType: (
           <SelectField
             name="salaryType"

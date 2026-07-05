@@ -16,6 +16,8 @@ export const zhCA = {
     preferences: '薪资偏好设置已保存。',
     rates: '薪资费率已保存。',
     runsCreated: '自动薪资批次已同步。',
+    runsRegenerated: '开放薪资批次已重新生成。',
+    noRunsRegenerated: '没有可重新生成的草稿或已处理薪资批次。',
     lineSaved: '薪资行已更新。',
     runEdited: '薪资批次已更新。',
     processed: '薪资批次已处理。',
@@ -60,6 +62,7 @@ export const zhCA = {
   header: {
     title: '薪资运营',
     subtitle: '按组织结构和辖区规则审核并执行薪资批次。',
+    regenerateRuns: '重新生成薪资',
     preferences: '偏好设置',
   },
   filterBar: { title: '筛选' },

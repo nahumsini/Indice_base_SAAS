@@ -47,6 +47,9 @@ function normalizeStorageUrl(storageUrl: string) {
   }
 }
 
+export type PayrollTreatment = 'fiscal_payroll' | 'operational_payroll' | 'accounts_payable' | 'no_payroll';
+export type PayrollPaymentRoute = 'payroll' | 'expenses' | 'none';
+
 export interface BackendHrUser {
   id: number;
   legacy_user_company_id?: number;
@@ -73,6 +76,7 @@ export interface BackendHrUser {
   hourly_rate?: number | null;
   workday_hours?: number | null;
   workdays_per_week?: number | null;
+  payroll_treatment?: PayrollTreatment | string | null;
   registration_country?: string;
   contract_type: "permanent" | "temporary";
   contract_start_date?: string | null;
@@ -101,6 +105,7 @@ export interface BackendHrUserProfile {
   emergency_contact_phone?: string;
   workday_hours?: number | null;
   workdays_per_week?: number | null;
+  payroll_treatment?: PayrollTreatment | string | null;
 }
 
 export interface BackendHrUserDocument {
@@ -867,6 +872,12 @@ export interface PayrollRunListResponse {
   items: PayrollRunSummary[];
 }
 
+export interface PayrollRegenerateRunsResponse extends PayrollRunListResponse {
+  cancelled_count: number;
+  regenerated_count: number;
+  skipped_locked_count: number;
+}
+
 export interface PayrollCreateRunsPayload {
   pay_period: "weekly" | "biweekly" | "semimonthly" | "monthly";
   grouping_mode: "single" | "unit" | "business";
@@ -928,6 +939,13 @@ export interface PayrollRunLine {
   regular_hours: number;
   overtime_hours: number;
   include_in_fiscal: boolean;
+  payroll_treatment?: PayrollTreatment | string | null;
+  payroll_treatment_label?: string | null;
+  payment_route?: PayrollPaymentRoute | string | null;
+  payment_route_label?: string | null;
+  payable_expense_id?: number | null;
+  payable_created_at?: string | null;
+  payable_metadata?: Record<string, unknown> | null;
   gross_amount: number;
   deductions_amount: number;
   employer_contributions_amount: number;
@@ -960,6 +978,7 @@ export interface PayrollManualItemPayload {
 
 export interface PayrollUpdateLinePayload {
   include_in_fiscal: boolean;
+  payroll_treatment?: PayrollTreatment | string;
   notes?: string;
   manual_items: PayrollManualItemPayload[];
 }
@@ -2192,6 +2211,12 @@ export const humanResourcesApi = {
         body: JSON.stringify(payload),
       },
     );
+  },
+
+  regeneratePayrollRuns() {
+    return apiClient<PayrollRegenerateRunsResponse>(`${endpoints.humanResources.payrollRuns}/regenerate`, {
+      method: 'POST',
+    });
   },
 
   getPayrollRun(runId: string | number) {

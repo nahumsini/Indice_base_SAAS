@@ -13,6 +13,7 @@ import com.indice.erp.hr.payroll.engine.PayrollSnapshotService;
 import com.indice.erp.hr.payroll.provider.generic.GenericPayrollProvider;
 import com.indice.erp.hr.payroll.reporting.co.ColombiaPayrollReportingService;
 import com.indice.erp.hr.incentives.HrIncentivePayrollSupplyService;
+import com.indice.erp.finance.expenses.ExpenseService;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.time.LocalDate;
@@ -445,7 +446,8 @@ class HrPayrollServiceTest {
             new PayrollSnapshotService(jdbcTemplate, new ObjectMapper()),
             ruleResolver,
             new ColombiaPayrollReportingService(jdbcTemplate, new ObjectMapper()),
-            new HrIncentivePayrollSupplyService(jdbcTemplate)
+            new HrIncentivePayrollSupplyService(jdbcTemplate),
+            mock(ExpenseService.class)
         );
     }
 

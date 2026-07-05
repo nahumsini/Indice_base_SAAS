@@ -1,5 +1,4 @@
 import {
-  Ban,
   CheckCircle2,
   Download,
   MoreHorizontal,
@@ -13,7 +12,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../../../components/ui/dropdown-menu';
 import type { PayrollRunSummary } from '../../../../api/humanResources';
@@ -29,7 +27,6 @@ type PayrollRunActionsMenuProps = {
   onMarkPaid: () => void;
   onExportPdf: () => void;
   onExportCsv: () => void;
-  onCancel: () => void;
 };
 
 export function PayrollRunActionsMenu({
@@ -42,12 +39,10 @@ export function PayrollRunActionsMenu({
   onMarkPaid,
   onExportPdf,
   onExportCsv,
-  onCancel,
 }: PayrollRunActionsMenuProps) {
   const canProcess = run.status === 'draft';
   const canApprove = run.status === 'processed';
   const canPay = run.status === 'approved';
-  const canCancel = run.status !== 'paid' && run.status !== 'cancelled';
   const isPaid = run.status === 'paid';
   const isBlocked = run.users_count === 0 && run.status !== 'paid' && run.status !== 'cancelled';
   const reviewTone = isBlocked
@@ -136,19 +131,9 @@ export function PayrollRunActionsMenu({
             <Pencil className="mr-2 h-4 w-4 text-amber-600" />
             {copy.openDetails}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onExportCsv}>
             <Download className="mr-2 h-4 w-4 text-slate-600" />
             {copy.exportCsv}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            disabled={!canCancel}
-            onClick={canCancel ? onCancel : undefined}
-            className="text-rose-700 focus:text-rose-700 dark:text-rose-300 dark:focus:text-rose-300"
-          >
-            <Ban className="mr-2 h-4 w-4" />
-            {copy.cancel}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

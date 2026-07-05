@@ -16,6 +16,8 @@ export const frCA = {
     preferences: 'Préférences de paie enregistrées.',
     rates: 'Taux de paie enregistrés.',
     runsCreated: 'Cycles de paie automatiques synchronisés.',
+    runsRegenerated: 'Cycles de paie ouverts régénérés.',
+    noRunsRegenerated: 'Aucun cycle brouillon ou traité à régénérer.',
     lineSaved: 'Ligne de paie mise à jour.',
     runEdited: 'Cycle de paie mis à jour.',
     processed: 'Cycle de paie traité.',
@@ -60,6 +62,7 @@ export const frCA = {
   header: {
     title: 'Opérations de paie',
     subtitle: 'Révisez, approuvez et exécutez les cycles de paie par structure et juridiction.',
+    regenerateRuns: 'Régénérer la paie',
     preferences: 'Préférences',
   },
   filterBar: { title: 'Filtres' },

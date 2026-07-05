@@ -145,6 +145,30 @@ class HrPayrollApiControllerTest {
     }
 
     @Test
+    void regenerateRunsReturnsOpenRunRegenerationSummary() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrPayrollService.regenerateOpenRuns(eq(currentUser))).willReturn(Map.of(
+            "items", List.of(Map.of(
+                "id", 12,
+                "status", "draft",
+                "pay_period", "weekly",
+                "users_count", 4
+            )),
+            "cancelled_count", 2,
+            "regenerated_count", 1,
+            "skipped_locked_count", 3
+        ));
+
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/regenerate"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.cancelled_count").value(2))
+            .andExpect(jsonPath("$.regenerated_count").value(1))
+            .andExpect(jsonPath("$.skipped_locked_count").value(3))
+            .andExpect(jsonPath("$.items[0].status").value("draft"));
+    }
+
+    @Test
     void runDetailReturnsForbiddenWhenPayrollRunIsOutsideOperationalScope() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));

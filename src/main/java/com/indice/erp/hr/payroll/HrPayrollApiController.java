@@ -299,6 +299,25 @@ public class HrPayrollApiController {
         }
     }
 
+    @PostMapping("/runs/regenerate")
+    public ResponseEntity<?> regenerateRuns(HttpSession session) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessPayroll(user.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(hrPayrollService.regenerateOpenRuns(user.get()));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @GetMapping("/runs/{runId}")
     public ResponseEntity<?> runDetail(HttpSession session, @PathVariable long runId) {
         var user = sessionAuthService.currentUser(session);

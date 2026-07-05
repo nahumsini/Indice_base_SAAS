@@ -12,6 +12,8 @@ export const enCA = {
     preferences: 'Payroll preferences saved successfully.',
     rates: 'Payroll rates saved successfully.',
     runsCreated: 'Automatic payroll runs synchronized successfully.',
+    runsRegenerated: 'Open payroll runs regenerated successfully.',
+    noRunsRegenerated: 'There are no draft or processed payroll runs to regenerate.',
     lineSaved: 'Payroll line updated successfully.',
     runEdited: 'Payroll run updated successfully.',
     processed: 'Payroll run processed successfully.',
@@ -30,6 +32,8 @@ export const enCA = {
     ratesDescription: 'Applying the active country profile and persisting the configured rates.',
     generateTitle: 'Synchronizing automatic payroll',
     generateDescription: 'Updating payroll runs from HR users, attendance, and current preferences.',
+    regenerateTitle: 'Regenerating payroll',
+    regenerateDescription: 'Rebuilding draft and processed payroll runs from current preferences. Approved and paid runs remain locked.',
     saveLineTitle: 'Saving payroll line',
     saveLineDescription: 'Recalculating the selected line and updating totals.',
     processTitle: 'Processing payroll run',
@@ -624,6 +628,7 @@ export const enCA = {
   header: {
     title: 'Payroll Operations',
     subtitle: 'Review, approve, and execute payroll runs across your workforce structure and jurisdictions.',
+    regenerateRuns: 'Regenerate payroll',
     preferences: 'Preferences',
   },
   filterBar: {

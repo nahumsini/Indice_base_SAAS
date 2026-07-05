@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  Ban,
   CalendarDays,
   ChevronRight,
   CheckCircle2,
+  Columns3,
   CreditCard,
   Download,
+  FileCheck2,
+  Gift,
   Globe2,
   Info,
   Landmark,
@@ -13,11 +17,14 @@ import {
   MapPinned,
   PlayCircle,
   Printer,
+  ReceiptText,
   Save,
+  Search,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
   Wallet,
+  WalletCards,
   X,
   XCircle,
 } from 'lucide-react';
@@ -42,6 +49,8 @@ import {
   TableHeader,
   TableRow,
 } from '../../../components/ui/table';
+import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { ApiClientError, buildApiUrl } from '../../../lib/apiClient';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import {
@@ -59,6 +68,7 @@ import {
   type PayrollRunDetailResponse,
   type PayrollRunLine,
   type PayrollRunSummary,
+  type PayrollTreatment,
 } from '../../../api/humanResources';
 import { useLanguage } from '../../../shared/context';
 import {
@@ -81,6 +91,7 @@ import { PayrollHeaderBar } from './components/PayrollHeaderBar';
 import { PayrollOperationsPanel } from './components/PayrollOperationsPanel';
 import { PayrollRunActionsMenu } from './components/PayrollRunActionsMenu';
 import { PayrollSetupGuide } from './components/PayrollSetupGuide';
+import { StandardPaginationFooter, StandardSortIcon } from '../shared/StandardTableControls';
 import {
   filterPayrollItemsByJurisdiction,
   groupPayrollEntitiesByJurisdiction,
@@ -113,6 +124,34 @@ type PayrollRateValues = Pick<PayrollPreferences, PayrollRateFieldKey>;
 type PayrollRateDrafts = Record<PayrollRateProfileKey, PayrollRateValues>;
 
 type PayrollCopy = PayrollTranslations;
+
+type PayrollRunColumnId =
+  | 'period'
+  | 'frequency'
+  | 'payrollType'
+  | 'employees'
+  | 'totalAmount'
+  | 'jurisdiction'
+  | 'unit'
+  | 'business'
+  | 'status'
+  | 'actions';
+
+const payrollRunColumnIds: PayrollRunColumnId[] = [
+  'period',
+  'frequency',
+  'payrollType',
+  'employees',
+  'totalAmount',
+  'jurisdiction',
+  'unit',
+  'business',
+  'status',
+  'actions',
+];
+const lockedPayrollRunColumnIds: PayrollRunColumnId[] = ['period', 'actions'];
+const defaultPayrollPageSize = 10;
+const payrollPageSizeOptions = [10, 20, 50, 100, 200];
 
 const pickPayrollRateValues = (preferences: PayrollPreferences): PayrollRateValues => ({
   isr_rate: preferences.isr_rate,
@@ -200,6 +239,170 @@ const formatCurrency = (value: number, locale: string, currency = 'USD') =>
     maximumFractionDigits: 2,
   }).format(value);
 
+type PayrollLineDraft = {
+  payroll_treatment: PayrollTreatment;
+  include_in_fiscal: boolean;
+  notes: string;
+  manual_items: PayrollManualItemPayload[];
+};
+
+const payrollTreatmentOptions = [
+  {
+    value: 'fiscal_payroll',
+    label: 'Nómina fiscal',
+    description: 'Calcula impuestos, aportaciones y obligaciones de la jurisdicción.',
+    routeLabel: 'Ruta: nómina',
+    Icon: ShieldCheck,
+    selectedClassName: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100',
+  },
+  {
+    value: 'operational_payroll',
+    label: 'Nómina operativa',
+    description: 'Pago interno sin cálculo fiscal automático, útil para control operativo.',
+    routeLabel: 'Ruta: nómina interna',
+    Icon: WalletCards,
+    selectedClassName: 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100',
+  },
+  {
+    value: 'accounts_payable',
+    label: 'Cuenta por pagar',
+    description: 'Al aprobar la corrida crea una cuenta por pagar en Gastos por el neto.',
+    routeLabel: 'Ruta: gastos',
+    Icon: ReceiptText,
+    selectedClassName: 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100',
+  },
+  {
+    value: 'no_payroll',
+    label: 'Sin nómina',
+    description: 'Excluye al colaborador de nuevas corridas automáticas.',
+    routeLabel: 'Ruta: excluida',
+    Icon: Ban,
+    selectedClassName: 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-100',
+  },
+] as const;
+
+const normalizePayrollTreatmentValue = (
+  value?: string | null,
+  includeInFiscal = true,
+): PayrollTreatment => {
+  const normalized = String(value || '').trim().toLowerCase();
+
+  if (normalized === 'operational_payroll' || normalized === 'operational' || normalized === 'internal') {
+    return 'operational_payroll';
+  }
+  if (
+    normalized === 'accounts_payable'
+    || normalized === 'expense'
+    || normalized === 'expenses'
+    || normalized === 'payable'
+  ) {
+    return 'accounts_payable';
+  }
+  if (normalized === 'no_payroll' || normalized === 'excluded' || normalized === 'none') {
+    return 'no_payroll';
+  }
+
+  return includeInFiscal ? 'fiscal_payroll' : 'operational_payroll';
+};
+
+const includeFiscalForPayrollTreatment = (treatment: PayrollTreatment) => treatment === 'fiscal_payroll';
+
+const paymentRouteLabelForTreatment = (treatment: PayrollTreatment) => {
+  if (treatment === 'accounts_payable') {
+    return 'Cuenta por pagar en Gastos';
+  }
+  if (treatment === 'no_payroll') {
+    return 'Sin ruta de pago';
+  }
+  if (treatment === 'operational_payroll') {
+    return 'Pago por nómina operativa';
+  }
+  return 'Pago por nómina fiscal';
+};
+
+type PayrollJurisdictionLineLike = {
+  country_code?: string | null;
+  jurisdiction_code?: string | null;
+  payroll_treatment?: string | null;
+  include_in_fiscal?: boolean | null;
+};
+
+const isColombiaJurisdiction = (countryCode?: string | null, jurisdictionCode?: string | null) => (
+  [countryCode, jurisdictionCode].some((value) => String(value || '').trim().toUpperCase() === 'CO')
+);
+
+const isFiscalPayrollTreatment = (treatment?: string | null, includeInFiscal = true) => (
+  normalizePayrollTreatmentValue(treatment, includeInFiscal) === 'fiscal_payroll'
+);
+
+const isColombiaFiscalPayrollLine = (line?: PayrollJurisdictionLineLike | null) => (
+  Boolean(line)
+  && isColombiaJurisdiction(line?.country_code, line?.jurisdiction_code)
+  && isFiscalPayrollTreatment(line?.payroll_treatment, line?.include_in_fiscal ?? true)
+);
+
+const getPayrollJurisdictionIdentity = (countryCode?: string | null, jurisdictionCode?: string | null) => {
+  const normalized = String(countryCode || jurisdictionCode || '').trim().toUpperCase();
+
+  if (normalized === 'MX') {
+    return {
+      label: 'México',
+      badge: 'ISR · IMSS · INFONAVIT',
+      description: 'Aplica el proveedor fiscal mexicano cuando la línea se mantiene en nómina fiscal.',
+      Icon: Landmark,
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100',
+    };
+  }
+
+  if (normalized === 'CA') {
+    return {
+      label: 'Canadá',
+      badge: 'CPP · EI · Income tax',
+      description: 'Aplica reglas canadienses y provincia cuando la línea se mantiene fiscal.',
+      Icon: Globe2,
+      className: 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100',
+    };
+  }
+
+  if (normalized === 'US' || normalized === 'USA') {
+    return {
+      label: 'Estados Unidos',
+      badge: 'FICA · FUTA · Withholding',
+      description: 'Aplica retenciones y aportaciones estadounidenses para nómina fiscal.',
+      Icon: FileCheck2,
+      className: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-100',
+    };
+  }
+
+  if (normalized === 'BR') {
+    return {
+      label: 'Brasil',
+      badge: 'INSS · IRRF · FGTS',
+      description: 'Aplica proveedor Brasil con obligaciones laborales y patronales.',
+      Icon: ReceiptText,
+      className: 'border-lime-200 bg-lime-50 text-lime-800 dark:border-lime-900/50 dark:bg-lime-950/30 dark:text-lime-100',
+    };
+  }
+
+  if (normalized === 'CO') {
+    return {
+      label: 'Colombia',
+      badge: 'IBC · PILA · DIAN',
+      description: 'Aplica IBC, seguridad social y novedades cuando la línea se mantiene fiscal.',
+      Icon: ShieldCheck,
+      className: 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900/50 dark:bg-yellow-950/30 dark:text-yellow-100',
+    };
+  }
+
+  return {
+    label: 'Jurisdicción global',
+    badge: 'Proveedor genérico',
+    description: 'Usa el proveedor global cuando no hay reglas fiscales específicas para el país.',
+    Icon: Globe2,
+    className: 'border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100',
+  };
+};
+
 const resolvePayrollCurrencyCode = (jurisdictionLabel: string) => {
   const normalizedLabel = jurisdictionLabel.toLowerCase();
 
@@ -280,6 +483,31 @@ const formatRunNativeBreakdown = (
   }))
   .join(' / ');
 
+const getPayrollRunColumnConfig = (
+  copy: PayrollCopy,
+  visibleColumnIds: PayrollRunColumnId[],
+): ColumnConfig[] => {
+  const labelByColumnId: Record<PayrollRunColumnId, string> = {
+    period: copy.labels.period,
+    frequency: copy.labels.frequency,
+    payrollType: copy.labels.payrollType,
+    employees: copy.labels.employees,
+    totalAmount: copy.labels.totalAmount,
+    jurisdiction: copy.labels.jurisdiction,
+    unit: copy.labels.unit,
+    business: copy.labels.business,
+    status: copy.labels.status,
+    actions: copy.runLedger.actions,
+  };
+
+  return payrollRunColumnIds.map((columnId) => ({
+    id: columnId,
+    label: labelByColumnId[columnId],
+    visible: visibleColumnIds.includes(columnId) || lockedPayrollRunColumnIds.includes(columnId),
+    locked: lockedPayrollRunColumnIds.includes(columnId),
+  }));
+};
+
 const getPayrollLineItemDisplayLabel = (item: PayrollLineItem, copy: PayrollCopy) => {
   const labelByCode: Record<string, string> = {
     BASE_DAILY: copy.labels.periodSalary,
@@ -358,6 +586,7 @@ type PayrollBusyKind =
   | 'refresh'
   | 'open-run'
   | 'save-preferences'
+  | 'regenerate-runs'
   | 'save-line'
   | 'process-run'
   | 'approve-run'
@@ -468,15 +697,20 @@ export default function Payroll() {
     business_id: '',
     status: '',
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [visibleColumnIds, setVisibleColumnIds] = useLocalStorageState<PayrollRunColumnId[]>(
+    'indice.hr.payroll.visibleColumns.v1',
+    payrollRunColumnIds,
+  );
+  const [pageSize, setPageSize] = useState(defaultPayrollPageSize);
+  const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState<{
     column: string;
     direction: 'asc' | 'desc';
   } | null>(null);
-  const [lineDraft, setLineDraft] = useState<{
-    include_in_fiscal: boolean;
-    notes: string;
-    manual_items: PayrollManualItemPayload[];
-  }>({
+  const [lineDraft, setLineDraft] = useState<PayrollLineDraft>({
+    payroll_treatment: 'fiscal_payroll',
     include_in_fiscal: true,
     notes: '',
     manual_items: [],
@@ -493,102 +727,6 @@ export default function Payroll() {
     [businesses],
   );
 
-  const sortedRuns = useMemo(() => {
-    if (!sortConfig) {
-      return runs;
-    }
-
-    const sortedArray = [...runs];
-    sortedArray.sort((a, b) => {
-      let aValue: string | number | Date;
-      let bValue: string | number | Date;
-
-      switch (sortConfig.column) {
-        case 'period':
-          aValue = new Date(a.period_start_date);
-          bValue = new Date(b.period_start_date);
-          break;
-        case 'frequency':
-          aValue = a.pay_period;
-          bValue = b.pay_period;
-          break;
-        case 'payrollType':
-          aValue = a.grouping_mode;
-          bValue = b.grouping_mode;
-          break;
-        case 'employees':
-          aValue = a.users_count;
-          bValue = b.users_count;
-          break;
-        case 'totalAmount':
-          aValue = a.net_amount;
-          bValue = b.net_amount;
-          break;
-        case 'jurisdiction': {
-          const aJurisdiction = jurisdictionsByRunId[a.id]?.trim() || (a.grouping_mode === 'single' ? 'Automatic' : 'No jurisdiction');
-          const bJurisdiction = jurisdictionsByRunId[b.id]?.trim() || (b.grouping_mode === 'single' ? 'Automatic' : 'No jurisdiction');
-          aValue = aJurisdiction;
-          bValue = bJurisdiction;
-          break;
-        }
-        case 'unit': {
-          let aUnitLabel = '';
-          let bUnitLabel = '';
-
-          if (a.grouping_mode === 'unit') {
-            aUnitLabel = a.grouping_label || '';
-          } else if (a.grouping_mode === 'business' && a.grouping_key && businessesById.has(a.grouping_key)) {
-            const matchedBusiness = businessesById.get(a.grouping_key);
-            aUnitLabel = matchedBusiness?.unitId ? String(unitsById.get(String(matchedBusiness.unitId)) || '') : '';
-          }
-
-          if (b.grouping_mode === 'unit') {
-            bUnitLabel = b.grouping_label || '';
-          } else if (b.grouping_mode === 'business' && b.grouping_key && businessesById.has(b.grouping_key)) {
-            const matchedBusiness = businessesById.get(b.grouping_key);
-            bUnitLabel = matchedBusiness?.unitId ? String(unitsById.get(String(matchedBusiness.unitId)) || '') : '';
-          }
-
-          aValue = aUnitLabel;
-          bValue = bUnitLabel;
-          break;
-        }
-        case 'business': {
-          let aBusinessLabel = '';
-          let bBusinessLabel = '';
-
-          if (a.grouping_mode === 'business') {
-            aBusinessLabel = a.grouping_label || '';
-          }
-
-          if (b.grouping_mode === 'business') {
-            bBusinessLabel = b.grouping_label || '';
-          }
-
-          aValue = aBusinessLabel;
-          bValue = bBusinessLabel;
-          break;
-        }
-        case 'status':
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
-
-    return sortedArray;
-  }, [runs, sortConfig, jurisdictionsByRunId, unitsById, businessesById]);
-
   const handleSortColumn = (column: string) => {
     setSortConfig((prevConfig) => {
       if (prevConfig?.column === column) {
@@ -604,13 +742,12 @@ export default function Payroll() {
   };
 
   const SortIndicator = ({ column }: { column: string }) => {
-    if (sortConfig?.column !== column) {
-      return <span className="ml-1 text-slate-400 dark:text-slate-500">↑↓</span>;
-    }
-    return sortConfig.direction === 'asc' ? (
-      <span className="ml-1 text-slate-600 dark:text-slate-300">↑</span>
-    ) : (
-      <span className="ml-1 text-slate-600 dark:text-slate-300">↓</span>
+    const isActive = sortConfig?.column === column;
+    return (
+      <StandardSortIcon
+        active={isActive}
+        direction={isActive ? sortConfig.direction : null}
+      />
     );
   };
 
@@ -675,8 +812,14 @@ export default function Payroll() {
     if (!selectedLine) {
       return;
     }
+    const payrollTreatment = normalizePayrollTreatmentValue(
+      selectedLine.payroll_treatment,
+      selectedLine.include_in_fiscal,
+    );
+
     setLineDraft({
-      include_in_fiscal: selectedLine.include_in_fiscal,
+      payroll_treatment: payrollTreatment,
+      include_in_fiscal: includeFiscalForPayrollTreatment(payrollTreatment),
       notes: selectedLine.notes || '',
       manual_items: selectedLine.items
         .filter((item) => item.source_type === 'manual')
@@ -885,9 +1028,41 @@ export default function Payroll() {
         title: copy.busy.preferencesTitle,
         description: copy.busy.preferencesDescription,
       }, async () => {
-        await humanResourcesApi.updatePayrollPreferences(preferencesForm);
+        const updatedPreferences = normalizePayrollPreferences(
+          await humanResourcesApi.updatePayrollPreferences(preferencesForm),
+        );
+        setPreferencesForm(updatedPreferences);
+        setOverview((currentOverview) => (
+          currentOverview
+            ? { ...currentOverview, preferences: updatedPreferences }
+            : currentOverview
+        ));
         setIsPreferencesDialogOpen(false);
         setSuccessMessage(copy.success.preferences);
+        await loadPayroll(filters, { background: true });
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const handleRegenerateRuns = async () => {
+    try {
+      await runBusyTask({
+        kind: 'regenerate-runs',
+        title: copy.busy.regenerateTitle,
+        description: copy.busy.regenerateDescription,
+      }, async () => {
+        const response = await humanResourcesApi.regeneratePayrollRuns();
+        setSelectedRunDetail(null);
+        setSelectedLineId(null);
+        setRunDialogNotice(null);
+        setIsRunDialogOpen(false);
+        setSuccessMessage(
+          response.regenerated_count > 0
+            ? copy.success.runsRegenerated
+            : copy.success.noRunsRegenerated,
+        );
         await loadPayroll(filters, { background: true });
       });
     } catch (error) {
@@ -923,7 +1098,7 @@ export default function Payroll() {
     }
   };
 
-  const handleRunAction = async (action: 'process' | 'approve' | 'pay' | 'cancel') => {
+  const handleRunAction = async (action: 'process' | 'approve' | 'pay') => {
     if (!selectedRunDetail) {
       return;
     }
@@ -933,9 +1108,7 @@ export default function Payroll() {
         ? { kind: 'process-run' as const, title: copy.busy.processTitle, description: copy.busy.processDescription }
         : action === 'approve'
           ? { kind: 'approve-run' as const, title: copy.busy.approveTitle, description: copy.busy.approveDescription }
-          : action === 'pay'
-            ? { kind: 'mark-paid' as const, title: copy.busy.payTitle, description: copy.busy.payDescription }
-            : { kind: 'cancel-run' as const, title: copy.busy.cancelTitle, description: copy.busy.cancelDescription };
+          : { kind: 'mark-paid' as const, title: copy.busy.payTitle, description: copy.busy.payDescription };
 
       await runBusyTask(busyConfig, async () => {
         switch (action) {
@@ -950,10 +1123,6 @@ export default function Payroll() {
           case 'pay':
             await humanResourcesApi.markPayrollRunPaid(selectedRunDetail.run.id);
             setSuccessMessage(copy.success.paid);
-            break;
-          case 'cancel':
-            await humanResourcesApi.cancelPayrollRun(selectedRunDetail.run.id);
-            setSuccessMessage(copy.success.cancelled);
             break;
         }
 
@@ -1058,25 +1227,6 @@ export default function Payroll() {
     }
   };
 
-  const handleCancelRunFromTable = async (run: PayrollRunSummary) => {
-    try {
-      await runBusyTask({
-        kind: 'cancel-run',
-        title: copy.busy.cancelTitle,
-        description: copy.busy.cancelDescription,
-      }, async () => {
-        await humanResourcesApi.cancelPayrollRun(run.id);
-        setSuccessMessage(copy.success.cancelled);
-        await loadPayroll(filters, { background: true });
-        if (selectedRunDetail?.run.id === run.id) {
-          await refreshOpenRun(run.id);
-        }
-      });
-    } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
-    }
-  };
-
   const resolveRunBusiness = (run: PayrollRunSummary) => {
     if (run.grouping_mode !== 'business') {
       return null;
@@ -1130,7 +1280,226 @@ export default function Payroll() {
       : copy.labels.noJurisdiction;
   };
 
-  const operationalRuns = runs.map((run) => ({
+  const normalizedVisibleColumnIds = useMemo(() => {
+    const nextVisibleColumnIds = payrollRunColumnIds.filter((columnId) => (
+      visibleColumnIds.includes(columnId) || lockedPayrollRunColumnIds.includes(columnId)
+    ));
+
+    return nextVisibleColumnIds.length > 0 ? nextVisibleColumnIds : payrollRunColumnIds;
+  }, [visibleColumnIds]);
+
+  const visibleColumnSet = useMemo(
+    () => new Set(normalizedVisibleColumnIds),
+    [normalizedVisibleColumnIds],
+  );
+
+  const payrollRunColumnConfig = useMemo(
+    () => getPayrollRunColumnConfig(copy, normalizedVisibleColumnIds),
+    [copy, normalizedVisibleColumnIds],
+  );
+
+  const defaultPayrollRunColumnConfig = useMemo(
+    () => getPayrollRunColumnConfig(copy, payrollRunColumnIds),
+    [copy],
+  );
+
+  const handleApplyPayrollColumns = (columns: ColumnConfig[]) => {
+    const nextVisibleColumnIds = payrollRunColumnIds.filter((columnId) => {
+      const column = columns.find((item) => item.id === columnId);
+      return column?.visible || lockedPayrollRunColumnIds.includes(columnId);
+    });
+    setVisibleColumnIds(nextVisibleColumnIds);
+  };
+
+  const searchCopy = useMemo(() => {
+    if (currentLanguage.code.startsWith('es')) {
+      return {
+        label: 'Buscar nómina',
+        placeholder: 'Período, unidad, negocio, jurisdicción o estado',
+      };
+    }
+
+    return {
+      label: 'Search payroll',
+      placeholder: 'Period, unit, business, jurisdiction, or status',
+    };
+  }, [currentLanguage.code]);
+
+  const paginationCopy = useMemo(() => {
+    if (currentLanguage.code.startsWith('es')) {
+      return {
+        next: 'Siguiente',
+        page: (current: number, total: number) => `Página ${current} de ${total}`,
+        pageSize: 'Filas por página',
+        previous: 'Anterior',
+        showing: (start: number, end: number, total: number) =>
+          `Mostrando ${start}-${end} de ${total} corridas`,
+      };
+    }
+
+    return {
+      next: 'Next',
+      page: (current: number, total: number) => `Page ${current} of ${total}`,
+      pageSize: 'Rows per page',
+      previous: 'Previous',
+      showing: (start: number, end: number, total: number) =>
+        `Showing ${start}-${end} of ${total} runs`,
+    };
+  }, [currentLanguage.code]);
+
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredRuns = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return runs;
+    }
+
+    return runs.filter((run) => {
+      const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
+      const runPreferredNetAmount = getRunPreferredNetAmount(
+        run,
+        preferredCurrency,
+        exchangeRatesPerUsd,
+        runJurisdictionLabel,
+      );
+      const searchableText = [
+        run.id,
+        run.grouping_label,
+        run.period_start_date,
+        run.period_end_date,
+        formatDate(run.period_start_date, currentLanguage.code, run.period_start_date),
+        formatDate(run.period_end_date, currentLanguage.code, run.period_end_date),
+        copy.frequencies[run.pay_period],
+        copy.groupingModes[run.grouping_mode],
+        copy.statuses[run.status],
+        run.users_count,
+        preferredCurrency,
+        runPreferredNetAmount,
+        formatBusinessCurrencyAmount(runPreferredNetAmount, preferredCurrency, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        runJurisdictionLabel,
+        resolveRunUnitLabel(run),
+        resolveRunBusinessLabel(run),
+        formatRunNativeBreakdown(run, runJurisdictionLabel),
+      ]
+        .filter((value) => value !== null && value !== undefined)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(normalizedSearchQuery);
+    });
+  }, [
+    copy,
+    currentLanguage.code,
+    exchangeRatesPerUsd,
+    normalizedSearchQuery,
+    preferredCurrency,
+    runs,
+    jurisdictionsByRunId,
+    unitsById,
+    businessesById,
+  ]);
+
+  const sortedRuns = useMemo(() => {
+    if (!sortConfig) {
+      return filteredRuns;
+    }
+
+    const sortedArray = [...filteredRuns];
+    sortedArray.sort((a, b) => {
+      let aValue: string | number | Date;
+      let bValue: string | number | Date;
+
+      switch (sortConfig.column) {
+        case 'period':
+          aValue = new Date(a.period_start_date);
+          bValue = new Date(b.period_start_date);
+          break;
+        case 'frequency':
+          aValue = copy.frequencies[a.pay_period];
+          bValue = copy.frequencies[b.pay_period];
+          break;
+        case 'payrollType':
+          aValue = copy.groupingModes[a.grouping_mode];
+          bValue = copy.groupingModes[b.grouping_mode];
+          break;
+        case 'employees':
+          aValue = a.users_count;
+          bValue = b.users_count;
+          break;
+        case 'totalAmount': {
+          const aJurisdiction = resolveRunJurisdictionLabel(a);
+          const bJurisdiction = resolveRunJurisdictionLabel(b);
+          aValue = getRunPreferredNetAmount(a, preferredCurrency, exchangeRatesPerUsd, aJurisdiction);
+          bValue = getRunPreferredNetAmount(b, preferredCurrency, exchangeRatesPerUsd, bJurisdiction);
+          break;
+        }
+        case 'jurisdiction':
+          aValue = resolveRunJurisdictionLabel(a);
+          bValue = resolveRunJurisdictionLabel(b);
+          break;
+        case 'unit':
+          aValue = resolveRunUnitLabel(a);
+          bValue = resolveRunUnitLabel(b);
+          break;
+        case 'business':
+          aValue = resolveRunBusinessLabel(a);
+          bValue = resolveRunBusinessLabel(b);
+          break;
+        case 'status':
+          aValue = copy.statuses[a.status];
+          bValue = copy.statuses[b.status];
+          break;
+        default:
+          return 0;
+      }
+
+      const normalizedAValue = aValue instanceof Date ? aValue.getTime() : aValue;
+      const normalizedBValue = bValue instanceof Date ? bValue.getTime() : bValue;
+
+      const result = typeof normalizedAValue === 'number' && typeof normalizedBValue === 'number'
+        ? normalizedAValue - normalizedBValue
+        : String(normalizedAValue).localeCompare(String(normalizedBValue), currentLanguage.code, {
+          numeric: true,
+          sensitivity: 'base',
+        });
+
+      return sortConfig.direction === 'asc' ? result : -result;
+    });
+
+    return sortedArray;
+  }, [
+    copy,
+    currentLanguage.code,
+    exchangeRatesPerUsd,
+    filteredRuns,
+    preferredCurrency,
+    sortConfig,
+    jurisdictionsByRunId,
+    unitsById,
+    businessesById,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRuns.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
+  const paginatedRuns = sortedRuns.slice(pageStartIndex, pageEndIndex);
+  const paginationStart = sortedRuns.length === 0 ? 0 : pageStartIndex + 1;
+  const paginationEnd = sortedRuns.length === 0 ? 0 : Math.min(pageEndIndex, sortedRuns.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, pageSize, searchQuery, sortConfig]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const operationalRuns = filteredRuns.map((run) => ({
     ...run,
     jurisdictionLabel: resolveRunJurisdictionLabel(run),
     unitLabel: resolveRunUnitLabel(run),
@@ -1194,6 +1563,8 @@ export default function Payroll() {
       <PayrollHeaderBar
         copy={copy.header}
         isBusy={isSaving}
+        isRegenerating={activeBusyKind === 'regenerate-runs'}
+        onRegenerateRuns={() => void handleRegenerateRuns()}
         onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
       />
 
@@ -1203,11 +1574,27 @@ export default function Payroll() {
         </div>
       ) : (
         <>
-          <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-5">
               <h3 className="text-base font-bold text-slate-950 dark:text-white">{copy.filterBar.title}</h3>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+              <div className="space-y-2 md:col-span-2">
+                <label htmlFor="payroll-run-search" className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                  {searchCopy.label}
+                </label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="payroll-run-search"
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder={searchCopy.placeholder}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  />
+                </div>
+              </div>
               <SelectField
                 label={copy.labels.period}
                 value={filters.period_range}
@@ -1285,7 +1672,6 @@ export default function Payroll() {
                   { value: 'processed', label: copy.statuses.processed },
                   { value: 'approved', label: copy.statuses.approved },
                   { value: 'paid', label: copy.statuses.paid },
-                  { value: 'cancelled', label: copy.statuses.cancelled },
                 ]}
               />
             </div>
@@ -1308,15 +1694,26 @@ export default function Payroll() {
             />
           )}
 
-          <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-700">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{copy.runLedger.title}</h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.runLedger.subtitle}</p>
                 </div>
-                <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  {runs.length} {copy.runLedger.currentViewSuffix}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                    {sortedRuns.length} {copy.runLedger.currentViewSuffix}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsColumnsModalOpen(true)}
+                    className="h-11 gap-2 rounded-xl border-[#59C3A5]/25 bg-white px-4 text-sm font-bold text-[#177d66] shadow-sm hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/10 dark:border-[#59C3A5]/30 dark:bg-slate-900 dark:text-[#A7F3D0]"
+                  >
+                    <Columns3 className="h-4 w-4" />
+                    {copy.labels.columns}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1324,83 +1721,121 @@ export default function Payroll() {
             <Table className="min-w-[1280px]">
               <TableHeader>
                 <TableRow className="border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
-                  <TableHead
-                    onClick={() => handleSortColumn('period')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.period}
-                    <SortIndicator column="period" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('frequency')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.frequency}
-                    <SortIndicator column="frequency" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('payrollType')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.payrollType}
-                    <SortIndicator column="payrollType" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('employees')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.employees}
-                    <SortIndicator column="employees" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('totalAmount')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.totalAmount}
-                    <SortIndicator column="totalAmount" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('jurisdiction')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.jurisdiction}
-                    <SortIndicator column="jurisdiction" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('unit')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.unit}
-                    <SortIndicator column="unit" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('business')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.business}
-                    <SortIndicator column="business" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => handleSortColumn('status')}
-                    className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    {copy.labels.status}
-                    <SortIndicator column="status" />
-                  </TableHead>
-                  <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    {copy.runLedger.actions}
-                  </TableHead>
+                  {visibleColumnSet.has('period') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('period')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.period}
+                        <SortIndicator column="period" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('frequency') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('frequency')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.frequency}
+                        <SortIndicator column="frequency" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('payrollType') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('payrollType')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.payrollType}
+                        <SortIndicator column="payrollType" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('employees') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('employees')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.employees}
+                        <SortIndicator column="employees" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('totalAmount') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('totalAmount')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.totalAmount}
+                        <SortIndicator column="totalAmount" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('jurisdiction') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('jurisdiction')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.jurisdiction}
+                        <SortIndicator column="jurisdiction" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('unit') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('unit')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.unit}
+                        <SortIndicator column="unit" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('business') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('business')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.business}
+                        <SortIndicator column="business" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('status') ? (
+                    <TableHead
+                      onClick={() => handleSortColumn('status')}
+                      className="cursor-pointer px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        {copy.labels.status}
+                        <SortIndicator column="status" />
+                      </span>
+                    </TableHead>
+                  ) : null}
+                  {visibleColumnSet.has('actions') ? (
+                    <TableHead className="px-5 py-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                      {copy.runLedger.actions}
+                    </TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedRuns.length === 0 ? (
                   <TableRow className="border-slate-200 dark:border-slate-700">
-                    <TableCell colSpan={10} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
+                    <TableCell colSpan={normalizedVisibleColumnIds.length} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
                       {copy.labels.noRuns}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedRuns.map((run) => {
+                  paginatedRuns.map((run) => {
                     const operationalStatus = resolveOperationalStatus(run);
                     const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
                     const runNativeTotals = getRunNativeTotals(run, runJurisdictionLabel);
@@ -1416,83 +1851,128 @@ export default function Payroll() {
 
                     return (
                       <TableRow key={run.id} className="border-slate-200 transition-colors hover:bg-slate-50/70 dark:border-slate-700 dark:hover:bg-slate-900/40">
-                        <TableCell className="px-5 py-5 align-middle">
-                          <div className="space-y-1">
-                            <p className="font-semibold text-slate-950 dark:text-white">
-                              {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)}
+                        {visibleColumnSet.has('period') ? (
+                          <TableCell className="px-5 py-5 align-middle">
+                            <div className="space-y-1">
+                              <p className="font-semibold text-slate-950 dark:text-white">
+                                {formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {copy.runLedger.periodConnector} {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
+                              </p>
+                            </div>
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('frequency') ? (
+                          <TableCell className="px-5 py-5 align-middle text-sm font-medium text-slate-700 dark:text-slate-200">
+                            {copy.frequencies[run.pay_period]}
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('payrollType') ? (
+                          <TableCell className="px-5 py-5 align-middle">
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                {copy.groupingModes[run.grouping_mode]}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {run.grouping_label || copy.runLedger.automaticGrouping}
+                              </p>
+                            </div>
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('employees') ? (
+                          <TableCell className="px-5 py-5 align-middle">
+                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                              {run.users_count}
+                            </span>
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('totalAmount') ? (
+                          <TableCell className="px-5 py-5 align-middle">
+                            <p className="text-sm font-bold text-slate-950 dark:text-white">
+                              {formatBusinessCurrencyAmount(runPreferredNetAmount, preferredCurrency, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
                             </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {copy.runLedger.periodConnector} {formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              {copy.runLedger.netPayout} · {preferredCurrency}
+                              {shouldShowNativeBreakdown ? ` · ${nativeBreakdownLabel}` : ''}
                             </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle text-sm font-medium text-slate-700 dark:text-slate-200">
-                          {copy.frequencies[run.pay_period]}
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle">
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                              {copy.groupingModes[run.grouping_mode]}
-                            </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {run.grouping_label || copy.runLedger.automaticGrouping}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle">
-                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                            {run.users_count}
-                          </span>
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle">
-                          <p className="text-sm font-bold text-slate-950 dark:text-white">
-                            {formatBusinessCurrencyAmount(runPreferredNetAmount, preferredCurrency, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            {copy.runLedger.netPayout} · {preferredCurrency}
-                            {shouldShowNativeBreakdown ? ` · ${nativeBreakdownLabel}` : ''}
-                          </p>
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
-                          {runJurisdictionLabel}
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
-                          {resolveRunUnitLabel(run)}
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
-                          {resolveRunBusinessLabel(run)}
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle">
-                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${operationalStatus.className}`}>
-                            {operationalStatus.label}
-                          </span>
-                        </TableCell>
-                        <TableCell className="px-5 py-5 align-middle">
-                          <PayrollRunActionsMenu
-                            copy={copy.runActions}
-                            run={run}
-                            isBusy={isSaving}
-                            onOpen={() => void openRunDetail(run.id)}
-                            onProcess={() => void handleProcessRunFromTable(run)}
-                            onApprove={() => void handleApproveRunFromTable(run)}
-                            onMarkPaid={() => void handlePayRunFromTable(run)}
-                            onExportPdf={() => void handleDownload('pdf', run)}
-                            onExportCsv={() => void handleDownload('csv', run)}
-                            onCancel={() => void handleCancelRunFromTable(run)}
-                          />
-                        </TableCell>
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('jurisdiction') ? (
+                          <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                            {runJurisdictionLabel}
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('unit') ? (
+                          <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                            {resolveRunUnitLabel(run)}
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('business') ? (
+                          <TableCell className="px-5 py-5 align-middle text-sm text-slate-700 dark:text-slate-200">
+                            {resolveRunBusinessLabel(run)}
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('status') ? (
+                          <TableCell className="px-5 py-5 align-middle">
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${operationalStatus.className}`}>
+                              {operationalStatus.label}
+                            </span>
+                          </TableCell>
+                        ) : null}
+                        {visibleColumnSet.has('actions') ? (
+                          <TableCell className="px-5 py-5 align-middle">
+                            <PayrollRunActionsMenu
+                              copy={copy.runActions}
+                              run={run}
+                              isBusy={isSaving}
+                              onOpen={() => void openRunDetail(run.id)}
+                              onProcess={() => void handleProcessRunFromTable(run)}
+                              onApprove={() => void handleApproveRunFromTable(run)}
+                              onMarkPaid={() => void handlePayRunFromTable(run)}
+                              onExportPdf={() => void handleDownload('pdf', run)}
+                              onExportCsv={() => void handleDownload('csv', run)}
+                            />
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     );
                   })
                 )}
               </TableBody>
             </Table>
+            <StandardPaginationFooter
+              currentPage={safeCurrentPage}
+              labels={paginationCopy}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(nextPageSize) => {
+                setPageSize(nextPageSize);
+                setCurrentPage(1);
+              }}
+              pageEnd={paginationEnd}
+              pageSize={pageSize}
+              pageSizeOptions={payrollPageSizeOptions}
+              pageStart={paginationStart}
+              totalCount={sortedRuns.length}
+              totalPages={totalPages}
+            />
           </section>
         </>
       )}
+
+      {isColumnsModalOpen ? (
+        <ColumnasConfigModal
+          isOpen={isColumnsModalOpen}
+          onClose={() => setIsColumnsModalOpen(false)}
+          columns={payrollRunColumnConfig}
+          defaultColumns={defaultPayrollRunColumnConfig}
+          onSave={handleApplyPayrollColumns}
+          theme="humanResources"
+        />
+      ) : null}
 
       {isPreferencesDialogOpen ? (
         <PayrollPreferencesDialog
@@ -1528,7 +2008,6 @@ export default function Payroll() {
           onProcess={() => void handleRunAction('process')}
           onApprove={() => void handleRunAction('approve')}
           onPay={() => void handleRunAction('pay')}
-          onCancel={() => void handleRunAction('cancel')}
           onDownloadCsv={(run) => void handleDownload('csv', run)}
           onDownloadPdf={(run) => void handleDownload('pdf', run)}
           onOpenGovernmentReporting={(run) => void openGovernmentReporting(run.id)}
@@ -2344,7 +2823,6 @@ function PayrollRunDialog({
   onProcess,
   onApprove,
   onPay,
-  onCancel,
   onDownloadCsv,
   onDownloadPdf,
   onOpenGovernmentReporting,
@@ -2359,23 +2837,14 @@ function PayrollRunDialog({
   detail: PayrollRunDetailResponse | null;
   selectedLineId: number | null;
   selectedLine: PayrollRunLine | null;
-  lineDraft: {
-    include_in_fiscal: boolean;
-    notes: string;
-    manual_items: PayrollManualItemPayload[];
-  };
+  lineDraft: PayrollLineDraft;
   onClose: () => void;
   onSelectLine: (value: number | null) => void;
-  onChangeDraft: (value: {
-    include_in_fiscal: boolean;
-    notes: string;
-    manual_items: PayrollManualItemPayload[];
-  }) => void;
+  onChangeDraft: (value: PayrollLineDraft) => void;
   onSaveLine: () => void;
   onProcess: () => void;
   onApprove: () => void;
   onPay: () => void;
-  onCancel: () => void;
   onDownloadCsv: (run: PayrollRunSummary) => void;
   onDownloadPdf: (run: PayrollRunSummary) => void;
   onOpenGovernmentReporting: (run: PayrollRunSummary) => void;
@@ -2385,10 +2854,20 @@ function PayrollRunDialog({
   const canProcess = detail?.run.status === 'draft';
   const canApprove = detail?.run.status === 'processed';
   const canPay = detail?.run.status === 'approved';
-  const canCancel = detail && detail.run.status !== 'paid' && detail.run.status !== 'cancelled';
   const runCurrency = detail?.run.currency_code || 'USD';
   const selectedLineCurrency = selectedLine?.currency_code || runCurrency;
   const selectedLineHasIncentives = selectedLine?.items.some((item) => item.source_type === 'incentive') ?? false;
+  const selectedTreatment = normalizePayrollTreatmentValue(
+    lineDraft.payroll_treatment || selectedLine?.payroll_treatment,
+    lineDraft.include_in_fiscal,
+  );
+  const selectedTreatmentOption = payrollTreatmentOptions.find((option) => option.value === selectedTreatment) ?? payrollTreatmentOptions[0];
+  const selectedPaymentRouteLabel = selectedLine?.payment_route_label || paymentRouteLabelForTreatment(selectedTreatment);
+  const jurisdictionIdentity = getPayrollJurisdictionIdentity(selectedLine?.country_code, selectedLine?.jurisdiction_code);
+  const JurisdictionIcon = jurisdictionIdentity.Icon;
+  const selectedLineIsColombia = isColombiaJurisdiction(selectedLine?.country_code, selectedLine?.jurisdiction_code);
+  const selectedLineHasColombiaFiscalSetup = selectedLineIsColombia && selectedTreatment === 'fiscal_payroll';
+  const runHasColombiaFiscalLines = detail?.lines.some(isColombiaFiscalPayrollLine) ?? false;
 
   useEffect(() => {
     if (!isOpen) {
@@ -2537,7 +3016,7 @@ function PayrollRunDialog({
                           <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                             {copy.labels.currentRun}
                           </span>
-                          {(selectedLine.country_code === 'CO' || selectedLine.jurisdiction_code === 'CO') ? (
+                          {selectedLineHasColombiaFiscalSetup ? (
                             <Button
                               type="button"
                               variant="outline"
@@ -2545,10 +3024,25 @@ function PayrollRunDialog({
                               onClick={() => onOpenColombiaSetup(detail.run, selectedLine)}
                               className="h-8 gap-1.5 rounded-lg border-[#59C3A5]/30 px-2 text-xs font-bold text-[#177d66]"
                             >
-                              <Globe2 className="h-3.5 w-3.5" />
-                              Colombia
+                              <Landmark className="h-3.5 w-3.5" />
+                              PILA / DIAN
                             </Button>
                           ) : null}
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 flex items-start gap-3 rounded-lg border px-4 py-3 ${jurisdictionIdentity.className}`}>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/60 shadow-sm dark:bg-white/10">
+                          <JurisdictionIcon className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-bold">{jurisdictionIdentity.label}</p>
+                            <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-bold dark:bg-white/10">
+                              {jurisdictionIdentity.badge}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs font-semibold opacity-85">{jurisdictionIdentity.description}</p>
                         </div>
                       </div>
 
@@ -2562,6 +3056,11 @@ function PayrollRunDialog({
                         <DetailMetric label={copy.labels.overtimeHours} value={String(selectedLine.overtime_hours)} />
                         <DetailMetric label={copy.labels.lateCount} value={String(selectedLine.late_count)} />
                         <DetailMetric label={copy.labels.net} value={formatCurrency(selectedLine.net_amount, locale, selectedLineCurrency)} />
+                        <DetailMetric label="Tratamiento" value={selectedTreatmentOption.label} />
+                        <DetailMetric label="Ruta de pago" value={selectedPaymentRouteLabel} />
+                        {selectedLine.payable_expense_id ? (
+                          <DetailMetric label="Cuenta por pagar" value={`#${selectedLine.payable_expense_id}`} />
+                        ) : null}
                       </div>
 
                       {selectedLine.attendance_warnings?.length ? (
@@ -2581,15 +3080,56 @@ function PayrollRunDialog({
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.lineEditor}</h4>
 
                       <div className="mt-4 space-y-4">
-                        <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={lineDraft.include_in_fiscal}
-                            disabled={!isDraft}
-                            onChange={(event) => onChangeDraft({ ...lineDraft, include_in_fiscal: event.target.checked })}
-                          />
-                          {copy.labels.includeFiscal}
-                        </label>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Ruta de cálculo y pago</p>
+                            <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                              Define si la línea se calcula como nómina fiscal, nómina operativa, cuenta por pagar o si queda fuera de nómina.
+                            </p>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {payrollTreatmentOptions.map((option) => {
+                              const OptionIcon = option.Icon;
+                              const isSelected = selectedTreatment === option.value;
+
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  disabled={!isDraft}
+                                  onClick={() => onChangeDraft({
+                                    ...lineDraft,
+                                    payroll_treatment: option.value,
+                                    include_in_fiscal: includeFiscalForPayrollTreatment(option.value),
+                                  })}
+                                  className={`rounded-lg border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${isSelected
+                                    ? option.selectedClassName
+                                    : 'border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5]/40 hover:bg-[#59C3A5]/5 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                                    }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/70 shadow-sm dark:bg-white/10">
+                                      <OptionIcon className="h-4 w-4" />
+                                    </span>
+                                    <span className="min-w-0">
+                                      <span className="block text-sm font-bold">{option.label}</span>
+                                      <span className="mt-1 block text-xs font-semibold opacity-80">{option.description}</span>
+                                      <span className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-bold dark:bg-white/10">
+                                        {option.routeLabel}
+                                      </span>
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            <span>Ruta actual</span>
+                            <span>{selectedTreatmentOption.routeLabel} · {selectedPaymentRouteLabel}</span>
+                          </div>
+                        </div>
 
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.notes}</label>
@@ -2736,6 +3276,8 @@ function PayrollRunDialog({
                           <div className="mt-3 grid gap-2 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
                             <span>{selectedLine.calculation_source || 'payroll_calculation_engine'}</span>
                             <span>{selectedLine.calculation_timestamp || '—'}</span>
+                            <span>{selectedTreatmentOption.label}</span>
+                            <span>{selectedPaymentRouteLabel}</span>
                             <span>{selectedLine.statutory_compliance === false ? 'Cálculo operativo' : 'Cumplimiento fiscal activo'}</span>
                           </div>
                           {selectedLineHasIncentives ? (
@@ -2799,10 +3341,12 @@ function PayrollRunDialog({
                     {activeBusyKind === 'download-pdf' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                     {copy.labels.exportPdf}
                   </Button>
-                  <Button variant="outline" onClick={() => onOpenGovernmentReporting(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
-                    {activeBusyKind === 'government-reporting' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
-                    PILA / DIAN
-                  </Button>
+                  {runHasColombiaFiscalLines ? (
+                    <Button variant="outline" onClick={() => onOpenGovernmentReporting(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
+                      {activeBusyKind === 'government-reporting' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
+                      PILA / DIAN
+                    </Button>
+                  ) : null}
                   {canProcess ? (
                     <Button onClick={onProcess} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
                       {activeBusyKind === 'process-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
@@ -2819,12 +3363,6 @@ function PayrollRunDialog({
                     <Button onClick={onPay} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
                       {activeBusyKind === 'mark-paid' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
                       {copy.labels.pay}
-                    </Button>
-                  ) : null}
-                  {canCancel ? (
-                    <Button variant="outline" onClick={onCancel} disabled={isSaving} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20">
-                      {activeBusyKind === 'cancel-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                      {copy.labels.cancelRun}
                     </Button>
                   ) : null}
                 </div>
@@ -3293,12 +3831,12 @@ function PayrollGovernmentReportingDialog({
               </span>
               <div>
                 <DialogTitle className="text-xl font-bold leading-tight text-white">
-                  PILA / DIAN
+                  PILA / DIAN Colombia
                 </DialogTitle>
                 <DialogDescription className="mt-1 text-sm leading-6 text-blue-100">
                   {detail
                     ? `Corrida #${detail.run.id} · ${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
-                    : 'Snapshots gubernamentales'}
+                    : 'Snapshots gubernamentales Colombia'}
                 </DialogDescription>
               </div>
             </div>
@@ -3392,7 +3930,7 @@ function PayrollGovernmentReportingDialog({
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-              No hay snapshots PILA / DIAN para esta corrida.
+              No hay snapshots PILA / DIAN para esta corrida Colombia fiscal.
             </div>
           )}
         </div>

@@ -297,6 +297,7 @@ class HrUserServiceTest {
         when(rs.getString("pay_period")).thenReturn("weekly");
         when(rs.getString("salary_type")).thenReturn("daily");
         when(rs.getString("contract_type")).thenReturn("permanent");
+        when(rs.getString("payroll_treatment")).thenReturn("fiscal_payroll");
         when(rs.getString("termination_reason_type")).thenReturn(null);
         when(rs.getString("termination_reason_code")).thenReturn(null);
         when(rs.getString("termination_summary")).thenReturn(null);

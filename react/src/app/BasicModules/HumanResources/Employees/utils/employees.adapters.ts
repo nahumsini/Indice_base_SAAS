@@ -10,7 +10,7 @@ import {
   allFilterValue,
   documentTypeOrder,
 } from '../constants/employees.constants';
-import type { EmployeeViewModel } from '../types/employees.types';
+import type { EmployeePayrollTreatment, EmployeeViewModel } from '../types/employees.types';
 import { createEmptyDocumentRecord } from './employees.utils';
 
 const mapEmployeeDocument = (document: BackendHrUserDocument) => ({
@@ -19,6 +19,23 @@ const mapEmployeeDocument = (document: BackendHrUserDocument) => ({
   mimeType: document.mime_type ?? '',
   status: document.status ?? '',
 });
+
+const normalizeEmployeePayrollTreatment = (value?: string | null): EmployeePayrollTreatment => {
+  const normalized = (value ?? '').trim().toLocaleLowerCase().replace(/[-\s]+/g, '_');
+  switch (normalized) {
+    case 'operational_payroll':
+    case 'accounts_payable':
+    case 'no_payroll':
+      return normalized;
+    case 'fiscal':
+    case 'fiscal_payroll':
+    case 'nomina_fiscal':
+    case '':
+      return 'fiscal_payroll';
+    default:
+      return 'fiscal_payroll';
+  }
+};
 
 type BackendHrUserWithOptionalProfile = BackendHrUser & {
   profile?: BackendHrUserProfile | null;
@@ -38,6 +55,7 @@ type BackendHrUserWithOptionalProfile = BackendHrUser & {
   emergency_contact_phone?: string;
   workday_hours?: number | null;
   workdays_per_week?: number | null;
+  payroll_treatment?: string | null;
 };
 
 export const mapEmployee = (
@@ -106,6 +124,9 @@ export const mapEmployee = (
         : employeeWithProfile.workdays_per_week !== null && employeeWithProfile.workdays_per_week !== undefined
           ? Number(employeeWithProfile.workdays_per_week)
           : 5,
+    payrollTreatment: normalizeEmployeePayrollTreatment(
+      profile.payroll_treatment ?? employeeWithProfile.payroll_treatment ?? employee.payroll_treatment,
+    ),
     hourlyRate: Number(employee.hourly_rate ?? 0),
     contractType: employee.contract_type,
     contractStartDate: employee.contract_start_date ? String(employee.contract_start_date) : '',
@@ -156,6 +177,9 @@ export const toEmployeeFormData = (details?: HrUserDetailsResponse | null): Empl
       details.profile.workdays_per_week !== null && details.profile.workdays_per_week !== undefined
         ? String(details.profile.workdays_per_week)
         : '5',
+    payrollTreatment: normalizeEmployeePayrollTreatment(
+      details.profile.payroll_treatment ?? details.user.payroll_treatment,
+    ),
     salary:
       details.user.salary !== null && details.user.salary !== undefined
         ? String(details.user.salary)
@@ -223,6 +247,9 @@ export const mapEmployeeDetails = (
       details.profile.workdays_per_week !== null && details.profile.workdays_per_week !== undefined
         ? Number(details.profile.workdays_per_week)
         : 5,
+    payrollTreatment: normalizeEmployeePayrollTreatment(
+      details.profile.payroll_treatment ?? details.user.payroll_treatment,
+    ),
     documents,
   };
 };

@@ -1,4 +1,5 @@
 import type { AttendanceControlLocation } from '../../../../../api/humanResources';
+import type { EmployeePayrollTreatment } from '../../types/employees.types';
 
 export type EmployeeDocumentType =
   | 'birth_certificate'
@@ -55,6 +56,7 @@ export interface EmployeeFormData {
   salaryType: 'daily' | 'hourly';
   workdayHours: string;
   workdaysPerWeek: string;
+  payrollTreatment: EmployeePayrollTreatment;
   salary: string;
   hourlyRate: string;
   payPeriod: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';

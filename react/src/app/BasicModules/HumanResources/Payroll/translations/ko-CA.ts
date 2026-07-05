@@ -16,6 +16,8 @@ export const koCA = {
     preferences: '급여 설정이 저장되었습니다.',
     rates: '급여 요율이 저장되었습니다.',
     runsCreated: '자동 급여 실행이 동기화되었습니다.',
+    runsRegenerated: '열린 급여 실행이 재생성되었습니다.',
+    noRunsRegenerated: '재생성할 초안 또는 처리된 급여 실행이 없습니다.',
     lineSaved: '급여 라인이 업데이트되었습니다.',
     runEdited: '급여 실행이 업데이트되었습니다.',
     processed: '급여 실행이 처리되었습니다.',
@@ -60,6 +62,7 @@ export const koCA = {
   header: {
     title: '급여 운영',
     subtitle: '조직 구조와 관할 규칙에 따라 급여 실행을 검토하고 처리합니다.',
+    regenerateRuns: '급여 재생성',
     preferences: '설정',
   },
   filterBar: { title: '필터' },

@@ -23,6 +23,7 @@ interface JobStepProps {
     salaryType: ReactNode;
     workdayHours: ReactNode;
     workdaysPerWeek: ReactNode;
+    payrollTreatment: ReactNode;
     compensationAmount: ReactNode;
     payPeriod: ReactNode;
     contractType: ReactNode;
@@ -50,6 +51,7 @@ export function JobStep({ title, description, groups, fields }: JobStepProps) {
           </FieldGroup>
         ) : null}
         <FieldGroup title={groups.compensation}>
+          <div className="md:col-span-2">{fields.payrollTreatment}</div>
           {fields.salaryType}
           {fields.workdayHours}
           {fields.workdaysPerWeek}

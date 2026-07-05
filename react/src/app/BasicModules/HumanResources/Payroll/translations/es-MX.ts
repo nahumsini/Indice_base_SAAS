@@ -16,6 +16,8 @@ export const esMX = {
     preferences: 'Preferencias de nómina guardadas correctamente.',
     rates: 'Tasas de nómina guardadas correctamente.',
     runsCreated: 'Corridas de nómina sincronizadas correctamente.',
+    runsRegenerated: 'Nóminas abiertas regeneradas correctamente.',
+    noRunsRegenerated: 'No hay corridas en borrador o procesadas para regenerar.',
     lineSaved: 'Línea de nómina actualizada correctamente.',
     runEdited: 'Corrida de nómina actualizada correctamente.',
     processed: 'Corrida de nómina procesada correctamente.',
@@ -34,6 +36,8 @@ export const esMX = {
     ratesDescription: 'Aplicando el perfil de país activo y persistiendo las tasas configuradas.',
     generateTitle: 'Sincronizando nómina automática',
     generateDescription: 'Actualizando corridas desde colaboradores, asistencia y preferencias actuales.',
+    regenerateTitle: 'Regenerando nóminas',
+    regenerateDescription: 'Reconstruyendo corridas en borrador y procesadas con las preferencias actuales. Las aprobadas y pagadas permanecen intactas.',
     saveLineTitle: 'Guardando línea de nómina',
     saveLineDescription: 'Recalculando la línea seleccionada y actualizando sus totales.',
     processTitle: 'Procesando corrida',
@@ -592,6 +596,7 @@ export const esMX = {
   header: {
     title: 'Operación de nómina',
     subtitle: 'Revisa, aprueba y ejecuta corridas de nómina por estructura laboral y jurisdicción.',
+    regenerateRuns: 'Regenerar nóminas',
     preferences: 'Preferencias',
   },
   filterBar: {

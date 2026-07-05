@@ -7,7 +7,14 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
 import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
 import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.finance.expenses.ExpenseService;
+import com.indice.erp.finance.expenses.ExpenseType;
+import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
+import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.incentives.HrIncentivePayrollSupplyService;
@@ -62,6 +69,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class HrPayrollService {
 
+    private static final String PAYROLL_TREATMENT_FISCAL = "fiscal_payroll";
+    private static final String PAYROLL_TREATMENT_OPERATIONAL = "operational_payroll";
+    private static final String PAYROLL_TREATMENT_ACCOUNTS_PAYABLE = "accounts_payable";
+    private static final String PAYROLL_TREATMENT_NO_PAYROLL = "no_payroll";
+    private static final String PAYMENT_ROUTE_PAYROLL = "payroll";
+    private static final String PAYMENT_ROUTE_EXPENSES = "expenses";
+    private static final String PAYMENT_ROUTE_NONE = "none";
+
     private final JdbcTemplate jdbcTemplate;
     private final HrPayrollScopeAccess hrPayrollScopeAccess;
     private final PayrollCalculationEngine payrollCalculationEngine;
@@ -72,6 +87,7 @@ public class HrPayrollService {
     private final PayrollRuleResolver payrollRuleResolver;
     private final ColombiaPayrollReportingService colombiaPayrollReportingService;
     private final HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService;
+    private final ExpenseService expenseService;
 
     public HrPayrollService(
         JdbcTemplate jdbcTemplate,
@@ -83,7 +99,8 @@ public class HrPayrollService {
         PayrollSnapshotService payrollSnapshotService,
         PayrollRuleResolver payrollRuleResolver,
         ColombiaPayrollReportingService colombiaPayrollReportingService,
-        HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService
+        HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService,
+        ExpenseService expenseService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrPayrollScopeAccess = hrPayrollScopeAccess;
@@ -95,6 +112,7 @@ public class HrPayrollService {
         this.payrollRuleResolver = payrollRuleResolver;
         this.colombiaPayrollReportingService = colombiaPayrollReportingService;
         this.hrIncentivePayrollSupplyService = hrIncentivePayrollSupplyService;
+        this.expenseService = expenseService;
     }
 
     public Map<String, Object> overview(long companyId) {
@@ -935,6 +953,73 @@ public class HrPayrollService {
         return createRunsForPeriod(companyId, userId, preferences, payPeriod, periodStartDate, groupingMode, scope);
     }
 
+    @Transactional
+    public synchronized Map<String, Object> regenerateOpenRuns(AuthSessionUser currentUser) {
+        var companyId = currentUser.companyId();
+        var userId = currentUser.userId();
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var preferences = ensurePreferences(companyId);
+        var runs = loadRuns(companyId, scope);
+
+        var regeneratableRuns = runs.stream()
+            .filter((run) -> isRegeneratableRunStatus(run.status()))
+            .toList();
+
+        var periodKeys = regeneratableRuns.stream()
+            .map((run) -> new PayrollRegenerationPeriod(
+                normalizePayPeriod(run.payPeriod()),
+                run.periodStartDate()
+            ))
+            .distinct()
+            .toList();
+
+        if (regeneratableRuns.isEmpty()) {
+            return Map.of(
+                "items", List.of(),
+                "cancelled_count", 0,
+                "regenerated_count", 0,
+                "skipped_locked_count", 0
+            );
+        }
+
+        var skippedLockedCount = runs.stream()
+            .filter((run) -> isLockedPayrollRunStatus(run.status()))
+            .filter((run) -> periodKeys.contains(new PayrollRegenerationPeriod(
+                normalizePayPeriod(run.payPeriod()),
+                run.periodStartDate()
+            )))
+            .count();
+
+        var now = LocalDateTime.now();
+        for (var run : regeneratableRuns) {
+            hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, run.id());
+            cancelRunForRegeneration(companyId, userId, run.id(), now);
+        }
+
+        var regeneratedRuns = new ArrayList<Map<String, Object>>();
+        for (var periodKey : periodKeys) {
+            var response = createRunsForPeriod(
+                companyId,
+                userId,
+                preferences,
+                periodKey.payPeriod(),
+                periodKey.periodStartDate(),
+                preferences.groupingMode(),
+                scope
+            );
+            @SuppressWarnings("unchecked")
+            var items = (List<Map<String, Object>>) response.getOrDefault("items", List.of());
+            regeneratedRuns.addAll(items);
+        }
+
+        return Map.of(
+            "items", regeneratedRuns,
+            "cancelled_count", regeneratableRuns.size(),
+            "regenerated_count", regeneratedRuns.size(),
+            "skipped_locked_count", skippedLockedCount
+        );
+    }
+
     private synchronized void ensureAutomaticPayrollRuns(long companyId, Long actorUserId, HrOperationalScope scope) {
         var preferences = ensurePreferences(companyId);
         var payPeriods = loadEligibleHrUsers(companyId, "", false, scope).stream()
@@ -1033,6 +1118,16 @@ public class HrPayrollService {
         return Map.of("items", createdRuns);
     }
 
+    private boolean isRegeneratableRunStatus(String status) {
+        var normalizedStatus = safe(status).toLowerCase(Locale.ROOT);
+        return "draft".equals(normalizedStatus) || "processed".equals(normalizedStatus);
+    }
+
+    private boolean isLockedPayrollRunStatus(String status) {
+        var normalizedStatus = safe(status).toLowerCase(Locale.ROOT);
+        return "approved".equals(normalizedStatus) || "paid".equals(normalizedStatus);
+    }
+
     public Map<String, Object> getRunDetail(long companyId, long runId) {
         return getRunDetail(companyId, runId, HrOperationalScope.corporateOffice());
     }
@@ -1075,6 +1170,13 @@ public class HrPayrollService {
                 body.put("regular_hours", scaled(line.regularHours()));
                 body.put("overtime_hours", scaled(line.overtimeHours()));
                 body.put("include_in_fiscal", line.includeInFiscal());
+                body.put("payroll_treatment", line.payrollTreatmentSnapshot());
+                body.put("payroll_treatment_label", payrollTreatmentLabel(line.payrollTreatmentSnapshot()));
+                body.put("payment_route", line.paymentRoute());
+                body.put("payment_route_label", paymentRouteLabel(line.paymentRoute()));
+                body.put("payable_expense_id", line.payableExpenseId());
+                body.put("payable_created_at", line.payableCreatedAt() == null ? null : line.payableCreatedAt().toString());
+                body.put("payable_metadata", line.payableMetadata());
                 body.put("gross_amount", scaled(line.grossAmount()));
                 body.put("deductions_amount", scaled(line.deductionsAmount()));
                 body.put("employer_contributions_amount", scaled(line.employerContributionsAmount()));
@@ -1130,9 +1232,9 @@ public class HrPayrollService {
         hrPayrollScopeAccess.requireRunLineInScope(companyId, scope, runId, lineId);
         var line = loadRunLine(runId, lineId);
 
-        var includeInFiscal = payload.containsKey("include_in_fiscal")
-            ? parseBoolean(payload.get("include_in_fiscal"))
-            : line.includeInFiscal();
+        var payrollTreatment = resolvePayrollTreatmentFromPayload(payload, line);
+        var includeInFiscal = includeInFiscalForTreatment(payrollTreatment);
+        var paymentRoute = paymentRouteForTreatment(payrollTreatment);
         var notes = payload.containsKey("notes") ? nullable(stringValue(payload, "notes")) : line.notes();
         var manualItems = parseManualItems(payload.get("manual_items"));
 
@@ -1140,10 +1242,20 @@ public class HrPayrollService {
             """
                 UPDATE payroll_run_lines
                 SET include_in_fiscal = ?,
+                    payroll_treatment_snapshot = ?,
+                    payment_route = ?,
+                    payable_expense_id = CASE WHEN ? = 'expenses' THEN payable_expense_id ELSE NULL END,
+                    payable_created_at = CASE WHEN ? = 'expenses' THEN payable_created_at ELSE NULL END,
+                    payable_metadata_json = CASE WHEN ? = 'expenses' THEN payable_metadata_json ELSE NULL END,
                     notes = ?
                 WHERE id = ? AND run_id = ?
                 """,
             includeInFiscal,
+            payrollTreatment,
+            paymentRoute,
+            paymentRoute,
+            paymentRoute,
+            paymentRoute,
             notes,
             lineId,
             runId
@@ -1246,6 +1358,7 @@ public class HrPayrollService {
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         ensureColombiaGovernmentReportingReadyForApproval(companyId, runId);
         updateRunStatus(runId, "approved", userId);
+        createPayrollPayablesForApprovedRun(companyId, userId, runId);
         return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
 
@@ -1268,6 +1381,7 @@ public class HrPayrollService {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "approved");
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
+        ensurePayrollAccountsPayableLinesArePaid(companyId, runId);
         updateRunStatus(runId, "paid", userId);
         return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
@@ -1310,6 +1424,23 @@ public class HrPayrollService {
             companyId
         );
         return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
+    }
+
+    private void cancelRunForRegeneration(long companyId, long userId, long runId, LocalDateTime cancelledAt) {
+        jdbcTemplate.update(
+            """
+                UPDATE payroll_runs
+                SET status = 'cancelled',
+                    cancelled_by = ?,
+                    cancelled_at = ?
+                WHERE id = ? AND company_id = ?
+                  AND status IN ('draft', 'processed')
+                """,
+            userId,
+            Timestamp.valueOf(cancelledAt),
+            runId,
+            companyId
+        );
     }
 
     public String exportRunCsv(long companyId, long runId) {
@@ -1788,6 +1919,7 @@ public class HrPayrollService {
 	                       COALESCE(LOWER(e.pay_period), 'weekly') AS pay_period,
 	                       COALESCE(e.workday_hours, 8) AS workday_hours,
 	                       COALESCE(e.workdays_per_week, 5) AS workdays_per_week,
+	                       COALESCE(e.payroll_treatment, 'fiscal_payroll') AS payroll_treatment,
 	                       COALESCE(e.registration_country, '') AS registration_country,
 	                       COALESCE(e.state_province, '') AS state_province
                 FROM hr_users e
@@ -1795,6 +1927,7 @@ public class HrPayrollService {
                 LEFT JOIN businesses b ON b.id = e.business_id
                 WHERE e.company_id = ?
                   AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
+                  AND COALESCE(LOWER(e.payroll_treatment), 'fiscal_payroll') <> 'no_payroll'
                   AND (? = 0 OR COALESCE(LOWER(e.pay_period), 'weekly') = ?)
                 """
                 + scope.hrUserPredicate("e")
@@ -1819,6 +1952,7 @@ public class HrPayrollService {
 	                safe(rs.getString("pay_period")),
 	                scaled(rs.getBigDecimal("workday_hours")),
 	                scaled(rs.getBigDecimal("workdays_per_week")),
+	                normalizePayrollTreatment(rs.getString("payroll_treatment")),
 	                safe(rs.getString("registration_country")),
 	                safe(rs.getString("state_province"))
 	            ),
@@ -1866,7 +2000,18 @@ public class HrPayrollService {
         LocalDate periodStartDate,
         LocalDate periodEndDate
     ) {
-        var computation = calculateLineWithEngine(companyId, runId, user, preferences, periodStartDate, periodEndDate);
+        var payrollTreatment = normalizePayrollTreatment(user.payrollTreatment());
+        var includeInFiscal = includeInFiscalForTreatment(payrollTreatment);
+        var paymentRoute = paymentRouteForTreatment(payrollTreatment);
+        var computation = calculateLineWithEngine(
+            companyId,
+            runId,
+            user,
+            preferences,
+            periodStartDate,
+            periodEndDate,
+            includeInFiscal
+        );
         var result = computation.result();
         var context = computation.context();
 
@@ -1879,9 +2024,9 @@ public class HrPayrollService {
                      unit_id_snapshot, unit_name_snapshot, business_id_snapshot, business_name_snapshot, country_code_snapshot, jurisdiction_code_snapshot,
                      currency_code_snapshot, fx_rate, pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount, days_payable,
                      leave_days, absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count, regular_hours,
-                     overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount, net_amount, notes,
+                     overtime_hours, include_in_fiscal, payroll_treatment_snapshot, payment_route, gross_amount, deductions_amount, employer_contributions_amount, net_amount, notes,
                      calculation_source, calculation_timestamp)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 new String[] {"id"}
             );
@@ -1927,14 +2072,16 @@ public class HrPayrollService {
             statement.setInt(28, result.lateCount());
             statement.setBigDecimal(29, result.regularHours());
             statement.setBigDecimal(30, result.overtimeHours());
-            statement.setBoolean(31, true);
-            statement.setBigDecimal(32, result.grossAmount());
-            statement.setBigDecimal(33, result.deductionsAmount());
-            statement.setBigDecimal(34, result.employerContributionsAmount());
-            statement.setBigDecimal(35, result.netAmount());
-            statement.setString(36, null);
-            statement.setString(37, result.calculationSource());
-            statement.setTimestamp(38, Timestamp.valueOf(result.calculationTimestamp()));
+            statement.setBoolean(31, includeInFiscal);
+            statement.setString(32, payrollTreatment);
+            statement.setString(33, paymentRoute);
+            statement.setBigDecimal(34, result.grossAmount());
+            statement.setBigDecimal(35, result.deductionsAmount());
+            statement.setBigDecimal(36, result.employerContributionsAmount());
+            statement.setBigDecimal(37, result.netAmount());
+            statement.setString(38, null);
+            statement.setString(39, result.calculationSource());
+            statement.setTimestamp(40, Timestamp.valueOf(result.calculationTimestamp()));
             return statement;
         }, keyHolder);
 
@@ -1975,7 +2122,8 @@ public class HrPayrollService {
         PayrollHrUserRow user,
         PayrollPreferencesRow preferences,
         LocalDate periodStartDate,
-        LocalDate periodEndDate
+        LocalDate periodEndDate,
+        boolean includeInFiscal
     ) {
         var dailyRecords = loadDailyRecords(companyId, user.id(), periodStartDate, periodEndDate);
         var scheduleWindows = loadScheduleWindows(companyId, user.id(), periodStartDate, periodEndDate);
@@ -2020,7 +2168,7 @@ public class HrPayrollService {
             fiscalFrequency,
             periodStartDate,
             periodEndDate,
-            true,
+            includeInFiscal,
             toSalarySnapshot(user),
             attendance,
             toEnginePreferences(preferences),
@@ -2211,6 +2359,8 @@ public class HrPayrollService {
             """
                 UPDATE payroll_run_lines
                 SET include_in_fiscal = ?,
+                    payroll_treatment_snapshot = ?,
+                    payment_route = ?,
                     notes = ?,
                     country_code_snapshot = ?,
                     jurisdiction_code_snapshot = ?,
@@ -2237,6 +2387,8 @@ public class HrPayrollService {
                 WHERE id = ?
                 """,
             line.includeInFiscal(),
+            line.payrollTreatmentSnapshot(),
+            line.paymentRoute(),
             line.notes(),
             computation.context().country(),
             computation.context().jurisdiction(),
@@ -2388,7 +2540,8 @@ public class HrPayrollService {
                        pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount,
                        workday_hours_snapshot, workdays_per_week_snapshot, days_payable, leave_days,
                        absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count,
-                       regular_hours, overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount,
+                       regular_hours, overtime_hours, include_in_fiscal, payroll_treatment_snapshot, payment_route, payable_expense_id,
+                       payable_created_at, payable_metadata_json, gross_amount, deductions_amount, employer_contributions_amount,
                        net_amount, notes, calculation_source, calculation_timestamp, employee_salary_snapshot_json,
                        attendance_snapshot_json, manual_adjustments_snapshot_json, calculation_inputs_json, calculation_results_json,
                        rule_snapshot_json, attendance_warnings_json
@@ -2419,7 +2572,8 @@ public class HrPayrollService {
                        l.pay_period_snapshot, l.salary_type_snapshot, l.base_salary_amount, l.hourly_rate_amount,
                        l.workday_hours_snapshot, l.workdays_per_week_snapshot, l.days_payable, l.leave_days,
                        l.absence_days, l.rest_days, l.missing_attendance_days, l.paid_leave_days, l.unpaid_absence_days, l.late_count,
-                       l.regular_hours, l.overtime_hours, l.include_in_fiscal, l.gross_amount, l.deductions_amount, l.employer_contributions_amount,
+                       l.regular_hours, l.overtime_hours, l.include_in_fiscal, l.payroll_treatment_snapshot, l.payment_route, l.payable_expense_id,
+                       l.payable_created_at, l.payable_metadata_json, l.gross_amount, l.deductions_amount, l.employer_contributions_amount,
                        l.net_amount, l.notes, l.calculation_source, l.calculation_timestamp, l.employee_salary_snapshot_json,
                        l.attendance_snapshot_json, l.manual_adjustments_snapshot_json, l.calculation_inputs_json, l.calculation_results_json,
                        l.rule_snapshot_json, l.attendance_warnings_json
@@ -2445,7 +2599,8 @@ public class HrPayrollService {
                        pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount,
                        workday_hours_snapshot, workdays_per_week_snapshot, days_payable, leave_days,
                        absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count,
-                       regular_hours, overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount,
+                       regular_hours, overtime_hours, include_in_fiscal, payroll_treatment_snapshot, payment_route, payable_expense_id,
+                       payable_created_at, payable_metadata_json, gross_amount, deductions_amount, employer_contributions_amount,
                        net_amount, notes, calculation_source, calculation_timestamp, employee_salary_snapshot_json,
                        attendance_snapshot_json, manual_adjustments_snapshot_json, calculation_inputs_json, calculation_results_json,
                        rule_snapshot_json, attendance_warnings_json
@@ -2472,7 +2627,8 @@ public class HrPayrollService {
                        pay_period_snapshot, salary_type_snapshot, base_salary_amount, hourly_rate_amount,
                        workday_hours_snapshot, workdays_per_week_snapshot, days_payable, leave_days,
                        absence_days, rest_days, missing_attendance_days, paid_leave_days, unpaid_absence_days, late_count,
-                       regular_hours, overtime_hours, include_in_fiscal, gross_amount, deductions_amount, employer_contributions_amount,
+                       regular_hours, overtime_hours, include_in_fiscal, payroll_treatment_snapshot, payment_route, payable_expense_id,
+                       payable_created_at, payable_metadata_json, gross_amount, deductions_amount, employer_contributions_amount,
                        net_amount, notes, calculation_source, calculation_timestamp, employee_salary_snapshot_json,
                        attendance_snapshot_json, manual_adjustments_snapshot_json, calculation_inputs_json, calculation_results_json,
                        rule_snapshot_json, attendance_warnings_json
@@ -3197,6 +3353,219 @@ public class HrPayrollService {
         };
     }
 
+    private String resolvePayrollTreatmentFromPayload(Map<String, Object> payload, PayrollRunLineRow line) {
+        if (payloadHasAny(payload, "payroll_treatment", "payrollTreatment", "tratamiento_nomina", "tratamientoNomina")) {
+            return normalizePayrollTreatment(
+                stringValue(payload, "payroll_treatment", "payrollTreatment", "tratamiento_nomina", "tratamientoNomina")
+            );
+        }
+        if (payloadHasAny(payload, "include_in_fiscal", "includeInFiscal")) {
+            var includeInFiscal = payloadBoolean(payload, line.includeInFiscal(), "include_in_fiscal", "includeInFiscal");
+            return includeInFiscal ? PAYROLL_TREATMENT_FISCAL : PAYROLL_TREATMENT_OPERATIONAL;
+        }
+        return normalizePayrollTreatment(line.payrollTreatmentSnapshot());
+    }
+
+    private String normalizePayrollTreatment(String value) {
+        var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return switch (normalized) {
+            case "", "fiscal", "fiscal_payroll", "nomina_fiscal", "nómina_fiscal", "nomina fiscal", "nómina fiscal" ->
+                PAYROLL_TREATMENT_FISCAL;
+            case "operational", "operativo", "operational_payroll", "nomina_operativa", "nómina_operativa",
+                "nomina operativa", "nómina operativa" -> PAYROLL_TREATMENT_OPERATIONAL;
+            case "accounts_payable", "payable", "expenses", "expense", "cuenta_por_pagar", "cuenta por pagar" ->
+                PAYROLL_TREATMENT_ACCOUNTS_PAYABLE;
+            case "no_payroll", "none", "sin_nomina", "sin_nómina", "sin nomina", "sin nómina" -> PAYROLL_TREATMENT_NO_PAYROLL;
+            default -> throw new IllegalArgumentException("Unsupported payroll treatment.");
+        };
+    }
+
+    private String normalizePaymentRoute(String value) {
+        var normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return switch (normalized) {
+            case "", "payroll", "nomina", "nómina" -> PAYMENT_ROUTE_PAYROLL;
+            case "expenses", "expense", "accounts_payable", "cuentas_por_pagar", "cuenta_por_pagar" -> PAYMENT_ROUTE_EXPENSES;
+            case "none", "excluded", "no_payroll", "sin_nomina", "sin_nómina" -> PAYMENT_ROUTE_NONE;
+            default -> PAYMENT_ROUTE_PAYROLL;
+        };
+    }
+
+    private boolean includeInFiscalForTreatment(String treatment) {
+        return PAYROLL_TREATMENT_FISCAL.equals(normalizePayrollTreatment(treatment));
+    }
+
+    private String paymentRouteForTreatment(String treatment) {
+        return switch (normalizePayrollTreatment(treatment)) {
+            case PAYROLL_TREATMENT_ACCOUNTS_PAYABLE -> PAYMENT_ROUTE_EXPENSES;
+            case PAYROLL_TREATMENT_NO_PAYROLL -> PAYMENT_ROUTE_NONE;
+            default -> PAYMENT_ROUTE_PAYROLL;
+        };
+    }
+
+    private String payrollTreatmentLabel(String treatment) {
+        return switch (normalizePayrollTreatment(treatment)) {
+            case PAYROLL_TREATMENT_FISCAL -> "Nómina fiscal";
+            case PAYROLL_TREATMENT_OPERATIONAL -> "Nómina operativa";
+            case PAYROLL_TREATMENT_ACCOUNTS_PAYABLE -> "Cuenta por pagar";
+            case PAYROLL_TREATMENT_NO_PAYROLL -> "Sin nómina";
+            default -> "Nómina fiscal";
+        };
+    }
+
+    private String paymentRouteLabel(String route) {
+        return switch (normalizePaymentRoute(route)) {
+            case PAYMENT_ROUTE_EXPENSES -> "Expenses / Cuenta por pagar";
+            case PAYMENT_ROUTE_NONE -> "Sin ruta de pago";
+            default -> "Nómina";
+        };
+    }
+
+    private FinanceContext payrollFinanceContext(long companyId, long actorUserId) {
+        return new FinanceContext(actorUserId, companyId, "Nómina", "admin", true, FinanceScope.corporateOffice());
+    }
+
+    private String payrollPayableFolio(long runId, long lineId) {
+        return "NOM-" + runId + "-" + lineId;
+    }
+
+    private ObjectNode payrollPayableMetadata(PayrollRunRow run, PayrollRunLineRow line) {
+        var metadata = JsonNodeFactory.instance.objectNode();
+        metadata.put("source", "hr_payroll");
+        metadata.put("payroll_run_id", run.id());
+        metadata.put("payroll_run_line_id", line.id());
+        metadata.put("user_company_id", line.userCompanyId());
+        metadata.put("user_id", line.userIdSnapshot());
+        metadata.put("employee_name", line.userNameSnapshot());
+        metadata.put("payroll_treatment", normalizePayrollTreatment(line.payrollTreatmentSnapshot()));
+        metadata.put("payment_route", normalizePaymentRoute(line.paymentRoute()));
+        metadata.put("country", safe(line.countryCodeSnapshot()));
+        metadata.put("jurisdiction", safe(line.jurisdictionCodeSnapshot()));
+        metadata.put("pay_period", safe(line.payPeriodSnapshot()));
+        metadata.put("period_start_date", run.periodStartDate().toString());
+        metadata.put("period_end_date", run.periodEndDate().toString());
+        metadata.put("currency_code", safe(line.currencyCodeSnapshot()));
+        metadata.put("net_amount", scaled(line.netAmount()).toPlainString());
+        return metadata;
+    }
+
+    private Long findExistingPayrollPayable(long companyId, String folio) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT id
+                FROM finance_expenses
+                WHERE company_id = ?
+                  AND folio = ?
+                  AND deleted_at IS NULL
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            companyId,
+            folio
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    private void linkPayrollPayableLine(long lineId, long expenseId, ObjectNode metadata) {
+        jdbcTemplate.update(
+            """
+                UPDATE payroll_run_lines
+                SET payable_expense_id = ?,
+                    payable_created_at = COALESCE(payable_created_at, CURRENT_TIMESTAMP),
+                    payable_metadata_json = ?
+                WHERE id = ?
+                """,
+            expenseId,
+            payrollSnapshotService.jsonValue(metadata),
+            lineId
+        );
+    }
+
+    private void createPayrollPayablesForApprovedRun(long companyId, long userId, long runId) {
+        var run = loadRun(companyId, runId);
+        var context = payrollFinanceContext(companyId, userId);
+        for (var line : loadRunLines(runId)) {
+            if (!PAYMENT_ROUTE_EXPENSES.equals(normalizePaymentRoute(line.paymentRoute()))) {
+                continue;
+            }
+            var total = scaled(line.netAmount()).max(BigDecimal.ZERO);
+            if (total.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
+            var folio = payrollPayableFolio(runId, line.id());
+            var metadata = payrollPayableMetadata(run, line);
+            var existingExpenseId = line.payableExpenseId() == null
+                ? findExistingPayrollPayable(companyId, folio)
+                : line.payableExpenseId();
+            if (existingExpenseId != null) {
+                linkPayrollPayableLine(line.id(), existingExpenseId, metadata);
+                continue;
+            }
+
+            var currencyCode = isBlank(line.currencyCodeSnapshot()) ? "MXN" : line.currencyCodeSnapshot();
+            var request = new CreateExpenseRequest(
+                line.unitIdSnapshot(),
+                line.businessIdSnapshot(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                folio,
+                "Cuenta por pagar de nómina - " + line.userNameSnapshot(),
+                "Pago operativo derivado de la corrida de nómina #" + run.id()
+                    + " (" + run.periodStartDate() + " a " + run.periodEndDate() + ").",
+                ExpenseType.VARIABLE,
+                total,
+                BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                total,
+                currencyCode,
+                run.periodEndDate(),
+                run.periodEndDate(),
+                userId,
+                userId,
+                userId,
+                null,
+                metadata
+            );
+
+            var created = expenseService.createDraft(context, request);
+            expenseService.submitForApproval(context, created.id());
+            var approved = expenseService.approve(context, created.id());
+            linkPayrollPayableLine(line.id(), approved.id(), metadata);
+        }
+    }
+
+    private void ensurePayrollAccountsPayableLinesArePaid(long companyId, long runId) {
+        var pending = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM payroll_run_lines line
+                LEFT JOIN finance_expenses expense
+                  ON expense.id = line.payable_expense_id
+                 AND expense.company_id = line.company_id
+                 AND expense.deleted_at IS NULL
+                WHERE line.company_id = ?
+                  AND line.run_id = ?
+                  AND line.payment_route = 'expenses'
+                  AND line.net_amount > 0
+                  AND (
+                    line.payable_expense_id IS NULL
+                    OR expense.id IS NULL
+                    OR expense.payment_status <> 'PAID'
+                  )
+                """,
+            Integer.class,
+            companyId,
+            runId
+        );
+        if (pending != null && pending > 0) {
+            throw new IllegalArgumentException(
+                "La corrida tiene líneas enviadas a Cuenta por pagar pendientes de pago."
+            );
+        }
+    }
+
     private boolean matchesRunFilters(PayrollRunRow run, Map<String, String> filters) {
         var status = safe(filters.get("status")).trim().toLowerCase(Locale.ROOT);
         if (!status.isBlank() && !status.equals(run.status())) {
@@ -3536,6 +3905,11 @@ public class HrPayrollService {
             scaled(rs.getBigDecimal("regular_hours")),
             scaled(rs.getBigDecimal("overtime_hours")),
             rs.getBoolean("include_in_fiscal"),
+            normalizePayrollTreatment(rs.getString("payroll_treatment_snapshot")),
+            normalizePaymentRoute(rs.getString("payment_route")),
+            getNullableLong(rs, "payable_expense_id"),
+            toLocalDateTime(rs.getTimestamp("payable_created_at")),
+            payrollSnapshotService.parseObject(rs.getString("payable_metadata_json")),
             scaled(rs.getBigDecimal("gross_amount")),
             scaled(rs.getBigDecimal("deductions_amount")),
             scaled(rs.getBigDecimal("employer_contributions_amount")),
@@ -4270,6 +4644,12 @@ public class HrPayrollService {
     ) {
     }
 
+    private record PayrollRegenerationPeriod(
+        String payPeriod,
+        LocalDate periodStartDate
+    ) {
+    }
+
     private record PayrollRunCurrencySignal(
         String country,
         String province,
@@ -4312,6 +4692,11 @@ public class HrPayrollService {
         BigDecimal regularHours,
         BigDecimal overtimeHours,
         boolean includeInFiscal,
+        String payrollTreatmentSnapshot,
+        String paymentRoute,
+        Long payableExpenseId,
+        LocalDateTime payableCreatedAt,
+        Map<String, Object> payableMetadata,
         BigDecimal grossAmount,
         BigDecimal deductionsAmount,
         BigDecimal employerContributionsAmount,
@@ -4379,6 +4764,7 @@ public class HrPayrollService {
         String payPeriod,
         BigDecimal workdayHours,
         BigDecimal workdaysPerWeek,
+        String payrollTreatment,
         String registrationCountry,
         String stateProvince
     ) {

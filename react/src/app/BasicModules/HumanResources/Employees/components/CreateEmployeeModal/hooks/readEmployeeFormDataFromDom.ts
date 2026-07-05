@@ -71,6 +71,9 @@ export function readEmployeeFormDataFromDom(
       (readDomValue(nativeFormData, 'salaryType') as EmployeeFormData['salaryType']) || currentFormData.salaryType,
     workdayHours: readDomValue(nativeFormData, 'workdayHours') || currentFormData.workdayHours,
     workdaysPerWeek: readDomValue(nativeFormData, 'workdaysPerWeek') || currentFormData.workdaysPerWeek,
+    payrollTreatment:
+      (readDomValue(nativeFormData, 'payrollTreatment') as EmployeeFormData['payrollTreatment'])
+      || currentFormData.payrollTreatment,
     salary: readDomValue(nativeFormData, 'salary') || currentFormData.salary,
     hourlyRate: readDomValue(nativeFormData, 'hourlyRate') || currentFormData.hourlyRate,
     payPeriod:

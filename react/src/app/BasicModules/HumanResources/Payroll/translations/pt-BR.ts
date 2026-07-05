@@ -16,6 +16,8 @@ export const ptBR = {
     preferences: 'Preferências da folha salvas.',
     rates: 'Alíquotas da folha salvas.',
     runsCreated: 'Folhas automáticas sincronizadas com sucesso.',
+    runsRegenerated: 'Folhas abertas regeneradas com sucesso.',
+    noRunsRegenerated: 'Não há folhas em rascunho ou processadas para regenerar.',
     lineSaved: 'Linha da folha atualizada.',
     runEdited: 'Folha atualizada.',
     processed: 'Folha processada.',
@@ -60,6 +62,7 @@ export const ptBR = {
   header: {
     title: 'Operação da folha',
     subtitle: 'Revise, aprove e execute folhas por estrutura de trabalho e jurisdição.',
+    regenerateRuns: 'Regenerar folhas',
     preferences: 'Preferências',
   },
   filterBar: { title: 'Filtros' },
