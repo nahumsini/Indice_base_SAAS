@@ -59,6 +59,7 @@ type UseAgendaDerivedTasksOptions = {
   isLoadingTasks: boolean;
   periodFilter: PeriodFilter;
   projectFilter: string;
+  searchQuery: string;
   scheduleStatusDate: string;
   scheduleStatusRange: AgendaLoadRange;
   setBusinessFilter: (value: string) => void;
@@ -110,6 +111,44 @@ function sortAgendaTasks(
     .map(({ task }) => task);
 }
 
+function normalizeAgendaSearch(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function taskMatchesSearch(task: AgendaTaskItem, normalizedQuery: string) {
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [
+    task.folio,
+    task.title,
+    task.description,
+    task.assignedName,
+    task.responsible,
+    task.createdByName,
+    task.creator,
+    task.projectFolio,
+    task.projectName,
+    task.project,
+    task.processFolio,
+    task.processTitle,
+    task.unitName,
+    task.unit,
+    task.businessName,
+    task.business,
+    task.status,
+    task.priority,
+    task.taskType,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .some((value) => normalizeAgendaSearch(value).includes(normalizedQuery));
+}
+
 export function useAgendaDerivedTasks({
   agendaCopy,
   agendaKanbanColumns,
@@ -124,6 +163,7 @@ export function useAgendaDerivedTasks({
   isLoadingTasks,
   periodFilter,
   projectFilter,
+  searchQuery,
   scheduleStatusDate,
   scheduleStatusRange,
   setBusinessFilter,
@@ -157,25 +197,37 @@ export function useAgendaDerivedTasks({
     [currentUserId, focusFilter, periodFilteredTasks],
   );
 
+  const normalizedSearchQuery = useMemo(() => normalizeAgendaSearch(searchQuery), [searchQuery]);
+
+  const searchFilteredTasks = useMemo(
+    () => focusFilteredTasks.filter((task) => taskMatchesSearch(task, normalizedSearchQuery)),
+    [focusFilteredTasks, normalizedSearchQuery],
+  );
+
   const scheduleFocusFilteredTasks = useMemo(
     () => tasks.filter((task) => matchesAgendaFocus(task, focusFilter, currentUserId)),
     [currentUserId, focusFilter, tasks],
+  );
+
+  const scheduleSearchFilteredTasks = useMemo(
+    () => scheduleFocusFilteredTasks.filter((task) => taskMatchesSearch(task, normalizedSearchQuery)),
+    [normalizedSearchQuery, scheduleFocusFilteredTasks],
   );
 
   const isAgendaViewLoading =
     isLoadingTasks || ((focusFilter === 'mine' || focusFilter === 'delegated') && isLoadingCurrentUser);
 
   const unitOptions = useMemo(
-    () => uniqueSortedOptions(focusFilteredTasks, (task) => unitFilterValue(task, agendaCopy)),
-    [agendaCopy, focusFilteredTasks],
+    () => uniqueSortedOptions(searchFilteredTasks, (task) => unitFilterValue(task, agendaCopy)),
+    [agendaCopy, searchFilteredTasks],
   );
 
   const tasksMatchingSelectedUnit = useMemo(
     () =>
       unitFilter === 'all'
-        ? focusFilteredTasks
-        : focusFilteredTasks.filter((task) => unitFilterValue(task, agendaCopy) === unitFilter),
-    [agendaCopy, focusFilteredTasks, unitFilter],
+        ? searchFilteredTasks
+        : searchFilteredTasks.filter((task) => unitFilterValue(task, agendaCopy) === unitFilter),
+    [agendaCopy, searchFilteredTasks, unitFilter],
   );
 
   const businessOptions = useMemo(
@@ -303,9 +355,9 @@ export function useAgendaDerivedTasks({
   const scheduleTasksMatchingSelectedUnit = useMemo(
     () =>
       unitFilter === 'all'
-        ? scheduleFocusFilteredTasks
-        : scheduleFocusFilteredTasks.filter((task) => unitFilterValue(task, agendaCopy) === unitFilter),
-    [agendaCopy, scheduleFocusFilteredTasks, unitFilter],
+        ? scheduleSearchFilteredTasks
+        : scheduleSearchFilteredTasks.filter((task) => unitFilterValue(task, agendaCopy) === unitFilter),
+    [agendaCopy, scheduleSearchFilteredTasks, unitFilter],
   );
 
   const scheduleTasksMatchingSelectedBusiness = useMemo(

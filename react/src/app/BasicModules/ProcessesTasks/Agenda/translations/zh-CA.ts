@@ -37,6 +37,8 @@ export const zhCA: AgendaTranslations = {
   },
   filters: {
     title: '筛选',
+    search: 'Search task',
+    searchPlaceholder: 'Folio, title, description, or responsible',
     focus: '重点',
     period: '期间',
     from: '从',

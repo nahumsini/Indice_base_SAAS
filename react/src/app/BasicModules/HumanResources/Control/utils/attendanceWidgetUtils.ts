@@ -37,9 +37,48 @@ export function getAssignmentBusyReason(assignment: ControlAssignment, copy?: At
 
 export const isAssignmentFreeForWork = (assignment: ControlAssignment) => !getAssignmentBusyReason(assignment);
 
+export const normalizeAttendancePhotoUrl = (photoUrl: string | null | undefined) => {
+  const trimmed = photoUrl?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (typeof window === 'undefined') {
+    return trimmed;
+  }
+
+  try {
+    const currentOrigin = window.location.origin;
+    const parsedUrl = new URL(trimmed, currentOrigin);
+    const isLocalStorageHost = ['localhost', '127.0.0.1', 'minio'].includes(parsedUrl.hostname);
+    const isMinioPort = parsedUrl.port === '9000';
+    const isStoragePath = parsedUrl.pathname.startsWith('/storage/');
+
+    if (parsedUrl.origin === currentOrigin) {
+      return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+
+    if (parsedUrl.hostname === window.location.hostname && parsedUrl.protocol !== window.location.protocol) {
+      return `${currentOrigin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+
+    if (isStoragePath && (isLocalStorageHost || parsedUrl.hostname === window.location.hostname)) {
+      return `${currentOrigin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+
+    if ((isLocalStorageHost || isMinioPort) && !isStoragePath) {
+      return `${currentOrigin}/storage${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+};
+
 export const firstUsablePhotoUrl = (...photoUrls: Array<string | null | undefined>) => {
   const photoUrl = photoUrls.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
-  return photoUrl?.trim() ?? null;
+  return normalizeAttendancePhotoUrl(photoUrl);
 };
 
 export const attendanceRowBorderClass = (assignment: ControlAssignment) => {

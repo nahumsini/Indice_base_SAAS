@@ -1,6 +1,51 @@
-import { apiClient } from '../lib/apiClient';
-import { endpoints } from './endpoints';
-import { dispatchNotificationsRefresh } from './notificationEvents';
+import { apiClient } from "../lib/apiClient";
+import { endpoints } from "./endpoints";
+import { dispatchNotificationsRefresh } from "./notificationEvents";
+
+function normalizeStorageUrl(storageUrl: string) {
+  if (typeof window === "undefined") {
+    return storageUrl;
+  }
+
+  try {
+    const currentUrl = new URL(window.location.href);
+    const parsedUrl = new URL(storageUrl);
+    const localStorageHosts = new Set(["localhost", "127.0.0.1", "minio"]);
+    const isLocalOrMinioHost =
+      localStorageHosts.has(parsedUrl.hostname) || parsedUrl.port === "9000";
+    const isStoragePath = parsedUrl.pathname.startsWith("/storage/");
+
+    if (parsedUrl.origin === currentUrl.origin) {
+      return storageUrl;
+    }
+
+    if (
+      parsedUrl.hostname === currentUrl.hostname &&
+      parsedUrl.protocol !== currentUrl.protocol
+    ) {
+      parsedUrl.protocol = currentUrl.protocol;
+      parsedUrl.host = currentUrl.host;
+      return parsedUrl.toString();
+    }
+
+    if (isStoragePath && isLocalOrMinioHost) {
+      parsedUrl.protocol = currentUrl.protocol;
+      parsedUrl.host = currentUrl.host;
+      return parsedUrl.toString();
+    }
+
+    if (isLocalOrMinioHost && !isStoragePath) {
+      parsedUrl.protocol = currentUrl.protocol;
+      parsedUrl.host = currentUrl.host;
+      parsedUrl.pathname = `/storage${parsedUrl.pathname}`;
+      return parsedUrl.toString();
+    }
+
+    return storageUrl;
+  } catch {
+    return storageUrl;
+  }
+}
 
 export interface BackendHrUser {
   id: number;
@@ -23,13 +68,13 @@ export interface BackendHrUser {
   business_name?: string;
   hire_date?: string | null;
   salary?: number | null;
-  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
-  salary_type: 'daily' | 'hourly';
+  pay_period: "weekly" | "biweekly" | "semimonthly" | "monthly";
+  salary_type: "daily" | "hourly";
   hourly_rate?: number | null;
   workday_hours?: number | null;
   workdays_per_week?: number | null;
   registration_country?: string;
-  contract_type: 'permanent' | 'temporary';
+  contract_type: "permanent" | "temporary";
   contract_start_date?: string | null;
   contract_end_date?: string | null;
   termination_date?: string | null;
@@ -37,7 +82,7 @@ export interface BackendHrUser {
   termination_reason_type?: string;
   termination_reason_code?: string;
   termination_summary?: string;
-  status: 'active' | 'inactive' | 'terminated';
+  status: "active" | "inactive" | "terminated";
 }
 
 export interface BackendHrUserProfile {
@@ -60,7 +105,12 @@ export interface BackendHrUserProfile {
 
 export interface BackendHrUserDocument {
   id: number;
-  document_type: 'birth_certificate' | 'government_id' | 'proof_of_address' | 'resume' | 'profile_photo';
+  document_type:
+    | "birth_certificate"
+    | "government_id"
+    | "proof_of_address"
+    | "resume"
+    | "profile_photo";
   original_filename: string;
   mime_type: string;
   size_bytes: number;
@@ -81,14 +131,14 @@ export interface HrUserDetailsResponse {
 }
 
 export interface HrUserDocumentPresignPayload {
-  document_type: BackendHrUserDocument['document_type'];
+  document_type: BackendHrUserDocument["document_type"];
   file_name: string;
   content_type: string;
   size_bytes: number;
 }
 
 export interface HrUserDocumentPresignResponse {
-  document_type: BackendHrUserDocument['document_type'];
+  document_type: BackendHrUserDocument["document_type"];
   object_key: string;
   upload_url: string;
   expires_at: string;
@@ -96,7 +146,7 @@ export interface HrUserDocumentPresignResponse {
 }
 
 export interface RegisterHrUserDocumentPayload {
-  document_type: BackendHrUserDocument['document_type'];
+  document_type: BackendHrUserDocument["document_type"];
   original_filename: string;
   mime_type: string;
   size_bytes: number;
@@ -122,9 +172,15 @@ export interface BackendRecordAttachment {
 
 export interface BackendRecordActivity {
   id: number;
-  activity_type: 'created' | 'updated' | 'status_changed' | 'attachment_added' | 'attachment_removed' | 'deleted';
-  from_status?: 'pending' | 'reviewed' | 'resolved' | null;
-  to_status?: 'pending' | 'reviewed' | 'resolved' | null;
+  activity_type:
+    | "created"
+    | "updated"
+    | "status_changed"
+    | "attachment_added"
+    | "attachment_removed"
+    | "deleted";
+  from_status?: "pending" | "reviewed" | "resolved" | null;
+  to_status?: "pending" | "reviewed" | "resolved" | null;
   note?: string;
   actor_user_id: number;
   actor_name: string;
@@ -148,9 +204,9 @@ export interface BackendRecordItem {
     id?: number | null;
     name?: string;
   } | null;
-  type: 'incident' | 'warning' | 'recognition' | 'observation' | 'training';
-  severity?: 'low' | 'medium' | 'high' | null;
-  status: 'pending' | 'reviewed' | 'resolved';
+  type: "incident" | "warning" | "recognition" | "observation" | "training";
+  severity?: "low" | "medium" | "high" | null;
+  status: "pending" | "reviewed" | "resolved";
   title: string;
   description: string;
   actions_taken?: string;
@@ -190,8 +246,8 @@ export interface RecordDetailsResponse {
 
 export interface CreateRecordPayload {
   user_company_id: number;
-  record_type: BackendRecordItem['type'];
-  severity?: NonNullable<BackendRecordItem['severity']>;
+  record_type: BackendRecordItem["type"];
+  severity?: NonNullable<BackendRecordItem["severity"]>;
   title: string;
   description: string;
   actions_taken?: string;
@@ -235,11 +291,11 @@ export interface TerminationPayload {
   exit_date: string;
   last_working_day?: string;
   reason_type:
-    | 'resignation'
-    | 'termination_for_cause'
-    | 'contract_end'
-    | 'mutual_agreement'
-    | 'other';
+    | "resignation"
+    | "termination_for_cause"
+    | "contract_end"
+    | "mutual_agreement"
+    | "other";
   specific_reason?: string;
   summary: string;
 }
@@ -256,11 +312,21 @@ export interface AttendanceLocation {
   radius_meters: number;
 }
 
-export type AttendanceStatus = 'on_time' | 'late' | 'leave' | 'rest' | 'absence' | 'pending' | 'not_scheduled';
-export type AttendanceCorrectionStatus = Exclude<AttendanceStatus, 'pending' | 'not_scheduled'>;
+export type AttendanceStatus =
+  | "on_time"
+  | "late"
+  | "leave"
+  | "rest"
+  | "absence"
+  | "pending"
+  | "not_scheduled";
+export type AttendanceCorrectionStatus = Exclude<
+  AttendanceStatus,
+  "pending" | "not_scheduled"
+>;
 
 export interface AttendanceDashboardItem {
-  subject_type?: 'user';
+  subject_type?: "user";
   user_id?: number;
   user_company_id: number;
   user_code?: string;
@@ -290,7 +356,7 @@ export interface AttendanceDashboardItem {
 }
 
 export interface AttendanceHrUserOption {
-  subject_type?: 'user';
+  subject_type?: "user";
   user_id?: number;
   user_company_id?: number;
   id: number;
@@ -302,7 +368,7 @@ export interface AttendanceHrUserOption {
   unit_id?: number | null;
   unit_name?: string;
   hire_date?: string | null;
-  status: 'active' | 'inactive' | 'terminated';
+  status: "active" | "inactive" | "terminated";
 }
 
 export interface AttendanceDashboardResponse {
@@ -359,7 +425,7 @@ export interface AttendanceCalendarResponse {
 
 export interface AttendanceControlRule {
   template_id: number;
-  schedule_mode?: 'strict' | 'open';
+  schedule_mode?: "strict" | "open";
   block_after_grace_period?: boolean;
   enforce_location?: boolean;
   location_id?: number | null;
@@ -409,7 +475,7 @@ export interface AttendanceControlTemplate {
   id: number;
   name: string;
   status: string;
-  schedule_mode?: 'strict' | 'open';
+  schedule_mode?: "strict" | "open";
   block_after_grace_period?: boolean;
   enforce_location?: boolean;
   location_id?: number | null;
@@ -428,7 +494,7 @@ export interface AttendanceHrUserWorkSiteAssignment {
   template_name?: string | null;
   effective_start_date: string;
   effective_end_date?: string | null;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
 }
 
 export interface AttendanceKioskDevice {
@@ -442,7 +508,7 @@ export interface AttendanceKioskDevice {
   location_name?: string;
   code: string;
   name: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   public_access_token?: string;
   metadata?: Record<string, unknown>;
 }
@@ -454,10 +520,11 @@ export interface AttendanceAccessMethod {
   user_company_id: number;
   user_code?: string;
   user_name: string;
-  method_type: 'pin' | 'badge' | 'password' | 'manual_override' | 'facial_recognition';
+  method_type:
+    "pin" | "badge" | "password" | "manual_override" | "facial_recognition";
   credential_ref?: string | null;
   pin_code?: string | null;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   priority: number;
   metadata?: Record<string, unknown>;
 }
@@ -468,13 +535,14 @@ export interface AttendanceAccessProfile {
   user_company_id: number;
   user_code?: string;
   user_name: string;
-  status: 'active' | 'inactive';
-  default_method: AttendanceAccessMethod['method_type'];
+  status: "active" | "inactive";
+  default_method: AttendanceAccessMethod["method_type"];
   last_enrolled_at?: string | null;
   metadata?: Record<string, unknown>;
   face_enrollment?: {
     id: number;
-    status: 'pending' | 'active' | 'failed' | 'deleted' | 'replaced' | 'superseded';
+    status:
+      "pending" | "active" | "failed" | "deleted" | "replaced" | "superseded";
     enrolled_at?: string | null;
     required_steps?: string[];
   } | null;
@@ -538,8 +606,8 @@ export interface AttendanceControlRecentEvent {
   location_name?: string;
   event_type: string;
   event_kind: string;
-  auth_method: AttendanceAccessMethod['method_type'] | '';
-  result_status: 'success' | 'failure' | 'rejected' | 'overridden' | '';
+  auth_method: AttendanceAccessMethod["method_type"] | "";
+  result_status: "success" | "failure" | "rejected" | "overridden" | "";
   event_timestamp?: string | null;
   photo_url?: string | null;
   notes?: string;
@@ -605,7 +673,7 @@ export interface AttendanceControlLocationPayload {
   required_start_time?: string | null;
   required_end_time?: string | null;
   required_days_per_week?: number | null;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
 }
 
 export interface AttendanceLocationCoordinateExtractionPayload {
@@ -620,8 +688,8 @@ export interface AttendanceLocationCoordinateExtractionResponse {
 
 export interface AttendanceControlTemplatePayload {
   name: string;
-  status: 'active' | 'inactive';
-  schedule_mode?: 'strict' | 'open';
+  status: "active" | "inactive";
+  schedule_mode?: "strict" | "open";
   block_after_grace_period?: boolean;
   enforce_location?: boolean;
   location_id?: number | null;
@@ -708,7 +776,7 @@ export interface AttendanceKioskDevicePayload {
   unit_id?: number | null;
   business_id?: number | null;
   location_id?: number | null;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   metadata?: Record<string, unknown>;
 }
 
@@ -718,8 +786,8 @@ export interface AttendanceAccessProfilesResponse {
 
 export interface AttendanceAccessProfilePayload {
   user_company_id: number;
-  status: 'active' | 'inactive';
-  default_method: AttendanceAccessMethod['method_type'];
+  status: "active" | "inactive";
+  default_method: AttendanceAccessMethod["method_type"];
   last_enrolled_at?: string;
   metadata?: Record<string, unknown>;
 }
@@ -730,18 +798,18 @@ export interface AttendanceAccessMethodsResponse {
 
 export interface AttendanceAccessMethodPayload {
   access_profile_id: number;
-  method_type: AttendanceAccessMethod['method_type'];
+  method_type: AttendanceAccessMethod["method_type"];
   credential_ref?: string | null;
   secret?: string;
   regenerate_pin?: boolean;
   auto_generate_pin?: boolean;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   priority?: number;
   metadata?: Record<string, unknown>;
 }
 
 export interface PayrollPreferences {
-  grouping_mode: 'single' | 'unit' | 'business';
+  grouping_mode: "single" | "unit" | "business";
   default_daily_hours: number;
   pay_leave_days: boolean;
   weekly_start_day: number;
@@ -773,16 +841,16 @@ export interface PayrollOverviewResponse {
 
 export interface PayrollRunSummary {
   id: number;
-  grouping_mode: 'single' | 'unit' | 'business';
+  grouping_mode: "single" | "unit" | "business";
   grouping_key?: string | null;
   grouping_label?: string | null;
   jurisdiction_label?: string | null;
   currency_code?: string | null;
   native_totals_by_currency?: Record<string, number>;
-  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
+  pay_period: "weekly" | "biweekly" | "semimonthly" | "monthly";
   period_start_date: string;
   period_end_date: string;
-  status: 'draft' | 'processed' | 'approved' | 'paid' | 'cancelled';
+  status: "draft" | "processed" | "approved" | "paid" | "cancelled";
   users_count: number;
   gross_amount: number;
   deductions_amount: number;
@@ -800,8 +868,8 @@ export interface PayrollRunListResponse {
 }
 
 export interface PayrollCreateRunsPayload {
-  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
-  grouping_mode: 'single' | 'unit' | 'business';
+  pay_period: "weekly" | "biweekly" | "semimonthly" | "monthly";
+  grouping_mode: "single" | "unit" | "business";
   period_start_date: string;
   period_end_date: string;
 }
@@ -809,10 +877,11 @@ export interface PayrollCreateRunsPayload {
 export interface PayrollLineItem {
   id: number;
   code: string;
-  category: 'earning' | 'deduction' | 'employer_contribution' | 'provision';
+  category: "earning" | "deduction" | "employer_contribution" | "provision";
   label: string;
   amount: number;
-  source_type: 'computed' | 'manual' | 'computed_tax' | 'adjustment' | 'incentive';
+  source_type:
+    "computed" | "manual" | "computed_tax" | "adjustment" | "incentive";
   country_code?: string | null;
   jurisdiction_code?: string | null;
   tax_treatment?: string | null;
@@ -844,8 +913,8 @@ export interface PayrollRunLine {
   jurisdiction_code?: string | null;
   currency_code?: string | null;
   fx_rate?: number | null;
-  pay_period: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
-  salary_type: 'daily' | 'hourly';
+  pay_period: "weekly" | "biweekly" | "semimonthly" | "monthly";
+  salary_type: "daily" | "hourly";
   base_salary_amount: number;
   hourly_rate_amount?: number | null;
   days_payable: number;
@@ -884,7 +953,7 @@ export interface PayrollRunDetailResponse {
 }
 
 export interface PayrollManualItemPayload {
-  category: 'earning' | 'deduction' | 'employer_contribution' | 'provision';
+  category: "earning" | "deduction" | "employer_contribution" | "provision";
   label: string;
   amount: number;
 }
@@ -896,7 +965,7 @@ export interface PayrollUpdateLinePayload {
 }
 
 export interface PayrollColombiaConfig {
-  country_code: 'CO';
+  country_code: "CO";
   exists: boolean;
   default_arl_class?: number | null;
   compensation_fund_code?: string;
@@ -910,7 +979,7 @@ export interface PayrollColombiaConfig {
 
 export interface PayrollColombiaEmployeeProfile {
   user_company_id: number;
-  country_code: 'CO';
+  country_code: "CO";
   exists: boolean;
   contributor_type?: string;
   contributor_subtype?: string;
@@ -926,7 +995,7 @@ export interface PayrollColombiaEmployeeProfile {
   sena_applies?: boolean | null;
   icbf_applies?: boolean | null;
   ccf_applies?: boolean | null;
-  withholding_procedure: 'procedure_1' | 'procedure_2';
+  withholding_procedure: "procedure_1" | "procedure_2";
   dependents_monthly_deduction: number;
   prepaid_medicine_monthly: number;
   housing_interest_monthly: number;
@@ -938,34 +1007,34 @@ export interface PayrollColombiaEmployeeProfile {
 }
 
 export type PayrollColombiaNoveltyCode =
-  | 'ING'
-  | 'RET'
-  | 'VSP'
-  | 'VST'
-  | 'SLN'
-  | 'IGE'
-  | 'LMA'
-  | 'LPA'
-  | 'VAC'
-  | 'SUS'
-  | 'AUS'
-  | 'TER'
-  | 'TERMINATION'
-  | 'LIQ'
-  | 'LIQUIDACION'
-  | 'RETRO'
-  | 'RETROACTIVO'
-  | 'AJR'
-  | 'CORR'
-  | 'CORRECCION'
-  | 'AJUSTE'
-  | 'ADJ';
+  | "ING"
+  | "RET"
+  | "VSP"
+  | "VST"
+  | "SLN"
+  | "IGE"
+  | "LMA"
+  | "LPA"
+  | "VAC"
+  | "SUS"
+  | "AUS"
+  | "TER"
+  | "TERMINATION"
+  | "LIQ"
+  | "LIQUIDACION"
+  | "RETRO"
+  | "RETROACTIVO"
+  | "AJR"
+  | "CORR"
+  | "CORRECCION"
+  | "AJUSTE"
+  | "ADJ";
 
 export interface PayrollColombiaNovelty {
   id: number;
   company_id: number;
   user_company_id: number;
-  country_code: 'CO';
+  country_code: "CO";
   user_code?: string;
   user_name?: string;
   novelty_code: PayrollColombiaNoveltyCode;
@@ -977,8 +1046,15 @@ export interface PayrollColombiaNovelty {
   paid: boolean;
   affects_ibc: boolean;
   ibc_impact_amount: number;
-  source: 'manual' | 'attendance' | 'control' | 'payroll' | 'termination' | 'import' | 'api';
-  status: 'active' | 'inactive' | 'cancelled' | 'applied';
+  source:
+    | "manual"
+    | "attendance"
+    | "control"
+    | "payroll"
+    | "termination"
+    | "import"
+    | "api";
+  status: "active" | "inactive" | "cancelled" | "applied";
   metadata?: Record<string, unknown>;
   created_at?: string | null;
   updated_at?: string | null;
@@ -1000,8 +1076,8 @@ export interface PayrollColombiaNoveltyPayload {
   paid?: boolean;
   affects_ibc?: boolean;
   ibc_impact_amount?: number;
-  source?: PayrollColombiaNovelty['source'];
-  status?: PayrollColombiaNovelty['status'];
+  source?: PayrollColombiaNovelty["source"];
+  status?: PayrollColombiaNovelty["status"];
   metadata?: Record<string, unknown>;
 }
 
@@ -1012,7 +1088,7 @@ export interface PayrollGovernmentReportingSnapshot {
   company_id: number;
   user_company_id: number;
   country_code: string;
-  report_type: 'PILA' | 'DIAN_PAYROLL';
+  report_type: "PILA" | "DIAN_PAYROLL";
   report_period_start: string;
   report_period_end: string;
   status: string;
@@ -1032,7 +1108,13 @@ export interface PayrollGovernmentReportingSnapshotsResponse {
 }
 
 export interface PayrollGovernmentReportingResponsePayload {
-  status?: 'draft_ready' | 'draft_blocked' | 'transmitted' | 'accepted' | 'rejected' | 'correction_required';
+  status?:
+    | "draft_ready"
+    | "draft_blocked"
+    | "transmitted"
+    | "accepted"
+    | "rejected"
+    | "correction_required";
   external_id?: string;
   message?: string;
   response_at?: string;
@@ -1041,13 +1123,20 @@ export interface PayrollGovernmentReportingResponsePayload {
 
 export interface AttendanceKioskEventPayload {
   user_company_id?: number;
-  event_type?: 'check_in' | 'check_out' | 'break_out' | 'break_in';
-  event_kind?: 'auth_attempt' | 'check_in' | 'break_out' | 'break_in' | 'check_out' | 'manual_override' | 'correction';
+  event_type?: "check_in" | "check_out" | "break_out" | "break_in";
+  event_kind?:
+    | "auth_attempt"
+    | "check_in"
+    | "break_out"
+    | "break_in"
+    | "check_out"
+    | "manual_override"
+    | "correction";
   location_id?: number;
   kiosk_device_id?: number;
   latitude?: number;
   longitude?: number;
-  auth_method?: AttendanceAccessMethod['method_type'];
+  auth_method?: AttendanceAccessMethod["method_type"];
   face_verification_session_id?: number;
   credential_payload?: string;
   photo_url?: string;
@@ -1061,15 +1150,16 @@ export interface PublicKioskBootstrapResponse {
     code: string;
     name: string;
   };
-  kiosk_type?: 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
+  kiosk_type?:
+    "business_unit" | "contract_site" | "head_office" | "open_attendance";
   location?: AttendanceLocation | null;
   scope_label?: string | null;
-  auth_methods: Array<'pin'>;
+  auth_methods: Array<"pin">;
   inactivity_timeout_seconds: number;
 }
 
 export interface PublicKioskIdentifyRequest {
-  auth_method: 'pin';
+  auth_method: "pin";
   credential_payload: string;
 }
 
@@ -1089,7 +1179,7 @@ export interface PublicKioskDayActivity {
 
 export interface PublicKioskIdentifyResponse {
   auth_attempt_event_id: number;
-  auth_method: 'pin';
+  auth_method: "pin";
   user: {
     id: number;
     user_code?: string;
@@ -1104,7 +1194,7 @@ export interface PublicKioskIdentifyResponse {
 
 export interface PublicKioskPunchRequest {
   identification_token: string;
-  event_type: 'check_in' | 'check_out';
+  event_type: "check_in" | "check_out";
   event_timestamp?: string;
   latitude?: number;
   longitude?: number;
@@ -1116,24 +1206,24 @@ export interface PublicKioskPunchRequest {
 export interface PublicKioskPunchResponse {
   event_id: number;
   user_company_id: number;
-  event_kind: 'check_in' | 'check_out';
-  auth_method: 'pin';
-  result_status: 'success';
+  event_kind: "check_in" | "check_out";
+  auth_method: "pin";
+  result_status: "success";
   status: AttendanceStatus;
   first_check_in_at?: string | null;
   last_check_out_at?: string | null;
   location: AttendanceLocation | null;
   location_restricted?: boolean;
   photo_object_key?: string | null;
-  photo_storage?: 'object_storage' | 'unavailable' | 'none';
-  identity_evidence?: 'face_verified' | 'photo_fallback';
+  photo_storage?: "object_storage" | "unavailable" | "none";
+  identity_evidence?: "face_verified" | "photo_fallback";
   today_activity?: PublicKioskDayActivity;
 }
 
 export interface AttendanceMediaPresignRequest {
   user_company_id?: number;
   content_type: string;
-  event_type?: 'check_in' | 'check_out' | 'break_out' | 'break_in';
+  event_type?: "check_in" | "check_out" | "break_out" | "break_in";
   event_timestamp?: string;
 }
 
@@ -1145,11 +1235,15 @@ export interface AttendanceMediaPresignResponse {
 }
 
 export interface AttendanceCorrectionPayload {
-  status: AttendanceCorrectionStatus | '';
+  status: AttendanceCorrectionStatus | "";
   notes?: string;
 }
 
-export type AttendanceManualEventKind = 'check_in' | 'check_out';
+export interface AttendanceBulkCorrectionPayload extends AttendanceCorrectionPayload {
+  dates: string[];
+}
+
+export type AttendanceManualEventKind = "check_in" | "check_out";
 
 export interface AttendanceManualEventPayload {
   event_kind: AttendanceManualEventKind;
@@ -1164,7 +1258,7 @@ export interface AttendanceDailyRecordUpdateResponse {
   date: string;
   event_id?: number;
   event_kind?: AttendanceManualEventKind;
-  result_status?: 'overridden';
+  result_status?: "overridden";
   system_status: AttendanceStatus;
   corrected_status?: AttendanceCorrectionStatus | null;
   effective_status: AttendanceStatus;
@@ -1178,6 +1272,27 @@ export interface AttendanceDailyRecordUpdateResponse {
   minutes_late?: number;
   first_location?: AttendanceLocation | null;
   last_location?: AttendanceLocation | null;
+}
+
+export interface AttendanceBulkDailyRecordUpdateResponse {
+  items: AttendanceDailyRecordUpdateResponse[];
+  updated_count: number;
+}
+
+export interface AttendanceRestPlanAssignment {
+  user_company_id: number;
+  dates: string[];
+}
+
+export interface AttendanceBulkRestPlanPayload {
+  assignments: AttendanceRestPlanAssignment[];
+  notes?: string;
+}
+
+export interface AttendanceBulkRestPlanResponse {
+  items: AttendanceDailyRecordUpdateResponse[];
+  updated_count: number;
+  employee_count: number;
 }
 
 export interface FaceEnrollmentSessionResponse {
@@ -1227,10 +1342,10 @@ export interface FaceVerificationResultResponse {
 export interface AnnouncementListItem {
   id: number;
   title: string;
-  type: 'general' | 'urgent' | 'reminder' | 'celebration';
-  audience_type: 'all' | 'units' | 'departments' | 'employees';
+  type: "general" | "urgent" | "reminder" | "celebration";
+  audience_type: "all" | "units" | "departments" | "employees";
   audience_summary: string;
-  status: 'draft' | 'scheduled' | 'published';
+  status: "draft" | "scheduled" | "published";
   scheduled_for?: string | null;
   published_at?: string | null;
   created_at?: string | null;
@@ -1246,7 +1361,7 @@ export interface AnnouncementListItem {
 }
 
 export interface AnnouncementTarget {
-  target_type: 'unit' | 'department' | 'employee';
+  target_type: "unit" | "department" | "employee";
   target_value: string;
 }
 
@@ -1301,10 +1416,10 @@ export interface AnnouncementAudienceOptionsResponse {
 
 export interface CreateAnnouncementPayload {
   title: string;
-  type: 'general' | 'urgent' | 'reminder' | 'celebration';
+  type: "general" | "urgent" | "reminder" | "celebration";
   content: string;
-  audience_type: 'all' | 'units' | 'departments' | 'employees';
-  status: 'draft' | 'scheduled' | 'published';
+  audience_type: "all" | "units" | "departments" | "employees";
+  status: "draft" | "scheduled" | "published";
   scheduled_for?: string;
   unit_ids?: string[];
   department_names?: string[];
@@ -1335,13 +1450,13 @@ const toQueryString = (params: Record<string, string | number | undefined>) => {
   const search = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') {
+    if (value !== undefined && value !== "") {
       search.set(key, String(value));
     }
   });
 
   const queryString = search.toString();
-  return queryString ? `?${queryString}` : '';
+  return queryString ? `?${queryString}` : "";
 };
 
 export const humanResourcesApi = {
@@ -1350,34 +1465,45 @@ export const humanResourcesApi = {
   },
 
   getHrUserDetails(id: string | number) {
-    return apiClient<HrUserDetailsResponse>(`${endpoints.humanResources.hrUserDetails}/${id}`);
+    return apiClient<HrUserDetailsResponse>(
+      `${endpoints.humanResources.hrUserDetails}/${id}`,
+    );
   },
 
   createHrUser(payload: Record<string, unknown>) {
     return apiClient<BackendHrUser>(endpoints.humanResources.hrUserCreate, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
   updateHrUser(id: string | number, payload: Record<string, unknown>) {
-    return apiClient<BackendHrUser>(`${endpoints.humanResources.hrUserUpdate}/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<BackendHrUser>(
+      `${endpoints.humanResources.hrUserUpdate}/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   deleteHrUser(id: string | number) {
-    return apiClient<{ success: boolean }>(`${endpoints.humanResources.hrUserDelete}/${id}`, {
-      method: 'DELETE',
-    });
+    return apiClient<{ success: boolean }>(
+      `${endpoints.humanResources.hrUserDelete}/${id}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   terminateHrUser(id: string | number, payload: TerminationPayload) {
-    return apiClient<BackendHrUser>(`${endpoints.humanResources.hrUserTerminate}/${id}/terminate`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<BackendHrUser>(
+      `${endpoints.humanResources.hrUserTerminate}/${id}/terminate`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   presignHrUserDocumentUpload(
@@ -1387,7 +1513,7 @@ export const humanResourcesApi = {
     return apiClient<HrUserDocumentPresignResponse>(
       `${endpoints.humanResources.hrUserDocuments}/${userCompanyId}/documents/presign-upload`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(payload),
       },
     );
@@ -1401,18 +1527,18 @@ export const humanResourcesApi = {
   ) {
     const headers = new Headers(uploadHeaders);
 
-    if (contentType && !headers.has('Content-Type')) {
-      headers.set('Content-Type', contentType);
+    if (contentType && !headers.has("Content-Type")) {
+      headers.set("Content-Type", contentType);
     }
 
-    const response = await fetch(uploadUrl, {
-      method: 'PUT',
+    const response = await fetch(normalizeStorageUrl(uploadUrl), {
+      method: "PUT",
       headers,
       body: file,
     });
 
     if (!response.ok) {
-      throw new Error('HR user document upload failed.');
+      throw new Error("HR user document upload failed.");
     }
   },
 
@@ -1423,17 +1549,20 @@ export const humanResourcesApi = {
     return apiClient<BackendHrUserDocument>(
       `${endpoints.humanResources.hrUserDocuments}/${userCompanyId}/documents`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(payload),
       },
     );
   },
 
-  deleteHrUserDocument(userCompanyId: string | number, documentId: string | number) {
+  deleteHrUserDocument(
+    userCompanyId: string | number,
+    documentId: string | number,
+  ) {
     return apiClient<{ success: boolean }>(
       `${endpoints.humanResources.hrUserDocuments}/${userCompanyId}/documents/${documentId}`,
       {
-        method: 'DELETE',
+        method: "DELETE",
       },
     );
   },
@@ -1457,38 +1586,59 @@ export const humanResourcesApi = {
   },
 
   listAttendanceControlLocations() {
-    return apiClient<AttendanceControlLocationsResponse>(endpoints.humanResources.attendanceLocations);
+    return apiClient<AttendanceControlLocationsResponse>(
+      endpoints.humanResources.attendanceLocations,
+    );
   },
 
-  extractAttendanceLocationCoordinates(payload: AttendanceLocationCoordinateExtractionPayload) {
-    return apiClient<AttendanceLocationCoordinateExtractionResponse>(endpoints.humanResources.attendanceLocationCoordinateExtraction, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  extractAttendanceLocationCoordinates(
+    payload: AttendanceLocationCoordinateExtractionPayload,
+  ) {
+    return apiClient<AttendanceLocationCoordinateExtractionResponse>(
+      endpoints.humanResources.attendanceLocationCoordinateExtraction,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   createAttendanceControlLocation(payload: AttendanceControlLocationPayload) {
-    return apiClient<{ location: AttendanceControlLocation }>(endpoints.humanResources.attendanceLocations, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<{ location: AttendanceControlLocation }>(
+      endpoints.humanResources.attendanceLocations,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  updateAttendanceControlLocation(locationId: string | number, payload: AttendanceControlLocationPayload) {
-    return apiClient<{ location: AttendanceControlLocation }>(`${endpoints.humanResources.attendanceLocations}/${locationId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+  updateAttendanceControlLocation(
+    locationId: string | number,
+    payload: AttendanceControlLocationPayload,
+  ) {
+    return apiClient<{ location: AttendanceControlLocation }>(
+      `${endpoints.humanResources.attendanceLocations}/${locationId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   deleteAttendanceControlLocation(locationId: string | number) {
-    return apiClient<{ success: boolean }>(`${endpoints.humanResources.attendanceLocations}/${locationId}`, {
-      method: 'DELETE',
-    });
+    return apiClient<{ success: boolean }>(
+      `${endpoints.humanResources.attendanceLocations}/${locationId}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   listAttendanceControlTemplates() {
-    return apiClient<AttendanceControlTemplatesResponse>(endpoints.humanResources.attendanceScheduleTemplates);
+    return apiClient<AttendanceControlTemplatesResponse>(
+      endpoints.humanResources.attendanceScheduleTemplates,
+    );
   },
 
   listAttendanceScheduleCandidates(params: {
@@ -1507,115 +1657,177 @@ export const humanResourcesApi = {
   },
 
   createAttendanceControlTemplate(payload: AttendanceControlTemplatePayload) {
-    return apiClient<{ template: AttendanceControlTemplate }>(endpoints.humanResources.attendanceScheduleTemplates, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<{ template: AttendanceControlTemplate }>(
+      endpoints.humanResources.attendanceScheduleTemplates,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  updateAttendanceControlTemplate(templateId: string | number, payload: AttendanceControlTemplatePayload) {
-    return apiClient<{ template: AttendanceControlTemplate }>(`${endpoints.humanResources.attendanceScheduleTemplates}/${templateId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+  updateAttendanceControlTemplate(
+    templateId: string | number,
+    payload: AttendanceControlTemplatePayload,
+  ) {
+    return apiClient<{ template: AttendanceControlTemplate }>(
+      `${endpoints.humanResources.attendanceScheduleTemplates}/${templateId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   bulkAssignAttendanceSchedule(payload: AttendanceControlAssignmentPayload) {
-    return apiClient<AttendanceControlBulkAssignmentResponse>(endpoints.humanResources.attendanceScheduleAssignmentsBulk, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<AttendanceControlBulkAssignmentResponse>(
+      endpoints.humanResources.attendanceScheduleAssignmentsBulk,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  replaceAttendanceHrUserAllowedLocations(userCompanyId: string | number, payload: AttendanceHrUserAllowedLocationsPayload) {
-    return apiClient<{ user_company_id: number; allowed_locations: AttendanceControlLocation[] }>(
+  replaceAttendanceHrUserAllowedLocations(
+    userCompanyId: string | number,
+    payload: AttendanceHrUserAllowedLocationsPayload,
+  ) {
+    return apiClient<{
+      user_company_id: number;
+      allowed_locations: AttendanceControlLocation[];
+    }>(
       `${endpoints.humanResources.attendanceCalendar}/${userCompanyId}/allowed-locations`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(payload),
       },
     );
   },
 
   bulkAssignAttendanceWorkSite(payload: AttendanceWorkSiteAssignmentPayload) {
-    return apiClient<AttendanceWorkSiteAssignmentResponse>(endpoints.humanResources.attendanceWorkSiteAssignmentsBulk, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<AttendanceWorkSiteAssignmentResponse>(
+      endpoints.humanResources.attendanceWorkSiteAssignmentsBulk,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  clearAttendanceWorkAssignments(payload: AttendanceWorkAssignmentClearPayload) {
-    return apiClient<AttendanceWorkAssignmentClearResponse>(endpoints.humanResources.attendanceWorkAssignmentsClear, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  clearAttendanceWorkAssignments(
+    payload: AttendanceWorkAssignmentClearPayload,
+  ) {
+    return apiClient<AttendanceWorkAssignmentClearResponse>(
+      endpoints.humanResources.attendanceWorkAssignmentsClear,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   listAttendanceKioskDevices() {
-    return apiClient<AttendanceKioskDevicesResponse>(endpoints.humanResources.attendanceKioskDevices);
+    return apiClient<AttendanceKioskDevicesResponse>(
+      endpoints.humanResources.attendanceKioskDevices,
+    );
   },
 
   createAttendanceKioskDevice(payload: AttendanceKioskDevicePayload) {
-    return apiClient<{ kiosk_device: AttendanceKioskDevice }>(endpoints.humanResources.attendanceKioskDevices, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<{ kiosk_device: AttendanceKioskDevice }>(
+      endpoints.humanResources.attendanceKioskDevices,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  updateAttendanceKioskDevice(kioskDeviceId: string | number, payload: AttendanceKioskDevicePayload) {
-    return apiClient<{ kiosk_device: AttendanceKioskDevice }>(`${endpoints.humanResources.attendanceKioskDevices}/${kioskDeviceId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+  updateAttendanceKioskDevice(
+    kioskDeviceId: string | number,
+    payload: AttendanceKioskDevicePayload,
+  ) {
+    return apiClient<{ kiosk_device: AttendanceKioskDevice }>(
+      `${endpoints.humanResources.attendanceKioskDevices}/${kioskDeviceId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   deleteAttendanceKioskDevice(kioskDeviceId: string | number) {
-    return apiClient<{ success: boolean }>(`${endpoints.humanResources.attendanceKioskDevices}/${kioskDeviceId}`, {
-      method: 'DELETE',
-    });
+    return apiClient<{ success: boolean }>(
+      `${endpoints.humanResources.attendanceKioskDevices}/${kioskDeviceId}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   rotateAttendanceKioskDevicePublicToken(kioskDeviceId: string | number) {
     return apiClient<AttendanceKioskDeviceRotateTokenResponse>(
       `${endpoints.humanResources.attendanceKioskDeviceRotateToken}/${kioskDeviceId}/rotate-public-access-token`,
       {
-        method: 'POST',
+        method: "POST",
       },
     );
   },
 
   listAttendanceAccessProfiles() {
-    return apiClient<AttendanceAccessProfilesResponse>(endpoints.humanResources.attendanceAccessProfiles);
+    return apiClient<AttendanceAccessProfilesResponse>(
+      endpoints.humanResources.attendanceAccessProfiles,
+    );
   },
 
   createAttendanceAccessProfile(payload: AttendanceAccessProfilePayload) {
-    return apiClient<{ access_profile: AttendanceAccessProfile }>(endpoints.humanResources.attendanceAccessProfiles, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<{ access_profile: AttendanceAccessProfile }>(
+      endpoints.humanResources.attendanceAccessProfiles,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  updateAttendanceAccessProfile(profileId: string | number, payload: AttendanceAccessProfilePayload) {
-    return apiClient<{ access_profile: AttendanceAccessProfile }>(`${endpoints.humanResources.attendanceAccessProfiles}/${profileId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+  updateAttendanceAccessProfile(
+    profileId: string | number,
+    payload: AttendanceAccessProfilePayload,
+  ) {
+    return apiClient<{ access_profile: AttendanceAccessProfile }>(
+      `${endpoints.humanResources.attendanceAccessProfiles}/${profileId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   listAttendanceAccessMethods() {
-    return apiClient<AttendanceAccessMethodsResponse>(endpoints.humanResources.attendanceAccessMethods);
+    return apiClient<AttendanceAccessMethodsResponse>(
+      endpoints.humanResources.attendanceAccessMethods,
+    );
   },
 
   createAttendanceAccessMethod(payload: AttendanceAccessMethodPayload) {
-    return apiClient<{ access_method: AttendanceAccessMethod; access_profile: AttendanceAccessProfile }>(endpoints.humanResources.attendanceAccessMethods, {
-      method: 'POST',
+    return apiClient<{
+      access_method: AttendanceAccessMethod;
+      access_profile: AttendanceAccessProfile;
+    }>(endpoints.humanResources.attendanceAccessMethods, {
+      method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  updateAttendanceAccessMethod(methodId: string | number, payload: AttendanceAccessMethodPayload) {
-    return apiClient<{ access_method: AttendanceAccessMethod; access_profile: AttendanceAccessProfile }>(`${endpoints.humanResources.attendanceAccessMethods}/${methodId}`, {
-      method: 'PUT',
+  updateAttendanceAccessMethod(
+    methodId: string | number,
+    payload: AttendanceAccessMethodPayload,
+  ) {
+    return apiClient<{
+      access_method: AttendanceAccessMethod;
+      access_profile: AttendanceAccessProfile;
+    }>(`${endpoints.humanResources.attendanceAccessMethods}/${methodId}`, {
+      method: "PUT",
       body: JSON.stringify(payload),
     });
   },
@@ -1633,17 +1845,25 @@ export const humanResourcesApi = {
   },
 
   presignAttendancePhotoUpload(payload: AttendanceMediaPresignRequest) {
-    return apiClient<AttendanceMediaPresignResponse>(endpoints.humanResources.attendanceMediaPresignUpload, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<AttendanceMediaPresignResponse>(
+      endpoints.humanResources.attendanceMediaPresignUpload,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  presignMyAttendancePhotoUpload(payload: Omit<AttendanceMediaPresignRequest, 'user_company_id'>) {
-    return apiClient<AttendanceMediaPresignResponse>(endpoints.humanResources.attendanceSelfMediaPresignUpload, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  presignMyAttendancePhotoUpload(
+    payload: Omit<AttendanceMediaPresignRequest, "user_company_id">,
+  ) {
+    return apiClient<AttendanceMediaPresignResponse>(
+      endpoints.humanResources.attendanceSelfMediaPresignUpload,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   async uploadAttendancePhoto(
@@ -1654,71 +1874,95 @@ export const humanResourcesApi = {
   ) {
     const headers = new Headers(uploadHeaders);
 
-    if (contentType && !headers.has('Content-Type')) {
-      headers.set('Content-Type', contentType);
+    if (contentType && !headers.has("Content-Type")) {
+      headers.set("Content-Type", contentType);
     }
 
     const response = await fetch(uploadUrl, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: file,
     });
 
     if (!response.ok) {
-      throw new Error('Attendance photo upload failed.');
+      throw new Error("Attendance photo upload failed.");
     }
   },
 
   recordAttendanceKioskEvent(payload: AttendanceKioskEventPayload) {
-    return apiClient<{ status: string }>(endpoints.humanResources.attendanceKioskEvents, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  recordMyAttendanceKioskEvent(payload: Omit<AttendanceKioskEventPayload, 'user_company_id'>) {
-    return apiClient<{ status: string }>(endpoints.humanResources.attendanceSelfKioskEvents, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  getPublicKioskBootstrap(deviceToken: string) {
-    return apiClient<PublicKioskBootstrapResponse>(`${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/bootstrap`);
-  },
-
-  identifyPublicKioskHrUser(deviceToken: string, payload: PublicKioskIdentifyRequest) {
-    return apiClient<PublicKioskIdentifyResponse>(`${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/identify`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  punchPublicKiosk(deviceToken: string, payload: PublicKioskPunchRequest) {
-    return apiClient<PublicKioskPunchResponse>(`${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/punch`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  presignPublicKioskAttendancePhotoUpload(
-    deviceToken: string,
-    payload: Omit<AttendanceMediaPresignRequest, 'user_company_id'> & { identification_token: string },
-  ) {
-    return apiClient<AttendanceMediaPresignResponse>(
-      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/media/presign-upload`,
+    return apiClient<{ status: string }>(
+      endpoints.humanResources.attendanceKioskEvents,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(payload),
       },
     );
   },
 
-  createPublicKioskFaceVerificationSession(deviceToken: string, identificationToken: string) {
+  recordMyAttendanceKioskEvent(
+    payload: Omit<AttendanceKioskEventPayload, "user_company_id">,
+  ) {
+    return apiClient<{ status: string }>(
+      endpoints.humanResources.attendanceSelfKioskEvents,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  getPublicKioskBootstrap(deviceToken: string) {
+    return apiClient<PublicKioskBootstrapResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/bootstrap`,
+    );
+  },
+
+  identifyPublicKioskHrUser(
+    deviceToken: string,
+    payload: PublicKioskIdentifyRequest,
+  ) {
+    return apiClient<PublicKioskIdentifyResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/identify`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  punchPublicKiosk(deviceToken: string, payload: PublicKioskPunchRequest) {
+    return apiClient<PublicKioskPunchResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/punch`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  presignPublicKioskAttendancePhotoUpload(
+    deviceToken: string,
+    payload: Omit<AttendanceMediaPresignRequest, "user_company_id"> & {
+      identification_token: string;
+    },
+  ) {
+    return apiClient<AttendanceMediaPresignResponse>(
+      `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/media/presign-upload`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  createPublicKioskFaceVerificationSession(
+    deviceToken: string,
+    identificationToken: string,
+  ) {
     return apiClient<FaceVerificationSessionResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ identification_token: identificationToken }),
       },
     );
@@ -1734,121 +1978,204 @@ export const humanResourcesApi = {
     return apiClient<FaceCapturePresignResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/captures/presign-upload`,
       {
-        method: 'POST',
-        body: JSON.stringify({ identification_token: identificationToken, step, content_type: contentType }),
+        method: "POST",
+        body: JSON.stringify({
+          identification_token: identificationToken,
+          step,
+          content_type: contentType,
+        }),
       },
     );
   },
 
-  completePublicKioskFaceVerificationSession(deviceToken: string, sessionId: number, identificationToken: string) {
+  completePublicKioskFaceVerificationSession(
+    deviceToken: string,
+    sessionId: number,
+    identificationToken: string,
+  ) {
     return apiClient<FaceVerificationResultResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/complete`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ identification_token: identificationToken }),
       },
     );
   },
 
   createFaceEnrollmentSession(userCompanyId: number) {
-    return apiClient<FaceEnrollmentSessionResponse>(endpoints.humanResources.faceEnrollmentSessions, {
-      method: 'POST',
-      body: JSON.stringify({ user_company_id: userCompanyId }),
-    });
+    return apiClient<FaceEnrollmentSessionResponse>(
+      endpoints.humanResources.faceEnrollmentSessions,
+      {
+        method: "POST",
+        body: JSON.stringify({ user_company_id: userCompanyId }),
+      },
+    );
   },
 
-  presignFaceEnrollmentCapture(enrollmentId: number, step: string, contentType: string) {
-    return apiClient<FaceCapturePresignResponse>(`${endpoints.humanResources.faceEnrollmentSessions}/${enrollmentId}/captures/presign-upload`, {
-      method: 'POST',
-      body: JSON.stringify({ step, content_type: contentType }),
-    });
+  presignFaceEnrollmentCapture(
+    enrollmentId: number,
+    step: string,
+    contentType: string,
+  ) {
+    return apiClient<FaceCapturePresignResponse>(
+      `${endpoints.humanResources.faceEnrollmentSessions}/${enrollmentId}/captures/presign-upload`,
+      {
+        method: "POST",
+        body: JSON.stringify({ step, content_type: contentType }),
+      },
+    );
   },
 
   completeFaceEnrollmentSession(enrollmentId: number) {
-    return apiClient<FaceEnrollmentStatusResponse>(`${endpoints.humanResources.faceEnrollmentSessions}/${enrollmentId}/complete`, {
-      method: 'POST',
-    });
+    return apiClient<FaceEnrollmentStatusResponse>(
+      `${endpoints.humanResources.faceEnrollmentSessions}/${enrollmentId}/complete`,
+      {
+        method: "POST",
+      },
+    );
   },
 
   getFaceEnrollment(userCompanyId: number) {
-    return apiClient<FaceEnrollmentStatusResponse>(`${endpoints.humanResources.faceEnrollments}/${userCompanyId}`);
+    return apiClient<FaceEnrollmentStatusResponse>(
+      `${endpoints.humanResources.faceEnrollments}/${userCompanyId}`,
+    );
   },
 
   deleteFaceEnrollment(userCompanyId: number) {
-    return apiClient<{ success: boolean }>(`${endpoints.humanResources.faceEnrollments}/${userCompanyId}`, {
-      method: 'DELETE',
-    });
+    return apiClient<{ success: boolean }>(
+      `${endpoints.humanResources.faceEnrollments}/${userCompanyId}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   createFaceVerificationSession(userCompanyId: number) {
-    return apiClient<FaceVerificationSessionResponse>(endpoints.humanResources.attendanceFaceVerificationSessions, {
-      method: 'POST',
-      body: JSON.stringify({ user_company_id: userCompanyId }),
-    });
+    return apiClient<FaceVerificationSessionResponse>(
+      endpoints.humanResources.attendanceFaceVerificationSessions,
+      {
+        method: "POST",
+        body: JSON.stringify({ user_company_id: userCompanyId }),
+      },
+    );
   },
 
   createMyFaceVerificationSession() {
-    return apiClient<FaceVerificationSessionResponse>(endpoints.humanResources.attendanceSelfFaceVerificationSessions, {
-      method: 'POST',
-    });
+    return apiClient<FaceVerificationSessionResponse>(
+      endpoints.humanResources.attendanceSelfFaceVerificationSessions,
+      {
+        method: "POST",
+      },
+    );
   },
 
-  presignFaceVerificationCapture(sessionId: number, step: string, contentType: string) {
-    return apiClient<FaceCapturePresignResponse>(`${endpoints.humanResources.attendanceFaceVerificationSessions}/${sessionId}/captures/presign-upload`, {
-      method: 'POST',
-      body: JSON.stringify({ step, content_type: contentType }),
-    });
+  presignFaceVerificationCapture(
+    sessionId: number,
+    step: string,
+    contentType: string,
+  ) {
+    return apiClient<FaceCapturePresignResponse>(
+      `${endpoints.humanResources.attendanceFaceVerificationSessions}/${sessionId}/captures/presign-upload`,
+      {
+        method: "POST",
+        body: JSON.stringify({ step, content_type: contentType }),
+      },
+    );
   },
 
   completeFaceVerificationSession(sessionId: number) {
-    return apiClient<FaceVerificationResultResponse>(`${endpoints.humanResources.attendanceFaceVerificationSessions}/${sessionId}/complete`, {
-      method: 'POST',
-    });
+    return apiClient<FaceVerificationResultResponse>(
+      `${endpoints.humanResources.attendanceFaceVerificationSessions}/${sessionId}/complete`,
+      {
+        method: "POST",
+      },
+    );
   },
 
-  updateAttendanceDailyRecord(userCompanyId: string | number, date: string, payload: AttendanceCorrectionPayload) {
+  updateAttendanceDailyRecord(
+    userCompanyId: string | number,
+    date: string,
+    payload: AttendanceCorrectionPayload,
+  ) {
     return apiClient<AttendanceDailyRecordUpdateResponse>(
       `${endpoints.humanResources.attendanceDailyRecords}/${userCompanyId}/${date}`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(payload),
       },
     );
   },
 
-  recordManualAttendanceEvent(userCompanyId: string | number, date: string, payload: AttendanceManualEventPayload) {
+  bulkUpdateAttendanceDailyRecords(
+    userCompanyId: string | number,
+    payload: AttendanceBulkCorrectionPayload,
+  ) {
+    return apiClient<AttendanceBulkDailyRecordUpdateResponse>(
+      `${endpoints.humanResources.attendanceDailyRecords}/${userCompanyId}/bulk`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  bulkAssignAttendanceRestDays(payload: AttendanceBulkRestPlanPayload) {
+    return apiClient<AttendanceBulkRestPlanResponse>(
+      `${endpoints.humanResources.attendanceDailyRecords}/rest-plan`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  recordManualAttendanceEvent(
+    userCompanyId: string | number,
+    date: string,
+    payload: AttendanceManualEventPayload,
+  ) {
     return apiClient<AttendanceDailyRecordUpdateResponse>(
       `${endpoints.humanResources.attendanceDailyRecords}/${userCompanyId}/${date}/manual-events`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(payload),
       },
     );
   },
 
-  updateMyAttendanceDailyRecord(date: string, payload: AttendanceCorrectionPayload) {
+  updateMyAttendanceDailyRecord(
+    date: string,
+    payload: AttendanceCorrectionPayload,
+  ) {
     return apiClient<AttendanceDailyRecordUpdateResponse>(
       `${endpoints.humanResources.attendanceSelfDailyRecords}/${date}`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(payload),
       },
     );
   },
 
   getPayrollOverview() {
-    return apiClient<PayrollOverviewResponse>(endpoints.humanResources.payrollOverview);
+    return apiClient<PayrollOverviewResponse>(
+      endpoints.humanResources.payrollOverview,
+    );
   },
 
   getPayrollPreferences() {
-    return apiClient<PayrollPreferences>(endpoints.humanResources.payrollPreferences);
+    return apiClient<PayrollPreferences>(
+      endpoints.humanResources.payrollPreferences,
+    );
   },
 
   updatePayrollPreferences(payload: PayrollPreferences) {
-    return apiClient<PayrollPreferences>(endpoints.humanResources.payrollPreferences, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<PayrollPreferences>(
+      endpoints.humanResources.payrollPreferences,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   listPayrollRuns(filters: Record<string, string | number | undefined> = {}) {
@@ -1858,56 +2185,85 @@ export const humanResourcesApi = {
   },
 
   createPayrollRuns(payload: PayrollCreateRunsPayload) {
-    return apiClient<PayrollRunListResponse>(endpoints.humanResources.payrollRuns, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<PayrollRunListResponse>(
+      endpoints.humanResources.payrollRuns,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   getPayrollRun(runId: string | number) {
-    return apiClient<PayrollRunDetailResponse>(`${endpoints.humanResources.payrollRuns}/${runId}`);
+    return apiClient<PayrollRunDetailResponse>(
+      `${endpoints.humanResources.payrollRuns}/${runId}`,
+    );
   },
 
-  updatePayrollRunLine(runId: string | number, lineId: string | number, payload: PayrollUpdateLinePayload) {
-    return apiClient<PayrollRunDetailResponse>(`${endpoints.humanResources.payrollRuns}/${runId}/lines/${lineId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+  updatePayrollRunLine(
+    runId: string | number,
+    lineId: string | number,
+    payload: PayrollUpdateLinePayload,
+  ) {
+    return apiClient<PayrollRunDetailResponse>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/lines/${lineId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   processPayrollRun(runId: string | number) {
-    return apiClient<{ run: PayrollRunSummary }>(`${endpoints.humanResources.payrollRuns}/${runId}/process`, {
-      method: 'POST',
-    });
+    return apiClient<{ run: PayrollRunSummary }>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/process`,
+      {
+        method: "POST",
+      },
+    );
   },
 
   approvePayrollRun(runId: string | number) {
-    return apiClient<{ run: PayrollRunSummary }>(`${endpoints.humanResources.payrollRuns}/${runId}/approve`, {
-      method: 'POST',
-    });
+    return apiClient<{ run: PayrollRunSummary }>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/approve`,
+      {
+        method: "POST",
+      },
+    );
   },
 
   markPayrollRunPaid(runId: string | number) {
-    return apiClient<{ run: PayrollRunSummary }>(`${endpoints.humanResources.payrollRuns}/${runId}/mark-paid`, {
-      method: 'POST',
-    });
+    return apiClient<{ run: PayrollRunSummary }>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/mark-paid`,
+      {
+        method: "POST",
+      },
+    );
   },
 
   cancelPayrollRun(runId: string | number) {
-    return apiClient<{ run: PayrollRunSummary }>(`${endpoints.humanResources.payrollRuns}/${runId}/cancel`, {
-      method: 'POST',
-    });
+    return apiClient<{ run: PayrollRunSummary }>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/cancel`,
+      {
+        method: "POST",
+      },
+    );
   },
 
   getPayrollColombiaConfig() {
-    return apiClient<PayrollColombiaConfig>(`${endpoints.humanResources.payrollColombia}/config`);
+    return apiClient<PayrollColombiaConfig>(
+      `${endpoints.humanResources.payrollColombia}/config`,
+    );
   },
 
   updatePayrollColombiaConfig(payload: Partial<PayrollColombiaConfig>) {
-    return apiClient<PayrollColombiaConfig>(`${endpoints.humanResources.payrollColombia}/config`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<PayrollColombiaConfig>(
+      `${endpoints.humanResources.payrollColombia}/config`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   getPayrollColombiaEmployeeProfile(userCompanyId: string | number) {
@@ -1923,35 +2279,45 @@ export const humanResourcesApi = {
     return apiClient<PayrollColombiaEmployeeProfile>(
       `${endpoints.humanResources.payrollColombia}/profiles/${userCompanyId}`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(payload),
       },
     );
   },
 
-  listPayrollColombiaNovelties(filters: {
-    user_company_id?: string | number;
-    period_from?: string;
-    period_to?: string;
-    status?: PayrollColombiaNovelty['status'] | 'all';
-  } = {}) {
+  listPayrollColombiaNovelties(
+    filters: {
+      user_company_id?: string | number;
+      period_from?: string;
+      period_to?: string;
+      status?: PayrollColombiaNovelty["status"] | "all";
+    } = {},
+  ) {
     return apiClient<PayrollColombiaNoveltiesResponse>(
       `${endpoints.humanResources.payrollColombia}/novelties${toQueryString(filters)}`,
     );
   },
 
-  createPayrollColombiaNovelty(payload: PayrollColombiaNoveltyPayload & { user_company_id: number }) {
-    return apiClient<{ item: PayrollColombiaNovelty }>(`${endpoints.humanResources.payrollColombia}/novelties`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  createPayrollColombiaNovelty(
+    payload: PayrollColombiaNoveltyPayload & { user_company_id: number },
+  ) {
+    return apiClient<{ item: PayrollColombiaNovelty }>(
+      `${endpoints.humanResources.payrollColombia}/novelties`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  updatePayrollColombiaNovelty(noveltyId: string | number, payload: PayrollColombiaNoveltyPayload) {
+  updatePayrollColombiaNovelty(
+    noveltyId: string | number,
+    payload: PayrollColombiaNoveltyPayload,
+  ) {
     return apiClient<{ item: PayrollColombiaNovelty }>(
       `${endpoints.humanResources.payrollColombia}/novelties/${noveltyId}`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(payload),
       },
     );
@@ -1959,7 +2325,7 @@ export const humanResourcesApi = {
 
   listPayrollGovernmentReportingSnapshots(
     runId: string | number,
-    filters: { report_type?: 'PILA' | 'DIAN_PAYROLL' } = {},
+    filters: { report_type?: "PILA" | "DIAN_PAYROLL" } = {},
   ) {
     return apiClient<PayrollGovernmentReportingSnapshotsResponse>(
       `${endpoints.humanResources.payrollRuns}/${runId}/government-reporting${toQueryString(filters)}`,
@@ -1973,60 +2339,80 @@ export const humanResourcesApi = {
     return apiClient<{ item: PayrollGovernmentReportingSnapshot }>(
       `${endpoints.humanResources.payrollGovernmentReporting}/${snapshotId}/response`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(payload),
       },
     );
   },
 
   listAnnouncements() {
-    return apiClient<AnnouncementsListResponse>(endpoints.humanResources.announcementsList);
+    return apiClient<AnnouncementsListResponse>(
+      endpoints.humanResources.announcementsList,
+    );
   },
 
   getAnnouncementAudienceOptions() {
-    return apiClient<AnnouncementAudienceOptionsResponse>(endpoints.humanResources.announcementsAudienceOptions);
+    return apiClient<AnnouncementAudienceOptionsResponse>(
+      endpoints.humanResources.announcementsAudienceOptions,
+    );
   },
 
   async createAnnouncement(payload: CreateAnnouncementPayload) {
-    const response = await apiClient<AnnouncementListItem>(endpoints.humanResources.announcementsCreate, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const response = await apiClient<AnnouncementListItem>(
+      endpoints.humanResources.announcementsCreate,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
     dispatchNotificationsRefresh();
     return response;
   },
 
-  async updateAnnouncement(announcementId: string | number, payload: CreateAnnouncementPayload) {
-    const response = await apiClient<AnnouncementListItem>(`${endpoints.humanResources.announcementsList}/${announcementId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
+  async updateAnnouncement(
+    announcementId: string | number,
+    payload: CreateAnnouncementPayload,
+  ) {
+    const response = await apiClient<AnnouncementListItem>(
+      `${endpoints.humanResources.announcementsList}/${announcementId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+    );
     dispatchNotificationsRefresh();
     return response;
   },
 
   async deleteAnnouncement(announcementId: string | number) {
-    const response = await apiClient<{ success: boolean }>(`${endpoints.humanResources.announcementsList}/${announcementId}`, {
-      method: 'DELETE',
-    });
+    const response = await apiClient<{ success: boolean }>(
+      `${endpoints.humanResources.announcementsList}/${announcementId}`,
+      {
+        method: "DELETE",
+      },
+    );
     dispatchNotificationsRefresh();
     return response;
   },
 
   async markAnnouncementRead(announcementId: string | number) {
-    const response = await apiClient<{ announcement_id: number; read_at: string }>(
-      `${endpoints.humanResources.announcementsList}/${announcementId}/read`,
-      { method: 'POST' },
-    );
+    const response = await apiClient<{
+      announcement_id: number;
+      read_at: string;
+    }>(`${endpoints.humanResources.announcementsList}/${announcementId}/read`, {
+      method: "POST",
+    });
     dispatchNotificationsRefresh();
     return response;
   },
 
   async markAnnouncementUnread(announcementId: string | number) {
-    const response = await apiClient<{ announcement_id: number; read_at: null }>(
-      `${endpoints.humanResources.announcementsList}/${announcementId}/read`,
-      { method: 'DELETE' },
-    );
+    const response = await apiClient<{
+      announcement_id: number;
+      read_at: null;
+    }>(`${endpoints.humanResources.announcementsList}/${announcementId}/read`, {
+      method: "DELETE",
+    });
     dispatchNotificationsRefresh();
     return response;
   },
@@ -2038,7 +2424,7 @@ export const humanResourcesApi = {
     return apiClient<AnnouncementAttachmentPresignResponse>(
       `${endpoints.humanResources.announcementsList}/${announcementId}/attachments/presign-upload`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(payload),
       },
     );
@@ -2051,12 +2437,16 @@ export const humanResourcesApi = {
     uploadHeaders: Record<string, string> = {},
   ) {
     const headers = new Headers(uploadHeaders);
-    if (contentType && !headers.has('Content-Type')) {
-      headers.set('Content-Type', contentType);
+    if (contentType && !headers.has("Content-Type")) {
+      headers.set("Content-Type", contentType);
     }
-    const response = await fetch(uploadUrl, { method: 'PUT', headers, body: file });
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers,
+      body: file,
+    });
     if (!response.ok) {
-      throw new Error('Announcement attachment upload failed.');
+      throw new Error("Announcement attachment upload failed.");
     }
   },
 
@@ -2067,16 +2457,19 @@ export const humanResourcesApi = {
     return apiClient<AnnouncementListItem>(
       `${endpoints.humanResources.announcementsList}/${announcementId}/attachments`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(payload),
       },
     );
   },
 
-  deleteAnnouncementAttachment(announcementId: string | number, attachmentId: string | number) {
+  deleteAnnouncementAttachment(
+    announcementId: string | number,
+    attachmentId: string | number,
+  ) {
     return apiClient<AnnouncementListItem>(
       `${endpoints.humanResources.announcementsList}/${announcementId}/attachments/${attachmentId}`,
-      { method: 'DELETE' },
+      { method: "DELETE" },
     );
   },
 
@@ -2087,34 +2480,51 @@ export const humanResourcesApi = {
   },
 
   getRecordDetails(recordId: string | number) {
-    return apiClient<RecordDetailsResponse>(`${endpoints.humanResources.recordDetails}/${recordId}`);
+    return apiClient<RecordDetailsResponse>(
+      `${endpoints.humanResources.recordDetails}/${recordId}`,
+    );
   },
 
   createRecord(payload: CreateRecordPayload) {
-    return apiClient<BackendRecordItem>(endpoints.humanResources.recordsCreate, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return apiClient<BackendRecordItem>(
+      endpoints.humanResources.recordsCreate,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  updateRecord(recordId: string | number, payload: CreateRecordPayload & { status?: BackendRecordItem['status'] }) {
-    return apiClient<BackendRecordItem>(`${endpoints.humanResources.recordUpdate}/${recordId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+  updateRecord(
+    recordId: string | number,
+    payload: CreateRecordPayload & { status?: BackendRecordItem["status"] },
+  ) {
+    return apiClient<BackendRecordItem>(
+      `${endpoints.humanResources.recordUpdate}/${recordId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   deleteRecord(recordId: string | number) {
-    return apiClient<{ success: boolean }>(`${endpoints.humanResources.recordDelete}/${recordId}`, {
-      method: 'DELETE',
-    });
+    return apiClient<{ success: boolean }>(
+      `${endpoints.humanResources.recordDelete}/${recordId}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
-  presignRecordAttachmentUpload(recordId: string | number, payload: RecordAttachmentPresignPayload) {
+  presignRecordAttachmentUpload(
+    recordId: string | number,
+    payload: RecordAttachmentPresignPayload,
+  ) {
     return apiClient<RecordAttachmentPresignResponse>(
       `${endpoints.humanResources.recordAttachments}/${recordId}/attachments/presign-upload`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(payload),
       },
     );
@@ -2128,33 +2538,42 @@ export const humanResourcesApi = {
   ) {
     const headers = new Headers(uploadHeaders);
 
-    if (contentType && !headers.has('Content-Type')) {
-      headers.set('Content-Type', contentType);
+    if (contentType && !headers.has("Content-Type")) {
+      headers.set("Content-Type", contentType);
     }
 
     const response = await fetch(uploadUrl, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: file,
     });
 
     if (!response.ok) {
-      throw new Error('Record attachment upload failed.');
+      throw new Error("Record attachment upload failed.");
     }
   },
 
-  registerRecordAttachment(recordId: string | number, payload: RegisterRecordAttachmentPayload) {
-    return apiClient<BackendRecordAttachment>(`${endpoints.humanResources.recordAttachments}/${recordId}/attachments`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  registerRecordAttachment(
+    recordId: string | number,
+    payload: RegisterRecordAttachmentPayload,
+  ) {
+    return apiClient<BackendRecordAttachment>(
+      `${endpoints.humanResources.recordAttachments}/${recordId}/attachments`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
-  deleteRecordAttachment(recordId: string | number, attachmentId: string | number) {
+  deleteRecordAttachment(
+    recordId: string | number,
+    attachmentId: string | number,
+  ) {
     return apiClient<{ success: boolean }>(
       `${endpoints.humanResources.recordAttachments}/${recordId}/attachments/${attachmentId}`,
       {
-        method: 'DELETE',
+        method: "DELETE",
       },
     );
   },

@@ -3,6 +3,7 @@ package com.indice.erp.hr.attendance.usecases.records;
 import com.indice.erp.hr.attendance.usecases.jobs.HrAttendanceAutoCheckoutUseCases;
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import static com.indice.erp.hr.attendance.support.AttendanceLocationPresentatio
 import static com.indice.erp.hr.attendance.support.AttendancePresentation.toIsoString;
 import static com.indice.erp.hr.shared.HrPayloadUtils.isBlank;
 import static com.indice.erp.hr.shared.HrPayloadUtils.nullable;
+import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
 import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
 
@@ -71,6 +73,105 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
         body.put("notes", refreshed != null ? refreshed.notes() : null);
         return body;
     }
+
+    @Transactional
+    public Map<String, Object> bulkUpdateDailyRecords(long companyId, long userId, long userCompanyId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var dates = parseBulkDates(payload);
+        var correctionPayload = new LinkedHashMap<String, Object>();
+        correctionPayload.put("status", payload.get("status"));
+        correctionPayload.put("corrected_status", payload.get("corrected_status"));
+        correctionPayload.put("notes", payload.get("notes"));
+
+        var items = new ArrayList<Map<String, Object>>();
+        for (var date : dates) {
+            items.add(updateDailyRecord(companyId, userId, userCompanyId, date, correctionPayload));
+        }
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", items);
+        body.put("updated_count", items.size());
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> bulkAssignRestDays(long companyId, long userId, Map<String, Object> payload) {
+        payload = normalizePayload(payload);
+        var assignments = parseRestPlanAssignments(payload);
+        var notes = nullable(stringValue(payload, "notes"));
+        var correctionPayload = new LinkedHashMap<String, Object>();
+        correctionPayload.put("status", "rest");
+        correctionPayload.put("notes", notes);
+
+        var items = new ArrayList<Map<String, Object>>();
+        for (var assignment : assignments) {
+            for (var date : assignment.dates()) {
+                items.add(updateDailyRecord(companyId, userId, assignment.userCompanyId(), date, correctionPayload));
+            }
+        }
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", items);
+        body.put("updated_count", items.size());
+        body.put("employee_count", assignments.size());
+        return body;
+    }
+
+    private List<RestPlanAssignment> parseRestPlanAssignments(Map<String, Object> payload) {
+        var rawAssignments = payload.get("assignments");
+        if (!(rawAssignments instanceof List<?> assignmentsInput) || assignmentsInput.isEmpty()) {
+            throw new IllegalArgumentException("At least one rest assignment is required.");
+        }
+        if (assignmentsInput.size() > 100) {
+            throw new IllegalArgumentException("Rest plan is limited to 100 collaborator assignments.");
+        }
+
+        var assignments = new ArrayList<RestPlanAssignment>();
+        var operationCount = 0;
+        for (var rawAssignment : assignmentsInput) {
+            if (!(rawAssignment instanceof Map<?, ?> assignmentInput)) {
+                throw new IllegalArgumentException("Rest assignments must be valid objects.");
+            }
+            var assignmentPayload = new LinkedHashMap<String, Object>();
+            assignmentInput.forEach((key, value) -> {
+                if (key instanceof String stringKey) {
+                    assignmentPayload.put(stringKey, value);
+                }
+            });
+            var userCompanyId = parseLong(assignmentPayload, "user_company_id");
+            var dates = parseBulkDates(assignmentPayload);
+            operationCount += dates.size();
+            if (operationCount > 250) {
+                throw new IllegalArgumentException("Rest plan is limited to 250 day assignments.");
+            }
+            assignments.add(new RestPlanAssignment(userCompanyId, dates));
+        }
+        return assignments;
+    }
+
+    private List<LocalDate> parseBulkDates(Map<String, Object> payload) {
+        var rawDates = payload.get("dates");
+        if (!(rawDates instanceof List<?> datesInput) || datesInput.isEmpty()) {
+            throw new IllegalArgumentException("At least one attendance date is required.");
+        }
+        if (datesInput.size() > 62) {
+            throw new IllegalArgumentException("Bulk attendance updates are limited to 62 dates.");
+        }
+
+        var dates = new ArrayList<LocalDate>();
+        for (var rawDate : datesInput) {
+            if (!(rawDate instanceof String dateText) || isBlank(dateText)) {
+                throw new IllegalArgumentException("Attendance dates must be valid ISO dates.");
+            }
+            var parsedDate = com.indice.erp.hr.attendance.HrAttendanceService.parseDate(dateText);
+            if (!dates.contains(parsedDate)) {
+                dates.add(parsedDate);
+            }
+        }
+        return dates;
+    }
+
+    private record RestPlanAssignment(long userCompanyId, List<LocalDate> dates) {}
 
     @Transactional
     public Map<String, Object> recordManualAttendanceEvent(

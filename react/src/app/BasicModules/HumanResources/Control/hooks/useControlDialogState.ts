@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import type {
   AttendanceControlAssignment,
   AttendanceControlAssignmentPayload,
@@ -8,10 +8,10 @@ import type {
   AttendanceControlTemplatePayload,
   AttendanceKioskDevice,
   AttendanceKioskDevicePayload,
-} from '../../../../api/humanResources';
-import { getAssignmentBusyReason } from '../components/ControlAttendanceWidgets';
-import type { ControlWorkSiteForm } from '../components/ControlDialogs';
-import type { ControlTranslations } from '../translations';
+} from "../../../../api/humanResources";
+import { getAssignmentBusyReason } from "../components/ControlAttendanceWidgets";
+import type { ControlWorkSiteForm } from "../components/ControlDialogs";
+import type { ControlTranslations } from "../translations";
 import {
   contractSiteAssignmentDates,
   defaultAssignmentForm,
@@ -22,7 +22,7 @@ import {
   timeInputValue,
   todayInputValue,
   todayIsoDate,
-} from '../utils/control.utils';
+} from "../utils/control.utils";
 
 interface UseControlDialogStateInput {
   availableContractSiteLocations: AttendanceControlLocation[];
@@ -32,7 +32,7 @@ interface UseControlDialogStateInput {
   onKioskSelected: (id: number) => void;
   onTemplateSelected: (id: number) => void;
   selectedEmployee: AttendanceControlAssignment | null;
-  selectedRuleForDate: AttendanceControlTemplate['days'][number] | undefined;
+  selectedRuleForDate: AttendanceControlTemplate["days"][number] | undefined;
   selectedTemplate: AttendanceControlTemplate | null;
   showFailureToast: (message: string) => void;
   templates: AttendanceControlTemplate[];
@@ -52,9 +52,14 @@ export function useControlDialogState({
   templates,
 }: UseControlDialogStateInput) {
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
-  const [isContractSiteRegistrationModalOpen, setIsContractSiteRegistrationModalOpen] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<AttendanceControlLocation | null>(null);
-  const [locationForm, setLocationForm] = useState<AttendanceControlLocationPayload>(defaultLocationForm());
+  const [
+    isContractSiteRegistrationModalOpen,
+    setIsContractSiteRegistrationModalOpen,
+  ] = useState(false);
+  const [editingLocation, setEditingLocation] =
+    useState<AttendanceControlLocation | null>(null);
+  const [locationForm, setLocationForm] =
+    useState<AttendanceControlLocationPayload>(defaultLocationForm());
 
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isTimeTableModalOpen, setIsTimeTableModalOpen] = useState(false);
@@ -63,23 +68,33 @@ export function useControlDialogState({
     assignment: AttendanceControlAssignment;
     targetDate: string;
   } | null>(null);
-  const [pendingCalendarScheduleClear, setPendingCalendarScheduleClear] = useState<{
-    employeeId: number;
-    employeeName: string;
-    targetDate: string;
-  } | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<AttendanceControlTemplate | null>(null);
-  const [templateForm, setTemplateForm] = useState<AttendanceControlTemplatePayload>(defaultTemplateForm());
+  const [pendingCalendarScheduleClear, setPendingCalendarScheduleClear] =
+    useState<{
+      employeeId: number;
+      employeeName: string;
+      targetDate: string;
+    } | null>(null);
+  const [editingTemplate, setEditingTemplate] =
+    useState<AttendanceControlTemplate | null>(null);
+  const [templateForm, setTemplateForm] =
+    useState<AttendanceControlTemplatePayload>(defaultTemplateForm());
 
   const [isAssignmentDialogOpen, setIsAssignmentDialogOpen] = useState(false);
-  const [assignmentForm, setAssignmentForm] = useState<AttendanceControlAssignmentPayload>(defaultAssignmentForm());
+  const [assignmentForm, setAssignmentForm] =
+    useState<AttendanceControlAssignmentPayload>(defaultAssignmentForm());
   const [isWorkSiteDialogOpen, setIsWorkSiteDialogOpen] = useState(false);
-  const [workSiteForm, setWorkSiteForm] = useState<ControlWorkSiteForm>(defaultWorkSiteForm());
+  const [isRestPlannerDialogOpen, setIsRestPlannerDialogOpen] = useState(false);
+  const [workSiteForm, setWorkSiteForm] = useState<ControlWorkSiteForm>(
+    defaultWorkSiteForm(),
+  );
   const [isKioskManagerOpen, setIsKioskManagerOpen] = useState(false);
   const [isKioskDialogOpen, setIsKioskDialogOpen] = useState(false);
-  const [editingKiosk, setEditingKiosk] = useState<AttendanceKioskDevice | null>(null);
-  const [kioskForm, setKioskForm] = useState<AttendanceKioskDevicePayload>(defaultKioskForm());
-  const [kioskDeviceToDelete, setKioskDeviceToDelete] = useState<AttendanceKioskDevice | null>(null);
+  const [editingKiosk, setEditingKiosk] =
+    useState<AttendanceKioskDevice | null>(null);
+  const [kioskForm, setKioskForm] =
+    useState<AttendanceKioskDevicePayload>(defaultKioskForm());
+  const [kioskDeviceToDelete, setKioskDeviceToDelete] =
+    useState<AttendanceKioskDevice | null>(null);
 
   const openNewLocationDialog = () => {
     setEditingLocation(null);
@@ -93,15 +108,18 @@ export function useControlDialogState({
       unit_id: location.unit_id ?? null,
       business_id: location.business_id ?? null,
       contract_start_date: location.contract_start_date ?? todayInputValue(),
-      contract_end_date: location.contract_end_date ?? location.contract_start_date ?? todayInputValue(),
+      contract_end_date:
+        location.contract_end_date ??
+        location.contract_start_date ??
+        todayInputValue(),
       name: location.name,
       latitude: location.latitude,
       longitude: location.longitude,
       radius_meters: location.radius_meters,
       required_hours_per_day: location.required_hours_per_day ?? 8,
-      required_start_time: location.required_start_time ?? '08:00:00',
-      required_end_time: location.required_end_time ?? '16:00:00',
-      status: location.status === 'inactive' ? 'inactive' : 'active',
+      required_start_time: location.required_start_time ?? "08:00:00",
+      required_end_time: location.required_end_time ?? "16:00:00",
+      status: location.status === "inactive" ? "inactive" : "active",
     });
     setIsLocationDialogOpen(true);
   };
@@ -116,8 +134,8 @@ export function useControlDialogState({
     setEditingTemplate(template);
     setTemplateForm({
       name: template.name,
-      status: template.status === 'inactive' ? 'inactive' : 'active',
-      schedule_mode: template.schedule_mode === 'open' ? 'open' : 'strict',
+      status: template.status === "inactive" ? "inactive" : "active",
+      schedule_mode: template.schedule_mode === "open" ? "open" : "strict",
       block_after_grace_period: false,
       enforce_location: Boolean(template.enforce_location),
       location_id: template.location_id ?? null,
@@ -126,8 +144,8 @@ export function useControlDialogState({
         const isRestDay = rule?.is_rest_day ?? false;
         return {
           day_of_week: dayOfWeek,
-          start_time: isRestDay ? null : rule?.start_time ?? '08:00:00',
-          end_time: isRestDay ? null : rule?.end_time ?? '16:00:00',
+          start_time: isRestDay ? null : (rule?.start_time ?? "08:00:00"),
+          end_time: isRestDay ? null : (rule?.end_time ?? "16:00:00"),
           meal_minutes: rule?.meal_minutes ?? 0,
           rest_minutes: rule?.rest_minutes ?? 0,
           late_after_minutes: rule?.late_after_minutes ?? 10,
@@ -143,8 +161,15 @@ export function useControlDialogState({
     const today = todayIsoDate();
     const effectiveStartDate = controlDate < today ? today : controlDate;
     setAssignmentForm({
-      user_company_ids: selectedEmployee && !getAssignmentBusyReason(selectedEmployee, copy) ? [selectedEmployee.user_company_id] : [],
-      template_id: selectedEmployee?.schedule_template_id ?? selectedTemplate?.id ?? templates[0]?.id ?? 0,
+      user_company_ids:
+        selectedEmployee && !getAssignmentBusyReason(selectedEmployee, copy)
+          ? [selectedEmployee.user_company_id]
+          : [],
+      template_id:
+        selectedEmployee?.schedule_template_id ??
+        selectedTemplate?.id ??
+        templates[0]?.id ??
+        0,
       effective_start_date: effectiveStartDate,
       effective_end_date: effectiveStartDate,
     });
@@ -161,7 +186,9 @@ export function useControlDialogState({
     }
     const busyReason = getAssignmentBusyReason(selectedEmployee, copy);
     if (busyReason) {
-      showFailureToast(copy.labels.removeExistingShiftBeforeContractSite(busyReason));
+      showFailureToast(
+        copy.labels.removeExistingShiftBeforeContractSite(busyReason),
+      );
       return;
     }
 
@@ -169,16 +196,29 @@ export function useControlDialogState({
       showFailureToast(copy.labels.noAvailableContractSites);
     }
 
-    const availableLocationIds = new Set(availableContractSiteLocations.map((location) => location.id));
-    const allowedLocationIds = selectedEmployee.allowed_locations?.map((location) => location.id) ?? [];
+    const availableLocationIds = new Set(
+      availableContractSiteLocations.map((location) => location.id),
+    );
+    const allowedLocationIds =
+      selectedEmployee.allowed_locations?.map((location) => location.id) ?? [];
     const firstAvailableLocationId = availableContractSiteLocations[0]?.id ?? 0;
-    const activeLocationId = allowedLocationIds.find((locationId) => availableLocationIds.has(locationId)) ?? firstAvailableLocationId;
-    const activeLocation = locations.find((location) => location.id === activeLocationId);
-    const assignmentDates = contractSiteAssignmentDates(activeLocation, controlDate);
-    const nextAllowedLocationIds = Array.from(new Set([
-      ...allowedLocationIds,
-      ...(activeLocationId > 0 ? [activeLocationId] : []),
-    ]));
+    const activeLocationId =
+      allowedLocationIds.find((locationId) =>
+        availableLocationIds.has(locationId),
+      ) ?? firstAvailableLocationId;
+    const activeLocation = locations.find(
+      (location) => location.id === activeLocationId,
+    );
+    const assignmentDates = contractSiteAssignmentDates(
+      activeLocation,
+      controlDate,
+    );
+    const nextAllowedLocationIds = Array.from(
+      new Set([
+        ...allowedLocationIds,
+        ...(activeLocationId > 0 ? [activeLocationId] : []),
+      ]),
+    );
 
     setWorkSiteForm({
       user_company_ids: [selectedEmployee.user_company_id],
@@ -186,8 +226,14 @@ export function useControlDialogState({
       location_id: activeLocationId,
       effective_start_date: assignmentDates.startDate,
       effective_end_date: assignmentDates.endDate,
-      start_time: timeInputValue(activeLocation?.required_start_time) || timeInputValue(selectedRuleForDate?.start_time) || '08:00',
-      end_time: timeInputValue(activeLocation?.required_end_time) || timeInputValue(selectedRuleForDate?.end_time) || '16:00',
+      start_time:
+        timeInputValue(activeLocation?.required_start_time) ||
+        timeInputValue(selectedRuleForDate?.start_time) ||
+        "08:00",
+      end_time:
+        timeInputValue(activeLocation?.required_end_time) ||
+        timeInputValue(selectedRuleForDate?.end_time) ||
+        "16:00",
     });
     setIsWorkSiteDialogOpen(true);
   };
@@ -209,7 +255,7 @@ export function useControlDialogState({
       status: device.status,
       metadata: {
         supports_face_recognition: false,
-        kiosk_type: 'business_unit',
+        kiosk_type: "business_unit",
         ...(device.metadata ?? {}),
       },
     });
@@ -228,6 +274,7 @@ export function useControlDialogState({
     isKioskManagerOpen,
     isLocationDialogOpen,
     isSchedulesModalOpen,
+    isRestPlannerDialogOpen,
     isTemplateDialogOpen,
     isTimeTableModalOpen,
     isWorkSiteDialogOpen,
@@ -252,6 +299,7 @@ export function useControlDialogState({
     setIsKioskManagerOpen,
     setIsLocationDialogOpen,
     setIsSchedulesModalOpen,
+    setIsRestPlannerDialogOpen,
     setIsTemplateDialogOpen,
     setIsTimeTableModalOpen,
     setIsWorkSiteDialogOpen,

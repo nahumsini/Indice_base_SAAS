@@ -37,6 +37,8 @@ export const ptBR: AgendaTranslations = {
   },
   filters: {
     title: 'Filtros',
+    search: 'Buscar tarefa',
+    searchPlaceholder: 'Folio, titulo, descricao ou responsavel',
     focus: 'Foco',
     period: 'Período',
     from: 'De',

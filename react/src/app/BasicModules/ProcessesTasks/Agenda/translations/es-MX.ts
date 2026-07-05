@@ -37,6 +37,8 @@ export const esMX: AgendaTranslations = {
   },
   filters: {
     title: 'Filtros',
+    search: 'Buscar tarea',
+    searchPlaceholder: 'Folio, titulo, descripcion o responsable',
     focus: 'Enfoque',
     period: 'Periodo',
     from: 'Desde',

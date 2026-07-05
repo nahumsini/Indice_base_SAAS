@@ -33,12 +33,14 @@ type AgendaFiltersProps = {
   onFocusFilterChange: (value: AgendaFocusFilter) => void;
   onPeriodFilterChange: (value: PeriodFilter) => void;
   onProjectFilterChange: (value: string) => void;
+  onSearchQueryChange: (value: string) => void;
   onStatusFilterChange: (value: StatusFilter) => void;
   onUnitFilterChange: (value: string) => void;
   periodFilter: PeriodFilter;
   periodLabels: Record<string, string>;
   projectFilter: string;
   projectOptions: AgendaProjectFilterOption[];
+  searchQuery: string;
   statusFilter: StatusFilter;
   unitFilter: string;
   unitOptions: string[];
@@ -61,12 +63,14 @@ export function AgendaFilters({
   onFocusFilterChange,
   onPeriodFilterChange,
   onProjectFilterChange,
+  onSearchQueryChange,
   onStatusFilterChange,
   onUnitFilterChange,
   periodFilter,
   periodLabels,
   projectFilter,
   projectOptions,
+  searchQuery,
   statusFilter,
   unitFilter,
   unitOptions,
@@ -74,7 +78,17 @@ export function AgendaFilters({
   return (
     <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white sm:mb-5">{copy.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-7">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-8">
+        <div className="space-y-2 sm:col-span-2 xl:col-span-2">
+          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
+          <Input
+            type="search"
+            value={searchQuery}
+            placeholder={copy.filters.searchPlaceholder}
+            className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+          />
+        </div>
         <div className="space-y-2">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.focus}</label>
           <Select value={focusFilter} onValueChange={(value) => onFocusFilterChange(value as AgendaFocusFilter)}>

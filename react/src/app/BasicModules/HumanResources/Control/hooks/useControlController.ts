@@ -1,21 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AttendanceCorrectionStatus } from '../../../../api/humanResources';
-import { useLanguage } from '../../../../shared/context';
-import type { ControlKpiStripLabels } from '../components/ControlKpiStrip';
+import { useEffect, useMemo, useState } from "react";
+import {
+  humanResourcesApi,
+  type AttendanceCorrectionStatus,
+  type AttendanceRestPlanAssignment,
+} from "../../../../api/humanResources";
+import { useLanguage } from "../../../../shared/context";
+import type { ControlKpiStripLabels } from "../components/ControlKpiStrip";
 import {
   buildControlControllerProps,
   type ControlControllerResult,
-} from '../utils/controlControllerProps';
-import { useCalendarDateSelection } from './useCalendarDateSelection';
-import { useControlAttendanceFilters } from './useControlAttendanceFilters';
-import { useControlCalendarActions } from './useControlCalendarActions';
-import { useControlData } from './useControlData';
-import { useControlDerivedState } from './useControlDerivedState';
-import { useControlDialogState } from './useControlDialogState';
-import { useControlKioskActions } from './useControlKioskActions';
-import { useControlSaveActions } from './useControlSaveActions';
-import { useControlToasts } from './useControlToasts';
-import { useControlTranslations } from './useControlTranslations';
+} from "../utils/controlControllerProps";
+import { useCalendarDateSelection } from "./useCalendarDateSelection";
+import { useControlAttendanceFilters } from "./useControlAttendanceFilters";
+import { useControlCalendarActions } from "./useControlCalendarActions";
+import { useControlData } from "./useControlData";
+import { useControlDerivedState } from "./useControlDerivedState";
+import { useControlDialogState } from "./useControlDialogState";
+import { useControlKioskActions } from "./useControlKioskActions";
+import { useControlSaveActions } from "./useControlSaveActions";
+import { useControlToasts } from "./useControlToasts";
+import { useControlTranslations } from "./useControlTranslations";
 
 export function useControlController(): ControlControllerResult {
   const { currentLanguage } = useLanguage();
@@ -24,14 +28,23 @@ export function useControlController(): ControlControllerResult {
     () => copy.kpi satisfies ControlKpiStripLabels,
     [copy.kpi],
   );
-  const headerActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#59C3A5] shadow-none hover:bg-[#59C3A5] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto';
-  const headerPrimaryActionButtonClassName = 'h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#3AAE90] sm:w-auto';
-  const [pendingCalendarStatus, setPendingCalendarStatus] = useState<AttendanceCorrectionStatus | ''>('');
-  const [bulkCalendarStatus, setBulkCalendarStatus] = useState<AttendanceCorrectionStatus | ''>('on_time');
+  const headerActionButtonClassName =
+    "h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#59C3A5] shadow-none hover:bg-[#59C3A5] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto";
+  const headerPrimaryActionButtonClassName =
+    "h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#3AAE90] sm:w-auto";
+  const [pendingCalendarStatus, setPendingCalendarStatus] = useState<
+    AttendanceCorrectionStatus | ""
+  >("");
+  const [bulkCalendarStatus, setBulkCalendarStatus] = useState<
+    AttendanceCorrectionStatus | ""
+  >("on_time");
+  const [isCalendarBulkSelectionMode, setIsCalendarBulkSelectionMode] =
+    useState(false);
   const [isUpdatingCalendarDay, setIsUpdatingCalendarDay] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRemovingTimeTableDay, setIsRemovingTimeTableDay] = useState(false);
-  const [isClearingCalendarDaySchedule, setIsClearingCalendarDaySchedule] = useState(false);
+  const [isClearingCalendarDaySchedule, setIsClearingCalendarDaySchedule] =
+    useState(false);
   const toasts = useControlToasts();
   const {
     successMessage,
@@ -79,13 +92,12 @@ export function useControlController(): ControlControllerResult {
   });
   const [isKioskQrDialogOpen, setIsKioskQrDialogOpen] = useState(false);
   const calendarSelection = useCalendarDateSelection({
+    isSelectionMode: isCalendarBulkSelectionMode,
     setControlDate,
     setSelectedCalendarDay,
   });
-  const {
-    selectedCalendarDates,
-    clearCalendarDateSelection,
-  } = calendarSelection;
+  const { selectedCalendarDates, clearCalendarDateSelection } =
+    calendarSelection;
 
   const derived = useControlDerivedState({
     accessProfiles,
@@ -121,11 +133,11 @@ export function useControlController(): ControlControllerResult {
 
   useEffect(() => {
     if (!selectedCalendarDetailDay) {
-      setPendingCalendarStatus('');
+      setPendingCalendarStatus("");
       return;
     }
 
-    setPendingCalendarStatus(selectedCalendarDetailDay.corrected_status ?? '');
+    setPendingCalendarStatus(selectedCalendarDetailDay.corrected_status ?? "");
   }, [selectedCalendarDetailDay]);
 
   const dialogs = useControlDialogState({
@@ -241,6 +253,29 @@ export function useControlController(): ControlControllerResult {
     templates,
     workSiteForm,
   });
+
+  const handleSaveRestPlan = async (
+    assignments: AttendanceRestPlanAssignment[],
+  ) => {
+    if (assignments.length === 0 || isSaving) {
+      return;
+    }
+    setIsSaving(true);
+    clearControlMessages();
+    try {
+      const response = await humanResourcesApi.bulkAssignAttendanceRestDays({
+        assignments,
+        notes: copy.labels.restPlannerDefaultNotes,
+      });
+      await loadControl(controlDate);
+      showSuccessToast(copy.labels.restPlannerSaved(response.updated_count));
+    } catch (error) {
+      showFailureToast(error instanceof Error ? error.message : copy.error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return buildControlControllerProps({
     bulkCalendarStatus,
     calendarActions,
@@ -254,13 +289,16 @@ export function useControlController(): ControlControllerResult {
     headerActionButtonClassName,
     headerPrimaryActionButtonClassName,
     isSaving,
+    isCalendarBulkSelectionMode,
     isKioskQrDialogOpen,
     isUpdatingCalendarDay,
     kioskActions,
     locale: currentLanguage.code,
     pendingCalendarStatus,
     saveActions,
+    onSaveRestPlan: handleSaveRestPlan,
     setBulkCalendarStatus,
+    setIsCalendarBulkSelectionMode,
     setIsKioskQrDialogOpen,
     setPendingCalendarStatus,
     toasts,

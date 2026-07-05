@@ -37,6 +37,8 @@ export const frCA: AgendaTranslations = {
   },
   filters: {
     title: "Filtres",
+    search: "Rechercher une tache",
+    searchPlaceholder: "Folio, titre, description ou responsable",
     focus: "Vue",
     period: "Periode",
     from: "Du",

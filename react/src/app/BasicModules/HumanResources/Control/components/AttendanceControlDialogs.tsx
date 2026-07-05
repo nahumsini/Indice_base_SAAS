@@ -1,4 +1,4 @@
-import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
+import { ConfirmDeleteDialog } from "../../../../components/ConfirmDeleteDialog";
 import {
   type AttendanceControlAssignment,
   type AttendanceControlAssignmentPayload,
@@ -6,11 +6,12 @@ import {
   type AttendanceControlLocationPayload,
   type AttendanceControlTemplate,
   type AttendanceControlTemplatePayload,
+  type AttendanceRestPlanAssignment,
   type AttendanceKioskDevice,
   type AttendanceKioskDevicePayload,
-} from '../../../../api/humanResources';
-import { ContractSiteRegistrationModal } from './ContractSiteRegistrationModal';
-import { ControlKioskQrDialog } from './ControlCalendarDialogs';
+} from "../../../../api/humanResources";
+import { ContractSiteRegistrationModal } from "./ContractSiteRegistrationModal";
+import { ControlKioskQrDialog } from "./ControlCalendarDialogs";
 import {
   ControlAssignmentDialog,
   ControlContractSiteDialog,
@@ -19,10 +20,11 @@ import {
   ControlTemplateDialog,
   ControlWorkSiteDialog,
   type ControlWorkSiteForm,
-} from './ControlDialogs';
-import { ScheduleModal } from './ScheduleModal';
-import { TimeTableModal } from './TimeTableModal';
-import { type AttendanceControlCopy } from './ControlAttendanceWidgets';
+} from "./ControlDialogs";
+import { ScheduleModal } from "./ScheduleModal";
+import { TimeTableModal } from "./TimeTableModal";
+import { RestDayPlannerModal } from "./RestDayPlannerModal";
+import { type AttendanceControlCopy } from "./ControlAttendanceWidgets";
 
 type PendingTimeTableRemoval = {
   assignment: AttendanceControlAssignment;
@@ -89,6 +91,12 @@ interface AttendanceControlDialogsProps {
   onCloseWorkSiteDialog: () => void;
   onWorkSiteFormChange: (payload: ControlWorkSiteForm) => void;
   onSaveWorkSite: () => void;
+  isRestPlannerDialogOpen: boolean;
+  calendarMonth: string;
+  onCloseRestPlanner: () => void;
+  onSaveRestPlan: (
+    assignments: AttendanceRestPlanAssignment[],
+  ) => Promise<void> | void;
   isKioskDialogOpen: boolean;
   editingKioskName: string | null;
   kioskForm: AttendanceKioskDevicePayload;
@@ -102,7 +110,10 @@ interface AttendanceControlDialogsProps {
   isTimeTableModalOpen: boolean;
   onCloseTimeTable: () => void;
   onDateChange: (date: string) => void;
-  onRemoveShift: (assignment: AttendanceControlAssignment, targetDate?: string) => Promise<void> | void;
+  onRemoveShift: (
+    assignment: AttendanceControlAssignment,
+    targetDate?: string,
+  ) => Promise<void> | void;
   isSchedulesModalOpen: boolean;
   onCloseSchedules: () => void;
   onScheduleApplied: (result: ScheduleAppliedResult) => Promise<void> | void;
@@ -165,6 +176,10 @@ export function AttendanceControlDialogs({
   onCloseWorkSiteDialog,
   onWorkSiteFormChange,
   onSaveWorkSite,
+  isRestPlannerDialogOpen,
+  calendarMonth,
+  onCloseRestPlanner,
+  onSaveRestPlan,
   isKioskDialogOpen,
   editingKioskName,
   kioskForm,
@@ -227,7 +242,11 @@ export function AttendanceControlDialogs({
         onClose={onCloseLocationDialog}
         onChange={onLocationFormChange}
         onSave={onSaveLocation}
-        title={editingLocationName ? `${copy.labels.addLocation}: ${editingLocationName}` : copy.labels.addLocation}
+        title={
+          editingLocationName
+            ? `${copy.labels.addLocation}: ${editingLocationName}`
+            : copy.labels.addLocation
+        }
       />
 
       <ControlTemplateDialog
@@ -238,7 +257,11 @@ export function AttendanceControlDialogs({
         onClose={onCloseTemplateDialog}
         onChange={onTemplateFormChange}
         onSave={onSaveTemplate}
-        title={editingTemplateName ? `${copy.labels.addTemplate}: ${editingTemplateName}` : copy.labels.addTemplate}
+        title={
+          editingTemplateName
+            ? `${copy.labels.addTemplate}: ${editingTemplateName}`
+            : copy.labels.addTemplate
+        }
         locale={locale}
       />
 
@@ -266,6 +289,17 @@ export function AttendanceControlDialogs({
         onSave={onSaveWorkSite}
       />
 
+      <RestDayPlannerModal
+        copy={copy}
+        locale={locale}
+        isOpen={isRestPlannerDialogOpen}
+        isSaving={isSaving}
+        assignments={assignments}
+        calendarMonth={calendarMonth}
+        onClose={onCloseRestPlanner}
+        onSave={onSaveRestPlan}
+      />
+
       <ControlKioskDialog
         copy={copy}
         isOpen={isKioskDialogOpen}
@@ -276,7 +310,11 @@ export function AttendanceControlDialogs({
         onClose={onCloseKioskDialog}
         onChange={onKioskFormChange}
         onSave={onSaveKiosk}
-        title={editingKioskName ? `${copy.kiosk.actions.editAttendancePoint}: ${editingKioskName}` : copy.kiosk.form.newTitle}
+        title={
+          editingKioskName
+            ? `${copy.kiosk.actions.editAttendancePoint}: ${editingKioskName}`
+            : copy.kiosk.form.newTitle
+        }
         isEditing={Boolean(editingKioskName)}
       />
 
@@ -305,7 +343,9 @@ export function AttendanceControlDialogs({
         isOpen={isSchedulesModalOpen}
         onClose={onCloseSchedules}
         templates={templates}
-        locations={locations.filter((location) => location.status !== 'inactive')}
+        locations={locations.filter(
+          (location) => location.status !== "inactive",
+        )}
         selectedTemplateId={selectedTemplateId}
         effectiveStartDate={controlDate}
         onApplied={onScheduleApplied}
@@ -315,9 +355,11 @@ export function AttendanceControlDialogs({
         isVisible={pendingTimeTableRemoval !== null}
         title={copy.labels.removeTimeTableDayTitle}
         description={copy.labels.removeTimeTableDayDescription}
-        itemName={pendingTimeTableRemoval
-          ? `${pendingTimeTableRemoval.assignment.user_name} - ${pendingTimeTableRemoval.targetDate}`
-          : undefined}
+        itemName={
+          pendingTimeTableRemoval
+            ? `${pendingTimeTableRemoval.assignment.user_name} - ${pendingTimeTableRemoval.targetDate}`
+            : undefined
+        }
         confirmLabel={copy.labels.removeTimeTableDayConfirm}
         cancelLabel={copy.labels.cancel}
         onConfirm={onConfirmTimeTableRemoval}
@@ -328,9 +370,11 @@ export function AttendanceControlDialogs({
         isVisible={pendingCalendarScheduleClear !== null}
         title={copy.labels.clearDayScheduleTitle}
         description={copy.labels.clearDayScheduleDescription}
-        itemName={pendingCalendarScheduleClear
-          ? `${pendingCalendarScheduleClear.employeeName} - ${pendingCalendarScheduleClear.targetDate}`
-          : undefined}
+        itemName={
+          pendingCalendarScheduleClear
+            ? `${pendingCalendarScheduleClear.employeeName} - ${pendingCalendarScheduleClear.targetDate}`
+            : undefined
+        }
         confirmLabel={copy.labels.clearDayScheduleConfirm}
         cancelLabel={copy.labels.cancel}
         onConfirm={onConfirmCalendarScheduleClear}

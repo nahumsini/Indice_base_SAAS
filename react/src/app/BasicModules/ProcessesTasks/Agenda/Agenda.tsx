@@ -282,11 +282,13 @@ export default function Agenda() {
     handleCustomDateToChange,
     periodFilter,
     projectFilter,
+    searchQuery,
     setBusinessFilter,
     setCollaboratorFilter,
     setFocusFilter,
     setPeriodFilter,
     setProjectFilter,
+    setSearchQuery,
     setStatusFilter,
     setUnitFilter,
     statusFilter,
@@ -538,6 +540,7 @@ export default function Agenda() {
     isLoadingTasks,
     periodFilter,
     projectFilter,
+    searchQuery,
     scheduleStatusDate,
     scheduleStatusRange,
     setBusinessFilter,
@@ -1002,12 +1005,14 @@ export default function Agenda() {
         onFocusFilterChange={handleFocusFilterChange}
         onPeriodFilterChange={setPeriodFilter}
         onProjectFilterChange={setProjectFilter}
+        onSearchQueryChange={setSearchQuery}
         onStatusFilterChange={setStatusFilter}
         onUnitFilterChange={setUnitFilter}
         periodFilter={periodFilter}
         periodLabels={periodLabels}
         projectFilter={projectFilter}
         projectOptions={projectOptions}
+        searchQuery={searchQuery}
         statusFilter={statusFilter}
         unitFilter={unitFilter}
         unitOptions={unitOptions}

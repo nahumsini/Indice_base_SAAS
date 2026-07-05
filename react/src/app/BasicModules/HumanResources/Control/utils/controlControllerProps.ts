@@ -1,20 +1,20 @@
-import type { Dispatch, SetStateAction } from 'react';
-import type { AttendanceCorrectionStatus } from '../../../../api/humanResources';
-import type { ControlDialogHostProps } from '../components/ControlDialogHost';
-import type { ControlFeedbackProps } from '../components/ControlFeedback';
-import type { ControlKpiStripLabels } from '../components/ControlKpiStrip';
-import type { ControlOperationsWorkspaceProps } from '../components/ControlOperationsWorkspace';
-import type { ControlTranslations } from '../translations';
-import { allFilterValue } from './control.utils';
-import type { useCalendarDateSelection } from '../hooks/useCalendarDateSelection';
-import type { useControlAttendanceFilters } from '../hooks/useControlAttendanceFilters';
-import type { useControlCalendarActions } from '../hooks/useControlCalendarActions';
-import type { useControlData } from '../hooks/useControlData';
-import type { useControlDerivedState } from '../hooks/useControlDerivedState';
-import type { useControlDialogState } from '../hooks/useControlDialogState';
-import type { useControlKioskActions } from '../hooks/useControlKioskActions';
-import type { useControlSaveActions } from '../hooks/useControlSaveActions';
-import type { useControlToasts } from '../hooks/useControlToasts';
+import type { Dispatch, SetStateAction } from "react";
+import type { AttendanceCorrectionStatus } from "../../../../api/humanResources";
+import type { ControlDialogHostProps } from "../components/ControlDialogHost";
+import type { ControlFeedbackProps } from "../components/ControlFeedback";
+import type { ControlKpiStripLabels } from "../components/ControlKpiStrip";
+import type { ControlOperationsWorkspaceProps } from "../components/ControlOperationsWorkspace";
+import type { ControlTranslations } from "../translations";
+import { allFilterValue } from "./control.utils";
+import type { useCalendarDateSelection } from "../hooks/useCalendarDateSelection";
+import type { useControlAttendanceFilters } from "../hooks/useControlAttendanceFilters";
+import type { useControlCalendarActions } from "../hooks/useControlCalendarActions";
+import type { useControlData } from "../hooks/useControlData";
+import type { useControlDerivedState } from "../hooks/useControlDerivedState";
+import type { useControlDialogState } from "../hooks/useControlDialogState";
+import type { useControlKioskActions } from "../hooks/useControlKioskActions";
+import type { useControlSaveActions } from "../hooks/useControlSaveActions";
+import type { useControlToasts } from "../hooks/useControlToasts";
 
 export interface ControlControllerResult {
   dialogHostProps: ControlDialogHostProps;
@@ -23,7 +23,7 @@ export interface ControlControllerResult {
 }
 
 interface BuildControlControllerPropsInput {
-  bulkCalendarStatus: AttendanceCorrectionStatus | '';
+  bulkCalendarStatus: AttendanceCorrectionStatus | "";
   calendarActions: ReturnType<typeof useControlCalendarActions>;
   calendarSelection: ReturnType<typeof useCalendarDateSelection>;
   controlKpiLabels: ControlKpiStripLabels;
@@ -35,15 +35,22 @@ interface BuildControlControllerPropsInput {
   headerActionButtonClassName: string;
   headerPrimaryActionButtonClassName: string;
   isSaving: boolean;
+  isCalendarBulkSelectionMode: boolean;
   isKioskQrDialogOpen: boolean;
   isUpdatingCalendarDay: boolean;
   kioskActions: ReturnType<typeof useControlKioskActions>;
   locale: string;
-  pendingCalendarStatus: AttendanceCorrectionStatus | '';
+  pendingCalendarStatus: AttendanceCorrectionStatus | "";
   saveActions: ReturnType<typeof useControlSaveActions>;
-  setBulkCalendarStatus: Dispatch<SetStateAction<AttendanceCorrectionStatus | ''>>;
+  onSaveRestPlan: ControlDialogHostProps["onSaveRestPlan"];
+  setBulkCalendarStatus: Dispatch<
+    SetStateAction<AttendanceCorrectionStatus | "">
+  >;
+  setIsCalendarBulkSelectionMode: Dispatch<SetStateAction<boolean>>;
   setIsKioskQrDialogOpen: Dispatch<SetStateAction<boolean>>;
-  setPendingCalendarStatus: Dispatch<SetStateAction<AttendanceCorrectionStatus | ''>>;
+  setPendingCalendarStatus: Dispatch<
+    SetStateAction<AttendanceCorrectionStatus | "">
+  >;
   toasts: ReturnType<typeof useControlToasts>;
 }
 
@@ -60,31 +67,35 @@ export function buildControlControllerProps({
   headerActionButtonClassName,
   headerPrimaryActionButtonClassName,
   isSaving,
+  isCalendarBulkSelectionMode,
   isKioskQrDialogOpen,
   isUpdatingCalendarDay,
   kioskActions,
   locale,
   pendingCalendarStatus,
   saveActions,
+  onSaveRestPlan,
   setBulkCalendarStatus,
+  setIsCalendarBulkSelectionMode,
   setIsKioskQrDialogOpen,
   setPendingCalendarStatus,
   toasts,
 }: BuildControlControllerPropsInput): ControlControllerResult {
   const hasOpenControlDialog =
-    isKioskQrDialogOpen
-    || dialogs.isKioskManagerOpen
-    || dialogs.isLocationDialogOpen
-    || dialogs.isTemplateDialogOpen
-    || dialogs.isAssignmentDialogOpen
-    || dialogs.isWorkSiteDialogOpen
-    || dialogs.isKioskDialogOpen
-    || dialogs.isContractSiteRegistrationModalOpen
-    || dialogs.isTimeTableModalOpen
-    || dialogs.isSchedulesModalOpen
-    || dialogs.pendingTimeTableRemoval !== null
-    || dialogs.pendingCalendarScheduleClear !== null
-    || dialogs.kioskDeviceToDelete !== null;
+    isKioskQrDialogOpen ||
+    dialogs.isKioskManagerOpen ||
+    dialogs.isLocationDialogOpen ||
+    dialogs.isTemplateDialogOpen ||
+    dialogs.isAssignmentDialogOpen ||
+    dialogs.isWorkSiteDialogOpen ||
+    dialogs.isRestPlannerDialogOpen ||
+    dialogs.isKioskDialogOpen ||
+    dialogs.isContractSiteRegistrationModalOpen ||
+    dialogs.isTimeTableModalOpen ||
+    dialogs.isSchedulesModalOpen ||
+    dialogs.pendingTimeTableRemoval !== null ||
+    dialogs.pendingCalendarScheduleClear !== null ||
+    dialogs.kioskDeviceToDelete !== null;
 
   return {
     feedbackProps: {
@@ -103,11 +114,17 @@ export function buildControlControllerProps({
     workspaceProps: {
       calendarBulkActions: {
         bulkCalendarStatus,
+        isSelectionMode: isCalendarBulkSelectionMode,
         isUpdatingCalendarDay,
         selectedCount: calendarSelection.selectedCalendarDates.length,
         onBulkStatusChange: setBulkCalendarStatus,
-        onBulkApply: () => void calendarActions.handleBulkCalendarStatusUpdate(),
+        onBulkApply: () =>
+          void calendarActions.handleBulkCalendarStatusUpdate(),
         onClearSelection: calendarSelection.clearCalendarDateSelection,
+        onExitSelectionMode: () => {
+          calendarSelection.clearCalendarDateSelection();
+          setIsCalendarBulkSelectionMode(false);
+        },
       },
       calendarPanel: {
         copy,
@@ -173,7 +190,19 @@ export function buildControlControllerProps({
         faceEnrollment: derived.selectedFaceEnrollment,
         assignments: data.overview?.assignments ?? [],
         selectedEmployeeBusyReason: derived.selectedEmployeeBusyReason,
+        isCalendarBulkSelectionMode,
+        selectedCalendarDayCount:
+          calendarSelection.selectedCalendarDates.length,
+        onToggleCalendarBulkSelectionMode: () => {
+          setIsCalendarBulkSelectionMode((current) => {
+            if (current) {
+              calendarSelection.clearCalendarDateSelection();
+            }
+            return !current;
+          });
+        },
         onAssignLocation: dialogs.openWorkSiteDialog,
+        onOpenRestPlanner: () => dialogs.setIsRestPlannerDialogOpen(true),
         onFaceEnrollmentChange: data.setFaceEnrollment,
         onReload: () => data.loadControl(data.controlDate),
         onSuccess: toasts.showSuccessToast,
@@ -198,7 +227,7 @@ export function buildControlControllerProps({
       quickActions: {
         copy,
         day: derived.selectedCalendarDetailDay,
-        employeeName: derived.selectedEmployee?.user_name || '—',
+        employeeName: derived.selectedEmployee?.user_name || "—",
         pendingStatus: pendingCalendarStatus,
         isSaving: isUpdatingCalendarDay,
         onPendingStatusChange: setPendingCalendarStatus,
@@ -210,7 +239,8 @@ export function buildControlControllerProps({
         copy,
         actionButtonClassName: headerActionButtonClassName,
         primaryActionButtonClassName: headerPrimaryActionButtonClassName,
-        onOpenContractSites: () => dialogs.setIsContractSiteRegistrationModalOpen(true),
+        onOpenContractSites: () =>
+          dialogs.setIsContractSiteRegistrationModalOpen(true),
         onOpenTimeTable: () => dialogs.setIsTimeTableModalOpen(true),
         onOpenSchedules: () => dialogs.setIsSchedulesModalOpen(true),
         onOpenKiosks: () => dialogs.setIsKioskManagerOpen(true),
@@ -228,21 +258,24 @@ export function buildControlControllerProps({
       locations: data.locations,
       templates: data.templates,
       kioskDevices: data.kioskDevices,
-      selectedEmployeeName: derived.selectedEmployee?.user_name ?? '—',
+      selectedEmployeeName: derived.selectedEmployee?.user_name ?? "—",
       selectedTemplateId: data.selectedTemplateId,
       selectedKioskDeviceLink: kioskActions.selectedKioskDeviceLink,
       kioskQrDataUrl: kioskActions.kioskQrDataUrl,
       isKioskQrDialogOpen,
       onKioskQrDialogOpenChange: setIsKioskQrDialogOpen,
-      onCopySelectedKioskLink: () => void kioskActions.handleCopyKioskLink(derived.selectedKioskDevice),
+      onCopySelectedKioskLink: () =>
+        void kioskActions.handleCopyKioskLink(derived.selectedKioskDevice),
       isKioskManagerOpen: dialogs.isKioskManagerOpen,
       onCloseKioskManager: () => dialogs.setIsKioskManagerOpen(false),
       onNewKiosk: dialogs.openNewKioskDialog,
       onEditKiosk: dialogs.openEditKioskDialog,
       onOpenKiosk: kioskActions.handleOpenKiosk,
-      onCopyKioskLink: (device) => void kioskActions.handleCopyKioskLink(device),
+      onCopyKioskLink: (device) =>
+        void kioskActions.handleCopyKioskLink(device),
       onShowKioskQr: kioskActions.handleShowKioskQr,
-      onRotateKioskLink: (device) => void kioskActions.handleRotateKioskLink(device),
+      onRotateKioskLink: (device) =>
+        void kioskActions.handleRotateKioskLink(device),
       onRequestDeleteKiosk: dialogs.setKioskDeviceToDelete,
       isLocationDialogOpen: dialogs.isLocationDialogOpen,
       editingLocationName: dialogs.editingLocation?.name ?? null,
@@ -266,38 +299,48 @@ export function buildControlControllerProps({
       onCloseWorkSiteDialog: () => dialogs.setIsWorkSiteDialogOpen(false),
       onWorkSiteFormChange: dialogs.setWorkSiteForm,
       onSaveWorkSite: () => void saveActions.handleSaveWorkSite(),
+      isRestPlannerDialogOpen: dialogs.isRestPlannerDialogOpen,
+      calendarMonth: data.calendarMonth,
+      onCloseRestPlanner: () => dialogs.setIsRestPlannerDialogOpen(false),
+      onSaveRestPlan,
       isKioskDialogOpen: dialogs.isKioskDialogOpen,
       editingKioskName: dialogs.editingKiosk?.name ?? null,
       kioskForm: dialogs.kioskForm,
       onCloseKioskDialog: () => dialogs.setIsKioskDialogOpen(false),
       onKioskFormChange: dialogs.setKioskForm,
       onSaveKiosk: () => void kioskActions.handleSaveKiosk(),
-      isContractSiteRegistrationModalOpen: dialogs.isContractSiteRegistrationModalOpen,
-      onCloseContractSiteRegistration: () => dialogs.setIsContractSiteRegistrationModalOpen(false),
+      isContractSiteRegistrationModalOpen:
+        dialogs.isContractSiteRegistrationModalOpen,
+      onCloseContractSiteRegistration: () =>
+        dialogs.setIsContractSiteRegistrationModalOpen(false),
       onReloadContractSites: () => data.loadControl(data.controlDate),
       onContractSiteSaved: () => toasts.showSuccessToast(copy.locationSaved),
       isTimeTableModalOpen: dialogs.isTimeTableModalOpen,
       onCloseTimeTable: () => dialogs.setIsTimeTableModalOpen(false),
       onDateChange: data.setControlDate,
-      onRemoveShift: (assignment, targetDate) => saveActions.handleRequestClearEmployeeShift(assignment, targetDate),
+      onRemoveShift: (assignment, targetDate) =>
+        saveActions.handleRequestClearEmployeeShift(assignment, targetDate),
       isSchedulesModalOpen: dialogs.isSchedulesModalOpen,
       onCloseSchedules: () => dialogs.setIsSchedulesModalOpen(false),
       onScheduleApplied: async (result) => {
-        data.setSelectedEmployeeId((current) => (
+        data.setSelectedEmployeeId((current) =>
           current && result.employeeIds.includes(current)
             ? current
-            : result.employeeIds[0] ?? current
-        ));
+            : (result.employeeIds[0] ?? current),
+        );
         data.setSelectedTemplateId(result.templateId);
         await data.loadControl(data.controlDate);
         toasts.showSuccessToast(copy.bulkAssignSuccess);
       },
       pendingTimeTableRemoval: dialogs.pendingTimeTableRemoval,
-      onConfirmTimeTableRemoval: () => void saveActions.handleConfirmClearEmployeeShift(),
+      onConfirmTimeTableRemoval: () =>
+        void saveActions.handleConfirmClearEmployeeShift(),
       onCancelTimeTableRemoval: () => dialogs.setPendingTimeTableRemoval(null),
       pendingCalendarScheduleClear: dialogs.pendingCalendarScheduleClear,
-      onConfirmCalendarScheduleClear: () => void calendarActions.handleConfirmClearCalendarDaySchedule(),
-      onCancelCalendarScheduleClear: () => dialogs.setPendingCalendarScheduleClear(null),
+      onConfirmCalendarScheduleClear: () =>
+        void calendarActions.handleConfirmClearCalendarDaySchedule(),
+      onCancelCalendarScheduleClear: () =>
+        dialogs.setPendingCalendarScheduleClear(null),
       kioskDeviceToDelete: dialogs.kioskDeviceToDelete,
       onConfirmDeleteKiosk: () => void kioskActions.handleDeleteKiosk(),
       onCancelDeleteKiosk: () => dialogs.setKioskDeviceToDelete(null),

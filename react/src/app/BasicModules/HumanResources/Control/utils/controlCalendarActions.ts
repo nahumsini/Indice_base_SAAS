@@ -210,16 +210,15 @@ export const bulkUpdateCalendarStatus = async (context: CalendarActionContext) =
     context.clearControlMessages();
     await waitForNextPaint();
 
-    const results = await runWithMinimumDuration(
-      Promise.all(
-        dates.map((date) =>
-          humanResourcesApi.updateAttendanceDailyRecord(context.selectedEmployeeId, date, { status: context.bulkCalendarStatus }),
-        ),
-      ),
+    const response = await runWithMinimumDuration(
+      humanResourcesApi.bulkUpdateAttendanceDailyRecords(context.selectedEmployeeId, {
+        dates,
+        status: context.bulkCalendarStatus,
+      }),
       CONTROL_SAVE_MINIMUM_LOADING_MS,
     );
 
-    const resultsByDate = new Map(dates.map((date, index) => [date, results[index]] as const));
+    const resultsByDate = new Map(response.items.map((result) => [result.date, result] as const));
     context.setAttendanceCalendarDays((current) =>
       current.map((day) => {
         const result = resultsByDate.get(day.date);
