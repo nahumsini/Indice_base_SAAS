@@ -37,6 +37,8 @@ export const koCA: AgendaTranslations = {
   },
   filters: {
     title: '필터',
+    search: 'Search task',
+    searchPlaceholder: 'Folio, title, description, or responsible',
     focus: '초점',
     period: '기간',
     from: '시작',

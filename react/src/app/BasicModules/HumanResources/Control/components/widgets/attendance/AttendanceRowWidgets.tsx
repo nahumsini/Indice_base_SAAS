@@ -313,15 +313,32 @@ function AttendanceEvidenceThumbnail({
   photoExpired?: boolean;
   onPreviewPhoto?: (photoUrl: string, label: string) => void;
 }) {
+  const [loadFailed, setLoadFailed] = useState(false);
+
   if (!photoUrl) {
     return (
       <div
-        className={`mt-0.5 flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border ${
+        className={`mt-0.5 flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-lg border ${
           photoExpired
             ? 'border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300'
             : 'border-gray-200 bg-white text-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-600'
         }`}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
         title={photoExpired ? copy.labels.photoExpiredTooltip : copy.labels.noPhotoTooltip}
+      >
+        <ImageIcon className="h-4 w-4" />
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div
+        className="mt-0.5 flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+        title={copy.labels.photoExpiredTooltip}
       >
         <ImageIcon className="h-4 w-4" />
       </div>
@@ -331,11 +348,12 @@ function AttendanceEvidenceThumbnail({
   return (
     <button
       type="button"
-      className="relative mt-0.5 flex h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#59C3A5]/15 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition hover:scale-[1.03] hover:border-[#59C3A5]/40 focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/30 dark:border-gray-700 dark:bg-gray-900"
+      className="group relative mt-0.5 flex h-14 w-20 shrink-0 overflow-hidden rounded-lg border border-[#59C3A5]/15 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition hover:scale-[1.03] hover:border-[#59C3A5]/40 focus:outline-none focus:ring-2 focus:ring-[#59C3A5]/30 dark:border-gray-700 dark:bg-gray-900"
       onClick={(event) => {
         event.stopPropagation();
         onPreviewPhoto?.(photoUrl, label);
       }}
+      onPointerDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
       aria-label={`${copy.labels.viewEvidence}: ${label}`}
     >
@@ -344,9 +362,10 @@ function AttendanceEvidenceThumbnail({
         alt={copy.labels.attendanceEvidenceAlt(label)}
         className="h-full w-full object-cover"
         loading="lazy"
+        onError={() => setLoadFailed(true)}
       />
-      <span className="absolute bottom-0.5 right-0.5 rounded bg-white/90 p-0.5 text-[#59C3A5] shadow-sm dark:bg-gray-950/90 dark:text-blue-200">
-        <ImageIcon className="h-2.5 w-2.5" />
+      <span className="absolute inset-x-0 bottom-0 bg-white/92 px-1.5 py-0.5 text-[9px] font-semibold text-[#0f7f68] shadow-sm transition group-hover:bg-white dark:bg-gray-950/90 dark:text-blue-200">
+        {copy.labels.viewEvidence}
       </span>
     </button>
   );

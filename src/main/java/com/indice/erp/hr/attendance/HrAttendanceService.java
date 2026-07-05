@@ -25,6 +25,7 @@ import com.indice.erp.hr.attendance.util.AttendanceDateParser;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -245,6 +246,27 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
         var scope = hrAttendanceScopeAccess.resolve(currentUser);
         hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, userCompanyId);
         return updateDailyRecord(currentUser.companyId(), currentUser.userId(), userCompanyId, date, payload);
+    }
+
+    public Map<String, Object> bulkUpdateDailyRecords(
+        AuthSessionUser currentUser,
+        long userCompanyId,
+        Map<String, Object> payload
+    ) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, userCompanyId);
+        return bulkUpdateDailyRecords(currentUser.companyId(), currentUser.userId(), userCompanyId, payload);
+    }
+
+    public Map<String, Object> bulkAssignRestDays(
+        AuthSessionUser currentUser,
+        Map<String, Object> payload
+    ) {
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        for (var userCompanyId : extractRestPlanUserCompanyIds(payload)) {
+            hrAttendanceScopeAccess.requireUserInScope(currentUser.companyId(), scope, userCompanyId);
+        }
+        return bulkAssignRestDays(currentUser.companyId(), currentUser.userId(), payload);
     }
 
     public Map<String, Object> recordManualAttendanceEvent(
@@ -562,6 +584,36 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
             .filter(Map.class::isInstance)
             .map((item) -> (Map<String, Object>) item)
             .toList();
+    }
+
+    private java.util.List<Long> extractRestPlanUserCompanyIds(Map<String, Object> payload) {
+        if (!(payload.get("assignments") instanceof java.util.List<?> assignments) || assignments.isEmpty()) {
+            throw new IllegalArgumentException("At least one rest assignment is required.");
+        }
+        if (assignments.size() > 100) {
+            throw new IllegalArgumentException("Rest plan is limited to 100 collaborator assignments.");
+        }
+
+        var userCompanyIds = new ArrayList<Long>();
+        for (var rawAssignment : assignments) {
+            if (!(rawAssignment instanceof Map<?, ?> assignment)) {
+                throw new IllegalArgumentException("Rest assignments must be valid objects.");
+            }
+            var assignmentPayload = new LinkedHashMap<String, Object>();
+            assignment.forEach((key, value) -> {
+                if (key instanceof String stringKey) {
+                    assignmentPayload.put(stringKey, value);
+                }
+            });
+            var userCompanyId = parseLong(assignmentPayload, "user_company_id");
+            if (userCompanyId <= 0) {
+                throw new IllegalArgumentException("Rest assignment user_company_id is required.");
+            }
+            if (!userCompanyIds.contains(userCompanyId)) {
+                userCompanyIds.add(userCompanyId);
+            }
+        }
+        return userCompanyIds;
     }
 
     private boolean isVisibleUser(Object rawUserCompanyId, HrOperationalScope scope, Set<Long> visibleUserIds) {

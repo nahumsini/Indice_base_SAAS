@@ -1,6 +1,6 @@
 import { useMemo, type PointerEvent } from 'react';
-import { CheckCircle2, Clock3, Moon, UserX } from 'lucide-react';
-import type { AttendanceCalendarDay } from '../../../../api/humanResources';
+import { Check, CheckCircle2, Clock3, MousePointer2, Moon, X, UserX } from 'lucide-react';
+import type { AttendanceCalendarDay, AttendanceCorrectionStatus } from '../../../../api/humanResources';
 import { Button } from '../../../../components/ui/button';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { ControlKpiMetric } from './ControlKpiStrip/ControlKpiMetric';
@@ -73,6 +73,7 @@ export function EmployeeCalendarPanel({
   onDayPointerEnter,
   onDayPointerMove,
   onDaySelect,
+  bulkActions,
 }: {
   copy: AttendanceControlCopy;
   locale: string;
@@ -89,6 +90,16 @@ export function EmployeeCalendarPanel({
   onDayPointerEnter: (date: string, day: AttendanceCalendarDay | null) => void;
   onDayPointerMove: (date: string, day: AttendanceCalendarDay | null) => void;
   onDaySelect: (date: string, day: AttendanceCalendarDay | null) => void;
+  bulkActions?: {
+    bulkCalendarStatus: AttendanceCorrectionStatus | '';
+    isSelectionMode: boolean;
+    isUpdatingCalendarDay: boolean;
+    selectedCount: number;
+    onBulkApply: () => void;
+    onBulkStatusChange: (status: AttendanceCorrectionStatus | '') => void;
+    onClearSelection: () => void;
+    onExitSelectionMode: () => void;
+  };
 }) {
   const monthDays = useMemo(
     () => Array.from(attendanceCalendarMap.values()),
@@ -175,6 +186,78 @@ export function EmployeeCalendarPanel({
           />
         </div>
       </div>
+
+      {bulkActions?.isSelectionMode ? (
+        <div className="rounded-lg border border-[#F2C94C]/35 bg-[#fff8df] p-3 shadow-sm dark:border-[#F2C94C]/25 dark:bg-[#2b240c]/70">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F2C94C] text-slate-950">
+                  <MousePointer2 className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                    {copy.labels.bulkCalendarTitle}
+                  </p>
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                    {bulkActions.selectedCount > 0
+                      ? copy.labels.bulkCalendarSelectedLabel(bulkActions.selectedCount)
+                      : copy.labels.bulkCalendarModeDescription}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto_auto_auto] sm:items-end">
+              <label className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <span>{copy.labels.bulkCalendarStatusLabel}</span>
+                <select
+                  value={bulkActions.bulkCalendarStatus}
+                  disabled={bulkActions.isUpdatingCalendarDay}
+                  onChange={(event) => bulkActions.onBulkStatusChange(event.target.value as AttendanceCorrectionStatus | '')}
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                >
+                  <option value="on_time">{copy.labels.markAsAttendance}</option>
+                  <option value="absence">{copy.labels.markAsAbsent}</option>
+                  <option value="late">{copy.labels.markAsDelay}</option>
+                  <option value="rest">{copy.labels.markAsRest}</option>
+                  <option value="">{copy.labels.clearManualCorrection}</option>
+                </select>
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 rounded-lg border-white/60 bg-white/80 text-xs font-semibold text-slate-700 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                disabled={bulkActions.isUpdatingCalendarDay || bulkActions.selectedCount === 0}
+                onClick={bulkActions.onClearSelection}
+              >
+                <X className="h-4 w-4" />
+                {copy.labels.bulkCalendarClear}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-10 rounded-lg bg-[#59C3A5] text-xs font-semibold text-white hover:bg-[#3AAE90]"
+                disabled={bulkActions.isUpdatingCalendarDay || bulkActions.selectedCount === 0}
+                onClick={bulkActions.onBulkApply}
+              >
+                <Check className="h-4 w-4" />
+                {copy.labels.bulkCalendarApply}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-10 rounded-lg text-xs font-semibold text-slate-600 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-900"
+                disabled={bulkActions.isUpdatingCalendarDay}
+                onClick={bulkActions.onExitSelectionMode}
+              >
+                {copy.labels.bulkCalendarExit}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
         {weekdayLabels.map((label) => (

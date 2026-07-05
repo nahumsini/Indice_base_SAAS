@@ -33,6 +33,7 @@ const agendaTodayLookbackDays = 365;
 const agendaAllRange = { from: '1900-01-01', to: '2999-12-31' };
 
 type StoredAgendaFilters = {
+  search?: string;
   focus?: AgendaFocusFilter;
   period?: PeriodFilter;
   status?: StatusFilter;
@@ -101,8 +102,10 @@ function agendaDeepLinkFilters(search: string) {
   const status = params.get('status');
   const from = params.get('from');
   const to = params.get('to');
+  const query = params.get('search') ?? params.get('q');
 
   return {
+    search: query?.trim() || null,
     focus: normalizeLegacyFocus(period, focus),
     period: isAgendaPeriodFilter(period) ? period : null,
     status: normalizeLegacyStatus(status),
@@ -132,6 +135,7 @@ function getStoredAgendaFilters(): StoredAgendaFilters {
     const legacyFocus = normalizeLegacyFocus(period, focus);
 
     return {
+      search: parsedFilters.search || undefined,
       focus: legacyFocus ?? undefined,
       period: isAgendaPeriodFilter(period) ? period : undefined,
       status: normalizeLegacyStatus(status) ?? undefined,
@@ -200,6 +204,9 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
 export function useAgendaFilters(search: string) {
   const initialDeepLinkFilters = useMemo(() => agendaDeepLinkFilters(search), []);
   const storedAgendaFilters = useMemo(() => getStoredAgendaFilters(), []);
+  const [searchQuery, setSearchQuery] = useState(
+    () => initialDeepLinkFilters.search ?? storedAgendaFilters.search ?? '',
+  );
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(
     initialDeepLinkFilters.period ?? storedAgendaFilters.period ?? 'today',
   );
@@ -249,6 +256,9 @@ export function useAgendaFilters(search: string) {
     if (filters.status) {
       setStatusFilter(filters.status);
     }
+    if (filters.search !== null) {
+      setSearchQuery(filters.search);
+    }
     if (filters.unit) {
       setUnitFilter(filters.unit);
     }
@@ -268,6 +278,7 @@ export function useAgendaFilters(search: string) {
     window.sessionStorage.setItem(
       agendaFiltersStorageKey,
       JSON.stringify({
+        search: searchQuery,
         period: periodFilter,
         focus: focusFilter,
         status: statusFilter,
@@ -287,6 +298,7 @@ export function useAgendaFilters(search: string) {
     focusFilter,
     periodFilter,
     projectFilter,
+    searchQuery,
     statusFilter,
     unitFilter,
   ]);
@@ -330,11 +342,13 @@ export function useAgendaFilters(search: string) {
     handleCustomDateToChange,
     periodFilter,
     projectFilter,
+    searchQuery,
     setBusinessFilter,
     setCollaboratorFilter,
     setFocusFilter,
     setPeriodFilter,
     setProjectFilter,
+    setSearchQuery,
     setStatusFilter,
     setUnitFilter,
     statusFilter,

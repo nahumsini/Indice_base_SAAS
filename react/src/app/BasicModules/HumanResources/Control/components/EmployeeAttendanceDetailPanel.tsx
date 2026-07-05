@@ -1,13 +1,17 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 import type {
   AttendanceAccessProfile,
   AttendanceControlAssignment,
-} from '../../../../api/humanResources';
-import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
-import { EmployeeActionBar } from './EmployeeActionBar';
-import { EmployeeHeaderCard } from './EmployeeHeaderCard';
+} from "../../../../api/humanResources";
+import type { AttendanceControlCopy } from "./ControlAttendanceWidgets";
+import { EmployeeActionBar } from "./EmployeeActionBar";
+import { EmployeeHeaderCard } from "./EmployeeHeaderCard";
 
-type FaceEnrollmentSummary = { id: number; status: string; enrolled_at?: string | null } | null;
+type FaceEnrollmentSummary = {
+  id: number;
+  status: string;
+  enrolled_at?: string | null;
+} | null;
 
 export function EmployeeAttendanceDetailPanel({
   copy,
@@ -16,9 +20,13 @@ export function EmployeeAttendanceDetailPanel({
   faceEnrollment,
   assignments,
   selectedEmployeeBusyReason,
+  isCalendarBulkSelectionMode,
+  selectedCalendarDayCount,
   calendar,
   quickActions,
   onAssignLocation,
+  onOpenRestPlanner,
+  onToggleCalendarBulkSelectionMode,
   onFaceEnrollmentChange,
   onReload,
   onSuccess,
@@ -30,9 +38,13 @@ export function EmployeeAttendanceDetailPanel({
   faceEnrollment: FaceEnrollmentSummary;
   assignments: AttendanceControlAssignment[];
   selectedEmployeeBusyReason: string;
+  isCalendarBulkSelectionMode: boolean;
+  selectedCalendarDayCount: number;
   calendar: ReactNode;
   quickActions: ReactNode;
   onAssignLocation: () => void;
+  onOpenRestPlanner: () => void;
+  onToggleCalendarBulkSelectionMode: () => void;
   onFaceEnrollmentChange: (enrollment: FaceEnrollmentSummary) => void;
   onReload: () => Promise<void> | void;
   onSuccess: (message: string) => void;
@@ -42,9 +54,13 @@ export function EmployeeAttendanceDetailPanel({
     <section className="rounded-lg border border-[#59C3A5]/10 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-800">
       <div className="flex flex-col gap-4">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{copy.labels.attendanceCalendar}</h3>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            {copy.labels.attendanceCalendar}
+          </h3>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {selectedEmployee ? copy.labels.employeeMonthlyAttendanceDetail : copy.labels.selectEmployeeCalendar}
+            {selectedEmployee
+              ? copy.labels.employeeMonthlyAttendanceDetail
+              : copy.labels.selectEmployeeCalendar}
           </p>
         </div>
 
@@ -53,7 +69,7 @@ export function EmployeeAttendanceDetailPanel({
             <EmployeeHeaderCard
               copy={copy}
               selectedEmployee={selectedEmployee}
-              accessActions={(
+              accessActions={
                 <EmployeeActionBar
                   copy={copy}
                   embedded
@@ -62,14 +78,26 @@ export function EmployeeAttendanceDetailPanel({
                   faceEnrollment={faceEnrollment}
                   assignments={assignments}
                   assignLocationDisabled={Boolean(selectedEmployeeBusyReason)}
-                  assignLocationTitle={selectedEmployeeBusyReason ? copy.labels.removeExistingShiftTooltip(selectedEmployeeBusyReason) : undefined}
+                  assignLocationTitle={
+                    selectedEmployeeBusyReason
+                      ? copy.labels.removeExistingShiftTooltip(
+                          selectedEmployeeBusyReason,
+                        )
+                      : undefined
+                  }
+                  isCalendarBulkSelectionMode={isCalendarBulkSelectionMode}
+                  selectedCalendarDayCount={selectedCalendarDayCount}
                   onAssignLocation={onAssignLocation}
+                  onOpenRestPlanner={onOpenRestPlanner}
+                  onToggleCalendarBulkSelectionMode={
+                    onToggleCalendarBulkSelectionMode
+                  }
                   onFaceEnrollmentChange={onFaceEnrollmentChange}
                   onReload={onReload}
                   onSuccess={onSuccess}
                   onError={onError}
                 />
-              )}
+              }
             />
           </>
         ) : null}

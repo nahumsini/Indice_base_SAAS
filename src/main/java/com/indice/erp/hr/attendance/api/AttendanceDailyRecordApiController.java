@@ -62,6 +62,66 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         }
     }
 
+    @PutMapping("/daily-records/{userCompanyId}/bulk")
+    public ResponseEntity<?> bulkUpdateDailyRecords(
+        HttpSession session,
+        @PathVariable long userCompanyId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.bulkUpdateDailyRecords(
+                    currentUser.get(),
+                    userCompanyId,
+                    payload
+                )
+            );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/daily-records/rest-plan")
+    public ResponseEntity<?> bulkAssignRestDays(
+        HttpSession session,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessControl(currentUser.get())) {
+            return forbidden();
+        }
+
+        try {
+            return ResponseEntity.ok(
+                hrAttendanceService.bulkAssignRestDays(
+                    currentUser.get(),
+                    payload
+                )
+            );
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PostMapping("/daily-records/{userCompanyId}/{date}/manual-events")
     public ResponseEntity<?> recordManualDailyEvent(
         HttpSession session,

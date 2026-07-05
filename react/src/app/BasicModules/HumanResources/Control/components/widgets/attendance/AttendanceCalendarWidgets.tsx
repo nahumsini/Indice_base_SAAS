@@ -8,6 +8,7 @@ import {
   dayHeatmapTone,
   dayTone,
   formatTimeOnly,
+  normalizeAttendancePhotoUrl,
   resolvedDayStatus,
 } from '../../../utils/attendanceWidgetUtils';
 
@@ -156,14 +157,16 @@ export function DayEvidenceCard({
   copy: AttendanceControlCopy;
   compact?: boolean;
 }) {
+  const normalizedPhotoUrl = normalizeAttendancePhotoUrl(photoUrl);
+
   if (compact) {
     return (
       <div className="min-w-0 rounded-lg border border-[#59C3A5]/10 bg-[#f8fbff] p-3 dark:border-gray-800 dark:bg-gray-900/40">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
         <div className="mt-2 flex items-center gap-2">
-          {photoUrl ? (
+          {normalizedPhotoUrl ? (
             <img
-              src={photoUrl}
+              src={normalizedPhotoUrl}
               alt={label}
               className="h-10 w-10 shrink-0 rounded-lg object-cover"
             />
@@ -189,9 +192,9 @@ export function DayEvidenceCard({
   return (
     <div className="rounded-lg border border-[#59C3A5]/10 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-      {photoUrl ? (
+      {normalizedPhotoUrl ? (
         <img
-          src={photoUrl}
+          src={normalizedPhotoUrl}
           alt={label}
           className="mt-3 h-32 w-full rounded-lg object-cover"
         />

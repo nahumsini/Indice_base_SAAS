@@ -33,6 +33,7 @@ interface EmployeeAccessActionsProps {
   inlineLayout?: boolean;
   actionBarLayout?: boolean;
   pinLabelOverride?: string;
+  showPinAction?: boolean;
   showFaceAction?: boolean;
   onFaceEnrollmentChange: (enrollment: FaceEnrollmentSummary) => void;
   onReload: () => Promise<void> | void;
@@ -76,6 +77,7 @@ export function EmployeeAccessActions({
   inlineLayout = false,
   actionBarLayout = false,
   pinLabelOverride,
+  showPinAction = true,
   showFaceAction = true,
   onFaceEnrollmentChange,
   onReload,
@@ -230,7 +232,7 @@ export function EmployeeAccessActions({
       />
 
       <div className={actionGroupClassName}>
-        {actionBarLayout ? (
+        {actionBarLayout && showPinAction ? (
           <Button
             variant="outline"
             size="sm"
@@ -242,12 +244,12 @@ export function EmployeeAccessActions({
             <KeyRound className="h-4 w-4" />
             {pinLabelOverride ?? copy.labels.setPin}
           </Button>
-        ) : (
+        ) : !actionBarLayout ? (
           <div className={inlineLayout ? 'flex h-9 shrink-0 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100' : 'flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'}>
             <span className={`h-2 w-2 rounded-full ${selectedPinMethod ? 'bg-emerald-500' : 'bg-amber-500'}`} />
             {selectedPinMethod ? copy.labels.pinSet : copy.labels.noPin}
           </div>
-        )}
+        ) : null}
         {!actionBarLayout ? (
           <Button
             variant="outline"

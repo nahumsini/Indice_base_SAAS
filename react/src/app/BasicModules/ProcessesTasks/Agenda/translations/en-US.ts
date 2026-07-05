@@ -37,6 +37,8 @@ export const enUS: AgendaTranslations = {
   },
   filters: {
     title: 'Filters',
+    search: 'Search task',
+    searchPlaceholder: 'Folio, title, description, or responsible',
     focus: 'Focus',
     period: 'Period',
     from: 'From',

@@ -11,11 +11,13 @@ import {
 import type { AttendanceCalendarDay } from '../../../../api/humanResources';
 
 interface UseCalendarDateSelectionParams {
+  isSelectionMode: boolean;
   setControlDate: Dispatch<SetStateAction<string>>;
   setSelectedCalendarDay: Dispatch<SetStateAction<AttendanceCalendarDay | null>>;
 }
 
 export function useCalendarDateSelection({
+  isSelectionMode,
   setControlDate,
   setSelectedCalendarDay,
 }: UseCalendarDateSelectionParams) {
@@ -41,6 +43,10 @@ export function useCalendarDateSelection({
     event: PointerEvent<HTMLButtonElement>,
     day: AttendanceCalendarDay | null,
   ) => {
+    if (!isSelectionMode) {
+      return;
+    }
+
     if (event.pointerType === 'mouse' && event.button !== 0) {
       return;
     }
@@ -54,7 +60,7 @@ export function useCalendarDateSelection({
     setControlDate(date);
     selectedCalendarDatesRef.current = [date];
     setSelectedCalendarDates([date]);
-  }, [setControlDate, setSelectedCalendarDay]);
+  }, [isSelectionMode, setControlDate, setSelectedCalendarDay]);
 
   const extendCalendarDateSelection = useCallback((date: string, day: AttendanceCalendarDay | null) => {
     if (!isCalendarDateSelectionActive.current) {
@@ -125,9 +131,27 @@ export function useCalendarDateSelection({
     setSelectedCalendarDates([]);
   }, []);
 
+  useEffect(() => {
+    if (!isSelectionMode) {
+      clearCalendarDateSelection();
+    }
+  }, [clearCalendarDateSelection, isSelectionMode]);
+
   const selectCalendarDay = useCallback((dateKey: string, day: AttendanceCalendarDay | null) => {
     if (suppressCalendarDateClick.current) {
       suppressCalendarDateClick.current = false;
+      return;
+    }
+    if (isSelectionMode) {
+      setControlDate(dateKey);
+      setSelectedCalendarDay(null);
+      setSelectedCalendarDates((current) => {
+        const nextDates = current.includes(dateKey)
+          ? current.filter((date) => date !== dateKey)
+          : [...current, dateKey].sort();
+        selectedCalendarDatesRef.current = nextDates;
+        return nextDates;
+      });
       return;
     }
     if (!selectedCalendarDatesRef.current.includes(dateKey)) {
@@ -136,7 +160,7 @@ export function useCalendarDateSelection({
     if (day && selectedCalendarDatesRef.current.length <= 1) {
       setSelectedCalendarDay(day);
     }
-  }, [setControlDate, setSelectedCalendarDay]);
+  }, [isSelectionMode, setControlDate, setSelectedCalendarDay]);
 
   return {
     selectedCalendarDates,
