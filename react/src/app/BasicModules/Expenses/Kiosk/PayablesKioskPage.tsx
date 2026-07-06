@@ -11,7 +11,7 @@ import {
 } from '../Budgets/budgetTaxCatalog';
 import { DEFAULT_FINANCE_CURRENCY, financeCurrencySelectOptions } from '../constants/financeCurrencyOptions';
 import { expenseCategories } from '../data/categories.data';
-import { expensesService, providersService, toFinanceApiErrorMessage } from '../services';
+import { expenseAttachmentsService, expensesService, providersService, toFinanceApiErrorMessage } from '../services';
 import type { Expense, Provider } from '../types/expenses.types';
 import { formatCurrency } from '../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from '../components/modals/BudgetTaxControls';
@@ -25,6 +25,7 @@ type KioskDraft = TaxControlDraft & {
 };
 
 type AttachmentDraft = {
+  file?: File;
   id: string;
   isLocalObjectUrl?: boolean;
   name: string;
@@ -35,7 +36,6 @@ type AttachmentDraft = {
 };
 
 const inputClass = 'h-12 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base font-semibold text-slate-900 shadow-sm placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15';
-const LOCAL_ATTACHMENT_PREFIX = 'indice-local-attachment:';
 const MAX_ATTACHMENTS = 5;
 
 export default function PayablesKioskPage() {
@@ -94,6 +94,7 @@ export default function PayablesKioskPage() {
       objectUrlsRef.current.add(url);
       return {
         id: `payable-kiosk-file-${Date.now()}-${index}`,
+        file,
         isLocalObjectUrl: true,
         name: file.name,
         size: file.size,
@@ -143,7 +144,7 @@ export default function PayablesKioskPage() {
       date: now,
       paymentMethod: 'transfer',
       status: 'pending',
-      attachments: draft.attachments.map(serializeAttachment),
+      attachments: [],
       notes: draft.notes.trim(),
       type: 'payable',
       createdAt: now,
@@ -152,7 +153,10 @@ export default function PayablesKioskPage() {
 
     setIsSubmitting(true);
     try {
-      await expensesService.createPayableAccount(payableExpense, providers);
+      const savedExpense = await expensesService.createPayableAccount(payableExpense, providers);
+      for (const file of draft.attachments.map(attachment => attachment.file).filter((file): file is File => Boolean(file))) {
+        await expenseAttachmentsService.upload(savedExpense.id, file);
+      }
       revokeLocalUrls(objectUrlsRef.current);
       setDraft(createDraft(draft.budgetCurrencyCode));
       setSuccessToastMessage('Cuenta por pagar registrada.');
@@ -357,17 +361,6 @@ function SummaryMetric({ label, strong, value }: { label: string; strong?: boole
   );
 }
 
-function serializeAttachment(file: AttachmentDraft) {
-  if (!file.url || !file.isLocalObjectUrl) return file.url && isOpenableUrl(file.url) ? file.url : file.name;
-  return `${LOCAL_ATTACHMENT_PREFIX}${encodeURIComponent(JSON.stringify({
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    url: file.url,
-    uploadedAt: file.uploadedAt.toISOString(),
-  }))}`;
-}
-
 function revokeLocalUrls(urls: Set<string>) {
   urls.forEach(url => URL.revokeObjectURL(url));
   urls.clear();
@@ -378,10 +371,6 @@ function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isOpenableUrl(value: string) {
-  return /^(https?:|blob:|data:)/i.test(value);
 }
 
 function normalizeTaxCountry(value: string): BudgetTaxCountry {

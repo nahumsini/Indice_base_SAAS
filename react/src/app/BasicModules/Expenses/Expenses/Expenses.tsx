@@ -7,7 +7,7 @@ import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyConte
 import { isBackendId } from '../adapters/adapter.utils';
 import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
 import { mockExpenses, mockProviders } from '../data/expenses.mock';
-import { accountingAccountsService, expensesService, toFinanceApiErrorMessage } from '../services';
+import { accountingAccountsService, expenseAttachmentsService, expensesService, toFinanceApiErrorMessage } from '../services';
 import { budgetLinesService } from '../services/budget-lines.service';
 import type { Expense, ExpenseStatus, Provider } from '../types/expenses.types';
 import type { ExpenseListFilters } from '../types/expenseView.types';
@@ -82,7 +82,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const { businessOptions: referenceBusinessOptions, currentUser, isLoadingReferenceData, unitOptions: referenceUnitOptions, userOptions } =
     useFinanceReferenceData(setFailureToastMessage);
 
-  const { attachmentsExpense, closeAttachmentsModal, getExpenseAttachments, openAttachmentsModal, saveExpenseAttachments } =
+  const { attachmentsExpense, closeAttachmentsModal, getExpenseAttachments, openAttachmentsModal } =
     useExpenseAttachments();
   const { applyColumns, columns } = useExpenseColumns();
   const translatedColumns = useMemo(() => (
@@ -187,29 +187,50 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     window.open('/expenses/kiosk/cuentas-por-pagar', '_blank', 'noopener,noreferrer');
   };
 
-  const handleQuickExpenseSubmit = async ({ amount, concept }: QuickExpenseValues) => {
+  const handleQuickExpenseSubmit = async ({ amount, attachmentFiles, business, businessUnit, concept, currency, description }: QuickExpenseValues) => {
     setIsQuickExpenseSubmitting(true);
     try {
-      await handleExpenseSubmit({
-        accountingAccount: '',
-        amount,
-        attachments: [],
-        business: '',
-        businessUnit: '',
+      const now = new Date();
+      const draftExpense: Expense = {
+        id: `expense-${Date.now()}`,
+        folio: createExpenseFolio(expenses),
+        businessUnit,
+        business,
         concept,
-        currency: preferredCurrency,
-        description: '',
-        dueDate: '',
-        paymentDate: '',
-        paymentMethod: 'transfer',
-        providerId: '',
-        status: 'pending',
-        taxes: 0,
-        taxIncluded: false,
-        taxMode: 'none',
+        description,
+        category: mockExpenses[0].category,
         total: amount,
-      });
+        taxes: 0,
+        amount,
+        amountPaid: amount,
+        currency,
+        dueDate: now,
+        paymentDate: now,
+        date: now,
+        paymentMethod: 'transfer',
+        status: 'pending',
+        requestedByUserId: currentUser?.id,
+        attachments: [],
+        type: 'real',
+        createdAt: now,
+        updatedAt: now,
+      };
+      const createdExpense = await expensesService.createExpense(draftExpense, providers);
+      const paidExpense = await expensesService.updateExpenseStatus(createdExpense.id, 'paid', providers, amount, now);
+      const uploadedAttachments = [];
+      for (const file of attachmentFiles) {
+        uploadedAttachments.push(await expenseAttachmentsService.upload(paidExpense.id, file));
+      }
+      const savedExpense = {
+        ...paidExpense,
+        attachments: uploadedAttachments.map(file => file.originalFilename),
+        attachmentCount: uploadedAttachments.length,
+      };
+      setExpenses(currentExpenses => [savedExpense, ...currentExpenses]);
+      setSuccessToastMessage(t.expenses.messages.created);
       setIsQuickExpenseModalOpen(false);
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
     } finally {
       setIsQuickExpenseSubmitting(false);
     }
@@ -347,7 +368,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       paymentMethod: 'transfer',
       accountingAccount: '',
       status: 'pending',
-      attachments: values.attachments,
+      attachments: [],
       notes: values.notes,
       type: 'payable',
       createdAt: now,
@@ -357,7 +378,16 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     setIsPayableAccountSubmitting(true);
     try {
       const savedExpense = await expensesService.createPayableAccount(payableExpense, providers);
-      setExpenses(currentExpenses => [savedExpense, ...currentExpenses]);
+      const uploadedAttachments = [];
+      for (const file of values.attachmentFiles) {
+        uploadedAttachments.push(await expenseAttachmentsService.upload(savedExpense.id, file));
+      }
+      const savedExpenseWithAttachments = {
+        ...savedExpense,
+        attachments: uploadedAttachments.map(file => file.originalFilename),
+        attachmentCount: uploadedAttachments.length,
+      };
+      setExpenses(currentExpenses => [savedExpenseWithAttachments, ...currentExpenses]);
       setSuccessToastMessage('Cuenta por pagar registrada.');
       setIsPayableAccountModalOpen(false);
     } catch (error) {
@@ -416,20 +446,19 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     }
   };
 
-  const handleSaveAttachments = (attachments: string[]) => {
+  const handleAttachmentsChanged = (attachments: string[]) => {
     if (!attachmentsExpense) return;
-    saveExpenseAttachments(attachments);
 
     const updatedExpense = {
       ...attachmentsExpense,
       attachments,
+      attachmentCount: attachments.length,
       updatedAt: new Date(),
     };
 
     setExpenses(currentExpenses => currentExpenses.map(item => (
       item.id === attachmentsExpense.id ? updatedExpense : item
     )));
-    persistExpenseUpdate(updatedExpense);
   };
 
   const handleExpenseStatusChange = async (expense: Expense, status: ExpenseStatus) => {
@@ -584,10 +613,11 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         <AttachmentsModal
           isOpen
           onClose={closeAttachmentsModal}
+          expenseId={attachmentsExpense.id}
           expenseFolio={attachmentsExpense.folio}
           expenseConcept={attachmentsExpense.concept}
           attachments={getExpenseAttachments(attachmentsExpense)}
-          onSave={handleSaveAttachments}
+          onChanged={handleAttachmentsChanged}
         />
       )}
 
@@ -624,11 +654,13 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       </Button>
 
       <QuickExpenseDialog
+        businessOptions={businessOptions}
         currency={preferredCurrency}
         isSubmitting={isQuickExpenseSubmitting}
         onOpenChange={setIsQuickExpenseModalOpen}
         onSubmit={handleQuickExpenseSubmit}
         open={isQuickExpenseModalOpen}
+        unitOptions={unitOptions}
       />
 
       <SuccessToast

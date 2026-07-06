@@ -97,7 +97,10 @@ export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters)
     const matchesUnit = filters.businessUnitFilter === 'all' || expense.businessUnit === filters.businessUnitFilter;
     const matchesBusiness = filters.businessFilter === 'all' || expense.business === filters.businessFilter;
     const matchesProvider = filters.providerFilter === 'all' || expense.providerId === filters.providerFilter;
-    const matchesStatus = filters.statusFilter === 'all' || getEffectiveExpenseStatus(expense) === filters.statusFilter;
+    const effectiveStatus = getEffectiveExpenseStatus(expense);
+    const matchesStatus = filters.statusFilter === 'all'
+      || (filters.statusFilter === 'pending_and_overdue' && ['pending', 'overdue'].includes(effectiveStatus))
+      || effectiveStatus === filters.statusFilter;
 
     return matchesSearch && matchesPeriod && matchesUnit && matchesBusiness && matchesProvider && matchesStatus;
   });

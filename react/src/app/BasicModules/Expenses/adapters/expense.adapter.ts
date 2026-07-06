@@ -105,6 +105,7 @@ export const toFinanceExpenseFromApi = (expense: ExpenseApiDto): FinanceExpense 
     createdBy: expense.createdByUserId ? String(expense.createdByUserId) : undefined,
     approvedBy: expense.approvedByUserId ? String(expense.approvedByUserId) : undefined,
     attachments: attachments.length > 0 ? attachments : Array.from({ length: expense.attachmentCount ?? 0 }, (_, index) => `Archivo ${index + 1}`),
+    attachmentCount: expense.attachmentCount ?? attachments.length,
     auditStatus: expense.auditStatus ?? undefined,
     createdAt: expense.createdAt ?? undefined,
     updatedAt: expense.updatedAt ?? undefined,
