@@ -34,7 +34,13 @@ final class ExpenseSql {
             expense.status,
             expense.payment_status,
             expense.audit_status,
-            expense.attachment_count,
+            COALESCE((
+                SELECT COUNT(*)
+                FROM finance_expense_attachments attachment
+                WHERE attachment.company_id = expense.company_id
+                  AND attachment.expense_id = expense.id
+                  AND attachment.deleted_at IS NULL
+            ), expense.attachment_count) AS attachment_count,
             expense.created_by_user_id,
             expense.updated_by_user_id,
             expense.created_at,

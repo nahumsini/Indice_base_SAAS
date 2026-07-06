@@ -24,6 +24,7 @@ import { ColumnConfigurationModal } from '../components/table/ColumnConfiguratio
 import { ExpenseFormModal } from '../components/modals/ExpenseFormModal';
 import type { ExpenseFormValues } from '../components/modals/ExpenseFormModal';
 import { PayableAccountDialog, type PayableAccountValues } from '../components/modals/PayableAccountDialog';
+import { PayablesKioskManagementModal } from '../components/modals/PayablesKioskManagementModal';
 import { QuickExpenseDialog, type QuickExpenseValues } from '../components/modals/QuickExpenseDialog';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { AttachmentsModal } from './components/AttachmentsModal';
@@ -68,6 +69,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [isPayableAccountModalOpen, setIsPayableAccountModalOpen] = useState(false);
+  const [isPayablesKioskModalOpen, setIsPayablesKioskModalOpen] = useState(false);
   const [isPayableAccountSubmitting, setIsPayableAccountSubmitting] = useState(false);
   const [isQuickExpenseModalOpen, setIsQuickExpenseModalOpen] = useState(false);
   const [isQuickExpenseSubmitting, setIsQuickExpenseSubmitting] = useState(false);
@@ -184,7 +186,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   };
 
   const openPayablesKiosk = () => {
-    window.open('/expenses/kiosk/cuentas-por-pagar', '_blank', 'noopener,noreferrer');
+    setIsPayablesKioskModalOpen(true);
   };
 
   const handleQuickExpenseSubmit = async ({ amount, attachmentFiles, business, businessUnit, concept, currency, description }: QuickExpenseValues) => {
@@ -221,7 +223,10 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       for (const file of attachmentFiles) {
         uploadedAttachments.push(await expenseAttachmentsService.upload(paidExpense.id, file));
       }
-      const savedExpense = {
+      const refreshedExpense = isBackendId(paidExpense.id)
+        ? await expensesService.getExpenseById(paidExpense.id, providers)
+        : null;
+      const savedExpense = refreshedExpense ?? {
         ...paidExpense,
         attachments: uploadedAttachments.map(file => file.originalFilename),
         attachmentCount: uploadedAttachments.length,
@@ -382,7 +387,10 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       for (const file of values.attachmentFiles) {
         uploadedAttachments.push(await expenseAttachmentsService.upload(savedExpense.id, file));
       }
-      const savedExpenseWithAttachments = {
+      const refreshedExpense = isBackendId(savedExpense.id)
+        ? await expensesService.getExpenseById(savedExpense.id, providers)
+        : null;
+      const savedExpenseWithAttachments = refreshedExpense ?? {
         ...savedExpense,
         attachments: uploadedAttachments.map(file => file.originalFilename),
         attachmentCount: uploadedAttachments.length,
@@ -641,6 +649,16 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         onSubmit={handlePayableAccountSubmit}
         open={isPayableAccountModalOpen}
         providers={providers}
+      />
+
+      <PayablesKioskManagementModal
+        businessOptions={businessOptions}
+        isOpen={isPayablesKioskModalOpen}
+        onClose={() => setIsPayablesKioskModalOpen(false)}
+        onError={setFailureToastMessage}
+        onSuccess={setSuccessToastMessage}
+        providers={providers}
+        unitOptions={unitOptions}
       />
 
       <Button

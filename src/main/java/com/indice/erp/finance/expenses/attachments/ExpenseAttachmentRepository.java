@@ -110,7 +110,11 @@ class ExpenseAttachmentRepository {
             statement.setString(4, mimeType);
             statement.setLong(5, sizeBytes);
             statement.setString(6, objectKey);
-            statement.setLong(7, context.userId());
+            if (context.userId() == null) {
+                statement.setNull(7, java.sql.Types.BIGINT);
+            } else {
+                statement.setLong(7, context.userId());
+            }
             return statement;
         }, keyHolder);
 

@@ -63,7 +63,7 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
           onChange={(value) => onFiltersChange(updateFilter(filters, 'statusFilter', value as ExpenseListFilters['statusFilter']))}
           options={[
             ['all', t.common.all],
-            ['pending_and_overdue', `${t.statuses.pending} / ${t.statuses.overdue}`],
+            ['pending_and_overdue', `${t.statuses.pending} y ${t.statuses.overdue}`],
             ['paid', t.statuses.paid],
             ['pending', t.statuses.pending],
             ['partial', t.statuses.partial],

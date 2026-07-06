@@ -1,5 +1,5 @@
 import { ApiClientError, apiClient } from '../lib/apiClient';
-import { getCachedAuthSession, setCachedAuthSession } from './authSessionStore';
+import { getCachedAuthSession, setCachedAuthSession, setCachedCsrfToken } from './authSessionStore';
 import type { AuthSessionResponse } from './auth.types';
 import { endpoints } from './endpoints';
 
@@ -82,6 +82,7 @@ export const authApi = {
 
   async login({ email, password }: LoginCredentials) {
     setCachedAuthSession(undefined);
+    setCachedCsrfToken(null);
     clearPendingSessionRequest();
 
     try {

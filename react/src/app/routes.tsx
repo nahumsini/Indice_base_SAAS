@@ -319,6 +319,11 @@ export const router = createBrowserRouter([
     element: <PettyCashKioskRoute />,
   },
   {
+    path: '/expenses/kiosk/cuentas-por-pagar/:token',
+    element: <ExpensesPayablesKioskRoute />,
+    errorElement: <WorkspaceRouteError />,
+  },
+  {
     path: '/expenses/kiosk/cuentas-por-pagar',
     element: <ExpensesPayablesKioskRoute />,
     errorElement: <WorkspaceRouteError />,
