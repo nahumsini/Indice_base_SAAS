@@ -14,7 +14,7 @@ export type ExpenseListFilters = {
   businessUnitFilter: string;
   businessFilter: string;
   providerFilter: string;
-  statusFilter: ExpenseStatus | 'all';
+  statusFilter: ExpenseStatus | 'all' | 'pending_and_overdue';
 };
 
 export type ExpenseTotals = {

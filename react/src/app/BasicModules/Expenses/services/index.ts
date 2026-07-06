@@ -14,6 +14,8 @@ export {
   normalizeExpenseInsightInput,
 } from './insights.engine';
 export { expensesService } from './expenses.service';
+export { expenseAttachmentsService } from './expense-attachments.service';
+export type { ExpenseAttachment } from './expense-attachments.service';
 export { accountingAccountsService } from './accounting-accounts.service';
 export { budgetsService } from './budgets.service';
 export { budgetLinesService } from './budget-lines.service';

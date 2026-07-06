@@ -52,6 +52,7 @@ export interface Expense {
   performedByUserId?: string;
   notes?: string;
   attachments?: string[];
+  attachmentCount?: number;
   costCenter?: string;
   type?: ExpenseEntryType;
   frequency?: ExpenseFrequency;

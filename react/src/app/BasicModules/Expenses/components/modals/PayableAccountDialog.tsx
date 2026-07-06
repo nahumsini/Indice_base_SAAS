@@ -22,7 +22,7 @@ import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
 
 export type PayableAccountValues = {
   amount: number;
-  attachments: string[];
+  attachmentFiles: File[];
   concept: string;
   currency: string;
   dueDate: string;
@@ -53,6 +53,7 @@ type PayableDraft = TaxControlDraft & {
 };
 
 type AttachmentDraft = {
+  file?: File;
   id: string;
   isLocalObjectUrl?: boolean;
   name: string;
@@ -63,7 +64,6 @@ type AttachmentDraft = {
 };
 
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
-const LOCAL_ATTACHMENT_PREFIX = 'indice-local-attachment:';
 const MAX_PAYABLE_ATTACHMENTS = 5;
 
 export function PayableAccountDialog({
@@ -115,6 +115,7 @@ export function PayableAccountDialog({
       objectUrlsRef.current.add(url);
       return {
         id: `payable-file-${Date.now()}-${index}`,
+        file,
         isLocalObjectUrl: true,
         name: file.name,
         size: file.size,
@@ -140,7 +141,7 @@ export function PayableAccountDialog({
     if (!canSubmit) return;
     void onSubmit({
       amount: subtotal,
-      attachments: draft.attachments.map(serializeAttachment),
+      attachmentFiles: draft.attachments.map(attachment => attachment.file).filter((file): file is File => Boolean(file)),
       concept: draft.concept.trim(),
       currency: draft.budgetCurrencyCode,
       dueDate: draft.dueDate,
@@ -368,17 +369,6 @@ function SummaryMetric({ label, strong, value }: { label: string; strong?: boole
   );
 }
 
-function serializeAttachment(file: AttachmentDraft) {
-  if (!file.url || !file.isLocalObjectUrl) return file.url && isOpenableUrl(file.url) ? file.url : file.name;
-  return `${LOCAL_ATTACHMENT_PREFIX}${encodeURIComponent(JSON.stringify({
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    url: file.url,
-    uploadedAt: file.uploadedAt.toISOString(),
-  }))}`;
-}
-
 function revokeLocalUrls(urls: Set<string>) {
   urls.forEach(url => URL.revokeObjectURL(url));
   urls.clear();
@@ -389,10 +379,6 @@ function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isOpenableUrl(value: string) {
-  return /^(https?:|blob:|data:)/i.test(value);
 }
 
 function normalizeTaxCountry(value: string): BudgetTaxCountry {

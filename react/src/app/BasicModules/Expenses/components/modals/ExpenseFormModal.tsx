@@ -1,5 +1,5 @@
-import { Building2, Check, File, FileText, Paperclip, Pencil, Plus, ReceiptText, Trash2, Upload, X } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Building2, Check, FileText, Pencil, Plus, ReceiptText, X } from 'lucide-react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import {
   getBudgetTaxProfile,
   getDefaultBudgetTaxProfile,
@@ -57,7 +57,6 @@ type ExpenseFormModalProps = {
 
 type ExpenseDraftState = TaxControlDraft & {
   accountingAccount: string;
-  attachments: AttachmentDraft[];
   business: string;
   businessUnit: string;
   concept: string;
@@ -70,18 +69,6 @@ type ExpenseDraftState = TaxControlDraft & {
 };
 
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
-const LOCAL_ATTACHMENT_PREFIX = 'indice-local-attachment:';
-const MAX_EXPENSE_ATTACHMENTS = 5;
-
-type AttachmentDraft = {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  url?: string;
-  isLocalObjectUrl?: boolean;
-  uploadedAt: Date;
-};
 
 export function ExpenseFormModal({
   accountingAccountOptions = [],
@@ -94,8 +81,6 @@ export function ExpenseFormModal({
   onSubmitExpense,
 }: ExpenseFormModalProps) {
   const t = useFinanceTranslations();
-  const objectUrlsRef = useRef<Set<string>>(new Set());
-  const didSubmitRef = useRef(false);
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);
@@ -110,14 +95,6 @@ export function ExpenseFormModal({
   const accountingOptions = accountingAccountOptions.length > 0
     ? accountingAccountOptions
     : createFallbackAccountingOptions(editingExpense?.accountingAccount);
-  const canAttachMoreFiles = draft.attachments.length < MAX_EXPENSE_ATTACHMENTS;
-
-  useEffect(() => () => {
-    if (didSubmitRef.current) return;
-    objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-    objectUrlsRef.current.clear();
-  }, []);
-
   const updateDraft = (updates: Partial<ExpenseDraftState>) => {
     setDraft(current => ({ ...current, ...updates }));
   };
@@ -139,45 +116,15 @@ export function ExpenseFormModal({
     updateDraft({ businessUnit, business: keepBusiness ? draft.business : '' });
   };
 
-  const addAttachments = (files: FileList | null) => {
-    if (!files) return;
-    const availableSlots = MAX_EXPENSE_ATTACHMENTS - draft.attachments.length;
-    if (availableSlots <= 0) return;
-    const nextFiles = Array.from(files).slice(0, availableSlots).map((file, index) => {
-      const url = URL.createObjectURL(file);
-      objectUrlsRef.current.add(url);
-      return {
-        id: `expense-file-${Date.now()}-${index}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url,
-        isLocalObjectUrl: true,
-        uploadedAt: new Date(),
-      };
-    });
-    updateDraft({ attachments: [...draft.attachments, ...nextFiles] });
-  };
-
-  const removeAttachment = (attachmentId: string) => {
-    const attachment = draft.attachments.find(item => item.id === attachmentId);
-    if (attachment?.isLocalObjectUrl && attachment.url) {
-      URL.revokeObjectURL(attachment.url);
-      objectUrlsRef.current.delete(attachment.url);
-    }
-    updateDraft({ attachments: draft.attachments.filter(item => item.id !== attachmentId) });
-  };
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
 
     const taxProfile = draft.taxEnabled ? getBudgetTaxProfile(draft.taxProfileId, draft.taxCountry) : undefined;
-    didSubmitRef.current = true;
     void onSubmitExpense({
       accountingAccount: draft.accountingAccount,
       amount: subtotal,
-      attachments: draft.attachments.map(serializeAttachment),
+      attachments: editingExpense?.attachments ?? [],
       business: draft.business,
       businessUnit: draft.businessUnit,
       concept: draft.concept.trim(),
@@ -255,53 +202,6 @@ export function ExpenseFormModal({
               </FieldGroup>
             </StepCard>
 
-            <StepCard description={t.expenses.attachments.maxFilesHint(MAX_EXPENSE_ATTACHMENTS)} icon={<Paperclip className="h-5 w-5" />} title={t.expenses.attachments.title}>
-              <FieldGroup title={t.expenses.attachments.attachedFiles(draft.attachments.length)}>
-                <div className="md:col-span-2">
-                  <label className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-[22px] border-2 border-dashed bg-white px-4 py-6 text-center transition ${
-                    canAttachMoreFiles
-                      ? 'border-[#147514]/25 hover:border-[#147514]/45 hover:bg-[#147514]/5'
-                      : 'cursor-not-allowed border-slate-200 bg-slate-100 opacity-70'
-                  }`}>
-                    <input
-                      type="file"
-                      multiple
-                      disabled={!canAttachMoreFiles}
-                      onChange={(event) => {
-                        addAttachments(event.target.files);
-                        event.target.value = '';
-                      }}
-                      className="hidden"
-                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                    />
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]">
-                      <Upload className="h-5 w-5" />
-                    </span>
-                    <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{t.expenses.attachments.selectFiles}</span>
-                    <span className="mt-1 text-xs font-medium text-slate-500">{t.expenses.attachments.supportedFormats}</span>
-                  </label>
-                </div>
-
-                {draft.attachments.length > 0 ? (
-                  <div className="md:col-span-2 space-y-2">
-                    {draft.attachments.map(attachment => (
-                      <div key={attachment.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800">
-                          <File className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{attachment.name}</p>
-                          <p className="text-xs font-medium text-slate-500">{formatFileSize(attachment.size)}</p>
-                        </div>
-                        <button type="button" onClick={() => removeAttachment(attachment.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100" aria-label={t.common.delete}>
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </FieldGroup>
-            </StepCard>
           </div>
         </div>
 
@@ -425,7 +325,6 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
   return {
     accountingAccount: expense?.accountingAccount ?? '',
     amount: expense ? String(expense.taxIncluded ? expense.total : expense.amount ?? 0) : '',
-    attachments: (expense?.attachments ?? []).map((attachment, index) => createStoredAttachment(attachment, index)),
     business: expense?.business ?? '',
     businessUnit: expense?.businessUnit ?? '',
     budgetCurrencyCode: currency,
@@ -450,87 +349,6 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
 function filterBusinessesForUnit(options: FinanceReferenceOption[], unitId: string) {
   if (!unitId) return options;
   return options.filter(option => !option.unitId || option.unitId === unitId);
-}
-
-function createStoredAttachment(value: string, index: number): AttachmentDraft {
-  const serializedAttachment = parseSerializedAttachment(value);
-  if (serializedAttachment) return { ...serializedAttachment, id: `stored-file-${index}` };
-
-  return {
-    id: `stored-file-${index}`,
-    name: getAttachmentName(value),
-    size: 0,
-    type: getFileType(value),
-    url: isOpenableUrl(value) ? value : undefined,
-    uploadedAt: new Date(),
-  };
-}
-
-function serializeAttachment(file: AttachmentDraft) {
-  if (!file.url || !file.isLocalObjectUrl) return file.url && isOpenableUrl(file.url) ? file.url : file.name;
-  return `${LOCAL_ATTACHMENT_PREFIX}${encodeURIComponent(JSON.stringify({
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    url: file.url,
-    uploadedAt: file.uploadedAt.toISOString(),
-  }))}`;
-}
-
-function parseSerializedAttachment(value: string): AttachmentDraft | null {
-  if (!value.startsWith(LOCAL_ATTACHMENT_PREFIX)) return null;
-
-  try {
-    const parsed = JSON.parse(decodeURIComponent(value.slice(LOCAL_ATTACHMENT_PREFIX.length))) as {
-      name?: string;
-      size?: number;
-      type?: string;
-      url?: string;
-      uploadedAt?: string;
-    };
-    if (!parsed.name) return null;
-    const uploadedAt = parsed.uploadedAt ? new Date(parsed.uploadedAt) : new Date();
-    return {
-      id: '',
-      name: parsed.name,
-      size: Number.isFinite(parsed.size) ? Number(parsed.size) : 0,
-      type: parsed.type || getFileType(parsed.name),
-      url: parsed.url,
-      isLocalObjectUrl: parsed.url?.startsWith('blob:'),
-      uploadedAt: Number.isNaN(uploadedAt.getTime()) ? new Date() : uploadedAt,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function formatFileSize(bytes: number) {
-  if (!bytes) return '-';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isOpenableUrl(value: string) {
-  return /^(https?:|blob:|data:)/i.test(value);
-}
-
-function getAttachmentName(value: string) {
-  if (!isOpenableUrl(value)) return value;
-  try {
-    const parsedUrl = new URL(value);
-    const lastSegment = parsedUrl.pathname.split('/').filter(Boolean).pop();
-    return lastSegment ? decodeURIComponent(lastSegment) : value;
-  } catch {
-    return value;
-  }
-}
-
-function getFileType(value: string) {
-  const extension = value.split('.').pop()?.toLowerCase() ?? '';
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
-  if (extension === 'pdf') return 'application/pdf';
-  return 'application/octet-stream';
 }
 
 function createFallbackAccountingOptions(currentAccount?: string) {
