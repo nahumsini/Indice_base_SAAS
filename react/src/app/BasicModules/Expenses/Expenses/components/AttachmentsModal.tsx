@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, ExternalLink, File, Image as ImageIcon, Paperclip, Trash2, Upload, X } from 'lucide-react';
 import { expenseAttachmentsService, type ExpenseAttachment } from '../../services/expense-attachments.service';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 
 interface LocalAttachment {
   id: string;
@@ -36,7 +36,7 @@ export function AttachmentsModal({
   onSave,
   onChanged,
 }: AttachmentsModalProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const accent = moduleVariant === 'sales' ? '#FF6B5E' : '#147514';
   const accentText = moduleVariant === 'sales' ? '#B63B32' : '#147514';
   const objectUrlsRef = useRef<Set<string>>(new Set());

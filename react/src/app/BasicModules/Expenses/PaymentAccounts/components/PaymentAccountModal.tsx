@@ -2,7 +2,7 @@ import { Banknote, Check, ChevronLeft, ChevronRight, CreditCard, Landmark, MapPi
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { DEFAULT_FINANCE_CURRENCY, financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { PaymentAccount, PaymentAccountType } from '../types';
 
@@ -30,7 +30,7 @@ const paymentAccountTypeValues: PaymentAccountType[] = ['bank', 'cash', 'credit_
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function PaymentAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit }: PaymentAccountModalProps) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<PaymentFormValues>({
     accountNumber: account?.accountNumber ?? '',
@@ -173,7 +173,7 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
 }
 
 function AccountStep({ values, update }: StepProps) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
   const typeOptions = useMemo(() => paymentAccountTypeValues.map(value => ({
     value,
     label: t.paymentAccounts.types[value] ?? value,
@@ -194,7 +194,7 @@ function AccountStep({ values, update }: StepProps) {
 }
 
 function ScopeStep({ businessOptions, unitOptions, values, update }: StepProps & { businessOptions: FinanceReferenceOption[]; unitOptions: FinanceReferenceOption[] }) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
 
   return (
     <FieldGroup title={`${t.filters.unit} / ${t.filters.business}`}>
@@ -205,7 +205,7 @@ function ScopeStep({ businessOptions, unitOptions, values, update }: StepProps &
 }
 
 function DetailStep({ values, update }: StepProps) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
 
   return (
     <FieldGroup title={t.paymentAccounts.columns.balance.label}>
@@ -251,7 +251,7 @@ function TextField({ label, onChange, placeholder, required, value }: { label: s
 }
 
 function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
 
   return (
     <label>

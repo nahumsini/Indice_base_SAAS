@@ -19,7 +19,7 @@ import { useExpenseRowSelection } from '../../hooks/useExpenseRowSelection';
 import { ExpenseBulkActionsBar } from '../../components/table/ExpenseBulkActionsBar';
 import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeaderRow';
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
 import { getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
@@ -89,7 +89,7 @@ export function ExpenseTable({
   unitOptions = [],
   userOptions = [],
 }: ExpenseTableProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
   const showPaymentStatusOptions = showMarkPaidAction;
@@ -570,7 +570,7 @@ function ExpenseTablePagination({
   pageStart: number;
   selectedCount?: number;
   selectedMoneySummaries?: MoneySummary[];
-  t: ReturnType<typeof useFinanceTranslations>;
+  t: ReturnType<typeof useExpensesTranslations>;
   totalCount: number;
   totalPages: number;
 }) {
@@ -699,7 +699,7 @@ function useEditableRowOptions(
   userOptions: FinanceReferenceOption[],
   accountingAccountOptions: FinanceReferenceOption[],
 ): EditableExpenseRowOptions {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
 
   return useMemo(() => {
     const baseAccounts = t.expenses.table.fallbackAccounts;

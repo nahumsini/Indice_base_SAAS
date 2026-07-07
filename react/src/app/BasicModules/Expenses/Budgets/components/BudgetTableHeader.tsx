@@ -1,5 +1,5 @@
 import { ClipboardList, Columns3, Plus } from 'lucide-react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from '../hooks/useBudgetsTranslations';
 
 type BudgetTableHeaderProps = {
   onConfigureColumns: () => void;
@@ -7,7 +7,7 @@ type BudgetTableHeaderProps = {
 };
 
 export function BudgetTableHeader({ onConfigureColumns, onCreate }: BudgetTableHeaderProps) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
 
   return (
     <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/30 sm:px-6 sm:py-5">

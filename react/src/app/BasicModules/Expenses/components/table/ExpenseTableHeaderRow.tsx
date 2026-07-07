@@ -4,7 +4,7 @@ import {
   type ExpenseSortField,
 } from '../../constants/expenseTableConfig';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 type ExpenseTableHeaderRowProps = {
   allVisibleSelected: boolean;
@@ -31,7 +31,7 @@ export function ExpenseTableHeaderRow({
   selectionColumnWidth,
   someVisibleSelected,
 }: ExpenseTableHeaderRowProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
 
   return (
     <tr>

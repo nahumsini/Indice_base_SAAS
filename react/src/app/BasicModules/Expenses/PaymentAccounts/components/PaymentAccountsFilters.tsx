@@ -1,6 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { useMemo } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 
 type PaymentAccountsFiltersProps = {
   filteredCount: number;
@@ -24,7 +24,7 @@ export function PaymentAccountsFilters({
   onStatusChange,
   onTypeChange,
 }: PaymentAccountsFiltersProps) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
   const typeOptions = useMemo(() => [
     { value: 'all', label: t.paymentAccounts.filters.allTypes },
     ...paymentTypeValues.map(value => ({

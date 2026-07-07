@@ -2,7 +2,7 @@ import { Search, X } from 'lucide-react';
 import type { Provider } from '../../types/expenses.types';
 import type { ExpenseListFilters, PeriodFilter } from '../../types/expenseView.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 type ExpensesFiltersProps = {
   businessOptions: FinanceReferenceOption[];
@@ -22,7 +22,7 @@ const updateFilter = <K extends keyof ExpenseListFilters>(
 ) => ({ ...filters, [key]: value });
 
 export function ExpensesFilters({ businessOptions, businessUnitOptions, filteredCount, filters, providers, onFiltersChange }: ExpensesFiltersProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">

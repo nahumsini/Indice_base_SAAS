@@ -8,8 +8,9 @@ import {
   getFundById,
   getOperationalPettyCashSummary,
   getStatementSettlementBalance,
-  pettyCashMovementTypeLabels,
 } from '../utils/pettyCash.utils';
+import { getPettyCashMethodLabel } from '../utils/pettyCash.methods';
+import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
   PettyCashEmptyState,
   PettyCashField,
@@ -29,27 +30,27 @@ type PettyCashFinancialViewWorkspaceProps = {
   statements: PettyCashStatement[];
 };
 
-const statusOptions: Array<{ label: string; value: PettyCashStatementStatus | 'all' }> = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Abierto', value: 'OPEN' },
-  { label: 'Corte pendiente', value: 'CUT_PENDING' },
-  { label: 'Parcialmente liquidado', value: 'PARTIALLY_SETTLED' },
-  { label: 'Liquidado', value: 'SETTLED' },
-  { label: 'Faltante', value: 'SHORTAGE' },
-  { label: 'Faltante perdonado', value: 'FORGIVEN_SHORTAGE' },
-  { label: 'Cobrado a colaborador', value: 'CHARGED_TO_EMPLOYEE' },
-  { label: 'Cerrado', value: 'CLOSED' },
-];
-
 export function PettyCashFinancialViewWorkspace({
   funds,
   movements,
   settlementLines,
   statements,
 }: PettyCashFinancialViewWorkspaceProps) {
+  const copy = usePettyCashTranslations();
   const [periodFilter, setPeriodFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<PettyCashStatementStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const statusOptions: Array<{ label: string; value: PettyCashStatementStatus | 'all' }> = useMemo(() => [
+    { label: copy.common.all, value: 'all' },
+    { label: copy.status.statement.OPEN, value: 'OPEN' },
+    { label: copy.status.statement.CUT_PENDING, value: 'CUT_PENDING' },
+    { label: copy.status.statement.PARTIALLY_SETTLED, value: 'PARTIALLY_SETTLED' },
+    { label: copy.status.statement.SETTLED, value: 'SETTLED' },
+    { label: copy.status.statement.SHORTAGE, value: 'SHORTAGE' },
+    { label: copy.status.statement.FORGIVEN_SHORTAGE, value: 'FORGIVEN_SHORTAGE' },
+    { label: copy.status.statement.CHARGED_TO_EMPLOYEE, value: 'CHARGED_TO_EMPLOYEE' },
+    { label: copy.status.statement.CLOSED, value: 'CLOSED' },
+  ], [copy]);
 
   const periodOptions = useMemo(() => (
     Array.from(new Set(statements.map(statement => statement.periodKey))).sort().reverse()
@@ -119,39 +120,39 @@ export function PettyCashFinancialViewWorkspace({
   return (
     <div className="space-y-6">
       <PettyCashHeaderBanner
-        description="Lectura financiera sin doble conteo: fondeos, gasto comprobado, uso estimado, faltantes y saldos por liquidar."
+        description={copy.financial.header.description}
         emoji="📊"
-        title="Vista financiera de caja chica"
+        title={copy.financial.header.title}
       />
 
       <PettyCashFilterShell
-        resultLabel={`${filteredStatements.length} cortes`}
-        subtitle="Filtra el periodo para revisar el impacto operativo y presupuestal de caja chica."
+        resultLabel={copy.financial.filters.result(filteredStatements.length)}
+        subtitle={copy.financial.filters.subtitle}
       >
-        <PettyCashField label="Buscar">
+        <PettyCashField label={copy.financial.filters.search}>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               className={`${pettyCashInputClass} pl-9`}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Fondo, folio, responsable..."
+              placeholder={copy.financial.filters.searchPlaceholder}
               value={searchTerm}
             />
           </div>
         </PettyCashField>
-        <PettyCashField label="Periodo">
+        <PettyCashField label={copy.financial.filters.period}>
           <select
             className={pettyCashInputClass}
             onChange={(event) => setPeriodFilter(event.target.value)}
             value={periodFilter}
           >
-            <option value="all">Todos</option>
+            <option value="all">{copy.common.all}</option>
             {periodOptions.map(period => (
               <option key={period} value={period}>{period}</option>
             ))}
           </select>
         </PettyCashField>
-        <PettyCashField label="Estado">
+        <PettyCashField label={copy.financial.filters.status}>
           <select
             className={pettyCashInputClass}
             onChange={(event) => setStatusFilter(event.target.value as PettyCashStatementStatus | 'all')}
@@ -166,11 +167,11 @@ export function PettyCashFinancialViewWorkspace({
 
       <section className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-5">
-          <PettyCashMetric icon={WalletCards} label="Fondos asignados" value={formatPettyCashCurrency(summary.assignedAmount, 'MXN')} />
-          <PettyCashMetric icon={CheckCircle2} label="Gasto comprobado" tone="success" value={formatPettyCashCurrency(summary.verifiedExpenseAmount, 'MXN')} />
-          <PettyCashMetric icon={FileText} label="Por comprobar" tone="warning" value={formatPettyCashCurrency(summary.pendingReconciliationAmount, 'MXN')} />
-          <PettyCashMetric icon={AlertTriangle} label="Faltantes" tone={summary.shortageAmount > 0 ? 'danger' : 'success'} value={formatPettyCashCurrency(summary.shortageAmount, 'MXN')} />
-          <PettyCashMetric icon={Landmark} label="Disponible estimado" tone="info" value={formatPettyCashCurrency(budgetAvailable, 'MXN')} />
+          <PettyCashMetric icon={WalletCards} label={copy.financial.metrics.assignedFunds} value={formatPettyCashCurrency(summary.assignedAmount, 'MXN')} />
+          <PettyCashMetric icon={CheckCircle2} label={copy.financial.metrics.verifiedExpense} tone="success" value={formatPettyCashCurrency(summary.verifiedExpenseAmount, 'MXN')} />
+          <PettyCashMetric icon={FileText} label={copy.financial.metrics.pendingProof} tone="warning" value={formatPettyCashCurrency(summary.pendingReconciliationAmount, 'MXN')} />
+          <PettyCashMetric icon={AlertTriangle} label={copy.financial.metrics.shortages} tone={summary.shortageAmount > 0 ? 'danger' : 'success'} value={formatPettyCashCurrency(summary.shortageAmount, 'MXN')} />
+          <PettyCashMetric icon={Landmark} label={copy.financial.metrics.estimatedAvailable} tone="info" value={formatPettyCashCurrency(budgetAvailable, 'MXN')} />
         </div>
 
         <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-slate-100">
@@ -180,10 +181,10 @@ export function PettyCashFinancialViewWorkspace({
           <div className="h-full bg-sky-400" style={{ width: `${remainingWidth}%` }} />
         </div>
         <div className="mt-3 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#147514]" /> Comprobado</span>
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" /> Por comprobar</span>
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-500" /> Faltante</span>
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" /> Disponible</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#147514]" /> {copy.financial.progress.verified}</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" /> {copy.financial.progress.pending}</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-500" /> {copy.financial.progress.shortage}</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" /> {copy.financial.progress.available}</span>
         </div>
       </section>
 
@@ -194,12 +195,12 @@ export function PettyCashFinancialViewWorkspace({
               <CheckCircle2 className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-lg font-black text-slate-900">Gasto verificado</h3>
-              <p className="text-sm font-medium text-slate-500">Ya puede alimentar Expenses y presupuestos reales.</p>
+              <h3 className="text-lg font-black text-slate-900">{copy.financial.cards.verifiedTitle}</h3>
+              <p className="text-sm font-medium text-slate-500">{copy.financial.cards.verifiedDescription}</p>
             </div>
           </div>
           <p className="mt-5 text-3xl font-black text-[#147514]">{formatPettyCashCurrency(summary.verifiedExpenseAmount, 'MXN')}</p>
-          <p className="mt-2 text-sm font-semibold text-slate-500">{filteredLines.filter(line => line.status === 'EXPENSE_CREATED').length} comprobantes convertidos en gasto</p>
+          <p className="mt-2 text-sm font-semibold text-slate-500">{copy.financial.cards.verifiedFooter(filteredLines.filter(line => line.status === 'EXPENSE_CREATED').length)}</p>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -208,12 +209,12 @@ export function PettyCashFinancialViewWorkspace({
               <CalendarClock className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-lg font-black text-slate-900">Pendiente de liquidar</h3>
-              <p className="text-sm font-medium text-slate-500">Uso estimado que todavia necesita comprobantes.</p>
+              <h3 className="text-lg font-black text-slate-900">{copy.financial.cards.pendingTitle}</h3>
+              <p className="text-sm font-medium text-slate-500">{copy.financial.cards.pendingDescription}</p>
             </div>
           </div>
           <p className="mt-5 text-3xl font-black text-amber-600">{formatPettyCashCurrency(summary.pendingReconciliationAmount, 'MXN')}</p>
-          <p className="mt-2 text-sm font-semibold text-slate-500">{reconciliationRate}% del uso estimado ya fue comprobado</p>
+          <p className="mt-2 text-sm font-semibold text-slate-500">{copy.financial.cards.pendingFooter(reconciliationRate)}</p>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -222,12 +223,12 @@ export function PettyCashFinancialViewWorkspace({
               <AlertTriangle className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-lg font-black text-slate-900">Riesgo operativo</h3>
-              <p className="text-sm font-medium text-slate-500">Cortes con faltantes o conciliacion incompleta.</p>
+              <h3 className="text-lg font-black text-slate-900">{copy.financial.cards.riskTitle}</h3>
+              <p className="text-sm font-medium text-slate-500">{copy.financial.cards.riskDescription}</p>
             </div>
           </div>
           <p className="mt-5 text-3xl font-black text-red-600">{summary.riskCount}</p>
-          <p className="mt-2 text-sm font-semibold text-slate-500">{formatPettyCashCurrency(summary.shortageAmount, 'MXN')} en faltantes detectados</p>
+          <p className="mt-2 text-sm font-semibold text-slate-500">{copy.financial.cards.riskFooter(formatPettyCashCurrency(summary.shortageAmount, 'MXN'))}</p>
         </section>
       </div>
 
@@ -235,7 +236,7 @@ export function PettyCashFinancialViewWorkspace({
         footer={(
           <PettyCashPagination
             currentPage={statementPagination.currentPage}
-            itemLabel="cortes"
+            itemLabel={copy.financial.statements.itemLabel}
             onPageChange={statementPagination.onPageChange}
             onPageSizeChange={statementPagination.onPageSizeChange}
             pageEnd={statementPagination.pageEnd}
@@ -250,7 +251,17 @@ export function PettyCashFinancialViewWorkspace({
         <table className="w-full min-w-[1180px]">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
-              {['Corte', 'Fondo', 'Periodo', 'Asignado', 'Estimado', 'Comprobado', 'Pendiente', 'Faltante', 'Estado'].map(column => (
+              {[
+                copy.financial.statements.columns.statement,
+                copy.financial.statements.columns.fund,
+                copy.financial.statements.columns.period,
+                copy.financial.statements.columns.assigned,
+                copy.financial.statements.columns.estimated,
+                copy.financial.statements.columns.verified,
+                copy.financial.statements.columns.pending,
+                copy.financial.statements.columns.shortage,
+                copy.financial.statements.columns.status,
+              ].map(column => (
                 <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
               ))}
             </tr>
@@ -262,7 +273,7 @@ export function PettyCashFinancialViewWorkspace({
                 <tr key={statement.id} className="transition hover:bg-slate-50">
                   <td className="px-5 py-5 text-sm font-black text-slate-900">{statement.folio}</td>
                   <td className="px-5 py-5">
-                    <p className="text-sm font-extrabold text-slate-900">{fund?.name ?? 'Sin fondo'}</p>
+                    <p className="text-sm font-extrabold text-slate-900">{fund?.name ?? copy.financial.statements.noFund}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">{statement.responsibleName}</p>
                   </td>
                   <td className="px-5 py-5 text-sm font-bold text-slate-700">{statement.periodKey}</td>
@@ -282,10 +293,10 @@ export function PettyCashFinancialViewWorkspace({
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-xl font-black text-slate-900">Movimientos de fondos</h3>
-            <p className="mt-1 text-sm font-medium text-slate-500">Fondeos y ajustes. Estos movimientos no son gastos.</p>
+            <h3 className="text-xl font-black text-slate-900">{copy.financial.movements.title}</h3>
+            <p className="mt-1 text-sm font-medium text-slate-500">{copy.financial.movements.subtitle}</p>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{filteredMovements.length} movimientos</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{copy.financial.movements.result(filteredMovements.length)}</span>
         </div>
         {filteredMovements.length > 0 ? (
           <>
@@ -293,7 +304,15 @@ export function PettyCashFinancialViewWorkspace({
               <table className="w-full min-w-[980px]">
                 <thead className="border-b border-slate-200 bg-slate-50">
                   <tr>
-                    {['Fecha', 'Fondo', 'Tipo', 'Origen', 'Destino', 'Monto', 'Referencia'].map(column => (
+                    {[
+                      copy.financial.movements.columns.date,
+                      copy.financial.movements.columns.fund,
+                      copy.financial.movements.columns.type,
+                      copy.financial.movements.columns.source,
+                      copy.financial.movements.columns.target,
+                      copy.financial.movements.columns.amount,
+                      copy.financial.movements.columns.reference,
+                    ].map(column => (
                       <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
                     ))}
                   </tr>
@@ -304,12 +323,12 @@ export function PettyCashFinancialViewWorkspace({
                     return (
                       <tr key={movement.id} className="transition hover:bg-slate-50">
                         <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(movement.movementDate)}</td>
-                        <td className="px-5 py-4 text-sm font-black text-slate-900">{fund?.name ?? 'Sin fondo'}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{pettyCashMovementTypeLabels[movement.type]}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? '-'}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.toPaymentAccountName ?? '-'}</td>
+                        <td className="px-5 py-4 text-sm font-black text-slate-900">{fund?.name ?? copy.financial.movements.noFund}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{copy.status.movement[movement.type]}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.toPaymentAccountName ?? copy.common.notAvailable}</td>
                         <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{movement.reference}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{getPettyCashMethodLabel(copy.funds.methodLabels, movement.reference)}</td>
                       </tr>
                     );
                   })}
@@ -318,7 +337,7 @@ export function PettyCashFinancialViewWorkspace({
             </div>
             <PettyCashPagination
               currentPage={movementPagination.currentPage}
-              itemLabel="movimientos"
+              itemLabel={copy.financial.movements.itemLabel}
               onPageChange={movementPagination.onPageChange}
               onPageSizeChange={movementPagination.onPageSizeChange}
               pageEnd={movementPagination.pageEnd}
@@ -331,7 +350,7 @@ export function PettyCashFinancialViewWorkspace({
           </>
         ) : (
           <div className="p-5">
-            <PettyCashEmptyState label="No hay movimientos de fondos para el filtro seleccionado." />
+            <PettyCashEmptyState label={copy.financial.movements.empty} />
           </div>
         )}
       </section>

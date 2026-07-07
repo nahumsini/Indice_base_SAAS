@@ -22,6 +22,7 @@ import {
   type PublicPettyCashIdentifyResponse,
   type PublicPettyCashReceipt,
 } from './pettyCashKioskApi';
+import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 
 const maxAttachmentSizeBytes = 10 * 1024 * 1024;
 const todayInputValue = () => {
@@ -78,15 +79,15 @@ function formatCurrency(value: number, currencyCode: string) {
   }).format(Number.isFinite(value) ? value : 0);
 }
 
-function formatDate(value: string | null | undefined) {
+function formatDate(value: string | null | undefined, emptyLabel: string, locale: string) {
   if (!value) {
-    return 'Sin fecha';
+    return emptyLabel;
   }
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function formatBytes(bytes: number) {
@@ -104,6 +105,7 @@ function getReceiptAmount(receipt: PublicPettyCashReceipt) {
 }
 
 export default function PublicPettyCashKioskPage() {
+  const copy = usePettyCashTranslations();
   const { fundToken = '' } = useParams();
   const [bootstrap, setBootstrap] = useState<PublicPettyCashBootstrapResponse | null>(null);
   const [identity, setIdentity] = useState<PublicPettyCashIdentifyResponse | null>(null);
@@ -129,7 +131,7 @@ export default function PublicPettyCashKioskPage() {
       })
       .catch((error) => {
         if (cancelled) return;
-        setErrorMessage(normalizeError(error, 'No se pudo abrir el kiosko de caja chica.'));
+        setErrorMessage(normalizeError(error, copy.publicKiosk.errors.bootstrap));
       })
       .finally(() => {
         if (!cancelled) {
@@ -140,7 +142,7 @@ export default function PublicPettyCashKioskPage() {
     return () => {
       cancelled = true;
     };
-  }, [fundToken]);
+  }, [copy.publicKiosk.errors.bootstrap, fundToken]);
 
   useEffect(() => {
     setRecentReceipts(identity?.recent_receipts ?? []);
@@ -163,7 +165,7 @@ export default function PublicPettyCashKioskPage() {
       setIdentity(response);
       setPin('');
     } catch (error) {
-      setErrorMessage(normalizeError(error, 'No se pudo validar el PIN.'));
+      setErrorMessage(normalizeError(error, copy.publicKiosk.errors.identify));
     } finally {
       setIsIdentifying(false);
     }
@@ -176,7 +178,7 @@ export default function PublicPettyCashKioskPage() {
     event.target.value = '';
 
     if (validFiles.length !== selectedFiles.length) {
-      setErrorMessage('Algunos archivos superaban 10 MB y no se agregaron.');
+      setErrorMessage(copy.publicKiosk.errors.oversizedFiles);
     }
   };
 
@@ -236,9 +238,9 @@ export default function PublicPettyCashKioskPage() {
       setRecentReceipts(response.recent_receipts ?? []);
       setForm(emptyReceiptForm());
       setAttachments([]);
-      setSuccessMessage('Comprobante registrado correctamente.');
+      setSuccessMessage(copy.publicKiosk.success.receipt);
     } catch (error) {
-      setErrorMessage(normalizeError(error, 'No se pudo registrar el comprobante.'));
+      setErrorMessage(normalizeError(error, copy.publicKiosk.errors.receipt));
     } finally {
       setIsSaving(false);
     }
@@ -248,8 +250,8 @@ export default function PublicPettyCashKioskPage() {
     return (
       <LoadingBarOverlay
         isVisible
-        title="Abriendo caja chica"
-        description="Preparando el kiosko del fondo."
+        title={copy.publicKiosk.loading.title}
+        description={copy.publicKiosk.loading.description}
       />
     );
   }
@@ -264,13 +266,13 @@ export default function PublicPettyCashKioskPage() {
                 <WalletCards className="h-6 w-6" />
               </span>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">Caja chica</p>
-                <h1 className="text-2xl font-black">{fund?.name ?? 'Kiosko de fondo'}</h1>
-                <p className="mt-1 text-sm font-semibold text-white/80">{bootstrap?.scope_label ?? fund?.scope_label ?? 'Fondo operativo'}</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">{copy.publicKiosk.header.eyebrow}</p>
+                <h1 className="text-2xl font-black">{fund?.name ?? copy.publicKiosk.header.defaultFund}</h1>
+                <p className="mt-1 text-sm font-semibold text-white/80">{bootstrap?.scope_label ?? fund?.scope_label ?? copy.publicKiosk.header.defaultScope}</p>
               </div>
             </div>
             <div className="rounded-2xl bg-white/15 px-4 py-3 text-right">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-white/70">Saldo actual</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-white/70">{copy.publicKiosk.header.currentBalance}</p>
               <p className="text-xl font-black">{formatCurrency(Number(fund?.current_balance_amount ?? 0), currencyCode)}</p>
             </div>
           </div>
@@ -296,15 +298,15 @@ export default function PublicPettyCashKioskPage() {
                   <KeyRound className="h-5 w-5" />
                 </span>
                 <div>
-                  <h2 className="text-xl font-black">Ingresa tu PIN</h2>
+                  <h2 className="text-xl font-black">{copy.publicKiosk.identify.title}</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-600">
-                    Usa tu PIN universal de colaborador para registrar movimientos del fondo asignado.
+                    {copy.publicKiosk.identify.description}
                   </p>
                 </div>
               </div>
 
               <div className="mt-6 max-w-sm">
-                <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">PIN universal</label>
+                <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.publicKiosk.identify.pin}</label>
                 <input
                   autoFocus
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-black outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15"
@@ -325,7 +327,7 @@ export default function PublicPettyCashKioskPage() {
                   type="button"
                 >
                   {isIdentifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                  Entrar al fondo
+                  {copy.publicKiosk.identify.submit}
                 </button>
               </div>
             </section>
@@ -337,9 +339,9 @@ export default function PublicPettyCashKioskPage() {
                     <ReceiptText className="h-5 w-5" />
                   </span>
                   <div>
-                    <h2 className="text-xl font-black">Registrar comprobante</h2>
+                    <h2 className="text-xl font-black">{copy.publicKiosk.receipt.title}</h2>
                     <p className="mt-1 text-sm font-semibold text-slate-600">
-                      Captura el gasto real del fondo. Los datos contables se completan después en Finanzas.
+                      {copy.publicKiosk.receipt.description}
                     </p>
                   </div>
                 </div>
@@ -351,16 +353,16 @@ export default function PublicPettyCashKioskPage() {
               <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Concepto *</label>
+                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.publicKiosk.receipt.concept}</label>
                     <input
                       className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15"
                       onChange={(event) => setForm(current => ({ ...current, description: event.target.value }))}
-                      placeholder="Ej. Gasolina"
+                      placeholder={copy.publicKiosk.receipt.conceptPlaceholder}
                       value={form.description}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Monto *</label>
+                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.publicKiosk.receipt.amount}</label>
                     <input
                       className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15"
                       inputMode="decimal"
@@ -370,16 +372,16 @@ export default function PublicPettyCashKioskPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Referencia</label>
+                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.publicKiosk.receipt.reference}</label>
                     <input
                       className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15"
                       onChange={(event) => setForm(current => ({ ...current, receiptReference: event.target.value }))}
-                      placeholder="Ticket, factura o nota"
+                      placeholder={copy.publicKiosk.receipt.referencePlaceholder}
                       value={form.receiptReference}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fecha</label>
+                    <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.publicKiosk.receipt.date}</label>
                     <input
                       className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15"
                       onChange={(event) => setForm(current => ({ ...current, expenseDate: event.target.value }))}
@@ -392,11 +394,11 @@ export default function PublicPettyCashKioskPage() {
                 <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">Total capturado</p>
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">{copy.publicKiosk.receipt.totalCaptured}</p>
                       <p className="text-2xl font-black text-[#147514]">{formatCurrency(amount, currencyCode)}</p>
                     </div>
                     <div className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm">
-                      Moneda {currencyCode}
+                      {copy.publicKiosk.receipt.currency(currencyCode)}
                     </div>
                   </div>
                 </div>
@@ -404,7 +406,7 @@ export default function PublicPettyCashKioskPage() {
                 <div className="mt-5">
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
                     <Upload className="h-4 w-4 text-[#147514]" />
-                    Adjuntar comprobante
+                    {copy.publicKiosk.receipt.attach}
                     <input className="hidden" multiple onChange={handleAttachmentChange} type="file" />
                   </label>
 
@@ -439,7 +441,7 @@ export default function PublicPettyCashKioskPage() {
                   }}
                   type="button"
                 >
-                  Limpiar
+                  {copy.publicKiosk.receipt.clear}
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#147514] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#0f5f0f] disabled:cursor-not-allowed disabled:opacity-50"
@@ -448,7 +450,7 @@ export default function PublicPettyCashKioskPage() {
                   type="button"
                 >
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Registrar comprobante
+                  {copy.publicKiosk.receipt.submit}
                 </button>
               </div>
             </section>
@@ -461,7 +463,7 @@ export default function PublicPettyCashKioskPage() {
                   <Banknote className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="text-sm font-black text-slate-900">Limite del fondo</p>
+                  <p className="text-sm font-black text-slate-900">{copy.publicKiosk.side.fundLimit}</p>
                   <p className="text-lg font-black text-[#147514]">{formatCurrency(Number(fund?.limit_amount ?? 0), currencyCode)}</p>
                 </div>
               </div>
@@ -469,13 +471,13 @@ export default function PublicPettyCashKioskPage() {
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-black text-slate-900">Ultimos comprobantes</h2>
+                <h2 className="text-lg font-black text-slate-900">{copy.publicKiosk.side.recentReceipts}</h2>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{recentReceipts.length}</span>
               </div>
 
               {recentReceipts.length === 0 ? (
                 <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                  Aun no hay comprobantes capturados desde este kiosko.
+                  {copy.publicKiosk.side.emptyReceipts}
                 </div>
               ) : (
                 <div className="mt-4 grid gap-3">
@@ -484,13 +486,13 @@ export default function PublicPettyCashKioskPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-black text-slate-900">{receipt.description}</p>
-                          <p className="text-xs font-semibold text-slate-500">{formatDate(receipt.expense_date)}</p>
+                          <p className="text-xs font-semibold text-slate-500">{formatDate(receipt.expense_date, copy.publicKiosk.date.empty, copy.publicKiosk.date.locale)}</p>
                         </div>
                         <p className="shrink-0 text-sm font-black text-[#147514]">{formatCurrency(getReceiptAmount(receipt), receipt.currency_code)}</p>
                       </div>
                       <div className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-500">
                         <Paperclip className="h-3.5 w-3.5" />
-                        {receipt.attachment_count} adjuntos
+                        {copy.publicKiosk.side.attachments(receipt.attachment_count)}
                       </div>
                     </div>
                   ))}
@@ -502,7 +504,7 @@ export default function PublicPettyCashKioskPage() {
               <div className="flex items-start gap-3">
                 <FileText className="mt-0.5 h-5 w-5 shrink-0" />
                 <p>
-                  Cada comprobante crea una linea de corte de caja chica y queda trazado para generar gasto verificado en Finance.
+                  {copy.publicKiosk.side.trace}
                 </p>
               </div>
             </section>

@@ -6,7 +6,7 @@ import { SuccessToast } from '../../../components/SuccessToast';
 import { usePettyCash } from '../../PettyCash/context/PettyCashContext';
 import { isBackendId } from '../adapters/adapter.utils';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
-import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { usePaymentAccountsTranslations } from './hooks/usePaymentAccountsTranslations';
 import { paymentAccountsService, toFinanceApiErrorMessage } from '../services';
 import type { PaymentAccount, PaymentSortField, SortDirection } from './types';
 import { filterPaymentAccounts, sortPaymentAccounts } from './paymentAccounts.utils';
@@ -24,7 +24,7 @@ interface PaymentAccountsProps {
 }
 
 export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentAccountsProps = {}) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
   const { pettyCashFunds } = usePettyCash();
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);

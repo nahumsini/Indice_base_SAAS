@@ -1,7 +1,7 @@
 import { Eye, EyeOff, GripVertical, RotateCcw, Search, X } from 'lucide-react';
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { ProviderColumnConfig } from '../providerTableConfig';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 import { getProviderModalTheme, type ProviderModalVariant } from './providerModalTheme';
 
 type ProviderColumnsModalProps = {
@@ -25,7 +25,7 @@ export function ProviderColumnsModal({
   onToggleColumn,
   variant = 'finance',
 }: ProviderColumnsModalProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const theme = getProviderModalTheme(variant);
   const [searchTerm, setSearchTerm] = useState('');
   const visibleCount = columns.filter(column => column.visible).length;

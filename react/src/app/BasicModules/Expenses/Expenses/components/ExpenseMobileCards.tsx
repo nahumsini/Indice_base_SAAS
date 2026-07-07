@@ -2,7 +2,7 @@ import { Paperclip, Search } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
 import { getStatusBadgeColor, type SelectOption } from '../../components/table/ExpenseInlineControls';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense } from '../../types/expenses.types';
 import { formatCurrency, formatDate } from '../../utils/expenses.utils';
 import type { EditableExpenseRowOptions, ExpenseRowActionVisibility } from './EditableExpenseRow';
@@ -48,7 +48,7 @@ export function ExpenseMobileCards({
   onSelectionChange,
   options,
 }: ExpenseMobileCardsProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
 
   if (expenses.length === 0) {
     return (
@@ -122,7 +122,7 @@ function ExpenseMobileCard({
   onRecordPayment: (expenseId: string) => void;
   onSelectionChange: (selected: boolean) => void;
 }) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const total = expense.total || expense.amount || 0;
   const paid = expense.amountPaid ?? 0;
   const balance = Math.max(total - paid, 0);

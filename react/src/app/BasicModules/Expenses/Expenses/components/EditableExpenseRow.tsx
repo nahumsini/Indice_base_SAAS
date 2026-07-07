@@ -1,6 +1,6 @@
 import { Paperclip } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../types/expenses.types';
 import { formatDate } from '../../utils/expenses.utils';
 import {
@@ -91,7 +91,7 @@ export function EditableExpenseRow({
   onRecordPayment,
   onAudit,
 }: EditableExpenseRowProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const startEditing = () => onStartEdit(expense.id);
   const startActionEdit = onActionEdit ?? startEditing;
   const rowHighlightClass = isEditing

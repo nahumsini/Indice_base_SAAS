@@ -1,6 +1,6 @@
 import { Eye, EyeOff, GripVertical, RotateCcw, Search, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 import type { PaymentColumnConfig } from '../paymentAccountsTableConfig';
 
 type PaymentAccountColumnsModalProps = {
@@ -22,7 +22,7 @@ export function PaymentAccountColumnsModal({
   onShowAll,
   onToggleColumn,
 }: PaymentAccountColumnsModalProps) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
   const [searchTerm, setSearchTerm] = useState('');
   const visibleCount = columns.filter(column => column.visible).length;
   const filteredColumns = useMemo(() => {

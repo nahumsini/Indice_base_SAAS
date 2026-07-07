@@ -15,7 +15,7 @@ import { ExpenseFormModal, type ExpenseFormValues } from '../components/modals/E
 import { BudgetFiltersPanel } from '../components/filters/BudgetFiltersPanel';
 import { ColumnConfigurationModal } from '../components/table/ColumnConfigurationModal';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
-import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from './hooks/useBudgetsTranslations';
 import { buildBudgetLineDraft, buildBudgetMasterDraft, createBudgetDraftStateFromExpense, createInitialBudgetDraftState } from './budgetDraftState';
 import { generateProjectedBudgetEntries, getBudgetScheduleDates } from './budgetUtils';
 import { BudgetLinesTable } from './components/BudgetLinesTable';
@@ -44,7 +44,7 @@ const createPayableFolio = (currentExpenses: Expense[]) => {
 };
 
 export default function BudgetTable({ columns, expenses, onExpensesChange, providers: providerRecords }: BudgetTableProps) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
   const [activeAccountingAccountOptions, setActiveAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
   const [draft, setDraft] = useState(createInitialBudgetDraftState);
   const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);

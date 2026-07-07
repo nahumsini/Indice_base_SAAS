@@ -15,7 +15,7 @@ import type { Expense } from '../types/expenses.types';
 import type { PeriodFilter } from '../types/expenseView.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import type { FinancialOverviewCostDriverType } from '../types/financial-overview.types';
-import { useFinanceResolvedLocale, useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { useKpisResolvedLocale, useKpisTranslations } from './hooks/useKpisTranslations';
 import { formatKpiCurrency, formatKpiPercent } from './kpiUtils';
 import {
   BudgetHealthTable,
@@ -52,7 +52,7 @@ const buildInsight = ({
   overdueAmount: number;
   pendingPayments: number;
   planned: number;
-  text: ReturnType<typeof useFinanceTranslations>['kpis']['insights'];
+  text: ReturnType<typeof useKpisTranslations>['kpis']['insights'];
 }) => {
   if (planned <= 0 && pendingPayments <= 0) {
     return text.noData;
@@ -80,8 +80,8 @@ const LoadingOverview = () => (
 );
 
 export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: GastosKPIPageProps) {
-  const t = useFinanceTranslations();
-  const locale = useFinanceResolvedLocale();
+  const t = useKpisTranslations();
+  const locale = useKpisResolvedLocale();
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('this_month');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');

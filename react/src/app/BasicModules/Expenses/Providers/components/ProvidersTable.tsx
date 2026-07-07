@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type 
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import type { ProviderRecord } from '../useProveedoresLogic';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import {
@@ -49,7 +49,7 @@ export function ProvidersTable({
   unitOptions,
   userOptions,
 }: ProvidersTableProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(defaultProviderColumnWidths);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
   const [resizeStartX, setResizeStartX] = useState(0);

@@ -1,6 +1,6 @@
 import { Check, HandCoins, Loader2, X } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import type { PaymentAccount } from '../../PaymentAccounts/types';
 import type { Expense } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
@@ -16,7 +16,7 @@ const inputClass =
   'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccounts }: ExpensePaymentModalProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const [amount, setAmount] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState(expense.paymentAccountId ?? '');
   const [paymentDate, setPaymentDate] = useState(formatDateInputValue(new Date()));

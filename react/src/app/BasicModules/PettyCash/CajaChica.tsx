@@ -1,12 +1,14 @@
+import type { ReactNode } from 'react';
+import { BarChart3, ClipboardCheck, Home, WalletCards } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
-import { useCajaChicaTranslations } from '../../hooks/useCajaChicaTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { PettyCashFinancialViewWorkspace } from './components/PettyCashFinancialViewWorkspace';
 import { PettyCashFundsWorkspace } from './components/PettyCashFundsWorkspace';
 import { PettyCashReconciliationWorkspace } from './components/PettyCashReconciliationWorkspace';
 import { usePettyCash } from './context/PettyCashContext';
+import { usePettyCashTranslations } from './hooks/usePettyCashTranslations';
 
 interface CajaChicaProps {
   onNavigate: (page?: string) => void;
@@ -25,7 +27,7 @@ const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
 };
 
 export default function CajaChica({ onNavigate }: CajaChicaProps) {
-  const t = useCajaChicaTranslations();
+  const copy = usePettyCashTranslations();
   const {
     pettyCashFunds,
     pettyCashMovements,
@@ -42,10 +44,10 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
     legacyPettyCashTabAliases,
   );
 
-  const tabs: Array<{ id: PettyCashTabId; label: string; emoji: string }> = [
-    { id: 'cash', label: t.tabs.caja, emoji: '💵' },
-    { id: 'control', label: t.tabs.control, emoji: '📝' },
-    { id: 'kpis', label: t.tabs.kpis, emoji: '📊' },
+  const tabs: Array<{ id: PettyCashTabId; label: string; icon: ReactNode }> = [
+    { id: 'cash', label: copy.shell.tabs.cash, icon: <WalletCards className="h-4 w-4" /> },
+    { id: 'control', label: copy.shell.tabs.control, icon: <ClipboardCheck className="h-4 w-4" /> },
+    { id: 'kpis', label: copy.shell.tabs.kpis, icon: <BarChart3 className="h-4 w-4" /> },
   ];
 
   const renderActiveTab = () => {
@@ -88,53 +90,50 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
         isVisible={isTabLoading}
-        title="Loading petty cash tab"
-        description="Opening the selected cash control workspace."
+        title={copy.shell.loadingTitle}
+        description={copy.shell.loadingDescription}
       />
 
-      {/* Header del módulo */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
-        <div className="max-w-[1600px] mx-auto">
-          {/* Barra de Favoritos */}
-          <FavoritesBar 
+      <div className="border-b border-gray-200 bg-white px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
+        <div className="mx-auto max-w-[1600px]">
+          <FavoritesBar
             onNavigate={(page) => {
               if (page === 'petty-cash') return;
               onNavigate(page);
-            }} 
-            currentModule="petty-cash" 
+            }}
+            currentModule="petty-cash"
           />
-          
+
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {t.title}
+              <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
+                {copy.shell.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {t.subtitle}
+                {copy.shell.subtitle}
               </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => onNavigate()}
-              className="text-sm gap-2"
+              className="gap-2 text-sm"
             >
-              <span className="text-lg">🏠</span> {t.back}
+              <Home className="h-4 w-4" /> {copy.shell.back}
             </Button>
           </div>
 
-          {/* Pestañas */}
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
+          <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+                className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
                 }`}
               >
-                <span>{tab.emoji}</span>
+                <span>{tab.icon}</span>
                 <span>{tab.label}</span>
               </button>
             ))}
@@ -142,8 +141,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
         </div>
       </div>
 
-      {/* Contenido del tab activo */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
+      <div className="mx-auto max-w-[1600px] px-8 py-6">
         {renderActiveTab()}
       </div>
     </div>

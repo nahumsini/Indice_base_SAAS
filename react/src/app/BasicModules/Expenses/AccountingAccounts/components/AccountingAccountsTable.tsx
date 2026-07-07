@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Edit2, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 import type { AccountingAccount, AccountingSortField, SortDirection } from '../types';
 import { formatAccountingCurrency, getTypeBadgeColor } from '../accountingAccounts.utils';
 import { accountingCountryOptions, statementSectionLabels } from '../accountingCatalogSeed';
@@ -38,7 +38,7 @@ export function AccountingAccountsTable({
   sortField,
   unitOptions,
 }: AccountingAccountsTableProps) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const tableColumns = useMemo(() => columns.filter(column => column.visible), [columns]);

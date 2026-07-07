@@ -1,6 +1,6 @@
 import { CheckCircle2, Copy, Pencil, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 
 type ProviderRowActionsProps = {
   providerId: string;
@@ -19,7 +19,7 @@ export function ProviderRowActions({
   onDuplicateProvider,
   onEditProvider,
 }: ProviderRowActionsProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
 
   return (
     <div className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">

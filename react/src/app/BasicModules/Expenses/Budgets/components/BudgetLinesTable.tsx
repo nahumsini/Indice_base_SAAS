@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { FilePlus2, Pencil, Trash2 } from 'lucide-react';
 import type { Expense } from '../../types/expenses.types';
 import type { ColumnConfig } from '../../types/expenseView.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from '../hooks/useBudgetsTranslations';
 import { formatCurrency, formatDate } from '../../utils/expenses.utils';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
@@ -19,7 +19,7 @@ const columnClass = 'px-4 py-3 text-left text-[11px] font-extrabold uppercase tr
 const cellClass = 'px-4 py-4 align-top text-sm text-slate-700';
 
 export function BudgetLinesTable({ columns, expenses, onCreatePayable, onDeleteExpense, onEditExpense }: BudgetLinesTableProps) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
   const visibleKeys = new Set(columns.filter(column => column.visible).map(column => column.key));
   const visibleColumns = budgetTableColumns(t).filter(column => visibleKeys.has(column.key) || column.key === 'actions');
   const paginationResetKey = useMemo(() => expenses.map(expense => expense.id).join('|'), [expenses]);
@@ -226,7 +226,7 @@ function toTitleCase(value: string) {
     .join(' ');
 }
 
-function budgetTableColumns(t: ReturnType<typeof useFinanceTranslations>) {
+function budgetTableColumns(t: ReturnType<typeof useBudgetsTranslations>) {
   return [
     { key: 'folio', label: t.budgets.columns.folio.label },
     { key: 'concept', label: t.budgets.columns.concept.label },

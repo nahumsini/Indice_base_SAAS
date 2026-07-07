@@ -16,6 +16,14 @@ import {
   getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
 import {
+  getPettyCashMethodLabel,
+  normalizePettyCashMethods,
+  PETTY_CASH_METHOD_KEYS,
+  pettyCashFundingMethodOptions,
+  pettyCashSpendingMethodOptions,
+} from '../utils/pettyCash.methods';
+import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
+import {
   PettyCashField,
   PettyCashFilterShell,
   PettyCashHeaderBanner,
@@ -56,8 +64,6 @@ type KioskDraft = {
   unitId: string;
 };
 
-const fundingMethodOptions = ['Transferencia interna', 'Efectivo', 'Cheque', 'Reposicion contra comprobantes'];
-const spendingMethodOptions = ['Efectivo', 'Tarjeta de debito', 'Transferencia', 'Compra reembolsable'];
 const fallbackPaymentAccounts = mockPaymentAccounts.filter(account => account.isActive);
 const supportedCurrencies: PettyCashCurrency[] = ['CAD', 'MXN', 'COP', 'USD', 'BRL'];
 
@@ -113,17 +119,24 @@ const isLowSignalBudgetLineName = (value: string, amount: number) => {
   return normalizedValue === String(amount);
 };
 
-const getBudgetLineDisplayName = (line: FinanceBudgetLine) => {
+const getBudgetLineDisplayName = (line: FinanceBudgetLine, fallback: string) => {
   const amount = getBudgetLineLimit(line);
   const categoryName = line.categoryKey ? getCategoryById(line.categoryKey)?.name : undefined;
   const candidates = [line.name, line.description, categoryName].filter(Boolean) as string[];
-  return candidates.find(candidate => !isLowSignalBudgetLineName(candidate, amount)) ?? 'Partida presupuestal';
+  return candidates.find(candidate => !isLowSignalBudgetLineName(candidate, amount)) ?? fallback;
 };
 
-const getBudgetLineLabel = (line: FinanceBudgetLine) => {
+const getBudgetLineLabel = (
+  line: FinanceBudgetLine,
+  budgetLineFallback: string,
+  optionLabel: (name: string, period: string, amount: string) => string,
+) => {
   const amount = getBudgetLineLimit(line);
-  const period = line.period ? ` · ${line.period}` : '';
-  return `${getBudgetLineDisplayName(line)}${period} · Disponible ${formatPettyCashCurrency(amount, toPettyCashCurrency(line.currencyCode))}`;
+  return optionLabel(
+    getBudgetLineDisplayName(line, budgetLineFallback),
+    line.period ?? '',
+    formatPettyCashCurrency(amount, toPettyCashCurrency(line.currencyCode)),
+  );
 };
 
 const createEmptyFundDraft = ({
@@ -133,10 +146,12 @@ const createEmptyFundDraft = ({
   paymentAccounts,
   unitOptions,
   userOptions,
+  financialAccountFallback,
 }: {
   businessOptions: FinanceReferenceOption[];
   budgetLines: FinanceBudgetLine[];
   currentUserId?: string;
+  financialAccountFallback: string;
   paymentAccounts: PaymentAccount[];
   unitOptions: FinanceReferenceOption[];
   userOptions: FinanceReferenceOption[];
@@ -154,32 +169,32 @@ const createEmptyFundDraft = ({
     createdByUserId: currentUserId || firstOptionValue(userOptions),
     currencyCode: toPettyCashCurrency(paymentAccount?.currency ?? budgetLine?.currencyCode),
     cutOffDay: '30',
-    fundingMethods: ['Transferencia interna'],
-    fundingSourceName: fundingSource?.name ?? 'Cuenta financiera',
+    fundingMethods: [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER],
+    fundingSourceName: fundingSource?.name ?? financialAccountFallback,
     fundingSourcePaymentAccountId: fundingSource?.id ?? '',
     limitAmount: budgetLine ? String(getBudgetLineLimit(budgetLine)) : '',
     name: '',
     paymentAccountId: paymentAccount?.id ?? '',
     responsibleUserId: firstOptionValue(userOptions) || currentUserId || '',
-    spendingMethods: ['Efectivo'],
+    spendingMethods: [PETTY_CASH_METHOD_KEYS.CASH],
     unitId,
   };
 };
 
-const createFallbackFundDraft = (): FundDraft => ({
+const createFallbackFundDraft = (financialAccountFallback: string): FundDraft => ({
   budgetLineId: '',
   businessId: '',
   createdByUserId: '',
   currencyCode: 'MXN',
   cutOffDay: '30',
-  fundingMethods: ['Transferencia interna'],
+  fundingMethods: [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER],
   fundingSourcePaymentAccountId: fallbackPaymentAccounts[0]?.id ?? '',
-  fundingSourceName: fallbackPaymentAccounts[0]?.name ?? 'Cuenta financiera',
+  fundingSourceName: fallbackPaymentAccounts[0]?.name ?? financialAccountFallback,
   limitAmount: '',
   name: '',
   paymentAccountId: fallbackPaymentAccounts[0]?.id ?? '',
   responsibleUserId: '',
-  spendingMethods: ['Efectivo'],
+  spendingMethods: [PETTY_CASH_METHOD_KEYS.CASH],
   unitId: '',
 });
 
@@ -200,8 +215,8 @@ const getPaymentAccountLabel = (account: PaymentAccount) => {
   return `${account.name}${descriptor ? ` - ${descriptor}` : ''} (${account.currency})`;
 };
 
-const getPaymentAccountName = (accounts: PaymentAccount[], accountId: string) => (
-  accounts.find(account => account.id === accountId)?.name ?? 'Cuenta financiera'
+const getPaymentAccountName = (accounts: PaymentAccount[], accountId: string, fallback: string) => (
+  accounts.find(account => account.id === accountId)?.name ?? fallback
 );
 
 function toggleValue(values: string[], value: string) {
@@ -212,6 +227,7 @@ function toggleValue(values: string[], value: string) {
 }
 
 export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: PettyCashFundsWorkspaceProps) {
+  const copy = usePettyCashTranslations();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<PettyCashFundStatus | 'all'>('all');
   const [isCreateFundOpen, setIsCreateFundOpen] = useState(false);
@@ -259,11 +275,11 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
     const id = `fund-${toSlug(name) || Date.now()}`;
     const selectedBudgetLine = activeBudgetLines.find(line => line.id === draft.budgetLineId);
     const businessChoices = filterBusinessesByUnit(businessOptions, draft.unitId);
-    const responsibleName = getOptionLabel(userOptions, draft.responsibleUserId, currentUser?.name ?? 'Sin asignar');
-    const createdByName = getOptionLabel(userOptions, draft.createdByUserId, currentUser?.name ?? 'Sin asignar');
-    const unitName = getOptionLabel(unitOptions, draft.unitId, 'Sin unidad');
-    const businessName = getOptionLabel(businessChoices, draft.businessId, 'Sin negocio');
-    const fundingAccountName = getPaymentAccountName(activePaymentAccounts, draft.fundingSourcePaymentAccountId);
+    const responsibleName = getOptionLabel(userOptions, draft.responsibleUserId, currentUser?.name ?? copy.funds.defaults.assigned);
+    const createdByName = getOptionLabel(userOptions, draft.createdByUserId, currentUser?.name ?? copy.funds.defaults.assigned);
+    const unitName = getOptionLabel(unitOptions, draft.unitId, copy.funds.defaults.unit);
+    const businessName = getOptionLabel(businessChoices, draft.businessId, copy.funds.defaults.business);
+    const fundingAccountName = getPaymentAccountName(activePaymentAccounts, draft.fundingSourcePaymentAccountId, copy.funds.defaults.financialAccount);
     const localFund: PettyCashFund = {
       id,
       budgetId: selectedBudgetLine?.budgetId,
@@ -277,7 +293,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
       currencyCode: draft.currencyCode,
       currentBalanceAmount: 0,
       cutOffDay: Number(draft.cutOffDay) || 30,
-      fundingMethods: draft.fundingMethods,
+      fundingMethods: normalizePettyCashMethods(draft.fundingMethods),
       fundingSourceName: fundingAccountName,
       fundingSourcePaymentAccountId: draft.fundingSourcePaymentAccountId,
       kioskAccessUrl: `/petty-cash/kiosk/${id}`,
@@ -289,7 +305,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
       paymentAccountId: draft.paymentAccountId,
       responsibleName,
       responsibleUserId: draft.responsibleUserId,
-      spendingMethods: draft.spendingMethods,
+      spendingMethods: normalizePettyCashMethods(draft.spendingMethods),
       status: 'OPEN',
       unitId: draft.unitId,
       unitName,
@@ -314,7 +330,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
         fundingSourceName: fundingAccountName,
         paymentAccountId: draft.paymentAccountId,
       }, ...currentFunds]));
-      setServiceNotice(toFinanceApiErrorMessage(error, 'No se pudo guardar el fondo en Finance. Se conservo localmente.'));
+      setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.saveFailed));
     }
     setIsCreateFundOpen(false);
   };
@@ -340,7 +356,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
         }
 
         if (paymentAccountsResult.status === 'rejected' || budgetLinesResult.status === 'rejected') {
-          setServiceNotice('Se cargaron referencias parciales de Finance. Algunas opciones pueden quedar en modo local.');
+          setServiceNotice(copy.funds.notices.partialReferences);
         }
       });
 
@@ -388,7 +404,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
         )));
         setServiceNotice('');
       } catch (error) {
-        setServiceNotice(toFinanceApiErrorMessage(error, 'No se pudo actualizar el kiosko en Finance. Se conservo localmente.'));
+        setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
       }
     }
 
@@ -397,7 +413,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
 
   const handleRotateKioskToken = async (fundId: string) => {
     if (!hasPettyCashBackendId(fundId)) {
-      setServiceNotice('Guarda el fondo en Finance antes de regenerar el link del kiosko.');
+      setServiceNotice(copy.funds.notices.rotateNeedsBackend);
       return;
     }
 
@@ -415,21 +431,21 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
       )));
       setServiceNotice('');
     } catch (error) {
-      setServiceNotice(toFinanceApiErrorMessage(error, 'No se pudo regenerar el link del kiosko.'));
+      setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.rotateFailed));
     }
   };
 
   return (
     <div className="space-y-6">
       <PettyCashHeaderBanner
-        actionLabel="Crear fondo"
-        description="Administra fondos operativos, responsables, origen del dinero, metodos permitidos y acceso de kiosko."
-        emoji="💳"
+        actionLabel={copy.funds.header.create}
+        description={copy.funds.header.description}
+        emoji="ðŸ’³"
         onAction={() => setIsCreateFundOpen(true)}
         onSecondaryAction={() => setIsKioskOpen(true)}
         secondaryActionIcon={KeyRound}
-        secondaryActionLabel="Kiosko"
-        title="Fondos de caja chica"
+        secondaryActionLabel={copy.funds.header.kiosk}
+        title={copy.funds.header.title}
       />
 
       {serviceNotice ? (
@@ -439,41 +455,41 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
       ) : null}
 
       <PettyCashFilterShell
-        resultLabel={`${filteredFunds.length} fondos`}
-        subtitle="Filtra por responsable, creador, unidad, negocio, origen del dinero o estado."
+        resultLabel={copy.funds.filters.result(filteredFunds.length)}
+        subtitle={copy.funds.filters.subtitle}
       >
-        <PettyCashField label="Buscar">
+        <PettyCashField label={copy.funds.filters.search}>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               className={`${pettyCashInputClass} pl-9`}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Fondo, responsable, origen..."
+              placeholder={copy.funds.filters.searchPlaceholder}
               value={searchTerm}
             />
           </div>
         </PettyCashField>
-        <PettyCashField label="Estado">
+        <PettyCashField label={copy.funds.filters.status}>
           <select
             className={pettyCashInputClass}
             onChange={(event) => setStatusFilter(event.target.value as PettyCashFundStatus | 'all')}
             value={statusFilter}
           >
-            <option value="all">Todos</option>
-            <option value="OPEN">Abierta</option>
-            <option value="LOW_BALANCE">Saldo bajo</option>
-            <option value="NEEDS_RECONCILIATION">Requiere corte</option>
-            <option value="CLOSED">Cerrada</option>
+            <option value="all">{copy.common.all}</option>
+            <option value="OPEN">{copy.status.fund.OPEN}</option>
+            <option value="LOW_BALANCE">{copy.status.fund.LOW_BALANCE}</option>
+            <option value="NEEDS_RECONCILIATION">{copy.status.fund.NEEDS_RECONCILIATION}</option>
+            <option value="CLOSED">{copy.status.fund.CLOSED}</option>
           </select>
         </PettyCashField>
       </PettyCashFilterShell>
 
       <section className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-wrap items-center gap-5">
-          <PettyCashMetric icon={WalletCards} label="Asignado del periodo" value={formatPettyCashCurrency(summary.assignedAmount, 'MXN')} />
-          <PettyCashMetric icon={Landmark} label="Saldo actual en fondos" tone="success" value={formatPettyCashCurrency(summary.currentBalanceAmount, 'MXN')} />
-          <PettyCashMetric icon={ShieldCheck} label="Kioskos activos" tone="info" value={String(funds.filter(fund => fund.kioskEnabled).length)} />
-          <PettyCashMetric icon={UserRound} label="Fondos con riesgo" tone={summary.riskCount > 0 ? 'danger' : 'success'} value={String(summary.riskCount)} />
+          <PettyCashMetric icon={WalletCards} label={copy.funds.metrics.assignedAmount} value={formatPettyCashCurrency(summary.assignedAmount, 'MXN')} />
+          <PettyCashMetric icon={Landmark} label={copy.funds.metrics.currentBalance} tone="success" value={formatPettyCashCurrency(summary.currentBalanceAmount, 'MXN')} />
+          <PettyCashMetric icon={ShieldCheck} label={copy.funds.metrics.activeKiosks} tone="info" value={String(funds.filter(fund => fund.kioskEnabled).length)} />
+          <PettyCashMetric icon={UserRound} label={copy.funds.metrics.riskFunds} tone={summary.riskCount > 0 ? 'danger' : 'success'} value={String(summary.riskCount)} />
         </div>
         <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
           <div
@@ -487,7 +503,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
         footer={(
           <PettyCashPagination
             currentPage={fundsPagination.currentPage}
-            itemLabel="fondos"
+            itemLabel={copy.funds.table.itemLabel}
             onPageChange={fundsPagination.onPageChange}
             onPageSizeChange={fundsPagination.onPageSizeChange}
             pageEnd={fundsPagination.pageEnd}
@@ -503,19 +519,19 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
               {[
-                ['Fondo', 'w-[180px]'],
-                ['Unidad', 'w-[150px]'],
-                ['Negocio', 'w-[170px]'],
-                ['Responsable', 'w-[170px]'],
-                ['Creador', 'w-[160px]'],
-                ['Se surte desde', 'w-[190px]'],
-                ['Como se recibe', 'w-[190px]'],
-                ['Como se gasta', 'w-[180px]'],
-                ['Presupuesto', 'w-[150px]'],
-                ['Saldo', 'w-[140px]'],
-                ['Pendiente', 'w-[140px]'],
-                ['Kiosko', 'w-[120px]'],
-                ['Estado', 'w-[160px]'],
+                [copy.funds.table.fund, 'w-[180px]'],
+                [copy.funds.table.unit, 'w-[150px]'],
+                [copy.funds.table.business, 'w-[170px]'],
+                [copy.funds.table.responsible, 'w-[170px]'],
+                [copy.funds.table.creator, 'w-[160px]'],
+                [copy.funds.table.source, 'w-[190px]'],
+                [copy.funds.table.receivedBy, 'w-[190px]'],
+                [copy.funds.table.spentBy, 'w-[180px]'],
+                [copy.funds.table.budget, 'w-[150px]'],
+                [copy.funds.table.balance, 'w-[140px]'],
+                [copy.funds.table.pending, 'w-[140px]'],
+                [copy.funds.table.kiosk, 'w-[120px]'],
+                [copy.funds.table.status, 'w-[160px]'],
               ].map(([column, widthClass]) => (
                 <th key={column} className={`${widthClass} px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500`}>{column}</th>
               ))}
@@ -527,8 +543,8 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
               const pendingSettlement = fundStatements.reduce((sum, statement) => sum + getStatementSettlementBalance(statement), 0);
               const budgetLineName = fund.budgetLineName
                 ?? activeBudgetLines.find(line => line.id === fund.budgetLineId)?.name
-                ?? 'Sin presupuesto';
-              const fundAccountName = getPaymentAccountName(activePaymentAccounts, fund.paymentAccountId);
+                ?? copy.funds.defaults.noBudget;
+              const fundAccountName = getPaymentAccountName(activePaymentAccounts, fund.paymentAccountId, copy.funds.defaults.financialAccount);
 
               return (
                 <tr key={fund.id} className="transition hover:bg-slate-50">
@@ -543,8 +559,8 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
                   <td className="px-5 py-5">
                     <p className="text-sm font-bold text-slate-700">{fund.fundingSourceName}</p>
                   </td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700">{fund.fundingMethods.join(', ')}</td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700">{fund.spendingMethods.join(', ')}</td>
+                  <td className="px-5 py-5 text-sm font-bold text-slate-700">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</td>
+                  <td className="px-5 py-5 text-sm font-bold text-slate-700">{fund.spendingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</td>
                   <td className="px-5 py-5">
                     <p className="text-sm font-black text-slate-900">{formatPettyCashCurrency(fund.limitAmount, fund.currencyCode)}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">{budgetLineName}</p>
@@ -553,7 +569,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
                   <td className="px-5 py-5 text-sm font-black text-amber-600">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>
                   <td className="px-5 py-5">
                     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${fund.kioskEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
-                      {fund.kioskEnabled ? 'Activo' : 'Apagado'}
+                      {fund.kioskEnabled ? copy.common.enabled : copy.common.disabled}
                     </span>
                   </td>
                   <td className="px-5 py-5"><PettyCashStatusPill kind="fund" status={fund.status} /></td>
@@ -613,14 +629,16 @@ function CreateFundModal({
   unitOptions: FinanceReferenceOption[];
   userOptions: FinanceReferenceOption[];
 }) {
+  const copy = usePettyCashTranslations();
   const [draft, setDraft] = useState<FundDraft>(() => {
     if (paymentAccounts.length === 0 && unitOptions.length === 0 && userOptions.length === 0) {
-      return createFallbackFundDraft();
+      return createFallbackFundDraft(copy.funds.defaults.financialAccount);
     }
     return createEmptyFundDraft({
       businessOptions,
       budgetLines,
       currentUserId,
+      financialAccountFallback: copy.funds.defaults.financialAccount,
       paymentAccounts,
       unitOptions,
       userOptions,
@@ -632,6 +650,7 @@ function CreateFundModal({
         businessOptions,
         budgetLines,
         currentUserId,
+        financialAccountFallback: copy.funds.defaults.financialAccount,
         paymentAccounts,
         unitOptions,
         userOptions,
@@ -700,8 +719,8 @@ function CreateFundModal({
                 <Banknote className="h-5 w-5" />
               </span>
               <div>
-                <h3 className="text-2xl font-black">Crear fondo</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">Configura responsable, cuentas de pago, metodos y presupuesto del fondo.</p>
+                <h3 className="text-2xl font-black">{copy.funds.modal.title}</h3>
+                <p className="mt-1 text-sm font-semibold text-white/80">{copy.funds.modal.subtitle}</p>
               </div>
             </div>
             <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 transition hover:bg-white/25">
@@ -712,17 +731,17 @@ function CreateFundModal({
 
         <div className="overflow-y-auto px-7 py-6">
           <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h4 className="text-lg font-black text-slate-900">Datos del fondo</h4>
+            <h4 className="text-lg font-black text-slate-900">{copy.funds.modal.dataTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <PettyCashField label="Nombre del fondo *">
+              <PettyCashField label={copy.funds.modal.name}>
                 <input
                   className={pettyCashInputClass}
                   onChange={(event) => setDraft(current => ({ ...current, name: event.target.value }))}
-                  placeholder="Ej. Caja chica mantenimiento"
+                  placeholder={copy.funds.modal.namePlaceholder}
                   value={draft.name}
                 />
               </PettyCashField>
-              <PettyCashField label="Linea presupuestal *">
+              <PettyCashField label={copy.funds.modal.budgetLine}>
                 <select
                   className={pettyCashInputClass}
                   disabled={budgetLines.length === 0}
@@ -738,14 +757,14 @@ function CreateFundModal({
                   value={draft.budgetLineId}
                 >
                   {budgetLines.length === 0 ? (
-                    <option value="">Sin presupuestos disponibles</option>
+                    <option value="">{copy.funds.modal.noBudgets}</option>
                   ) : null}
                   {budgetLines.map(line => (
-                    <option key={line.id} value={line.id}>{getBudgetLineLabel(line)}</option>
+                    <option key={line.id} value={line.id}>{getBudgetLineLabel(line, copy.funds.defaults.budgetLine, copy.funds.budgetLineOption)}</option>
                   ))}
                 </select>
               </PettyCashField>
-              <PettyCashField label="Moneda">
+              <PettyCashField label={copy.funds.modal.currency}>
                 <select
                   className={pettyCashInputClass}
                   onChange={(event) => setDraft(current => ({ ...current, currencyCode: event.target.value as PettyCashCurrency }))}
@@ -758,7 +777,7 @@ function CreateFundModal({
                   <option value="BRL">BRL</option>
                 </select>
               </PettyCashField>
-              <PettyCashField label="Limite del fondo *">
+              <PettyCashField label={copy.funds.modal.limit}>
                 <input
                   className={pettyCashInputClass}
                   min="0"
@@ -769,15 +788,15 @@ function CreateFundModal({
                 />
                 {selectedBudgetLine ? (
                   <p className={`mt-2 text-xs font-semibold ${isLimitAboveBudget ? 'text-amber-700' : 'text-slate-500'}`}>
-                    Disponible en {getBudgetLineDisplayName(selectedBudgetLine)}: {formatPettyCashCurrency(selectedBudgetLimit, toPettyCashCurrency(selectedBudgetLine.currencyCode))}. {isLimitAboveBudget ? 'El fondo puede excederlo; el presupuesto quedara marcado como excedido cuando se impacte.' : 'Puedes ajustar el limite del fondo segun la operacion.'}
+                    {copy.funds.modal.budgetAvailable(getBudgetLineDisplayName(selectedBudgetLine, copy.funds.defaults.budgetLine), formatPettyCashCurrency(selectedBudgetLimit, toPettyCashCurrency(selectedBudgetLine.currencyCode)))} {isLimitAboveBudget ? copy.funds.modal.budgetExceededHint : copy.funds.modal.budgetNormalHint}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs font-semibold text-amber-700">
-                    Crea una linea de presupuesto en Gastos para amarrar el limite real del fondo.
+                    {copy.funds.modal.budgetMissingHint}
                   </p>
                 )}
               </PettyCashField>
-              <PettyCashField label="Dia de corte">
+              <PettyCashField label={copy.funds.modal.cutOffDay}>
                 <input
                   className={pettyCashInputClass}
                   max="31"
@@ -791,35 +810,35 @@ function CreateFundModal({
           </section>
 
           <section className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h4 className="text-lg font-black text-slate-900">Responsabilidad y alcance</h4>
+            <h4 className="text-lg font-black text-slate-900">{copy.funds.modal.responsibilityTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <PettyCashField label="Responsable">
+              <PettyCashField label={copy.funds.modal.responsible}>
                 <select
                   className={pettyCashInputClass}
                   disabled={isLoadingReferenceData && userOptions.length === 0}
                   onChange={(event) => setDraft(current => ({ ...current, responsibleUserId: event.target.value }))}
                   value={draft.responsibleUserId}
                 >
-                  {userOptions.length === 0 ? <option value="">Sin usuarios disponibles</option> : null}
+                  {userOptions.length === 0 ? <option value="">{copy.funds.modal.noUsers}</option> : null}
                   {userOptions.map(user => (
                     <option key={user.value} value={user.value}>{user.label}</option>
                   ))}
                 </select>
               </PettyCashField>
-              <PettyCashField label="Creado por">
+              <PettyCashField label={copy.funds.modal.createdBy}>
                 <select
                   className={pettyCashInputClass}
                   disabled={isLoadingReferenceData && userOptions.length === 0}
                   onChange={(event) => setDraft(current => ({ ...current, createdByUserId: event.target.value }))}
                   value={draft.createdByUserId}
                 >
-                  {userOptions.length === 0 ? <option value="">Sin usuarios disponibles</option> : null}
+                  {userOptions.length === 0 ? <option value="">{copy.funds.modal.noUsers}</option> : null}
                   {userOptions.map(user => (
                     <option key={user.value} value={user.value}>{user.label}</option>
                   ))}
                 </select>
               </PettyCashField>
-              <PettyCashField label="Unidad">
+              <PettyCashField label={copy.funds.modal.unit}>
                 <select
                   className={pettyCashInputClass}
                   disabled={isLoadingReferenceData && unitOptions.length === 0}
@@ -836,20 +855,20 @@ function CreateFundModal({
                   }}
                   value={draft.unitId}
                 >
-                  {unitOptions.length === 0 ? <option value="">Sin unidades disponibles</option> : null}
+                  {unitOptions.length === 0 ? <option value="">{copy.funds.modal.noUnits}</option> : null}
                   {unitOptions.map(unit => (
                     <option key={unit.value} value={unit.value}>{unit.label}</option>
                   ))}
                 </select>
               </PettyCashField>
-              <PettyCashField label="Negocio">
+              <PettyCashField label={copy.funds.modal.business}>
                 <select
                   className={pettyCashInputClass}
                   disabled={isLoadingReferenceData && filteredBusinessOptions.length === 0}
                   onChange={(event) => setDraft(current => ({ ...current, businessId: event.target.value }))}
                   value={draft.businessId}
                 >
-                  {filteredBusinessOptions.length === 0 ? <option value="">Sin negocios disponibles</option> : null}
+                  {filteredBusinessOptions.length === 0 ? <option value="">{copy.funds.modal.noBusinesses}</option> : null}
                   {filteredBusinessOptions.map(business => (
                     <option key={business.value} value={business.value}>{business.label}</option>
                   ))}
@@ -859,9 +878,9 @@ function CreateFundModal({
           </section>
 
           <section className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h4 className="text-lg font-black text-slate-900">Como se surte y como se gasta</h4>
+            <h4 className="text-lg font-black text-slate-900">{copy.funds.modal.fundingTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <PettyCashField label="Cuenta del fondo">
+              <PettyCashField label={copy.funds.modal.fundAccount}>
                 <select
                   className={pettyCashInputClass}
                   onChange={(event) => {
@@ -882,16 +901,16 @@ function CreateFundModal({
                   }}
                   value={draft.paymentAccountId}
                 >
-                  {paymentAccounts.length === 0 ? <option value="">Sin cuentas disponibles</option> : null}
+                  {paymentAccounts.length === 0 ? <option value="">{copy.funds.modal.noAccounts}</option> : null}
                   {paymentAccounts.map(account => (
                     <option key={account.id} value={account.id}>{getPaymentAccountLabel(account)}</option>
                   ))}
                 </select>
                 {!fundAccountCurrencyMatches ? (
-                  <p className="mt-2 text-xs font-semibold text-amber-700">La cuenta del fondo debe usar la misma moneda del fondo.</p>
+                  <p className="mt-2 text-xs font-semibold text-amber-700">{copy.funds.modal.fundAccountCurrencyWarning}</p>
                 ) : null}
               </PettyCashField>
-              <PettyCashField label="Origen del dinero">
+              <PettyCashField label={copy.funds.modal.sourceAccount}>
                 <select
                   className={pettyCashInputClass}
                   onChange={(event) => {
@@ -904,41 +923,41 @@ function CreateFundModal({
                   }}
                   value={draft.fundingSourcePaymentAccountId}
                 >
-                  {fundingSourceOptions.length === 0 ? <option value="">Sin cuentas compatibles</option> : null}
+                  {fundingSourceOptions.length === 0 ? <option value="">{copy.funds.modal.noCompatibleAccounts}</option> : null}
                   {fundingSourceOptions.map(account => (
                     <option key={account.id} value={account.id}>{getPaymentAccountLabel(account)}</option>
                   ))}
                 </select>
                 {!hasDistinctFundingAccounts || !fundingSourceCurrencyMatches ? (
-                  <p className="mt-2 text-xs font-semibold text-amber-700">El origen debe ser una cuenta distinta y de la misma moneda.</p>
+                  <p className="mt-2 text-xs font-semibold text-amber-700">{copy.funds.modal.sourceAccountWarning}</p>
                 ) : null}
               </PettyCashField>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Metodos para surtir</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{copy.funds.modal.fundingMethods}</p>
                 <div className="mt-2 grid gap-2">
-                  {fundingMethodOptions.map(method => (
+                  {pettyCashFundingMethodOptions.map(method => (
                     <label key={method} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">
                       <input
                         checked={draft.fundingMethods.includes(method)}
                         onChange={() => setDraft(current => ({ ...current, fundingMethods: toggleValue(current.fundingMethods, method) }))}
                         type="checkbox"
                       />
-                      {method}
+                      {getPettyCashMethodLabel(copy.funds.methodLabels, method)}
                     </label>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Metodos para gastar</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{copy.funds.modal.spendingMethods}</p>
                 <div className="mt-2 grid gap-2">
-                  {spendingMethodOptions.map(method => (
+                  {pettyCashSpendingMethodOptions.map(method => (
                     <label key={method} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">
                       <input
                         checked={draft.spendingMethods.includes(method)}
                         onChange={() => setDraft(current => ({ ...current, spendingMethods: toggleValue(current.spendingMethods, method) }))}
                         type="checkbox"
                       />
-                      {method}
+                      {getPettyCashMethodLabel(copy.funds.methodLabels, method)}
                     </label>
                   ))}
                 </div>
@@ -949,7 +968,7 @@ function CreateFundModal({
 
         <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
           <button type="button" onClick={onClose} className="rounded-xl border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
-            Cancelar
+            {copy.common.cancel}
           </button>
           <button
             type="button"
@@ -957,7 +976,7 @@ function CreateFundModal({
             onClick={() => onCreate(draft)}
             className="rounded-xl bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Crear fondo
+            {copy.funds.modal.submit}
           </button>
         </footer>
       </div>
@@ -980,6 +999,7 @@ function KioskModal({
   onSave: (fundId: string, values: KioskDraft) => void;
   unitOptions: FinanceReferenceOption[];
 }) {
+  const copy = usePettyCashTranslations();
   const [selectedFundId, setSelectedFundId] = useState(funds[0]?.id ?? '');
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
   const [draft, setDraft] = useState<KioskDraft>(() => ({
@@ -1060,8 +1080,8 @@ function KioskModal({
                 <KeyRound className="h-5 w-5" />
               </span>
               <div>
-                <h3 className="text-2xl font-black">Kiosko de fondo</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">Configura el link del fondo. El acceso usa el PIN universal del colaborador.</p>
+                <h3 className="text-2xl font-black">{copy.funds.kiosk.title}</h3>
+                <p className="mt-1 text-sm font-semibold text-white/80">{copy.funds.kiosk.subtitle}</p>
               </div>
             </div>
             <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 transition hover:bg-white/25">
@@ -1073,7 +1093,7 @@ function KioskModal({
         <div className="overflow-y-auto px-7 py-6">
           <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="grid gap-4">
-              <PettyCashField label="Fondo asignado">
+              <PettyCashField label={copy.funds.kiosk.assignedFund}>
                 <select className={pettyCashInputClass} onChange={(event) => handleSelectFund(event.target.value)} value={selectedFundId}>
                   {funds.map(fund => (
                     <option key={fund.id} value={fund.id}>{fund.name} - {fund.responsibleName}</option>
@@ -1083,8 +1103,8 @@ function KioskModal({
 
               <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
                 <span>
-                  <span className="block text-sm font-black text-slate-900">Habilitar kiosko</span>
-                  <span className="block text-xs font-semibold text-slate-500">Permite ingresar dinero y subir comprobantes al fondo seleccionado.</span>
+                  <span className="block text-sm font-black text-slate-900">{copy.funds.kiosk.enableTitle}</span>
+                  <span className="block text-xs font-semibold text-slate-500">{copy.funds.kiosk.enableDescription}</span>
                 </span>
                 <input
                   checked={draft.kioskEnabled}
@@ -1093,7 +1113,7 @@ function KioskModal({
                 />
               </label>
 
-              <PettyCashField label="Nombre de la caja">
+              <PettyCashField label={copy.funds.kiosk.boxName}>
                 <input
                   className={pettyCashInputClass}
                   onChange={(event) => setDraft(current => ({ ...current, name: event.target.value }))}
@@ -1102,7 +1122,7 @@ function KioskModal({
               </PettyCashField>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <PettyCashField label="Unidad asignada">
+                <PettyCashField label={copy.funds.kiosk.assignedUnit}>
                   <select
                     className={pettyCashInputClass}
                     onChange={(event) => {
@@ -1118,19 +1138,19 @@ function KioskModal({
                     }}
                     value={draft.unitId}
                   >
-                    {unitChoices.length === 0 ? <option value="">Sin unidades disponibles</option> : null}
+                    {unitChoices.length === 0 ? <option value="">{copy.funds.modal.noUnits}</option> : null}
                     {unitChoices.map(unit => (
                       <option key={unit.value} value={unit.value}>{unit.label}</option>
                     ))}
                   </select>
                 </PettyCashField>
-                <PettyCashField label="Negocio asignado">
+                <PettyCashField label={copy.funds.kiosk.assignedBusiness}>
                   <select
                     className={pettyCashInputClass}
                     onChange={(event) => setDraft(current => ({ ...current, businessId: event.target.value }))}
                     value={draft.businessId}
                   >
-                    {businessChoices.length === 0 ? <option value="">Sin negocios disponibles</option> : null}
+                    {businessChoices.length === 0 ? <option value="">{copy.funds.modal.noBusinesses}</option> : null}
                     {businessChoices.map(business => (
                       <option key={business.value} value={business.value}>{business.label}</option>
                     ))}
@@ -1139,19 +1159,19 @@ function KioskModal({
               </div>
 
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="text-sm font-black text-emerald-800">PIN universal del colaborador</p>
+                <p className="text-sm font-black text-emerald-800">{copy.funds.kiosk.universalPinTitle}</p>
                 <p className="mt-1 text-sm font-semibold text-emerald-700">
-                  {selectedFund?.responsibleName ?? 'Responsable'} entra con su PIN universal. Caja chica no guarda un PIN propio del fondo.
+                  {copy.funds.kiosk.universalPinDescription(selectedFund?.responsibleName ?? copy.funds.modal.responsible)}
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-sm font-black text-slate-900">
                   <Link2 className="h-4 w-4 text-[#147514]" />
-                  Link del kiosko
+                  {copy.funds.kiosk.linkTitle}
                 </div>
                 <p className="mt-2 break-all rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
-                  {kioskUrl || 'Selecciona un fondo'}
+                  {kioskUrl || copy.common.selectFund}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
@@ -1161,7 +1181,7 @@ function KioskModal({
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Copy className="h-4 w-4 text-[#147514]" />
-                    {copiedLink ? 'Copiado' : 'Copiar link'}
+                    {copiedLink ? copy.common.copied : copy.common.copyLink}
                   </button>
                   <button
                     type="button"
@@ -1170,7 +1190,7 @@ function KioskModal({
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ExternalLink className="h-4 w-4 text-[#147514]" />
-                    Abrir kiosko
+                    {copy.funds.kiosk.open}
                   </button>
                   <button
                     type="button"
@@ -1179,12 +1199,12 @@ function KioskModal({
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <RotateCw className={`h-4 w-4 text-[#147514] ${isRotatingLink ? 'animate-spin' : ''}`} />
-                    {isRotatingLink ? 'Regenerando' : 'Regenerar link'}
+                    {isRotatingLink ? copy.funds.kiosk.regenerating : copy.funds.kiosk.regenerate}
                   </button>
                 </div>
                 {!selectedFund?.kioskEnabled ? (
                   <p className="mt-2 text-xs font-semibold text-amber-700">
-                    Guarda el kiosko habilitado para poder abrir este link en operacion.
+                    {copy.funds.kiosk.enabledWarning}
                   </p>
                 ) : null}
               </div>
@@ -1194,7 +1214,7 @@ function KioskModal({
 
         <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
           <button type="button" onClick={onClose} className="rounded-xl border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
-            Cancelar
+            {copy.common.cancel}
           </button>
           <button
             type="button"
@@ -1202,7 +1222,7 @@ function KioskModal({
             onClick={() => onSave(selectedFundId, draft)}
             className="rounded-xl bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Guardar kiosko
+            {copy.funds.kiosk.save}
           </button>
         </footer>
       </div>

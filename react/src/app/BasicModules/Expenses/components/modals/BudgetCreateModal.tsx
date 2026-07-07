@@ -9,7 +9,7 @@ import type { FinanceReferenceOption } from '../../types/finance-reference.types
 import type { Provider } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls } from './BudgetTaxControls';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from '../../Budgets/hooks/useBudgetsTranslations';
 import type { FinanceTranslations } from '../../translations';
 
 type BudgetCreateModalProps = {
@@ -37,7 +37,7 @@ export function BudgetCreateModal({
   onDraftChange,
   onSubmit,
 }: BudgetCreateModalProps) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
   const [stepIndex, setStepIndex] = useState(0);
   const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
     { id: 0, label: t.budgets.modal.stepCost, icon: FileText, title: t.budgets.modal.titleCost, description: t.budgets.modal.subtitle },

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { Input } from '../../../../components/ui/input';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 export type QuickExpenseValues = {
   amount: number;
@@ -36,7 +36,7 @@ export function QuickExpenseDialog({
   open,
   unitOptions,
 }: QuickExpenseDialogProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const [amount, setAmount] = useState('');
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [business, setBusiness] = useState('');

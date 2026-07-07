@@ -5,13 +5,11 @@ import { DataTablePagination } from '../../../components/table/DataTablePaginati
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
 import {
   pettyCashFundStatusClasses,
-  pettyCashFundStatusLabels,
   pettyCashSettlementLineStatusClasses,
-  pettyCashSettlementLineStatusLabels,
   pettyCashStatementStatusClasses,
-  pettyCashStatementStatusLabels,
 } from '../utils/pettyCash.utils';
 import type { PettyCashFundStatus, PettyCashSettlementLineStatus, PettyCashStatementStatus } from '../types/pettyCash.types';
+import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 
 type StatusKind = 'fund' | 'statement' | 'line';
 
@@ -19,18 +17,15 @@ const getStatusCopy = (kind: StatusKind, status: string) => {
   if (kind === 'fund') {
     return {
       className: pettyCashFundStatusClasses[status as PettyCashFundStatus],
-      label: pettyCashFundStatusLabels[status as PettyCashFundStatus],
     };
   }
   if (kind === 'line') {
     return {
       className: pettyCashSettlementLineStatusClasses[status as PettyCashSettlementLineStatus],
-      label: pettyCashSettlementLineStatusLabels[status as PettyCashSettlementLineStatus],
     };
   }
   return {
     className: pettyCashStatementStatusClasses[status as PettyCashStatementStatus],
-    label: pettyCashStatementStatusLabels[status as PettyCashStatementStatus],
   };
 };
 
@@ -100,7 +95,7 @@ export function PettyCashHeaderBanner({
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white"
             >
               <Columns3 className="h-4 w-4" />
-              Columnas
+              <HeaderColumnsLabel />
             </button>
           ) : null}
           {actionLabel && onAction ? (
@@ -119,6 +114,11 @@ export function PettyCashHeaderBanner({
   );
 }
 
+function HeaderColumnsLabel() {
+  const copy = usePettyCashTranslations();
+  return <>{copy.common.columns}</>;
+}
+
 export function PettyCashFilterShell({
   children,
   resultLabel,
@@ -128,11 +128,13 @@ export function PettyCashFilterShell({
   resultLabel: string;
   subtitle?: string;
 }) {
+  const copy = usePettyCashTranslations();
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Filtros</h3>
+          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{copy.common.filters}</h3>
           {subtitle ? <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
         </div>
         <span className="rounded-full bg-[#147514]/10 px-3 py-1 text-sm font-bold text-[#147514]">
@@ -194,10 +196,17 @@ export function PettyCashMetric({
 }
 
 export function PettyCashStatusPill({ kind, status }: { kind: StatusKind; status: string }) {
+  const translations = usePettyCashTranslations();
   const copy = getStatusCopy(kind, status);
+  const label = kind === 'fund'
+    ? translations.status.fund[status as PettyCashFundStatus]
+    : kind === 'line'
+      ? translations.status.line[status as PettyCashSettlementLineStatus]
+      : translations.status.statement[status as PettyCashStatementStatus];
+
   return (
     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${copy.className}`}>
-      {copy.label}
+      {label}
     </span>
   );
 }
@@ -234,16 +243,18 @@ export function PettyCashPagination({
   totalCount: number;
   totalPages: number;
 }) {
+  const copy = usePettyCashTranslations();
+
   return (
     <DataTablePagination
       currentPage={currentPage}
       itemLabel={itemLabel}
       labels={{
-        next: 'Siguiente',
+        next: copy.common.next,
         page: (current, total) => `${current} / ${total}`,
-        previous: 'Anterior',
-        rowsPerPage: 'Filas por pagina',
-        showing: (start, end, total, label) => `Mostrando ${start}-${end} de ${total} ${label}`,
+        previous: copy.common.previous,
+        rowsPerPage: copy.common.rowsPerPage,
+        showing: copy.common.showing,
       }}
       onPageChange={onPageChange}
       onPageSizeChange={onPageSizeChange}

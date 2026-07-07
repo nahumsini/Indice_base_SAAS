@@ -16,7 +16,7 @@ import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../type
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 export type ExpenseFormValues = {
   accountingAccount: string;
@@ -82,7 +82,7 @@ export function ExpenseFormModal({
   unitOptions = [],
   onSubmitExpense,
 }: ExpenseFormModalProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);

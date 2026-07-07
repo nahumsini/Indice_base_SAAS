@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Edit2, ExternalLink, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceResolvedLocale, useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { usePaymentAccountsResolvedLocale, usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 import type { FinanceTranslations } from '../../translations';
 import type { PaymentAccount, PaymentSortField, SortDirection } from '../types';
 import { formatPaymentCurrency, formatPaymentDate, getTypeBadgeColor, getTypeIcon, getTypeLabel } from '../paymentAccounts.utils';
@@ -36,8 +36,8 @@ export function PaymentAccountsTable({
   sortField,
   unitOptions,
 }: PaymentAccountsTableProps) {
-  const t = useFinanceTranslations();
-  const locale = useFinanceResolvedLocale();
+  const t = usePaymentAccountsTranslations();
+  const locale = usePaymentAccountsResolvedLocale();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const tableColumns = useMemo(() => columns.filter(column => column.visible), [columns]);
@@ -127,7 +127,7 @@ function PaymentAccountRow({
 }: {
   account: PaymentAccount;
   businessOptions: FinanceReferenceOption[];
-  locale: ReturnType<typeof useFinanceResolvedLocale>;
+  locale: ReturnType<typeof usePaymentAccountsResolvedLocale>;
   tableColumns: PaymentColumnKey[];
   t: FinanceTranslations;
   unitOptions: FinanceReferenceOption[];
@@ -173,7 +173,7 @@ function renderPaymentCell(
   unitOptions: FinanceReferenceOption[],
   businessOptions: FinanceReferenceOption[],
   t: FinanceTranslations,
-  locale: ReturnType<typeof useFinanceResolvedLocale>,
+  locale: ReturnType<typeof usePaymentAccountsResolvedLocale>,
 ) {
   if (columnKey === 'name') return <NameCell account={account} t={t} />;
   if (columnKey === 'type') return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getTypeBadgeColor(account.type)}`}>{t.paymentAccounts.types[account.type] ?? getTypeLabel(account.type)}</span>;

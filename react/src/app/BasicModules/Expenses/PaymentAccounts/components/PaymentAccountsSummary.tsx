@@ -1,10 +1,10 @@
 import { Banknote, CheckCircle2, CircleSlash, CreditCard } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 import type { PaymentAccount } from '../types';
 
 export function PaymentAccountsSummary({ accounts }: { accounts: PaymentAccount[] }) {
-  const t = useFinanceTranslations();
+  const t = usePaymentAccountsTranslations();
   const totalCount = accounts.length;
   const activeCount = accounts.filter(account => account.isActive).length;
   const inactiveCount = accounts.filter(account => !account.isActive).length;

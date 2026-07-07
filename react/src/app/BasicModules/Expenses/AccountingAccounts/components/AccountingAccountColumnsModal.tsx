@@ -1,7 +1,7 @@
 import { Eye, EyeOff, GripVertical, RotateCcw, Search, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { AccountingColumnConfig } from '../accountingAccountsTableConfig';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 
 type AccountingAccountColumnsModalProps = {
   columns: AccountingColumnConfig[];
@@ -22,7 +22,7 @@ export function AccountingAccountColumnsModal({
   onShowAll,
   onToggleColumn,
 }: AccountingAccountColumnsModalProps) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const [searchTerm, setSearchTerm] = useState('');
   const visibleCount = columns.filter(column => column.visible).length;
   const filteredColumns = useMemo(() => {

@@ -7,7 +7,7 @@ import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { mockExpenses } from './data/expenses.mock';
 import { mockProviderRecords } from './data/providerRecords.mock';
 import { budgetLinesService, expensesService, providersService, toFinanceApiErrorMessage } from './services';
-import { useFinanceTranslations } from './hooks/useFinanceTranslations';
+import { useExpensesModuleTranslations } from './hooks/useExpensesModuleTranslations';
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
 import type { ProviderRecord } from './Providers/useProveedoresLogic';
@@ -81,7 +81,7 @@ const createInitialExpenseState = () => [
 ];
 
 export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesModuleTranslations();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<TabId>(
     'expenses',
     expenseTabIds,

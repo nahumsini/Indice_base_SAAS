@@ -2,7 +2,7 @@ import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { Provider } from '../../types/expenses.types';
 import type { BudgetFutureFilter } from '../../Budgets/useBudgetLogic';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from '../../Budgets/hooks/useBudgetsTranslations';
 
 type BudgetFiltersPanelProps = {
   accountingAccountFilter: string;
@@ -53,7 +53,7 @@ export function BudgetFiltersPanel({
   onProviderChange,
   onSearchChange,
 }: BudgetFiltersPanelProps) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">

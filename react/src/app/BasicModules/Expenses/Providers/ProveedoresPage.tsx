@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { AttachmentsModal } from '../Expenses/components/AttachmentsModal';
-import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from './hooks/useProvidersTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { accountingAccountsService, toFinanceApiErrorMessage } from '../services';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
@@ -52,7 +52,7 @@ export default function ProveedoresPage({
   providers: controlledProviders,
   variant = 'finance',
 }: ProveedoresPageProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const {

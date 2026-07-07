@@ -1,6 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { typeOptions } from '../accountingAccounts.utils';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 
 type AccountingAccountsFiltersProps = {
   filteredCount: number;
@@ -23,7 +23,7 @@ export function AccountingAccountsFilters({
   onStatusChange,
   onTypeChange,
 }: AccountingAccountsFiltersProps) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const localizedTypeOptions = typeOptions.map(option => ({
     ...option,
     label: t.accountingAccounts.types[option.value] ?? option.label,
