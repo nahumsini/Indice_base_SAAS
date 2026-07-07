@@ -1,6 +1,6 @@
 import { Columns3, LibraryBig, Plus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 
 type AccountingAccountsHeaderBannerProps = {
   onAddAccount: () => void;
@@ -13,7 +13,7 @@ export function AccountingAccountsHeaderBanner({
   onConfigureColumns,
   onImportCatalog,
 }: AccountingAccountsHeaderBannerProps) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
 
   return (
     <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6 sm:py-5">

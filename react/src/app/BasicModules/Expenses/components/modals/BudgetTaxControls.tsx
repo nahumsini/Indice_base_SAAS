@@ -12,7 +12,7 @@ import {
   type BudgetTaxCountry,
   type BudgetTaxMode,
 } from '../../Budgets/budgetTaxCatalog';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from '../../Budgets/hooks/useBudgetsTranslations';
 
 export type TaxControlDraft = {
   amount: string;
@@ -35,7 +35,7 @@ type BudgetTaxControlsProps<TDraft extends TaxControlDraft> = {
 const fieldClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDraftChange }: BudgetTaxControlsProps<TDraft>) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
   const applyDraftChange = (updates: Partial<TaxControlDraft>) => {
     onDraftChange(updates as Partial<TDraft>);
   };

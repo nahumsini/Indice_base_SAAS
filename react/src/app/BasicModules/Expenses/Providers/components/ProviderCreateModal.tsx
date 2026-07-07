@@ -2,7 +2,7 @@ import { Building2, Check, ChevronLeft, ChevronRight, FileText, MapPinned, Phone
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 import {
   providerStatusOptions,
   providerTypeOptions,
@@ -58,7 +58,7 @@ export function ProviderCreateModal({
   onClose,
   onSubmit,
 }: ProviderCreateModalProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const theme = getProviderModalTheme(variant);
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<ProviderFormValues>(formInitialValues);
@@ -221,7 +221,7 @@ function StepCard({ accent, background, children, description, icon: Icon, title
 }
 
 function BasicStep({ statusOptions, typeOptions, values, update }: StepProps & { statusOptions: Array<{ value: ProviderStatus; label: string }>; typeOptions: Array<{ value: ProviderType; label: string }> }) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
 
   return (
     <div className="space-y-4">
@@ -238,7 +238,7 @@ function BasicStep({ statusOptions, typeOptions, values, update }: StepProps & {
 }
 
 function ScopeStep({ accountingAccountOptions, businessOptions, unitOptions, values, update }: StepProps & { accountingAccountOptions: FinanceReferenceOption[]; businessOptions: FinanceReferenceOption[]; unitOptions: FinanceReferenceOption[] }) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
 
   return (
     <FieldGroup title={t.providers.modal.assignment}>
@@ -250,7 +250,7 @@ function ScopeStep({ accountingAccountOptions, businessOptions, unitOptions, val
 }
 
 function ContactStep({ values, update }: StepProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
 
   return (
     <div className="space-y-4">
@@ -268,7 +268,7 @@ function ContactStep({ values, update }: StepProps) {
 }
 
 function OwnerStep({ userOptions, values, update }: StepProps & { userOptions: FinanceReferenceOption[] }) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
 
   return (
     <FieldGroup title={t.providers.modal.owners}>
@@ -306,7 +306,7 @@ function TextField({ label, onChange, required, type = 'text', value }: { label:
 }
 
 function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
 
   return (
     <label>

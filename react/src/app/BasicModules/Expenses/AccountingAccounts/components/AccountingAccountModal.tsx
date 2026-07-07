@@ -1,7 +1,7 @@
 import { BookOpen, Check, ChevronLeft, ChevronRight, FileText, Layers3, MapPinned, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { typeOptions } from '../accountingAccounts.utils';
 import type { AccountingAccount, AccountingAccountType } from '../types';
@@ -27,7 +27,7 @@ type AccountingFormValues = {
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function AccountingAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit }: AccountingAccountModalProps) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<AccountingFormValues>({
     businessId: account?.businessId ?? '',
@@ -160,7 +160,7 @@ export function AccountingAccountModal({ account, businessOptions, unitOptions, 
 }
 
 function CatalogStep({ values, update }: StepProps) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const localizedTypeOptions = useMemo(() => typeOptions.map(option => ({
     ...option,
     label: t.accountingAccounts.types[option.value] ?? option.label,
@@ -181,7 +181,7 @@ function CatalogStep({ values, update }: StepProps) {
 }
 
 function ScopeStep({ businessOptions, unitOptions, values, update }: StepProps & { businessOptions: FinanceReferenceOption[]; unitOptions: FinanceReferenceOption[] }) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
 
   return (
     <div className="space-y-4">
@@ -244,7 +244,7 @@ function TextField({ label, onChange, placeholder, required, value }: { label: s
 }
 
 function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
 
   return (
     <label>
@@ -258,7 +258,7 @@ function SelectField({ includeEmpty = false, label, onChange, options, value }: 
 }
 
 function TextareaField({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
 
   return (
     <label className="md:col-span-2">

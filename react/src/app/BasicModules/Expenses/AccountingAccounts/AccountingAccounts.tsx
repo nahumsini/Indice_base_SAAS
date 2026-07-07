@@ -3,7 +3,7 @@ import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { isBackendId } from '../adapters/adapter.utils';
-import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from './hooks/useAccountingAccountsTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { accountingAccountsService, toFinanceApiErrorMessage } from '../services';
 import { mockAccounts } from './accountingAccounts.mock';
@@ -24,7 +24,7 @@ import { AccountingAccountsSummary } from './components/AccountingAccountsSummar
 import { AccountingAccountsTable } from './components/AccountingAccountsTable';
 
 export default function AccountingAccounts() {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const [accounts, setAccounts] = useState<AccountingAccount[]>(mockAccounts);
   const [editingAccount, setEditingAccount] = useState<AccountingAccount | null>(null);
   const [failureToastMessage, setFailureToastMessage] = useState('');

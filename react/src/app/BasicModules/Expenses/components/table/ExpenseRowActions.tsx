@@ -1,6 +1,6 @@
 import { CheckCircle2, Copy, FilePlus2, HandCoins, Loader2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 type ExpenseRowActionsProps = {
   expenseId: string;
@@ -36,7 +36,7 @@ export function ExpenseRowActions({
   showMarkPaid = true,
   showRecordPayment = true,
 }: ExpenseRowActionsProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
 
   return (
     <div className="inline-flex items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">

@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle2, CircleDollarSign, Clock3, Percent, Receipt
 import type { ReactNode } from 'react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseTotals } from '../../types/expenseView.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import {
   convertBusinessCurrencyAmount,
   defaultBusinessCurrency,
@@ -45,7 +45,7 @@ export function ExpensesSummary({
   preferredCurrency = defaultBusinessCurrency,
   totals,
 }: ExpensesSummaryProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const normalizedPreferredCurrency = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
   const convertExpenseDisplayAmount = (amount: number, expense: Expense) => convertBusinessCurrencyAmount(
     amount,

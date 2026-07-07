@@ -88,40 +88,40 @@ export const pettyCashAuditStatusClasses: Record<PettyCashAuditStatus, string> =
 };
 
 export const pettyCashFundStatusLabels: Record<PettyCashFundStatus, string> = {
-  OPEN: 'Abierta',
-  LOW_BALANCE: 'Saldo bajo',
-  NEEDS_RECONCILIATION: 'Requiere corte',
-  CLOSED: 'Cerrada',
+  OPEN: 'Open',
+  LOW_BALANCE: 'Low balance',
+  NEEDS_RECONCILIATION: 'Needs reconciliation',
+  CLOSED: 'Closed',
 };
 
 export const pettyCashStatementStatusLabels: Record<PettyCashStatementStatus, string> = {
-  OPEN: 'Abierto',
-  CUT_PENDING: 'Corte pendiente',
-  PARTIALLY_SETTLED: 'Parcialmente liquidado',
-  SETTLED: 'Liquidado',
-  SHORTAGE: 'Faltante',
-  FORGIVEN_SHORTAGE: 'Faltante perdonado',
-  CHARGED_TO_EMPLOYEE: 'Cobrado a colaborador',
-  TRANSFERRED_TO_NEXT_CUT: 'Traspasado al siguiente corte',
-  CLOSED: 'Cerrado',
+  OPEN: 'Open',
+  CUT_PENDING: 'Statement pending',
+  PARTIALLY_SETTLED: 'Partially settled',
+  SETTLED: 'Settled',
+  SHORTAGE: 'Shortage',
+  FORGIVEN_SHORTAGE: 'Shortage forgiven',
+  CHARGED_TO_EMPLOYEE: 'Charged to employee',
+  TRANSFERRED_TO_NEXT_CUT: 'Transferred to next statement',
+  CLOSED: 'Closed',
 };
 
 export const pettyCashMovementTypeLabels: Record<PettyCashMovementType, string> = {
-  INITIAL_FUNDING: 'Apertura',
-  ADDITIONAL_DEPOSIT: 'Deposito adicional',
-  RETURN_TO_SOURCE: 'Devolucion',
-  CARRY_FORWARD: 'Traspaso al siguiente corte',
-  SHORTAGE_ADJUSTMENT: 'Ajuste por faltante',
-  FORGIVEN_SHORTAGE: 'Faltante perdonado',
-  EMPLOYEE_CHARGE: 'Cargo a colaborador',
+  INITIAL_FUNDING: 'Opening funding',
+  ADDITIONAL_DEPOSIT: 'Additional deposit',
+  RETURN_TO_SOURCE: 'Return to source',
+  CARRY_FORWARD: 'Carry forward',
+  SHORTAGE_ADJUSTMENT: 'Shortage adjustment',
+  FORGIVEN_SHORTAGE: 'Shortage forgiven',
+  EMPLOYEE_CHARGE: 'Employee charge',
 };
 
 export const pettyCashSettlementLineStatusLabels: Record<PettyCashSettlementLineStatus, string> = {
-  DRAFT: 'Borrador',
-  RECEIPT_ATTACHED: 'Comprobante adjunto',
-  VALIDATED: 'Validado',
-  EXPENSE_CREATED: 'Gasto creado',
-  REJECTED: 'Rechazado',
+  DRAFT: 'Draft',
+  RECEIPT_ATTACHED: 'Receipt attached',
+  VALIDATED: 'Validated',
+  EXPENSE_CREATED: 'Expense created',
+  REJECTED: 'Rejected',
 };
 
 export const pettyCashFundStatusClasses: Record<PettyCashFundStatus, string> = {

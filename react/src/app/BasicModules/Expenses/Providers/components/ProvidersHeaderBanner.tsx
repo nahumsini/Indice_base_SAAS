@@ -1,6 +1,6 @@
 import { Columns3, Plus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 
 export type ProvidersHeaderVariant = 'finance' | 'sales';
 
@@ -36,7 +36,7 @@ export function ProvidersHeaderBanner({
   title?: string;
   variant?: ProvidersHeaderVariant;
 }) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const styles = headerVariantStyles[variant];
 
   return (

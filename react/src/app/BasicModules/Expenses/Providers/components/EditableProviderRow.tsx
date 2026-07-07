@@ -8,7 +8,7 @@ import {
 import type { ProviderColumnKey } from '../providerTableConfig';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { getProviderStatusClass, getProviderStatusLabel } from '../providerTableUtils';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 import { EditableSelect, ReadonlyPill } from './ProviderInlineControls';
 import { ProviderRowActions } from './ProviderRowActions';
 
@@ -47,7 +47,7 @@ export function EditableProviderRow({
   userOptions,
   visibleColumns,
 }: EditableProviderRowProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const startEditing = () => onEditProvider(provider.id);
   const canShow = (column: ProviderColumnKey) => visibleColumns.includes(column);
   const typeOptions = providerTypeOptions.map(option => ({

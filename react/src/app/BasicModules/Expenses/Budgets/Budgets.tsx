@@ -3,7 +3,7 @@ import type { Expense } from '../types/expenses.types';
 import type { ColumnConfig } from '../types/expenseView.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import BudgetTable from './BudgetTable';
-import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from './hooks/useBudgetsTranslations';
 
 interface BudgetsProps {
   expenses: Expense[];
@@ -12,7 +12,7 @@ interface BudgetsProps {
 }
 
 export default function Budgets({ expenses, onExpensesChange, providers }: BudgetsProps) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
   const budgetColumns = useMemo<ColumnConfig[]>(() => [
     { key: 'folio', label: t.budgets.columns.folio.label, visible: true },
     { key: 'concept', label: t.budgets.columns.concept.label, visible: true },

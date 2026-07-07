@@ -1,6 +1,6 @@
 import { Paperclip, Search } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 import type { ProviderRecord } from '../useProveedoresLogic';
 import { getProviderStatusClass } from '../providerTableUtils';
 import { ProviderRowActions } from './ProviderRowActions';
@@ -26,7 +26,7 @@ export function ProvidersMobileCards({
   providers,
   unitOptions,
 }: ProvidersMobileCardsProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
 
   if (providers.length === 0) {
     return (
@@ -74,7 +74,7 @@ function ProviderMobileCard({
   provider: ProviderRecord;
   unitOptions: FinanceReferenceOption[];
 }) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const typeLabel = t.providers.types[provider.type] ?? provider.type;
   const statusLabel = provider.status === 'active' ? t.common.active : t.common.inactive;
 

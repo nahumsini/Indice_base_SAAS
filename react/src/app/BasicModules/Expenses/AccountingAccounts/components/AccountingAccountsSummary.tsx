@@ -1,10 +1,10 @@
 import { BookOpenCheck, CheckCircle2, CircleSlash } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 import type { AccountingAccount } from '../types';
 
 export function AccountingAccountsSummary({ accounts }: { accounts: AccountingAccount[] }) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const totalCount = accounts.length;
   const activeCount = accounts.filter(account => account.isActive).length;
   const inactiveCount = accounts.filter(account => !account.isActive).length;

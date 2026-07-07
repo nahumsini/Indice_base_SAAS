@@ -6,7 +6,7 @@ import {
   type ProviderType,
 } from '../useProveedoresLogic';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 
 type ProvidersFilterBarProps = {
   businessFilter: string;
@@ -27,7 +27,7 @@ type ProvidersFilterBarProps = {
 const filterInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
 export function ProvidersFilterBar(props: ProvidersFilterBarProps) {
-  const t = useFinanceTranslations();
+  const t = useProvidersTranslations();
   const typeOptions = providerFilterTypeOptions.map(option => ({
     ...option,
     label: option.value === 'all' ? t.common.all : t.providers.types[option.value] ?? option.label,

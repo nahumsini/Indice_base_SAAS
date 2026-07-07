@@ -17,7 +17,7 @@ import { calculateExpenseTotals, filterExpenses } from '../utils/expenseFilters'
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
-import { useFinanceTranslations } from '../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from './hooks/useExpensesTranslations';
 import { ExpensesHeader } from '../components/header/ExpensesHeader';
 import { ExpensesFilters } from '../components/filters/ExpensesFilters';
 import { ExpensesSummary } from '../components/kpis/ExpensesSummary';
@@ -63,7 +63,7 @@ const createExpenseFolio = (currentExpenses: Expense[]) => {
 };
 
 export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, providers: providerRecords }: ExpensesProps = {}) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const [localExpenses, setLocalExpenses] = useState<Expense[]>(mockExpenses);
   const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
   const [failureToastMessage, setFailureToastMessage] = useState('');

@@ -1,6 +1,6 @@
 import { Columns3, Landmark, Plus, ReceiptText, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesModuleTranslations } from '../../hooks/useExpensesModuleTranslations';
 
 type ExpensesHeaderProps = {
   createExpenseDisabled?: boolean;
@@ -19,7 +19,7 @@ export function ExpensesHeader({
   onCreateExpense,
   onOpenPayablesKiosk,
 }: ExpensesHeaderProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesModuleTranslations();
 
   return (
     <section className="rounded-lg border border-[#147514]/25 bg-[#147514]/10 p-5 shadow-sm dark:border-emerald-400/25 dark:bg-emerald-400/10 sm:p-6">

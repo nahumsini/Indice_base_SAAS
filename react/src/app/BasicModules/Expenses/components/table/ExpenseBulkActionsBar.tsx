@@ -1,6 +1,6 @@
 import { CheckCircle2, Trash2, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import type { ExpenseStatus } from '../../types/expenses.types';
 import type { SelectOption } from './ExpenseInlineControls';
 
@@ -55,7 +55,7 @@ export function ExpenseBulkActionsBar({
   unitOptions,
   userOptions,
 }: ExpenseBulkActionsBarProps) {
-  const t = useFinanceTranslations();
+  const t = useExpensesTranslations();
   const statusOptions: Array<{ value: ExpenseStatus; label: string }> = [
     { value: 'pending', label: t.statuses.pending },
     { value: 'overdue', label: t.statuses.overdue },

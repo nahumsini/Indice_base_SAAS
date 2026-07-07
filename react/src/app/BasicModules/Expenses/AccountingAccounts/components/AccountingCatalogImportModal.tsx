@@ -1,6 +1,6 @@
 import { Check, Globe2, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 import type { AccountingAccount, AccountingCountryCode } from '../types';
 import {
   accountMatchesCatalogTemplate,
@@ -23,7 +23,7 @@ export function AccountingCatalogImportModal({
   onClose,
   onImport,
 }: AccountingCatalogImportModalProps) {
-  const t = useFinanceTranslations();
+  const t = useAccountingAccountsTranslations();
   const [activeCountry, setActiveCountry] = useState<AccountingCountryCode>('MX');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());

@@ -1,7 +1,7 @@
 import { AlertTriangle, CircleDollarSign, ShieldCheck, TrendingDown, WalletCards } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Expense } from '../../types/expenses.types';
-import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import { useBudgetsTranslations } from '../hooks/useBudgetsTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
 
 type BudgetSummaryBarProps = {
@@ -18,7 +18,7 @@ type BudgetTotals = {
 };
 
 export function BudgetSummaryBar({ expenses }: BudgetSummaryBarProps) {
-  const t = useFinanceTranslations();
+  const t = useBudgetsTranslations();
   const totals = buildBudgetTotals(expenses);
   const consumed = totals.actual + totals.committed;
   const consumedPercentage = totals.planned > 0 ? Math.min((consumed / totals.planned) * 100, 100) : 0;
@@ -76,7 +76,7 @@ function formatBudgetAmount(expenses: Expense[], getAmount: (expense: Expense) =
   return formatBusinessCurrencyBreakdown(expenses, getAmount, expense => expense.currency);
 }
 
-function buildInsight(totals: BudgetTotals, summaryCopy: ReturnType<typeof useFinanceTranslations>['kpis']['summaryCopy']) {
+function buildInsight(totals: BudgetTotals, summaryCopy: ReturnType<typeof useBudgetsTranslations>['kpis']['summaryCopy']) {
   if (totals.exceededCount > 0) {
     return summaryCopy.budgetExceeded;
   }
