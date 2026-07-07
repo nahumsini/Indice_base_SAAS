@@ -7,10 +7,7 @@ APP_DIR="${APP_DIR:-${ROOT_DIR}}"
 FRONTEND_DIST="${FRONTEND_DIST:-${APP_DIR}/react/dist}"
 WEB_CONTAINER="${WEB_CONTAINER:-indice-erp-web-1}"
 WEB_HTML_DIR="${WEB_HTML_DIR:-/usr/share/nginx/html}"
-DEFAULT_WEB_NGINX_CONFIG="${APP_DIR}/deployment/docker/web/nginx.host.conf"
-if [[ ! -f "${DEFAULT_WEB_NGINX_CONFIG}" ]]; then
-  DEFAULT_WEB_NGINX_CONFIG="${APP_DIR}/deployment/docker/web/nginx.conf"
-fi
+DEFAULT_WEB_NGINX_CONFIG="${APP_DIR}/deployment/docker/web/nginx.conf"
 WEB_NGINX_CONFIG="${WEB_NGINX_CONFIG:-${DEFAULT_WEB_NGINX_CONFIG}}"
 WEB_NGINX_CONFIG_TARGET="${WEB_NGINX_CONFIG_TARGET:-/etc/nginx/conf.d/default.conf}"
 SYNC_WEB_NGINX_CONFIG="${SYNC_WEB_NGINX_CONFIG:-true}"

@@ -88,7 +88,7 @@ npm ci --no-audit --no-fund
 npm run build
 cd ..
 docker cp "$PWD/react/dist/." indice-erp-web-1:/usr/share/nginx/html/
-docker cp "$PWD/deployment/docker/web/nginx.host.conf" indice-erp-web-1:/etc/nginx/conf.d/default.conf
+docker cp "$PWD/deployment/docker/web/nginx.conf" indice-erp-web-1:/etc/nginx/conf.d/default.conf
 docker exec indice-erp-web-1 sh -c "nginx -t && nginx -s reload"
 curl -s https://apptest.indiceapp.com/ | grep -o "/assets/index-[^\"]*\.js" | head
 curl -sI https://apptest.indiceapp.com/storage/minio/health/live
@@ -96,6 +96,7 @@ curl -sI https://apptest.indiceapp.com/storage/minio/health/live
 
 The public asset hash must match the asset in `react/dist/index.html`.
 If `/etc/nginx/conf.d/default.conf` is bind-mounted and direct `docker cp` cannot overwrite it, `deployment/scripts/publish-web-dist.sh` detects the host-mounted source path, writes there when permitted, and then reloads Nginx.
+If a deployment intentionally runs the web container in host-network mode, publish `deployment/docker/web/nginx.host.conf` explicitly with `WEB_NGINX_CONFIG=.../nginx.host.conf`.
 
 Equivalent repo helper:
 
