@@ -27,6 +27,11 @@ export const budgetLinesService = {
     return response.budgetLines.map(toBudgetExpense);
   },
 
+  async getBudgetExpense(expenseId: string): Promise<Expense> {
+    const response = await apiClient<BudgetLineApiDto>(`${budgetLinesPath}/${getBudgetLineApiId(expenseId)}`);
+    return toBudgetExpense(response);
+  },
+
   async createBudgetLineFromExpense(expense: Expense, budgetId: string): Promise<Expense> {
     const response = await apiClient<BudgetLineApiDto>(
       budgetLinesPath,

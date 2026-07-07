@@ -2,14 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
+import { isBackendId } from '../adapters/adapter.utils';
 import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
 import { mockProviders } from '../data/expenses.mock';
 import type { Expense } from '../types/expenses.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
-import { accountingAccountsService, budgetLinesService, toFinanceApiErrorMessage } from '../services';
+import { accountingAccountsService, budgetLinesService, expensesService, toFinanceApiErrorMessage } from '../services';
 import type { ColumnConfig } from '../types/expenseView.types';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { BudgetCreateModal } from '../components/modals/BudgetCreateModal';
+import { ExpenseFormModal, type ExpenseFormValues } from '../components/modals/ExpenseFormModal';
 import { BudgetFiltersPanel } from '../components/filters/BudgetFiltersPanel';
 import { ColumnConfigurationModal } from '../components/table/ColumnConfigurationModal';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -29,6 +31,18 @@ interface BudgetTableProps {
   providers?: ProviderRecord[];
 }
 
+const createPayableFolio = (currentExpenses: Expense[]) => {
+  const year = new Date().getFullYear();
+  const prefix = `CXP-${year}-`;
+  const nextSequence = currentExpenses.reduce((highest, expense) => {
+    if (!expense.folio.startsWith(prefix)) return highest;
+    const sequence = Number(expense.folio.slice(prefix.length));
+    return Number.isFinite(sequence) ? Math.max(highest, sequence) : highest;
+  }, 0) + 1;
+
+  return `${prefix}${String(nextSequence).padStart(3, '0')}`;
+};
+
 export default function BudgetTable({ columns, expenses, onExpensesChange, providers: providerRecords }: BudgetTableProps) {
   const t = useFinanceTranslations();
   const [activeAccountingAccountOptions, setActiveAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
@@ -38,6 +52,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [payableInitialExpense, setPayableInitialExpense] = useState<Expense | null>(null);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [tableColumns, setTableColumns] = useState(() => columns.map(column => ({ ...column })));
   const saveTimeoutsRef = useRef<Record<string, number>>({});
@@ -65,6 +80,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   ), [providerRecords]);
   const {
     businessOptions: referenceBusinessOptions,
+    currentUser,
     unitOptions: referenceUnitOptions,
   } = useFinanceReferenceData(setFailureToastMessage);
   const {
@@ -306,6 +322,111 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       });
   };
 
+  const openPayableFromBudget = (budgetExpense: Expense) => {
+    const now = new Date();
+    const budgetLineId = budgetExpense.budgetLineId
+      ?? (budgetExpense.id.startsWith('budget-line-') ? budgetExpense.id.replace('budget-line-', '') : undefined);
+    const payableAmount = budgetExpense.availableAmount && budgetExpense.availableAmount > 0
+      ? budgetExpense.availableAmount
+      : budgetExpense.total || budgetExpense.amount || 0;
+
+    setPayableInitialExpense({
+      ...budgetExpense,
+      id: `payable-${Date.now()}`,
+      folio: createPayableFolio(expenses),
+      budgetLineId,
+      total: payableAmount,
+      amount: payableAmount,
+      amountPaid: 0,
+      taxes: 0,
+      status: 'pending',
+      type: 'payable',
+      date: now,
+      paymentDate: undefined,
+      requestedByUserId: budgetExpense.requestedByUserId ?? currentUser?.id,
+      createdAt: now,
+      updatedAt: now,
+    });
+  };
+
+  const closePayableModal = () => {
+    setPayableInitialExpense(null);
+  };
+
+  const createPayableExpense = async (payableExpense: Expense) => {
+    const createdExpense = await expensesService.createPayableAccount(payableExpense, providers);
+    if (!payableExpense.budgetLineId || !isBackendId(createdExpense.id)) {
+      return createdExpense;
+    }
+
+    const submittedExpense = await expensesService.submitExpense(createdExpense.id, providers);
+    return expensesService.approveExpense(submittedExpense.id, providers);
+  };
+
+  const getUpdatedBudgetExpense = async (budgetLineId?: string) => {
+    if (!budgetLineId) return null;
+    try {
+      return await budgetLinesService.getBudgetExpense(budgetLineId);
+    } catch {
+      return null;
+    }
+  };
+
+  const replaceBudgetExpense = (currentExpenses: Expense[], budgetExpense: Expense | null) => (
+    budgetExpense
+      ? currentExpenses.map(item => (item.id === budgetExpense.id ? budgetExpense : item))
+      : currentExpenses
+  );
+
+  const handleBudgetPayableSubmit = async (values: ExpenseFormValues) => {
+    if (!payableInitialExpense) return;
+
+    const provider = providers.find(item => item.id === values.providerId);
+    const now = new Date();
+    const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : payableInitialExpense.dueDate;
+    const payableExpense: Expense = {
+      ...payableInitialExpense,
+      businessUnit: values.businessUnit,
+      business: values.business,
+      concept: values.concept,
+      description: values.description,
+      providerId: values.providerId,
+      providerName: provider?.name,
+      total: values.total,
+      taxes: values.taxes,
+      taxCountry: values.taxCountry,
+      taxIncluded: values.taxIncluded,
+      taxMode: values.taxMode,
+      taxName: values.taxName,
+      taxProfileId: values.taxProfileId,
+      taxRate: values.taxRate,
+      taxRegion: values.taxRegion,
+      taxSpecialAmount: values.taxSpecialAmount,
+      amount: values.amount,
+      amountPaid: 0,
+      currency: values.currency,
+      dueDate,
+      paymentDate: values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined,
+      paymentMethod: values.paymentMethod,
+      accountingAccount: values.accountingAccount,
+      status: 'pending',
+      type: 'payable',
+      updatedAt: now,
+    };
+
+    try {
+      const savedExpense = await createPayableExpense(payableExpense);
+      const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
+      onExpensesChange(currentExpenses => [savedExpense, ...replaceBudgetExpense(currentExpenses, updatedBudgetExpense)]);
+      setSuccessToastMessage('Cuenta por pagar creada desde presupuesto.');
+    } catch (error) {
+      onExpensesChange(currentExpenses => [payableExpense, ...currentExpenses]);
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
+    } finally {
+      closePayableModal();
+    }
+  };
+
   const handleColumnDragStart = (index: number) => {
     setDraggedColumnIndex(index);
   };
@@ -385,9 +506,23 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       <BudgetLinesTable
         columns={tableColumns}
         expenses={filteredBudgetExpenses}
+        onCreatePayable={openPayableFromBudget}
         onDeleteExpense={deleteBudgetExpense}
         onEditExpense={openEditBudgetExpense}
       />
+
+      {payableInitialExpense && (
+        <ExpenseFormModal
+          accountingAccountOptions={activeAccountingAccountOptions}
+          businessOptions={businessOptions}
+          editingExpense={null}
+          initialExpense={payableInitialExpense}
+          onClose={closePayableModal}
+          providers={providers}
+          unitOptions={unitOptions}
+          onSubmitExpense={handleBudgetPayableSubmit}
+        />
+      )}
 
       {isColumnModalOpen && (
         <ColumnConfigurationModal

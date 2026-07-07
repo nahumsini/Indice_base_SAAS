@@ -48,6 +48,7 @@ type ExpenseFormModalProps = {
   accountingAccountOptions?: FinanceReferenceOption[];
   businessOptions?: FinanceReferenceOption[];
   editingExpense: Expense | null;
+  initialExpense?: Expense | null;
   onClose: () => void;
   preferredCurrency?: string;
   providers?: Provider[];
@@ -74,6 +75,7 @@ export function ExpenseFormModal({
   accountingAccountOptions = [],
   businessOptions = [],
   editingExpense,
+  initialExpense = null,
   onClose,
   preferredCurrency = DEFAULT_FINANCE_CURRENCY,
   providers = [],
@@ -81,7 +83,7 @@ export function ExpenseFormModal({
   onSubmitExpense,
 }: ExpenseFormModalProps) {
   const t = useFinanceTranslations();
-  const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense, preferredCurrency));
+  const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);
   const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;

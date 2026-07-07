@@ -7,6 +7,7 @@ import java.time.LocalDate;
 
 public record RecordExpensePaymentRequest(
     @NotNull @DecimalMin("0.01") BigDecimal amount,
+    @NotNull Long paymentAccountId,
     @NotNull LocalDate paymentDate
 ) {
 }

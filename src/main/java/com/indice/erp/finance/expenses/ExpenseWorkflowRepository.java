@@ -73,6 +73,7 @@ class ExpenseWorkflowRepository {
             BigDecimal balanceAmount,
             ExpenseStatus nextStatus,
             PaymentStatus nextPaymentStatus,
+            Long paymentAccountId,
             LocalDate paymentDate) {
         var updated = jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
@@ -82,6 +83,7 @@ class ExpenseWorkflowRepository {
                     balance_amount = ?,
                     status = ?,
                     payment_status = ?,
+                    payment_account_id = ?,
                     payment_date = ?,
                     performed_by_user_id = ?,
                     updated_by_user_id = ?,
@@ -93,9 +95,28 @@ class ExpenseWorkflowRepository {
                   AND expense.status IN (?, ?, ?)
                   AND """ + FinanceSqlSupport.scopePredicate("expense", context.scope())
             );
-            bindPayment(statement, context, expenseId, paidAmount, balanceAmount, nextStatus, nextPaymentStatus, paymentDate);
+            bindPayment(statement, context, expenseId, paidAmount, balanceAmount, nextStatus, nextPaymentStatus,
+                paymentAccountId, paymentDate);
             return statement;
         });
+        return updated > 0;
+    }
+
+    boolean adjustPaymentAccountBalance(FinanceContext context, long paymentAccountId, BigDecimal delta) {
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_payment_accounts account
+            SET current_balance = current_balance + ?,
+                updated_by_user_id = ?,
+                updated_at = CURRENT_TIMESTAMP,
+                version = version + 1
+            WHERE account.company_id = ?
+              AND account.id = ?
+              AND account.deleted_at IS NULL
+              AND account.status = 'ACTIVE'
+              AND """ + FinanceSqlSupport.scopePredicate("account", context.scope()),
+            paymentAccountParams(context, paymentAccountId, delta).toArray()
+        );
         return updated > 0;
     }
 
@@ -179,20 +200,22 @@ class ExpenseWorkflowRepository {
             BigDecimal balanceAmount,
             ExpenseStatus nextStatus,
             PaymentStatus nextPaymentStatus,
+            Long paymentAccountId,
             LocalDate paymentDate) throws java.sql.SQLException {
         statement.setBigDecimal(1, paidAmount);
         statement.setBigDecimal(2, balanceAmount);
         statement.setString(3, nextStatus.name());
         statement.setString(4, nextPaymentStatus.name());
-        statement.setDate(5, Date.valueOf(paymentDate));
-        statement.setLong(6, context.userId());
+        statement.setObject(5, paymentAccountId);
+        statement.setDate(6, Date.valueOf(paymentDate));
         statement.setLong(7, context.userId());
-        statement.setLong(8, context.companyId());
-        statement.setLong(9, expenseId);
-        statement.setString(10, ExpenseStatus.APPROVED.name());
-        statement.setString(11, ExpenseStatus.PARTIALLY_PAID.name());
-        statement.setString(12, ExpenseStatus.PAID.name());
-        bindScopeParam(statement, 13, context.scope());
+        statement.setLong(8, context.userId());
+        statement.setLong(9, context.companyId());
+        statement.setLong(10, expenseId);
+        statement.setString(11, ExpenseStatus.APPROVED.name());
+        statement.setString(12, ExpenseStatus.PARTIALLY_PAID.name());
+        statement.setString(13, ExpenseStatus.PAID.name());
+        bindScopeParam(statement, 14, context.scope());
     }
 
     private void bindManualStatus(
@@ -229,6 +252,16 @@ class ExpenseWorkflowRepository {
             case UNIT_HEADQUARTERS -> params.add(scope.unitId());
             case BUSINESS_OFFICE -> params.add(scope.businessId());
         }
+    }
+
+    private ArrayList<Object> paymentAccountParams(FinanceContext context, long paymentAccountId, BigDecimal delta) {
+        var params = new ArrayList<Object>();
+        params.add(delta);
+        params.add(context.userId());
+        params.add(context.companyId());
+        params.add(paymentAccountId);
+        appendScopeParam(params, context.scope());
+        return params;
     }
 
     private void bindScopeParam(PreparedStatement statement, int index, FinanceScope scope) throws java.sql.SQLException {

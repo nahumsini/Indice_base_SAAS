@@ -28,6 +28,28 @@ public class ExpenseReferenceValidator {
             request.approvedByUserId(), request.performedByUserId());
     }
 
+    public void validatePaymentAccountForPayment(FinanceContext context, Long paymentAccountId, String currencyCode) {
+        if (paymentAccountId == null) {
+            throw FinanceApiException.badRequest("paymentAccountId is required.");
+        }
+        var count = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM finance_payment_accounts
+            WHERE id = ?
+              AND company_id = ?
+              AND deleted_at IS NULL
+              AND status = 'ACTIVE'
+              AND UPPER(currency_code) = UPPER(?)
+            """,
+            Long.class,
+            paymentAccountId,
+            context.companyId(),
+            currencyCode
+        );
+        requireExists(count, "paymentAccountId");
+    }
+
     private void validateReferences(
             FinanceContext context,
             ExpenseScopedAssignment assignment,

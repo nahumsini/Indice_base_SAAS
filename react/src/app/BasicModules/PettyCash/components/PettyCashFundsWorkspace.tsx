@@ -83,6 +83,24 @@ const getFundingSourceAccount = (accounts: PaymentAccount[], excludedAccountId =
   ?? accounts[0]
 );
 
+const accountMatchesCurrency = (account: PaymentAccount | undefined, currency: PettyCashCurrency) => (
+  !account || toPettyCashCurrency(account.currency) === currency
+);
+
+const budgetLineMatchesCurrency = (line: FinanceBudgetLine | undefined, currency: PettyCashCurrency) => (
+  !line || toPettyCashCurrency(line.currencyCode) === currency
+);
+
+const getBudgetLineForCurrency = (lines: FinanceBudgetLine[], currency: PettyCashCurrency) => (
+  lines.find(line => budgetLineMatchesCurrency(line, currency))
+);
+
+const getFundingSourceOptions = (
+  accounts: PaymentAccount[],
+  excludedAccountId: string,
+  currency: PettyCashCurrency,
+) => accounts.filter(account => account.id !== excludedAccountId && accountMatchesCurrency(account, currency));
+
 const getBudgetLineLimit = (line?: FinanceBudgetLine) => {
   if (!line) return 0;
   return line.availableAmount > 0 ? line.availableAmount : line.plannedAmount;
@@ -644,11 +662,28 @@ function CreateFundModal({
   const selectedBudgetLimit = getBudgetLineLimit(selectedBudgetLine);
   const filteredBusinessOptions = filterBusinessesByUnit(businessOptions, draft.unitId);
   const canUseManualLimit = budgetLines.length === 0;
+  const selectedFundAccount = paymentAccounts.find(account => account.id === draft.paymentAccountId);
+  const selectedFundingSourceAccount = paymentAccounts.find(account => account.id === draft.fundingSourcePaymentAccountId);
+  const fundingSourceOptions = getFundingSourceOptions(paymentAccounts, draft.paymentAccountId, draft.currencyCode);
+  const hasDistinctFundingAccounts = draft.paymentAccountId.length > 0
+    && draft.fundingSourcePaymentAccountId.length > 0
+    && draft.paymentAccountId !== draft.fundingSourcePaymentAccountId;
+  const fundAccountCurrencyMatches = accountMatchesCurrency(selectedFundAccount, draft.currencyCode);
+  const fundingSourceCurrencyMatches = accountMatchesCurrency(selectedFundingSourceAccount, draft.currencyCode);
+  const budgetLineCurrencyMatches = budgetLineMatchesCurrency(selectedBudgetLine, draft.currencyCode);
+  const isLimitAboveBudget = Boolean(
+    selectedBudgetLine
+    && selectedBudgetLimit > 0
+    && Number(draft.limitAmount) > selectedBudgetLimit,
+  );
   const canCreate = draft.name.trim().length > 0
     && Number(draft.limitAmount) > 0
     && (canUseManualLimit || draft.budgetLineId.length > 0)
-    && (selectedBudgetLimit === 0 || Number(draft.limitAmount) <= selectedBudgetLimit)
     && draft.paymentAccountId.length > 0
+    && hasDistinctFundingAccounts
+    && fundAccountCurrencyMatches
+    && fundingSourceCurrencyMatches
+    && budgetLineCurrencyMatches
     && draft.responsibleUserId.length > 0
     && draft.unitId.length > 0
     && draft.businessId.length > 0
@@ -726,17 +761,15 @@ function CreateFundModal({
               <PettyCashField label="Limite del fondo *">
                 <input
                   className={pettyCashInputClass}
-                  max={selectedBudgetLimit || undefined}
                   min="0"
                   onChange={(event) => setDraft(current => ({ ...current, limitAmount: event.target.value }))}
                   placeholder="0.00"
-                  readOnly={!canUseManualLimit}
                   type="number"
                   value={draft.limitAmount}
                 />
                 {selectedBudgetLine ? (
-                  <p className="mt-2 text-xs font-semibold text-slate-500">
-                    Limite tomado de {getBudgetLineDisplayName(selectedBudgetLine)}. Disponible: {formatPettyCashCurrency(selectedBudgetLimit, toPettyCashCurrency(selectedBudgetLine.currencyCode))}.
+                  <p className={`mt-2 text-xs font-semibold ${isLimitAboveBudget ? 'text-amber-700' : 'text-slate-500'}`}>
+                    Disponible en {getBudgetLineDisplayName(selectedBudgetLine)}: {formatPettyCashCurrency(selectedBudgetLimit, toPettyCashCurrency(selectedBudgetLine.currencyCode))}. {isLimitAboveBudget ? 'El fondo puede excederlo; el presupuesto quedara marcado como excedido cuando se impacte.' : 'Puedes ajustar el limite del fondo segun la operacion.'}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs font-semibold text-amber-700">
@@ -833,9 +866,17 @@ function CreateFundModal({
                   className={pettyCashInputClass}
                   onChange={(event) => {
                     const account = paymentAccounts.find(item => item.id === event.target.value);
+                    const nextCurrency = toPettyCashCurrency(account?.currency ?? draft.currencyCode);
+                    const nextBudgetLine = budgetLineMatchesCurrency(selectedBudgetLine, nextCurrency)
+                      ? selectedBudgetLine
+                      : getBudgetLineForCurrency(budgetLines, nextCurrency);
+                    const nextFundingSource = getFundingSourceOptions(paymentAccounts, event.target.value, nextCurrency)[0];
                     setDraft(current => ({
                       ...current,
-                      currencyCode: toPettyCashCurrency(account?.currency ?? current.currencyCode),
+                      budgetLineId: nextBudgetLine?.id ?? '',
+                      currencyCode: nextCurrency,
+                      fundingSourcePaymentAccountId: nextFundingSource?.id ?? '',
+                      limitAmount: nextBudgetLine ? String(getBudgetLineLimit(nextBudgetLine)) : current.limitAmount,
                       paymentAccountId: event.target.value,
                     }));
                   }}
@@ -846,6 +887,9 @@ function CreateFundModal({
                     <option key={account.id} value={account.id}>{getPaymentAccountLabel(account)}</option>
                   ))}
                 </select>
+                {!fundAccountCurrencyMatches ? (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">La cuenta del fondo debe usar la misma moneda del fondo.</p>
+                ) : null}
               </PettyCashField>
               <PettyCashField label="Origen del dinero">
                 <select
@@ -854,18 +898,20 @@ function CreateFundModal({
                     const account = paymentAccounts.find(item => item.id === event.target.value);
                     setDraft(current => ({
                       ...current,
-                      currencyCode: toPettyCashCurrency(account?.currency),
                       fundingSourceName: account?.name ?? current.fundingSourceName,
                       fundingSourcePaymentAccountId: event.target.value,
                     }));
                   }}
                   value={draft.fundingSourcePaymentAccountId}
                 >
-                  {paymentAccounts.length === 0 ? <option value="">Sin cuentas disponibles</option> : null}
-                  {paymentAccounts.map(account => (
+                  {fundingSourceOptions.length === 0 ? <option value="">Sin cuentas compatibles</option> : null}
+                  {fundingSourceOptions.map(account => (
                     <option key={account.id} value={account.id}>{getPaymentAccountLabel(account)}</option>
                   ))}
                 </select>
+                {!hasDistinctFundingAccounts || !fundingSourceCurrencyMatches ? (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">El origen debe ser una cuenta distinta y de la misma moneda.</p>
+                ) : null}
               </PettyCashField>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Metodos para surtir</p>

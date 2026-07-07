@@ -1,31 +1,40 @@
 import { Check, HandCoins, Loader2, X } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
+import type { PaymentAccount } from '../../PaymentAccounts/types';
 import type { Expense } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 
 type ExpensePaymentModalProps = {
   expense: Expense;
   onClose: () => void;
-  onSubmit: (expenseId: string, amount: number, paymentDate: Date) => void | Promise<void>;
+  onSubmit: (expenseId: string, amount: number, paymentAccountId: string, paymentDate: Date) => void | Promise<void>;
+  paymentAccounts: PaymentAccount[];
 };
 
 const inputClass =
   'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
-export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePaymentModalProps) {
+export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccounts }: ExpensePaymentModalProps) {
   const t = useFinanceTranslations();
   const [amount, setAmount] = useState('');
+  const [paymentAccountId, setPaymentAccountId] = useState(expense.paymentAccountId ?? '');
   const [paymentDate, setPaymentDate] = useState(formatDateInputValue(new Date()));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const eligiblePaymentAccounts = useMemo(() => (
+    paymentAccounts.filter(account => account.isActive && account.currency === expense.currency)
+  ), [expense.currency, paymentAccounts]);
+  const activePaymentAccountId = eligiblePaymentAccounts.some(account => account.id === paymentAccountId) ? paymentAccountId : '';
+  const selectedPaymentAccountId = activePaymentAccountId || eligiblePaymentAccounts[0]?.id || '';
+  const selectedPaymentAccount = eligiblePaymentAccounts.find(account => account.id === selectedPaymentAccountId);
   const currentPaid = Math.min(expense.amountPaid ?? 0, expense.total);
   const remainingBalance = Math.max(expense.total - currentPaid, 0);
   const paymentAmount = toMoneyNumber(amount);
   const nextPaid = Math.min(expense.total, currentPaid + paymentAmount);
   const newBalance = Math.max(expense.total - nextPaid, 0);
   const exceedsBalance = paymentAmount > remainingBalance;
-  const canSubmit = remainingBalance > 0 && paymentAmount > 0 && !exceedsBalance && !isSubmitting;
+  const canSubmit = remainingBalance > 0 && paymentAmount > 0 && Boolean(selectedPaymentAccountId) && !exceedsBalance && !isSubmitting;
 
   const handleClose = () => {
     if (!isSubmitting) onClose();
@@ -36,7 +45,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePayme
     if (!canSubmit) return;
     setIsSubmitting(true);
     try {
-      await onSubmit(expense.id, paymentAmount, toDateValue(paymentDate));
+      await onSubmit(expense.id, paymentAmount, selectedPaymentAccountId, toDateValue(paymentDate));
     } finally {
       setIsSubmitting(false);
     }
@@ -92,6 +101,24 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePayme
                   />
                 </label>
                 <label>
+                  <FieldLabel label={t.paymentAccounts.headerTitle} required />
+                  <select
+                    required
+                    value={selectedPaymentAccountId}
+                    onChange={(event) => setPaymentAccountId(event.target.value)}
+                    className={inputClass}
+                  >
+                    {eligiblePaymentAccounts.length === 0 ? (
+                      <option value="">{t.paymentAccounts.table.emptyTitle}</option>
+                    ) : null}
+                    {eligiblePaymentAccounts.map(account => (
+                      <option key={account.id} value={account.id}>
+                        {account.name} - {formatCurrency(account.balance, account.currency)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
                   <FieldLabel label={t.expenses.payment.date} required />
                   <input
                     required
@@ -103,11 +130,12 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit }: ExpensePayme
                 </label>
               </div>
 
-              <div className="mt-4 grid gap-3 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4 md:grid-cols-4">
+              <div className="mt-4 grid gap-3 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4 md:grid-cols-5">
                 <PaymentMetric label={t.expenses.payment.total} value={formatCurrency(expense.total, expense.currency)} />
                 <PaymentMetric label={t.expenses.payment.currentPaid} value={formatCurrency(currentPaid, expense.currency)} />
                 <PaymentMetric label={t.expenses.payment.remainingBalance} value={formatCurrency(remainingBalance, expense.currency)} warning={remainingBalance > 0} />
                 <PaymentMetric label={t.expenses.payment.newBalance} value={formatCurrency(newBalance, expense.currency)} strong />
+                <PaymentMetric label={t.paymentAccounts.columns.balance?.label ?? t.paymentAccounts.headerTitle} value={selectedPaymentAccount ? formatCurrency(selectedPaymentAccount.balance - paymentAmount, selectedPaymentAccount.currency) : '-'} />
               </div>
 
               {remainingBalance <= 0 && (

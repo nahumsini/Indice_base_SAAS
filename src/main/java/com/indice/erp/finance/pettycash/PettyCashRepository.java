@@ -106,6 +106,25 @@ class PettyCashRepository {
         return rows.stream().findFirst();
     }
 
+    long countPendingSettlementLinesForStatement(FinanceContext context, long statementId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM finance_petty_cash_settlement_lines settlement_line
+            JOIN finance_petty_cash_funds fund ON fund.id = settlement_line.petty_cash_fund_id
+            WHERE settlement_line.company_id = ?
+              AND settlement_line.petty_cash_statement_id = ?
+              AND settlement_line.deleted_at IS NULL
+              AND fund.deleted_at IS NULL
+              AND settlement_line.status NOT IN ('EXPENSE_CREATED', 'REJECTED')
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            """,
+            Long.class,
+            scopedParams(context, statementId).toArray()
+        );
+        return count == null ? 0L : count;
+    }
+
     Optional<PettyCashStatementRecord> findOpenStatementForFund(
             FinanceContext context,
             long fundId,
@@ -345,6 +364,41 @@ class PettyCashRepository {
         return findMovementById(context, movementId).orElseThrow();
     }
 
+    void closeStatement(
+            FinanceContext context,
+            long statementId,
+            PettyCashStatementStatus status,
+            BigDecimal returnedDelta,
+            BigDecimal carryForwardDelta,
+            BigDecimal shortageDelta,
+            BigDecimal declaredClosingBalanceAmount) {
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_statements
+            SET returned_amount = returned_amount + ?,
+                carry_forward_amount = carry_forward_amount + ?,
+                shortage_amount = shortage_amount + ?,
+                declared_closing_balance_amount = ?,
+                status = ?,
+                reviewed_by_user_id = ?,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            returnedDelta,
+            carryForwardDelta,
+            shortageDelta,
+            declaredClosingBalanceAmount,
+            status.name(),
+            context.userId(),
+            context.userId(),
+            context.companyId(),
+            statementId
+        );
+    }
+
     PettyCashSettlementLineRecord insertSettlementLine(
             FinanceContext context,
             long fundId,
@@ -489,6 +543,27 @@ class PettyCashRepository {
         );
     }
 
+    void adjustPaymentAccountBalance(FinanceContext context, Long paymentAccountId, BigDecimal delta) {
+        if (paymentAccountId == null || delta == null || delta.signum() == 0) {
+            return;
+        }
+        jdbcTemplate.update(
+            """
+            UPDATE finance_payment_accounts
+            SET current_balance = current_balance + ?,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            delta,
+            context.userId(),
+            context.companyId(),
+            paymentAccountId
+        );
+    }
+
     void applyMovementToStatement(
             FinanceContext context,
             long statementId,
@@ -564,6 +639,33 @@ class PettyCashRepository {
             totalAmount,
             totalAmount,
             attachmentCount,
+            context.userId(),
+            context.companyId(),
+            statementId
+        );
+    }
+
+    void applySettlementLineExpenseToStatement(
+            FinanceContext context,
+            long statementId,
+            BigDecimal totalAmount) {
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_statements
+            SET verified_expense_amount = verified_expense_amount + ?,
+                status = CASE
+                  WHEN GREATEST(0, estimated_usage_amount - (verified_expense_amount + ?) - returned_amount - shortage_amount) = 0
+                    THEN 'SETTLED'
+                  ELSE 'PARTIALLY_SETTLED'
+                END,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            totalAmount,
+            totalAmount,
             context.userId(),
             context.companyId(),
             statementId

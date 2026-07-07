@@ -52,6 +52,7 @@ type EditableExpenseRowProps = {
   onUpdateWorkflow: (expenseId: string, updates: Partial<ExpenseWorkflowState>) => void;
   onOpenAttachments: (expense: Expense) => void;
   onDuplicate: (expenseId: string) => void;
+  onCreatePayable?: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
   onActionEdit?: () => void;
   onMarkPaid: (expenseId: string) => void;
@@ -83,6 +84,7 @@ export function EditableExpenseRow({
   onUpdateWorkflow,
   onOpenAttachments,
   onDuplicate,
+  onCreatePayable,
   onDelete,
   onActionEdit,
   onMarkPaid,
@@ -103,6 +105,13 @@ export function EditableExpenseRow({
   const businessUnitLabel = options.businessUnits.find(option => option.value === expense.businessUnit)?.label ?? expense.businessUnit;
   const businessLabel = options.businesses.find(option => option.value === expense.business)?.label ?? expense.business;
   const businessOptionsForUnit = filterBusinessesForUnit(options.businesses, expense.businessUnit);
+  const showAuditAction = actionVisibility?.showAudit ?? true;
+  const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
+  const statusOptions = options.statuses.filter(option => {
+    if (!showMarkPaidAction && (option.value === 'paid' || option.value === 'partial')) return false;
+    if (!showAuditAction && option.value === 'audited') return false;
+    return true;
+  });
 
   const handleProviderChange = (providerId: string) => {
     const provider = options.providers.find((item) => item.id === providerId);
@@ -269,7 +278,7 @@ export function EditableExpenseRow({
             <EditableSelect
               ariaLabel={`${t.expenses.columns.status.label} ${expense.folio}`}
               value={expense.status}
-              options={options.statuses}
+              options={statusOptions}
               onChange={(status) => {
                 if (onStatusChange) {
                   onStatusChange(expense.id, status);
@@ -348,13 +357,15 @@ export function EditableExpenseRow({
           onAudit={onAudit}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
+          onCreatePayable={onCreatePayable}
           onMarkPaid={onMarkPaid}
           onRecordPayment={onRecordPayment}
           onStartEdit={startActionEdit}
           isDeletePending={isDeletePending}
           showAudit={actionVisibility?.showAudit}
-          showMarkPaid={actionVisibility?.showMarkPaid}
-          showRecordPayment={actionVisibility?.showRecordPayment}
+          showCreatePayable={expense.type === 'budget'}
+          showMarkPaid={expense.type !== 'budget' && (actionVisibility?.showMarkPaid ?? true)}
+          showRecordPayment={expense.type !== 'budget' && (actionVisibility?.showRecordPayment ?? true)}
         />
       </td>
     </tr>

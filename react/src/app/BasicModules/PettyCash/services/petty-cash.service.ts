@@ -148,6 +148,25 @@ type PettyCashSettlementLineMutation = {
   settlementLine: PettyCashSettlementLine;
 };
 
+export type PettyCashStatementCloseAction =
+  | 'CLOSE_CLEAN'
+  | 'RETURN_TO_SOURCE'
+  | 'CARRY_FORWARD'
+  | 'FORGIVE_SHORTAGE'
+  | 'CHARGE_EMPLOYEE';
+
+type PettyCashStatementCloseApiResponse = {
+  fund: PettyCashFundApiDto;
+  statement: PettyCashStatementApiDto;
+  nextStatement?: PettyCashStatementApiDto | null;
+};
+
+type PettyCashStatementCloseMutation = {
+  fund: PettyCashFund;
+  statement: PettyCashStatement;
+  nextStatement?: PettyCashStatement;
+};
+
 type PettyCashAttachmentApiDto = Partial<PettyCashAttachment> & {
   original_filename?: string;
   mime_type?: string;
@@ -238,6 +257,13 @@ type PettyCashSettlementLineApiRequest = {
   status?: PettyCashSettlementLineStatus;
   customFields?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+};
+
+type PettyCashStatementCloseApiRequest = {
+  action: PettyCashStatementCloseAction;
+  shortageAmount?: number;
+  closeDate?: string;
+  reference?: string;
 };
 
 const pettyCashPath = '/api/v1/finance/petty-cash';
@@ -564,6 +590,38 @@ export const pettyCashService = {
       fund,
       settlementLine: toSettlementLine(response.settlementLine),
       statement: toStatement(response.statement, fundsById),
+    };
+  },
+
+  async createExpenseFromSettlementLine(fundId: string, settlementLineId: string): Promise<PettyCashSettlementLineMutation> {
+    const response = await apiClient<PettyCashSettlementLineMutationApiResponse>(
+      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/settlement-lines/${requireBackendId(settlementLineId, 'Petty cash settlement line')}/create-expense`,
+      jsonMutation('POST', {}),
+    );
+    const fund = toFund(response.fund);
+    const fundsById = new Map([[fund.id, fund]]);
+    return {
+      fund,
+      settlementLine: toSettlementLine(response.settlementLine),
+      statement: toStatement(response.statement, fundsById),
+    };
+  },
+
+  async closeStatement(
+    fundId: string,
+    statementId: string,
+    payload: PettyCashStatementCloseApiRequest,
+  ): Promise<PettyCashStatementCloseMutation> {
+    const response = await apiClient<PettyCashStatementCloseApiResponse>(
+      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/statements/${requireBackendId(statementId, 'Petty cash statement')}/close`,
+      jsonMutation('POST', payload),
+    );
+    const fund = toFund(response.fund);
+    const fundsById = new Map([[fund.id, fund]]);
+    return {
+      fund,
+      statement: toStatement(response.statement, fundsById),
+      nextStatement: response.nextStatement ? toStatement(response.nextStatement, fundsById) : undefined,
     };
   },
 

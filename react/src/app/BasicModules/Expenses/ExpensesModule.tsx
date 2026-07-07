@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FailureToast } from '../../components/FailureToast';
 import { FavoritesBar } from '../../components/FavoritesBar';
@@ -90,6 +90,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
   const [providers, setProviders] = useState<ProviderRecord[]>(mockProviderRecords);
   const [expenses, setExpenses] = useState<Expense[]>(createInitialExpenseState);
   const [isFinanceDataLoading, setIsFinanceDataLoading] = useState(false);
+  const [financeRefreshKey, setFinanceRefreshKey] = useState(0);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const tabs = [
     { id: 'expenses' as TabId, label: t.module.tabs.expenses, emoji: '💰' },
@@ -152,6 +153,10 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
     };
   }, []);
 
+  const requestFinanceDataRefresh = useCallback(() => {
+    setFinanceRefreshKey(currentKey => currentKey + 1);
+  }, []);
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'budgets':
@@ -159,14 +164,21 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       case 'providers':
         return <Providers providers={providers} onProvidersChange={setProviders} />;
       case 'kpis':
-        return <KPIs expenses={expenses} providers={providers} />;
+        return <KPIs expenses={expenses} providers={providers} refreshKey={financeRefreshKey} />;
       case 'accounting':
         return <AccountingAccounts />;
       case 'payment_accounts':
-        return <PaymentAccounts onNavigate={onNavigate} />;
+        return <PaymentAccounts onNavigate={onNavigate} refreshKey={financeRefreshKey} />;
       case 'expenses':
       default:
-        return <Expenses expenses={expenses} providers={providers} onExpensesChange={setExpenses} />;
+        return (
+          <Expenses
+            expenses={expenses}
+            providers={providers}
+            onExpensesChange={setExpenses}
+            onFinanceDataChanged={requestFinanceDataRefresh}
+          />
+        );
     }
   };
 

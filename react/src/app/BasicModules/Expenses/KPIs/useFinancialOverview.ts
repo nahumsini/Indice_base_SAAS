@@ -40,6 +40,7 @@ interface UseFinancialOverviewParams {
   fallbackProviders: ProviderRecord[];
   locale?: FinanceLocale;
   periodFilter?: PeriodFilter;
+  refreshKey?: number;
 }
 
 const emptyReferenceData: FinanceReferenceData = {
@@ -166,6 +167,7 @@ export function useFinancialOverview({
   fallbackProviders,
   locale = 'en-CA',
   periodFilter = 'this_month',
+  refreshKey = 0,
 }: UseFinancialOverviewParams) {
   const [sources, setSources] = useState<FinancialOverviewSources>(() => (
     buildFallbackSources(fallbackExpenses, fallbackProviders)
@@ -244,7 +246,7 @@ export function useFinancialOverview({
     return () => {
       isMounted = false;
     };
-  }, [fallbackExpenses, fallbackProviders]);
+  }, [fallbackExpenses, fallbackProviders, refreshKey]);
 
   const overview = useMemo(() => {
     const referenceDate = currentDate ?? new Date();

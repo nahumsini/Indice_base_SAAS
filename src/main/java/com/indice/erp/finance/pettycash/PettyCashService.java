@@ -1,12 +1,14 @@
 package com.indice.erp.finance.pettycash;
 
 import com.indice.erp.finance.FinanceApiException;
+import com.indice.erp.finance.pettycash.dto.ClosePettyCashStatementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashFundRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashMovementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest;
 import com.indice.erp.finance.pettycash.dto.DeletePettyCashFundResponse;
 import com.indice.erp.finance.pettycash.dto.PettyCashFundResponse;
 import com.indice.erp.finance.pettycash.dto.PettyCashMovementMutationResponse;
+import com.indice.erp.finance.pettycash.dto.PettyCashStatementCloseResponse;
 import com.indice.erp.finance.pettycash.dto.PettyCashSettlementLineMutationResponse;
 import com.indice.erp.finance.pettycash.dto.PettyCashWorkspaceResponse;
 import com.indice.erp.finance.pettycash.dto.UpdatePettyCashFundRequest;
@@ -116,11 +118,13 @@ public class PettyCashService {
             command.amount(), command.currencyCode(), command.movementDate(), command.reference(),
             command.createdByUserId(), command.customFieldsJson(), command.metadataJson()
         );
+        requireResolvedMovementAccounts(fund, command);
         var movement = repository.insertMovement(context, fund.id(), command);
         var balanceDelta = balanceDelta(command.type(), command.amount());
         if (balanceDelta.signum() != 0) {
             repository.adjustFundBalance(context, fund.id(), balanceDelta);
         }
+        applyPaymentAccountImpact(context, fund, command);
         repository.applyMovementToStatement(context, statement.id(), command.type(), command.amount(), balanceDelta);
         repository.applyMovementToBudgetLine(context, fund.budgetLineId(), command.type(), command.amount());
         return new PettyCashMovementMutationResponse(
@@ -147,15 +151,141 @@ public class PettyCashService {
             command.status(), command.createdByUserId(), command.customFieldsJson(), command.metadataJson()
         );
         var line = repository.insertSettlementLine(context, fund.id(), command);
-        var expenseId = repository.insertExpenseFromSettlementLine(context, fund, statement, line);
-        repository.linkSettlementLineExpense(context, line.id(), expenseId);
         repository.adjustFundBalance(context, fund.id(), command.totalAmount().negate());
+        repository.adjustPaymentAccountBalance(context, fund.paymentAccountId(), command.totalAmount().negate());
         repository.applySettlementLineToStatement(context, statement.id(), command.totalAmount(), command.attachmentCount());
-        repository.applySettlementLineToBudgetLine(context, fund.budgetLineId(), command.totalAmount());
         return new PettyCashSettlementLineMutationResponse(
             mapper.toResponse(requireFund(context, fund.id())),
             mapper.toResponse(requireStatement(context, statement.id())),
             mapper.toResponse(repository.findSettlementLineById(context, line.id()).orElse(line))
+        );
+    }
+
+    @Transactional
+    public PettyCashSettlementLineMutationResponse createExpenseFromSettlementLine(
+            FinanceContext context,
+            long fundId,
+            long settlementLineId) {
+        var fund = requireFund(context, fundId);
+        var line = requireSettlementLine(context, settlementLineId);
+        if (!line.pettyCashFundId().equals(fund.id())) {
+            throw FinanceApiException.badRequest("settlementLineId does not belong to this fund.");
+        }
+        if (line.expenseId() != null || line.status() == PettyCashSettlementLineStatus.EXPENSE_CREATED) {
+            throw FinanceApiException.conflict("Petty cash settlement line already has an expense.");
+        }
+        if (!canCreateExpenseFromSettlementLine(line.status())) {
+            throw FinanceApiException.badRequest("Petty cash settlement line must be receipt attached or validated before creating an expense.");
+        }
+        var statement = requireStatement(context, line.pettyCashStatementId());
+        var expenseId = repository.insertExpenseFromSettlementLine(context, fund, statement, line);
+        repository.linkSettlementLineExpense(context, line.id(), expenseId);
+        repository.applySettlementLineExpenseToStatement(context, statement.id(), line.totalAmount());
+        repository.applySettlementLineToBudgetLine(context, fund.budgetLineId(), line.totalAmount());
+        return new PettyCashSettlementLineMutationResponse(
+            mapper.toResponse(requireFund(context, fund.id())),
+            mapper.toResponse(requireStatement(context, statement.id())),
+            mapper.toResponse(repository.findSettlementLineById(context, line.id()).orElse(line))
+        );
+    }
+
+    @Transactional
+    public PettyCashStatementCloseResponse closeStatement(
+            FinanceContext context,
+            long fundId,
+            long statementId,
+            ClosePettyCashStatementRequest request) {
+        var fund = requireFund(context, fundId);
+        var statement = requireStatement(context, statementId);
+        if (!statement.pettyCashFundId().equals(fund.id())) {
+            throw FinanceApiException.badRequest("statementId does not belong to this fund.");
+        }
+        if (statement.status() == PettyCashStatementStatus.CLOSED
+                || statement.status() == PettyCashStatementStatus.TRANSFERRED_TO_NEXT_CUT
+                || statement.status() == PettyCashStatementStatus.FORGIVEN_SHORTAGE
+                || statement.status() == PettyCashStatementStatus.CHARGED_TO_EMPLOYEE) {
+            throw FinanceApiException.conflict("Petty cash statement is already closed.");
+        }
+        var pendingLines = repository.countPendingSettlementLinesForStatement(context, statement.id());
+        if (pendingLines > 0) {
+            throw FinanceApiException.conflict("Petty cash statement has receipts pending expense creation.");
+        }
+
+        var closingBalance = statement.declaredClosingBalanceAmount() == null
+            ? BigDecimal.ZERO
+            : statement.declaredClosingBalanceAmount();
+        var action = request.action();
+        var closeDate = request.closeDate() == null ? LocalDate.now() : request.closeDate();
+        PettyCashStatementRecord nextStatement = null;
+
+        switch (action) {
+            case CLOSE_CLEAN -> {
+                if (closingBalance.signum() > 0) {
+                    throw FinanceApiException.badRequest("Use RETURN_TO_SOURCE or CARRY_FORWARD when closing balance is greater than zero.");
+                }
+                repository.closeStatement(
+                    context, statement.id(), PettyCashStatementStatus.CLOSED,
+                    BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
+                );
+            }
+            case RETURN_TO_SOURCE -> {
+                if (closingBalance.signum() <= 0) {
+                    throw FinanceApiException.badRequest("Closing balance must be greater than zero to return funds.");
+                }
+                var command = new PettyCashMovementCommand(
+                    statement.id(), fund.paymentAccountId(), fund.fundingSourcePaymentAccountId(),
+                    PettyCashMovementType.RETURN_TO_SOURCE, closingBalance, fund.currencyCode(), closeDate,
+                    normalizeCloseReference(request.reference(), "Cierre de corte: devolucion a origen"),
+                    context.userId(), null, null
+                );
+                requireResolvedMovementAccounts(fund, command);
+                repository.insertMovement(context, fund.id(), command);
+                repository.adjustFundBalance(context, fund.id(), closingBalance.negate());
+                applyPaymentAccountImpact(context, fund, command);
+                repository.applyMovementToBudgetLine(context, fund.budgetLineId(), command.type(), command.amount());
+                repository.closeStatement(
+                    context, statement.id(), PettyCashStatementStatus.CLOSED,
+                    closingBalance, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
+                );
+            }
+            case CARRY_FORWARD -> {
+                if (closingBalance.signum() <= 0) {
+                    throw FinanceApiException.badRequest("Closing balance must be greater than zero to carry forward.");
+                }
+                nextStatement = ensureNextStatement(context, fund, statement);
+                repository.closeStatement(
+                    context, statement.id(), PettyCashStatementStatus.TRANSFERRED_TO_NEXT_CUT,
+                    BigDecimal.ZERO, closingBalance, BigDecimal.ZERO, BigDecimal.ZERO
+                );
+            }
+            case FORGIVE_SHORTAGE, CHARGE_EMPLOYEE -> {
+                var shortageAmount = requireShortageAmount(request.shortageAmount(), closingBalance);
+                var movementType = action == PettyCashStatementCloseAction.FORGIVE_SHORTAGE
+                    ? PettyCashMovementType.FORGIVEN_SHORTAGE
+                    : PettyCashMovementType.EMPLOYEE_CHARGE;
+                var statementStatus = action == PettyCashStatementCloseAction.FORGIVE_SHORTAGE
+                    ? PettyCashStatementStatus.FORGIVEN_SHORTAGE
+                    : PettyCashStatementStatus.CHARGED_TO_EMPLOYEE;
+                var command = new PettyCashMovementCommand(
+                    statement.id(), null, null, movementType, shortageAmount, fund.currencyCode(), closeDate,
+                    normalizeCloseReference(request.reference(), "Cierre de corte: faltante"),
+                    context.userId(), null, null
+                );
+                repository.insertMovement(context, fund.id(), command);
+                repository.adjustFundBalance(context, fund.id(), shortageAmount.negate());
+                repository.adjustPaymentAccountBalance(context, fund.paymentAccountId(), shortageAmount.negate());
+                repository.closeStatement(
+                    context, statement.id(), statementStatus,
+                    BigDecimal.ZERO, BigDecimal.ZERO, shortageAmount,
+                    closingBalance.subtract(shortageAmount).max(BigDecimal.ZERO)
+                );
+            }
+        }
+
+        return new PettyCashStatementCloseResponse(
+            mapper.toResponse(requireFund(context, fund.id())),
+            mapper.toResponse(requireStatement(context, statement.id())),
+            nextStatement == null ? null : mapper.toResponse(nextStatement)
         );
     }
 
@@ -183,6 +313,21 @@ public class PettyCashService {
             });
     }
 
+    private PettyCashStatementRecord ensureNextStatement(
+            FinanceContext context,
+            PettyCashFundRecord fund,
+            PettyCashStatementRecord currentStatement) {
+        var nextPeriod = YearMonth.parse(currentStatement.periodKey()).plusMonths(1);
+        var periodKey = nextPeriod.toString();
+        return repository.findOpenStatementForFund(context, fund.id(), periodKey)
+            .orElseGet(() -> {
+                var periodStart = nextPeriod.atDay(1);
+                var periodEnd = nextPeriod.atDay(Math.min(fund.cutOffDay(), nextPeriod.lengthOfMonth()));
+                var folio = "PC-ST-" + periodKey + "-" + fund.id();
+                return repository.insertStatement(context, fund, folio, periodKey, periodStart, periodEnd);
+            });
+    }
+
     private BigDecimal balanceDelta(PettyCashMovementType type, BigDecimal amount) {
         return switch (type) {
             case INITIAL_FUNDING, ADDITIONAL_DEPOSIT, CARRY_FORWARD -> amount;
@@ -191,10 +336,93 @@ public class PettyCashService {
         };
     }
 
+    private boolean canCreateExpenseFromSettlementLine(PettyCashSettlementLineStatus status) {
+        return status == PettyCashSettlementLineStatus.RECEIPT_ATTACHED
+            || status == PettyCashSettlementLineStatus.VALIDATED;
+    }
+
+    private void applyPaymentAccountImpact(
+            FinanceContext context,
+            PettyCashFundRecord fund,
+            PettyCashMovementCommand command) {
+        switch (command.type()) {
+            case INITIAL_FUNDING, ADDITIONAL_DEPOSIT -> {
+                var fromAccountId = command.fromPaymentAccountId() == null
+                    ? fund.fundingSourcePaymentAccountId()
+                    : command.fromPaymentAccountId();
+                var toAccountId = command.toPaymentAccountId() == null
+                    ? fund.paymentAccountId()
+                    : command.toPaymentAccountId();
+                repository.adjustPaymentAccountBalance(context, fromAccountId, command.amount().negate());
+                repository.adjustPaymentAccountBalance(context, toAccountId, command.amount());
+            }
+            case RETURN_TO_SOURCE -> {
+                var fromAccountId = command.fromPaymentAccountId() == null
+                    ? fund.paymentAccountId()
+                    : command.fromPaymentAccountId();
+                var toAccountId = command.toPaymentAccountId() == null
+                    ? fund.fundingSourcePaymentAccountId()
+                    : command.toPaymentAccountId();
+                repository.adjustPaymentAccountBalance(context, fromAccountId, command.amount().negate());
+                repository.adjustPaymentAccountBalance(context, toAccountId, command.amount());
+            }
+            case CARRY_FORWARD, SHORTAGE_ADJUSTMENT, FORGIVEN_SHORTAGE, EMPLOYEE_CHARGE -> {
+            }
+        }
+    }
+
+    private void requireResolvedMovementAccounts(PettyCashFundRecord fund, PettyCashMovementCommand command) {
+        var accountPlan = resolveMovementAccountPlan(fund, command);
+        if (accountPlan == null) {
+            return;
+        }
+        if (accountPlan.fromPaymentAccountId() == null || accountPlan.toPaymentAccountId() == null) {
+            throw FinanceApiException.badRequest("Petty cash movement requires both source and destination payment accounts.");
+        }
+        if (accountPlan.fromPaymentAccountId().equals(accountPlan.toPaymentAccountId())) {
+            throw FinanceApiException.badRequest("Petty cash movement source and destination accounts must be different.");
+        }
+    }
+
+    private MovementAccountPlan resolveMovementAccountPlan(PettyCashFundRecord fund, PettyCashMovementCommand command) {
+        return switch (command.type()) {
+            case INITIAL_FUNDING, ADDITIONAL_DEPOSIT -> new MovementAccountPlan(
+                command.fromPaymentAccountId() == null ? fund.fundingSourcePaymentAccountId() : command.fromPaymentAccountId(),
+                command.toPaymentAccountId() == null ? fund.paymentAccountId() : command.toPaymentAccountId()
+            );
+            case RETURN_TO_SOURCE -> new MovementAccountPlan(
+                command.fromPaymentAccountId() == null ? fund.paymentAccountId() : command.fromPaymentAccountId(),
+                command.toPaymentAccountId() == null ? fund.fundingSourcePaymentAccountId() : command.toPaymentAccountId()
+            );
+            case CARRY_FORWARD, SHORTAGE_ADJUSTMENT, FORGIVEN_SHORTAGE, EMPLOYEE_CHARGE -> null;
+        };
+    }
+
+    private record MovementAccountPlan(Long fromPaymentAccountId, Long toPaymentAccountId) {
+    }
+
     private void requireCurrencyMatch(PettyCashFundRecord fund, String currencyCode) {
         if (!fund.currencyCode().equalsIgnoreCase(currencyCode)) {
             throw FinanceApiException.badRequest("currencyCode must match the petty cash fund currency.");
         }
+    }
+
+    private String normalizeCloseReference(String requestedReference, String fallback) {
+        if (requestedReference == null || requestedReference.isBlank()) {
+            return fallback;
+        }
+        return requestedReference.trim();
+    }
+
+    private BigDecimal requireShortageAmount(BigDecimal requestedAmount, BigDecimal closingBalance) {
+        var shortageAmount = requestedAmount == null ? BigDecimal.ZERO : requestedAmount;
+        if (shortageAmount.signum() <= 0) {
+            throw FinanceApiException.badRequest("shortageAmount must be greater than zero for shortage closure.");
+        }
+        if (closingBalance.signum() > 0 && shortageAmount.compareTo(closingBalance) > 0) {
+            throw FinanceApiException.badRequest("shortageAmount cannot be greater than the closing balance.");
+        }
+        return shortageAmount;
     }
 
     private void requireUniqueName(FinanceContext context, String name, Long excludedFundId) {
@@ -255,5 +483,10 @@ public class PettyCashService {
     private PettyCashStatementRecord requireStatement(FinanceContext context, long statementId) {
         return repository.findStatementById(context, statementId)
             .orElseThrow(() -> new NoSuchElementException("Petty cash statement not found."));
+    }
+
+    private PettyCashSettlementLineRecord requireSettlementLine(FinanceContext context, long settlementLineId) {
+        return repository.findSettlementLineById(context, settlementLineId)
+            .orElseThrow(() -> new NoSuchElementException("Petty cash settlement line not found."));
     }
 }

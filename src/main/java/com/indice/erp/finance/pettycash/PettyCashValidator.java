@@ -30,7 +30,7 @@ class PettyCashValidator {
         requireNonNegative(request.currentBalanceAmount() == null ? BigDecimal.ZERO : request.currentBalanceAmount(), "currentBalanceAmount");
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
         referenceValidator.validateFundReferences(context, assignment, request.budgetId(), request.budgetLineId(),
-            request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId());
+            request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(), request.currencyCode());
         return assignment;
     }
 
@@ -40,14 +40,19 @@ class PettyCashValidator {
         requireNonNegative(request.limitAmount(), "limitAmount");
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
         referenceValidator.validateFundReferences(context, assignment, request.budgetId(), request.budgetLineId(),
-            request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId());
+            request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(), request.currencyCode());
         return assignment;
     }
 
     void validateMovement(FinanceContext context, CreatePettyCashMovementRequest request) {
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requirePositive(request.amount(), "amount");
-        referenceValidator.validateMovementReferences(context, request.fromPaymentAccountId(), request.toPaymentAccountId());
+        referenceValidator.validateMovementReferences(
+            context,
+            request.fromPaymentAccountId(),
+            request.toPaymentAccountId(),
+            request.currencyCode()
+        );
     }
 
     void validateSettlementLine(FinanceContext context, CreatePettyCashSettlementLineRequest request) {

@@ -146,6 +146,7 @@ public class ExpenseService {
         if (request.amount().compareTo(existing.balanceAmount()) > 0) {
             throw FinanceApiException.badRequest("Payment amount cannot exceed balanceAmount.");
         }
+        referenceValidator.validatePaymentAccountForPayment(context, request.paymentAccountId(), existing.currencyCode());
 
         var paidAmount = existing.paidAmount().add(request.amount());
         var balanceAmount = existing.totalAmount().subtract(paidAmount).max(BigDecimal.ZERO);
@@ -153,8 +154,11 @@ public class ExpenseService {
         var nextStatus = fullyPaid ? ExpenseStatus.PAID : ExpenseStatus.PARTIALLY_PAID;
         var nextPaymentStatus = fullyPaid ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID;
         if (!workflowRepository.recordPayment(context, expenseId, paidAmount, balanceAmount, nextStatus,
-                nextPaymentStatus, request.paymentDate())) {
+                nextPaymentStatus, request.paymentAccountId(), request.paymentDate())) {
             throw FinanceApiException.conflict("Expense payment could not be recorded.");
+        }
+        if (!workflowRepository.adjustPaymentAccountBalance(context, request.paymentAccountId(), request.amount().negate())) {
+            throw FinanceApiException.conflict("Payment account balance could not be updated.");
         }
         refreshBudgetLine(context, existing.budgetLineId());
         return get(context, expenseId);

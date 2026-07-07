@@ -1,4 +1,4 @@
-import { Banknote, Building2, Download, ExternalLink, FileText, FolderOpen, Landmark, Loader2, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
+import { Banknote, Building2, CheckCircle2, Download, ExternalLink, FileText, FolderOpen, Landmark, Loader2, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { mockAccounts } from '../../Expenses/AccountingAccounts/accountingAccounts.mock';
 import type { AccountingAccount } from '../../Expenses/AccountingAccounts/types';
@@ -9,7 +9,7 @@ import { ProviderCreateModal } from '../../Expenses/Providers/components/Provide
 import type { ProviderFormValues, ProviderRecord } from '../../Expenses/Providers/useProveedoresLogic';
 import { accountingAccountsService, paymentAccountsService, providersService, toFinanceApiErrorMessage } from '../../Expenses/services';
 import type { FinanceReferenceOption } from '../../Expenses/types/finance-reference.types';
-import { hasPettyCashBackendId, pettyCashService } from '../services';
+import { hasPettyCashBackendId, pettyCashService, type PettyCashStatementCloseAction } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import type {
   PettyCashAttachment,
@@ -69,6 +69,13 @@ type ReceiptDraft = {
   taxAmount: string;
 };
 
+type CloseStatementDraft = {
+  action: PettyCashStatementCloseAction;
+  closeDate: string;
+  reference: string;
+  shortageAmount: string;
+};
+
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const activePaymentAccountMocks = mockPaymentAccounts.filter(account => account.isActive);
@@ -81,12 +88,30 @@ const formatPaymentAccountLabel = (account: PaymentAccount) => {
 
 const formatAccountingAccountLabel = (account: AccountingAccount) => `${account.code} - ${account.name}`;
 
+const paymentAccountMatchesCurrency = (account: PaymentAccount, currency: string) => (
+  account.currency.toUpperCase() === currency.toUpperCase()
+);
+
+const getDepositSourceAccountOptions = (fund: PettyCashFund, paymentAccounts: PaymentAccount[]) => (
+  paymentAccounts.filter(account => (
+    account.isActive
+    && account.id !== fund.paymentAccountId
+    && paymentAccountMatchesCurrency(account, fund.currencyCode)
+  ))
+);
+
 const createDepositDraft = (fund?: PettyCashFund, paymentAccounts: PaymentAccount[] = activePaymentAccountMocks): DepositDraft => ({
   amount: '',
   fundingMethod: fund?.fundingMethods[0] ?? 'Transferencia interna',
   movementDate: todayIso(),
   reference: '',
-  sourcePaymentAccountId: fund?.fundingSourcePaymentAccountId ?? paymentAccounts.find(account => account.isActive)?.id ?? '',
+  sourcePaymentAccountId: fund
+    ? (
+      getDepositSourceAccountOptions(fund, paymentAccounts).some(account => account.id === fund.fundingSourcePaymentAccountId)
+        ? fund.fundingSourcePaymentAccountId ?? ''
+        : getDepositSourceAccountOptions(fund, paymentAccounts)[0]?.id ?? ''
+    )
+    : paymentAccounts.find(account => account.isActive)?.id ?? '',
 });
 
 const createReceiptDraft = (
@@ -230,6 +255,10 @@ const buildStatementForFund = (fund: PettyCashFund): PettyCashStatement => {
   };
 };
 
+const canCreateExpenseFromLine = (line: PettyCashSettlementLine) => (
+  line.status === 'RECEIPT_ATTACHED' || line.status === 'VALIDATED'
+);
+
 export function PettyCashReconciliationWorkspace({
   funds,
   movements,
@@ -246,12 +275,15 @@ export function PettyCashReconciliationWorkspace({
   const [statusFilter, setStatusFilter] = useState<PettyCashStatementStatus | 'all'>('all');
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [attachmentLine, setAttachmentLine] = useState<PettyCashSettlementLine | null>(null);
+  const [closingStatement, setClosingStatement] = useState<PettyCashStatement | null>(null);
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [providers, setProviders] = useState<ProviderRecord[]>(mockProviderRecords);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>(activePaymentAccountMocks);
   const [accountingAccounts, setAccountingAccounts] = useState<AccountingAccount[]>(activeAccountingAccountMocks);
   const [referenceError, setReferenceError] = useState('');
+  const [expenseCreationLineId, setExpenseCreationLineId] = useState<string | null>(null);
+  const [statementCloseId, setStatementCloseId] = useState<string | null>(null);
 
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
   const fundStatements = useMemo(() => (
@@ -449,14 +481,19 @@ export function PettyCashReconciliationWorkspace({
     if (!amount || amount <= 0) return;
     const statement = ensureStatement(selectedFund);
     const movementDate = draft.movementDate || todayIso();
-    const sourceAccount = activePaymentAccounts.find(account => account.id === draft.sourcePaymentAccountId);
+    const sourceAccount = getDepositSourceAccountOptions(selectedFund, activePaymentAccounts)
+      .find(account => account.id === draft.sourcePaymentAccountId);
+    if (!sourceAccount) {
+      setReferenceError('Selecciona una cuenta origen activa, de la misma moneda y distinta a la cuenta de la caja.');
+      return;
+    }
     const localMovement: PettyCashMovement = {
       id: `movement-${Date.now()}`,
       amount,
       companyId: selectedFund.companyId,
       currencyCode: selectedFund.currencyCode,
-      fromPaymentAccountId: sourceAccount?.id ?? selectedFund.fundingSourcePaymentAccountId,
-      fromPaymentAccountName: sourceAccount?.name ?? selectedFund.fundingSourceName,
+      fromPaymentAccountId: sourceAccount.id,
+      fromPaymentAccountName: sourceAccount.name,
       movementDate,
       pettyCashFundId: selectedFund.id,
       pettyCashStatementId: statement.id,
@@ -634,6 +671,35 @@ export function PettyCashReconciliationWorkspace({
     setIsReceiptModalOpen(false);
   };
 
+  const handleCreateExpenseFromLine = async (line: PettyCashSettlementLine) => {
+    if (!selectedFund || line.status === 'EXPENSE_CREATED') return;
+    if (!canCreateExpenseFromLine(line)) {
+      setReferenceError('Este comprobante debe estar adjunto o validado antes de crear el gasto.');
+      return;
+    }
+    if (!hasPettyCashBackendId(selectedFund.id) || !hasPettyCashBackendId(line.id)) {
+      setReferenceError('Este comprobante debe estar guardado en Finance antes de crear el gasto.');
+      return;
+    }
+
+    setExpenseCreationLineId(line.id);
+    try {
+      const saved = await pettyCashService.createExpenseFromSettlementLine(selectedFund.id, line.id);
+      onSettlementLinesChange(current => current.map(currentLine => (
+        currentLine.id === saved.settlementLine.id ? saved.settlementLine : currentLine
+      )));
+      onFundsChange(current => current.map(fund => (fund.id === saved.fund.id ? saved.fund : fund)));
+      onStatementsChange(current => current.map(statement => (
+        statement.id === saved.statement.id ? saved.statement : statement
+      )));
+      setReferenceError('');
+    } catch (error) {
+      setReferenceError(toFinanceApiErrorMessage(error, 'No se pudo crear el gasto desde este comprobante.'));
+    } finally {
+      setExpenseCreationLineId(null);
+    }
+  };
+
   const handleCreateProvider = async (values: ProviderFormValues) => {
     const provider = createProviderRecord(providers, values);
     try {
@@ -645,6 +711,41 @@ export function PettyCashReconciliationWorkspace({
       setReferenceError(toFinanceApiErrorMessage(error, 'No se pudo crear el proveedor en Finance. Se conservo localmente.'));
     }
     setIsProviderModalOpen(false);
+  };
+
+  const handleCloseStatement = async (statement: PettyCashStatement, draft: CloseStatementDraft) => {
+    const fund = getFundById(funds, statement.pettyCashFundId);
+    if (!fund) return;
+    if (!hasPettyCashBackendId(fund.id) || !hasPettyCashBackendId(statement.id)) {
+      setReferenceError('El corte debe estar guardado en Finance antes de cerrarlo.');
+      return;
+    }
+
+    setStatementCloseId(statement.id);
+    try {
+      const saved = await pettyCashService.closeStatement(fund.id, statement.id, {
+        action: draft.action,
+        closeDate: draft.closeDate,
+        reference: draft.reference.trim() || undefined,
+        shortageAmount: Number(draft.shortageAmount) || undefined,
+      });
+      onFundsChange(current => current.map(currentFund => (currentFund.id === saved.fund.id ? saved.fund : currentFund)));
+      onStatementsChange(current => {
+        const withClosed = current.map(currentStatement => (
+          currentStatement.id === saved.statement.id ? saved.statement : currentStatement
+        ));
+        if (!saved.nextStatement) return withClosed;
+        return withClosed.some(currentStatement => currentStatement.id === saved.nextStatement?.id)
+          ? withClosed.map(currentStatement => (currentStatement.id === saved.nextStatement?.id ? saved.nextStatement : currentStatement))
+          : [saved.nextStatement, ...withClosed];
+      });
+      setClosingStatement(null);
+      setReferenceError('');
+    } catch (error) {
+      setReferenceError(toFinanceApiErrorMessage(error, 'No se pudo cerrar el corte.'));
+    } finally {
+      setStatementCloseId(null);
+    }
   };
 
   return (
@@ -818,13 +919,15 @@ export function PettyCashReconciliationWorkspace({
                 <table className="w-full min-w-[900px]">
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
-                      {['Comprobante', 'Proveedor', 'Cuenta contable', 'Fecha', 'Total', 'Adjuntos', 'Estado'].map(column => (
+                      {['Comprobante', 'Proveedor', 'Cuenta contable', 'Fecha', 'Total', 'Adjuntos', 'Estado', 'Acciones'].map(column => (
                         <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {linePagination.paginatedRows.map(line => (
+                    {linePagination.paginatedRows.map(line => {
+                      const canCreateExpense = canCreateExpenseFromLine(line);
+                      return (
                       <tr key={line.id} className="transition hover:bg-slate-50">
                         <td className="px-5 py-4">
                           <p className="text-sm font-black text-slate-900">{line.description}</p>
@@ -845,8 +948,25 @@ export function PettyCashReconciliationWorkspace({
                           </button>
                         </td>
                         <td className="px-5 py-4"><PettyCashStatusPill kind="line" status={line.status} /></td>
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            disabled={!canCreateExpense || line.status === 'EXPENSE_CREATED' || expenseCreationLineId === line.id}
+                            onClick={() => handleCreateExpenseFromLine(line)}
+                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#147514]/20 bg-[#147514] px-3 text-sm font-black text-white transition hover:bg-[#0f5f0f] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                            title={canCreateExpense ? 'Crear gasto' : 'Requiere comprobante adjunto o validado'}
+                          >
+                            {expenseCreationLineId === line.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4" />
+                            )}
+                            Crear gasto
+                          </button>
+                        </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -891,7 +1011,7 @@ export function PettyCashReconciliationWorkspace({
           <table className="w-full min-w-[1120px]">
             <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
-                {['Corte', 'Periodo', 'Responsable', 'Asignado', 'Balance declarado', 'Estimado', 'Pendiente', 'Estado'].map(column => (
+                {['Corte', 'Periodo', 'Responsable', 'Asignado', 'Balance declarado', 'Estimado', 'Pendiente', 'Estado', 'Acciones'].map(column => (
                   <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
                 ))}
               </tr>
@@ -909,6 +1029,23 @@ export function PettyCashReconciliationWorkspace({
                     <td className="px-5 py-5 text-sm font-black text-slate-900">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
                     <td className="px-5 py-5 text-sm font-black text-amber-600">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</td>
                     <td className="px-5 py-5"><PettyCashStatusPill kind="statement" status={statement.status} /></td>
+                    <td className="px-5 py-5">
+                      <button
+                        type="button"
+                        disabled={
+                          statement.status === 'CLOSED'
+                          || statement.status === 'TRANSFERRED_TO_NEXT_CUT'
+                          || statement.status === 'FORGIVEN_SHORTAGE'
+                          || statement.status === 'CHARGED_TO_EMPLOYEE'
+                          || statementCloseId === statement.id
+                        }
+                        onClick={() => setClosingStatement(statement)}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        {statementCloseId === statement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-[#147514]" />}
+                        Cerrar corte
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -945,6 +1082,16 @@ export function PettyCashReconciliationWorkspace({
         />
       ) : null}
 
+      {closingStatement ? (
+        <CloseStatementModal
+          statement={closingStatement}
+          fund={getFundById(funds, closingStatement.pettyCashFundId)}
+          isSaving={statementCloseId === closingStatement.id}
+          onClose={() => setClosingStatement(null)}
+          onSave={(draft) => handleCloseStatement(closingStatement, draft)}
+        />
+      ) : null}
+
       {isProviderModalOpen ? (
         <ProviderCreateModal
           accountingAccountOptions={accountingAccountOptions}
@@ -962,6 +1109,110 @@ export function PettyCashReconciliationWorkspace({
   );
 }
 
+function CloseStatementModal({
+  fund,
+  isSaving,
+  onClose,
+  onSave,
+  statement,
+}: {
+  fund?: PettyCashFund;
+  isSaving: boolean;
+  onClose: () => void;
+  onSave: (draft: CloseStatementDraft) => void;
+  statement: PettyCashStatement;
+}) {
+  const closingBalance = statement.declaredClosingBalanceAmount;
+  const pendingAmount = getStatementSettlementBalance(statement);
+  const defaultAction: PettyCashStatementCloseAction = closingBalance > 0 ? 'CARRY_FORWARD' : 'CLOSE_CLEAN';
+  const [draft, setDraft] = useState<CloseStatementDraft>({
+    action: defaultAction,
+    closeDate: todayIso(),
+    reference: '',
+    shortageAmount: '',
+  });
+  const hasBalance = closingBalance > 0;
+  const isShortageAction = draft.action === 'FORGIVE_SHORTAGE' || draft.action === 'CHARGE_EMPLOYEE';
+  const shortageAmount = Number(draft.shortageAmount) || 0;
+  const canSave = pendingAmount <= 0
+    && (isShortageAction ? shortageAmount > 0 && shortageAmount <= closingBalance : (draft.action === 'CLOSE_CLEAN' ? !hasBalance : hasBalance))
+    && !isSaving;
+
+  return (
+    <PettyCashOperationModal
+      actionLabel={isSaving ? 'Cerrando...' : 'Cerrar corte'}
+      canSave={canSave}
+      icon={isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+      onClose={onClose}
+      onSave={() => onSave(draft)}
+      subtitle={`${statement.folio}${fund ? ` - ${fund.name}` : ''}`}
+      title="Cerrar corte de caja chica"
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl bg-slate-50 p-4">
+          <span className="block text-xs font-black uppercase tracking-[0.16em] text-slate-400">Saldo en caja</span>
+          <p className="mt-2 text-lg font-black text-[#147514]">{formatPettyCashCurrency(closingBalance, statement.currencyCode)}</p>
+        </div>
+        <div className="rounded-xl bg-slate-50 p-4">
+          <span className="block text-xs font-black uppercase tracking-[0.16em] text-slate-400">Pendiente</span>
+          <p className={`mt-2 text-lg font-black ${pendingAmount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+            {formatPettyCashCurrency(pendingAmount, statement.currencyCode)}
+          </p>
+        </div>
+        <PettyCashField label="Accion de cierre">
+          <select
+            className={pettyCashInputClass}
+            onChange={(event) => setDraft(current => ({ ...current, action: event.target.value as PettyCashStatementCloseAction }))}
+            value={draft.action}
+          >
+            <option disabled={hasBalance} value="CLOSE_CLEAN">Cerrar sin saldo</option>
+            <option disabled={!hasBalance} value="CARRY_FORWARD">Traspasar saldo al siguiente corte</option>
+            <option disabled={!hasBalance} value="RETURN_TO_SOURCE">Devolver saldo a origen</option>
+            <option disabled={!hasBalance} value="CHARGE_EMPLOYEE">Cobrar faltante a colaborador</option>
+            <option disabled={!hasBalance} value="FORGIVE_SHORTAGE">Perdonar faltante</option>
+          </select>
+        </PettyCashField>
+        <PettyCashField label="Fecha de cierre">
+          <input
+            className={pettyCashInputClass}
+            onChange={(event) => setDraft(current => ({ ...current, closeDate: event.target.value }))}
+            type="date"
+            value={draft.closeDate}
+          />
+        </PettyCashField>
+        {isShortageAction ? (
+          <PettyCashField label="Monto faltante *">
+            <input
+              className={pettyCashInputClass}
+              max={closingBalance}
+              min="0"
+              onChange={(event) => setDraft(current => ({ ...current, shortageAmount: event.target.value }))}
+              placeholder="0.00"
+              type="number"
+              value={draft.shortageAmount}
+            />
+          </PettyCashField>
+        ) : null}
+        <div className="md:col-span-2">
+          <PettyCashField label="Referencia">
+            <input
+              className={pettyCashInputClass}
+              onChange={(event) => setDraft(current => ({ ...current, reference: event.target.value }))}
+              placeholder="Notas del cierre, devolucion o traspaso"
+              value={draft.reference}
+            />
+          </PettyCashField>
+        </div>
+        {pendingAmount > 0 ? (
+          <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+            Convierte los comprobantes pendientes en gasto antes de cerrar este corte.
+          </div>
+        ) : null}
+      </div>
+    </PettyCashOperationModal>
+  );
+}
+
 function DepositModal({
   fund,
   paymentAccounts,
@@ -974,7 +1225,19 @@ function DepositModal({
   onSave: (draft: DepositDraft) => void;
 }) {
   const [draft, setDraft] = useState<DepositDraft>(() => createDepositDraft(fund, paymentAccounts));
-  const canSave = Number(draft.amount) > 0;
+  const sourceAccounts = useMemo(
+    () => getDepositSourceAccountOptions(fund, paymentAccounts),
+    [fund, paymentAccounts],
+  );
+  const selectedSourceAccount = sourceAccounts.find(account => account.id === draft.sourcePaymentAccountId);
+  const canSave = Number(draft.amount) > 0 && Boolean(selectedSourceAccount);
+
+  useEffect(() => {
+    if (sourceAccounts.some(account => account.id === draft.sourcePaymentAccountId)) {
+      return;
+    }
+    setDraft(current => ({ ...current, sourcePaymentAccountId: sourceAccounts[0]?.id ?? '' }));
+  }, [draft.sourcePaymentAccountId, sourceAccounts]);
 
   return (
     <PettyCashOperationModal
@@ -1011,7 +1274,7 @@ function DepositModal({
             onChange={(event) => setDraft(current => ({ ...current, sourcePaymentAccountId: event.target.value }))}
             value={draft.sourcePaymentAccountId}
           >
-            {paymentAccounts.map(account => (
+            {sourceAccounts.map(account => (
               <option key={account.id} value={account.id}>{formatPaymentAccountLabel(account)}</option>
             ))}
           </select>
@@ -1037,6 +1300,11 @@ function DepositModal({
             />
           </PettyCashField>
         </div>
+        {!selectedSourceAccount ? (
+          <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+            No hay una cuenta origen activa en {fund.currencyCode} distinta a la cuenta de la caja.
+          </div>
+        ) : null}
       </div>
     </PettyCashOperationModal>
   );

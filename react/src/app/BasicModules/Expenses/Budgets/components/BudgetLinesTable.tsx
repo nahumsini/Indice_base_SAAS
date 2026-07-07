@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { FilePlus2, Pencil, Trash2 } from 'lucide-react';
 import type { Expense } from '../../types/expenses.types';
 import type { ColumnConfig } from '../../types/expenseView.types';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
@@ -11,13 +11,14 @@ type BudgetLinesTableProps = {
   columns: ColumnConfig[];
   expenses: Expense[];
   onDeleteExpense: (expenseId: string) => void;
+  onCreatePayable: (expense: Expense) => void;
   onEditExpense: (expense: Expense) => void;
 };
 
 const columnClass = 'px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500';
 const cellClass = 'px-4 py-4 align-top text-sm text-slate-700';
 
-export function BudgetLinesTable({ columns, expenses, onDeleteExpense, onEditExpense }: BudgetLinesTableProps) {
+export function BudgetLinesTable({ columns, expenses, onCreatePayable, onDeleteExpense, onEditExpense }: BudgetLinesTableProps) {
   const t = useFinanceTranslations();
   const visibleKeys = new Set(columns.filter(column => column.visible).map(column => column.key));
   const visibleColumns = budgetTableColumns(t).filter(column => visibleKeys.has(column.key) || column.key === 'actions');
@@ -53,6 +54,7 @@ export function BudgetLinesTable({ columns, expenses, onDeleteExpense, onEditExp
                 key={expense.id}
                 columns={visibleColumns}
                 expense={expense}
+                onCreatePayable={onCreatePayable}
                 onDeleteExpense={onDeleteExpense}
                 onEditExpense={onEditExpense}
               />
@@ -85,11 +87,13 @@ export function BudgetLinesTable({ columns, expenses, onDeleteExpense, onEditExp
 function BudgetLineRow({
   columns,
   expense,
+  onCreatePayable,
   onDeleteExpense,
   onEditExpense,
 }: {
   columns: ReturnType<typeof budgetTableColumns>;
   expense: Expense;
+  onCreatePayable: (expense: Expense) => void;
   onDeleteExpense: (expenseId: string) => void;
   onEditExpense: (expense: Expense) => void;
 }) {
@@ -97,7 +101,7 @@ function BudgetLineRow({
     <tr className="transition hover:bg-[#147514]/[0.035]">
       {columns.map(column => (
         <td key={column.key} className={cellClass}>
-          {renderBudgetCell(column.key, expense, onEditExpense, onDeleteExpense)}
+          {renderBudgetCell(column.key, expense, onEditExpense, onDeleteExpense, onCreatePayable)}
         </td>
       ))}
     </tr>
@@ -109,6 +113,7 @@ function renderBudgetCell(
   expense: Expense,
   onEditExpense: (expense: Expense) => void,
   onDeleteExpense: (expenseId: string) => void,
+  onCreatePayable?: (expense: Expense) => void,
 ) {
   switch (key) {
     case 'folio':
@@ -149,6 +154,9 @@ function renderBudgetCell(
     case 'actions':
       return (
         <div className="flex items-center justify-end gap-2">
+          <button type="button" onClick={() => onCreatePayable?.(expense)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm transition hover:bg-cyan-100" aria-label="Crear CxP">
+            <FilePlus2 className="h-4 w-4" />
+          </button>
           <button type="button" onClick={() => onEditExpense(expense)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#147514] shadow-sm transition hover:border-[#147514]/30 hover:bg-[#147514]/10" aria-label="Edit budget line">
             <Pencil className="h-4 w-4" />
           </button>

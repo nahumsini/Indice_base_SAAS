@@ -17,6 +17,7 @@ export interface Expense {
   providerId?: string;
   providerName?: string;
   budgetId?: string;
+  budgetLineId?: string;
   committedAmount?: number;
   actualExpenseAmount?: number;
   pettyCashIssuedAmount?: number;

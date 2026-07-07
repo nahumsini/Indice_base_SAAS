@@ -38,6 +38,7 @@ import { useFinancialOverview } from './useFinancialOverview';
 interface GastosKPIPageProps {
   expenses: Expense[];
   providers: ProviderRecord[];
+  refreshKey?: number;
 }
 
 const buildInsight = ({
@@ -78,7 +79,7 @@ const LoadingOverview = () => (
   </div>
 );
 
-export default function GastosKPIPage({ expenses, providers }: GastosKPIPageProps) {
+export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: GastosKPIPageProps) {
   const t = useFinanceTranslations();
   const locale = useFinanceResolvedLocale();
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('this_month');
@@ -92,6 +93,7 @@ export default function GastosKPIPage({ expenses, providers }: GastosKPIPageProp
     fallbackProviders: providers,
     locale,
     periodFilter,
+    refreshKey,
   });
   const { currency, metrics } = overview;
   const consumed = Math.max(metrics.planned - metrics.available, 0);

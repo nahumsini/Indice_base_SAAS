@@ -21,22 +21,30 @@ class PettyCashReferenceValidator {
             Long budgetLineId,
             Long paymentAccountId,
             Long fundingSourcePaymentAccountId,
-            Long responsibleUserId) {
+            Long responsibleUserId,
+            String currencyCode) {
         validateUnit(context, assignment.unitId());
         validateBusiness(context, assignment.unitId(), assignment.businessId());
         validateFinanceReference(context, "finance_budgets", budgetId, "budgetId");
-        validateFinanceReference(context, "finance_budget_lines", budgetLineId, "budgetLineId");
-        validateFinanceReference(context, "finance_payment_accounts", paymentAccountId, "paymentAccountId");
-        validateFinanceReference(context, "finance_payment_accounts", fundingSourcePaymentAccountId, "fundingSourcePaymentAccountId");
+        validateBudgetLineReference(context, budgetLineId, currencyCode);
+        if (paymentAccountId != null && paymentAccountId.equals(fundingSourcePaymentAccountId)) {
+            throw FinanceApiException.badRequest("paymentAccountId and fundingSourcePaymentAccountId must be different.");
+        }
+        validatePaymentAccountReference(context, paymentAccountId, "paymentAccountId", currencyCode);
+        validatePaymentAccountReference(context, fundingSourcePaymentAccountId, "fundingSourcePaymentAccountId", currencyCode);
         validateUserReference(context, responsibleUserId, "responsibleUserId");
     }
 
     void validateMovementReferences(
             FinanceContext context,
             Long fromPaymentAccountId,
-            Long toPaymentAccountId) {
-        validateFinanceReference(context, "finance_payment_accounts", fromPaymentAccountId, "fromPaymentAccountId");
-        validateFinanceReference(context, "finance_payment_accounts", toPaymentAccountId, "toPaymentAccountId");
+            Long toPaymentAccountId,
+            String currencyCode) {
+        if (fromPaymentAccountId != null && fromPaymentAccountId.equals(toPaymentAccountId)) {
+            throw FinanceApiException.badRequest("fromPaymentAccountId and toPaymentAccountId must be different.");
+        }
+        validatePaymentAccountReference(context, fromPaymentAccountId, "fromPaymentAccountId", currencyCode);
+        validatePaymentAccountReference(context, toPaymentAccountId, "toPaymentAccountId", currencyCode);
     }
 
     void validateSettlementReferences(
@@ -84,6 +92,53 @@ class PettyCashReferenceValidator {
             Long.class,
             id,
             context.companyId()
+        );
+        requireExists(count, fieldName);
+    }
+
+    private void validateBudgetLineReference(FinanceContext context, Long budgetLineId, String currencyCode) {
+        if (budgetLineId == null) {
+            return;
+        }
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM finance_budget_lines
+                WHERE id = ?
+                  AND company_id = ?
+                  AND deleted_at IS NULL
+                  AND UPPER(currency_code) = UPPER(?)
+                """,
+            Long.class,
+            budgetLineId,
+            context.companyId(),
+            currencyCode
+        );
+        requireExists(count, "budgetLineId");
+    }
+
+    private void validatePaymentAccountReference(
+            FinanceContext context,
+            Long paymentAccountId,
+            String fieldName,
+            String currencyCode) {
+        if (paymentAccountId == null) {
+            return;
+        }
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM finance_payment_accounts
+                WHERE id = ?
+                  AND company_id = ?
+                  AND deleted_at IS NULL
+                  AND UPPER(status) = 'ACTIVE'
+                  AND UPPER(currency_code) = UPPER(?)
+                """,
+            Long.class,
+            paymentAccountId,
+            context.companyId(),
+            currencyCode
         );
         requireExists(count, fieldName);
     }

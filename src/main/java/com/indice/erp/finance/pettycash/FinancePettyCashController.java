@@ -1,6 +1,7 @@
 package com.indice.erp.finance.pettycash;
 
 import com.indice.erp.finance.FinanceRequestGuard;
+import com.indice.erp.finance.pettycash.dto.ClosePettyCashStatementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashFundRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashMovementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest;
@@ -130,6 +131,34 @@ public class FinancePettyCashController {
             return access.error();
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createSettlementLine(access.context(), fundId, request));
+    }
+
+    @PostMapping("/funds/{fundId}/settlement-lines/{settlementLineId}/create-expense")
+    public ResponseEntity<?> createExpenseFromSettlementLine(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId,
+            @PathVariable long settlementLineId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(service.createExpenseFromSettlementLine(access.context(), fundId, settlementLineId));
+    }
+
+    @PostMapping("/funds/{fundId}/statements/{statementId}/close")
+    public ResponseEntity<?> closeStatement(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId,
+            @PathVariable long statementId,
+            @Valid @RequestBody ClosePettyCashStatementRequest request) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(service.closeStatement(access.context(), fundId, statementId, request));
     }
 
     @GetMapping("/funds/{fundId}/settlement-lines/{settlementLineId}/attachments")

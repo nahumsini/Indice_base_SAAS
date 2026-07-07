@@ -20,11 +20,12 @@ import { PaymentAccountsTable } from './components/PaymentAccountsTable';
 
 interface PaymentAccountsProps {
   onNavigate?: (page?: string) => void;
+  refreshKey?: number;
 }
 
-export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {}) {
+export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentAccountsProps = {}) {
   const t = useFinanceTranslations();
-  const { cashFunds } = usePettyCash();
+  const { pettyCashFunds } = usePettyCash();
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
   const [failureToastMessage, setFailureToastMessage] = useState('');
@@ -79,23 +80,21 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [refreshKey]);
 
   const paymentAccounts = useMemo<PaymentAccount[]>(() => {
-    const pettyCashAccounts: PaymentAccount[] = cashFunds.map(fund => ({
+    const pettyCashAccounts: PaymentAccount[] = pettyCashFunds.map(fund => ({
       id: `petty-cash-${fund.id}`,
       name: fund.name,
       type: 'cash',
-      accountNumber: 'Managed internally',
+      accountNumber: fund.paymentAccountId ?? 'Managed internally',
       bank: 'Petty Cash',
-      currency: fund.currency,
-      balance: fund.currentBalance,
-      isActive: fund.status !== 'closed',
-      lastTransaction: fund.lastReconciliation.toISOString().slice(0, 10),
+      currency: fund.currencyCode,
+      balance: fund.currentBalanceAmount,
+      isActive: fund.status !== 'CLOSED',
       source: 'petty_cash',
       linkedFundId: fund.id,
-      custodian: fund.custodian,
-      pendingReceipts: fund.pendingReceipts,
+      custodian: fund.responsibleName,
     }));
 
     return [
@@ -104,7 +103,7 @@ export default function PaymentAccounts({ onNavigate }: PaymentAccountsProps = {
         .map(account => ({ ...account, source: 'expenses' as const })),
       ...pettyCashAccounts,
     ];
-  }, [accounts, cashFunds]);
+  }, [accounts, pettyCashFunds]);
 
   const filteredAccounts = useMemo(() => {
     const filtered = filterPaymentAccounts(paymentAccounts, searchTerm, typeFilter, statusFilter);

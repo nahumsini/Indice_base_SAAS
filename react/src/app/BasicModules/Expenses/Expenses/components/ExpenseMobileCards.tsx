@@ -20,6 +20,7 @@ type ExpenseMobileCardsProps = {
   onAudit: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
   onDuplicate: (expenseId: string) => void;
+  onCreatePayable?: (expenseId: string) => void;
   onEdit: (expense: Expense) => void;
   onMarkPaid: (expenseId: string) => void;
   onOpenAttachments: (expense: Expense) => void;
@@ -39,6 +40,7 @@ export function ExpenseMobileCards({
   onAudit,
   onDelete,
   onDuplicate,
+  onCreatePayable,
   onEdit,
   onMarkPaid,
   onOpenAttachments,
@@ -73,6 +75,7 @@ export function ExpenseMobileCards({
           onAudit={onAudit}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
+          onCreatePayable={onCreatePayable}
           onEdit={() => onEdit(expense)}
           onMarkPaid={onMarkPaid}
           onOpenAttachments={() => onOpenAttachments(expense)}
@@ -94,6 +97,7 @@ function ExpenseMobileCard({
   onAudit,
   onDelete,
   onDuplicate,
+  onCreatePayable,
   onEdit,
   onMarkPaid,
   onOpenAttachments,
@@ -111,6 +115,7 @@ function ExpenseMobileCard({
   onAudit: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
   onDuplicate: (expenseId: string) => void;
+  onCreatePayable?: (expenseId: string) => void;
   onEdit: () => void;
   onMarkPaid: (expenseId: string) => void;
   onOpenAttachments: () => void;
@@ -196,13 +201,15 @@ function ExpenseMobileCard({
             onAudit={onAudit}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
+            onCreatePayable={onCreatePayable}
             onMarkPaid={onMarkPaid}
             onRecordPayment={onRecordPayment}
             onStartEdit={onEdit}
             isDeletePending={isDeletePending}
             showAudit={actionVisibility?.showAudit}
-            showMarkPaid={actionVisibility?.showMarkPaid}
-            showRecordPayment={actionVisibility?.showRecordPayment}
+            showCreatePayable={expense.type === 'budget'}
+            showMarkPaid={expense.type !== 'budget' && (actionVisibility?.showMarkPaid ?? true)}
+            showRecordPayment={expense.type !== 'budget' && (actionVisibility?.showRecordPayment ?? true)}
           />
         </div>
       </div>

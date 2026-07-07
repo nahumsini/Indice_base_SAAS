@@ -76,6 +76,7 @@ export const expensesService = {
   async recordExpensePayment(
     expenseId: string,
     amount: number,
+    paymentAccountId: string,
     paymentDate: Date,
     providers: Array<{ id: string; name: string }> = [],
   ): Promise<Expense> {
@@ -83,6 +84,7 @@ export const expensesService = {
       `${expensesPath}/${expenseId}/record-payment`,
       jsonMutation('POST', {
         amount,
+        paymentAccountId: Number(paymentAccountId),
         paymentDate: paymentDate.toISOString().slice(0, 10),
       }),
     );

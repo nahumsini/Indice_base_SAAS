@@ -7,10 +7,11 @@ import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyConte
 import { isBackendId } from '../adapters/adapter.utils';
 import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
 import { mockExpenses, mockProviders } from '../data/expenses.mock';
-import { accountingAccountsService, expenseAttachmentsService, expensesService, toFinanceApiErrorMessage } from '../services';
+import { accountingAccountsService, expenseAttachmentsService, expensesService, paymentAccountsService, toFinanceApiErrorMessage } from '../services';
 import { budgetLinesService } from '../services/budget-lines.service';
 import type { Expense, ExpenseStatus, Provider } from '../types/expenses.types';
 import type { ExpenseListFilters } from '../types/expenseView.types';
+import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { calculateExpenseTotals, filterExpenses } from '../utils/expenseFilters';
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
@@ -32,6 +33,7 @@ import { ExpenseTable } from './components/ExpenseTable';
 
 interface ExpensesProps {
   expenses?: Expense[];
+  onFinanceDataChanged?: () => void;
   onExpensesChange?: Dispatch<SetStateAction<Expense[]>>;
   providers?: ProviderRecord[];
 }
@@ -60,12 +62,13 @@ const createExpenseFolio = (currentExpenses: Expense[]) => {
   return `${prefix}${String(nextSequence).padStart(3, '0')}`;
 };
 
-export default function Expenses({ expenses: controlledExpenses, onExpensesChange, providers: providerRecords }: ExpensesProps = {}) {
+export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useFinanceTranslations();
   const [localExpenses, setLocalExpenses] = useState<Expense[]>(mockExpenses);
   const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [accountingAccountOptions, setAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [isPayableAccountModalOpen, setIsPayableAccountModalOpen] = useState(false);
@@ -74,6 +77,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const [isQuickExpenseModalOpen, setIsQuickExpenseModalOpen] = useState(false);
   const [isQuickExpenseSubmitting, setIsQuickExpenseSubmitting] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [initialExpense, setInitialExpense] = useState<Expense | null>(null);
   const [deletingExpenseIds, setDeletingExpenseIds] = useState<Set<string>>(() => new Set());
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const deletingExpenseIdsRef = useRef<Set<string>>(new Set());
@@ -153,6 +157,25 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   }, [t.expenses.messages.accountLoadFailed]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    paymentAccountsService.getPaymentAccounts()
+      .then(accounts => {
+        if (!isMounted) return;
+        setPaymentAccounts(accounts.filter(account => account.isActive));
+      })
+      .catch(error => {
+        if (isMounted) {
+          setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.accountLoadFailed));
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [t.expenses.messages.accountLoadFailed]);
+
+  useEffect(() => {
     if (filters.businessFilter === 'all') return;
     if (businessFilterOptions.some(option => option.value === filters.businessFilter)) return;
     setFilters(currentFilters => ({ ...currentFilters, businessFilter: 'all' }));
@@ -164,6 +187,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       return;
     }
     setEditingExpense(null);
+    setInitialExpense(null);
     setIsAddExpenseModalOpen(true);
   };
 
@@ -173,6 +197,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       return;
     }
     setEditingExpense(null);
+    setInitialExpense(null);
     setIsQuickExpenseModalOpen(true);
   };
 
@@ -182,6 +207,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       return;
     }
     setEditingExpense(null);
+    setInitialExpense(null);
     setIsPayableAccountModalOpen(true);
   };
 
@@ -244,6 +270,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
   const closeExpenseModal = () => {
     setIsAddExpenseModalOpen(false);
     setEditingExpense(null);
+    setInitialExpense(null);
   };
 
   const persistExpenseUpdate = useCallback((expense: Expense) => {
@@ -267,34 +294,61 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     }, 700);
   }, [providers, setExpenses, t.expenses.messages.saveFailed]);
 
+  const createPayableExpense = async (payableExpense: Expense) => {
+    const createdExpense = await expensesService.createPayableAccount(payableExpense, providers);
+    if (!payableExpense.budgetLineId || !isBackendId(createdExpense.id)) {
+      return createdExpense;
+    }
+
+    const submittedExpense = await expensesService.submitExpense(createdExpense.id, providers);
+    return expensesService.approveExpense(submittedExpense.id, providers);
+  };
+
+  const getUpdatedBudgetExpense = async (budgetLineId?: string) => {
+    if (!budgetLineId) return null;
+    try {
+      return await budgetLinesService.getBudgetExpense(budgetLineId);
+    } catch {
+      return null;
+    }
+  };
+
+  const replaceBudgetExpense = (currentExpenses: Expense[], budgetExpense: Expense | null) => (
+    budgetExpense
+      ? currentExpenses.map(item => (item.id === budgetExpense.id ? budgetExpense : item))
+      : currentExpenses
+  );
+
   const handleExpenseSubmit = async (values: ExpenseFormValues) => {
     const provider = providers.find(item => item.id === values.providerId);
     const now = new Date();
     const inputPaymentDate = values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined;
     const inputDueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : undefined;
-    const paymentDate = inputPaymentDate ?? editingExpense?.paymentDate;
-    const recordDate = editingExpense?.date ?? inputPaymentDate ?? now;
-    const dueDate = inputDueDate ?? editingExpense?.dueDate ?? now;
-    const previousAmountPaid = editingExpense?.amountPaid ?? 0;
+    const sourceExpense = editingExpense ?? initialExpense;
+    const paymentDate = inputPaymentDate ?? sourceExpense?.paymentDate;
+    const recordDate = sourceExpense?.date ?? inputPaymentDate ?? now;
+    const dueDate = inputDueDate ?? sourceExpense?.dueDate ?? now;
+    const previousAmountPaid = sourceExpense?.amountPaid ?? 0;
     const amountPaid = values.status === 'paid' || values.status === 'audited'
       ? values.total
       : values.status === 'partial' || values.status === 'overdue'
         ? Math.min(previousAmountPaid, values.total)
         : 0;
     const draftExpense: Expense = {
-      ...(editingExpense ?? {}),
+      ...(sourceExpense ?? {}),
       id: editingExpense?.id ?? `expense-${Date.now()}`,
-      folio: editingExpense?.folio ?? createExpenseFolio(expenses),
+      folio: sourceExpense?.folio ?? createExpenseFolio(expenses),
       businessUnit: values.businessUnit,
       business: values.business,
       concept: values.concept,
       description: values.description,
-      category: editingExpense?.category ?? mockExpenses[0].category,
+      category: sourceExpense?.category ?? mockExpenses[0].category,
       providerId: values.providerId,
       providerName: provider?.name,
-      requestedByUserId: editingExpense?.requestedByUserId ?? currentUser?.id,
-      approvedByUserId: editingExpense?.approvedByUserId,
-      performedByUserId: editingExpense?.performedByUserId,
+      budgetLineId: sourceExpense?.budgetLineId,
+      requestedByUserId: sourceExpense?.requestedByUserId ?? currentUser?.id,
+      approvedByUserId: sourceExpense?.approvedByUserId,
+      performedByUserId: sourceExpense?.performedByUserId,
       total: values.total,
       taxes: values.taxes,
       taxCountry: values.taxCountry,
@@ -314,9 +368,9 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       paymentMethod: values.paymentMethod,
       accountingAccount: values.accountingAccount,
       status: values.status,
-      attachments: values.attachments ?? editingExpense?.attachments ?? [],
-      type: editingExpense?.type ?? 'real',
-      createdAt: editingExpense?.createdAt ?? now,
+      attachments: values.attachments ?? sourceExpense?.attachments ?? [],
+      type: sourceExpense?.type ?? 'real',
+      createdAt: sourceExpense?.createdAt ?? now,
       updatedAt: now,
     };
 
@@ -325,12 +379,15 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         ? await budgetLinesService.updateBudgetLineFromExpense(draftExpense)
         : editingExpense && isBackendId(editingExpense.id)
           ? await expensesService.updateExpense(draftExpense, providers)
-          : await expensesService.createExpense(draftExpense, providers);
+          : draftExpense.type === 'payable'
+            ? await createPayableExpense(draftExpense)
+            : await expensesService.createExpense(draftExpense, providers);
+      const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
 
       setExpenses(currentExpenses => (
         editingExpense
-          ? currentExpenses.map(item => (item.id === editingExpense.id ? savedExpense : item))
-          : [savedExpense, ...currentExpenses]
+          ? replaceBudgetExpense(currentExpenses.map(item => (item.id === editingExpense.id ? savedExpense : item)), updatedBudgetExpense)
+          : [savedExpense, ...replaceBudgetExpense(currentExpenses, updatedBudgetExpense)]
       ));
       setSuccessToastMessage(editingExpense ? t.expenses.messages.saved : t.expenses.messages.created);
     } catch (error) {
@@ -343,6 +400,39 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     } finally {
       closeExpenseModal();
     }
+  };
+
+  const openBudgetPayableModal = (budgetExpense: Expense) => {
+    if (createExpenseDisabled) {
+      setFailureToastMessage(createExpenseDisabledReason);
+      return;
+    }
+
+    const now = new Date();
+    const budgetLineId = budgetExpense.budgetLineId
+      ?? (budgetExpense.id.startsWith('budget-line-') ? budgetExpense.id.replace('budget-line-', '') : undefined);
+    const payableAmount = budgetExpense.availableAmount && budgetExpense.availableAmount > 0
+      ? budgetExpense.availableAmount
+      : budgetExpense.total || budgetExpense.amount || 0;
+
+    setEditingExpense(null);
+    setInitialExpense({
+      ...budgetExpense,
+      id: `payable-${Date.now()}`,
+      folio: createExpenseFolio(expenses).replace('EXP-', 'CXP-'),
+      budgetLineId,
+      total: payableAmount,
+      amount: payableAmount,
+      amountPaid: 0,
+      taxes: 0,
+      status: 'pending',
+      type: 'payable',
+      date: now,
+      paymentDate: undefined,
+      createdAt: now,
+      updatedAt: now,
+    });
+    setIsAddExpenseModalOpen(true);
   };
 
   const handlePayableAccountSubmit = async (values: PayableAccountValues) => {
@@ -515,15 +605,23 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
     return handleExpenseStatusChange(expense, 'paid');
   };
 
-  const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentDate: Date) => {
+  const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date) => {
     try {
       const payableExpense = await ensureExpensePayable(expense);
       const savedExpense = payableExpense.type === 'budget'
         ? await budgetLinesService.updateBudgetLineFromExpense(applyExpensePayment(payableExpense, amount, paymentDate))
         : isBackendId(payableExpense.id)
-          ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentDate, providers)
-          : applyExpensePayment(payableExpense, amount, paymentDate);
+          ? await expensesService.recordExpensePayment(payableExpense.id, amount, paymentAccountId, paymentDate, providers)
+          : { ...applyExpensePayment(payableExpense, amount, paymentDate), paymentAccountId };
+      const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
 
+      setPaymentAccounts(currentAccounts => currentAccounts.map(account => (
+        account.id === paymentAccountId ? { ...account, balance: account.balance - amount } : account
+      )));
+      if (updatedBudgetExpense) {
+        setExpenses(currentExpenses => replaceBudgetExpense(currentExpenses, updatedBudgetExpense));
+      }
+      onFinanceDataChanged?.();
       setSuccessToastMessage(t.expenses.messages.saved);
       return savedExpense;
     } catch (error) {
@@ -582,7 +680,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
       />
 
       <ExpenseTable
-        actionVisibility={{ showAudit: false }}
+        actionVisibility={{ showAudit: false, showMarkPaid: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={translatedColumns}
         deletingExpenseIds={deletingExpenseIds}
@@ -590,14 +688,17 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
         getAttachments={getExpenseAttachments}
         onDeleteExpense={handleDelete}
         onDuplicateExpense={handleDuplicate}
+        onCreatePayableFromBudget={openBudgetPayableModal}
         onEditExpense={(expense) => {
           setEditingExpense(expense);
+          setInitialExpense(null);
           setIsAddExpenseModalOpen(true);
         }}
         onExpensesChange={setExpenses}
         onMarkExpensePaid={handleMarkExpensePaid}
         onOpenAttachments={openAttachmentsModal}
         onPersistExpenseUpdate={persistExpenseUpdate}
+        paymentAccounts={paymentAccounts}
         onRecordExpensePayment={handleRecordExpensePayment}
         onStatusChange={handleExpenseStatusChange}
         businessOptions={businessOptions}
@@ -634,6 +735,7 @@ export default function Expenses({ expenses: controlledExpenses, onExpensesChang
           accountingAccountOptions={accountingAccountOptions}
           businessOptions={businessOptions}
           editingExpense={editingExpense}
+          initialExpense={initialExpense}
           onClose={closeExpenseModal}
           preferredCurrency={preferredCurrency}
           providers={providers}

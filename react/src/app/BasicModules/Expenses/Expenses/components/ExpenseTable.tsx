@@ -4,6 +4,7 @@ import { mockProviders } from '../../data/expenses.mock';
 import type { Expense, ExpenseStatus, Provider } from '../../types/expenses.types';
 import type { ColumnConfig } from '../../types/expenseView.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
+import type { PaymentAccount } from '../../PaymentAccounts/types';
 import {
   DEFAULT_EXPENSE_COLUMN_WIDTHS,
   EXPENSE_USER_OPTIONS,
@@ -48,14 +49,16 @@ type ExpenseTableProps = {
   getAttachments: (expense: Expense) => string[];
   onDeleteExpense?: (expenseId: string) => void;
   onDuplicateExpense?: (expenseId: string) => void;
+  onCreatePayableFromBudget?: (expense: Expense) => void;
   onEditExpense?: (expense: Expense) => void;
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
   onMarkExpensePaid?: (expense: Expense) => Promise<Expense | null>;
   onOpenAttachments: (expense: Expense) => void;
   onPersistExpenseUpdate?: (expense: Expense) => void;
-  onRecordExpensePayment?: (expense: Expense, amount: number, paymentDate: Date) => Promise<Expense | null>;
+  onRecordExpensePayment?: (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date) => Promise<Expense | null>;
   onStatusChange?: (expense: Expense, status: ExpenseStatus) => Promise<Expense | null>;
   businessOptions?: FinanceReferenceOption[];
+  paymentAccounts?: PaymentAccount[];
   providers?: Provider[];
   unitOptions?: FinanceReferenceOption[];
   userOptions?: FinanceReferenceOption[];
@@ -72,6 +75,7 @@ export function ExpenseTable({
   getAttachments,
   onDeleteExpense,
   onDuplicateExpense,
+  onCreatePayableFromBudget,
   onEditExpense,
   onExpensesChange,
   onMarkExpensePaid,
@@ -80,11 +84,15 @@ export function ExpenseTable({
   onRecordExpensePayment,
   onStatusChange,
   businessOptions = [],
+  paymentAccounts = [],
   providers = mockProviders,
   unitOptions = [],
   userOptions = [],
 }: ExpenseTableProps) {
   const t = useFinanceTranslations();
+  const showAuditAction = actionVisibility?.showAudit ?? true;
+  const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
+  const showPaymentStatusOptions = showMarkPaidAction;
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_EXPENSE_COLUMN_WIDTHS);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
@@ -317,6 +325,12 @@ export function ExpenseTable({
     rowSelection.clearSelection();
   };
 
+  const handleCreatePayableFromBudget = (id: string) => {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense || expense.type !== 'budget') return;
+    onCreatePayableFromBudget?.(expense);
+  };
+
   const replaceSavedExpense = (savedExpense: Expense) => {
     onExpensesChange(prev => prev.map(expense => (expense.id === savedExpense.id ? savedExpense : expense)));
   };
@@ -324,6 +338,8 @@ export function ExpenseTable({
   const handleStatusChange = async (id: string, status: ExpenseStatus) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
+    if (!showPaymentStatusOptions && (status === 'paid' || status === 'partial')) return;
+    if (!showAuditAction && status === 'audited') return;
     const optimisticExpense = {
       ...expense,
       ...getStatusPatch(expense, status),
@@ -351,11 +367,11 @@ export function ExpenseTable({
     void handleStatusChange(id, 'paid');
   };
 
-  const handleRecordPayment = async (id: string, amount: number, paymentDate: Date) => {
+  const handleRecordPayment = async (id: string, amount: number, paymentAccountId: string, paymentDate: Date) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
     if (onRecordExpensePayment) {
-      const savedExpense = await onRecordExpensePayment(expense, amount, paymentDate);
+      const savedExpense = await onRecordExpensePayment(expense, amount, paymentAccountId, paymentDate);
       if (savedExpense) {
         replaceSavedExpense(savedExpense);
         setPaymentExpenseId(null);
@@ -366,6 +382,7 @@ export function ExpenseTable({
     const nextAmountPaid = Math.min(expense.total, (expense.amountPaid ?? 0) + amount);
     updateExpense(id, {
       amountPaid: nextAmountPaid,
+      paymentAccountId,
       paymentDate,
       status: nextAmountPaid >= expense.total ? 'paid' : 'partial',
     });
@@ -378,6 +395,7 @@ export function ExpenseTable({
         <ExpenseBulkActionsBar
           accountingAccountOptions={editableRowOptions.accountingAccounts}
           businessOptions={editableRowOptions.businesses}
+          showMarkPaid={showMarkPaidAction}
           onAccountingAccountChange={handleBulkAccountingAccountChange}
           onAuthorizerChange={handleBulkAuthorizerChange}
           onBusinessChange={handleBulkBusinessChange}
@@ -408,6 +426,7 @@ export function ExpenseTable({
         onAudit={setEditingRowId}
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
+        onCreatePayable={handleCreatePayableFromBudget}
         onEdit={(expense) => {
           if (onEditExpense) {
             onEditExpense(expense);
@@ -462,6 +481,7 @@ export function ExpenseTable({
                   onUpdateWorkflow={updateExpenseWorkflow}
                   onOpenAttachments={onOpenAttachments}
                   onDuplicate={handleDuplicate}
+                  onCreatePayable={handleCreatePayableFromBudget}
                   onDelete={handleDelete}
                   onActionEdit={onEditExpense ? () => onEditExpense(expense) : undefined}
                   onMarkPaid={handlePay}
@@ -517,6 +537,7 @@ export function ExpenseTable({
         <ExpensePaymentModal
           expense={paymentExpense}
           onClose={() => setPaymentExpenseId(null)}
+          paymentAccounts={paymentAccounts}
           onSubmit={handleRecordPayment}
         />
       )}

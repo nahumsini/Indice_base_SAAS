@@ -5,13 +5,15 @@ import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 interface KPIsProps {
   expenses: Expense[];
   providers: ProviderRecord[];
+  refreshKey?: number;
 }
 
-export default function KPIs({ expenses, providers }: KPIsProps) {
+export default function KPIs({ expenses, providers, refreshKey = 0 }: KPIsProps) {
   return (
     <GastosKPIPage
       expenses={expenses}
       providers={providers}
+      refreshKey={refreshKey}
     />
   );
 }

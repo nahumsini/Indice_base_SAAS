@@ -13,6 +13,7 @@ type ExpenseBulkActionsBarProps = {
   accountingAccountOptions: SelectOption[];
   businessOptions: SelectOption[];
   isDisabled?: boolean;
+  showMarkPaid?: boolean;
   onAccountingAccountChange: (value: string) => void;
   onAuthorizerChange: (value: string) => void;
   onBusinessChange: (value: string) => void;
@@ -38,6 +39,7 @@ export function ExpenseBulkActionsBar({
   accountingAccountOptions,
   businessOptions,
   isDisabled = false,
+  showMarkPaid = true,
   onAccountingAccountChange,
   onAuthorizerChange,
   onBusinessChange,
@@ -56,9 +58,13 @@ export function ExpenseBulkActionsBar({
   const t = useFinanceTranslations();
   const statusOptions: Array<{ value: ExpenseStatus; label: string }> = [
     { value: 'pending', label: t.statuses.pending },
-    { value: 'paid', label: t.statuses.paid },
-    { value: 'partial', label: t.statuses.partial },
     { value: 'overdue', label: t.statuses.overdue },
+    ...(showMarkPaid
+      ? [
+        { value: 'paid' as ExpenseStatus, label: t.statuses.paid },
+        { value: 'partial' as ExpenseStatus, label: t.statuses.partial },
+      ]
+      : []),
   ];
 
   return (
@@ -80,16 +86,18 @@ export function ExpenseBulkActionsBar({
           <BulkSelect disabled={isDisabled} label={t.budgets.columns.authorizer.label} onChange={onAuthorizerChange} options={userOptions} />
           <BulkSelect disabled={isDisabled} label={t.budgets.columns.performer.label} onChange={onResponsibleChange} options={userOptions} />
 
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
-            disabled={isDisabled}
-            onClick={onMarkPaidSelected}
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {t.statuses.paid}
-          </Button>
+          {showMarkPaid ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
+              disabled={isDisabled}
+              onClick={onMarkPaidSelected}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {t.statuses.paid}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"

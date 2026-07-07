@@ -223,15 +223,19 @@ class ExpenseServiceTest {
             new BigDecimal("66.00"),
             ExpenseStatus.PARTIALLY_PAID,
             PaymentStatus.PARTIALLY_PAID,
+            81L,
             LocalDate.of(2026, 6, 15)
         )).thenReturn(true);
+        when(workflowRepository.adjustPaymentAccountBalance(context, 81L, new BigDecimal("-50.00"))).thenReturn(true);
 
         var response = service.recordPayment(context, 21L,
-            new RecordExpensePaymentRequest(new BigDecimal("50.00"), LocalDate.of(2026, 6, 15)));
+            new RecordExpensePaymentRequest(new BigDecimal("50.00"), 81L, LocalDate.of(2026, 6, 15)));
 
         assertEquals(ExpenseStatus.PARTIALLY_PAID, response.status());
         assertEquals(new BigDecimal("50.00"), response.paidAmount());
         assertEquals(new BigDecimal("66.00"), response.balanceAmount());
+        verify(referenceValidator).validatePaymentAccountForPayment(context, 81L, "MXN");
+        verify(workflowRepository).adjustPaymentAccountBalance(context, 81L, new BigDecimal("-50.00"));
         verify(budgetLineRollupService).refreshExpenseImpact(context, 44L);
     }
 
@@ -250,16 +254,19 @@ class ExpenseServiceTest {
             new BigDecimal("0.00"),
             ExpenseStatus.PAID,
             PaymentStatus.PAID,
+            81L,
             LocalDate.of(2026, 6, 16)
         )).thenReturn(true);
+        when(workflowRepository.adjustPaymentAccountBalance(context, 81L, new BigDecimal("-116.00"))).thenReturn(true);
 
         var response = service.recordPayment(context, 22L,
-            new RecordExpensePaymentRequest(new BigDecimal("116.00"), LocalDate.of(2026, 6, 16)));
+            new RecordExpensePaymentRequest(new BigDecimal("116.00"), 81L, LocalDate.of(2026, 6, 16)));
 
         assertEquals(ExpenseStatus.PAID, response.status());
         assertEquals(PaymentStatus.PAID, response.paymentStatus());
         assertEquals(new BigDecimal("116.00"), response.paidAmount());
         assertEquals(new BigDecimal("0.00"), response.balanceAmount());
+        verify(workflowRepository).adjustPaymentAccountBalance(context, 81L, new BigDecimal("-116.00"));
     }
 
     @Test
@@ -271,10 +278,11 @@ class ExpenseServiceTest {
                 new BigDecimal("50.00"), new BigDecimal("66.00"))));
 
         var error = assertThrows(FinanceApiException.class, () -> service.recordPayment(context, 23L,
-            new RecordExpensePaymentRequest(new BigDecimal("70.00"), LocalDate.of(2026, 6, 17))));
+            new RecordExpensePaymentRequest(new BigDecimal("70.00"), 81L, LocalDate.of(2026, 6, 17))));
 
         assertEquals(HttpStatus.BAD_REQUEST, error.status());
-        verify(workflowRepository, never()).recordPayment(any(), eq(23L), any(), any(), any(), any(), any());
+        verify(workflowRepository, never()).recordPayment(any(), eq(23L), any(), any(), any(), any(), any(), any());
+        verify(workflowRepository, never()).adjustPaymentAccountBalance(any(), eq(81L), any());
     }
 
     @Test
