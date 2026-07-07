@@ -25,6 +25,7 @@ export { payableKiosksService, publicPayableKioskService } from './payable-kiosk
 export type {
   PayableKiosk,
   PayableKioskAccessType,
+  PayableKioskBootstrap,
   PayableKioskPayload,
   PayableKioskPublicProvider,
 } from './payable-kiosks.service';

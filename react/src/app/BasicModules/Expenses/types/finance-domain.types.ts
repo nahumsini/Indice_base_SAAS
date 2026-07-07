@@ -113,6 +113,7 @@ export interface FinanceExpense extends FinanceBaseEntity {
   approvedBy?: string;
   performedBy?: string;
   attachments: string[];
+  attachmentCount?: number;
   auditStatus?: string;
 }
 

@@ -187,7 +187,7 @@ export function AttachmentsModal({
         <div className="flex flex-shrink-0 items-center justify-between gap-3 px-6 py-4 text-white" style={{ backgroundColor: accent }}>
           <p className="text-xs text-white/80">{usesBackend ? 'Files are stored in document storage.' : t.expenses.attachments.saveHint}</p>
           <button onClick={onClose} type="button" className="rounded-xl bg-white px-5 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50" style={{ color: accentText }}>
-            {t.common.close}
+            {t.common.cancel}
           </button>
         </div>
       </div>
