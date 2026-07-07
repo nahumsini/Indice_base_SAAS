@@ -8,16 +8,47 @@ FRONTEND_DIST="${FRONTEND_DIST:-${APP_DIR}/react/dist}"
 WEB_CONTAINER="${WEB_CONTAINER:-indice-erp-web-1}"
 WEB_HTML_DIR="${WEB_HTML_DIR:-/usr/share/nginx/html}"
 DEFAULT_WEB_NGINX_CONFIG="${APP_DIR}/deployment/docker/web/nginx.conf"
+WEB_NGINX_CONFIG_PROVIDED="${WEB_NGINX_CONFIG+x}"
 WEB_NGINX_CONFIG="${WEB_NGINX_CONFIG:-${DEFAULT_WEB_NGINX_CONFIG}}"
 WEB_NGINX_CONFIG_TARGET="${WEB_NGINX_CONFIG_TARGET:-/etc/nginx/conf.d/default.conf}"
+WEB_NGINX_BACKEND_PORT="${WEB_NGINX_BACKEND_PORT:-}"
 SYNC_WEB_NGINX_CONFIG="${SYNC_WEB_NGINX_CONFIG:-true}"
 PUBLIC_URL="${PUBLIC_URL:-}"
 VALIDATE_PUBLIC="${VALIDATE_PUBLIC:-true}"
+PREPARED_WEB_NGINX_CONFIG=""
+
+cleanup() {
+  if [[ -n "${PREPARED_WEB_NGINX_CONFIG}" && -f "${PREPARED_WEB_NGINX_CONFIG}" ]]; then
+    rm -f "${PREPARED_WEB_NGINX_CONFIG}"
+  fi
+}
+trap cleanup EXIT
+
+prepare_nginx_config() {
+  local source_config="$1"
+
+  if [[ -z "${WEB_NGINX_BACKEND_PORT}" ]]; then
+    printf '%s\n' "${source_config}"
+    return 0
+  fi
+
+  if [[ -n "${PREPARED_WEB_NGINX_CONFIG}" && -f "${PREPARED_WEB_NGINX_CONFIG}" ]]; then
+    rm -f "${PREPARED_WEB_NGINX_CONFIG}"
+  fi
+  PREPARED_WEB_NGINX_CONFIG="$(mktemp)"
+  sed "s#127\\.0\\.0\\.1:8082#127.0.0.1:${WEB_NGINX_BACKEND_PORT}#g" \
+    "${source_config}" >"${PREPARED_WEB_NGINX_CONFIG}"
+  printf '%s\n' "${PREPARED_WEB_NGINX_CONFIG}"
+}
 
 publish_nginx_config() {
   local host_config_path
+  local source_config="${WEB_NGINX_CONFIG}"
+  local prepared_config
+  local host_config_candidate="${APP_DIR}/deployment/docker/web/nginx.host.conf"
 
-  if docker cp "${WEB_NGINX_CONFIG}" "${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"; then
+  prepared_config="$(prepare_nginx_config "${source_config}")"
+  if docker cp "${prepared_config}" "${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"; then
     return 0
   fi
 
@@ -35,14 +66,22 @@ publish_nginx_config() {
 
   echo "Detected nginx config bind mount: ${host_config_path}"
 
+  if [[ -z "${WEB_NGINX_CONFIG_PROVIDED}" \
+    && "$(basename "${host_config_path}")" == *host* \
+    && -f "${host_config_candidate}" ]]; then
+    source_config="${host_config_candidate}"
+    prepared_config="$(prepare_nginx_config "${source_config}")"
+    echo "Bind-mounted config looks host-network; using ${source_config}"
+  fi
+
   if [[ ! -w "${host_config_path}" ]]; then
     echo "The bind-mounted nginx config is not writable by this user." >&2
     echo "Run with a user that can write it, or update it manually:" >&2
-    echo "cp '${WEB_NGINX_CONFIG}' '${host_config_path}'" >&2
+    echo "cp '${source_config}' '${host_config_path}'" >&2
     return 1
   fi
 
-  cp "${WEB_NGINX_CONFIG}" "${host_config_path}"
+  cp "${prepared_config}" "${host_config_path}"
 }
 
 if [[ ! -f "${FRONTEND_DIST}/index.html" ]]; then
