@@ -1,5 +1,6 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import {
   Table,
@@ -10,6 +11,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import type { SalesOpportunity, SalesQuote } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
@@ -78,7 +80,7 @@ function ColumnResizeHandle({
     <button
       type="button"
       aria-label={`Resize ${columnId} column`}
-      className="absolute right-0 top-1/2 h-8 w-2 -translate-y-1/2 cursor-col-resize rounded-full transition-colors hover:bg-[#FF6B5E]/35 focus:bg-[#FF6B5E]/35 focus:outline-none"
+      className="absolute right-0 top-1/2 h-8 w-2 -translate-y-1/2 cursor-col-resize rounded-full transition-colors hover:bg-[#FF6B5E]/35 focus-visible:bg-[#FF6B5E]/35 focus-visible:outline-none"
       onMouseDown={handleMouseDown}
     />
   );
@@ -127,8 +129,24 @@ export function ProspectosTable({
   onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
   onResizeColumn: (columnId: OpportunityColumnId, width: number) => void;
 }) {
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedOpportunities,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${sortState.columnId}:${sortState.direction}:${opportunities.map((opportunity) => opportunity.id).join('|')}`,
+    rows: opportunities,
+  });
+
   return (
-    <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <Table className="table-fixed" style={{ minWidth: `${tableMinWidth}px` }}>
           <TableHeader>
@@ -157,7 +175,7 @@ export function ProspectosTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {opportunities.map((opportunity) => (
+            {paginatedOpportunities.map((opportunity) => (
               <ProspectosTableRow
                 copy={copy}
                 key={opportunity.id}
@@ -189,6 +207,18 @@ export function ProspectosTable({
           </TableBody>
         </Table>
       </div>
+      <DataTablePagination
+        currentPage={currentPage}
+        itemLabel="oportunidades"
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        pageEnd={pageEnd}
+        pageSize={pageSize}
+        pageSizeOptions={pageSizeOptions}
+        pageStart={pageStart}
+        totalCount={totalCount}
+        totalPages={totalPages}
+      />
     </section>
   );
 }

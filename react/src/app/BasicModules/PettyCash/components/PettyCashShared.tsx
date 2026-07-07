@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react';
 import { Columns3, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
 import {
   pettyCashFundStatusClasses,
   pettyCashFundStatusLabels,
@@ -200,11 +202,58 @@ export function PettyCashStatusPill({ kind, status }: { kind: StatusKind; status
   );
 }
 
-export function PettyCashTableShell({ children }: { children: ReactNode }) {
+export function PettyCashTableShell({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="overflow-x-auto">{children}</div>
+      {footer}
     </div>
+  );
+}
+
+export function PettyCashPagination({
+  currentPage,
+  itemLabel = 'registros',
+  onPageChange,
+  onPageSizeChange,
+  pageEnd,
+  pageSize,
+  pageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS,
+  pageStart,
+  totalCount,
+  totalPages,
+}: {
+  currentPage: number;
+  itemLabel?: string;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  pageEnd: number;
+  pageSize: number;
+  pageSizeOptions?: readonly number[];
+  pageStart: number;
+  totalCount: number;
+  totalPages: number;
+}) {
+  return (
+    <DataTablePagination
+      currentPage={currentPage}
+      itemLabel={itemLabel}
+      labels={{
+        next: 'Siguiente',
+        page: (current, total) => `${current} / ${total}`,
+        previous: 'Anterior',
+        rowsPerPage: 'Filas por pagina',
+        showing: (start, end, total, label) => `Mostrando ${start}-${end} de ${total} ${label}`,
+      }}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
+      pageEnd={pageEnd}
+      pageSize={pageSize}
+      pageSizeOptions={pageSizeOptions}
+      pageStart={pageStart}
+      totalCount={totalCount}
+      totalPages={totalPages}
+    />
   );
 }
 

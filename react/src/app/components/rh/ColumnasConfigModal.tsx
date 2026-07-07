@@ -162,7 +162,7 @@ export function ColumnasConfigModal({
         accent: 'text-[#59C3A5]',
         checkbox:
           'data-[state=checked]:border-[#59C3A5] data-[state=checked]:bg-[#59C3A5] focus-visible:ring-[#59C3A5]/30',
-        content: 'max-w-[900px] rounded-[28px]',
+        content: 'max-w-[900px] rounded-3xl',
         footer: 'bg-[#59C3A5]',
         header: 'bg-[#59C3A5]',
         interactive: 'hover:border-[#59C3A5]/40 hover:bg-[#59C3A5]/5',
@@ -176,12 +176,12 @@ export function ColumnasConfigModal({
         accent: 'text-[#FF6B5E]',
         checkbox:
           'data-[state=checked]:border-[#FF6B5E] data-[state=checked]:bg-[#FF6B5E] focus-visible:ring-[#FF6B5E]/30',
-        content: 'max-w-[760px] rounded-[28px]',
+        content: 'max-w-[900px] rounded-3xl',
         footer: 'bg-[#FF6B5E]',
         header: 'bg-[#FF6B5E]',
         interactive: 'hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/5',
         primary:
-          'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#B63B32] shadow-sm hover:bg-slate-100 hover:text-[#B63B32] focus-visible:ring-white/40 dark:bg-white dark:text-[#B63B32] dark:hover:bg-slate-100',
+          'h-10 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-slate-100 hover:text-[#B63B32] focus-visible:ring-white/40 dark:bg-white dark:text-[#B63B32] dark:hover:bg-slate-100',
       };
     }
 

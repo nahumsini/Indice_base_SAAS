@@ -13,18 +13,18 @@ import { SalesStatusBadge } from './SalesStatusBadge';
 import { ValidationStatusBadge } from './ValidationStatusBadge';
 
 const relationshipClasses: Record<SaleCustomerRelationshipStatus, string> = {
-  first_purchase: 'border-slate-200 bg-slate-50 text-slate-700',
-  recurring: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
-  renewal: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
-  recovered: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  dormant: 'border-slate-300 bg-slate-100 text-slate-500',
+  first_purchase: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  recurring: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-300',
+  renewal: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
+  recovered: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
+  dormant: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
 const healthClasses: Record<SaleCustomerHealthStatus, string> = {
-  healthy: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
-  attention: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  at_risk: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32]',
-  lost: 'border-slate-300 bg-slate-100 text-slate-500',
+  healthy: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
+  attention: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
+  at_risk: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32] dark:text-[#FFB0AA]',
+  lost: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 const salesCellClassName = 'overflow-hidden whitespace-normal px-5 py-5 align-top';
 
@@ -58,7 +58,7 @@ function RowActionButton({
       size="icon"
       aria-label={label}
       className={cn(
-        'h-9 w-9 shrink-0 rounded-xl border transition-colors',
+        'inline-flex h-9 w-9 shrink-0 rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
         className,
         disabled && 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-800',
       )}
@@ -218,39 +218,39 @@ export function SalesTableRow({
             <RowActionButton
               label={t.common.view}
               icon={<Eye className="h-4 w-4" />}
-              className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20"
+              className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
               onClick={() => onView(record)}
             />
             <RowActionButton
               label={t.table.actions.previewSummary}
               icon={<FileSearch className="h-4 w-4" />}
-              className="border-[#FF6B5E]/25 bg-white text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900 dark:text-[#FFB0AA]"
+              className="border-[#FF6B5E]/25 bg-white text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
               onClick={() => onPreviewSummary(record)}
             />
             <RowActionButton
               label={t.table.actions.manageCommission}
               icon={<BadgePercent className="h-4 w-4" />}
-              className="border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] hover:bg-[#F4C84A]/25"
+              className="border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] hover:bg-[#F4C84A]/25 dark:text-[#F7D973] dark:hover:bg-[#F4C84A]/25"
               onClick={() => onManageCommission(record)}
             />
             <RowActionButton
               label={movementPrepared ? t.table.actions.alreadyPrepared : t.table.actions.prepareMovement}
               icon={<PackageCheck className="h-4 w-4" />}
-              className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15"
+              className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/20"
               disabled={isCancelled || movementPrepared}
               onClick={() => onPrepareMovement(record)}
             />
             <RowActionButton
               label={financeApproved ? t.table.actions.financeApproved : t.table.actions.sendToFinance}
               icon={<Send className="h-4 w-4" />}
-              className="border-violet-500/25 bg-violet-500/10 text-violet-700 hover:bg-violet-500/15 dark:text-violet-300"
+              className="border-violet-500/25 bg-violet-500/10 text-violet-700 hover:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/20"
               disabled={isCancelled || financeApproved}
               onClick={() => onSendToFinance(record)}
             />
             <RowActionButton
               label={isCancelled ? t.table.actions.cancelled : t.table.actions.cancelSale}
               icon={<XCircle className="h-4 w-4" />}
-              className="border-[#FF6B5E]/30 bg-white text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900"
+              className="border-[#FF6B5E]/30 bg-white text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
               disabled={isCancelled}
               onClick={() => onCancelSale(record)}
             />

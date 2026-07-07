@@ -14,8 +14,10 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   configCenterApi,
   type ConfigCenterCatalogBusiness,
@@ -409,7 +411,7 @@ export default function Users() {
               ? 'Tu'
               : 'You';
 
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = useMemo(() => users.filter((user) => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchesSearch =
       normalizedSearch === '' ||
@@ -419,7 +421,56 @@ export default function Users() {
     const matchesStatus = statusFilter === '' || user.status === statusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
+  }), [roleFilter, searchTerm, statusFilter, users]);
+  const usersPaginationResetKey = useMemo(
+    () => `${searchTerm}:${roleFilter}:${statusFilter}:${filteredUsers.map(user => user.id).join('|')}`,
+    [filteredUsers, roleFilter, searchTerm, statusFilter],
+  );
+  const usersPagination = useTablePagination({
+    resetKey: usersPaginationResetKey,
+    rows: filteredUsers,
   });
+  const usersPaginationCopy = useMemo(() => {
+    const languageCode = currentLanguage.code;
+
+    if (languageCode === 'en-US' || languageCode === 'en-CA') {
+      return {
+        itemLabel: 'users',
+        next: 'Next',
+        previous: 'Previous',
+        rowsPerPage: 'Rows per page',
+        showing: (start: number, end: number, total: number, label: string) => `Showing ${start}-${end} of ${total} ${label}`,
+      };
+    }
+
+    if (languageCode === 'fr-CA') {
+      return {
+        itemLabel: 'utilisateurs',
+        next: 'Suivant',
+        previous: 'Precedent',
+        rowsPerPage: 'Lignes par page',
+        showing: (start: number, end: number, total: number, label: string) => `${start}-${end} sur ${total} ${label}`,
+      };
+    }
+
+    if (languageCode === 'pt-BR') {
+      return {
+        itemLabel: 'usuarios',
+        next: 'Proximo',
+        previous: 'Anterior',
+        rowsPerPage: 'Linhas por pagina',
+        showing: (start: number, end: number, total: number, label: string) => `Mostrando ${start}-${end} de ${total} ${label}`,
+      };
+    }
+
+    return {
+      itemLabel: 'usuarios',
+      next: 'Siguiente',
+      previous: 'Anterior',
+      rowsPerPage: 'Filas por pagina',
+      showing: (start: number, end: number, total: number, label: string) => `Mostrando ${start}-${end} de ${total} ${label}`,
+    };
+  }, [currentLanguage.code]);
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
@@ -1351,7 +1402,7 @@ export default function Users() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => {
+                usersPagination.paginatedRows.map((user) => {
                   const isCurrentUser = user.source === 'user' && user.backendId === currentUserId;
                   const canEditUserAccess = canEditAccessFor(user);
                   const initials = user.name
@@ -1519,6 +1570,25 @@ export default function Users() {
             </tbody>
           </table>
         </div>
+        <DataTablePagination
+          currentPage={usersPagination.currentPage}
+          itemLabel={usersPaginationCopy.itemLabel}
+          labels={{
+            next: usersPaginationCopy.next,
+            page: (current, total) => `${current} / ${total}`,
+            previous: usersPaginationCopy.previous,
+            rowsPerPage: usersPaginationCopy.rowsPerPage,
+            showing: usersPaginationCopy.showing,
+          }}
+          onPageChange={usersPagination.onPageChange}
+          onPageSizeChange={usersPagination.onPageSizeChange}
+          pageEnd={usersPagination.pageEnd}
+          pageSize={usersPagination.pageSize}
+          pageSizeOptions={usersPagination.pageSizeOptions}
+          pageStart={usersPagination.pageStart}
+          totalCount={usersPagination.totalCount}
+          totalPages={usersPagination.totalPages}
+        />
       </div>
 
       {selectedUser && (

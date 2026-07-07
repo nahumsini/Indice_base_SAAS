@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -33,12 +34,14 @@ import {
 } from '../../../components/ui/table';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   salesOwners,
   type SalesContact,
   useSalesCrm,
 } from '../salesCrmContext';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
+import { SalesModalFrame } from '../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../salesModalStyles';
 import { digitalContractsBackendPreparation } from './services/digitalContractsService';
 import { digitalContractTemplateRegistry } from './templates/contractTemplateRegistry';
 import {
@@ -87,22 +90,22 @@ type SignatureFormState = {
 };
 
 const statusClasses: Record<DigitalContractStatus, string> = {
-  Draft: 'border-slate-200 bg-slate-50 text-slate-600',
-  'Internal review': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  Sent: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
-  Viewed: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
-  'Pending signature': 'border-violet-200 bg-violet-50 text-violet-700',
-  Signed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  Expired: 'border-slate-300 bg-slate-100 text-slate-500',
-  Cancelled: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
+  Draft: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  'Internal review': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F4C84A]',
+  Sent: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-300',
+  Viewed: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
+  'Pending signature': 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300',
+  Signed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300',
+  Expired: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+  Cancelled: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FFB0AA]',
 };
 
 const signatureClasses: Record<DigitalSignatureStatus, string> = {
-  'Not requested': 'border-slate-200 bg-slate-50 text-slate-600',
-  Waiting: 'border-violet-200 bg-violet-50 text-violet-700',
-  Signed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  Declined: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
-  Expired: 'border-slate-300 bg-slate-100 text-slate-500',
+  'Not requested': 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  Waiting: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300',
+  Signed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300',
+  Declined: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FFB0AA]',
+  Expired: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
 };
 
 function getTodayIsoDate() {
@@ -209,7 +212,7 @@ function ActionButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25',
         className,
       )}
     >
@@ -297,6 +300,21 @@ export default function Contrato() {
 
     return matchesSearch && matchesClient && matchesStatus && matchesSignature && matchesType && matchesOwner && matchesExpiration;
   }), [clientFilter, contracts, expirationFilter, opportunities, ownerFilter, quotes, search, signatureFilter, statusFilter, typeFilter]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedContracts,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${search}:${clientFilter}:${statusFilter}:${signatureFilter}:${typeFilter}:${ownerFilter}:${expirationFilter}:${contracts.map((contract) => contract.id).join('|')}`,
+    rows: filteredContracts,
+  });
 
   const activeContracts = contracts.filter((contract) => !['Signed', 'Expired', 'Cancelled'].includes(contract.status)).length;
   const pendingSignatures = contracts.filter((contract) => contract.signatureStatus === 'Waiting' || contract.status === 'Pending signature').length;
@@ -527,7 +545,7 @@ export default function Contrato() {
                       {t.table.empty}
                     </TableCell>
                   </TableRow>
-                ) : filteredContracts.map((contract) => {
+                ) : paginatedContracts.map((contract) => {
                   const opportunity = opportunities.find((item) => item.id === contract.relatedOpportunityId);
                   const quote = quotes.find((item) => item.id === contract.relatedQuoteId);
 
@@ -589,7 +607,7 @@ export default function Contrato() {
                       <TableCell className="px-5 py-4">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                           onClick={() => setFilesContract(contract)}
                         >
                           <FileText className="h-4 w-4 text-[#2563EB]" />
@@ -597,11 +615,11 @@ export default function Contrato() {
                         </button>
                       </TableCell>
                       <TableCell className="px-5 py-4">
-                        <div className="flex gap-2">
-                          <ActionButton label={t.actions.preview} icon={<FileSignature className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" onClick={() => setSelectedContractId(contract.id)} />
-                          <ActionButton label={t.actions.files} icon={<FolderOpen className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20" onClick={() => setFilesContract(contract)} />
-                          <ActionButton label={t.actions.requestSignature} icon={<Send className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20" onClick={() => openSignatureModal(contract)} />
-                          <ActionButton label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50" />
+                        <div className="mx-auto grid w-fit grid-cols-[repeat(4,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                          <ActionButton label={t.actions.preview} icon={<FileSignature className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" onClick={() => setSelectedContractId(contract.id)} />
+                          <ActionButton label={t.actions.files} icon={<FolderOpen className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20 dark:text-[#F4C84A] dark:hover:bg-[#F4C84A]/25" onClick={() => setFilesContract(contract)} />
+                          <ActionButton label={t.actions.requestSignature} icon={<Send className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/25" onClick={() => openSignatureModal(contract)} />
+                          <ActionButton label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -610,6 +628,18 @@ export default function Contrato() {
               </TableBody>
             </Table>
           </div>
+          <DataTablePagination
+            currentPage={currentPage}
+            itemLabel="contratos"
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            pageEnd={pageEnd}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            pageStart={pageStart}
+            totalCount={totalCount}
+            totalPages={totalPages}
+          />
         </div>
 
         <aside className="space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

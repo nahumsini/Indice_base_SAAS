@@ -3,7 +3,8 @@ import { ArrowRightLeft, CheckCircle2, PackageOpen, Plus, Trash2, Warehouse } fr
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../../salesModalStyles';
 import type { InventoryBusiness, InventoryBusinessUnit, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { getWarehouseInventorySummary } from '../../utils/inventoryCalculations';

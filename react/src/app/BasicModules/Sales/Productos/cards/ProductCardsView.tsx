@@ -33,7 +33,7 @@ function ProductCardAction({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
         className,
       )}
     >
@@ -86,7 +86,7 @@ export function ProductCardsView({
                   <div className="relative bg-slate-50 p-3 dark:bg-slate-800">
                     <button
                       type="button"
-                      className="group block w-full rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/30"
+                      className="group block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30"
                       onClick={() => openCarousel(product)}
                       aria-label={t.gallery.open(product.name)}
                     >
@@ -136,11 +136,11 @@ export function ProductCardsView({
                     <ProductHealthIndicators product={product} t={t} />
 
                     <div className="flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 dark:border-slate-700 dark:bg-slate-800">
-                      <ProductCardAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" onClick={() => openCarousel(product)} />
+                      <ProductCardAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB8B1] dark:hover:bg-[#FF6B5E]/25" onClick={() => openCarousel(product)} />
                       <ProductCardAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => onEditProduct?.(product)} />
-                      <ProductCardAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20" onClick={() => onDuplicateProduct?.(product)} />
-                      <ProductCardAction label={product.status === 'Active' ? t.actions.deactivate : t.actions.activate} icon={<Power className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15" onClick={() => onToggleProductStatus?.(product)} />
-                      <ProductCardAction label={t.actions.delete} icon={<Trash2 className="h-4 w-4" />} className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100" onClick={() => onDeleteProduct?.(product)} />
+                      <ProductCardAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#F7D86B] dark:hover:bg-[#F4C84A]/25" onClick={() => onDuplicateProduct?.(product)} />
+                      <ProductCardAction label={product.status === 'Active' ? t.actions.deactivate : t.actions.activate} icon={<Power className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15 dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/15 dark:text-[#7DE0C4] dark:hover:bg-[#59C3A5]/25" onClick={() => onToggleProductStatus?.(product)} />
+                      <ProductCardAction label={t.actions.delete} icon={<Trash2 className="h-4 w-4" />} className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25" onClick={() => onDeleteProduct?.(product)} />
                     </div>
                   </div>
                 </article>

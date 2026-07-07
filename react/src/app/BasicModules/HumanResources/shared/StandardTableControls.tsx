@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { cn } from '../../../components/ui/utils';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
 
 export type StandardSortDirection = 'asc' | 'desc' | null;
 
@@ -83,7 +85,7 @@ interface StandardPaginationFooterProps {
   onPageSizeChange: (pageSize: number) => void;
   pageEnd: number;
   pageSize: number;
-  pageSizeOptions?: number[];
+  pageSizeOptions?: readonly number[];
   pageStart: number;
   totalCount: number;
   totalPages: number;
@@ -96,74 +98,29 @@ export function StandardPaginationFooter({
   onPageSizeChange,
   pageEnd,
   pageSize,
-  pageSizeOptions = [10, 25, 50],
+  pageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS,
   pageStart,
   totalCount,
   totalPages,
 }: StandardPaginationFooterProps) {
-  if (totalCount === 0) {
-    return null;
-  }
-
-  const changePage = (page: number) => {
-    if (page < 1 || page > totalPages || page === currentPage) {
-      return;
-    }
-
-    onPageChange(page);
-  };
-
   return (
-    <div className="flex flex-col gap-4 border-t border-slate-200 px-6 py-4 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        {labels.showing(pageStart, pageEnd, totalCount)}
-      </p>
-
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <label className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-          {labels.pageSize ? <span>{labels.pageSize}</span> : null}
-          <select
-            value={pageSize}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            aria-label={labels.pageSize}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-          >
-            {pageSizeOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {labels.page(currentPage, totalPages)}
-        </p>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => changePage(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            {labels.previous}
-          </button>
-          <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-            {currentPage}
-          </span>
-          <button
-            type="button"
-            onClick={() => changePage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            {labels.next}
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
+    <DataTablePagination
+      currentPage={currentPage}
+      labels={{
+        next: labels.next,
+        page: labels.page,
+        previous: labels.previous,
+        rowsPerPage: labels.pageSize,
+        showing: (start, end, total) => labels.showing(start, end, total),
+      }}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
+      pageEnd={pageEnd}
+      pageSize={pageSize}
+      pageSizeOptions={pageSizeOptions}
+      pageStart={pageStart}
+      totalCount={totalCount}
+      totalPages={totalPages}
+    />
   );
 }

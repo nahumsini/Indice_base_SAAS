@@ -12,9 +12,12 @@ export function AttendanceDailyBoard({
   currentPage,
   endRow,
   pageCount,
+  pageSize,
+  pageSizeOptions,
   selectedEmployeeId,
   startRow,
   onPageChange,
+  onPageSizeChange,
   onSelectAssignment,
 }: {
   copy: AttendanceControlCopy;
@@ -26,9 +29,12 @@ export function AttendanceDailyBoard({
   currentPage: number;
   endRow: number;
   pageCount: number;
+  pageSize: number;
+  pageSizeOptions: readonly number[];
   selectedEmployeeId: number | null;
   startRow: number;
   onPageChange: (value: number) => void;
+  onPageSizeChange: (value: number) => void;
   onSelectAssignment: (assignment: AttendanceControlAssignment) => void;
 }) {
   return (
@@ -51,11 +57,14 @@ export function AttendanceDailyBoard({
         assignments={assignments}
         currentPage={currentPage}
         endRow={endRow}
+        pageSize={pageSize}
+        pageSizeOptions={pageSizeOptions}
         selectedEmployeeId={selectedEmployeeId}
         filteredCount={filteredCount}
         pageCount={pageCount}
         startRow={startRow}
         onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
         onSelectAssignment={onSelectAssignment}
       />
     </section>

@@ -54,7 +54,7 @@ function SalesColumnResizeHandle({
     <button
       type="button"
       aria-label={t.table.resizeColumn(label)}
-      className="absolute right-0 top-1/2 h-8 w-2 -translate-y-1/2 cursor-col-resize rounded-full transition-colors hover:bg-[#FF6B5E]/35 focus:bg-[#FF6B5E]/35 focus:outline-none"
+      className="absolute right-0 top-1/2 h-8 w-2 -translate-y-1/2 cursor-col-resize rounded-full transition-colors hover:bg-[#FF6B5E]/35 focus-visible:bg-[#FF6B5E]/35 focus-visible:outline-none"
       onMouseDown={handleMouseDown}
     />
   );

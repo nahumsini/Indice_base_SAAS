@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Users, UserCheck, UserX, DollarSign, User, CreditCard, FileText } from 'lucide-react';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import { buildSalesContactInputFromPointOfSale, buildSalesContactPatchFromPointOfSale } from '../../CommerceCore/posCustomerMutations';
 import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
@@ -8,6 +9,7 @@ import {
   PointOfSaleTitleBar,
   pointOfSaleTitleBarPrimaryActionClassName,
 } from '../shared/components/PointOfSaleTitleBar';
+import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 import { AddCustomerModal } from './components/AddCustomerModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
 
@@ -48,6 +50,14 @@ export default function Clientes() {
       return matchesSearch && matchesStatus;
     });
   }, [customers, searchTerm, statusFilter]);
+  const customersPaginationResetKey = useMemo(
+    () => `${searchTerm}:${statusFilter}:${filteredCustomers.map((customer) => customer.id).join('|')}`,
+    [filteredCustomers, searchTerm, statusFilter],
+  );
+  const customersPagination = useTablePagination({
+    resetKey: customersPaginationResetKey,
+    rows: filteredCustomers,
+  });
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -324,7 +334,7 @@ export default function Clientes() {
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((customer) => (
+                customersPagination.paginatedRows.map((customer) => (
                   <tr
                     key={customer.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -412,14 +422,7 @@ export default function Clientes() {
           </table>
         </div>
 
-        {/* Footer */}
-        {filteredCustomers.length > 0 && (
-          <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Mostrando {filteredCustomers.length} de {customers.length} cliente{customers.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-        )}
+        <PointOfSaleTablePagination {...customersPagination} itemLabel="clientes" />
       </div>
 
       {/* Add/Edit Customer Modal */}

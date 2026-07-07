@@ -153,9 +153,15 @@ export function buildControlControllerProps({
         currentPage: filters.currentAttendanceListPage,
         endRow: filters.attendanceListShowingEnd,
         pageCount: filters.attendanceListPageCount,
+        pageSize: filters.attendanceListPageSize,
+        pageSizeOptions: filters.attendanceListPageSizeOptions,
         selectedEmployeeId: data.selectedEmployeeId,
         startRow: filters.attendanceListShowingStart,
         onPageChange: filters.setAttendanceListPage,
+        onPageSizeChange: (pageSize) => {
+          filters.setAttendanceListPageSize(pageSize);
+          filters.setAttendanceListPage(1);
+        },
         onSelectAssignment: (assignment) => {
           data.setSelectedEmployeeId(assignment.user_company_id);
           if (assignment.schedule_template_id) {

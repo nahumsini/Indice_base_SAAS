@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
 import { CircleDollarSign } from 'lucide-react';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type { ReceivableAccount, ReceivableStatus } from '../../../CommerceCore/receivables';
+import { PointOfSaleTablePagination } from '../../shared/components/PointOfSaleTablePagination';
 
 interface ReceivablesTableProps {
   receivables: ReceivableAccount[];
@@ -27,6 +30,12 @@ const statusClasses: Record<ReceivableStatus, string> = {
 };
 
 export function ReceivablesTable({ receivables, onRegisterPayment }: ReceivablesTableProps) {
+  const receivablesPaginationResetKey = useMemo(() => receivables.map((receivable) => receivable.id).join('|'), [receivables]);
+  const receivablesPagination = useTablePagination({
+    resetKey: receivablesPaginationResetKey,
+    rows: receivables,
+  });
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="overflow-x-auto">
@@ -39,7 +48,7 @@ export function ReceivablesTable({ receivables, onRegisterPayment }: Receivables
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {receivables.map((receivable) => (
+            {receivablesPagination.paginatedRows.map((receivable) => (
               <tr key={receivable.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                 <td className="px-4 py-3">
                   <p className="font-bold text-gray-950 dark:text-white">{receivable.customerName}</p>
@@ -86,6 +95,7 @@ export function ReceivablesTable({ receivables, onRegisterPayment }: Receivables
           </div>
         )}
       </div>
+      <PointOfSaleTablePagination {...receivablesPagination} itemLabel="cuentas" />
     </div>
   );
 }

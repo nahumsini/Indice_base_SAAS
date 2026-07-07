@@ -1,6 +1,7 @@
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesOpportunity } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
 

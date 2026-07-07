@@ -13,6 +13,7 @@ import { CortesTable } from './components/CortesTable';
 import { useCashClosingHistory } from './hooks/useCashClosingHistory';
 import { cashClosingsApi } from './services/cashClosingsApi';
 import { posBackendApi, type PosCashRegisterResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
+import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 import type { PosCashClosingSummaryRow } from './types/cashClosingHistory.types';
 import { defaultCortesColumns, type CortesColumnId } from './utils/cortesColumns';
 import {
@@ -27,7 +28,6 @@ import {
 } from './utils/cortesUtils';
 import { buildCortesPrintReportHtml } from './utils/cortesPrintReport';
 
-const pageSize = 50;
 const todayRange = getCortesPeriodRange('today');
 
 function arrayFromResponse<T>(response: unknown): T[] {
@@ -78,6 +78,7 @@ export default function Cortes() {
   const [viewMode, setViewMode] = useState<CortesViewMode>('table');
   const [sortKey, setSortKey] = useState<CortesSortKey>('closedAt');
   const [sortDirection, setSortDirection] = useState<CortesSortDirection>('desc');
+  const [pageSize, setPageSize] = useState(10);
   const [offset, setOffset] = useState(0);
   const [notice, setNotice] = useState('');
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
@@ -151,10 +152,28 @@ export default function Cortes() {
     const filteredRows = filterCortesRows(rows, filters);
     return sortCortesRows(filteredRows, sortKey, sortDirection);
   }, [filters, rows, sortDirection, sortKey]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)));
+  const currentPage = Math.min(totalPages, Math.floor(offset / pageSize) + 1);
+  const pageStart = totalCount === 0 ? 0 : Math.min(offset + 1, totalCount);
+  const pageEnd = totalCount === 0 ? 0 : Math.min(offset + rows.length, totalCount);
 
   useEffect(() => {
     setSelectedRowIds((current) => current.filter((rowId) => visibleRows.some((row) => row.id === rowId)));
   }, [visibleRows]);
+
+  useEffect(() => {
+    if (totalCount === 0) {
+      if (offset !== 0) {
+        setOffset(0);
+      }
+      return;
+    }
+
+    const maxOffset = Math.max(0, (totalPages - 1) * pageSize);
+    if (offset > maxOffset) {
+      setOffset(maxOffset);
+    }
+  }, [offset, pageSize, totalCount, totalPages]);
 
   const selectedRows = useMemo(
     () => visibleRows.filter((row) => selectedRowIds.includes(row.id)),
@@ -375,9 +394,6 @@ export default function Cortes() {
     openDetail(row);
   };
 
-  const nextPageDisabled = offset + pageSize >= totalCount;
-  const previousPageDisabled = offset === 0;
-
   return (
     <div className="space-y-6">
       <CortesHeader
@@ -468,29 +484,21 @@ export default function Cortes() {
         />
       )}
 
-      <div className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-          Pagina {Math.floor(offset / pageSize) + 1} - limite {pageSize}
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={previousPageDisabled}
-            onClick={() => setOffset((current) => Math.max(0, current - pageSize))}
-            className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            Anterior
-          </button>
-          <button
-            type="button"
-            disabled={nextPageDisabled}
-            onClick={() => setOffset((current) => current + pageSize)}
-            className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            Siguiente
-          </button>
-        </div>
-      </div>
+      <PointOfSaleTablePagination
+        attached={false}
+        currentPage={currentPage}
+        itemLabel="cortes"
+        onPageChange={(page) => setOffset((page - 1) * pageSize)}
+        onPageSizeChange={(nextPageSize) => {
+          setPageSize(nextPageSize);
+          setOffset(0);
+        }}
+        pageEnd={pageEnd}
+        pageSize={pageSize}
+        pageStart={pageStart}
+        totalCount={totalCount}
+        totalPages={totalPages}
+      />
 
       <CortesColumnsModal
         open={isColumnsOpen}

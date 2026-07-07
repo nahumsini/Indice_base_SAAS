@@ -59,7 +59,7 @@ Base stack:
 
 - web: `http://localhost:${WEB_HOST_PORT:-8080}`
 - MinIO presigned/public path: `${MINIO_PUBLIC_ENDPOINT:-http://localhost:8080/storage}`
-- MinIO API: `http://localhost:${MINIO_API_HOST_PORT:-9000}`
+- MinIO API: `http://localhost:${MINIO_API_HOST_PORT:-9000}`. The compose service binds this port to `127.0.0.1` so host-network backend/web containers can reach MinIO without exposing the API publicly.
 
 Dev override adds:
 
@@ -71,7 +71,7 @@ Dev override adds:
 
 - The frontend is served by Nginx and calls the backend through same-origin `/api` paths.
 - APPTEST/app frontends are served from the running web container, not only from the cPanel document root. After every `npm run build`, publish `react/dist` into the container with `deployment/scripts/publish-web-dist.sh` or the equivalent `docker cp "$APP_DIR/react/dist/." indice-erp-web-1:/usr/share/nginx/html/`.
-- Nginx also proxies `/storage/` to MinIO so presigned browser uploads can stay on the web origin by default.
+- Nginx also proxies `/storage/` to MinIO so presigned browser uploads can stay on the web origin by default. Host-network deploys use `deployment/docker/web/nginx.host.conf`; compose deploys keep `deployment/docker/web/nginx.conf`.
 - The backend uses the internal MinIO endpoint for server-side access and rewrites presigned URLs onto `MINIO_PUBLIC_ENDPOINT`.
 - MinIO CORS is configured cluster-wide through `MINIO_API_CORS_ALLOW_ORIGIN`, sourced from `MINIO_CORS_ALLOWED_ORIGINS`.
 - Session auth is still servlet-session based, so this deployment should be treated as a single backend replica unless session storage is externalized.
@@ -88,10 +88,14 @@ npm ci --no-audit --no-fund
 npm run build
 cd ..
 docker cp "$PWD/react/dist/." indice-erp-web-1:/usr/share/nginx/html/
+docker cp "$PWD/deployment/docker/web/nginx.host.conf" indice-erp-web-1:/etc/nginx/conf.d/default.conf
+docker exec indice-erp-web-1 sh -c "nginx -t && nginx -s reload"
 curl -s https://apptest.indiceapp.com/ | grep -o "/assets/index-[^\"]*\.js" | head
+curl -sI https://apptest.indiceapp.com/storage/minio/health/live
 ```
 
 The public asset hash must match the asset in `react/dist/index.html`.
+If `/etc/nginx/conf.d/default.conf` is bind-mounted and direct `docker cp` cannot overwrite it, `deployment/scripts/publish-web-dist.sh` detects the host-mounted source path, writes there when permitted, and then reloads Nginx.
 
 Equivalent repo helper:
 

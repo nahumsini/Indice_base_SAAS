@@ -51,14 +51,14 @@ public class ObjectStorageConfiguration {
                 return endpoint;
             }
 
-            for (var candidateHost : new String[] { "host.docker.internal", "172.17.0.1", "127.0.0.1" }) {
+            for (var candidateHost : new String[] { "127.0.0.1", "host.docker.internal", "172.17.0.1" }) {
                 var candidate = replaceHost(uri, candidateHost);
                 if (probe.isReachable(candidate)) {
                     return candidate;
                 }
             }
 
-            return endpoint;
+            return replaceHost(uri, "127.0.0.1");
         } catch (URISyntaxException ex) {
             return endpoint;
         }

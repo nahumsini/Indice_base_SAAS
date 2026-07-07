@@ -392,15 +392,11 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       {isColumnModalOpen && (
         <ColumnConfigurationModal
           columns={tableColumns}
-          description={t.budgets.headerSubtitle}
-          onApply={() => setIsColumnModalOpen(false)}
           onClose={() => setIsColumnModalOpen(false)}
-          onDragEnd={handleColumnDragEnd}
-          onDragOver={handleColumnDragOver}
-          onDragStart={handleColumnDragStart}
-          onHideOptionalColumns={() => setTableColumns(currentColumns => currentColumns.map(column => (column.fixed ? { ...column, visible: true } : { ...column, visible: false })))}
-          onShowAllColumns={() => setTableColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
-          onUpdateVisibility={updateColumnVisibility}
+          onSaveColumns={(nextColumns) => {
+            setTableColumns(nextColumns);
+            setIsColumnModalOpen(false);
+          }}
         />
       )}
 

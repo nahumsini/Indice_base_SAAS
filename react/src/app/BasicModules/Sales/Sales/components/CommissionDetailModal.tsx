@@ -1,6 +1,7 @@
 import { BadgePercent } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord } from '../types/commissions';
 import { formatCommissionType } from '../utils/commissionRules';

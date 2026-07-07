@@ -10,6 +10,7 @@ import type { ProviderFormValues, ProviderRecord } from '../../Expenses/Provider
 import { accountingAccountsService, paymentAccountsService, providersService, toFinanceApiErrorMessage } from '../../Expenses/services';
 import type { FinanceReferenceOption } from '../../Expenses/types/finance-reference.types';
 import { hasPettyCashBackendId, pettyCashService } from '../services';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import type {
   PettyCashAttachment,
   PettyCashFund,
@@ -32,6 +33,7 @@ import {
   PettyCashFilterShell,
   PettyCashHeaderBanner,
   PettyCashMetric,
+  PettyCashPagination,
   pettyCashInputClass,
   PettyCashStatusPill,
   PettyCashTableShell,
@@ -273,6 +275,30 @@ export function PettyCashReconciliationWorkspace({
   const filteredStatements = useMemo(() => (
     fundStatements.filter(statement => statusFilter === 'all' || statement.status === statusFilter)
   ), [fundStatements, statusFilter]);
+  const movementPaginationResetKey = useMemo(
+    () => `${selectedFundId}:${selectedMovements.map(movement => movement.id).join('|')}`,
+    [selectedFundId, selectedMovements],
+  );
+  const movementPagination = useTablePagination({
+    resetKey: movementPaginationResetKey,
+    rows: selectedMovements,
+  });
+  const linePaginationResetKey = useMemo(
+    () => `${searchTerm}:${filteredLines.map(line => line.id).join('|')}`,
+    [filteredLines, searchTerm],
+  );
+  const linePagination = useTablePagination({
+    resetKey: linePaginationResetKey,
+    rows: filteredLines,
+  });
+  const statementPaginationResetKey = useMemo(
+    () => `${statusFilter}:${filteredStatements.map(statement => statement.id).join('|')}`,
+    [filteredStatements, statusFilter],
+  );
+  const statementPagination = useTablePagination({
+    resetKey: statementPaginationResetKey,
+    rows: filteredStatements,
+  });
 
   const totalDeposits = selectedMovements
     .filter(movement => movement.type === 'INITIAL_FUNDING' || movement.type === 'ADDITIONAL_DEPOSIT')
@@ -735,28 +761,42 @@ export function PettyCashReconciliationWorkspace({
             <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{selectedMovements.length}</span>
           </div>
           {selectedMovements.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px]">
-                <thead className="border-b border-slate-200 bg-slate-50">
-                  <tr>
-                    {['Fecha', 'Tipo', 'Origen', 'Monto', 'Referencia'].map(column => (
-                      <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {selectedMovements.map(movement => (
-                    <tr key={movement.id} className="transition hover:bg-slate-50">
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(movement.movementDate)}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{pettyCashMovementTypeLabels[movement.type]}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? '-'}</td>
-                      <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-600">{movement.reference}</td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px]">
+                  <thead className="border-b border-slate-200 bg-slate-50">
+                    <tr>
+                      {['Fecha', 'Tipo', 'Origen', 'Monto', 'Referencia'].map(column => (
+                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {movementPagination.paginatedRows.map(movement => (
+                      <tr key={movement.id} className="transition hover:bg-slate-50">
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(movement.movementDate)}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{pettyCashMovementTypeLabels[movement.type]}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? '-'}</td>
+                        <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{movement.reference}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PettyCashPagination
+                currentPage={movementPagination.currentPage}
+                itemLabel="entradas"
+                onPageChange={movementPagination.onPageChange}
+                onPageSizeChange={movementPagination.onPageSizeChange}
+                pageEnd={movementPagination.pageEnd}
+                pageSize={movementPagination.pageSize}
+                pageSizeOptions={movementPagination.pageSizeOptions}
+                pageStart={movementPagination.pageStart}
+                totalCount={movementPagination.totalCount}
+                totalPages={movementPagination.totalPages}
+              />
+            </>
           ) : (
             <div className="p-5">
               <PettyCashEmptyState label="Este fondo aun no tiene ingresos registrados." />
@@ -773,42 +813,56 @@ export function PettyCashReconciliationWorkspace({
             <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{filteredLines.length}</span>
           </div>
           {filteredLines.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
-                <thead className="border-b border-slate-200 bg-slate-50">
-                  <tr>
-                    {['Comprobante', 'Proveedor', 'Cuenta contable', 'Fecha', 'Total', 'Adjuntos', 'Estado'].map(column => (
-                      <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredLines.map(line => (
-                    <tr key={line.id} className="transition hover:bg-slate-50">
-                      <td className="px-5 py-4">
-                        <p className="text-sm font-black text-slate-900">{line.description}</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">{line.receiptReference ?? 'Sin referencia'}</p>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{line.providerName ?? '-'}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{line.accountingAccountName ?? '-'}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(line.expenseDate)}</td>
-                      <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(line.totalAmount, line.currencyCode)}</td>
-                      <td className="px-5 py-4">
-                        <button
-                          type="button"
-                          onClick={() => setAttachmentLine(line)}
-                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-                        >
-                          <Paperclip className="h-4 w-4 text-[#147514]" />
-                          {line.attachmentCount}
-                        </button>
-                      </td>
-                      <td className="px-5 py-4"><PettyCashStatusPill kind="line" status={line.status} /></td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead className="border-b border-slate-200 bg-slate-50">
+                    <tr>
+                      {['Comprobante', 'Proveedor', 'Cuenta contable', 'Fecha', 'Total', 'Adjuntos', 'Estado'].map(column => (
+                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {linePagination.paginatedRows.map(line => (
+                      <tr key={line.id} className="transition hover:bg-slate-50">
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-black text-slate-900">{line.description}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">{line.receiptReference ?? 'Sin referencia'}</p>
+                        </td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{line.providerName ?? '-'}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{line.accountingAccountName ?? '-'}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(line.expenseDate)}</td>
+                        <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(line.totalAmount, line.currencyCode)}</td>
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setAttachmentLine(line)}
+                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <Paperclip className="h-4 w-4 text-[#147514]" />
+                            {line.attachmentCount}
+                          </button>
+                        </td>
+                        <td className="px-5 py-4"><PettyCashStatusPill kind="line" status={line.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PettyCashPagination
+                currentPage={linePagination.currentPage}
+                itemLabel="comprobantes"
+                onPageChange={linePagination.onPageChange}
+                onPageSizeChange={linePagination.onPageSizeChange}
+                pageEnd={linePagination.pageEnd}
+                pageSize={linePagination.pageSize}
+                pageSizeOptions={linePagination.pageSizeOptions}
+                pageStart={linePagination.pageStart}
+                totalCount={linePagination.totalCount}
+                totalPages={linePagination.totalPages}
+              />
+            </>
           ) : (
             <div className="p-5">
               <PettyCashEmptyState label="Este fondo aun no tiene comprobantes para el corte seleccionado." />
@@ -818,7 +872,22 @@ export function PettyCashReconciliationWorkspace({
       </div>
 
       {filteredStatements.length > 0 ? (
-        <PettyCashTableShell>
+        <PettyCashTableShell
+          footer={(
+            <PettyCashPagination
+              currentPage={statementPagination.currentPage}
+              itemLabel="cortes"
+              onPageChange={statementPagination.onPageChange}
+              onPageSizeChange={statementPagination.onPageSizeChange}
+              pageEnd={statementPagination.pageEnd}
+              pageSize={statementPagination.pageSize}
+              pageSizeOptions={statementPagination.pageSizeOptions}
+              pageStart={statementPagination.pageStart}
+              totalCount={statementPagination.totalCount}
+              totalPages={statementPagination.totalPages}
+            />
+          )}
+        >
           <table className="w-full min-w-[1120px]">
             <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
@@ -828,7 +897,7 @@ export function PettyCashReconciliationWorkspace({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredStatements.map((statement) => {
+              {statementPagination.paginatedRows.map((statement) => {
                 const fund = getFundById(funds, statement.pettyCashFundId);
                 return (
                   <tr key={statement.id} className="transition hover:bg-slate-50">

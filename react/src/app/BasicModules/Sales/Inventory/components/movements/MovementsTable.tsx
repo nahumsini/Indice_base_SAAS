@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Paperclip } from 'lucide-react';
+import { DataTablePagination } from '../../../../../components/table/DataTablePagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../../components/ui/table';
+import { useTablePagination } from '../../../../../hooks/useTablePagination';
 import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
@@ -77,6 +79,21 @@ export function MovementsTable({
   onStatusChange: (movement: InventoryOperationalMovement, status: InventoryOperationalMovement['status']) => void;
 }) {
   const movementGroups = useMemo(() => groupMovements(movements), [movements]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedMovementGroups,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: movementGroups.map((group) => group.id).join('|'),
+    rows: movementGroups,
+  });
   const [movementPendingCancellation, setMovementPendingCancellation] = useState<InventoryOperationalMovement | null>(null);
 
   const requestCancellation = (movement: InventoryOperationalMovement) => {
@@ -108,7 +125,7 @@ export function MovementsTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {movementGroups.map((group) => {
+              {paginatedMovementGroups.map((group) => {
                 const movement = group.primary;
                 const movementValue = group.lines.reduce((total, line) => total + Math.abs(line.quantity) * (line.unitCost ?? 0), 0);
                 const totalQuantity = group.lines.reduce((total, line) => total + line.quantity, 0);
@@ -178,6 +195,18 @@ export function MovementsTable({
             </TableBody>
           </Table>
         </div>
+        <DataTablePagination
+          currentPage={currentPage}
+          itemLabel="movimientos"
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          pageEnd={pageEnd}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          pageStart={pageStart}
+          totalCount={totalCount}
+          totalPages={totalPages}
+        />
       </div>
 
       <CancelMovementDialog movement={movementPendingCancellation} t={t} onClose={() => setMovementPendingCancellation(null)} onConfirm={confirmCancellation} />

@@ -53,7 +53,7 @@ function CatalogAction({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/20',
         className,
       )}
     >
@@ -156,12 +156,12 @@ export function ProductTableRow({
         <TableCell className="truncate px-5 py-4 align-middle font-semibold text-slate-600 dark:text-slate-300">{product.lastUpdated}</TableCell>
       ) : null}
       <TableCell className="px-5 py-4 align-middle">
-        <div className="flex items-center justify-end gap-2">
-          <CatalogAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" onClick={() => onViewProduct(product)} />
+        <div className="ml-auto flex w-max items-center justify-end gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <CatalogAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" onClick={() => onViewProduct(product)} />
           <CatalogAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => onEditProduct(product)} />
-          <CatalogAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20" onClick={() => onDuplicateProduct(product)} />
-          <CatalogAction label={product.status === 'Active' ? t.actions.deactivate : t.actions.activate} icon={<Power className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15" onClick={() => onToggleProductStatus(product)} />
-          <CatalogAction label={t.actions.delete} icon={<Trash2 className="h-4 w-4" />} className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100" onClick={() => onDeleteProduct(product)} />
+          <CatalogAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15 dark:text-[#F9D96D]" onClick={() => onDuplicateProduct(product)} />
+          <CatalogAction label={product.status === 'Active' ? t.actions.deactivate : t.actions.activate} icon={<Power className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/15 dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/15 dark:text-[#7EE0C3]" onClick={() => onToggleProductStatus(product)} />
+          <CatalogAction label={t.actions.delete} icon={<Trash2 className="h-4 w-4" />} className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60" onClick={() => onDeleteProduct(product)} />
         </div>
       </TableCell>
     </TableRow>

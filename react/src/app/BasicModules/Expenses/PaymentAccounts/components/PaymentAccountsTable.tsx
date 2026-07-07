@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Edit2, ExternalLink, Power, PowerOff, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit2, ExternalLink, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { useFinanceResolvedLocale, useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import type { FinanceTranslations } from '../../translations';
 import type { PaymentAccount, PaymentSortField, SortDirection } from '../types';
 import { formatPaymentCurrency, formatPaymentDate, getTypeBadgeColor, getTypeIcon, getTypeLabel } from '../paymentAccounts.utils';
 import { defaultPaymentColumnWidths, type PaymentColumnConfig, type PaymentColumnKey } from '../paymentAccountsTableConfig';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 
 type PaymentAccountsTableProps = {
   accounts: PaymentAccount[];
@@ -86,8 +88,15 @@ export function PaymentAccountsTable({
           </tbody>
         </table>
       </div>
-      <PaymentPagination
+      <DataTablePagination
         currentPage={safeCurrentPage}
+        labels={{
+          next: t.common.next,
+          page: (current, total) => `${current} / ${total}`,
+          previous: t.common.previous,
+          rowsPerPage: t.common.rowsPerPage,
+          showing: (start, end, total) => t.common.showing(start, end, total),
+        }}
         onPageChange={setCurrentPage}
         onPageSizeChange={(nextPageSize) => {
           setPageSize(nextPageSize);
@@ -95,8 +104,8 @@ export function PaymentAccountsTable({
         }}
         pageEnd={paginationEnd}
         pageSize={pageSize}
+        pageSizeOptions={DEFAULT_TABLE_PAGE_SIZE_OPTIONS}
         pageStart={paginationStart}
-        t={t}
         totalCount={accounts.length}
         totalPages={totalPages}
       />
@@ -240,31 +249,4 @@ function PaymentSortIcon({ active, direction }: { active: boolean; direction: So
       <ChevronDown className={`-mt-1 h-3 w-3 ${active && direction === 'desc' ? 'text-[#147514]' : 'text-slate-400'}`} />
     </span>
   );
-}
-
-function PaymentPagination({ currentPage, onPageChange, onPageSizeChange, pageEnd, pageSize, pageStart, t, totalCount, totalPages }: { currentPage: number; onPageChange: (page: number) => void; onPageSizeChange: (pageSize: number) => void; pageEnd: number; pageSize: number; pageStart: number; t: FinanceTranslations; totalCount: number; totalPages: number }) {
-  if (totalCount === 0) return null;
-  const changePage = (page: number) => {
-    if (page < 1 || page > totalPages || page === currentPage) return;
-    onPageChange(page);
-  };
-
-  return (
-    <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-4 dark:border-slate-700 sm:px-6 md:flex-row md:items-center md:justify-between">
-      <p className="text-sm text-slate-500 dark:text-slate-400">{t.common.showing(pageStart, pageEnd, totalCount)}</p>
-      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <select value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))} aria-label={t.common.rowsPerPage} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{[10, 25, 50].map(option => <option key={option} value={option}>{option}</option>)}</select>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{currentPage} / {totalPages}</p>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-          <PageButton disabled={currentPage === 1} onClick={() => changePage(currentPage - 1)}><ChevronLeft className="h-4 w-4" />{t.common.previous}</PageButton>
-          <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">{currentPage}</span>
-          <PageButton disabled={currentPage === totalPages} onClick={() => changePage(currentPage + 1)}>{t.common.next}<ChevronRight className="h-4 w-4" /></PageButton>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PageButton({ children, disabled, onClick }: { children: ReactNode; disabled: boolean; onClick: () => void }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">{children}</button>;
 }

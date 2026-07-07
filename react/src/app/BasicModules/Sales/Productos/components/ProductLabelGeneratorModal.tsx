@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Barcode, Shuffle } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { ProductsTranslations } from '../translations';
 
 const labelActionClassNames = getSalesModalActionClassNames('coral');

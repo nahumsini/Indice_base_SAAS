@@ -1,7 +1,9 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { ArrowRightLeft, Ban, ChevronDown, ChevronUp, History, PackagePlus } from 'lucide-react';
+import { DataTablePagination } from '../../../../../components/table/DataTablePagination';
 import { Button } from '../../../../../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../../components/ui/table';
+import { useTablePagination } from '../../../../../hooks/useTablePagination';
 import type { InventoryOperationalColumnId, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations as Translations } from '../../translations';
 import { getWarehouseInventoryEntries, getWarehouseInventorySummary } from '../../utils/inventoryCalculations';
@@ -9,11 +11,11 @@ import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inve
 import { WarehouseInventoryProducts } from './WarehouseInventoryProducts';
 
 const headerClass = 'h-12 px-5 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300';
-const actionButtonClass = 'h-9 w-9 rounded-xl border transition-colors';
+const actionButtonClass = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30';
 const healthTone = {
-  healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  needsReview: 'border-blue-200 bg-blue-50 text-blue-700',
-  inactive: 'border-slate-200 bg-slate-50 text-slate-500',
+  healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200',
+  needsReview: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/35 dark:bg-blue-500/15 dark:text-blue-200',
+  inactive: 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300',
 };
 
 function WarehouseProductPreview({
@@ -30,18 +32,18 @@ function WarehouseProductPreview({
   const hiddenCount = Math.max(0, entries.length - visibleEntries.length);
 
   if (entries.length === 0) {
-    return <span className="text-xs font-semibold text-slate-400">{t.operational.noWarehouseProducts}</span>;
+    return <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">{t.operational.noWarehouseProducts}</span>;
   }
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       {visibleEntries.map(({ row, distribution }) => (
-        <span key={row.id} className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-1 text-[11px] font-black text-[#B63B32]">
+        <span key={row.id} className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-1 text-[11px] font-black text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB5AD]">
           {row.name} · {formatInventoryNumber(distribution.available)}
         </span>
       ))}
       {hiddenCount > 0 ? (
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-500">
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
           +{hiddenCount}
         </span>
       ) : null}
@@ -73,6 +75,21 @@ export function WarehousesTable({
     warehouse.id,
     getWarehouseInventorySummary(warehouse, rows),
   ])), [rows, warehouses]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedWarehouses,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: warehouses.map((warehouse) => warehouse.id).join('|'),
+    rows: warehouses,
+  });
 
   const toggleExpanded = (warehouseId: string) => {
     setExpandedIds((current) => {
@@ -126,7 +143,7 @@ export function WarehousesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {warehouses.map((warehouse) => {
+            {paginatedWarehouses.map((warehouse) => {
               const summary = summaries.get(warehouse.id) ?? getWarehouseInventorySummary(warehouse, rows);
               const isExpanded = expandedIds.has(warehouse.id);
 
@@ -148,11 +165,11 @@ export function WarehousesTable({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-black leading-5 text-slate-950 dark:text-white">{warehouse.name}</p>
-                            <span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-black text-[#B63B32]">
+                            <span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-black text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB5AD]">
                               {t.operational.warehouseTypes[warehouse.type]}
                             </span>
                           </div>
-                          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-300">
                             {warehouse.jurisdiction} · {warehouse.responsibleName}
                           </p>
                           <WarehouseProductPreview warehouse={warehouse} rows={rows} t={t} />
@@ -175,7 +192,7 @@ export function WarehousesTable({
                         <span className={`w-fit rounded-md border px-2 py-1 text-[11px] font-black uppercase tracking-[0.08em] ${healthTone[summary.stockHealth]}`}>
                           {t.operational.statuses[summary.stockHealth]}
                         </span>
-                        <span className={`w-fit rounded-md border px-2 py-1 text-[11px] font-black uppercase tracking-[0.08em] ${warehouse.status === 'active' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                        <span className={`w-fit rounded-md border px-2 py-1 text-[11px] font-black uppercase tracking-[0.08em] ${warehouse.status === 'active' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200' : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>
                           {warehouse.status === 'active' ? t.filters.active : t.filters.inactive}
                         </span>
                       </div>
@@ -185,10 +202,10 @@ export function WarehousesTable({
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
                       <div className="flex justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                        <ActionButton className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title={t.operational.actions.addStock} icon={<PackagePlus className="h-4 w-4" />} onClick={() => onAddStock(warehouse)} />
-                        <ActionButton className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100" title={t.operational.actions.transferStock} icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => onTransferStock(warehouse)} />
-                        <ActionButton className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} onClick={() => onViewMovements(warehouse)} />
-                        <ActionButton className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100" title={t.operational.actions.disable} icon={<Ban className="h-4 w-4" />} onClick={() => onDisableWarehouse(warehouse.id)} />
+                        <ActionButton className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:hover:bg-emerald-500/20" title={t.operational.actions.addStock} icon={<PackagePlus className="h-4 w-4" />} onClick={() => onAddStock(warehouse)} />
+                        <ActionButton className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-500/35 dark:bg-cyan-500/15 dark:text-cyan-200 dark:hover:bg-cyan-500/20" title={t.operational.actions.transferStock} icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => onTransferStock(warehouse)} />
+                        <ActionButton className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-500/35 dark:bg-violet-500/15 dark:text-violet-200 dark:hover:bg-violet-500/20" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} onClick={() => onViewMovements(warehouse)} />
+                        <ActionButton className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/35 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/20" title={t.operational.actions.disable} icon={<Ban className="h-4 w-4" />} onClick={() => onDisableWarehouse(warehouse.id)} />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -205,6 +222,18 @@ export function WarehousesTable({
           </TableBody>
         </Table>
       </div>
+      <DataTablePagination
+        currentPage={currentPage}
+        itemLabel="almacenes"
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        pageEnd={pageEnd}
+        pageSize={pageSize}
+        pageSizeOptions={pageSizeOptions}
+        pageStart={pageStart}
+        totalCount={totalCount}
+        totalPages={totalPages}
+      />
     </div>
   );
 }
@@ -258,7 +287,7 @@ function ActionButton({
   onClick?: () => void;
 }) {
   return (
-    <Button size="icon" variant="ghost" className={`${actionButtonClass} ${className}`} title={title} onClick={onClick}>
+    <Button size="icon" variant="ghost" className={`${actionButtonClass} ${className}`} title={title} aria-label={title} onClick={onClick}>
       {icon}
     </Button>
   );

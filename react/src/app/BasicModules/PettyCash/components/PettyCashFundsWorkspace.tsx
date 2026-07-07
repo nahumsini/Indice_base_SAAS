@@ -9,6 +9,7 @@ import type { FinanceBudgetLine } from '../../Expenses/types/finance-domain.type
 import type { FinanceReferenceOption } from '../../Expenses/types/finance-reference.types';
 import type { PettyCashCurrency, PettyCashFund, PettyCashFundStatus, PettyCashStatement } from '../types/pettyCash.types';
 import { hasPettyCashBackendId, pettyCashService } from '../services';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   formatPettyCashCurrency,
   getOperationalPettyCashSummary,
@@ -19,6 +20,7 @@ import {
   PettyCashFilterShell,
   PettyCashHeaderBanner,
   PettyCashMetric,
+  PettyCashPagination,
   pettyCashInputClass,
   PettyCashStatusPill,
   PettyCashTableShell,
@@ -225,6 +227,14 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
       return matchesSearch && matchesStatus;
     });
   }, [funds, searchTerm, statusFilter]);
+  const fundsPaginationResetKey = useMemo(
+    () => `${searchTerm}:${statusFilter}:${filteredFunds.map(fund => fund.id).join('|')}`,
+    [filteredFunds, searchTerm, statusFilter],
+  );
+  const fundsPagination = useTablePagination({
+    resetKey: fundsPaginationResetKey,
+    rows: filteredFunds,
+  });
 
   const handleCreateFund = async (draft: FundDraft) => {
     const name = draft.name.trim();
@@ -455,7 +465,22 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
         </div>
       </section>
 
-      <PettyCashTableShell>
+      <PettyCashTableShell
+        footer={(
+          <PettyCashPagination
+            currentPage={fundsPagination.currentPage}
+            itemLabel="fondos"
+            onPageChange={fundsPagination.onPageChange}
+            onPageSizeChange={fundsPagination.onPageSizeChange}
+            pageEnd={fundsPagination.pageEnd}
+            pageSize={fundsPagination.pageSize}
+            pageSizeOptions={fundsPagination.pageSizeOptions}
+            pageStart={fundsPagination.pageStart}
+            totalCount={fundsPagination.totalCount}
+            totalPages={fundsPagination.totalPages}
+          />
+        )}
+      >
         <table className="w-full min-w-[1520px] table-fixed">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
@@ -479,7 +504,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredFunds.map((fund) => {
+            {fundsPagination.paginatedRows.map((fund) => {
               const fundStatements = statements.filter(statement => statement.pettyCashFundId === fund.id);
               const pendingSettlement = fundStatements.reduce((sum, statement) => sum + getStatementSettlementBalance(statement), 0);
               const budgetLineName = fund.budgetLineName

@@ -438,6 +438,7 @@ export const enCA = {
     noEmployeesHint: 'Try another unit or business to review daily attendance.',
     showingRows: (startRow: number, endRow: number, totalRows: number) =>
       `Showing ${startRow}-${endRow} of ${totalRows} HR users`,
+    pageSize: 'Rows per page',
     previousPage: 'Previous',
     nextPage: 'Next',
     pageLabel: (currentPage: number, pageCount: number) => `Page ${currentPage} of ${pageCount}`,

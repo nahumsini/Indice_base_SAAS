@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { Checkbox } from '../../../components/ui/checkbox';
@@ -50,6 +51,7 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   accentButtonClass,
   cloneRecurrenceConfig,
@@ -878,6 +880,21 @@ export default function Processes() {
 
     return sortState.direction === 'asc' ? comparison : comparison * -1;
   });
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedRecords,
+    totalCount: paginatedRecordCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${searchQuery}:${unitFilter}:${businessFilter}:${collaboratorFilter}:${frequencyFilter}:${sortState.columnId}:${sortState.direction}`,
+    rows: sortedRecords,
+  });
   const processTimeline = useMemo(() => {
     const timelineStart = startOfProcessMonth(processDiagramMonth);
     const timelineEnd = endOfProcessMonth(processDiagramMonth);
@@ -888,8 +905,8 @@ export default function Processes() {
       end: timelineEnd,
     };
   }, [processDiagramMonth]);
-  const visibleRecordIds = sortedRecords.map((record) => record.id);
-  const visibleRecordSelection = rowSelection.visibleSelectionState(visibleRecordIds);
+  const pageRecordIds = useMemo(() => paginatedRecords.map((record) => record.id), [paginatedRecords]);
+  const pageRecordSelection = rowSelection.visibleSelectionState(pageRecordIds);
   const selectedRecords = records.filter((record) => rowSelection.selectedIds.has(record.id));
   const bulkAssignableCollaborators = catalogCollaborators.filter((collaborator) =>
     selectedRecords.every((record) =>
@@ -2056,13 +2073,13 @@ export default function Processes() {
                 <Checkbox
                   aria-label={processCopy.bulk.selectVisible}
                   checked={
-                    visibleRecordSelection.allVisibleSelected
+                    pageRecordSelection.allVisibleSelected
                       ? true
-                      : visibleRecordSelection.someVisibleSelected
+                      : pageRecordSelection.someVisibleSelected
                         ? 'indeterminate'
                         : false
                   }
-                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleRecordIds, checked === true)}
+                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(pageRecordIds, checked === true)}
                   className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                 />
               </TableHead>
@@ -2094,7 +2111,7 @@ export default function Processes() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedRecords.map((record) => (
+            {paginatedRecords.map((record) => (
               <TableRow
                 key={record.id}
                 className={cn(
@@ -2205,6 +2222,20 @@ export default function Processes() {
           </TableBody>
           </Table>
           </div>
+          {!isLoadingProcesses && paginatedRecordCount > 0 ? (
+            <DataTablePagination
+              currentPage={currentPage}
+              itemLabel="procesos"
+              onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
+              pageEnd={pageEnd}
+              pageSize={pageSize}
+              pageSizeOptions={pageSizeOptions}
+              pageStart={pageStart}
+              totalCount={paginatedRecordCount}
+              totalPages={totalPages}
+            />
+          ) : null}
         </section>
       ) : (
         renderProcessDiagram()
