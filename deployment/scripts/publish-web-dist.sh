@@ -7,11 +7,46 @@ APP_DIR="${APP_DIR:-${ROOT_DIR}}"
 FRONTEND_DIST="${FRONTEND_DIST:-${APP_DIR}/react/dist}"
 WEB_CONTAINER="${WEB_CONTAINER:-indice-erp-web-1}"
 WEB_HTML_DIR="${WEB_HTML_DIR:-/usr/share/nginx/html}"
-WEB_NGINX_CONFIG="${WEB_NGINX_CONFIG:-${APP_DIR}/deployment/docker/web/nginx.conf}"
+DEFAULT_WEB_NGINX_CONFIG="${APP_DIR}/deployment/docker/web/nginx.host.conf"
+if [[ ! -f "${DEFAULT_WEB_NGINX_CONFIG}" ]]; then
+  DEFAULT_WEB_NGINX_CONFIG="${APP_DIR}/deployment/docker/web/nginx.conf"
+fi
+WEB_NGINX_CONFIG="${WEB_NGINX_CONFIG:-${DEFAULT_WEB_NGINX_CONFIG}}"
 WEB_NGINX_CONFIG_TARGET="${WEB_NGINX_CONFIG_TARGET:-/etc/nginx/conf.d/default.conf}"
 SYNC_WEB_NGINX_CONFIG="${SYNC_WEB_NGINX_CONFIG:-true}"
 PUBLIC_URL="${PUBLIC_URL:-}"
 VALIDATE_PUBLIC="${VALIDATE_PUBLIC:-true}"
+
+publish_nginx_config() {
+  local host_config_path
+
+  if docker cp "${WEB_NGINX_CONFIG}" "${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"; then
+    return 0
+  fi
+
+  echo "Direct docker cp could not replace ${WEB_NGINX_CONFIG_TARGET}; checking for a bind-mounted config." >&2
+  host_config_path="$(
+    docker inspect "${WEB_CONTAINER}" \
+      --format '{{range .Mounts}}{{printf "%s|||%s\n" .Source .Destination}}{{end}}' 2>/dev/null \
+      | awk -F'\\|\\|\\|' -v target="${WEB_NGINX_CONFIG_TARGET}" '$2 == target {print $1; exit}'
+  )"
+
+  if [[ -z "${host_config_path}" ]]; then
+    echo "No bind-mounted nginx config was found for ${WEB_NGINX_CONFIG_TARGET}." >&2
+    return 1
+  fi
+
+  echo "Detected nginx config bind mount: ${host_config_path}"
+
+  if [[ ! -w "${host_config_path}" ]]; then
+    echo "The bind-mounted nginx config is not writable by this user." >&2
+    echo "Run with a user that can write it, or update it manually:" >&2
+    echo "cp '${WEB_NGINX_CONFIG}' '${host_config_path}'" >&2
+    return 1
+  fi
+
+  cp "${WEB_NGINX_CONFIG}" "${host_config_path}"
+}
 
 if [[ ! -f "${FRONTEND_DIST}/index.html" ]]; then
   echo "Missing ${FRONTEND_DIST}/index.html. Run npm run build first." >&2
@@ -33,7 +68,7 @@ docker cp "${FRONTEND_DIST}/." "${WEB_CONTAINER}:${WEB_HTML_DIR}/"
 
 if [[ "${SYNC_WEB_NGINX_CONFIG}" == "true" && -f "${WEB_NGINX_CONFIG}" ]]; then
   echo "Publishing web nginx config to ${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"
-  docker cp "${WEB_NGINX_CONFIG}" "${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"
+  publish_nginx_config
   docker exec "${WEB_CONTAINER}" sh -c "nginx -t && nginx -s reload"
 fi
 

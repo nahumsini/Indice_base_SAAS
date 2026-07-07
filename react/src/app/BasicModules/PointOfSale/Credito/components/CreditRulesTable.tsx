@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Edit2 } from 'lucide-react';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type {
   CreditDecisionStatus,
   CreditEvaluationResult,
@@ -8,6 +9,7 @@ import type {
   CreditRuleStatus,
 } from '../../shared/commercial/credit';
 import type { Customer } from '../../shared/commercial/customers';
+import { PointOfSaleTablePagination } from '../../shared/components/PointOfSaleTablePagination';
 
 export interface CreditRuleRow {
   rule: CreditRule;
@@ -80,6 +82,12 @@ export function CreditRulesTable({
   onEdit,
   onToggleStatus,
 }: CreditRulesTableProps) {
+  const rowsPaginationResetKey = useMemo(() => rows.map(({ rule }) => rule.id).join('|'), [rows]);
+  const rowsPagination = useTablePagination({
+    resetKey: rowsPaginationResetKey,
+    rows,
+  });
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="overflow-x-auto">
@@ -92,7 +100,7 @@ export function CreditRulesTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {rows.map(({ rule, customer, evaluation }) => (
+            {rowsPagination.paginatedRows.map(({ rule, customer, evaluation }) => (
               <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                 <td className="px-4 py-3">
                   <p className="font-bold text-gray-950 dark:text-white">{rule.name}</p>
@@ -145,6 +153,7 @@ export function CreditRulesTable({
           </div>
         )}
       </div>
+      <PointOfSaleTablePagination {...rowsPagination} itemLabel="politicas" />
     </div>
   );
 }

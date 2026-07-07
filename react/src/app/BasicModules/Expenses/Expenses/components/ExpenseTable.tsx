@@ -21,6 +21,8 @@ import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
 import { getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import {
   EditableExpenseRow,
   type EditableExpenseRowOptions,
@@ -551,8 +553,32 @@ function ExpenseTablePagination({
   totalCount: number;
   totalPages: number;
 }) {
-  const hasPreviousPage = currentPage > 1;
-  const hasNextPage = currentPage < totalPages;
+  const hasMoneySummary = moneySummaries.length > 0 || selectedMoneySummaries.length > 0;
+  const pagination = (
+    <DataTablePagination
+      attached={attached || hasMoneySummary}
+      currentPage={currentPage}
+      labels={{
+        next: t.common.next,
+        page: (current, total) => `${current} / ${total}`,
+        previous: t.common.previous,
+        rowsPerPage: t.common.rowsPerPage,
+        showing: (start, end, total) => t.common.showing(start, end, total),
+      }}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
+      pageEnd={pageEnd}
+      pageSize={pageSize}
+      pageSizeOptions={DEFAULT_TABLE_PAGE_SIZE_OPTIONS}
+      pageStart={pageStart}
+      totalCount={totalCount}
+      totalPages={totalPages}
+    />
+  );
+
+  if (!hasMoneySummary) {
+    return pagination;
+  }
 
   return (
     <div className={`bg-white dark:bg-slate-800 ${
@@ -570,45 +596,7 @@ function ExpenseTablePagination({
           summaries={selectedMoneySummaries}
         />
       ) : null}
-      <div className={`${moneySummaries.length > 0 || selectedMoneySummaries.length > 0 ? 'border-t border-slate-100 dark:border-slate-700/70' : ''} flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between`}>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {t.common.showing(pageStart, pageEnd, totalCount)}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            <span>{t.common.rowsPerPage}</span>
-            <select
-              aria-label={t.common.rowsPerPage}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              value={pageSize}
-              onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            >
-              {[10, 25, 50, 100, 200].map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={!hasPreviousPage}
-            onClick={() => onPageChange(currentPage - 1)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-          >
-            {t.common.previous}
-          </button>
-          <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-            {currentPage}/{totalPages}
-          </span>
-          <button
-            type="button"
-            disabled={!hasNextPage}
-            onClick={() => onPageChange(currentPage + 1)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-          >
-            {t.common.next}
-          </button>
-        </div>
-      </div>
+      {pagination}
     </div>
   );
 }

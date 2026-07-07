@@ -1,4 +1,4 @@
-import { Button } from '../../../../components/ui/button';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import type { AttendanceControlAssignment } from '../../../../api/humanResources';
 import { ControlAttendanceRow, type AttendanceControlCopy } from './ControlAttendanceWidgets';
 
@@ -16,9 +16,12 @@ export function EmployeeAttendanceList({
   endRow,
   filteredCount,
   pageCount,
+  pageSize,
+  pageSizeOptions,
   selectedEmployeeId,
   startRow,
   onPageChange,
+  onPageSizeChange,
   onSelectAssignment,
 }: {
   copy: AttendanceControlCopy;
@@ -28,9 +31,12 @@ export function EmployeeAttendanceList({
   endRow: number;
   filteredCount: number;
   pageCount: number;
+  pageSize: number;
+  pageSizeOptions: readonly number[];
   selectedEmployeeId: number | null;
   startRow: number;
   onPageChange: (value: number) => void;
+  onPageSizeChange: (value: number) => void;
   onSelectAssignment: (assignment: AttendanceControlAssignment) => void;
 }) {
   return (
@@ -54,34 +60,25 @@ export function EmployeeAttendanceList({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-[#59C3A5]/10 bg-white px-5 py-3 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          {copy.timeTable.showingRows(startRow, endRow, filteredCount)}
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            disabled={currentPage <= 1}
-          >
-            {copy.timeTable.previousPage}
-          </Button>
-          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">
-            {copy.timeTable.pageLabel(currentPage, pageCount)}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(Math.min(pageCount, currentPage + 1))}
-            disabled={currentPage >= pageCount}
-          >
-            {copy.timeTable.nextPage}
-          </Button>
-        </div>
-      </div>
+      <DataTablePagination
+        currentPage={currentPage}
+        itemLabel="colaboradores"
+        labels={{
+          next: copy.timeTable.nextPage,
+          page: copy.timeTable.pageLabel,
+          previous: copy.timeTable.previousPage,
+          rowsPerPage: copy.timeTable.pageSize,
+          showing: (start, end, total) => copy.timeTable.showingRows(start, end, total),
+        }}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        pageEnd={endRow}
+        pageSize={pageSize}
+        pageSizeOptions={pageSizeOptions}
+        pageStart={startRow}
+        totalCount={filteredCount}
+        totalPages={pageCount}
+      />
     </>
   );
 }

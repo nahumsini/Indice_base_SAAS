@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { AlertTriangle, Archive, CircleDollarSign, PackageCheck, RotateCw, Warehouse } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
 import type {
@@ -15,7 +15,7 @@ function InventoryMetricCard({
   icon,
   value,
   label,
-  valueClassName = 'text-slate-950',
+  valueClassName = 'text-slate-950 dark:text-white',
 }: {
   icon: ReactNode;
   value: string;
@@ -24,10 +24,10 @@ function InventoryMetricCard({
 }) {
   return (
     <span className="inline-flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+      <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
         {icon}
       </span>
-      <span className="text-base font-semibold">
+      <span className="text-sm font-semibold">
         <span className={cn('mr-2 font-bold', valueClassName)}>{value}</span>
         <span className="font-bold text-slate-600 dark:text-slate-300">{label}</span>
       </span>
@@ -36,7 +36,20 @@ function InventoryMetricCard({
 }
 
 function InventoryMetricGroup({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-sm text-slate-600">{children}</div>;
+  const items = Children.toArray(children);
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-sm text-slate-600 dark:text-slate-300">
+      {items.map((child, index) => (
+        <div key={index} className="flex items-center gap-4">
+          {index > 0 ? (
+            <span className="hidden h-5 w-px rounded-full bg-slate-200 dark:bg-slate-700 sm:block" aria-hidden="true" />
+          ) : null}
+          {child}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function InventoryKpiStrip({

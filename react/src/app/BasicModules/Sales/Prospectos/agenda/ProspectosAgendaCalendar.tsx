@@ -44,9 +44,9 @@ export function ProspectosAgendaCalendar({
 }) {
   if (mode === 'week') {
     return (
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div
-          className="grid min-w-[1180px] border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500"
+          className="grid min-w-[1180px] border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
           style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
         >
           <div className="border-r border-slate-200 px-3 py-3">{copy.agenda.hour}</div>
@@ -60,14 +60,14 @@ export function ProspectosAgendaCalendar({
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => onDateDrop(event, date)}
                 className={[
-                  'border-r border-slate-200 px-3 py-3 last:border-r-0',
-                  isToday ? 'bg-[#2563EB]/[0.06]' : '',
+                  'border-r border-slate-200 px-3 py-3 last:border-r-0 dark:border-slate-700',
+                  isToday ? 'bg-[#2563EB]/[0.06] dark:bg-[#2563EB]/10' : '',
                 ].filter(Boolean).join(' ')}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold capitalize tracking-normal text-slate-950">{formatAgendaDayLabel(date)}</p>
-                    <p className="mt-1 text-[11px] font-semibold normal-case tracking-normal text-slate-500">{copy.agenda.followUps(dateOpportunities.length)}</p>
+                    <p className="truncate text-sm font-bold capitalize tracking-normal text-slate-950 dark:text-white">{formatAgendaDayLabel(date)}</p>
+                    <p className="mt-1 text-[11px] font-semibold normal-case tracking-normal text-slate-500 dark:text-slate-400">{copy.agenda.followUps(dateOpportunities.length)}</p>
                   </div>
                   {isToday ? (
                     <span className="shrink-0 rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-[#2563EB]">{copy.agenda.today}</span>
@@ -82,10 +82,10 @@ export function ProspectosAgendaCalendar({
           {agendaWorkHours.map((hour) => (
             <div
               key={hour}
-              className="grid min-h-[118px] border-b border-slate-100 last:border-b-0"
+              className="grid min-h-[118px] border-b border-slate-100 last:border-b-0 dark:border-slate-700"
               style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
             >
-              <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600">{hour}</div>
+              <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{hour}</div>
               {weekDates.map((date) => {
                 const cellOpportunities = opportunitiesForDate(date).filter((opportunity) => {
                   const schedule = opportunitySchedules.get(opportunity.id);
@@ -98,7 +98,7 @@ export function ProspectosAgendaCalendar({
                     key={`${date}-${hour}`}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => onScheduleDrop(event, date, hour)}
-                    className="min-h-[118px] space-y-2 border-r border-slate-100 bg-white p-2 transition-colors last:border-r-0 hover:bg-[#FF6B5E]/[0.04]"
+                    className="min-h-[118px] space-y-2 border-r border-slate-100 bg-white p-2 transition-colors last:border-r-0 hover:bg-[#FF6B5E]/[0.04] dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-[#FF6B5E]/10"
                   >
                     {cellOpportunities.length > 0 ? cellOpportunities.map((opportunity) => (
                       <ProspectosWeeklyAgendaItem
@@ -111,7 +111,7 @@ export function ProspectosAgendaCalendar({
                         onEdit={onEdit}
                       />
                     )) : (
-                        <div className="flex h-full min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300">
+                        <div className="flex h-full min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-500">
                         {copy.agenda.dropHere}
                       </div>
                     )}
@@ -126,7 +126,7 @@ export function ProspectosAgendaCalendar({
               className="grid min-h-[118px]"
               style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
             >
-              <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600">{copy.agenda.noTime}</div>
+              <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{copy.agenda.noTime}</div>
               {weekDates.map((date) => {
                 const dateOpportunitiesWithoutTime = opportunitiesForDate(date).filter((opportunity) => !opportunitySchedules.get(opportunity.id)?.time);
 
@@ -135,7 +135,7 @@ export function ProspectosAgendaCalendar({
                     key={`${date}-unscheduled-time`}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => onScheduleDrop(event, date, '')}
-                    className="min-h-[118px] space-y-2 border-r border-slate-100 bg-white p-2 transition-colors last:border-r-0 hover:bg-[#FF6B5E]/[0.04]"
+                    className="min-h-[118px] space-y-2 border-r border-slate-100 bg-white p-2 transition-colors last:border-r-0 hover:bg-[#FF6B5E]/[0.04] dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-[#FF6B5E]/10"
                   >
                     {dateOpportunitiesWithoutTime.length > 0 ? dateOpportunitiesWithoutTime.map((opportunity) => (
                       <ProspectosWeeklyAgendaItem
@@ -148,7 +148,7 @@ export function ProspectosAgendaCalendar({
                         onEdit={onEdit}
                       />
                     )) : (
-                      <div className="flex h-full min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300">
+                      <div className="flex h-full min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-500">
                         {copy.agenda.noTime}
                       </div>
                     )}
@@ -164,7 +164,7 @@ export function ProspectosAgendaCalendar({
 
   if (mode === 'list') {
     return (
-      <section className="space-y-3 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {weekDates.map((date) => {
           const dateOpportunities = opportunitiesForDate(date);
 
@@ -173,11 +173,11 @@ export function ProspectosAgendaCalendar({
               key={date}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => onDateDrop(event, date)}
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-bold capitalize text-slate-950">{formatAgendaDayLabel(date, 'long')}</p>
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
+                <p className="text-sm font-bold capitalize text-slate-950 dark:text-white">{formatAgendaDayLabel(date, 'long')}</p>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {copy.agenda.followUps(dateOpportunities.length)}
                 </span>
               </div>
@@ -195,7 +195,7 @@ export function ProspectosAgendaCalendar({
                     onEdit={onEdit}
                   />
                 )) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-medium text-slate-400">
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-500">
                     {copy.agenda.noFollowUps}
                   </div>
                 )}
@@ -208,8 +208,8 @@ export function ProspectosAgendaCalendar({
   }
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-      <div className="grid border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500" style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}>
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="grid border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}>
         <div className="px-4 py-3">{copy.agenda.hour}</div>
         <div className="px-4 py-3">{copy.agenda.contactPlan}</div>
       </div>
@@ -226,10 +226,10 @@ export function ProspectosAgendaCalendar({
             key={hour}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => onScheduleDrop(event, selectedDate, hour)}
-            className="grid min-h-[104px] border-b border-slate-100 transition-colors last:border-b-0 hover:bg-[#FF6B5E]/[0.04]"
+            className="grid min-h-[104px] border-b border-slate-100 transition-colors last:border-b-0 hover:bg-[#FF6B5E]/[0.04] dark:border-slate-700 dark:hover:bg-[#FF6B5E]/10"
             style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}
           >
-            <div className="border-r border-slate-100 bg-slate-50/60 px-4 py-4 text-sm font-bold text-slate-600">{hour}</div>
+            <div className="border-r border-slate-100 bg-slate-50/60 px-4 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{hour}</div>
             <div className="space-y-3 px-4 py-4">
               {hourOpportunities.length > 0 ? hourOpportunities.map((opportunity) => (
                 <ProspectosAgendaItem
@@ -244,7 +244,7 @@ export function ProspectosAgendaCalendar({
                   onEdit={onEdit}
                 />
               )) : (
-                <div className="flex h-full min-h-[72px] items-center rounded-2xl border border-dashed border-slate-200 px-4 text-sm font-medium text-slate-400">
+                <div className="flex h-full min-h-[72px] items-center rounded-2xl border border-dashed border-slate-200 px-4 text-sm font-medium text-slate-400 dark:border-slate-700 dark:text-slate-500">
                   {copy.agenda.dragOpportunityHere}
                 </div>
               )}
@@ -260,7 +260,7 @@ export function ProspectosAgendaCalendar({
           onDrop={(event) => onScheduleDrop(event, selectedDate, '')}
           style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}
         >
-          <div className="border-r border-slate-100 bg-slate-50/60 px-4 py-4 text-sm font-bold text-slate-600">{copy.agenda.noTime}</div>
+          <div className="border-r border-slate-100 bg-slate-50/60 px-4 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{copy.agenda.noTime}</div>
           <div className="space-y-3 px-4 py-4">
             {dayOpportunities
               .filter((opportunity) => !opportunitySchedules.get(opportunity.id)?.time)

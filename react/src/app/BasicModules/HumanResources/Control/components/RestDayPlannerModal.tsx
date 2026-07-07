@@ -204,7 +204,7 @@ export function RestDayPlannerModal({
               type="button"
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/15 text-white transition hover:bg-white/25"
               onClick={onClose}
-              aria-label={copy.labels.close}
+              aria-label={copy.labels.cancel}
             >
               <X className="h-5 w-5" />
             </button>
@@ -416,7 +416,7 @@ export function RestDayPlannerModal({
               disabled={isSaving || operationCount === 0}
               onClick={() => void savePlan()}
             >
-              {isSaving ? copy.labels.saving : copy.labels.restPlannerSave}
+              {copy.labels.restPlannerSave}
             </Button>
           </div>
         </footer>

@@ -440,6 +440,7 @@ export const esMX = {
     noEmployeesHint: 'Prueba otra unidad o negocio para revisar asistencia diaria.',
     showingRows: (startRow: number, endRow: number, totalRows: number) =>
       `Mostrando ${startRow}-${endRow} de ${totalRows} colaboradores`,
+    pageSize: 'Filas por página',
     previousPage: 'Anterior',
     nextPage: 'Siguiente',
     pageLabel: (currentPage: number, pageCount: number) => `Página ${currentPage} de ${pageCount}`,

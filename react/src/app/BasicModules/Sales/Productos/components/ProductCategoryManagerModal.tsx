@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, FolderCog } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import { productCategoryLibraries } from '../mocks/categoryLibraries';
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig, ProductCategoryLibrary } from '../types/productCategoryTypes';

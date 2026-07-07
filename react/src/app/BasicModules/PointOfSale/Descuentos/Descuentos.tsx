@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Tag,
 } from 'lucide-react';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import {
   calculateDiscountPreview,
@@ -22,6 +23,7 @@ import {
   type DiscountRuleStatus,
   type DiscountScope,
 } from '../shared/commercial/discounts';
+import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 import { DiscountKpiCard } from './components/DiscountKpiCard';
 import { DiscountRuleModal } from './components/DiscountRuleModal';
 
@@ -82,6 +84,14 @@ export default function Descuentos() {
       && (status === 'all' || rule.status === status)
       && (scope === 'all' || rule.scope === scope);
   }), [rules, scope, search, status]);
+  const rulesPaginationResetKey = useMemo(
+    () => `${search}:${status}:${scope}:${filteredRules.map((rule) => rule.id).join('|')}`,
+    [filteredRules, scope, search, status],
+  );
+  const rulesPagination = useTablePagination({
+    resetKey: rulesPaginationResetKey,
+    rows: filteredRules,
+  });
 
   const activeEligibleRules = useMemo(() => getEligibleDiscountRules(rules, {
     amount: previewAmount,
@@ -213,7 +223,7 @@ export default function Descuentos() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {filteredRules.map((rule) => (
+              {rulesPagination.paginatedRows.map((rule) => (
                 <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                   <td className="px-4 py-3">
                     <p className="font-bold text-gray-950 dark:text-white">{rule.name}</p>
@@ -247,6 +257,7 @@ export default function Descuentos() {
             </div>
           )}
         </div>
+        <PointOfSaleTablePagination {...rulesPagination} itemLabel="reglas" />
       </div>
 
       <DiscountRuleModal

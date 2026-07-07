@@ -227,9 +227,6 @@ export default function Inventory() {
         : getMovementMetrics(filteredMovements)
   ), [activeView, filteredMovements, filteredStockRows, filteredWarehouses, stockRows]);
 
-  const visibleIds = useMemo(() => filteredStockRows.map((row) => row.id), [filteredStockRows]);
-  const visibleSelectionState = selection.visibleSelectionState(visibleIds);
-
   const persistStockRows = (rows: InventoryStockRow[]) => {
     void inventoryApi.persistStockRows(rows)
       .then((persistedRows) => setStockRows((currentRows) => syncInventoryStockRows(products, persistedRows.length > 0 ? persistedRows : currentRows)))
@@ -518,13 +515,10 @@ export default function Inventory() {
               rows={filteredStockRows}
               visibleColumns={visibleColumns}
               selectedState={{
-                allVisibleSelected: visibleSelectionState.allVisibleSelected,
-                someVisibleSelected: visibleSelectionState.someVisibleSelected,
                 isSelected: selection.isSelected,
               }}
               t={t}
               onToggleRow={selection.toggleSelection}
-              onToggleAll={(checked) => selection.toggleAllVisible(visibleIds, checked)}
               onAddStock={(row) => openAddInventoryModal(row.productId)}
               onTransfer={(row) => openMovementEntryModal('transfer', row.productId)}
               onAdjust={(row) => openMovementEntryModal('adjustment', row.productId)}

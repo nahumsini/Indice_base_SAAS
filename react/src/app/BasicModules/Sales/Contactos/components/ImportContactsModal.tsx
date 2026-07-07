@@ -3,7 +3,8 @@ import { CheckCircle2, FileUp, Smartphone, UploadCloud } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { ContactCopy } from '../translations';
 import {
   parseContactFile,

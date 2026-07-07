@@ -6,6 +6,8 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLifecycleSignals, SaleRecord, SalesColumnId } from '../types/salesTypes';
 import { defaultSalesColumnWidths, sortSalesRecords, sortableSalesColumns, type SalesSortState, type SortableSalesColumnId } from '../utils/salesTableColumns';
@@ -40,26 +42,42 @@ export function SalesTable({
   const [columnWidths, setColumnWidths] = useState<Record<SalesColumnId, number>>(defaultSalesColumnWidths);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
-  const visibleRecordIds = useMemo(() => records.map((record) => record.id), [records]);
   const tableMinWidth = visibleColumns.reduce((total, column) => total + (columnWidths[column] ?? defaultSalesColumnWidths[column]), 56);
   const sortedRecords = useMemo(
     () => sortSalesRecords(records, lifecycleByRecordId, sortState),
     [lifecycleByRecordId, records, sortState],
   );
+  const allRecordIds = useMemo(() => sortedRecords.map((record) => record.id), [sortedRecords]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedRecords,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${sortState?.columnId ?? 'none'}:${sortState?.direction ?? 'none'}:${records.map((record) => record.id).join('|')}`,
+    rows: sortedRecords,
+  });
+  const pageRecordIds = useMemo(() => paginatedRecords.map((record) => record.id), [paginatedRecords]);
   const selectedRecords = useMemo(
-    () => records.filter((record) => selectedIds.has(record.id)),
-    [records, selectedIds],
+    () => sortedRecords.filter((record) => selectedIds.has(record.id)),
+    [selectedIds, sortedRecords],
   );
-  const allVisibleSelected = visibleRecordIds.length > 0 && visibleRecordIds.every((id) => selectedIds.has(id));
-  const someVisibleSelected = !allVisibleSelected && visibleRecordIds.some((id) => selectedIds.has(id));
+  const allVisibleSelected = pageRecordIds.length > 0 && pageRecordIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = !allVisibleSelected && pageRecordIds.some((id) => selectedIds.has(id));
 
   useEffect(() => {
     setSelectedIds((current) => {
-      const visibleIdSet = new Set(visibleRecordIds);
-      const next = new Set(Array.from(current).filter((id) => visibleIdSet.has(id)));
+      const recordIdSet = new Set(allRecordIds);
+      const next = new Set(Array.from(current).filter((id) => recordIdSet.has(id)));
       return next.size === current.size ? current : next;
     });
-  }, [visibleRecordIds]);
+  }, [allRecordIds]);
 
   const handleSort = (column: SalesColumnId) => {
     if (!sortableSalesColumns.has(column)) {
@@ -97,7 +115,7 @@ export function SalesTable({
   const handleToggleAllVisible = (checked: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      visibleRecordIds.forEach((id) => {
+      pageRecordIds.forEach((id) => {
         if (checked) {
           next.add(id);
         } else {
@@ -127,7 +145,7 @@ export function SalesTable({
         onClearSelection={() => setSelectedIds(new Set())}
       />
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <Table className="table-fixed" style={{ minWidth: `${Math.max(tableMinWidth, 960)}px` }}>
             <TableHeader>
@@ -153,7 +171,7 @@ export function SalesTable({
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : sortedRecords.map((record) => (
+              ) : paginatedRecords.map((record) => (
                 <SalesTableRow
                   key={record.id}
                   record={record}
@@ -173,6 +191,18 @@ export function SalesTable({
             </TableBody>
           </Table>
         </div>
+        <DataTablePagination
+          currentPage={currentPage}
+          itemLabel="ventas"
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          pageEnd={pageEnd}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          pageStart={pageStart}
+          totalCount={totalCount}
+          totalPages={totalPages}
+        />
       </section>
     </div>
   );

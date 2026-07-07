@@ -1,7 +1,8 @@
 import { Download, FileText, Printer } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesQuote } from '../../types';
 import { defaultSalesCurrency, formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import { getSalesOperationalContext } from '../data/salesOperationalContext';

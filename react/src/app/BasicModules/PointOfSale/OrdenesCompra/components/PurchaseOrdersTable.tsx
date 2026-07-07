@@ -9,6 +9,8 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
+import { PointOfSaleTablePagination } from '../../shared/components/PointOfSaleTablePagination';
 import type { PurchaseOrder, SupplierInvoice, SupplierInvoiceStatus } from '../types/purchaseOrder.types';
 import {
   formatDate,
@@ -42,6 +44,10 @@ export function PurchaseOrdersTable({
     const orderInvoices = invoices.filter((invoice) => invoice.purchaseOrderId === order.id);
     return count + orderInvoices.filter((invoice) => invoice.status === 'SUBMITTED' || invoice.status === 'MATCHED').length;
   }, 0);
+  const ordersPagination = useTablePagination({
+    resetKey: orders.map((order) => order.id).join('|'),
+    rows: orders,
+  });
 
   if (orders.length === 0) {
     return (
@@ -89,7 +95,7 @@ export function PurchaseOrdersTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {orders.map((order) => {
+            {ordersPagination.paginatedRows.map((order) => {
               const orderInvoices = invoices.filter((invoice) => invoice.purchaseOrderId === order.id);
               const primaryInvoice = orderInvoices[0] ?? null;
               const pendingQuantity = order.items.reduce((sum, item) => sum + numberFrom(item.pendingQuantity), 0);
@@ -198,6 +204,7 @@ export function PurchaseOrdersTable({
           </tbody>
         </table>
       </div>
+      <PointOfSaleTablePagination {...ordersPagination} itemLabel="compras" />
     </section>
   );
 }

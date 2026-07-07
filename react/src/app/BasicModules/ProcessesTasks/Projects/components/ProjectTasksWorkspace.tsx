@@ -28,6 +28,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -57,6 +58,7 @@ import {
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
 import { authApi } from '../../../../api/auth';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 import { accentButtonClass } from '../../Processes/processesData';
 import type {
   ProcessBusinessOption,
@@ -1121,6 +1123,21 @@ export function ProjectTasksWorkspace({
       })
       .map(({ task }) => task);
   }, [filteredTasks, sortState, taskCopy]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedTasks,
+    totalCount: paginatedTaskCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${project.id}:${searchQuery}:${statusFilter}:${responsibleFilter}:${sortState.columnId}:${sortState.direction}`,
+    rows: sortedTasks,
+  });
   const taskTimeline = useMemo(() => {
     const taskDates = sortedTasks.flatMap((task) => [
       dateFromTaskTimelineValue(task.startDate ?? task.createdAt ?? task.agendaDate),
@@ -1145,8 +1162,8 @@ export function ProjectTasksWorkspace({
     };
   }, [sortedTasks]);
 
-  const visibleTaskIds = useMemo(() => sortedTasks.map((task) => task.taskId), [sortedTasks]);
-  const visibleTaskSelection = rowSelection.visibleSelectionState(visibleTaskIds);
+  const pageTaskIds = useMemo(() => paginatedTasks.map((task) => task.taskId), [paginatedTasks]);
+  const pageTaskSelection = rowSelection.visibleSelectionState(pageTaskIds);
   const selectedTasks = useMemo(
     () => tasks.filter((task) => rowSelection.selectedIds.has(task.taskId)),
     [rowSelection.selectedIds, tasks],
@@ -2790,6 +2807,7 @@ export function ProjectTasksWorkspace({
       ) : null}
 
       {workspaceViewMode === 'table' ? (
+        <>
         <div className="overflow-x-auto">
           <Table style={{ minWidth: tableMinWidth }}>
           <TableHeader>
@@ -2798,13 +2816,13 @@ export function ProjectTasksWorkspace({
                 <Checkbox
                   aria-label={copy.bulk.selectAllVisibleLabel}
                   checked={
-                    visibleTaskSelection.allVisibleSelected
+                    pageTaskSelection.allVisibleSelected
                       ? true
-                      : visibleTaskSelection.someVisibleSelected
+                      : pageTaskSelection.someVisibleSelected
                         ? 'indeterminate'
                         : false
                   }
-                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleTaskIds, checked === true)}
+                  onCheckedChange={(checked) => rowSelection.toggleAllVisible(pageTaskIds, checked === true)}
                   className="border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                 />
               </TableHead>
@@ -2841,7 +2859,7 @@ export function ProjectTasksWorkspace({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedTasks.map((task) => {
+            {paginatedTasks.map((task) => {
               const selected = rowSelection.isSelected(task.taskId);
 
               return (
@@ -2902,6 +2920,23 @@ export function ProjectTasksWorkspace({
           </TableBody>
           </Table>
         </div>
+        {!isLoadingTasks && paginatedTaskCount > 0 ? (
+          <DataTablePagination
+            attached={false}
+            className="mt-4"
+            currentPage={currentPage}
+            itemLabel="tareas"
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            pageEnd={pageEnd}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            pageStart={pageStart}
+            totalCount={paginatedTaskCount}
+            totalPages={totalPages}
+          />
+        ) : null}
+        </>
       ) : (
         renderTaskDiagram()
       )}

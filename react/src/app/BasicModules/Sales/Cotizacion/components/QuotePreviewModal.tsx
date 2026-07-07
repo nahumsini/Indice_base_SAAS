@@ -10,7 +10,8 @@ import {
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesContact, SalesOpportunity, SalesQuote } from '../../types';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { QuotesTranslations } from '../translations';
 import {

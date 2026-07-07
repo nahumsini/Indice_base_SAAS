@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../../salesModalStyles';
 import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { CheckCircle2, Lock, PlusCircle } from 'lucide-react';
 import type { CashFund } from '../../types/pettyCash.types';
 import {
@@ -6,6 +7,8 @@ import {
   formatPettyCashCurrency,
   formatPettyCashDate,
 } from '../../utils/pettyCash.utils';
+import { PettyCashPagination } from '../../components/PettyCashShared';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 
 interface CashFundTableProps {
   funds: CashFund[];
@@ -20,6 +23,12 @@ export function CashFundTable({
   onReconcileFund,
   onReplenishFund,
 }: CashFundTableProps) {
+  const paginationResetKey = useMemo(() => funds.map(fund => fund.id).join('|'), [funds]);
+  const pagination = useTablePagination({
+    resetKey: paginationResetKey,
+    rows: funds,
+  });
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="overflow-x-auto">
@@ -38,7 +47,7 @@ export function CashFundTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {funds.map((fund) => {
+            {pagination.paginatedRows.map((fund) => {
               const balanceRate = fund.limit > 0 ? Math.round((fund.currentBalance / fund.limit) * 100) : 0;
 
               return (
@@ -113,6 +122,18 @@ export function CashFundTable({
           </tbody>
         </table>
       </div>
+      <PettyCashPagination
+        currentPage={pagination.currentPage}
+        itemLabel="fondos"
+        onPageChange={pagination.onPageChange}
+        onPageSizeChange={pagination.onPageSizeChange}
+        pageEnd={pagination.pageEnd}
+        pageSize={pagination.pageSize}
+        pageSizeOptions={pagination.pageSizeOptions}
+        pageStart={pagination.pageStart}
+        totalCount={pagination.totalCount}
+        totalPages={pagination.totalPages}
+      />
     </div>
   );
 }

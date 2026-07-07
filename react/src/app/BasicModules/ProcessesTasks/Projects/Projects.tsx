@@ -18,6 +18,7 @@ import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../a
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -38,6 +39,7 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import { priorityClasses } from '../Processes/processesData';
 import { listProcesses } from '../Processes/processesApi';
 import type {
@@ -930,6 +932,21 @@ export default function Projects() {
       })
       .map(({ project }) => project);
   }, [filteredProjects, sortState]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedProjects,
+    totalCount: paginatedProjectCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${searchQuery}:${unitFilter}:${businessFilter}:${ownerFilter}:${statusFilter}:${sortState.columnId}:${sortState.direction}`,
+    rows: sortedProjects,
+  });
 
   const metrics = useMemo(() => {
     const totalCount = filteredProjects.length;
@@ -1662,7 +1679,7 @@ export default function Projects() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedProjects.map((project) => (
+              {paginatedProjects.map((project) => (
                 <TableRow key={project.id} className={cn('border-slate-200 dark:border-slate-700', selectedProjectId === project.id && 'bg-[#F4C84A]/5')}>
                   {visibleColumns.map((column) => {
                     const columnId = column.id as ProjectColumnId;
@@ -1695,6 +1712,20 @@ export default function Projects() {
             </TableBody>
           </Table>
         </div>
+        {!isLoadingProjects && paginatedProjectCount > 0 ? (
+          <DataTablePagination
+            currentPage={currentPage}
+            itemLabel="proyectos"
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            pageEnd={pageEnd}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            pageStart={pageStart}
+            totalCount={paginatedProjectCount}
+            totalPages={totalPages}
+          />
+        ) : null}
       </section>
 
       {selectedProject ? (

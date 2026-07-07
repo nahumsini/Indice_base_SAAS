@@ -151,7 +151,7 @@ const payrollRunColumnIds: PayrollRunColumnId[] = [
 ];
 const lockedPayrollRunColumnIds: PayrollRunColumnId[] = ['period', 'actions'];
 const defaultPayrollPageSize = 10;
-const payrollPageSizeOptions = [10, 20, 50, 100, 200];
+const payrollPageSizeOptions = [10, 25, 50, 100, 200];
 
 const pickPayrollRateValues = (preferences: PayrollPreferences): PayrollRateValues => ({
   isr_rate: preferences.isr_rate,

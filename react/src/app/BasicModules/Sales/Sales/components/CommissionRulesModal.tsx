@@ -11,7 +11,8 @@ import {
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
 import { cn } from '../../../../components/ui/utils';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRule, CommissionRuleStatus, CommissionType } from '../types/commissions';
 import type { SaleRecord } from '../types/salesTypes';

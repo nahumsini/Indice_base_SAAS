@@ -13,7 +13,7 @@ export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v2';
 export const allFilterValue = 'all';
 export const inlineUnassignedValue = '__unassigned__';
 export const employeesPerPage = 10;
-export const employeePageSizeOptions = [10, 25, 50] as const;
+export const employeePageSizeOptions = [10, 25, 50, 100, 200] as const;
 export const employeeSelectionColumnWidth = 64;
 export const hrAccentButtonClass = 'bg-[#59C3A5] text-white hover:bg-[#3AAE90]';
 

@@ -412,6 +412,7 @@ export const zhCA = {
     noEmployeesHint: '请尝试其他单位或业务来查看每日考勤。',
     showingRows: (startRow: number, endRow: number, totalRows: number) =>
       `显示 ${totalRows} 名 HR 用户中的 ${startRow}-${endRow}`,
+    pageSize: '每页行数',
     previousPage: '上一页',
     nextPage: '下一页',
     pageLabel: (currentPage: number, pageCount: number) => `第 ${currentPage} 页，共 ${pageCount} 页`,

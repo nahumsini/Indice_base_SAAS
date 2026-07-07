@@ -1,4 +1,6 @@
 import { ArrowRight, Eye, ShieldCheck } from 'lucide-react';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
+import { PointOfSaleTablePagination } from '../../shared/components/PointOfSaleTablePagination';
 import type { SupplierSubmission } from '../types/purchaseOrder.types';
 import {
   formatDate,
@@ -21,6 +23,11 @@ export function SupplierSubmissionsTable({
   onStartReview: (submission: SupplierSubmission) => void;
   submissions: SupplierSubmission[];
 }) {
+  const submissionsPagination = useTablePagination({
+    resetKey: submissions.map((submission) => submission.id).join('|'),
+    rows: submissions,
+  });
+
   if (submissions.length === 0) {
     return (
       <section className="rounded-[24px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -46,7 +53,7 @@ export function SupplierSubmissionsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {submissions.map((submission) => {
+            {submissionsPagination.paginatedRows.map((submission) => {
               const unresolvedItems = submission.items.filter((item) => !item.productId).length;
               const canConvert = ['APPROVED', 'PARTIALLY_APPROVED'].includes(submission.status)
                 && !submission.convertedPurchaseOrderId;
@@ -112,6 +119,7 @@ export function SupplierSubmissionsTable({
           </tbody>
         </table>
       </div>
+      <PointOfSaleTablePagination {...submissionsPagination} itemLabel="propuestas" />
     </section>
   );
 }

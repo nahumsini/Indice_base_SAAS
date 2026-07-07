@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { cn } from '../../../../components/ui/utils';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import {
   opportunitySources,
   type OpportunitySource,

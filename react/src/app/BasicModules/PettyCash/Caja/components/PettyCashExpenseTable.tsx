@@ -9,6 +9,8 @@ import {
   pettyCashStatusClasses,
   pettyCashStatusLabels,
 } from '../../utils/pettyCash.utils';
+import { PettyCashPagination } from '../../components/PettyCashShared';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 
 export interface PettyCashColumnConfig {
   key: string;
@@ -65,6 +67,14 @@ export function PettyCashExpenseTable({
       compareValues(leftExpense[sortField], rightExpense[sortField], sortDirection),
     );
   }, [expenses, sortDirection, sortField]);
+  const paginationResetKey = useMemo(
+    () => `${sortField ?? 'none'}:${sortDirection ?? 'none'}:${expenses.map(expense => expense.id).join('|')}`,
+    [expenses, sortDirection, sortField],
+  );
+  const pagination = useTablePagination({
+    resetKey: paginationResetKey,
+    rows: sortedExpenses,
+  });
 
   const handleSort = (field?: keyof PettyCashExpense) => {
     if (!field) return;
@@ -239,7 +249,7 @@ export function PettyCashExpenseTable({
                 </td>
               </tr>
             ) : (
-              sortedExpenses.map((expense) => (
+              pagination.paginatedRows.map((expense) => (
                 <tr key={expense.id} className="transition odd:bg-white even:bg-gray-50/60 hover:bg-green-50/50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30 dark:hover:bg-green-900/10">
                   {visibleColumns.map((column) => (
                     <td
@@ -257,6 +267,18 @@ export function PettyCashExpenseTable({
           </tbody>
         </table>
       </div>
+      <PettyCashPagination
+        currentPage={pagination.currentPage}
+        itemLabel="gastos"
+        onPageChange={pagination.onPageChange}
+        onPageSizeChange={pagination.onPageSizeChange}
+        pageEnd={pagination.pageEnd}
+        pageSize={pagination.pageSize}
+        pageSizeOptions={pagination.pageSizeOptions}
+        pageStart={pagination.pageStart}
+        totalCount={pagination.totalCount}
+        totalPages={pagination.totalPages}
+      />
     </div>
   );
 }

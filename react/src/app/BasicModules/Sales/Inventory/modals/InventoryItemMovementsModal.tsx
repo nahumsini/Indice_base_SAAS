@@ -1,6 +1,7 @@
 import { Button } from '../../../../components/ui/button';
 import { History } from 'lucide-react';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { InventoryMovement, InventoryStockItem } from '../types/inventoryTypes';
 import type { InventoryTranslations } from '../translations';
 import { InventoryMovementHistory } from '../components/InventoryMovementHistory';

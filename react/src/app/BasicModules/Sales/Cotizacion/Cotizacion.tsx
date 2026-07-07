@@ -18,6 +18,7 @@ import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -35,12 +36,13 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   SalesTitleBar,
   salesTitleBarPrimaryActionClassName,
   salesTitleBarSecondaryActionClassName,
 } from '../components/SalesTitleBar';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
+import { SalesModalFrame } from '../components/SalesModalFrame';
 import { salesApi } from '../salesApi';
 import {
   opportunityLinkedQuoteStatuses,
@@ -54,15 +56,11 @@ import {
 } from '../salesCrmContext';
 import {
   defaultSalesCurrency,
-  formatSalesCurrencyAmount,
   formatSalesCurrencyBreakdown,
   normalizeSalesCurrencyCode,
 } from '../utils/salesCurrency';
 import {
-  fallbackOwnerValue,
-  getOwnerUserCompanyIdFromValue,
   normalizeSalesOwnerOption,
-  ownerOptionValue,
   type SalesOwnerOption,
 } from '../utils/salesOwnerOptions';
 import { compactText, normalizeTextKey } from '../utils/salesTextUtils';
@@ -89,86 +87,30 @@ import { QuoteBuilderModal } from './modals/QuoteBuilderModal';
 import { printQuotePdf } from './quotePdf';
 import { useQuotesTranslations } from './translations';
 import type { QuoteFormState } from './types/quoteBuilderTypes';
+import type { CotizacionProps, FilterValue } from './types/quotePageTypes';
 import { ensureQuoteItemCurrencySnapshot, repriceQuoteItemForCurrency } from './utils/quoteCurrencyConversion';
 import { calculateQuoteBuilderTotals } from './utils/quotePricing';
-import { getQuoteTableSignals } from './utils/quoteTableSignals';
 import {
-  getDefaultTaxPresetForJurisdiction,
-  type QuoteTaxJurisdiction,
-} from './utils/quoteTaxCatalog';
-
-type FilterValue = 'all' | string;
-
-interface CotizacionProps {
-  learningModeActive?: boolean;
-}
-
-const coralFieldClassName = 'border-slate-200 bg-white shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
-const quoteModalActionClassNames = getSalesModalActionClassNames('coral');
-const quoteSortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
-const defaultQuoteTaxJurisdiction: QuoteTaxJurisdiction = 'mx';
-
-const statusClasses: Record<QuoteStatus, string> = {
-  Draft: 'border-slate-200 bg-slate-50 text-slate-600',
-  Sent: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
-  Viewed: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
-  Negotiation: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  Approved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  Rejected: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
-  Expired: 'border-slate-300 bg-slate-100 text-slate-500',
-  'Closed Won': 'border-emerald-200 bg-emerald-50 text-emerald-700',
-};
-
-const quoteStatusProgressStyles: Record<QuoteStatus, string> = {
-  Draft: 'bg-slate-400',
-  Sent: 'bg-[#2563EB]',
-  Viewed: 'bg-[#59C3A5]',
-  Negotiation: 'bg-[#FF6B5E]',
-  Approved: 'bg-emerald-500',
-  Rejected: 'bg-[#F43F5E]',
-  Expired: 'bg-slate-500',
-  'Closed Won': 'bg-[#059669]',
-};
-
-function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function getFutureIsoDate(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function stripQuoteBuilderOnlyItemFields(items: SalesQuoteItem[]): SalesQuoteItem[] {
-  return items.map((item) => {
-    const payloadItem = { ...item };
-    delete payloadItem.taxCode;
-    delete payloadItem.taxLabel;
-    delete payloadItem.taxJurisdiction;
-    delete payloadItem.taxIsCustom;
-    return payloadItem;
-  });
-}
-
-function formatCurrency(value: number, currency?: string | null) {
-  return formatSalesCurrencyAmount(value, currency);
-}
-
-function getQuoteSellerSelectValue(quote: SalesQuote, ownerOptions: SalesOwnerOption[]) {
-  if (quote.assignedSellerUserCompanyId) {
-    return `user-company:${quote.assignedSellerUserCompanyId}`;
-  }
-
-  const matchedOwner = ownerOptions.find((owner) => normalizeTextKey(owner.name) === normalizeTextKey(quote.assignedSeller));
-  return matchedOwner ? ownerOptionValue(matchedOwner) : fallbackOwnerValue(quote.assignedSeller);
-}
-
-function getDaysUntil(dateValue: string) {
-  const expirationTime = new Date(dateValue).getTime();
-  const now = new Date(getTodayIsoDate()).getTime();
-  return Math.ceil((expirationTime - now) / 86400000);
-}
+  buildQuoteSellerNameByValue,
+  buildQuoteSellerSelectOptions,
+  filterQuotes,
+  coralFieldClassName,
+  defaultQuoteTaxJurisdiction,
+  formatCurrency,
+  getDaysUntil,
+  getDefaultQuoteSellerValue,
+  getFutureIsoDate,
+  getQuoteSellerPayloadFromValue,
+  getQuoteSellerSelectValue,
+  getTodayIsoDate,
+  quoteModalActionClassNames,
+  quoteSortCollator,
+  quoteStatusProgressStyles,
+  statusClasses,
+  stripQuoteBuilderOnlyItemFields,
+} from './utils/quotePageUtils';
+import { getQuoteTableSignals } from './utils/quoteTableSignals';
+import { getDefaultTaxPresetForJurisdiction } from './utils/quoteTaxCatalog';
 
 export default function Cotizacion({ learningModeActive = false }: CotizacionProps) {
   const navigate = useNavigate();
@@ -187,7 +129,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     connectQuoteToOpportunity,
   } = useSalesCrm();
 
-  const defaultFallbackSellerValue = fallbackOwnerValue(salesOwners[0]);
+  const defaultFallbackSellerValue = getDefaultQuoteSellerValue(salesOwners[0]);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<SalesQuote | null>(null);
   const [previewQuote, setPreviewQuote] = useState<SalesQuote | null>(null);
@@ -274,22 +216,18 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     };
   }, []);
 
-  const sellerSelectOptions = useMemo(() => {
-    const companyOwnerOptions = ownerOptions.map((owner) => ({
-      value: ownerOptionValue(owner),
-      label: owner.name,
-    }));
-    const fallbackOwnerNames = [...salesOwners, ...contacts.map((contact) => contact.owner), ...opportunities.map((opportunity) => opportunity.owner), ...quotes.map((quote) => quote.assignedSeller)]
-      .filter((owner, index, owners) => owner && owners.findIndex((candidate) => normalizeTextKey(candidate) === normalizeTextKey(owner)) === index);
-    const fallbackOwnerOptions = fallbackOwnerNames
-      .map((owner) => ({ value: fallbackOwnerValue(owner), label: owner }))
-      .filter((option) => !companyOwnerOptions.some((owner) => normalizeTextKey(owner.label) === normalizeTextKey(option.label)));
-
-    return [...companyOwnerOptions, ...fallbackOwnerOptions];
-  }, [contacts, opportunities, ownerOptions, quotes]);
+  const sellerSelectOptions = useMemo(() => buildQuoteSellerSelectOptions({
+    ownerOptions,
+    fallbackOwnerNames: [
+      ...salesOwners,
+      ...contacts.map((contact) => contact.owner),
+      ...opportunities.map((opportunity) => opportunity.owner),
+      ...quotes.map((quote) => quote.assignedSeller),
+    ],
+  }), [contacts, opportunities, ownerOptions, quotes]);
 
   const sellerNameByValue = useMemo(
-    () => new Map(sellerSelectOptions.map((owner) => [owner.value, owner.label])),
+    () => buildQuoteSellerNameByValue(sellerSelectOptions),
     [sellerSelectOptions],
   );
   const currentUserCompanyId = useMemo(
@@ -299,37 +237,24 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const defaultSellerValue = currentUserCompanyId
     ? `user-company:${currentUserCompanyId}`
     : sellerSelectOptions[0]?.value ?? defaultFallbackSellerValue;
-  const getSellerPayloadFromValue = (value: string) => {
-    const userCompanyId = getOwnerUserCompanyIdFromValue(value);
-    const sellerName = sellerNameByValue.get(value) ?? value.replace('name:', '');
-
-    return {
-      assignedSellerUserCompanyId: userCompanyId,
-      assignedSeller: sellerName || salesOwners[0],
-    };
-  };
-  const resolveQuoteSellerValue = (quote: SalesQuote) => getQuoteSellerSelectValue(quote, ownerOptions);
+  const getSellerPayloadFromValue = (value: string) => getQuoteSellerPayloadFromValue(
+    value,
+    sellerNameByValue,
+    salesOwners[0],
+  );
   const opportunityNameById = useMemo(
     () => new Map(opportunities.map((opportunity) => [opportunity.id, opportunity.opportunityName])),
     [opportunities],
   );
 
-  const filteredQuotes = useMemo(() => quotes.filter((quote) => {
-    const normalizedSearch = search.trim().toLowerCase();
-    const opportunity = opportunities.find((item) => item.id === quote.opportunityId);
-    const matchesSearch = !normalizedSearch || [
-      quote.quoteNumber,
-      quote.clientName,
-      quote.contactPerson,
-      quote.assignedSeller,
-      opportunity?.opportunityName ?? '',
-    ].some((value) => value.toLowerCase().includes(normalizedSearch));
-    const matchesStatus = statusFilter === 'all' || quote.status === statusFilter;
-    const matchesSeller = sellerFilter === 'all' || resolveQuoteSellerValue(quote) === sellerFilter;
-    const matchesOpportunity = opportunityFilter === 'all'
-      || (opportunityFilter === 'none' ? !quote.opportunityId : quote.opportunityId === opportunityFilter);
-
-    return matchesSearch && matchesStatus && matchesSeller && matchesOpportunity;
+  const filteredQuotes = useMemo(() => filterQuotes({
+    quotes,
+    opportunities,
+    ownerOptions,
+    search,
+    statusFilter,
+    sellerFilter,
+    opportunityFilter,
   }), [opportunities, opportunityFilter, ownerOptions, quotes, search, sellerFilter, statusFilter]);
 
   const getQuoteSortValue = (quote: SalesQuote, columnId: QuoteSortColumn) => {
@@ -371,6 +296,21 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
     return quoteSortCollator.compare(String(leftValue), String(rightValue)) * directionMultiplier;
   }), [filteredQuotes, opportunityNameById, products, sortState, t.statusLabels]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedQuotes,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${search}:${statusFilter}:${sellerFilter}:${opportunityFilter}:${sortState.columnId}:${sortState.direction}:${quotes.map((quote) => quote.id).join('|')}`,
+    rows: sortedQuotes,
+  });
   const handleSort = (columnId: QuoteSortColumn) => {
     setSortState((current) => (
       current.columnId === columnId
@@ -915,7 +855,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         metrics={quoteMetrics}
       />
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <Table className="min-w-[2040px] table-fixed">
             <TableHeader>
@@ -942,9 +882,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                     {t.table.empty}
                   </TableCell>
                 </TableRow>
-              ) : sortedQuotes.map((quote) => {
+              ) : paginatedQuotes.map((quote) => {
                 const opportunity = opportunities.find((item) => item.id === quote.opportunityId);
-                const sellerValue = resolveQuoteSellerValue(quote);
+                const sellerValue = getQuoteSellerSelectValue(quote, ownerOptions);
                 const quoteContact = getQuoteContact(quote);
                 const tableSignals = quoteTableSignalsById.get(quote.id) ?? getQuoteTableSignals({
                   quote,
@@ -1011,7 +951,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                     <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                       <button
                         type="button"
-                        className="inline-flex w-full min-w-0 max-w-full items-center justify-center gap-2 rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-2 text-sm font-bold text-[#B63B32] transition-colors hover:bg-[#FF6B5E]/15"
+                        className="inline-flex w-full min-w-0 max-w-full items-center justify-center gap-2 rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-2 text-sm font-bold text-[#B63B32] shadow-sm transition-colors hover:bg-[#FF6B5E]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
                         onClick={() => setSelectedFilesQuote(quote)}
                       >
                         <Paperclip className="h-4 w-4" />
@@ -1022,8 +962,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                     </TableCell>
                     <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
                       <div className="mx-auto grid w-fit grid-cols-[repeat(2,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                        <QuoteAction label={t.actions.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" onClick={() => setPreviewQuote(quote)} />
-                        <QuoteAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50" onClick={() => openEditQuoteBuilder(quote)} />
+                        <QuoteAction label={t.actions.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" onClick={() => setPreviewQuote(quote)} />
+                        <QuoteAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => openEditQuoteBuilder(quote)} />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1032,6 +972,18 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
             </TableBody>
           </Table>
         </div>
+        <DataTablePagination
+          currentPage={currentPage}
+          itemLabel="cotizaciones"
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          pageEnd={pageEnd}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          pageStart={pageStart}
+          totalCount={totalCount}
+          totalPages={totalPages}
+        />
       </section>
 
       <QuoteBuilderModal
@@ -1088,23 +1040,23 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
           <Button className={quoteModalActionClassNames.primary} onClick={() => setSelectedFilesQuote(null)}>{t.common.close}</Button>
         )}
       >
-            <div className="rounded-2xl border border-[#FF6B5E]/20 bg-white p-4 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t.table.columns.number}</p>
-              <p className="mt-2 break-all text-lg font-black text-slate-950">{selectedFilesQuote?.quoteNumber}</p>
-              <p className="mt-1 break-words text-sm font-semibold text-slate-500">{selectedFilesQuote?.clientName}</p>
+            <div className="rounded-2xl border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/30 dark:bg-slate-900">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t.table.columns.number}</p>
+              <p className="mt-2 break-all text-lg font-black text-slate-950 dark:text-white">{selectedFilesQuote?.quoteNumber}</p>
+              <p className="mt-1 break-words text-sm font-semibold text-slate-500 dark:text-slate-400">{selectedFilesQuote?.clientName}</p>
             </div>
 
             {selectedFilesQuote ? (
-              <div className="rounded-2xl border border-[#FF6B5E]/25 bg-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-[#FF6B5E]/25 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/30 dark:bg-slate-900">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32] dark:text-[#FFB0AA]">
                       <FileText className="h-5 w-5" />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-950">{t.previewModal.documentTitle}</p>
-                      <p className="mt-1 break-all text-xs font-semibold text-slate-500">{selectedFilesQuote.quoteNumber}</p>
-                      <p className="mt-2 text-xs font-bold text-slate-600">
+                      <p className="text-sm font-black text-slate-950 dark:text-white">{t.previewModal.documentTitle}</p>
+                      <p className="mt-1 break-all text-xs font-semibold text-slate-500 dark:text-slate-400">{selectedFilesQuote.quoteNumber}</p>
+                      <p className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                         {formatCurrency(selectedFilesQuote.total, selectedFilesQuote.currency)} · {selectedFilesQuote.currency ?? defaultSalesCurrency} · {t.statusLabels[selectedFilesQuote.status]}
                       </p>
                     </div>
@@ -1113,7 +1065,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-9 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white text-xs font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10"
+                      className="h-9 gap-2 rounded-xl border-[#FF6B5E]/25 bg-white text-xs font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
                       onClick={() => {
                         setPreviewQuote(selectedFilesQuote);
                         setSelectedFilesQuote(null);
@@ -1125,7 +1077,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-9 gap-2 rounded-xl border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
+                      className="h-9 gap-2 rounded-xl border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                       onClick={() => printSavedQuote(selectedFilesQuote)}
                     >
                       <Printer className="h-3.5 w-3.5" />
@@ -1138,13 +1090,13 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
             {selectedFilesQuote?.files.length ? (
               <section className="space-y-2">
-                <h3 className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t.labels.files}</h3>
+                <h3 className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t.labels.files}</h3>
                 {selectedFilesQuote.files.map((file) => (
-                  <div key={file} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]">
+                  <div key={file} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32] dark:text-[#FFB0AA]">
                       <FileText className="h-4 w-4" />
                     </span>
-                    <span className="min-w-0 break-all text-sm font-semibold leading-6 text-slate-700">{file}</span>
+                    <span className="min-w-0 break-all text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300">{file}</span>
                   </div>
                 ))}
               </section>

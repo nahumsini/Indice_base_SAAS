@@ -1,6 +1,7 @@
 import { Globe2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import { PublicCatalogEditor } from './PublicCatalogEditor';

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CalendarClock,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -40,7 +41,8 @@ import {
 } from '../../../components/ui/table';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../components/SalesModalFrame';
+import { useTablePagination } from '../../../hooks/useTablePagination';
+import { SalesModalFrame } from '../components/SalesModalFrame';
 import { SalesTitleBar } from '../components/SalesTitleBar';
 import {
   customerRelationTypes,
@@ -48,340 +50,54 @@ import {
   postSaleTypes,
   salesOwners,
   type CustomerRelationType,
-  type PostSaleRiskLevel,
   type PostSaleStatus,
   type PostSaleType,
   type SalesPostSaleCase,
   useSalesCrm,
 } from '../salesCrmContext';
 import type { SaleRecord } from '../Sales/types/salesTypes';
-import {
-  getCustomerLifecycleSignals,
-  type CustomerHealthStatus,
-  type CustomerLifecycleSignals,
-  type CustomerRelationshipStatus,
-} from '../utils/customerLifecycle';
 import { getPhoneHref, getWhatsAppHref } from '../utils/salesCommunicationUtils';
-import { formatSalesCurrencyAmount, formatSalesCurrencyBreakdown, normalizeSalesCurrencyCode } from '../utils/salesCurrency';
+import { formatSalesCurrencyBreakdown, normalizeSalesCurrencyCode } from '../utils/salesCurrency';
+import {
+  ActionButton,
+  FilterSelect,
+  FollowUpLane,
+  KpiMetric,
+} from './components/PostSalesUi';
+import type {
+  CustomerHistory,
+  FilterValue,
+  FutureOpportunityFormState,
+  OpportunityAutomationDelay,
+  OpportunityAutomationFormState,
+  PostSaleFormState,
+  ViewMode,
+} from './types/postSalesTypes';
 import { usePostSalesTranslations } from './translations';
 import { openSaleSummaryPdf } from './utils/postSalePdf';
-
-type ViewMode = 'table' | 'followUp';
-type FilterValue = 'all' | string;
-type OpportunityAutomationDelay = '30' | '60' | '90' | '180' | 'custom';
-const postSaleModalActions = getSalesModalActionClassNames('coral');
-const futureOpportunityModalActions = getSalesModalActionClassNames('aqua');
-const salesModalIconClassName = 'h-5 w-5 text-white';
-
-type PostSaleFormState = {
-  clientId: string;
-  relatedOpportunityId: string;
-  lastQuoteId: string;
-  relationType: CustomerRelationType;
-  postSaleType: PostSaleType;
-  status: PostSaleStatus;
-  owner: string;
-  lastPurchaseDate: string;
-  nextFollowUpDate: string;
-  renewalDate: string;
-  lifetimeValue: string;
-  nextAction: string;
-  notes: string;
-  files: string;
-};
-
-type OpportunityAutomationFormState = {
-  clientId: string;
-  delay: OpportunityAutomationDelay;
-  scheduledDate: string;
-  opportunityName: string;
-  expectedCloseDate: string;
-  owner: string;
-  notes: string;
-};
-
-type FutureOpportunityFormState = {
-  opportunityName: string;
-  expectedCloseDate: string;
-  nextActionDate: string;
-  notes: string;
-};
-
-type CustomerHistory = {
-  id: string;
-  clientId?: string;
-  clientName: string;
-  contactPerson: string;
-  phone?: string;
-  email?: string;
-  owner: string;
-  relationType: CustomerRelationType;
-  postSaleType: PostSaleType;
-  status: PostSaleStatus;
-  riskLevel: PostSaleRiskLevel;
-  lastPurchaseDate?: string;
-  nextFollowUpDate?: string;
-  renewalDate?: string;
-  lifetimeValue: number;
-  currency?: string;
-  notes: string;
-  files: string[];
-  sales: SaleRecord[];
-  postSaleCase?: SalesPostSaleCase;
-};
-
-const statusClasses: Record<PostSaleStatus, string> = {
-  Active: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
-  'Pending follow-up': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  'In service': 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
-  'Renewal soon': 'border-violet-200 bg-violet-50 text-violet-700',
-  Recurrent: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
-  'At risk': 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
-  Completed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  Closed: 'border-slate-200 bg-slate-50 text-slate-600',
-};
-
-const relationClasses: Record<CustomerRelationType, string> = {
-  'One-time customer': 'border-slate-200 bg-slate-50 text-slate-700',
-  'Recurrent customer': 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
-  'Renewal customer': 'border-violet-200 bg-violet-50 text-violet-700',
-  'Dormant customer': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  'Lost prospect': 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
-};
-
-const riskClasses: Record<PostSaleRiskLevel, string> = {
-  Low: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
-  Medium: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  High: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
-};
-
-const healthClasses: Record<CustomerHealthStatus, string> = {
-  healthy: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
-  attention: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  at_risk: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32]',
-  lost: 'border-slate-300 bg-slate-100 text-slate-500',
-};
-
-const relationshipClasses: Record<CustomerRelationshipStatus, string> = {
-  first_purchase: 'border-slate-200 bg-slate-50 text-slate-700',
-  recurring: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
-  renewal: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
-  recovered: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  dormant: 'border-slate-300 bg-slate-100 text-slate-500',
-};
-
-const statusProgressClasses: Record<PostSaleStatus, string> = {
-  Active: 'bg-[#59C3A5]',
-  'Pending follow-up': 'bg-[#F4C84A]',
-  'In service': 'bg-[#2563EB]',
-  'Renewal soon': 'bg-violet-500',
-  Recurrent: 'bg-[#177d66]',
-  'At risk': 'bg-[#FF6B5E]',
-  Completed: 'bg-emerald-500',
-  Closed: 'bg-slate-400',
-};
-
-function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function getFutureIsoDate(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function getIsoDateAfter(baseDate: string | undefined, days: number) {
-  const date = baseDate ? new Date(baseDate) : new Date();
-
-  if (Number.isNaN(date.getTime())) {
-    return getFutureIsoDate(days);
-  }
-
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function getDaysUntil(date?: string) {
-  if (!date) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  const target = new Date(date).getTime();
-  const today = new Date(getTodayIsoDate()).getTime();
-  return Math.ceil((target - today) / 86400000);
-}
-
-function formatCurrency(value: number, currency?: string | null) {
-  return formatSalesCurrencyAmount(value, currency);
-}
-
-function parseFiles(value: string) {
-  return value.split(',').map((file) => file.trim()).filter(Boolean);
-}
-
-function normalizeKey(value?: string) {
-  return (value ?? '').trim().toLowerCase();
-}
-
-function getHistoryCurrency(history?: Pick<CustomerHistory, 'currency' | 'sales' | 'postSaleCase'> | null) {
-  return normalizeSalesCurrencyCode(history?.sales[0]?.currency ?? history?.currency ?? history?.postSaleCase?.currency);
-}
-
-function getEmailHref(email: string, subject: string) {
-  return `mailto:${email.trim()}?subject=${encodeURIComponent(subject)}`;
-}
-
-function getLatestDate(values: Array<string | undefined>) {
-  return values
-    .filter(Boolean)
-    .sort((left, right) => new Date(right as string).getTime() - new Date(left as string).getTime())[0];
-}
-
-function getHistoryRelationType(salesCount: number, postSaleCase?: SalesPostSaleCase): CustomerRelationType {
-  if (postSaleCase) return postSaleCase.relationType;
-  if (salesCount > 1) return 'Recurrent customer';
-  if (salesCount === 1) return 'One-time customer';
-  return 'Dormant customer';
-}
-
-function getHistoryStatus(salesCount: number, postSaleCase?: SalesPostSaleCase): PostSaleStatus {
-  if (postSaleCase) return postSaleCase.status;
-  return salesCount > 0 ? 'Active' : 'Pending follow-up';
-}
-
-function getHistoryRisk(history: Pick<CustomerHistory, 'sales' | 'postSaleCase' | 'nextFollowUpDate'>): PostSaleRiskLevel {
-  if (history.postSaleCase) return history.postSaleCase.riskLevel;
-  const days = getDaysUntil(history.nextFollowUpDate);
-  if (days < 0) return 'High';
-  return history.sales.length > 0 ? 'Low' : 'Medium';
-}
-
-function KpiMetric({
-  icon,
-  value,
-  label,
-  valueClassName = 'text-slate-950',
-}: {
-  icon: ReactNode;
-  value: string | number;
-  label: string;
-  valueClassName?: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-        {icon}
-      </span>
-      <span className="text-base font-semibold">
-        <span className={cn('mr-2 font-bold dark:text-white', valueClassName)}>{value}</span>
-        <span className="text-slate-600 dark:text-slate-300">{label}</span>
-      </span>
-    </span>
-  );
-}
-
-function FilterSelect({
-  label,
-  value,
-  onValueChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{label}</label>
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-function ActionButton({
-  label,
-  icon,
-  className,
-  onClick,
-  disabled = false,
-}: {
-  label: string;
-  icon: ReactNode;
-  className: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-      onClick={disabled ? undefined : onClick}
-      className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20 disabled:cursor-not-allowed disabled:opacity-40',
-        className,
-      )}
-    >
-      {icon}
-    </button>
-  );
-}
-
-function FollowUpLane({
-  title,
-  description,
-  cases,
-  emptyLabel,
-  renderMeta,
-}: {
-  title: string;
-  description: string;
-  cases: SalesPostSaleCase[];
-  emptyLabel: string;
-  renderMeta: (postSaleCase: SalesPostSaleCase) => string;
-}) {
-  return (
-    <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div>
-        <h3 className="text-lg font-black text-slate-950 dark:text-white">{title}</h3>
-        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
-      </div>
-      <div className="mt-4 space-y-3">
-        {cases.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            {emptyLabel}
-          </div>
-        ) : cases.map((postSaleCase) => (
-          <article key={postSaleCase.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-black text-slate-950 dark:text-white">{postSaleCase.clientName}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{postSaleCase.nextAction}</p>
-              </div>
-              <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', riskClasses[postSaleCase.riskLevel])}>
-                {renderMeta(postSaleCase)}
-              </Badge>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
+import {
+  buildCustomerHistories,
+  buildLifecycleByHistoryId,
+  filterCustomerHistories,
+  filterPostSaleCases,
+  formatCurrency,
+  futureOpportunityModalActions,
+  getDaysUntil,
+  getEmailHref,
+  getFutureIsoDate,
+  getHistoryCurrency,
+  getIsoDateAfter,
+  getTodayIsoDate,
+  healthClasses,
+  parseFiles,
+  postSaleModalActions,
+  relationClasses,
+  relationshipClasses,
+  riskClasses,
+  salesModalIconClassName,
+  statusClasses,
+  statusProgressClasses,
+} from './utils/postSalesPageUtils';
 
 export default function Postventa() {
   const t = usePostSalesTranslations();
@@ -455,148 +171,48 @@ export default function Postventa() {
     { value: 'lost', label: t.lifecycle.health.lost },
   ];
 
-  const customerHistories = useMemo<CustomerHistory[]>(() => {
-    const histories = new Map<string, CustomerHistory>();
+  const customerHistories = useMemo<CustomerHistory[]>(() => buildCustomerHistories({
+    contacts,
+    postSaleCases,
+    salesRecords,
+  }), [contacts, postSaleCases, salesRecords]);
 
-    salesRecords.forEach((sale) => {
-      const contact = contacts.find((item) => item.id === sale.contactId || item.id === sale.customerId)
-        ?? contacts.find((item) => normalizeKey(item.company) === normalizeKey(sale.customerName));
-      const key = contact?.id ?? `sale-${normalizeKey(sale.customerName)}`;
-      const existing = histories.get(key);
-      const saleHistory = [...(existing?.sales ?? []), sale].sort((left, right) => new Date(right.saleDate).getTime() - new Date(left.saleDate).getTime());
+  const lifecycleByHistoryId = useMemo(
+    () => buildLifecycleByHistoryId(customerHistories),
+    [customerHistories],
+  );
 
-      histories.set(key, {
-        id: key,
-        clientId: contact?.id ?? sale.contactId ?? sale.customerId,
-        clientName: contact?.company ?? sale.customerName,
-        contactPerson: contact?.contactPerson ?? sale.customerName,
-        phone: existing?.phone ?? contact?.phone ?? '',
-        email: existing?.email ?? contact?.email ?? '',
-        owner: existing?.owner ?? contact?.owner ?? sale.sellerName,
-        relationType: existing?.relationType ?? 'One-time customer',
-        postSaleType: existing?.postSaleType ?? 'Standard post-sale',
-        status: existing?.status ?? 'Active',
-        riskLevel: existing?.riskLevel ?? 'Low',
-        lastPurchaseDate: getLatestDate([existing?.lastPurchaseDate, sale.saleDate]),
-        nextFollowUpDate: existing?.nextFollowUpDate,
-        renewalDate: existing?.renewalDate,
-        lifetimeValue: (existing?.lifetimeValue ?? 0) + sale.totalAmount,
-        currency: saleHistory[0]?.currency ?? existing?.currency ?? sale.currency,
-        notes: existing?.notes ?? sale.notes,
-        files: existing?.files ?? [],
-        sales: saleHistory,
-        postSaleCase: existing?.postSaleCase,
-      });
-    });
-
-    postSaleCases.forEach((postSaleCase) => {
-      const contact = contacts.find((item) => item.id === postSaleCase.clientId)
-        ?? contacts.find((item) => normalizeKey(item.company) === normalizeKey(postSaleCase.clientName));
-      const key = contact?.id ?? postSaleCase.clientId ?? `case-${normalizeKey(postSaleCase.clientName)}`;
-      const existing = histories.get(key);
-
-      if (!existing) {
-        return;
-      }
-
-      histories.set(key, {
-        id: key,
-        clientId: contact?.id ?? postSaleCase.clientId,
-        clientName: postSaleCase.clientName,
-        contactPerson: postSaleCase.contactPerson,
-        phone: existing?.phone ?? contact?.phone ?? '',
-        email: existing?.email ?? contact?.email ?? '',
-        owner: postSaleCase.owner,
-        relationType: postSaleCase.relationType,
-        postSaleType: postSaleCase.postSaleType,
-        status: postSaleCase.status,
-        riskLevel: postSaleCase.riskLevel,
-        lastPurchaseDate: getLatestDate([existing?.lastPurchaseDate, postSaleCase.lastPurchaseDate]),
-        nextFollowUpDate: postSaleCase.nextFollowUpDate,
-        renewalDate: postSaleCase.renewalDate,
-        lifetimeValue: Math.max(existing?.lifetimeValue ?? 0, postSaleCase.lifetimeValue),
-        currency: existing?.currency ?? postSaleCase.currency,
-        notes: postSaleCase.notes || existing?.notes || '',
-        files: Array.from(new Set([...(existing?.files ?? []), ...postSaleCase.files])),
-        sales: existing?.sales ?? [],
-        postSaleCase,
-      });
-    });
-
-    return Array.from(histories.values())
-      .map((history) => {
-        const relationType = getHistoryRelationType(history.sales.length, history.postSaleCase);
-        const status = getHistoryStatus(history.sales.length, history.postSaleCase);
-        const riskLevel = getHistoryRisk(history);
-
-        return {
-          ...history,
-          relationType,
-          status,
-          riskLevel,
-          lifetimeValue: history.lifetimeValue || history.sales.reduce((total, sale) => total + sale.totalAmount, 0),
-          currency: getHistoryCurrency(history),
-        };
-      })
-      .sort((left, right) => new Date(right.lastPurchaseDate ?? '1900-01-01').getTime() - new Date(left.lastPurchaseDate ?? '1900-01-01').getTime());
-  }, [contacts, postSaleCases, salesRecords]);
-
-  const lifecycleByHistoryId = useMemo<Record<string, CustomerLifecycleSignals>>(() => (
-    Object.fromEntries(customerHistories.map((history) => {
-      const fallbackSale = {
-        customerName: history.clientName,
-        contactId: history.clientId,
-        saleDate: history.lastPurchaseDate,
-        totalAmount: history.lifetimeValue,
-      };
-      const primarySale = history.sales[0] ?? fallbackSale;
-      const customerSales = history.sales.length ? history.sales : [fallbackSale];
-
-      return [
-        history.id,
-        getCustomerLifecycleSignals({
-          sale: primarySale,
-          sales: customerSales,
-          postSaleRecords: history.postSaleCase ? [history.postSaleCase] : [],
-        }),
-      ];
-    }))
-  ), [customerHistories]);
-
-  const filteredCustomerHistories = useMemo(() => customerHistories.filter((history) => {
-    const lifecycle = lifecycleByHistoryId[history.id];
-    const normalizedSearch = search.trim().toLowerCase();
-    const matchesSearch = !normalizedSearch || [
-      history.clientName,
-      history.contactPerson,
-      history.owner,
-      history.notes,
-      ...history.sales.flatMap((sale) => [sale.saleNumber, sale.quoteReference, sale.paymentReference, sale.notes]),
-    ].some((value) => value.toLowerCase().includes(normalizedSearch));
-    const matchesType = typeFilter === 'all' || history.postSaleType === typeFilter;
-    const matchesOwner = ownerFilter === 'all' || history.owner === ownerFilter;
-    const matchesHealth = healthFilter === 'all' || lifecycle?.health === healthFilter;
-
-    return matchesSearch && matchesType && matchesOwner && matchesHealth;
+  const filteredCustomerHistories = useMemo(() => filterCustomerHistories({
+    customerHistories,
+    lifecycleByHistoryId,
+    search,
+    typeFilter,
+    ownerFilter,
+    healthFilter,
   }), [customerHistories, healthFilter, lifecycleByHistoryId, ownerFilter, search, typeFilter]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedCustomerHistories,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${search}:${typeFilter}:${ownerFilter}:${healthFilter}:${customerHistories.map((history) => history.id).join('|')}`,
+    rows: filteredCustomerHistories,
+  });
 
-  const filteredCases = useMemo(() => postSaleCases.filter((postSaleCase) => {
-    const opportunity = opportunities.find((item) => item.id === postSaleCase.relatedOpportunityId);
-    const quote = quotes.find((item) => item.id === postSaleCase.lastQuoteId);
-    const normalizedSearch = search.trim().toLowerCase();
-    const matchesSearch = !normalizedSearch || [
-      postSaleCase.clientName,
-      postSaleCase.contactPerson,
-      postSaleCase.owner,
-      postSaleCase.notes,
-      postSaleCase.nextAction,
-      opportunity?.opportunityName ?? '',
-      quote?.quoteNumber ?? '',
-    ].some((value) => value.toLowerCase().includes(normalizedSearch));
-    const matchesType = typeFilter === 'all' || postSaleCase.postSaleType === typeFilter;
-    const matchesOwner = ownerFilter === 'all' || postSaleCase.owner === ownerFilter;
-
-    return matchesSearch && matchesType && matchesOwner;
+  const filteredCases = useMemo(() => filterPostSaleCases({
+    postSaleCases,
+    opportunities,
+    quotes,
+    search,
+    typeFilter,
+    ownerFilter,
   }), [opportunities, ownerFilter, postSaleCases, quotes, search, typeFilter]);
 
   const activePostSales = filteredCustomerHistories.length;
@@ -933,7 +549,7 @@ export default function Postventa() {
                       {t.table.empty}
                     </TableCell>
                   </TableRow>
-                ) : filteredCustomerHistories.map((history) => {
+                ) : paginatedCustomerHistories.map((history) => {
                   const isExpanded = expandedCustomerIds.includes(history.id);
                   const lifecycle = lifecycleByHistoryId[history.id];
                   const health = lifecycle?.health ?? 'healthy';
@@ -1039,12 +655,12 @@ export default function Postventa() {
                         </TableCell>
                         <TableCell className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">{history.owner}</TableCell>
                         <TableCell className="px-5 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            <ActionButton label={t.actions.call} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15" disabled={!history.phone} onClick={() => openPhoneCall(history.phone)} />
-                            <ActionButton label={t.actions.whatsapp} icon={<MessageCircle className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20" disabled={!history.phone} onClick={() => openWhatsApp(history.phone)} />
-                            <ActionButton label={t.actions.email} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15" disabled={!history.email} onClick={() => openEmail(history.email, history.clientName)} />
-                            <ActionButton label={t.actions.followUp} icon={<CalendarPlus className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" disabled={!history.clientId} onClick={() => openFollowUpModal(history)} />
-                            <ActionButton label={t.actions.futureOpportunity} icon={<Sparkles className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20" onClick={() => openFutureOpportunityModal(history)} />
+                          <div className="mx-auto grid w-fit grid-cols-[repeat(5,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                            <ActionButton label={t.actions.call} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" disabled={!history.phone} onClick={() => openPhoneCall(history.phone)} />
+                            <ActionButton label={t.actions.whatsapp} icon={<MessageCircle className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/25" disabled={!history.phone} onClick={() => openWhatsApp(history.phone)} />
+                            <ActionButton label={t.actions.email} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" disabled={!history.email} onClick={() => openEmail(history.email, history.clientName)} />
+                            <ActionButton label={t.actions.followUp} icon={<CalendarPlus className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" disabled={!history.clientId} onClick={() => openFollowUpModal(history)} />
+                            <ActionButton label={t.actions.futureOpportunity} icon={<Sparkles className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" onClick={() => openFutureOpportunityModal(history)} />
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1101,6 +717,18 @@ export default function Postventa() {
               </TableBody>
             </Table>
           </div>
+          <DataTablePagination
+            currentPage={currentPage}
+            itemLabel="clientes"
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            pageEnd={pageEnd}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            pageStart={pageStart}
+            totalCount={totalCount}
+            totalPages={totalPages}
+          />
         </div>
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -1330,14 +958,14 @@ export default function Postventa() {
         icon={<FileText className={salesModalIconClassName} />}
         footer={<Button className={postSaleModalActions.primary} onClick={() => setSelectedFilesCase(null)}>{t.common.close}</Button>}
       >
-        <p className="text-sm font-bold text-slate-500">{selectedFilesCase?.clientName}</p>
+        <p className="text-sm font-bold text-slate-500 dark:text-slate-400">{selectedFilesCase?.clientName}</p>
         {selectedFilesCase?.files.length ? selectedFilesCase.files.map((file) => (
-          <div key={file} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <FileText className="h-4 w-4 text-[#B63B32]" />
-            <span className="text-sm font-semibold text-slate-700">{file}</span>
+          <div key={file} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+            <FileText className="h-4 w-4 text-[#B63B32] dark:text-[#FFB0AA]" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{file}</span>
           </div>
         )) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
             {t.filesModal.empty}
           </div>
         )}

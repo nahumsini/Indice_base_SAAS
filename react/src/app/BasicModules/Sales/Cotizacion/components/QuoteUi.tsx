@@ -146,7 +146,7 @@ export function QuoteAction({
           aria-label={label}
           onClick={onClick}
           className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B5E]/20',
+            'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
             className,
           )}
         >

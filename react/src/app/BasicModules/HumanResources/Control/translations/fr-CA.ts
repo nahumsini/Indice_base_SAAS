@@ -411,6 +411,7 @@ export const frCA = {
     noEmployeesHint: 'Essayez une autre unité ou entreprise pour réviser la présence quotidienne.',
     showingRows: (startRow: number, endRow: number, totalRows: number) =>
       `Affichage de ${startRow}-${endRow} sur ${totalRows} employés`,
+    pageSize: 'Lignes par page',
     previousPage: 'Précédent',
     nextPage: 'Suivant',
     pageLabel: (currentPage: number, pageCount: number) => `Page ${currentPage} sur ${pageCount}`,

@@ -6,6 +6,8 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type { SalesCatalogItem } from '../../types';
 import { useProductRowSelection } from '../hooks/useProductRowSelection';
 import type { ProductsTranslations } from '../translations';
@@ -53,7 +55,23 @@ export function ProductsCatalogTable({
   visibleColumns?: ProductTableColumnId[];
 }) {
   const rowSelection = useProductRowSelection();
-  const visibleProductIds = useMemo(() => products.map((product) => product.id), [products]);
+  const allProductIds = useMemo(() => products.map((product) => product.id), [products]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedProducts,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${sortState.columnId}:${sortState.direction}:${products.map((product) => product.id).join('|')}`,
+    rows: products,
+  });
+  const visibleProductIds = useMemo(() => paginatedProducts.map((product) => product.id), [paginatedProducts]);
   const visibleSelection = useMemo(
     () => rowSelection.visibleSelectionState(visibleProductIds),
     [rowSelection, visibleProductIds],
@@ -82,8 +100,8 @@ export function ProductsCatalogTable({
   ], [t, visibleColumns]);
 
   useEffect(() => {
-    rowSelection.pruneSelection(visibleProductIds);
-  }, [rowSelection, visibleProductIds]);
+    rowSelection.pruneSelection(allProductIds);
+  }, [allProductIds, rowSelection]);
 
   const runBulkAction = (action: (ids: string[]) => void) => {
     if (selectedProductIds.length === 0) {
@@ -127,7 +145,7 @@ export function ProductsCatalogTable({
                     {t.table.empty}
                   </TableCell>
                 </TableRow>
-              ) : products.map((product) => (
+              ) : paginatedProducts.map((product) => (
                 <ProductTableRow
                   key={product.id}
                   product={product}
@@ -148,6 +166,18 @@ export function ProductsCatalogTable({
             </TableBody>
           </Table>
         </div>
+        <DataTablePagination
+          currentPage={currentPage}
+          itemLabel="productos"
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          pageEnd={pageEnd}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          pageStart={pageStart}
+          totalCount={totalCount}
+          totalPages={totalPages}
+        />
       </section>
     </div>
   );

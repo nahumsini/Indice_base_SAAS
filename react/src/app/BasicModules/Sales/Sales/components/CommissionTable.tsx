@@ -1,4 +1,5 @@
 import { Eye } from 'lucide-react';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { Button } from '../../../../components/ui/button';
 import {
   Table,
@@ -10,15 +11,16 @@ import {
 } from '../../../../components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../../components/ui/tooltip';
 import { cn } from '../../../../components/ui/utils';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord, CommissionStatus } from '../types/commissions';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 
 const statusClasses: Record<CommissionStatus, string> = {
-  pending: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  approved: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
-  paid: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
-  cancelled: 'border-slate-300 bg-slate-100 text-slate-500',
+  pending: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
+  approved: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-300',
+  paid: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
+  cancelled: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
 export function CommissionStatusBadge({
@@ -45,9 +47,24 @@ export function CommissionTable({
   onViewRecord: (record: CommissionRecord) => void;
 }) {
   const columns = t.commissions.table.columns;
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows,
+    totalCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: records.map((record) => record.id).join('|'),
+    rows: records,
+  });
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <Table className="min-w-[1380px] table-fixed">
           <TableHeader>
@@ -69,7 +86,7 @@ export function CommissionTable({
                   </div>
                 </TableCell>
               </TableRow>
-            ) : records.map((record) => (
+            ) : paginatedRows.map((record) => (
               <TableRow key={record.id} className="border-slate-200 align-top hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-800/70">
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                   <p className="break-all font-black text-slate-950 dark:text-white">{record.id}</p>
@@ -93,7 +110,7 @@ export function CommissionTable({
                         variant="outline"
                         size="icon"
                         aria-label={t.commissions.table.actions.viewDetail}
-                        className="h-9 w-9 rounded-xl border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20"
+                        className="h-9 w-9 rounded-xl border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/25"
                         onClick={() => onViewRecord(record)}
                       >
                         <Eye className="h-4 w-4" />
@@ -109,6 +126,18 @@ export function CommissionTable({
           </TableBody>
         </Table>
       </div>
+      <DataTablePagination
+        currentPage={currentPage}
+        itemLabel="comisiones"
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        pageEnd={pageEnd}
+        pageSize={pageSize}
+        pageSizeOptions={pageSizeOptions}
+        pageStart={pageStart}
+        totalCount={totalCount}
+        totalPages={totalPages}
+      />
     </section>
   );
 }

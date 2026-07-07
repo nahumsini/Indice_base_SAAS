@@ -3,6 +3,7 @@ import { CheckCircle2, CircleSlash, ClipboardCheck, Pencil, Plus, Search, Trash2
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -23,6 +24,7 @@ import { cn } from '../../../components/ui/utils';
 import { authApi } from '../../../api/auth';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import { accentButtonClass, priorityClasses, priorityLabels } from '../Processes/processesData';
 import { listProcesses } from '../Processes/processesApi';
 import type {
@@ -452,6 +454,21 @@ export default function Tasks() {
       return matchesSearch && matchesStatus;
     });
   }, [searchQuery, statusFilter, tasks]);
+  const {
+    currentPage,
+    onPageChange,
+    onPageSizeChange,
+    pageEnd,
+    pageSize,
+    pageSizeOptions,
+    pageStart,
+    paginatedRows: paginatedTasks,
+    totalCount: filteredTaskCount,
+    totalPages,
+  } = useTablePagination({
+    resetKey: `${searchQuery}:${statusFilter}`,
+    rows: filteredTasks,
+  });
 
   const totalCount = tasks.length;
   const openCount = tasks.filter((task) => ['pending', 'in_progress', 'paused'].includes(task.status)).length;
@@ -725,7 +742,7 @@ export default function Tasks() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTasks.map((task) => (
+              {paginatedTasks.map((task) => (
                 <TableRow key={task.id} className="border-slate-200 dark:border-slate-700">
                 <TableCell className="px-5 py-5 text-sm font-semibold text-slate-900 dark:text-white">
                   {task.folio}
@@ -876,6 +893,20 @@ export default function Tasks() {
             </TableBody>
           </Table>
         </div>
+        {!isLoadingTasks && filteredTaskCount > 0 ? (
+          <DataTablePagination
+            currentPage={currentPage}
+            itemLabel="tareas"
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            pageEnd={pageEnd}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            pageStart={pageStart}
+            totalCount={filteredTaskCount}
+            totalPages={totalPages}
+          />
+        ) : null}
       </section>
 
       <TaskFormDialog

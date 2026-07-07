@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import type { Expense } from '../../types/expenses.types';
 import type { ColumnConfig } from '../../types/expenseView.types';
 import { useFinanceTranslations } from '../../hooks/useFinanceTranslations';
 import { formatCurrency, formatDate } from '../../utils/expenses.utils';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import { useTablePagination } from '../../../../hooks/useTablePagination';
 
 type BudgetLinesTableProps = {
   columns: ColumnConfig[];
@@ -18,6 +21,11 @@ export function BudgetLinesTable({ columns, expenses, onDeleteExpense, onEditExp
   const t = useFinanceTranslations();
   const visibleKeys = new Set(columns.filter(column => column.visible).map(column => column.key));
   const visibleColumns = budgetTableColumns(t).filter(column => visibleKeys.has(column.key) || column.key === 'actions');
+  const paginationResetKey = useMemo(() => expenses.map(expense => expense.id).join('|'), [expenses]);
+  const pagination = useTablePagination({
+    resetKey: paginationResetKey,
+    rows: expenses,
+  });
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -40,7 +48,7 @@ export function BudgetLinesTable({ columns, expenses, onDeleteExpense, onEditExp
                   </div>
                 </td>
               </tr>
-            ) : expenses.map(expense => (
+            ) : pagination.paginatedRows.map(expense => (
               <BudgetLineRow
                 key={expense.id}
                 columns={visibleColumns}
@@ -52,6 +60,24 @@ export function BudgetLinesTable({ columns, expenses, onDeleteExpense, onEditExp
           </tbody>
         </table>
       </div>
+      <DataTablePagination
+        currentPage={pagination.currentPage}
+        labels={{
+          next: t.common.next,
+          page: (current, total) => `${current} / ${total}`,
+          previous: t.common.previous,
+          rowsPerPage: t.common.rowsPerPage,
+          showing: (start, end, total) => t.common.showing(start, end, total),
+        }}
+        onPageChange={pagination.onPageChange}
+        onPageSizeChange={pagination.onPageSizeChange}
+        pageEnd={pagination.pageEnd}
+        pageSize={pagination.pageSize}
+        pageSizeOptions={pagination.pageSizeOptions}
+        pageStart={pagination.pageStart}
+        totalCount={pagination.totalCount}
+        totalPages={pagination.totalPages}
+      />
     </div>
   );
 }

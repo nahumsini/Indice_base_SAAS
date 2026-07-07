@@ -8,7 +8,8 @@ import {
   productStatuses,
   productTypes,
 } from '../../salesCrmContext';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesCatalogItem } from '../../types';
 import type { ProductsTranslations } from '../translations';
 import type { ProductCategoryConfig } from '../types/productCategoryTypes';

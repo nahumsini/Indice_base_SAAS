@@ -1,6 +1,7 @@
 import { AlertTriangle, CalendarClock, CheckCircle2, FileText, Landmark, Search, WalletCards } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { PettyCashFund, PettyCashMovement, PettyCashSettlementLine, PettyCashStatement, PettyCashStatementStatus } from '../types/pettyCash.types';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   formatPettyCashCurrency,
   formatPettyCashIsoDate,
@@ -15,6 +16,7 @@ import {
   PettyCashFilterShell,
   PettyCashHeaderBanner,
   PettyCashMetric,
+  PettyCashPagination,
   pettyCashInputClass,
   PettyCashStatusPill,
   PettyCashTableShell,
@@ -83,6 +85,22 @@ export function PettyCashFinancialViewWorkspace({
     () => settlementLines.filter(line => filteredStatementIds.has(line.pettyCashStatementId)),
     [filteredStatementIds, settlementLines],
   );
+  const statementPaginationResetKey = useMemo(
+    () => `${periodFilter}:${statusFilter}:${searchTerm}:${filteredStatements.map(statement => statement.id).join('|')}`,
+    [filteredStatements, periodFilter, searchTerm, statusFilter],
+  );
+  const statementPagination = useTablePagination({
+    resetKey: statementPaginationResetKey,
+    rows: filteredStatements,
+  });
+  const movementPaginationResetKey = useMemo(
+    () => `${periodFilter}:${statusFilter}:${searchTerm}:${filteredMovements.map(movement => movement.id).join('|')}`,
+    [filteredMovements, periodFilter, searchTerm, statusFilter],
+  );
+  const movementPagination = useTablePagination({
+    resetKey: movementPaginationResetKey,
+    rows: filteredMovements,
+  });
   const summary = useMemo(
     () => getOperationalPettyCashSummary(filteredStatements, funds),
     [filteredStatements, funds],
@@ -213,7 +231,22 @@ export function PettyCashFinancialViewWorkspace({
         </section>
       </div>
 
-      <PettyCashTableShell>
+      <PettyCashTableShell
+        footer={(
+          <PettyCashPagination
+            currentPage={statementPagination.currentPage}
+            itemLabel="cortes"
+            onPageChange={statementPagination.onPageChange}
+            onPageSizeChange={statementPagination.onPageSizeChange}
+            pageEnd={statementPagination.pageEnd}
+            pageSize={statementPagination.pageSize}
+            pageSizeOptions={statementPagination.pageSizeOptions}
+            pageStart={statementPagination.pageStart}
+            totalCount={statementPagination.totalCount}
+            totalPages={statementPagination.totalPages}
+          />
+        )}
+      >
         <table className="w-full min-w-[1180px]">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
@@ -223,7 +256,7 @@ export function PettyCashFinancialViewWorkspace({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredStatements.map((statement) => {
+            {statementPagination.paginatedRows.map((statement) => {
               const fund = getFundById(funds, statement.pettyCashFundId);
               return (
                 <tr key={statement.id} className="transition hover:bg-slate-50">
@@ -255,33 +288,47 @@ export function PettyCashFinancialViewWorkspace({
           <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{filteredMovements.length} movimientos</span>
         </div>
         {filteredMovements.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px]">
-              <thead className="border-b border-slate-200 bg-slate-50">
-                <tr>
-                  {['Fecha', 'Fondo', 'Tipo', 'Origen', 'Destino', 'Monto', 'Referencia'].map(column => (
-                    <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredMovements.map((movement) => {
-                  const fund = getFundById(funds, movement.pettyCashFundId);
-                  return (
-                    <tr key={movement.id} className="transition hover:bg-slate-50">
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(movement.movementDate)}</td>
-                      <td className="px-5 py-4 text-sm font-black text-slate-900">{fund?.name ?? 'Sin fondo'}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{pettyCashMovementTypeLabels[movement.type]}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? '-'}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.toPaymentAccountName ?? '-'}</td>
-                      <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-600">{movement.reference}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px]">
+                <thead className="border-b border-slate-200 bg-slate-50">
+                  <tr>
+                    {['Fecha', 'Fondo', 'Tipo', 'Origen', 'Destino', 'Monto', 'Referencia'].map(column => (
+                      <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {movementPagination.paginatedRows.map((movement) => {
+                    const fund = getFundById(funds, movement.pettyCashFundId);
+                    return (
+                      <tr key={movement.id} className="transition hover:bg-slate-50">
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(movement.movementDate)}</td>
+                        <td className="px-5 py-4 text-sm font-black text-slate-900">{fund?.name ?? 'Sin fondo'}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{pettyCashMovementTypeLabels[movement.type]}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? '-'}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.toPaymentAccountName ?? '-'}</td>
+                        <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{movement.reference}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <PettyCashPagination
+              currentPage={movementPagination.currentPage}
+              itemLabel="movimientos"
+              onPageChange={movementPagination.onPageChange}
+              onPageSizeChange={movementPagination.onPageSizeChange}
+              pageEnd={movementPagination.pageEnd}
+              pageSize={movementPagination.pageSize}
+              pageSizeOptions={movementPagination.pageSizeOptions}
+              pageStart={movementPagination.pageStart}
+              totalCount={movementPagination.totalCount}
+              totalPages={movementPagination.totalPages}
+            />
+          </>
         ) : (
           <div className="p-5">
             <PettyCashEmptyState label="No hay movimientos de fondos para el filtro seleccionado." />

@@ -1,7 +1,8 @@
 import { History } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
-import { getSalesModalActionClassNames, SalesModalFrame } from '../../components/SalesModalFrame';
+import { SalesModalFrame } from '../../components/SalesModalFrame';
+import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesOpportunity } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
 import { buildOpportunityHistory } from '../utils/prospectosMetrics';

@@ -52,7 +52,6 @@ export const assignmentBusinessFilterKey = (assignment: AttendanceControlAssignm
 
 export const weekdayNumbers = [1, 2, 3, 4, 5, 6, 7] as const;
 export const CONTROL_SAVE_MINIMUM_LOADING_MS = 1000;
-export const attendanceListBatchSize = 10;
 
 const isDefaultNoShiftDay = (dayOfWeek: number) => dayOfWeek === 6 || dayOfWeek === 7;
 

@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, CalendarClock, FileText, ReceiptText, Search, Send, Wallet } from 'lucide-react';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
 import type { SaleRecord } from '../../Sales/Sales/types/salesTypes';
+import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 
 type FiscalStatusFilter = 'all' | 'pending' | 'ready' | 'issued';
 type PeriodFilter = 'today' | 'this_month' | 'all';
@@ -73,6 +75,14 @@ export default function Facturacion() {
       && isInPeriod(sale, period)
       && (status === 'all' || fiscalStatus === status);
   }), [period, posSales, search, status]);
+  const salesPaginationResetKey = useMemo(
+    () => `${search}:${period}:${status}:${filteredSales.map((sale) => sale.id).join('|')}`,
+    [filteredSales, period, search, status],
+  );
+  const salesPagination = useTablePagination({
+    resetKey: salesPaginationResetKey,
+    rows: filteredSales,
+  });
 
   const kpis = useMemo(() => ({
     total: filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
@@ -154,7 +164,7 @@ export default function Facturacion() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {filteredSales.map((sale) => {
+              {salesPagination.paginatedRows.map((sale) => {
                 const fiscalStatus = getFiscalStatus(sale);
                 return (
                   <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
@@ -191,6 +201,7 @@ export default function Facturacion() {
             </div>
           )}
         </div>
+        <PointOfSaleTablePagination {...salesPagination} itemLabel="tickets" />
       </div>
     </div>
   );

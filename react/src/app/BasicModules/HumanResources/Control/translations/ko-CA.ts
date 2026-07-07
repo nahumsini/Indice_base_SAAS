@@ -412,6 +412,7 @@ export const koCA = {
     noEmployeesHint: '다른 부서 또는 사업장을 선택해 일일 출석을 검토하세요.',
     showingRows: (startRow: number, endRow: number, totalRows: number) =>
       `HR 사용자 ${totalRows}명 중 ${startRow}-${endRow} 표시`,
+    pageSize: '페이지당 행',
     previousPage: '이전',
     nextPage: '다음',
     pageLabel: (currentPage: number, pageCount: number) => `${pageCount}페이지 중 ${currentPage}페이지`,

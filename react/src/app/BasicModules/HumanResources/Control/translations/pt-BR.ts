@@ -411,6 +411,7 @@ export const ptBR = {
     noEmployeesHint: 'Tente outra unidade ou negócio para revisar a presença diária.',
     showingRows: (startRow: number, endRow: number, totalRows: number) =>
       `Mostrando ${startRow}-${endRow} de ${totalRows} funcionários`,
+    pageSize: 'Linhas por página',
     previousPage: 'Anterior',
     nextPage: 'Próximo',
     pageLabel: (currentPage: number, pageCount: number) => `Página ${currentPage} de ${pageCount}`,

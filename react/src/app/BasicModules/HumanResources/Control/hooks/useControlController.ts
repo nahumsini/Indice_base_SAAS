@@ -270,7 +270,7 @@ export function useControlController(): ControlControllerResult {
       await loadControl(controlDate);
       showSuccessToast(copy.labels.restPlannerSaved(response.updated_count));
     } catch (error) {
-      showFailureToast(error instanceof Error ? error.message : copy.error);
+      showFailureToast(error instanceof Error ? error.message : copy.genericError);
     } finally {
       setIsSaving(false);
     }

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AttendanceControlOverviewResponse } from '../../../../api/humanResources';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import type { ControlTranslations } from '../translations';
 import {
   allFilterValue,
   assignmentBusinessFilterKey,
   assignmentUnitFilterKey,
-  attendanceListBatchSize,
   attendanceStatusFilterValues,
 } from '../utils/control.utils';
 
@@ -25,6 +25,7 @@ export function useControlAttendanceFilters({
   const [businessFilter, setBusinessFilter] = useState(allFilterValue);
   const [statusFilter, setStatusFilter] = useState(allFilterValue);
   const [attendanceListPage, setAttendanceListPage] = useState(1);
+  const [attendanceListPageSize, setAttendanceListPageSize] = useState<number>(DEFAULT_TABLE_PAGE_SIZE_OPTIONS[0]);
 
   const unitFilterOptions = useMemo(() => {
     const options = new Map<string, string>();
@@ -142,14 +143,14 @@ export function useControlAttendanceFilters({
 
   useEffect(() => {
     setAttendanceListPage(1);
-  }, [businessFilter, controlDate, overview?.date, searchQuery, statusFilter, unitFilter]);
+  }, [attendanceListPageSize, businessFilter, controlDate, overview?.date, searchQuery, statusFilter, unitFilter]);
 
-  const attendanceListPageCount = Math.max(1, Math.ceil(statusFilteredAssignments.length / attendanceListBatchSize));
+  const attendanceListPageCount = Math.max(1, Math.ceil(statusFilteredAssignments.length / attendanceListPageSize));
   const currentAttendanceListPage = Math.min(attendanceListPage, attendanceListPageCount);
-  const attendanceListStartIndex = (currentAttendanceListPage - 1) * attendanceListBatchSize;
+  const attendanceListStartIndex = (currentAttendanceListPage - 1) * attendanceListPageSize;
   const visibleAttendanceAssignments = useMemo(
-    () => statusFilteredAssignments.slice(attendanceListStartIndex, attendanceListStartIndex + attendanceListBatchSize),
-    [attendanceListStartIndex, statusFilteredAssignments],
+    () => statusFilteredAssignments.slice(attendanceListStartIndex, attendanceListStartIndex + attendanceListPageSize),
+    [attendanceListPageSize, attendanceListStartIndex, statusFilteredAssignments],
   );
   const attendanceListShowingStart = statusFilteredAssignments.length === 0 ? 0 : attendanceListStartIndex + 1;
   const attendanceListShowingEnd = Math.min(attendanceListStartIndex + visibleAttendanceAssignments.length, statusFilteredAssignments.length);
@@ -171,6 +172,9 @@ export function useControlAttendanceFilters({
     setStatusFilter,
     attendanceListPage,
     setAttendanceListPage,
+    attendanceListPageSize,
+    attendanceListPageSizeOptions: DEFAULT_TABLE_PAGE_SIZE_OPTIONS,
+    setAttendanceListPageSize,
     unitFilterOptions,
     businessFilterOptions,
     statusFilterOptions,

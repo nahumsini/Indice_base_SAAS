@@ -10,15 +10,6 @@ import {
 import { cn } from '../../../components/ui/utils';
 import { getSalesModalStyles, type SalesModalTone } from '../salesModalStyles';
 
-export function getSalesModalActionClassNames(tone: SalesModalTone = 'coral') {
-  const modalStyles = getSalesModalStyles(tone);
-
-  return {
-    primary: modalStyles.primaryButton,
-    secondary: modalStyles.secondaryButton,
-  };
-}
-
 export function SalesModalFrame({
   bodyClassName,
   children,
