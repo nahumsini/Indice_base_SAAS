@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  BadgePercent,
   CalendarClock,
   CheckCircle,
   Edit2,
@@ -24,6 +23,11 @@ import {
   type DiscountScope,
 } from '../shared/commercial/discounts';
 import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
+import {
+  PointOfSaleTitleBar,
+  pointOfSaleTitleBarPrimaryActionClassName,
+  pointOfSaleTitleBarSecondaryActionClassName,
+} from '../shared/components/PointOfSaleTitleBar';
 import { DiscountKpiCard } from './components/DiscountKpiCard';
 import { DiscountRuleModal } from './components/DiscountRuleModal';
 
@@ -43,10 +47,10 @@ const scopeLabels: Record<DiscountScope, string> = {
 };
 
 const statusClasses: Record<DiscountRuleStatus, string> = {
-  active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  scheduled: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  expired: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  inactive: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+  active: 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-900/30 dark:text-emerald-300',
+  scheduled: 'border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/30 dark:bg-blue-900/30 dark:text-blue-300',
+  expired: 'border-red-200 bg-red-100 text-red-700 dark:border-red-500/30 dark:bg-red-900/30 dark:text-red-300',
+  inactive: 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200',
 };
 
 const formatCurrency = (amount: number, currency = 'MXN') => new Intl.NumberFormat('es-MX', {
@@ -137,34 +141,31 @@ export default function Descuentos() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-orange-100 px-2.5 py-1 text-xs font-semibold uppercase text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-            <BadgePercent className="h-3.5 w-3.5" />
-            Motor comercial POS
-          </div>
-          <h2 className="text-2xl font-black text-gray-950 dark:text-white">Descuentos</h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Configura reglas, controla autorizaciones y aplica promociones elegibles desde Venta.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PointOfSaleTitleBar
+        eyebrow="Motor comercial POS"
+        icon="🏷️"
+        rhIndent
+        title="Descuentos"
+        subtitle="Configura reglas, controla autorizaciones y aplica promociones elegibles desde Venta."
+        actions={(
+          <>
           <button
             onClick={restoreDefaults}
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+            className={pointOfSaleTitleBarSecondaryActionClassName}
           >
             <RefreshCw className="h-4 w-4" />
             Restaurar
           </button>
           <button
             onClick={() => setEditingRule(createEmptyRule())}
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-orange-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-700"
+            className={pointOfSaleTitleBarPrimaryActionClassName}
           >
             <Plus className="h-4 w-4" />
             Nueva regla
           </button>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <DiscountKpiCard icon={SlidersHorizontal} label="Reglas" value={String(kpis.total)} />
@@ -174,74 +175,77 @@ export default function Descuentos() {
         <DiscountKpiCard icon={Tag} label="Impacto preview" value={formatCurrency(kpis.previewImpact, saleCurrency)} tone="orange" />
       </div>
 
-      <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-900 dark:border-orange-900/50 dark:bg-orange-900/20 dark:text-orange-100">
+      <div className="rounded-[20px] border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
         {activeEligibleRules.length} reglas aplican al ticket ejemplo de {formatCurrency(previewAmount, saleCurrency)}.
       </div>
 
       {notice && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-100">
+        <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
           {notice}
         </div>
       )}
 
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:grid-cols-[1.4fr_repeat(3,minmax(160px,1fr))]">
-        <label className="relative min-w-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-gray-800">
+        <h3 className="text-base font-bold text-slate-800 dark:text-white">Filtros</h3>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_repeat(3,minmax(160px,1fr))]">
+          <label className="relative min-w-0">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar regla, alcance, categoria o descripcion"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+            />
+          </label>
+          <select value={status} onChange={(event) => setStatus(event.target.value as DiscountRuleStatus | 'all')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white">
+            <option value="all">Todos los estados</option>
+            {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          <select value={scope} onChange={(event) => setScope(event.target.value as DiscountScope | 'all')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white">
+            <option value="all">Todos los alcances</option>
+            {Object.entries(scopeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
           <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar regla, alcance, categoria o descripcion"
-            className="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            type="number"
+            min="0"
+            value={previewAmount}
+            onChange={(event) => setPreviewAmount(Number(event.target.value))}
+            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+            aria-label="Monto de ticket para preview"
           />
-        </label>
-        <select value={status} onChange={(event) => setStatus(event.target.value as DiscountRuleStatus | 'all')} className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
-          <option value="all">Todos los estados</option>
-          {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <select value={scope} onChange={(event) => setScope(event.target.value as DiscountScope | 'all')} className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
-          <option value="all">Todos los alcances</option>
-          {Object.entries(scopeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <input
-          type="number"
-          min="0"
-          value={previewAmount}
-          onChange={(event) => setPreviewAmount(Number(event.target.value))}
-          className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-          aria-label="Monto de ticket para preview"
-        />
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-gray-800">
         <div className="overflow-x-auto">
-          <table className="min-w-[1160px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-900/40">
+          <table className="min-w-[1160px] w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+            <thead className="bg-slate-50 dark:bg-gray-900/40">
               <tr>
-                {['Regla', 'Alcance', 'Descuento', 'Condicion', 'Vigencia', 'Preview', 'Control', 'Estado', ''].map((header) => (
-                  <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{header}</th>
+                {['Regla', 'Alcance', 'Descuento', 'Condicion', 'Vigencia', 'Preview', 'Control', 'Estado', 'Acciones'].map((header) => (
+                  <th key={header} className={`px-5 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>{header}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {rulesPagination.paginatedRows.map((rule) => (
-                <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                  <td className="px-4 py-3">
-                    <p className="font-bold text-gray-950 dark:text-white">{rule.name}</p>
-                    <p className="line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{rule.description}</p>
+                <tr key={rule.id} className="transition hover:bg-slate-50/80 dark:hover:bg-gray-700/40">
+                  <td className="px-5 py-4">
+                    <p className="font-bold text-slate-950 dark:text-white">{rule.name}</p>
+                    <p className="line-clamp-2 text-xs font-medium text-slate-500 dark:text-slate-400">{rule.description}</p>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">{scopeLabels[rule.scope]}</td>
-                  <td className="px-4 py-3 font-bold text-gray-950 dark:text-white">{formatDiscount(rule, saleCurrency)}</td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{formatCondition(rule, saleCurrency)}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(rule.startsAt)} - {formatDate(rule.endsAt)}</td>
-                  <td className="px-4 py-3 font-bold text-orange-700 dark:text-orange-300">{formatCurrency(calculateDiscountPreview(rule, previewAmount), saleCurrency)}</td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{rule.requiresAuthorization ? 'Supervisor' : 'Caja'}</td>
-                  <td className="px-4 py-3"><span className={`rounded-md px-2 py-1 text-xs font-bold ${statusClasses[rule.status]}`}>{statusLabels[rule.status]}</span></td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => toggleRuleStatus(rule)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                  <td className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-200">{scopeLabels[rule.scope]}</td>
+                  <td className="px-5 py-4 font-bold text-slate-950 dark:text-white">{formatDiscount(rule, saleCurrency)}</td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCondition(rule, saleCurrency)}</td>
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(rule.startsAt)} - {formatDate(rule.endsAt)}</td>
+                  <td className="px-5 py-4 font-bold text-[#B63B32] dark:text-[#FFB0AA]">{formatCurrency(calculateDiscountPreview(rule, previewAmount), saleCurrency)}</td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{rule.requiresAuthorization ? 'Supervisor' : 'Caja'}</td>
+                  <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusClasses[rule.status]}`}>{statusLabels[rule.status]}</span></td>
+                  <td className="px-5 py-4 text-right">
+                    <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-gray-900">
+                      <button onClick={() => toggleRuleStatus(rule)} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
                         {rule.status === 'active' ? 'Pausar' : 'Activar'}
                       </button>
-                      <button onClick={() => setEditingRule(rule)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                      <button onClick={() => setEditingRule(rule)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20" aria-label={`Editar regla ${rule.name}`} title="Editar regla">
                         <Edit2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -252,8 +256,8 @@ export default function Descuentos() {
           </table>
           {filteredRules.length === 0 && (
             <div className="p-8 text-center">
-              <p className="font-semibold text-gray-700 dark:text-gray-200">Sin reglas con esos filtros</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Ajusta filtros o crea una regla comercial.</p>
+              <p className="font-semibold text-slate-700 dark:text-slate-200">Sin reglas con esos filtros</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Ajusta filtros o crea una regla comercial.</p>
             </div>
           )}
         </div>

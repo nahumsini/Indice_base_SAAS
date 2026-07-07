@@ -28,7 +28,7 @@ export function ActiveCategoriesList({
   return (
     <section className="space-y-3">
       <div>
-        <h3 className="text-lg font-black text-slate-950">{t.categoryManager.activeTitle}</h3>
+        <h3 className="text-lg font-semibold text-slate-950">{t.categoryManager.activeTitle}</h3>
         <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">{t.categoryManager.activeDescription}</p>
       </div>
 
@@ -37,7 +37,7 @@ export function ActiveCategoriesList({
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
             <FolderOpen className="h-5 w-5" />
           </div>
-          <h4 className="mt-3 text-base font-black text-slate-950">{t.categoryManager.emptyActiveTitle}</h4>
+          <h4 className="mt-3 text-base font-semibold text-slate-950">{t.categoryManager.emptyActiveTitle}</h4>
           <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-slate-500">
             {t.categoryManager.emptyActiveDescription}
           </p>

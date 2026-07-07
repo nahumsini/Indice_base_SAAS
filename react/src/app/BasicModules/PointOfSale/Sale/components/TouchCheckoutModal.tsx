@@ -29,7 +29,7 @@ const paymentMethodConfig: Array<{
   { method: 'cash', label: 'Efectivo', shortcut: 'F1', emoji: '💵', tone: 'aqua' },
   { method: 'card', label: 'Tarjeta', shortcut: 'F2', emoji: '💳', tone: 'blue' },
   { method: 'transfer', label: 'Transferencia', shortcut: 'F3', emoji: '🏦', tone: 'blue' },
-  { method: 'credit', label: 'Crédito', shortcut: 'Próximamente', emoji: '🧾', tone: 'disabled', disabled: true },
+  { method: 'credit', label: 'Crédito', shortcut: 'F5', emoji: '🧾', tone: 'yellow' },
 ];
 
 export function TouchCheckoutModal({
@@ -113,7 +113,7 @@ export function TouchCheckoutModal({
                     <PaymentTouchButton
                       key={method.method}
                       {...method}
-                      disabled={method.disabled || !hasCart || totals.isPaid || isCompletingSale}
+                      disabled={method.disabled || !hasCart || totals.isPaid || isCompletingSale || (payments.length > 0 && method.method === 'credit')}
                       onClick={() => onAddPayment(method.method)}
                     />
                   ))}

@@ -131,6 +131,11 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
     setProducts(productsResponse.items.map(toFrontendProduct));
   }, []);
 
+  const reloadSalesRecords = useCallback(async () => {
+    const salesResponse = await salesApi.list('sales');
+    setSalesRecords(salesResponse.items.map(toFrontendSaleRecord));
+  }, []);
+
   useEffect(() => {
     let active = true;
 
@@ -184,6 +189,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
     postSaleCases,
     contracts,
     reloadProducts,
+    reloadSalesRecords,
     addContact: (contact) => {
       let createdContact: SalesContact = {
         ...contact,
@@ -422,16 +428,19 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
           .catch((error) => logSalesSyncFailure('update quote', error));
       }
     },
-    addSaleRecord: (saleRecord) => {
+    addSaleRecord: async (saleRecord) => {
       setSalesRecords((current) => [saleRecord, ...current]);
-      void salesApi.create('sales', toBackendSaleRecord(saleRecord, contacts, opportunities, quotes))
-        .then((savedSale) => {
-          const persistedSale = toFrontendSaleRecord(savedSale as Record<string, unknown>);
-          setSalesRecords((current) => current.map((item) => (
-            item.id === saleRecord.id ? persistedSale : item
-          )));
-        })
-        .catch((error) => logSalesSyncFailure('create sale', error));
+      try {
+        const savedSale = await salesApi.create('sales', toBackendSaleRecord(saleRecord, contacts, opportunities, quotes));
+        const persistedSale = toFrontendSaleRecord(savedSale as Record<string, unknown>);
+        setSalesRecords((current) => current.map((item) => (
+          item.id === saleRecord.id ? persistedSale : item
+        )));
+        return persistedSale;
+      } catch (error) {
+        logSalesSyncFailure('create sale', error);
+        return saleRecord;
+      }
     },
     updateSaleRecord: (saleId, patch) => {
       const currentSale = salesRecords.find((saleRecord) => saleRecord.id === saleId);
@@ -618,7 +627,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
           .catch((error) => logSalesSyncFailure('request contract signature', error));
       }
     },
-  }), [contacts, contracts, opportunities, postSaleCases, products, quotes, reloadProducts, salesRecords]);
+  }), [contacts, contracts, opportunities, postSaleCases, products, quotes, reloadProducts, reloadSalesRecords, salesRecords]);
 
   return (
     <SalesCrmContext.Provider value={value}>

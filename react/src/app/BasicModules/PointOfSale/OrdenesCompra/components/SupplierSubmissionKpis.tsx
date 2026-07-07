@@ -111,7 +111,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
   const distributionSegments: OperationalDistributionSegment[] = [
     { id: 'submitted', label: 'Enviadas', count: submitted, className: 'bg-[#2563EB]' },
     { id: 'review', label: 'En revision', count: inReview, className: 'bg-[#F4C84A]' },
-    { id: 'clarification', label: 'Aclaracion', count: needsClarification, className: 'bg-orange-500' },
+    { id: 'clarification', label: 'Aclaracion', count: needsClarification, className: 'bg-[#FF6B5E]' },
     { id: 'approved', label: 'Aprobadas', count: approved, className: 'bg-emerald-500' },
     { id: 'converted', label: 'Convertidas', count: converted, className: 'bg-violet-500' },
     { id: 'rejected', label: 'Rechazadas', count: rejected, className: 'bg-rose-500' },

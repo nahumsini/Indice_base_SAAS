@@ -109,13 +109,13 @@ export function PurchaseOrdersTable({
                 ? supplierInvoiceStatusLabels[primaryInvoice.status]
                 : 'Sin factura';
               return (
-                <tr key={order.id} className="align-top transition hover:bg-orange-50/50 dark:hover:bg-orange-500/5">
+                <tr key={order.id} className="align-top transition hover:bg-[#FF6B5E]/5 dark:hover:bg-[#FF6B5E]/10">
                   <td className="px-5 py-5">
                     <button type="button" onClick={() => onSelect(order)} className="font-bold text-slate-950 underline-offset-4 hover:underline dark:text-white">
                       {order.folio}
                     </button>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-bold text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+                      <span className="inline-flex rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-2.5 py-1 text-xs font-bold text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB0AA]">
                         {purchaseOrderOriginLabels[order.origin ?? 'POS_REPLENISHMENT']}
                       </span>
                       <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{formatDate(order.createdAt?.slice(0, 10))}</span>

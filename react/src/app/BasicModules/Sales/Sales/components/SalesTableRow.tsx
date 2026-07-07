@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BadgePercent, Eye, FileSearch, PackageCheck, Send, XCircle } from 'lucide-react';
+import { BadgePercent, CreditCard, Eye, FileSearch, PackageCheck, Send, XCircle } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { TableCell, TableRow } from '../../../../components/ui/table';
@@ -97,6 +97,7 @@ export function SalesTableRow({
   onManageCommission,
   onPrepareMovement,
   onSendToFinance,
+  onSendToCredit,
   onCancelSale,
 }: {
   record: SaleRecord;
@@ -110,6 +111,7 @@ export function SalesTableRow({
   onManageCommission: (record: SaleRecord) => void;
   onPrepareMovement: (record: SaleRecord) => void;
   onSendToFinance: (record: SaleRecord) => void;
+  onSendToCredit: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
 }) {
   const isVisible = (column: SalesColumnId) => visibleColumns.includes(column);
@@ -132,7 +134,7 @@ export function SalesTableRow({
       {isVisible('saleNumber') ? (
         <TableCell className={salesCellClassName}>
           <div className="min-w-0 max-w-full">
-            <p className="break-all font-black text-slate-950 dark:text-white">{record.saleNumber}</p>
+            <p className="break-all font-semibold text-slate-950 dark:text-white">{record.saleNumber}</p>
             <p className="mt-1 break-all text-xs font-semibold text-[#B63B32]">{record.id}</p>
           </div>
         </TableCell>
@@ -157,21 +159,21 @@ export function SalesTableRow({
       ) : null}
       {isVisible('total') ? (
         <TableCell className={salesCellClassName}>
-          <p className="break-words text-sm font-black text-slate-950 dark:text-white">{formatSalesCurrency(record.totalAmount, record.currency)}</p>
+          <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.totalAmount, record.currency)}</p>
           <p className="mt-1 text-xs font-semibold text-slate-500">{record.currency}</p>
         </TableCell>
       ) : null}
       {isVisible('saleDate') ? <TableCell className={cn(salesCellClassName, 'text-sm font-semibold text-slate-700 dark:text-slate-200')}>{formatSalesDate(record.saleDate)}</TableCell> : null}
       {isVisible('relationship') ? (
         <TableCell className={salesCellClassName}>
-          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', relationshipClasses[relationship])}>
+          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-bold', relationshipClasses[relationship])}>
             {t.lifecycle.relationship[relationship]}
           </span>
         </TableCell>
       ) : null}
       {isVisible('customerHealth') ? (
         <TableCell className={salesCellClassName}>
-          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', healthClasses[health])}>
+          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-bold', healthClasses[health])}>
             {t.lifecycle.health[health]}
           </span>
         </TableCell>
@@ -189,7 +191,7 @@ export function SalesTableRow({
         <TableCell className={salesCellClassName}>
           <div className="space-y-2">
             <ValidationStatusBadge label={t.statuses.commission[record.commissionStatus]} tone={record.commissionStatus} />
-            <p className="break-words text-sm font-black text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
+            <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
           </div>
         </TableCell>
       ) : null}
@@ -197,7 +199,7 @@ export function SalesTableRow({
         <TableCell className={salesCellClassName}>
           <div className="space-y-2">
             <ValidationStatusBadge label={t.statuses.commission[record.commissionStatus]} tone={record.commissionStatus} />
-            <p className="break-words text-sm font-black text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
+            <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
           </div>
         </TableCell>
       ) : null}
@@ -207,7 +209,7 @@ export function SalesTableRow({
       {isVisible('deliveryStatus') ? <TableCell className={salesCellClassName}><ValidationStatusBadge label={t.statuses.delivery[record.deliveryStatus]} tone={record.deliveryStatus} /></TableCell> : null}
       {isVisible('commissionAmount') ? (
         <TableCell className={salesCellClassName}>
-          <p className="break-words text-sm font-black text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
+          <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
           <p className="mt-1 text-xs font-semibold text-slate-500">{formatCommissionRate(record.commissionRate)}</p>
         </TableCell>
       ) : null}
@@ -246,6 +248,13 @@ export function SalesTableRow({
               className="border-violet-500/25 bg-violet-500/10 text-violet-700 hover:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/20"
               disabled={isCancelled || financeApproved}
               onClick={() => onSendToFinance(record)}
+            />
+            <RowActionButton
+              label={t.table.actions.sendToCredit}
+              icon={<CreditCard className="h-4 w-4" />}
+              className="border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+              disabled={isCancelled}
+              onClick={() => onSendToCredit(record)}
             />
             <RowActionButton
               label={isCancelled ? t.table.actions.cancelled : t.table.actions.cancelSale}

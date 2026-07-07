@@ -50,6 +50,6 @@ export function toPosCheckoutPayments(payments: Payment[]): PosCheckoutPaymentPa
   }));
 }
 
-export function isBackendUnsupportedPayment(method: PaymentMethod) {
-  return method === 'credit';
+export function isBackendUnsupportedPayment(_method: PaymentMethod) {
+  return false;
 }

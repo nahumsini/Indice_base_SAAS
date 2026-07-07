@@ -277,5 +277,5 @@ function SelectField({ label, value, options, onValueChange }: { label: string; 
 }
 
 function FieldLabel({ children }: { children: ReactNode }) {
-  return <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{children}</span>;
+  return <span className="text-sm font-semibold text-slate-700">{children}</span>;
 }

@@ -23,6 +23,7 @@ export function SalesView({
   onManageCommission,
   onPrepareMovement,
   onSendToFinance,
+  onSendToCredit,
   onCancelSale,
 }: {
   records: SaleRecord[];
@@ -42,6 +43,7 @@ export function SalesView({
   onManageCommission: (record: SaleRecord) => void;
   onPrepareMovement: (record: SaleRecord) => void;
   onSendToFinance: (record: SaleRecord) => void;
+  onSendToCredit: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
 }) {
   return (
@@ -73,6 +75,7 @@ export function SalesView({
         onManageCommission={onManageCommission}
         onPrepareMovement={onPrepareMovement}
         onSendToFinance={onSendToFinance}
+        onSendToCredit={onSendToCredit}
         onCancelSale={onCancelSale}
       />
     </>

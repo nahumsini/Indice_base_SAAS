@@ -139,10 +139,10 @@ export function AddInventoryModal({
           <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-black text-slate-900">{t.operational.modals.files}</h3>
+                <h3 className="text-sm font-semibold text-slate-900">{t.operational.modals.files}</h3>
                 <p className="mt-1 text-xs font-semibold text-slate-500">{draft.attachments.length} files</p>
               </div>
-              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-[#FF6B5E]/25 bg-white px-3 text-xs font-black text-[#B63B32] hover:bg-[#FF6B5E]/10">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-[#FF6B5E]/25 bg-white px-3 text-xs font-semibold text-[#B63B32] hover:bg-[#FF6B5E]/10">
                 <FileUp className="h-4 w-4" />
                 {t.operational.modals.addFiles}
                 <input type="file" multiple className="hidden" onChange={(event) => handleFilesChange(event.target.files)} />
@@ -189,5 +189,5 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 }
 
 function FieldLabel({ children }: { children: ReactNode }) {
-  return <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{children}</span>;
+  return <span className="text-sm font-semibold text-slate-700">{children}</span>;
 }

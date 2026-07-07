@@ -25,6 +25,7 @@ export function SalesTable({
   onManageCommission,
   onPrepareMovement,
   onSendToFinance,
+  onSendToCredit,
   onCancelSale,
 }: {
   records: SaleRecord[];
@@ -36,6 +37,7 @@ export function SalesTable({
   onManageCommission: (record: SaleRecord) => void;
   onPrepareMovement: (record: SaleRecord) => void;
   onSendToFinance: (record: SaleRecord) => void;
+  onSendToCredit: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
 }) {
   const [sortState, setSortState] = useState<SalesSortState>(null);
@@ -145,7 +147,7 @@ export function SalesTable({
         onClearSelection={() => setSelectedIds(new Set())}
       />
 
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <Table className="table-fixed" style={{ minWidth: `${Math.max(tableMinWidth, 960)}px` }}>
             <TableHeader>
@@ -185,6 +187,7 @@ export function SalesTable({
                   onManageCommission={onManageCommission}
                   onPrepareMovement={onPrepareMovement}
                   onSendToFinance={onSendToFinance}
+                  onSendToCredit={onSendToCredit}
                   onCancelSale={onCancelSale}
                 />
               ))}

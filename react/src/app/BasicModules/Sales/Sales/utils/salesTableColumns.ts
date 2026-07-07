@@ -27,7 +27,7 @@ export const defaultSalesColumnWidths: Record<SalesColumnId, number> = {
   deliveryStatus: 170,
   commissionAmount: 180,
   movementReference: 210,
-  actions: 168,
+  actions: 210,
 };
 
 export const sortableSalesColumns = new Set<SalesColumnId>([

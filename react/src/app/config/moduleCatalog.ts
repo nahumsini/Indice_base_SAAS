@@ -33,6 +33,8 @@ export const BASIC_MODULE_OPERATIONAL_ORDER: readonly PageId[] = [
   'processes-tasks',
   'sales',
   'point-of-sale',
+  'inventory',
+  'receivables',
   'expenses',
   'kpis',
 ];
@@ -40,6 +42,11 @@ export const BASIC_MODULE_OPERATIONAL_ORDER: readonly PageId[] = [
 const basicModuleOperationalOrderIndex = new Map<PageId, number>(
   BASIC_MODULE_OPERATIONAL_ORDER.map((route, index) => [route, index] as const),
 );
+
+export const FRONTEND_OWNED_BASIC_MODULE_ROUTES: readonly PageId[] = [
+  'inventory',
+  'receivables',
+];
 
 const moduleMetaBySlug: Record<
   string,
@@ -100,6 +107,27 @@ const moduleMetaBySlug: Record<
     category: 'basic',
     title: (t) => t.modules.ventas,
   },
+  receivables: {
+    route: 'receivables',
+    emoji: '💚',
+    color: 'green',
+    category: 'basic',
+    title: (t) => t.modules.cartera,
+  },
+  cartera: {
+    route: 'receivables',
+    emoji: '💚',
+    color: 'green',
+    category: 'basic',
+    title: (t) => t.modules.cartera,
+  },
+  accounts_receivable: {
+    route: 'receivables',
+    emoji: '💚',
+    color: 'green',
+    category: 'basic',
+    title: (t) => t.modules.cartera,
+  },
   processes: {
     route: 'processes-tasks',
     emoji: '✅',
@@ -124,8 +152,8 @@ const moduleMetaBySlug: Record<
   inventory: {
     route: 'inventory',
     emoji: '📦',
-    color: 'gray',
-    category: 'complementary',
+    color: 'coral',
+    category: 'basic',
     title: (t) => t.modules.inventarios,
   },
   control_minutas: {
@@ -301,7 +329,7 @@ export function mapBackendModuleToCard(
     title: meta.title(t, module.name),
     color: meta.color,
     route: meta.route,
-    category: meta.route === 'sales' ? 'basic' : normalizeCategory(module.category, meta.category),
+    category: ['sales', 'inventory', 'receivables'].includes(meta.route) ? 'basic' : normalizeCategory(module.category, meta.category),
     locked: Boolean(module.locked),
   };
 }

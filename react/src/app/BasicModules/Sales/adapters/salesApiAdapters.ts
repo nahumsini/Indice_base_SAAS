@@ -148,6 +148,34 @@ const stripUndefined = (payload: ApiRow) => Object.fromEntries(
 
 const dateOnly = (value: unknown) => toStringValue(value).slice(0, 10);
 
+const normalizeSaleInventoryStatus = (value: unknown): SaleRecord['inventoryStatus'] => {
+  const status = toStringValue(value, 'pending').trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+  if (status === 'reserved' || status === 'approved' || status === 'unavailable') {
+    return status;
+  }
+
+  if (status === 'deducted' || status === 'not_deducted' || status === 'not_required') {
+    return 'approved';
+  }
+
+  return 'pending';
+};
+
+const normalizeSaleInventoryMovementStatus = (value: unknown): SaleRecord['inventoryMovementStatus'] => {
+  const status = toStringValue(value, 'not_generated').trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+  if (status === 'not_generated' || status === 'pending' || status === 'approved' || status === 'completed') {
+    return status;
+  }
+
+  if (status === 'generated' || status === 'deducted' || status === 'posted') {
+    return 'completed';
+  }
+
+  return 'not_generated';
+};
+
 export function toFrontendContact(row: ApiRow): SalesContact {
   const customFields = toObject(row.customFields);
   return {
@@ -523,10 +551,10 @@ export function toFrontendSaleRecord(row: ApiRow): SaleRecord {
     paymentEvidenceStatus: toStringValue(row.paymentEvidenceStatus, 'missing') as SaleRecord['paymentEvidenceStatus'],
     commercialStatus: toStringValue(row.commercialStatus, 'pending_validation') as SaleRecord['commercialStatus'],
     financeStatus: toStringValue(row.financeStatus, 'pending') as SaleRecord['financeStatus'],
-    inventoryStatus: toStringValue(row.inventoryStatus, 'pending') as SaleRecord['inventoryStatus'],
+    inventoryStatus: normalizeSaleInventoryStatus(row.inventoryStatus),
     deliveryStatus: toStringValue(row.deliveryStatus, 'pending') as SaleRecord['deliveryStatus'],
     commissionStatus: toStringValue(row.commissionStatus, 'pending') as SaleRecord['commissionStatus'],
-    inventoryMovementStatus: toStringValue(row.inventoryMovementStatus, 'not_generated') as SaleRecord['inventoryMovementStatus'],
+    inventoryMovementStatus: normalizeSaleInventoryMovementStatus(row.inventoryMovementStatus),
     inventoryMovementReference: toStringValue(row.inventoryMovementReference),
     commissionRate: toNumber(row.commissionRate),
     commissionAmount: toNumber(row.commissionAmount),

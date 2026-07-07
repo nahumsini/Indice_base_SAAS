@@ -10,6 +10,7 @@ import { LearningModeBanner } from './components/LearningModeBanner';
 import { KPIConfiguration } from './components/KPIConfiguration';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 import { SuccessToast } from './components/SuccessToast';
+import { FavoritesBar } from './components/FavoritesBar';
 import { Button } from './components/ui/button';
 import { MainDashboard } from './Dashboard';
 import { useLanguage } from './shared/context';
@@ -22,7 +23,7 @@ import {
 import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { dashboardApi } from './api/dashboard';
 import { authApi } from './api/auth';
-import { buildDefaultModuleCatalog, routeForBackendSlug } from './config/moduleCatalog';
+import { buildDefaultModuleCatalog, FRONTEND_OWNED_BASIC_MODULE_ROUTES, routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
 import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
@@ -45,6 +46,7 @@ const Gastos = lazy(() => import('./BasicModules/Expenses/ExpensesModule'));
 const CajaChica = lazy(() => import('./BasicModules/PettyCash'));
 const PuntoVenta = lazy(() => import('./BasicModules/PointOfSale'));
 const Ventas = lazy(() => import('./BasicModules/Sales'));
+const Cartera = lazy(() => import('./BasicModules/Receivables'));
 const Kpis = lazy(() => import('./BasicModules/Kpis'));
 const Mantenimiento = lazy(() => import('./ComplementaryModules/Maintenance'));
 const Inventarios = lazy(() => import('./ComplementaryModules/Inventory'));
@@ -68,21 +70,23 @@ type StandaloneModuleComponent = ComponentType | LazyExoticComponent<ComponentTy
 
 function StandaloneModuleShell({
   children,
-  onBack,
+  currentModule,
+  onNavigate,
 }: {
   children: ReactNode;
-  onBack: () => void;
+  currentModule: PageId;
+  onNavigate: (page?: string) => void;
 }) {
   return (
     <div>
       <div className="max-w-[1600px] mx-auto px-8 pt-6">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="text-sm gap-2"
-        >
-          <span className="text-lg">🏠</span> Home
-        </Button>
+        <FavoritesBar
+          onNavigate={(page) => {
+            if (resolvePageId(page) === currentModule) return;
+            onNavigate(page);
+          }}
+          currentModule={currentModule}
+        />
       </div>
       {children}
     </div>
@@ -468,6 +472,9 @@ export default function App() {
             routes.add(route);
           }
         }
+        for (const route of FRONTEND_OWNED_BASIC_MODULE_ROUTES) {
+          routes.add(route);
+        }
         if (routes.size === 0 && isAdminAccessRole(session?.user.role)) {
           for (const module of buildDefaultModuleCatalog(t)) {
             routes.add(module.route);
@@ -621,12 +628,14 @@ export default function App() {
       <PuntoVenta onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales' ? (
       <Ventas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'receivables' ? (
+      <Cartera onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
       <Kpis onNavigate={handleModuleNavigation} />
     ) : currentPage === 'affiliate-management' ? (
       <Afiliados onNavigate={handleModuleNavigation} />
-    ) : StandaloneModuleComponent ? (
-      <StandaloneModuleShell onBack={() => handleModuleNavigation('dashboard')}>
+    ) : StandaloneModuleComponent && currentPage ? (
+      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
         <StandaloneModuleComponent />
       </StandaloneModuleShell>
     ) : null;

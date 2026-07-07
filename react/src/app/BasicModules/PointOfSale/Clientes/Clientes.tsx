@@ -148,7 +148,7 @@ export default function Clientes() {
   };
 
   const handleCreditData = (customer: Customer) => {
-    setNotice(`Crédito POS preparado para ${customer.name}. La pestaña Crédito concentra la gestión formal.`);
+    setNotice(`Crédito POS preparado para ${customer.name}. Cartera concentra la gestión formal de ventas a crédito.`);
   };
 
   const handleAccountStatement = (customer: Customer) => {
@@ -161,6 +161,7 @@ export default function Clientes() {
       <PointOfSaleTitleBar
         eyebrow="Clientes POS"
         icon="👥"
+        rhIndent
         title="Clientes"
         subtitle="Directorio rápido compartido con Sales para tickets, crédito operativo y estados de cuenta POS."
         actions={(

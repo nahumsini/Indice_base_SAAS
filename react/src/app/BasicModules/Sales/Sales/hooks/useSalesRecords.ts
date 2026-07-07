@@ -198,9 +198,9 @@ export function useSalesRecords(
     [lifecycleByRecordId],
   );
 
-  const createSaleRecord = (draft: SaleRecordDraft) => {
+  const createSaleRecord = async (draft: SaleRecordDraft) => {
     const validation = validateSaleDraftForBackendReadiness(draft);
-    if (!validation.valid) return;
+    if (!validation.valid) return null;
 
     const nextIndex = records.length + 1;
     const id = `SAL-${String(nextIndex).padStart(3, '0')}`;
@@ -229,7 +229,7 @@ export function useSalesRecords(
       saleLines,
     };
 
-    addSaleRecord(createdRecord);
+    return addSaleRecord(createdRecord);
   };
 
   const updateSaleRecord = (saleId: string, patch: Partial<SaleRecord>) => {

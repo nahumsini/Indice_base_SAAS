@@ -31,9 +31,9 @@ function FilterSelect({
 }) {
   return (
     <label className="grid gap-2">
-      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</span>
+      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-bold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -86,18 +86,18 @@ export function InventoryFilters({
       : t.operational.filterLabels.searchProduct;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h3 className="mb-5 text-xl font-bold text-slate-950 dark:text-white">{t.operational.filtersTitle}</h3>
+    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{t.operational.filtersTitle}</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
         <label className="grid gap-2 xl:col-span-2">
-          <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{searchLabel}</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{searchLabel}</span>
           <span className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={filters.search}
               onChange={(event) => onFiltersChange({ ...filters, search: event.target.value } as InventoryAnyFilters)}
               placeholder={searchLabel}
-              className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-sm font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-sm font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </span>
         </label>
@@ -125,12 +125,12 @@ export function InventoryFilters({
               options={[{ value: 'all', label: t.common.all }, ...responsibleOptions.map((responsible) => ({ value: responsible, label: responsible }))]}
             />
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.filters.dateFrom}</span>
-              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateFrom} onChange={(event) => onFiltersChange({ ...filters, dateFrom: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-xl border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.filters.dateFrom}</span>
+              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateFrom} onChange={(event) => onFiltersChange({ ...filters, dateFrom: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-xl border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </label>
             <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.filters.dateTo}</span>
-              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateTo} onChange={(event) => onFiltersChange({ ...filters, dateTo: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-xl border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.filters.dateTo}</span>
+              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateTo} onChange={(event) => onFiltersChange({ ...filters, dateTo: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-xl border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </label>
           </>
         ) : null}

@@ -4,6 +4,7 @@ import { dashboardApi } from '../api/dashboard';
 import { isAdminAccessRole } from '../access/accessRules';
 import {
   buildDefaultModuleCatalog,
+  FRONTEND_OWNED_BASIC_MODULE_ROUTES,
   mapBackendModuleToCard,
   mergeDashboardModules,
   type DashboardModuleCard,
@@ -40,7 +41,11 @@ export function useAccessibleModuleCatalog(t: Translator) {
           return;
         }
 
-        setAvailableModules(mergeDashboardModules(mappedModules, defaultModules, {
+        const frontendOwnedModules = defaultModules.filter((module) => (
+          FRONTEND_OWNED_BASIC_MODULE_ROUTES.includes(module.route)
+        ));
+
+        setAvailableModules(mergeDashboardModules([...mappedModules, ...frontendOwnedModules], defaultModules, {
           includeMissingFallbacks: false,
         }));
       } catch {

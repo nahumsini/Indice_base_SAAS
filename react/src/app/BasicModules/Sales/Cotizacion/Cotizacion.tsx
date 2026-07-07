@@ -808,6 +808,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     <section className="space-y-5">
       <SalesTitleBar
         icon={t.header.emoji}
+        rhIndent
         title={t.header.title}
         subtitle={t.header.subtitle}
         actions={(

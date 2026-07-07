@@ -17,6 +17,7 @@ import type { SalesRecordsTranslations } from '../translations';
 import type { SaleRecordDraft, SalesBusinessOption } from '../types/salesTypes';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { paymentEvidenceStatuses } from '../utils/salesStatuses';
+import { getSalesPaymentMethodForStorage, normalizeSalesPaymentMethod, salesPaymentMethodIds } from '../utils/salesPaymentMethods';
 import { DetailField, FormField, salesFieldClassName, SectionCard } from './SalesModalPrimitives';
 import { SalesCreateSummaryPanel } from './SalesCreateSummaryPanel';
 
@@ -113,6 +114,7 @@ export function SalesCreateForm({
 }: SalesCreateFormProps) {
   const [activeTab, setActiveTab] = useState<SalesCreateTabId>('customer');
   const operationalContext = getSalesOperationalContext(form.businessId);
+  const selectedPaymentMethod = normalizeSalesPaymentMethod(form.paymentMethod);
   const acceptedLinkedQuotes = quoteOptions.filter((quote) => quote.status === 'Approved' || quote.status === 'Closed Won');
   const hasOpportunityQuoteOptions = quoteOptions.length > 0;
   const opportunityHelper = !selectedOpportunity
@@ -249,7 +251,21 @@ export function SalesCreateForm({
           <SectionCard title={t.modal.sections.payment}>
             <section className="grid gap-4 md:grid-cols-3">
               <FormField label={t.modal.fields.paymentMethod}>
-                <Input value={form.paymentMethod} onChange={(event) => onFormChange({ paymentMethod: event.target.value })} placeholder={t.modal.placeholders.paymentMethod} className={salesFieldClassName} />
+                <Select
+                  value={selectedPaymentMethod || undefined}
+                  onValueChange={(value) => onFormChange({ paymentMethod: getSalesPaymentMethodForStorage(value) })}
+                >
+                  <SelectTrigger className={salesFieldClassName}>
+                    <SelectValue placeholder={t.modal.placeholders.paymentMethod} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesPaymentMethodIds.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {t.modal.paymentMethods[method]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormField>
               <FormField label={t.modal.fields.paymentReference}>
                 <Input value={form.paymentReference} onChange={(event) => onFormChange({ paymentReference: event.target.value })} placeholder={t.modal.placeholders.paymentReference} className={salesFieldClassName} />
@@ -281,6 +297,7 @@ export function SalesCreateForm({
               <DetailField label={t.modal.fields.taxTotal} value={formatSalesCurrency(form.taxTotal, form.currency)} />
               <DetailField label={t.modal.fields.businessUnit} value={form.businessUnitName || t.common.notAvailable} />
               <DetailField label={t.modal.fields.business} value={form.businessName || t.common.notAvailable} />
+              <DetailField label={t.modal.fields.paymentMethod} value={selectedPaymentMethod ? t.modal.paymentMethods[selectedPaymentMethod] : t.common.notAvailable} />
               <DetailField label={t.modal.fields.paymentEvidenceStatus} value={t.statuses.paymentEvidence[form.paymentEvidenceStatus]} />
             </section>
           </SectionCard>

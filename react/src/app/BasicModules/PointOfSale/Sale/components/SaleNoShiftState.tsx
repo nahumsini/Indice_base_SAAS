@@ -72,7 +72,7 @@ export function SaleNoShiftState({
       : 'POS necesita un almacén y una caja vinculada antes de abrir turno.';
 
   const goToWarehouses = () => {
-    navigate('/sales/inventory');
+    navigate('/inventory/inventory');
   };
 
   const handleCreateCashRegister = async (payload: PosCashRegisterCreatePayload) => {

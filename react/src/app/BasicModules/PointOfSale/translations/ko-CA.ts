@@ -1,0 +1,20 @@
+export const koCA = {
+  title: '판매 시점 관리',
+  subtitle: '매장 판매, 청구, 현금 마감, 고객, 할인, 운영 KPI를 관리합니다.',
+  back: '뒤로',
+  navLabel: '판매 시점 관리 섹션',
+  loading: {
+    openingTitle: '판매 시점 관리 열기',
+    openingDescription: '선택한 운영 작업 공간을 준비하고 있습니다.',
+    fallbackTitle: '작업 공간 로딩 중',
+    fallbackDescription: '선택한 POS 섹션만 불러오고 있습니다.',
+  },
+  tabs: {
+    sale: '판매',
+    cortes: '현금 마감',
+    clientes: '고객',
+    facturacion: '청구',
+    descuentos: '할인',
+    kpis: 'KPI',
+  },
+} as const;

@@ -18,7 +18,7 @@ export function StockWarehouseDistribution({
   t: InventoryTranslations;
 }) {
   if (distributions.length === 0) {
-    return <span className="text-xs font-bold text-slate-400">{t.common.notAvailable}</span>;
+    return <span className="text-xs font-semibold text-slate-400">{t.common.notAvailable}</span>;
   }
 
   return (
@@ -29,7 +29,7 @@ export function StockWarehouseDistribution({
         return (
           <span
             key={distribution.warehouseId}
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-black leading-none before:h-1.5 before:w-1.5 before:rounded-full ${toneByHealth[health]}`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold leading-none before:h-1.5 before:w-1.5 before:rounded-full ${toneByHealth[health]}`}
             title={`${distribution.warehouseName}: ${distribution.available}`}
           >
             <span className="max-w-[112px] truncate">{distribution.warehouseName}</span>

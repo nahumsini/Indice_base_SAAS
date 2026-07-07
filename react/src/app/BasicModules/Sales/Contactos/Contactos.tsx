@@ -475,6 +475,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
     <section className="space-y-5">
       <SalesTitleBar
         icon="🏢"
+        rhIndent
         title={t.header.title}
         subtitle={t.header.subtitle}
         actions={(

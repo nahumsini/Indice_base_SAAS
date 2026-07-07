@@ -28,8 +28,8 @@ const statusTone = {
   inactive: 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300',
 };
 
-const headerClass = 'h-10 whitespace-nowrap px-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300';
-const numberClass = 'text-right font-black tabular-nums text-slate-900 dark:text-white';
+const headerClass = 'h-12 whitespace-nowrap px-3 text-sm font-semibold text-slate-500 dark:text-slate-300';
+const numberClass = 'text-right font-semibold tabular-nums text-slate-900 dark:text-white';
 const actionButtonClasses = [
   'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20',
   'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10 dark:text-[#B8F3E4] dark:hover:bg-[#59C3A5]/20',
@@ -62,7 +62,7 @@ function ProductPhoto({ row, t }: { row: InventoryStockRow; t: InventoryTranslat
   }
 
   return (
-    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[10px] font-black uppercase text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
+    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
       {t.operational.columns.photo}
     </span>
   );
@@ -88,7 +88,7 @@ function SortableHead({
     <TableHead className={`${headerClass} ${align === 'right' ? 'text-right' : ''}`}>
       <button type="button" className={`inline-flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : ''}`} onClick={() => onSort(column)}>
         {label}
-        <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-[#FF6B5E]' : 'text-slate-400 dark:text-slate-500'}`} />
+        <Icon className={`h-4 w-4 ${isActive ? 'text-[#FF6B5E]' : 'text-slate-400 dark:text-slate-500'}`} />
       </button>
     </TableHead>
   );
@@ -159,7 +159,7 @@ export function StockTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
@@ -200,7 +200,7 @@ export function StockTable({
                     <Checkbox checked={selected} onCheckedChange={(checked) => onToggleRow(row.id, Boolean(checked))} />
                   </TableCell>
                   {canShow('photo') ? <TableCell className="px-3 py-2"><ProductPhoto row={row} t={t} /></TableCell> : null}
-                  {canShow('product') ? <TableCell className="min-w-[260px] px-3 py-2"><div className="text-sm font-black leading-5 text-slate-950 dark:text-white">{row.name}</div><div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300"><span className="rounded bg-slate-100 px-1.5 py-0.5 font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">{row.sku}</span><span className="max-w-[240px] truncate">{row.description}</span></div></TableCell> : null}
+                  {canShow('product') ? <TableCell className="min-w-[260px] px-3 py-2"><div className="text-sm font-semibold leading-5 text-slate-950 dark:text-white">{row.name}</div><div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300"><span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">{row.sku}</span><span className="max-w-[240px] truncate">{row.description}</span></div></TableCell> : null}
                   {canShow('sku') ? <TableCell className="px-3 py-2 font-bold text-slate-600 dark:text-slate-300">{row.sku}</TableCell> : null}
                   {canShow('category') ? (
                     <TableCell className="px-3 py-2">
@@ -219,7 +219,7 @@ export function StockTable({
                   {canShow('available') ? <TableCell className={`px-3 py-2 ${numberClass}`}>{formatInventoryNumber(totals.available)}</TableCell> : null}
                   {canShow('reserved') ? <TableCell className={`px-3 py-2 ${numberClass}`}>{formatInventoryNumber(totals.reserved)}</TableCell> : null}
                   {canShow('minimum') ? <TableCell className={`px-3 py-2 ${numberClass}`}>{formatInventoryNumber(row.minimumStock)}</TableCell> : null}
-                  {canShow('status') ? <TableCell className="px-3 py-2"><span className={`rounded-md border px-2 py-1 text-[11px] font-black uppercase tracking-[0.08em] ${statusTone[health]}`}>{t.operational.statuses[health]}</span></TableCell> : null}
+                  {canShow('status') ? <TableCell className="px-3 py-2"><span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusTone[health]}`}>{t.operational.statuses[health]}</span></TableCell> : null}
                   {canShow('warehouseDistribution') ? <TableCell><StockWarehouseDistribution distributions={row.distributions} t={t} /></TableCell> : null}
                   {canShow('estimatedValue') ? <TableCell className={`px-3 py-2 ${numberClass}`}>{formatInventoryCurrency(totals.estimatedValue)}</TableCell> : null}
                   {canShow('lastMovement') ? <TableCell className="px-3 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{row.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}

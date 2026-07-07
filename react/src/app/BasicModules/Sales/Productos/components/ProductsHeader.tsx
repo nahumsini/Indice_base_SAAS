@@ -30,6 +30,7 @@ export function ProductsHeader({
   return (
     <SalesTitleBar
       icon={t.header.emoji}
+      rhIndent
       title={t.header.title}
       subtitle={t.header.subtitle}
       actions={(

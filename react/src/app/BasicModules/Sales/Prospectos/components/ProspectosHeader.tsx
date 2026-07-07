@@ -23,6 +23,7 @@ export function ProspectosHeader({
   return (
     <SalesTitleBar
       icon="🎯"
+      rhIndent
       title={copy.title}
       subtitle={copy.subtitle}
       actions={(

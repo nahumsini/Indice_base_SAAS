@@ -168,6 +168,7 @@ export default function Productos() {
       <PointOfSaleTitleBar
         eyebrow="Catálogo POS"
         icon="🛍️"
+        rhIndent
         title="Productos"
         subtitle="Catálogo compartido con Sales, optimizado para códigos, precios, disponibilidad y venta rápida."
         actions={(

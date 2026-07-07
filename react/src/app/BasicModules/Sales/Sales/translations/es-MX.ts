@@ -163,6 +163,7 @@ export const esMX = {
       exportSummary: 'Exportar resumen de venta',
       prepareMovement: 'Preparar traspaso a inventario',
       sendToFinance: 'Enviar a validación financiera',
+      sendToCredit: 'Pasar a venta a credito',
       cancelSale: 'Cancelar venta',
       cancelConfirmation: '¿Cancelar este registro de venta? Solo se actualizará el estado comercial local.',
       alreadyPrepared: 'Traspaso a inventario ya preparado',
@@ -310,6 +311,14 @@ export const esMX = {
       paymentReference: 'Referencia de pago',
       movementReference: 'MOV-SAL-00000',
       notes: 'Notas de ejecución, compromiso con cliente o contexto de validación.',
+    },
+    paymentMethods: {
+      cash: 'Efectivo',
+      card: 'Tarjeta',
+      transfer: 'Transferencia',
+      wallet: 'Wallet',
+      check: 'Cheque',
+      credit: 'Crédito',
     },
     operationalContext: {
       helper: 'Contexto de negocio preparado para futura integración con estructura de empresa.',

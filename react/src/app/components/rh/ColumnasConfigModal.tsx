@@ -29,7 +29,7 @@ interface ColumnasConfigModalProps {
   onSave: (columns: ColumnConfig[]) => void;
   defaultColumns?: ColumnConfig[];
   fixedColumns?: ColumnConfig[];
-  theme?: 'default' | 'processes' | 'humanResources' | 'sales';
+  theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'receivables';
 }
 
 interface DraggableColumnItemProps {
@@ -182,6 +182,20 @@ export function ColumnasConfigModal({
         interactive: 'hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/5',
         primary:
           'h-10 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-slate-100 hover:text-[#B63B32] focus-visible:ring-white/40 dark:bg-white dark:text-[#B63B32] dark:hover:bg-slate-100',
+      };
+    }
+
+    if (theme === 'receivables') {
+      return {
+        accent: 'text-[#147514]',
+        checkbox:
+          'data-[state=checked]:border-[#147514] data-[state=checked]:bg-[#147514] focus-visible:ring-[#147514]/30',
+        content: 'max-w-[900px] rounded-3xl',
+        footer: 'bg-[#147514]',
+        header: 'bg-[#147514]',
+        interactive: 'hover:border-[#147514]/40 hover:bg-[#147514]/5',
+        primary:
+          'h-10 rounded-xl bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-slate-100 hover:text-[#147514] focus-visible:ring-white/40 dark:bg-white dark:text-[#147514] dark:hover:bg-slate-100',
       };
     }
 

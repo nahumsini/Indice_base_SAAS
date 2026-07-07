@@ -143,6 +143,7 @@ export default function Inventario() {
       <PointOfSaleTitleBar
         eyebrow="Disponibilidad POS"
         icon="📦"
+        rhIndent
         title="Inventario"
         subtitle="Vista operativa de stock para caja y almacén; productos y disponibilidad se comparten con Sales."
       />

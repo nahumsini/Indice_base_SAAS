@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
@@ -78,6 +79,7 @@ function SaleCancelDialog({
 
 export default function Sales() {
   const t = useSalesTranslations();
+  const navigate = useNavigate();
   const {
     quotes,
     products,
@@ -156,6 +158,16 @@ export default function Sales() {
     });
   };
 
+  const handleSendToCredit = (record: SaleRecord) => {
+    updateSaleRecord(record.id, {
+      commercialStatus: record.commercialStatus === 'pending_validation' ? 'approved' : record.commercialStatus,
+      financeStatus: 'pending',
+      paymentMethod: 'credit',
+    });
+    const candidateSaleId = record.backendId ? `sales:${record.backendId}` : record.id;
+    navigate(`/receivables/credit-sales?candidateSaleId=${encodeURIComponent(candidateSaleId)}&openCreditSale=1`);
+  };
+
   const handleCancelSale = (record: SaleRecord) => {
     setPendingCancelRecord(record);
   };
@@ -201,6 +213,7 @@ export default function Sales() {
           onManageCommission={handleManageCommission}
           onPrepareMovement={handlePrepareMovement}
           onSendToFinance={handleSendToFinance}
+          onSendToCredit={handleSendToCredit}
           onCancelSale={handleCancelSale}
         />
       ) : (
@@ -228,6 +241,7 @@ export default function Sales() {
         onOpenChange={setIsDetailModalOpen}
         onCreate={createSaleRecord}
         onUpdate={updateSaleRecord}
+        onCreditSaleCreated={handleSendToCredit}
         onQuoteConverted={(quoteId, opportunityId) => {
           const convertedQuote = quotes.find((quote) => quote.id === quoteId);
           updateQuoteStatus(quoteId, 'Closed Won');

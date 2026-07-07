@@ -102,7 +102,7 @@ export function SalesTableHeader({
           <TableHead
             key={column}
             className={cn(
-              'relative whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400',
+              'relative whitespace-normal px-5 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400',
               column === 'actions' && 'text-center',
             )}
             style={{ width: `${columnWidth}px`, minWidth: `${columnWidth}px`, maxWidth: `${columnWidth}px` }}
@@ -110,11 +110,11 @@ export function SalesTableHeader({
             {isSortable ? (
               <button
                 type="button"
-                className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+                className="inline-flex max-w-full items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
                 onClick={() => onSort(column)}
               >
                 <span className="min-w-0 whitespace-normal break-words">{label}</span>
-                <SortIcon className={cn('h-3.5 w-3.5 shrink-0', isActive ? 'text-[#FF6B5E]' : 'text-slate-400')} />
+                <SortIcon className={cn('h-4 w-4 shrink-0', isActive ? 'text-[#FF6B5E]' : 'text-slate-400')} />
               </button>
             ) : (
               <span className="inline-flex max-w-full justify-center whitespace-normal break-words">{label}</span>

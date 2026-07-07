@@ -5,6 +5,7 @@ import {
   type ComponentType,
   type LazyExoticComponent,
 } from 'react';
+import { Navigate, useParams } from 'react-router';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import {
   routedSalesTabIds,
@@ -70,7 +71,40 @@ const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
   contrato: 'contracts',
 };
 
+const inventoryTabRedirects: Record<string, string> = {
+  producto: '/inventory/products',
+  productos: '/inventory/products',
+  product: '/inventory/products',
+  products: '/inventory/products',
+  proveedor: '/inventory/providers',
+  proveedores: '/inventory/providers',
+  provider: '/inventory/providers',
+  providers: '/inventory/providers',
+  supplier: '/inventory/providers',
+  suppliers: '/inventory/providers',
+  inventario: '/inventory/inventory',
+  inventory: '/inventory/inventory',
+  stock: '/inventory/inventory',
+};
+
+function useInventoryTabRedirect() {
+  const params = useParams();
+  const requestedTab = params['*']?.split('/').filter(Boolean)[0];
+
+  return requestedTab ? inventoryTabRedirects[requestedTab] ?? null : null;
+}
+
 export default function Ventas({ learningModeActive = false, onNavigate }: VentasProps) {
+  const redirectTo = useInventoryTabRedirect();
+
+  if (redirectTo) {
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  return <VentasContent learningModeActive={learningModeActive} onNavigate={onNavigate} />;
+}
+
+function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) {
   const copy = useSalesTranslations();
   const guidanceCopy = useSalesGuidanceTranslations();
   const moduleContentRef = useRef<HTMLElement | null>(null);
@@ -82,14 +116,14 @@ export default function Ventas({ learningModeActive = false, onNavigate }: Venta
   const ActiveComponent = salesTabComponents[activeTab] || Prospectos;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-950 dark:bg-gray-900 dark:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-900 dark:text-white">
       <SalesLoadingState
         isVisible={isTabLoading}
         title={copy.loading.openingTitle}
         description={copy.loading.openingDescription}
       />
 
-      <header className="border-b border-gray-200 bg-white px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
+      <header className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <div className="mx-auto max-w-[1600px]">
           <SalesHeader copy={copy} onNavigate={onNavigate} />
           <SalesTabsNav activeTab={activeTab} copy={copy} onTabChange={setActiveTab} />
@@ -103,7 +137,7 @@ export default function Ventas({ learningModeActive = false, onNavigate }: Venta
         </div>
       </header>
 
-      <main ref={moduleContentRef} className="mx-auto max-w-[1600px] scroll-mt-6 px-8 py-6">
+      <main ref={moduleContentRef} className="mx-auto max-w-[1600px] scroll-mt-6 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <SalesCrmProvider>
           <Suspense
             fallback={(

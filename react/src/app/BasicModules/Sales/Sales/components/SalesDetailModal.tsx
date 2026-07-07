@@ -17,6 +17,7 @@ import type { CommissionRecord } from '../types/commissions';
 import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft } from '../types/salesTypes';
 import { formatCommissionType } from '../utils/commissionRules';
 import { calculateCommissionAmount, formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
+import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
 import { SalesCreateForm } from './SalesCreateForm';
 import { SaleSummaryPreviewModal } from './SaleSummaryPreviewModal';
 import { DetailField, SectionCard } from './SalesModalPrimitives';
@@ -107,6 +108,7 @@ export function SalesDetailModal({
   onCreate,
   onUpdate,
   onQuoteConverted,
+  onCreditSaleCreated,
 }: {
   open: boolean;
   record: SaleRecord | null;
@@ -118,14 +120,16 @@ export function SalesDetailModal({
   commissionRecords?: CommissionRecord[];
   t: SalesRecordsTranslations;
   onOpenChange: (open: boolean) => void;
-  onCreate: (draft: SaleRecordDraft) => void;
+  onCreate: (draft: SaleRecordDraft) => Promise<SaleRecord | null> | SaleRecord | null;
   onUpdate: (saleId: string, patch: Partial<SaleRecord>) => void;
   onQuoteConverted: (quoteId: string, opportunityId?: string) => void;
+  onCreditSaleCreated?: (record: SaleRecord) => void;
 }) {
   const isCreateMode = !record;
   const [form, setForm] = useState<SaleRecordDraft>(() => getInitialDraft(record));
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<SalesWorkflowValidationCode[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const acceptedQuotes = useMemo(
     () => quotes.filter((quote) => quote.status === 'Approved' || quote.status === 'Closed Won'),
@@ -176,6 +180,7 @@ export function SalesDetailModal({
     if (open) {
       setForm(getInitialDraft(record));
       setValidationErrors([]);
+      setIsSaving(false);
     }
   }, [open, record]);
 
@@ -306,7 +311,9 @@ export function SalesDetailModal({
     setForm((current) => ({ ...current, ...patch }));
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    if (isSaving) return;
+
     const validation = validateSaleDraftForBackendReadiness(form);
     const quoteIsConvertible = !selectedQuote || selectedQuote.status === 'Approved' || selectedQuote.status === 'Closed Won';
     const errors = quoteIsConvertible
@@ -318,7 +325,10 @@ export function SalesDetailModal({
       return;
     }
 
-    onCreate({
+    const paymentMethod = getSalesPaymentMethodForStorage(form.paymentMethod);
+    const closesAsCredit = isSalesCreditPaymentMethod(paymentMethod);
+    const closesWithImmediatePayment = Boolean(normalizeSalesPaymentMethod(paymentMethod)) && !closesAsCredit;
+    const saleDraft: SaleRecordDraft = {
       ...form,
       quoteReference: form.quoteReference.trim(),
       saleDocumentReference: form.saleDocumentReference?.trim(),
@@ -328,17 +338,35 @@ export function SalesDetailModal({
       businessName: form.businessName,
       customerName: form.customerName.trim(),
       sellerName: form.sellerName.trim(),
-      paymentMethod: form.paymentMethod.trim(),
+      paymentMethod,
       paymentReference: form.paymentReference.trim(),
+      paymentEvidenceStatus: closesWithImmediatePayment ? 'approved' : form.paymentEvidenceStatus,
+      commercialStatus: closesAsCredit || closesWithImmediatePayment ? 'approved' : form.commercialStatus,
+      financeStatus: closesWithImmediatePayment ? 'approved' : 'pending',
       inventoryMovementReference: form.inventoryMovementReference.trim(),
       commissionNotes: form.commissionNotes.trim(),
       notes: form.notes.trim(),
       commissionAmount: calculatedCommissionAmount,
-    });
+    };
+
+    setIsSaving(true);
+    let createdRecord: SaleRecord | null = null;
+    try {
+      createdRecord = await onCreate(saleDraft);
+    } finally {
+      setIsSaving(false);
+    }
+
+    if (!createdRecord) {
+      return;
+    }
     if (form.quoteId) {
       onQuoteConverted(form.quoteId, form.prospectId);
     }
     onOpenChange(false);
+    if (closesAsCredit) {
+      onCreditSaleCreated?.(createdRecord);
+    }
   };
 
   return (
@@ -364,7 +392,7 @@ export function SalesDetailModal({
               {t.modal.previewSaleSummary}
             </Button>
             <Button variant="outline" className={actionClassNames.secondary} onClick={() => onOpenChange(false)}>{isCreateMode ? t.common.cancel : t.common.close}</Button>
-            {isCreateMode ? <Button className={actionClassNames.primary} onClick={handleCreate}>{t.common.save}</Button> : null}
+            {isCreateMode ? <Button className={actionClassNames.primary} onClick={() => { void handleCreate(); }} disabled={isSaving}>{t.common.save}</Button> : null}
           </>
         )}
       >

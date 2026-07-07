@@ -38,21 +38,22 @@ export function ProvidersHeaderBanner({
 }) {
   const t = useProvidersTranslations();
   const styles = headerVariantStyles[variant];
+  const useRhIndent = variant === 'sales';
 
   return (
-    <div className={`rounded-xl border px-4 py-4 shadow-sm sm:px-6 sm:py-5 ${styles.banner}`}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className={`${useRhIndent ? 'rounded-lg border p-6' : 'rounded-xl border px-4 py-4 sm:px-6 sm:py-5'} shadow-sm ${styles.banner}`}>
+      <div className={`flex flex-col gap-4 lg:flex-row lg:justify-between ${useRhIndent ? 'lg:items-start' : 'lg:items-center'}`}>
         <div className="min-w-0">
-          <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white sm:text-[28px]">
-            <span className="text-3xl leading-none" aria-hidden="true">{icon ?? '🏢'}</span>
+          <h2 className={`flex min-w-0 items-center gap-2 text-slate-900 dark:text-white ${useRhIndent ? 'mb-1 text-2xl font-semibold leading-tight' : 'text-2xl font-bold sm:text-[28px]'}`}>
+            <span className={`${useRhIndent ? 'text-[2rem]' : 'text-3xl'} shrink-0 leading-none`} aria-hidden="true">{icon ?? '🏢'}</span>
             {title ?? t.providers.headerTitle}
           </h2>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+          <p className={`${useRhIndent ? 'text-sm leading-6' : 'mt-2 text-sm'} text-slate-600 dark:text-slate-400`}>
             {subtitle ?? t.providers.headerSubtitle}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
+        <div className={`${useRhIndent ? 'flex w-full flex-wrap items-center gap-3 sm:w-auto lg:justify-end' : 'grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center'}`}>
           <Button
             variant="outline"
             className={`h-11 w-full justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`}

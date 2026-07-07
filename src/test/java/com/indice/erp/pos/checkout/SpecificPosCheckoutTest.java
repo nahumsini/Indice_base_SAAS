@@ -70,14 +70,18 @@ class SpecificPosCheckoutTest {
     }
 
     @Test
-    void checkoutRejectsCreditForNow() {
-        var service = service();
-        when(cashRegisterService.requireRegister(context(), 20L)).thenReturn(register());
-        when(shiftRepository.findOpenByUserAndRegister(context(), 20L)).thenReturn(Optional.of(shift()));
+    void checkoutAcceptsCreditWithoutIncreasingExpectedCash() {
+        var service = readyService();
+        when(ticketRepository.insert(eq(context()), any())).thenReturn(ticket());
+        when(ticketRepository.insertItems(eq(context()), eq(100L), any())).thenReturn(List.of(ticketItem()));
+        when(paymentRepository.insertAll(eq(context()), eq(100L), any())).thenReturn(List.of(paymentRecord(PaymentMethod.CREDIT)));
 
-        assertThatThrownBy(() -> service.checkout(context(), request("CREDIT", "10.0000")))
-            .isInstanceOf(PosApiException.class)
-            .hasMessage("CREDIT payment is not available until receivables are implemented.");
+        var response = service.checkout(context(), request("CREDIT", "10.0000"));
+
+        verify(paymentRepository).insertAll(eq(context()), eq(100L), any());
+        verify(shiftRepository, never()).increaseExpectedCash(eq(context()), eq(40L), any());
+        assertThat(response.payments()).hasSize(1);
+        assertThat(response.payments().getFirst().paymentMethod()).isEqualTo(PaymentMethod.CREDIT);
     }
 
     @Test

@@ -4,7 +4,6 @@ import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.checkout.dto.PosCheckoutRequest;
 import com.indice.erp.pos.shift.ShiftRecord;
-import com.indice.erp.pos.status.PaymentMethod;
 import com.indice.erp.pos.status.ShiftStatus;
 import java.math.BigDecimal;
 import java.util.List;
@@ -59,9 +58,6 @@ public class CheckoutValidator {
 
     public void validatePayments(List<CheckoutPayment> payments) {
         payments.forEach(payment -> {
-            if (payment.paymentMethod() == PaymentMethod.CREDIT) {
-                throw PosApiException.badRequest("CREDIT payment is not available until receivables are implemented.");
-            }
             if (payment.amount().compareTo(BigDecimal.ZERO) <= 0) {
                 throw PosApiException.badRequest("Payment amount must be greater than zero.");
             }

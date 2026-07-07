@@ -16,7 +16,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class FinanceAccessService {
 
-    private static final Set<String> FINANCE_MODULE_SLUGS = Set.of("expenses", "finance");
+    private static final Set<String> FINANCE_MODULE_SLUGS = Set.of(
+        "cartera",
+        "expenses",
+        "finance",
+        "receivables"
+    );
     private static final Set<String> FULL_ACCESS_ROLES = Set.of("root", "superadmin");
     private static final Set<String> LEGACY_ADMIN_ROLES = Set.of("admin", "owner");
 

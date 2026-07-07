@@ -25,6 +25,8 @@ interface UseSaleCheckoutOptions {
   formatCurrency: (amount: number) => string;
   currency: string;
   refreshRegisterContext?: () => Promise<void>;
+  syncCheckoutData?: () => Promise<void>;
+  onCreditCheckoutCompleted?: (candidateSaleId: string, saleNumber: string) => void;
 }
 
 const toNumber = (value: number | string | null | undefined) => {
@@ -67,6 +69,8 @@ export function useSaleCheckout({
   formatCurrency,
   currency,
   refreshRegisterContext,
+  syncCheckoutData,
+  onCreditCheckoutCompleted,
 }: UseSaleCheckoutOptions) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
@@ -106,7 +110,7 @@ export function useSaleCheckout({
     }
 
     if (isBackendUnsupportedPayment(method)) {
-      setCheckoutNotice('Credit sales will be enabled after receivables are connected.');
+      setCheckoutNotice('Las ventas a credito se convierten desde Facturacion o Sales en el modulo de Cartera.');
       return;
     }
 
@@ -188,13 +192,10 @@ export function useSaleCheckout({
       return;
     }
 
-    if (salePayments.some((payment) => isBackendUnsupportedPayment(payment.method))) {
-      setCheckoutNotice('Credit sales will be enabled after receivables are connected.');
-      return;
-    }
-
     const completedItems = [...cart];
     const completedPayments = [...salePayments];
+    const creditPayment = completedPayments.find((payment) => payment.method === 'credit');
+    const closesAsCredit = Boolean(creditPayment);
     const checkoutCurrency = currency.trim().toUpperCase();
     const shiftCurrency = currentShift.currencyCode?.trim().toUpperCase();
 
@@ -224,7 +225,7 @@ export function useSaleCheckout({
     try {
       const response = await posBackendApi.checkout({
         cashRegisterId,
-        customerId: null,
+        customerId: toBackendId(creditPayment?.creditDetails?.customerId),
         currencyCode: checkoutCurrency,
         items: toPosCheckoutItems(completedItems, products),
         payments: toPosCheckoutPayments(completedPayments),
@@ -261,18 +262,41 @@ export function useSaleCheckout({
       resetCart();
       clearPayments();
       setCheckoutNotice(
-        `Venta ${saleNumber} guardada. Los productos con inventario descuentan stock automaticamente; servicios, digitales y lineas custom no afectan inventario.`,
+        closesAsCredit
+          ? `Venta ${saleNumber} guardada como credito. Abriendo Cartera para configurar la venta a credito.`
+          : `Venta ${saleNumber} guardada. Los productos con inventario descuentan stock automaticamente; servicios, digitales y lineas custom no afectan inventario.`,
       );
-      setShowTicketModal(true);
+      setShowTicketModal(!closesAsCredit);
       pushActivity({
         type: 'sale',
-        title: 'Venta guardada',
-        description: `${completedItems.length} linea${completedItems.length === 1 ? '' : 's'} registrada${completedItems.length === 1 ? '' : 's'} en POS. Inventario actualizado para productos stock.`,
+        title: closesAsCredit ? 'Venta a credito enviada' : 'Venta guardada',
+        description: closesAsCredit
+          ? `${completedItems.length} linea${completedItems.length === 1 ? '' : 's'} registrada${completedItems.length === 1 ? '' : 's'} en POS. Cartera configurara politica y corrida financiera.`
+          : `${completedItems.length} linea${completedItems.length === 1 ? '' : 's'} registrada${completedItems.length === 1 ? '' : 's'} en POS. Inventario actualizado para productos stock.`,
         actor: currentShift.cashierName,
         badge: formatCurrency(completedTotals.total),
         tone: 'success',
       });
-      await refreshRegisterContext?.();
+
+      const syncTasks: Promise<void>[] = [];
+      if (refreshRegisterContext) {
+        syncTasks.push(refreshRegisterContext());
+      }
+      if (syncCheckoutData) {
+        syncTasks.push(syncCheckoutData());
+      }
+
+      const syncResults = await Promise.allSettled(syncTasks);
+      if (syncResults.some((result) => result.status === 'rejected')) {
+        console.warn('[POS] Checkout saved, but post-checkout data sync failed.', syncResults);
+        setCheckoutNotice(
+          `Venta ${saleNumber} guardada. Actualiza la vista si no ves facturacion o inventario al momento.`,
+        );
+      }
+
+      if (closesAsCredit && response.ticket.salesRecordId && onCreditCheckoutCompleted) {
+        onCreditCheckoutCompleted(`sales:${response.ticket.salesRecordId}`, saleNumber);
+      }
     } catch (error) {
       setCheckoutNotice(getPosRequestErrorMessage(error, 'No se pudo guardar la venta en POS.'));
     } finally {

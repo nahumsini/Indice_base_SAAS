@@ -257,6 +257,7 @@ type TranslationDictionary = {
       cajaChica: string;
       puntoVenta: string;
       ventas: string;
+      cartera: string;
       kpis: string;
       mantenimiento: string;
       inventarios: string;
@@ -1766,6 +1767,7 @@ const translations: Translations = {
       cajaChica: 'Caja chica',
       puntoVenta: 'Punto de venta',
       ventas: 'Ventas',
+      cartera: 'Cartera',
       kpis: 'KPIs',
       mantenimiento: 'Mantenimiento',
       inventarios: 'Inventarios',
@@ -2642,6 +2644,7 @@ const translations: Translations = {
       cajaChica: 'Caja chica',
       puntoVenta: 'Punto de venta',
       ventas: 'Ventas',
+      cartera: 'Cartera',
       kpis: 'KPIs',
       mantenimiento: 'Mantenimiento',
       inventarios: 'Inventarios',
@@ -3518,6 +3521,7 @@ const translations: Translations = {
       cajaChica: 'Petty cash',
       puntoVenta: 'Point of sale',
       ventas: 'Sales',
+      cartera: 'Receivables',
       kpis: 'KPIs',
       mantenimiento: 'Maintenance',
       inventarios: 'Inventory',
@@ -4394,6 +4398,7 @@ const translations: Translations = {
       cajaChica: 'Petty cash',
       puntoVenta: 'Point of sale',
       ventas: 'Sales',
+      cartera: 'Receivables',
       kpis: 'KPIs',
       mantenimiento: 'Maintenance',
       inventarios: 'Inventory',
@@ -5270,6 +5275,7 @@ const translations: Translations = {
       cajaChica: 'Petite caisse',
       puntoVenta: 'Point de vente',
       ventas: 'Ventes',
+      cartera: 'Comptes a recevoir',
       kpis: 'KPIs',
       mantenimiento: 'Maintenance',
       inventarios: 'Inventaire',
@@ -6146,6 +6152,7 @@ const translations: Translations = {
       cajaChica: 'Caixa pequeno',
       puntoVenta: 'Ponto de venda',
       ventas: 'Vendas',
+      cartera: 'Contas a receber',
       kpis: 'KPIs',
       mantenimiento: 'Manutenção',
       inventarios: 'Inventário',
@@ -7022,6 +7029,7 @@ const translations: Translations = {
       cajaChica: '소액 현금',
       puntoVenta: '판매 지점',
       ventas: '판매',
+      cartera: '미수금',
       kpis: 'KPI',
       mantenimiento: '유지 보수',
       inventarios: '재고',
@@ -7898,6 +7906,7 @@ const translations: Translations = {
       cajaChica: '零用现金',
       puntoVenta: '销售点',
       ventas: '销售',
+      cartera: '应收账款',
       kpis: 'KPI',
       mantenimiento: '维护',
       inventarios: '库存',

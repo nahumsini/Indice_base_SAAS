@@ -28,8 +28,8 @@ function InventoryMetricCard({
         {icon}
       </span>
       <span className="text-sm font-semibold">
-        <span className={cn('mr-2 font-bold', valueClassName)}>{value}</span>
-        <span className="font-bold text-slate-600 dark:text-slate-300">{label}</span>
+        <span className={cn('mr-2 font-semibold', valueClassName)}>{value}</span>
+        <span className="font-semibold text-slate-600 dark:text-slate-300">{label}</span>
       </span>
     </span>
   );

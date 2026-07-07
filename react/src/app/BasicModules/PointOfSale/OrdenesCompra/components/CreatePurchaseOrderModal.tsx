@@ -421,7 +421,7 @@ export function CreatePurchaseOrderModal({
 
               {registerInvoice ? (
                 <>
-                  <div className="mt-4 rounded-2xl border border-[#FF6B5E]/25 bg-gradient-to-r from-[#FF6B5E]/10 to-orange-50 p-4 dark:from-[#FF6B5E]/10 dark:to-orange-950/20">
+                  <div className="mt-4 rounded-2xl border border-[#FF6B5E]/25 bg-gradient-to-r from-[#FF6B5E]/10 to-[#FFF3F1] p-4 dark:from-[#FF6B5E]/10 dark:to-[#FF6B5E]/10">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B63B32]">Conciliacion de factura</p>
@@ -467,7 +467,7 @@ export function CreatePurchaseOrderModal({
 
             <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <SectionTitle icon={<PackagePlus className="h-5 w-5" />} title="Inventario de productos" subtitle="Arma las partidas hasta que el total coincida con la factura o presupuesto." />
-              <div className="mt-4 grid gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-center dark:border-orange-500/25 dark:bg-orange-500/10 md:grid-cols-3">
+              <div className="mt-4 grid gap-3 rounded-2xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4 text-center dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 md:grid-cols-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Movimiento</p>
                   <p className="mt-1 text-lg font-black text-[#B63B32]">Entrada por compra</p>

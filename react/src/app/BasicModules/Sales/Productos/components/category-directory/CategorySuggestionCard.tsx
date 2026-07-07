@@ -29,8 +29,8 @@ export function CategorySuggestionCard({
         />
         <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="font-black text-slate-950">{category.name}</p>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <p className="min-w-0 text-sm font-semibold leading-5 text-slate-950">{category.name}</p>
             {disabled ? (
               <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
                 {t.categoryManager.alreadyInCatalog}

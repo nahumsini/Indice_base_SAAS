@@ -50,7 +50,7 @@ export const esMX = {
       commercial: {
         title: 'Operación comercial',
         shortTitle: 'Comercial',
-        description: 'Gestiona ingresos, oportunidades y operación comercial.',
+        description: 'Conecta ventas, punto de venta, catálogo, inventario y cartera en una misma operación comercial.',
         cta: 'Activar ventas',
       },
       analytics: {
@@ -121,7 +121,7 @@ export const esMX = {
         },
         commercialOperation: {
           title: 'Conecta ingresos con ejecución',
-          description: 'Gestiona ventas, oportunidades y punto de venta para impulsar el crecimiento de la empresa.',
+          description: 'Gestiona ventas, punto de venta, productos, inventario y cartera para impulsar el crecimiento de la empresa.',
         },
         analyticsKpis: {
           title: 'Convierte datos en decisiones',

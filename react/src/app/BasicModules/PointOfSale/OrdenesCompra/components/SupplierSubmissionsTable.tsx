@@ -58,7 +58,7 @@ export function SupplierSubmissionsTable({
               const canConvert = ['APPROVED', 'PARTIALLY_APPROVED'].includes(submission.status)
                 && !submission.convertedPurchaseOrderId;
               return (
-                <tr key={submission.id} className="align-top transition hover:bg-orange-50/50 dark:hover:bg-orange-500/5">
+                <tr key={submission.id} className="align-top transition hover:bg-[#FF6B5E]/5 dark:hover:bg-[#FF6B5E]/10">
                   <td className="px-5 py-5">
                     <button type="button" onClick={() => onSelect(submission)} className="font-bold text-slate-950 underline-offset-4 hover:underline dark:text-white">
                       {submission.submissionNumber}

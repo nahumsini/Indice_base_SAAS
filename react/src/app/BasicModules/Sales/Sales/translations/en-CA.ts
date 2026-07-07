@@ -160,6 +160,7 @@ export const enCA = {
       exportSummary: 'Export sale summary',
       prepareMovement: 'Prepare inventory handoff',
       sendToFinance: 'Send to finance validation',
+      sendToCredit: 'Convert to credit sale',
       cancelSale: 'Cancel sale',
       cancelConfirmation: 'Cancel this sale record? This only updates the local commercial status.',
       alreadyPrepared: 'Inventory handoff already prepared',
@@ -322,6 +323,14 @@ export const enCA = {
       paymentReference: 'Payment reference',
       movementReference: 'MOV-SAL-00000',
       notes: 'Execution notes, customer commitment, or validation context.',
+    },
+    paymentMethods: {
+      cash: 'Cash',
+      card: 'Card',
+      transfer: 'Bank transfer',
+      wallet: 'Wallet',
+      check: 'Check',
+      credit: 'Credit',
     },
     operationalContext: {
       helper: 'Business context prepared for future Company Structure integration.',

@@ -47,7 +47,7 @@ export function ActiveCategoryCard({
       onDragEnd={onDragEnd}
       className={`rounded-lg border bg-white px-3 py-3 transition ${isDragging ? 'border-[#FF6B5E]/40 opacity-70' : 'border-slate-200'}`}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid items-center gap-2 sm:grid-cols-[auto_auto_minmax(180px,1fr)_auto_auto_auto_auto]">
         <button
           type="button"
           className="flex h-8 w-8 cursor-grab items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 active:cursor-grabbing"
@@ -58,7 +58,7 @@ export function ActiveCategoryCard({
         <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
         <Input
           value={category.name}
-          className="h-9 min-w-[150px] flex-1 rounded-lg border-slate-200 bg-white text-sm font-bold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+          className="h-10 min-w-0 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
           onChange={(event) => onUpdate(category.id, (current) => ({
             ...current,
             name: event.target.value,
@@ -103,7 +103,7 @@ export function ActiveCategoryCard({
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
-      <div className="mt-2 flex flex-wrap gap-1.5 pl-10">
+      <div className="mt-2 flex flex-wrap gap-1.5 sm:pl-10">
         {category.supportedTypes.slice(0, 3).map((type) => (
           <span key={type} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-600">
             {t.typeLabels[type]}

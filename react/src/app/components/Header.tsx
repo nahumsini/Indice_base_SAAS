@@ -147,6 +147,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     '/human-resources/kpis',
     '/point-of-sale',
     '/sales',
+    '/receivables',
   ].some((pathPrefix) => pathname.startsWith(pathPrefix));
   const currentUserInitials = currentUserName
     .split(/\s+/)

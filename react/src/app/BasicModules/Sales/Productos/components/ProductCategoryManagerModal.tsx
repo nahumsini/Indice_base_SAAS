@@ -166,8 +166,8 @@ export function ProductCategoryManagerModal({
       title={t.categoryManager.title}
       description={t.categoryManager.description}
       icon={<FolderCog className="h-6 w-6" />}
-      contentClassName="flex h-[min(84vh,780px)] w-[min(94vw,1180px)] max-w-[min(94vw,1180px)] flex-col"
-      bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-slate-50 p-0"
+      contentClassName="flex h-[min(88vh,820px)] w-[min(96vw,1280px)] max-w-[min(96vw,1280px)] flex-col"
+      bodyClassName="!max-h-none min-h-0 flex-1 overflow-y-auto bg-slate-50 p-0"
       footer={(
         <>
           <Button
@@ -185,7 +185,7 @@ export function ProductCategoryManagerModal({
         </>
       )}
     >
-        <div className="grid min-h-0 gap-5 overflow-hidden bg-slate-50 p-5 lg:grid-cols-[minmax(0,3fr)_minmax(340px,2fr)]">
+        <div className="grid min-h-0 gap-5 bg-slate-50 p-5 xl:grid-cols-[minmax(360px,1fr)_minmax(440px,1.1fr)]">
           <CategoryLibraryPanel
             selectedLibraryId={selectedLibraryId}
             selectedLibrary={selectedLibrary}
@@ -198,7 +198,7 @@ export function ProductCategoryManagerModal({
             onImportAll={handleImportAll}
           />
 
-          <section className="min-h-0 space-y-4 overflow-y-auto pr-1">
+          <section className="min-h-0 space-y-4">
             <CategoryQuickCreate
               value={draftName}
               t={t}

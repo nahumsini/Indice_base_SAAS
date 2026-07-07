@@ -30,7 +30,7 @@ export function InventoryViewSwitcher({
           <button
             key={view.id}
             type="button"
-            className={`flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-bold transition ${
+            className={`flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition ${
               active
                 ? 'bg-[#FF6B5E] text-white shadow-md shadow-[#FF6B5E]/20'
                 : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'

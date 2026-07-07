@@ -1,120 +1,141 @@
-import { useState, type ComponentType } from 'react';
-import { mockMetrics } from './mocks/inventory.mock';
-import type { InventoryMetrics } from './types/inventory.types';
-import RedLogisticaTab from './RedLogisticaTab';
-import MovimientosTab from './MovimientosTab';
-import TransferenciasTab from './TransferenciasTab';
-import StockGlobalTab from './StockGlobalTab';
-import AlertasTab from './AlertasTab';
-import AuditoriasTab from './AuditoriasTab';
-import TrazabilidadTab from './TrazabilidadTab';
-import KPIsTab from './KPIsTab';
-import {
-  Network,
-  ArrowRightLeft,
-  TrendingUp,
-  Package,
-  AlertTriangle,
-  ClipboardCheck,
-  Route,
-  BarChart3,
-  Boxes,
-} from 'lucide-react';
+import { lazy, Suspense, useMemo, type ComponentType } from 'react';
+import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
+import { cn } from '../../components/ui/utils';
+import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { SalesCrmProvider } from '../../BasicModules/Sales/salesCrmContext';
+import { useInventoryModuleTranslations } from './hooks/useInventoryModuleTranslations';
 
-type TabId = 'red' | 'movimientos' | 'transferencias' | 'stock' | 'alertas' | 'auditorias' | 'trazabilidad' | 'kpis';
+const Productos = lazy(() => import('../../BasicModules/Sales/Productos'));
+const Inventario = lazy(() => import('../../BasicModules/Sales/Inventory'));
+const Proveedores = lazy(() => import('../../BasicModules/Sales/Providers'));
+const OrdenesCompra = lazy(() => import('../../BasicModules/PointOfSale/OrdenesCompra'));
 
-interface Tab {
-  id: TabId;
+const inventoryTabIds = [
+  'products',
+  'inventory',
+  'providers',
+  'purchase-orders',
+] as const;
+
+type InventoryTabId = (typeof inventoryTabIds)[number];
+
+const legacyInventoryTabAliases: Partial<Record<string, InventoryTabId>> = {
+  producto: 'products',
+  productos: 'products',
+  product: 'products',
+  products: 'products',
+  inventario: 'inventory',
+  inventory: 'inventory',
+  stock: 'inventory',
+  proveedor: 'providers',
+  proveedores: 'providers',
+  provider: 'providers',
+  providers: 'providers',
+  supplier: 'providers',
+  suppliers: 'providers',
+  ordenesCompra: 'purchase-orders',
+  ordenes_compra: 'purchase-orders',
+  'ordenes-compra': 'purchase-orders',
+  compras: 'purchase-orders',
+  purchaseOrders: 'purchase-orders',
+  purchase_orders: 'purchase-orders',
+  'purchase-orders': 'purchase-orders',
+};
+
+type InventoryTab = {
+  id: InventoryTabId;
   label: string;
   emoji: string;
-  icon: typeof Network;
   component: ComponentType;
-}
+};
 
 export default function Multiinventarios() {
-  const [activeTab, setActiveTab] = useState<TabId>('red');
-  const [metrics] = useState<InventoryMetrics>(mockMetrics);
+  return (
+    <SalesCrmProvider>
+      <InventoryWorkspace />
+    </SalesCrmProvider>
+  );
+}
 
-  const tabs: Tab[] = [
-    { id: 'red', label: 'Red Logística', emoji: '🌐', icon: Network, component: RedLogisticaTab },
-    { id: 'movimientos', label: 'Movimientos', emoji: '📋', icon: ArrowRightLeft, component: MovimientosTab },
-    { id: 'transferencias', label: 'Transferencias', emoji: '🚚', icon: TrendingUp, component: TransferenciasTab },
-    { id: 'stock', label: 'Stock Global', emoji: '📦', icon: Package, component: StockGlobalTab },
-    { id: 'alertas', label: 'Alertas', emoji: '⚠️', icon: AlertTriangle, component: AlertasTab },
-    { id: 'auditorias', label: 'Auditorías', emoji: '✓', icon: ClipboardCheck, component: AuditoriasTab },
-    { id: 'trazabilidad', label: 'Trazabilidad', emoji: '🔍', icon: Route, component: TrazabilidadTab },
-    { id: 'kpis', label: 'KPIs', emoji: '📊', icon: BarChart3, component: KPIsTab },
-  ];
+function InventoryWorkspace() {
+  const t = useInventoryModuleTranslations();
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<InventoryTabId>(
+    'products',
+    inventoryTabIds,
+    legacyInventoryTabAliases,
+  );
 
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || RedLogisticaTab;
+  const inventoryTabs = useMemo<InventoryTab[]>(() => [
+    { id: 'products', label: t.tabs.products, emoji: '📦', component: Productos },
+    { id: 'inventory', label: t.tabs.inventory, emoji: '🏬', component: Inventario },
+    { id: 'providers', label: t.tabs.providers, emoji: '🏢', component: Proveedores },
+    { id: 'purchase-orders', label: t.tabs.purchaseOrders, emoji: '📋', component: OrdenesCompra },
+  ], [t]);
+
+  const activeTabConfig = inventoryTabs.find((tab) => tab.id === activeTab) ?? inventoryTabs[0];
+  const ActiveComponent = activeTabConfig.component;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                <Boxes className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  Multiinventarios
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Red logística y control de mercancía
-                </p>
-              </div>
+    <div className="min-h-screen bg-gray-50 text-slate-950 dark:bg-gray-900 dark:text-white">
+      <LoadingBarOverlay
+        isVisible={isTabLoading}
+        title={t.loading.openingTitle}
+        description={t.loading.openingDescription}
+      />
+
+      <header className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                {t.title}
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400 sm:text-base">
+                {t.subtitle}
+              </p>
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="flex items-center gap-3">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400">Nodos Activos</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">{metrics.totalNodes}</p>
+          <nav aria-label={t.navLabel} className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
+            <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
+              {inventoryTabs.map((tab) => {
+                const active = tab.id === activeTab;
+
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      'flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30',
+                      active
+                        ? 'bg-[#FF6B5E] text-white shadow-md shadow-[#FF6B5E]/20'
+                        : 'bg-gray-100 text-slate-600 hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#FF6B5E]/15 dark:hover:text-[#FFB0AA]',
+                    )}
+                  >
+                    <span className="text-base leading-none" aria-hidden="true">{tab.emoji}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700 px-4 py-3">
-              <p className="text-xs text-blue-700 dark:text-blue-400">Movimientos Hoy</p>
-              <p className="text-xl font-bold text-blue-900 dark:text-blue-300">{metrics.movementsToday}</p>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-700 px-4 py-3">
-              <p className="text-xs text-green-700 dark:text-green-400">Precisión</p>
-              <p className="text-xl font-bold text-green-900 dark:text-green-300">{metrics.accuracy}%</p>
-            </div>
-          </div>
+          </nav>
         </div>
+      </header>
 
-        {/* Tabs */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-lg">{tab.emoji}</span>
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="animate-fadeIn">
+      <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title={t.loading.fallbackTitle}
+              description={t.loading.fallbackDescription}
+            />
+          )}
+        >
           <ActiveComponent />
-        </div>
-      </div>
+        </Suspense>
+      </main>
     </div>
   );
 }

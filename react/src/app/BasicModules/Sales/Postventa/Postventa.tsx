@@ -455,7 +455,7 @@ export default function Postventa() {
 
   return (
     <section className="space-y-5">
-      <SalesTitleBar icon={t.header.emoji} title={t.header.title} subtitle={t.header.subtitle} />
+      <SalesTitleBar icon={t.header.emoji} rhIndent title={t.header.title} subtitle={t.header.subtitle} />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-sm text-slate-600">

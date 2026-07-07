@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { AlertTriangle } from 'lucide-react';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { defaultBusinessCurrency, normalizeBusinessCurrencyCode } from '../../shared/businessCurrency';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
+import { useSalesCrm } from '../../Sales/salesCrmContext';
 import {
   readStoredCreditRules,
   type CreditRule,
@@ -47,7 +49,9 @@ import {
 } from './utils/posFiscalSettings';
 
 export default function Sale() {
-  const { products: saleProducts, saleCurrency } = usePointOfSaleCatalogProducts();
+  const navigate = useNavigate();
+  const { products: saleProducts, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts();
+  const { reloadSalesRecords } = useSalesCrm();
   const creditCustomers = usePointOfSaleCustomers();
   const {
     registerContext,
@@ -164,6 +168,15 @@ export default function Sale() {
     currency: transactionCurrency,
     refreshRegisterContext,
   });
+  const syncCheckoutData = useCallback(async () => {
+    await Promise.all([
+      reloadSalesRecords(),
+      reloadInventoryBalances(),
+    ]);
+  }, [reloadInventoryBalances, reloadSalesRecords]);
+  const openCreditSaleInReceivables = useCallback((candidateSaleId: string) => {
+    navigate(`/receivables/credit-sales?candidateSaleId=${encodeURIComponent(candidateSaleId)}&openCreditSale=1`);
+  }, [navigate]);
 
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [selectedItemForDiscount, setSelectedItemForDiscount] = useState<SaleItem | null>(null);
@@ -208,6 +221,8 @@ export default function Sale() {
     formatCurrency: formatSaleCurrency,
     currency: transactionCurrency,
     refreshRegisterContext,
+    syncCheckoutData,
+    onCreditCheckoutCompleted: openCreditSaleInReceivables,
   });
   const openProductPanel = useCallback((product: Product) => {
     setSidePanel({ type: 'product', product });

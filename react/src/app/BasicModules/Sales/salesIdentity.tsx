@@ -36,7 +36,7 @@ export const salesTabIds = [
 export type SalesTabId = (typeof salesTabIds)[number];
 
 export const routedSalesTabIds = salesTabIds.filter(
-  (tabId): tabId is SalesTabId => tabId !== 'after-sales',
+  (tabId): tabId is SalesTabId => !['products', 'providers', 'inventory', 'after-sales'].includes(tabId),
 );
 
 type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'productos' | 'proveedores' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
@@ -103,7 +103,7 @@ export const salesModuleTabs: Array<{
 ];
 
 export const visibleSalesModuleTabs = salesModuleTabs.filter(
-  (tab) => tab.id !== 'contracts' && tab.id !== 'after-sales',
+  (tab) => !['products', 'providers', 'inventory', 'contracts', 'after-sales'].includes(tab.id),
 );
 
 const toneClasses: Record<SalesTone, {

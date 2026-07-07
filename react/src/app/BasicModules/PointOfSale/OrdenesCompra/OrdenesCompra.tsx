@@ -24,10 +24,11 @@ import type {
   SupplierSubmission,
   SupplierSubmissionConvertPayload,
   SupplierSubmissionReviewPayload,
+  PurchaseOrderReceivePayload,
 } from './types/purchaseOrder.types';
 
 export default function OrdenesCompra() {
-  const { balanceLoadError, products, saleCurrency } = usePointOfSaleCatalogProducts();
+  const { balanceLoadError, products, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts();
   const { createProductRecord } = useSalesCrm();
   const {
     changeSupplierPortalAccessPin,
@@ -98,6 +99,15 @@ export default function OrdenesCompra() {
   const handleCreatePurchaseProduct = async (product: Partial<(typeof products)[number]>) => {
     const savedProduct = await createProductRecord(buildSalesProductInputFromPointOfSale(product, saleCurrency));
     return toPointOfSaleProduct(savedProduct);
+  };
+
+  const handleReceiveOrder = async (
+    orderId: number,
+    payload: PurchaseOrderReceivePayload,
+  ) => {
+    const receivedOrder = await receiveOrder(orderId, payload);
+    await reloadInventoryBalances();
+    return receivedOrder;
   };
 
   const openSubmissionConvert = (submission: SupplierSubmission) => {
@@ -203,7 +213,7 @@ export default function OrdenesCompra() {
         order={receivingOrder}
         saving={saving}
         onClose={() => setReceivingOrder(null)}
-        onSubmit={receiveOrder}
+        onSubmit={handleReceiveOrder}
       />
 
       <PurchaseOrderDetailModal

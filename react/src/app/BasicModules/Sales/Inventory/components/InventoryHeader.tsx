@@ -37,6 +37,7 @@ export function InventoryHeader({
   return (
     <SalesTitleBar
       icon={isMovementsView ? '🔁' : t.header.emoji}
+      rhIndent
       title={title}
       subtitle={subtitle}
       actions={(

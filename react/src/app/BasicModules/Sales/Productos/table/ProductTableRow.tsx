@@ -77,6 +77,9 @@ export function ProductTableRow({
   onUpdateProductCategory,
   onUpdateProductStatus,
 }: ProductTableRowProps) {
+  const hasDedicatedSkuColumn = visibleColumns.includes('sku');
+  const hasCategoryColumn = visibleColumns.includes('category');
+
   return (
     <TableRow
       className={cn(
@@ -95,21 +98,33 @@ export function ProductTableRow({
       <TableCell className="w-[88px] px-5 py-4 align-middle">
         <ProductThumbnail product={product} size="md" />
       </TableCell>
-      <TableCell className="px-5 py-4 align-middle">
-        <div className="min-w-0">
-          <p className="truncate font-black text-slate-950 dark:text-white">{product.name}</p>
-          <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">{product.sku}</p>
-          <p className="mt-1 line-clamp-2 max-w-[320px] text-sm leading-5 text-slate-500">{product.description}</p>
-          <div className="mt-2">
-            <ProductHealthIndicators product={product} t={t} limit={2} />
+      <TableCell className="w-[500px] px-5 py-4 align-middle">
+        <div className={cn(
+          'grid min-w-0 gap-3',
+          !hasDedicatedSkuColumn && !hasCategoryColumn && 'xl:grid-cols-[minmax(0,1fr)_minmax(150px,0.58fr)]',
+        )}>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{product.name}</p>
+            <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{product.description}</p>
+            <div className="mt-2">
+              <ProductHealthIndicators product={product} t={t} limit={2} />
+            </div>
           </div>
+          {!hasDedicatedSkuColumn ? (
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">SKU</p>
+              <p className="mt-1 max-w-full whitespace-normal text-xs font-semibold leading-4 text-slate-600 [overflow-wrap:anywhere] dark:text-slate-300">{product.sku}</p>
+            </div>
+          ) : null}
         </div>
       </TableCell>
-      {visibleColumns.includes('sku') ? (
-        <TableCell className="truncate px-5 py-4 align-middle font-semibold text-slate-700 dark:text-slate-300">{product.sku}</TableCell>
+      {hasDedicatedSkuColumn ? (
+        <TableCell className="w-[220px] px-5 py-4 align-middle text-sm font-semibold leading-5 text-slate-700 dark:text-slate-300">
+          <span className="block max-w-full whitespace-normal [overflow-wrap:anywhere]">{product.sku}</span>
+        </TableCell>
       ) : null}
       {visibleColumns.includes('category') ? (
-        <TableCell className="px-5 py-4 align-middle">
+        <TableCell className="w-[220px] px-5 py-4 align-middle">
           <ProductInlineCategorySelect
             value={product.category}
             options={categoryOptions}

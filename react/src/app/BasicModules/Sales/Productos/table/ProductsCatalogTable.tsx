@@ -86,9 +86,9 @@ export function ProductsCatalogTable({
     [categories, t],
   );
   const columns = useMemo<ProductColumn[]>(() => [
-    { id: 'name', sortColumn: 'name', label: t.table.columns.item, className: 'w-[360px]' },
-    ...(visibleColumns.includes('sku') ? [{ id: 'sku', sortColumn: 'sku' as ProductSortColumn, label: t.table.columns.sku, className: 'w-[180px]' }] : []),
-    ...(visibleColumns.includes('category') ? [{ id: 'category', sortColumn: 'category' as ProductSortColumn, label: t.table.columns.category, className: 'w-[190px]' }] : []),
+    { id: 'name', sortColumn: 'name', label: t.table.columns.item, className: 'w-[500px]' },
+    ...(visibleColumns.includes('sku') ? [{ id: 'sku', sortColumn: 'sku' as ProductSortColumn, label: t.table.columns.sku, className: 'w-[220px]' }] : []),
+    ...(visibleColumns.includes('category') ? [{ id: 'category', sortColumn: 'category' as ProductSortColumn, label: t.table.columns.category, className: 'w-[220px]' }] : []),
     ...(visibleColumns.includes('type') ? [{ id: 'type', sortColumn: 'type' as ProductSortColumn, label: t.table.columns.type, className: 'w-[150px]' }] : []),
     ...(visibleColumns.includes('price') ? [{ id: 'price', sortColumn: 'price' as ProductSortColumn, label: t.table.columns.price, className: 'w-[130px]' }] : []),
     ...(visibleColumns.includes('cost') ? [{ id: 'cost', sortColumn: 'cost' as ProductSortColumn, label: t.table.columns.cost, className: 'w-[130px]' }] : []),
@@ -126,7 +126,7 @@ export function ProductsCatalogTable({
 
       <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1680px] table-fixed">
+          <Table className="min-w-[1860px] table-fixed">
             <TableHeader>
               <ProductTableHeader
                 columns={columns}

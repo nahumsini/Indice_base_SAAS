@@ -135,7 +135,7 @@ export function CreateWarehouseModal({
                   <Plus className="h-5 w-5" />
                 </span>
                 <div>
-                  <h3 className="text-lg font-black text-slate-950">{t.operational.actions.createWarehouse}</h3>
+                  <h3 className="text-lg font-semibold text-slate-950">{t.operational.actions.createWarehouse}</h3>
                   <p className="mt-1 text-sm font-semibold leading-5 text-slate-500">
                     Liga el almacén a una unidad de negocio y, cuando aplique, a un negocio específico.
                   </p>
@@ -204,7 +204,7 @@ export function CreateWarehouseModal({
 
               <Button
                 type="button"
-                className="mt-5 h-11 w-full gap-2 rounded-xl bg-[#FF6B5E] text-sm font-black text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
+                className="mt-5 h-11 w-full gap-2 rounded-xl bg-[#FF6B5E] text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
                 disabled={!canCreateWarehouse}
                 onClick={handleCreateWarehouse}
               >
@@ -220,13 +220,13 @@ export function CreateWarehouseModal({
                     <PackageOpen className="h-5 w-5" />
                   </span>
                   <div>
-                    <h3 className="text-lg font-black text-slate-950">Almacenes activos</h3>
+                    <h3 className="text-lg font-semibold text-slate-950">Almacenes activos</h3>
                     <p className="mt-1 text-sm font-semibold leading-5 text-slate-500">
                       Revisa stock, responsable y destino antes de eliminar.
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                   {warehouses.length} almacenes
                 </span>
               </div>
@@ -234,7 +234,7 @@ export function CreateWarehouseModal({
               <div className="grid max-h-[560px] gap-3 overflow-y-auto pr-1">
                 {warehouses.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                    <p className="text-sm font-black text-slate-700">{t.operational.emptyStates.warehousesTitle}</p>
+                    <p className="text-sm font-semibold text-slate-700">{t.operational.emptyStates.warehousesTitle}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">{t.operational.emptyStates.warehousesDescription}</p>
                   </div>
                 ) : warehouses.map((warehouse) => {
@@ -248,8 +248,8 @@ export function CreateWarehouseModal({
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-base font-black leading-5 text-slate-950">{warehouse.name}</p>
-                            <span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-black text-[#B63B32]">
+                            <p className="text-base font-semibold leading-5 text-slate-950">{warehouse.name}</p>
+                            <span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-bold text-[#B63B32]">
                               {t.operational.warehouseTypes[warehouse.type]}
                             </span>
                           </div>
@@ -280,7 +280,7 @@ export function CreateWarehouseModal({
                             <Button
                               type="button"
                               variant="outline"
-                              className="h-11 gap-2 rounded-xl border-cyan-200 bg-cyan-50 px-4 text-sm font-black text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
+                              className="h-11 gap-2 rounded-xl border-cyan-200 bg-cyan-50 px-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
                               disabled={!transferTargetId}
                               onClick={() => handleDelete(warehouse)}
                             >
@@ -297,7 +297,7 @@ export function CreateWarehouseModal({
                             <Button
                               type="button"
                               variant="outline"
-                              className="h-10 gap-2 rounded-xl border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 hover:bg-red-100"
+                              className="h-10 gap-2 rounded-xl border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100"
                               onClick={() => handleDelete(warehouse)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -319,7 +319,7 @@ export function CreateWarehouseModal({
 function InputField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="grid gap-2">
-      <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{label}</span>
+      <span className="text-sm font-semibold text-slate-700">{label}</span>
       <Input value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
     </label>
   );
@@ -338,7 +338,7 @@ function SelectField({
 }) {
   return (
     <label className="grid gap-2">
-      <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{label}</span>
+      <span className="text-sm font-semibold text-slate-700">{label}</span>
       <Select value={value} onValueChange={onValueChange}>
         <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
         <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
@@ -350,8 +350,8 @@ function SelectField({
 function MiniMetric({ value, label }: { value: string; label: string }) {
   return (
     <div className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">
-      <p className="text-sm font-black text-slate-950">{value}</p>
-      <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      <p className="text-sm font-semibold text-slate-950">{value}</p>
+      <p className="mt-1 text-[10px] font-semibold text-slate-500">{label}</p>
     </div>
   );
 }

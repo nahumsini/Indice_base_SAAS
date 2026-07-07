@@ -50,7 +50,7 @@ export const operationalJourneyStages: OperationalJourneyStageDefinition[] = [
   {
     id: 'commercial',
     primaryRoute: 'point-of-sale',
-    moduleRoutes: ['point-of-sale', 'sales'],
+    moduleRoutes: ['point-of-sale', 'sales', 'inventory', 'receivables'],
   },
   {
     id: 'analytics',

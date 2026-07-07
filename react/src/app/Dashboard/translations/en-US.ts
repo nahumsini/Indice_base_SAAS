@@ -50,7 +50,7 @@ export const enUS = {
       commercial: {
         title: 'Commercial operation',
         shortTitle: 'Commercial',
-        description: 'Manage revenue, opportunities, and commercial operation.',
+        description: 'Connect sales, point of sale, catalog, inventory, and receivables in one commercial operation.',
         cta: 'Activate sales',
       },
       analytics: {
@@ -121,7 +121,7 @@ export const enUS = {
         },
         commercialOperation: {
           title: 'Connect revenue to execution',
-          description: 'Manage sales activity, opportunities, and point-of-sale movement to support business growth.',
+          description: 'Manage sales, point of sale, products, inventory, and receivables to support business growth.',
         },
         analyticsKpis: {
           title: 'Turn data into decisions',
