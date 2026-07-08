@@ -46,6 +46,7 @@ publish_nginx_config() {
   local source_config="${WEB_NGINX_CONFIG}"
   local prepared_config
   local host_config_candidate="${APP_DIR}/deployment/docker/web/nginx.host.conf"
+  local web_network_mode
 
   prepared_config="$(prepare_nginx_config "${source_config}")"
   if docker cp "${prepared_config}" "${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"; then
@@ -66,12 +67,16 @@ publish_nginx_config() {
 
   echo "Detected nginx config bind mount: ${host_config_path}"
 
+  web_network_mode="$(
+    docker inspect "${WEB_CONTAINER}" --format '{{.HostConfig.NetworkMode}}' 2>/dev/null || true
+  )"
+
   if [[ -z "${WEB_NGINX_CONFIG_PROVIDED}" \
-    && "$(basename "${host_config_path}")" == *host* \
+    && "${web_network_mode}" == "host" \
     && -f "${host_config_candidate}" ]]; then
     source_config="${host_config_candidate}"
     prepared_config="$(prepare_nginx_config "${source_config}")"
-    echo "Bind-mounted config looks host-network; using ${source_config}"
+    echo "Web container uses host networking; using ${source_config}"
   fi
 
   if [[ ! -w "${host_config_path}" ]]; then
