@@ -85,6 +85,7 @@ services:
         condition: service_healthy
     environment:
       SERVER_PORT: 8082
+      SERVER_ADDRESS: ${SERVER_ADDRESS:-0.0.0.0}
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}
       SPRING_FLYWAY_ENABLED: "true"
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-indice_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
