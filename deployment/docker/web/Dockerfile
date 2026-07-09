@@ -4,7 +4,7 @@ FROM node:20-bookworm-slim AS build
 WORKDIR /workspace/react
 
 COPY react/package.json react/package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm npm ci --include=dev --no-audit --no-fund
 
 COPY react ./
 
