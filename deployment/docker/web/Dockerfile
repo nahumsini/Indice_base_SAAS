@@ -4,7 +4,18 @@ FROM node:20-bookworm-slim AS build
 WORKDIR /workspace/react
 
 COPY react/package.json react/package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --include=dev --no-audit --no-fund
+ENV NODE_ENV=development
+ENV NPM_CONFIG_PRODUCTION=false
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --include=dev --no-audit --no-fund \
+    && if [ ! -x node_modules/.bin/vite ]; then \
+      npm install --no-save --include=dev --no-audit --no-fund \
+        vite@6.3.5 \
+        @vitejs/plugin-react@4.7.0 \
+        @tailwindcss/vite@4.1.12 \
+        tailwindcss@4.1.12; \
+    fi \
+    && test -x node_modules/.bin/vite
 
 COPY react ./
 
