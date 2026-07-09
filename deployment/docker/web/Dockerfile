@@ -7,15 +7,21 @@ COPY react/package.json react/package-lock.json ./
 ENV NODE_ENV=development
 ENV NPM_CONFIG_PRODUCTION=false
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --include=dev --no-audit --no-fund \
-    && if [ ! -x node_modules/.bin/vite ]; then \
-      npm install --no-save --include=dev --no-audit --no-fund \
-        vite@6.3.5 \
-        @vitejs/plugin-react@4.7.0 \
-        @tailwindcss/vite@4.1.12 \
-        tailwindcss@4.1.12; \
-    fi \
-    && test -x node_modules/.bin/vite
+    set -eux; \
+    npm config set fetch-retries 5; \
+    npm config set fetch-retry-mintimeout 20000; \
+    npm config set fetch-retry-maxtimeout 120000; \
+    for attempt in 1 2 3; do \
+      rm -rf node_modules; \
+      if npm ci --include=dev --no-audit --no-fund && test -x node_modules/.bin/vite; then \
+        exit 0; \
+      fi; \
+      echo "npm ci did not produce a complete Vite toolchain on attempt ${attempt}; retrying..." >&2; \
+      rm -rf node_modules /root/.npm/_cacache/tmp; \
+      sleep 10; \
+    done; \
+    echo "Vite toolchain missing after npm ci retries." >&2; \
+    exit 1
 
 COPY react ./
 
