@@ -35,4 +35,4 @@ ENV APP_STORAGE_MINIO_ENDPOINT=http://127.0.0.1:9000
 ENV APP_STORAGE_MINIO_PUBLIC_ENDPOINT=http://localhost:8080/storage
 ENV APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT=http://127.0.0.1:9000
 
-ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -Dspring.flyway.enabled=true -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]

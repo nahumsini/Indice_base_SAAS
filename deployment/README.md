@@ -70,6 +70,7 @@ Dev override adds:
 ## Operational Notes
 
 - The frontend is served by Nginx and calls the backend through same-origin `/api` paths.
+- Deployment `.env` values for `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_FLYWAY_ENABLED` are authoritative when present. The compose file only falls back to the internal MySQL service when those values are omitted.
 - APPTEST/app frontends are served from the running web container, not only from the cPanel document root. After every `npm run build`, publish `react/dist` into the container with `deployment/scripts/publish-web-dist.sh` or the equivalent `docker cp "$APP_DIR/react/dist/." indice-erp-web-1:/usr/share/nginx/html/`.
 - Nginx also proxies `/storage/` to MinIO so presigned browser uploads can stay on the web origin by default. Host-network deploys use `deployment/docker/web/nginx.host.conf`; compose deploys keep `deployment/docker/web/nginx.conf`.
 - The backend uses the internal MinIO endpoint for server-side access and rewrites presigned URLs onto `MINIO_PUBLIC_ENDPOINT`.
@@ -77,6 +78,19 @@ Dev override adds:
 - Session auth is still servlet-session based, so this deployment should be treated as a single backend replica unless session storage is externalized.
 - `minio-init` is safe to rerun; it creates the bucket if missing.
 - The MySQL and MinIO data directories are persisted via named Docker volumes.
+
+## Host-Network VPS Deploy
+
+Some VPS/cPanel environments cannot reliably reach Docker bridge published ports from Apache/Nginx on the host. In that case, run the public web container, backend, and MinIO with host networking while still reading the official deployment `.env`:
+
+```bash
+APP_DIR=/home/corazon/apptest.indiceapp.com \
+DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/current/deployment/env/.env \
+PUBLIC_URL=https://apptest.indiceapp.com \
+./deployment/scripts/up-host-network.sh
+```
+
+The script preserves the datasource from the `.env`, forces only host-network runtime bindings, keeps MinIO data mounted, prepares `nginx.host.conf`, copies `react/dist` into the web container when it exists, and validates local plus public health checks.
 
 ## Frontend Container Publish
 
@@ -104,7 +118,6 @@ Equivalent repo helper:
 PUBLIC_URL=https://apptest.indiceapp.com \
 APP_DIR=/home/corazon/apptest.indiceapp.com \
 WEB_CONTAINER=indice-erp-web-1 \
-WEB_NGINX_BACKEND_PORT=8083 \
 ./deployment/scripts/publish-web-dist.sh
 ```
 
