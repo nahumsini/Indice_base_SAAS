@@ -16,7 +16,7 @@ import type { PeriodFilter } from '../types/expenseView.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import type { FinancialOverviewCostDriverType } from '../types/financial-overview.types';
 import { useKpisResolvedLocale, useKpisTranslations } from './hooks/useKpisTranslations';
-import { formatKpiCurrency, formatKpiPercent } from './kpiUtils';
+import { formatKpiPercent } from './kpiUtils';
 import {
   BudgetHealthTable,
   CashRequirementGrid,
@@ -34,6 +34,7 @@ import {
 import { FinancialOverviewPeriodFilter } from '../components/kpis/FinancialOverviewPeriodFilter';
 import { downloadFinancialOverviewPdf } from './financialOverviewPdf';
 import { useFinancialOverview } from './useFinancialOverview';
+import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
 
 interface GastosKPIPageProps {
   expenses: Expense[];
@@ -82,6 +83,7 @@ const LoadingOverview = () => (
 export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: GastosKPIPageProps) {
   const t = useKpisTranslations();
   const locale = useKpisResolvedLocale();
+  const { convertToPreferred, formatPreferred, preferredCurrency, rateContext } = useCurrencyAwareMoney();
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('this_month');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -96,27 +98,28 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     refreshKey,
   });
   const { currency, metrics } = overview;
+  const displayMoney = (amount: number) => formatPreferred(amount, currency);
   const consumed = Math.max(metrics.planned - metrics.available, 0);
   const utilization = metrics.planned > 0 ? (consumed / metrics.planned) * 100 : 0;
   const hasAnyData = metrics.expenseCount > 0 || metrics.budgetLineCount > 0;
   const driverSections = [
     {
-      drivers: overview.costDrivers.PROVIDER,
+      drivers: overview.costDrivers.PROVIDER.map((driver) => ({ ...driver, currency: preferredCurrency, total: convertToPreferred(driver.total, driver.currency) })),
       emptyMessage: t.kpis.noProviderExpenses,
       title: t.kpis.topCostDrivers.providers,
     },
     {
-      drivers: overview.costDrivers.ACCOUNTING_ACCOUNT,
+      drivers: overview.costDrivers.ACCOUNTING_ACCOUNT.map((driver) => ({ ...driver, currency: preferredCurrency, total: convertToPreferred(driver.total, driver.currency) })),
       emptyMessage: t.kpis.noAccountingAccountExpenses,
       title: t.kpis.topCostDrivers.accountingAccounts,
     },
     {
-      drivers: overview.costDrivers.UNIT,
+      drivers: overview.costDrivers.UNIT.map((driver) => ({ ...driver, currency: preferredCurrency, total: convertToPreferred(driver.total, driver.currency) })),
       emptyMessage: t.kpis.noUnitExpenses,
       title: t.kpis.topCostDrivers.units,
     },
     {
-      drivers: overview.costDrivers.BUSINESS,
+      drivers: overview.costDrivers.BUSINESS.map((driver) => ({ ...driver, currency: preferredCurrency, total: convertToPreferred(driver.total, driver.currency) })),
       emptyMessage: t.kpis.noBusinessExpenses,
       title: t.kpis.topCostDrivers.businesses,
     },
@@ -130,8 +133,21 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   };
   const cashRequirements = overview.cashRequirements.map(item => ({
     ...item,
+    amount: convertToPreferred(item.amount, currency),
     description: t.kpis.cashRequirementCopy[item.id]?.description ?? item.description,
     label: t.kpis.cashRequirementCopy[item.id]?.label ?? item.label,
+  }));
+  const preferredBudgetHealthRows = overview.budgetHealthRows.map((row) => ({
+    ...row,
+    actual: convertToPreferred(row.actual, row.currency),
+    available: convertToPreferred(row.available, row.currency),
+    committed: convertToPreferred(row.committed, row.currency),
+    currency: preferredCurrency,
+    planned: convertToPreferred(row.planned, row.currency),
+  }));
+  const preferredConcentrationRisks = overview.concentrationRisks.map((risk) => ({
+    ...risk,
+    total: convertToPreferred(risk.total, currency),
   }));
   const budgetHealthLabels = {
     actual: t.kpis.actual,
@@ -207,12 +223,17 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex gap-x-4 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-                <OverviewMetric icon={<CircleDollarSign className="h-4 w-4" />} label={t.kpis.planned} value={formatKpiCurrency(metrics.planned, currency, locale)} />
-                <OverviewMetric icon={<ClipboardList className="h-4 w-4" />} label={t.kpis.committed} value={formatKpiCurrency(metrics.committed, currency, locale)} valueClassName="text-blue-600 dark:text-blue-300" />
-                <OverviewMetric icon={<Gauge className="h-4 w-4" />} label={t.kpis.actual} value={formatKpiCurrency(metrics.actual, currency, locale)} helper={overview.metrics.actualFallbackUsed ? t.kpis.fallback : undefined} valueClassName="text-[#147514] dark:text-emerald-300" />
-                <OverviewMetric icon={<Banknote className="h-4 w-4" />} label={t.kpis.available} value={formatKpiCurrency(metrics.available, currency, locale)} valueClassName={metrics.available < 0 ? 'text-rose-600 dark:text-rose-300' : 'text-[#147514] dark:text-emerald-300'} />
-                <OverviewMetric icon={<WalletCards className="h-4 w-4" />} label={t.kpis.pending} value={formatKpiCurrency(metrics.pendingPayments, currency, locale)} valueClassName="text-amber-600 dark:text-amber-300" />
-                <OverviewMetric icon={<AlertTriangle className="h-4 w-4" />} label={t.kpis.overdue} value={formatKpiCurrency(metrics.overdueAmount, currency, locale)} valueClassName="text-rose-600 dark:text-rose-300" />
+                <OverviewMetric icon={<CircleDollarSign className="h-4 w-4" />} label={t.kpis.planned} value={displayMoney(metrics.planned)} />
+                <OverviewMetric icon={<ClipboardList className="h-4 w-4" />} label={t.kpis.committed} value={displayMoney(metrics.committed)} valueClassName="text-blue-600 dark:text-blue-300" />
+                <OverviewMetric icon={<Gauge className="h-4 w-4" />} label={t.kpis.actual} value={displayMoney(metrics.actual)} helper={overview.metrics.actualFallbackUsed ? t.kpis.fallback : undefined} valueClassName="text-[#147514] dark:text-emerald-300" />
+                <OverviewMetric icon={<Banknote className="h-4 w-4" />} label={t.kpis.available} value={displayMoney(metrics.available)} valueClassName={metrics.available < 0 ? 'text-rose-600 dark:text-rose-300' : 'text-[#147514] dark:text-emerald-300'} />
+                <OverviewMetric icon={<WalletCards className="h-4 w-4" />} label={t.kpis.pending} value={displayMoney(metrics.pendingPayments)} valueClassName="text-amber-600 dark:text-amber-300" />
+                <OverviewMetric icon={<AlertTriangle className="h-4 w-4" />} label={t.kpis.overdue} value={displayMoney(metrics.overdueAmount)} valueClassName="text-rose-600 dark:text-rose-300" />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300">
+                <span className="rounded-full border border-[#59C3A5]/25 bg-[#E7F3F2] px-3 py-1 text-[#257B68] dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">Totales en {preferredCurrency}</span>
+                <span>{rateContext.label} · {rateContext.effectiveDate}</span>
+                {currency !== preferredCurrency ? <span>Moneda nativa analizada: {currency}</span> : null}
               </div>
               <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 {formatKpiPercent(utilization)} {t.kpis.used}
@@ -248,12 +269,12 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <div className="xl:col-span-2">
               <KpiPanel icon={<BarChart3 className="h-5 w-5" />} title={t.kpis.budgetHealth}>
-                <BudgetHealthTable currency={currency} healthLabels={translatedHealthLabels} labels={budgetHealthLabels} locale={locale} rows={overview.budgetHealthRows} />
+                <BudgetHealthTable currency={preferredCurrency} healthLabels={translatedHealthLabels} labels={budgetHealthLabels} locale={locale} rows={preferredBudgetHealthRows} />
               </KpiPanel>
             </div>
 
             <KpiPanel icon={<CalendarClock className="h-5 w-5" />} title={t.kpis.cashRequirements}>
-              <CashRequirementGrid countLabel={t.kpis.countLabel} currency={currency} items={cashRequirements} locale={locale} />
+              <CashRequirementGrid countLabel={t.kpis.countLabel} currency={preferredCurrency} items={cashRequirements} locale={locale} />
             </KpiPanel>
           </section>
 
@@ -263,14 +284,14 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
             </KpiPanel>
 
             <KpiPanel icon={<AlertTriangle className="h-5 w-5" />} title={t.kpis.concentrationRisk}>
-              <ConcentrationRiskList currency={currency} emptyMessage={t.kpis.insights.stable} labels={driverTypeLabels} locale={locale} risks={overview.concentrationRisks} />
+              <ConcentrationRiskList currency={preferredCurrency} emptyMessage={t.kpis.insights.stable} labels={driverTypeLabels} locale={locale} risks={preferredConcentrationRisks} />
             </KpiPanel>
           </section>
 
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-4">
             {driverSections.map(section => (
               <KpiPanel key={section.title} icon={<PieChart className="h-5 w-5" />} title={section.title}>
-                <CostDriverList currency={currency} drivers={section.drivers} emptyMessage={section.emptyMessage} locale={locale} recordsLabel={t.kpis.records} />
+                <CostDriverList currency={preferredCurrency} drivers={section.drivers} emptyMessage={section.emptyMessage} locale={locale} recordsLabel={t.kpis.records} />
               </KpiPanel>
             ))}
           </section>

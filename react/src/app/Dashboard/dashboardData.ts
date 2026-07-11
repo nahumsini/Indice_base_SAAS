@@ -7,6 +7,7 @@ export interface DashboardKpiCardData {
   value: string;
   change: string;
   isPositive: boolean;
+  tone?: 'positive' | 'negative' | 'neutral';
 }
 
 export interface DashboardKpiModuleLabels {
@@ -36,6 +37,7 @@ export const defaultDashboardKpiIds = [
 
 const liveDashboardKpiIds = new Set<string>([
   'weeklyRevenue',
+  'dailyExchangeRate',
   'monthlyRevenue',
   'averageTicket',
   'salesConversion',
@@ -61,6 +63,7 @@ export function buildDashboardKpiDataMap(copy: MainDashboardTranslations): Recor
 
   return {
     weeklyRevenue: { title: kpis.weeklyRevenue.title, value: '$45,200', change: kpis.weeklyRevenue.change, isPositive: true },
+    dailyExchangeRate: { title: kpis.dailyExchangeRate.title, value: '1 USD', change: kpis.dailyExchangeRate.change, isPositive: true, tone: 'neutral' },
     netProfit: { title: kpis.netProfit.title, value: '$28,750', change: kpis.netProfit.change, isPositive: true },
     activeClients: { title: kpis.activeClients.title, value: '245', change: kpis.activeClients.change, isPositive: true },
     activeEmployees: { title: kpis.activeEmployees.title, value: '18', change: kpis.activeEmployees.change, isPositive: true },
@@ -111,39 +114,40 @@ export function buildDashboardAvailableKpis(
   const { kpis } = copy;
 
   const items: KPIItem[] = [
-    { id: 'monthlyExpenses', title: kpis.monthlyExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
-    { id: 'pendingExpenses', title: kpis.pendingExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
-    { id: 'overdueExpenses', title: kpis.overdueExpenses.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
-    { id: 'budgetAvailable', title: kpis.budgetAvailable.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
-    { id: 'budgetUtilization', title: kpis.budgetUtilization.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
-    { id: 'cashDue7Days', title: kpis.cashDue7Days.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
-    { id: 'expensesByCategory', title: kpis.expensesByCategory.title, module: modules.expenses, moduleEmoji: '💰', moduleColor: 'green', category: 'financial' },
+    { id: 'monthlyExpenses', title: kpis.monthlyExpenses.title, module: modules.expenses, moduleEmoji: '💸', moduleColor: 'green', category: 'financial' },
+    { id: 'pendingExpenses', title: kpis.pendingExpenses.title, module: modules.expenses, moduleEmoji: '💸', moduleColor: 'green', category: 'financial' },
+    { id: 'overdueExpenses', title: kpis.overdueExpenses.title, module: modules.expenses, moduleEmoji: '💸', moduleColor: 'green', category: 'financial' },
+    { id: 'budgetAvailable', title: kpis.budgetAvailable.title, module: modules.expenses, moduleEmoji: '💸', moduleColor: 'green', category: 'financial' },
+    { id: 'budgetUtilization', title: kpis.budgetUtilization.title, module: modules.expenses, moduleEmoji: '💸', moduleColor: 'green', category: 'financial' },
+    { id: 'cashDue7Days', title: kpis.cashDue7Days.title, module: modules.expenses, moduleEmoji: '💸', moduleColor: 'green', category: 'financial' },
+    { id: 'expensesByCategory', title: kpis.expensesByCategory.title, module: modules.expenses, moduleEmoji: '💸', moduleColor: 'green', category: 'financial' },
     { id: 'pettyCashBalance', title: kpis.pettyCashBalance.title, module: modules.pettyCash, moduleEmoji: '💳', moduleColor: 'green', category: 'financial' },
     { id: 'pettyCashExpenses', title: kpis.pettyCashExpenses.title, module: modules.pettyCash, moduleEmoji: '💳', moduleColor: 'green', category: 'financial' },
-    { id: 'weeklyRevenue', title: kpis.weeklyRevenue.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
-    { id: 'monthlyRevenue', title: kpis.monthlyRevenue.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
-    { id: 'netProfit', title: kpis.netProfit.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'financial' },
-    { id: 'averageTicket', title: kpis.averageTicket.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
-    { id: 'salesConversion', title: kpis.salesConversion.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'weeklyRevenue', title: kpis.weeklyRevenue.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
+    { id: 'dailyExchangeRate', title: kpis.dailyExchangeRate.title, module: 'Sistema', moduleEmoji: '💱', moduleColor: 'aqua', category: 'financial' },
+    { id: 'monthlyRevenue', title: kpis.monthlyRevenue.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
+    { id: 'netProfit', title: kpis.netProfit.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'financial' },
+    { id: 'averageTicket', title: kpis.averageTicket.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
+    { id: 'salesConversion', title: kpis.salesConversion.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
     { id: 'dailySales', title: kpis.dailySales.title, module: modules.pointOfSale, moduleEmoji: '🛒', moduleColor: 'orange', category: 'sales' },
     { id: 'transactionsCount', title: kpis.transactionsCount.title, module: modules.pointOfSale, moduleEmoji: '🛒', moduleColor: 'orange', category: 'sales' },
-    { id: 'activeEmployees', title: kpis.activeEmployees.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
-    { id: 'newHires', title: kpis.newHires.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
-    { id: 'employeeTurnover', title: kpis.employeeTurnover.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
-    { id: 'absenteeismRate', title: kpis.absenteeismRate.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'people' },
-    { id: 'payrollCost', title: kpis.payrollCost.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'blue', category: 'financial' },
-    { id: 'activeClients', title: kpis.activeClients.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
-    { id: 'newClients', title: kpis.newClients.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
-    { id: 'clientRetention', title: kpis.clientRetention.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
-    { id: 'customerLifetimeValue', title: kpis.customerLifetimeValue.title, module: modules.sales, moduleEmoji: '💵', moduleColor: 'orange', category: 'sales' },
+    { id: 'activeEmployees', title: kpis.activeEmployees.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'aqua', category: 'people' },
+    { id: 'newHires', title: kpis.newHires.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'aqua', category: 'people' },
+    { id: 'employeeTurnover', title: kpis.employeeTurnover.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'aqua', category: 'people' },
+    { id: 'absenteeismRate', title: kpis.absenteeismRate.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'aqua', category: 'people' },
+    { id: 'payrollCost', title: kpis.payrollCost.title, module: modules.humanResources, moduleEmoji: '👥', moduleColor: 'aqua', category: 'financial' },
+    { id: 'activeClients', title: kpis.activeClients.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
+    { id: 'newClients', title: kpis.newClients.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
+    { id: 'clientRetention', title: kpis.clientRetention.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
+    { id: 'customerLifetimeValue', title: kpis.customerLifetimeValue.title, module: modules.sales, moduleEmoji: '💼', moduleColor: 'coral', category: 'sales' },
     { id: 'pendingTasks', title: kpis.pendingTasks.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
     { id: 'completedTasks', title: kpis.completedTasks.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
     { id: 'taskCompletionRate', title: kpis.taskCompletionRate.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
     { id: 'overdueTasks', title: kpis.overdueTasks.title, module: modules.processesTasks, moduleEmoji: '✅', moduleColor: 'yellow', category: 'operational' },
-    { id: 'inventoryValue', title: kpis.inventoryValue.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
-    { id: 'stockLevel', title: kpis.stockLevel.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
-    { id: 'lowStockItems', title: kpis.lowStockItems.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
-    { id: 'inventoryTurnover', title: kpis.inventoryTurnover.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'gray', category: 'inventory' },
+    { id: 'inventoryValue', title: kpis.inventoryValue.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'coral', category: 'inventory' },
+    { id: 'stockLevel', title: kpis.stockLevel.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'coral', category: 'inventory' },
+    { id: 'lowStockItems', title: kpis.lowStockItems.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'coral', category: 'inventory' },
+    { id: 'inventoryTurnover', title: kpis.inventoryTurnover.title, module: modules.inventory, moduleEmoji: '📦', moduleColor: 'coral', category: 'inventory' },
     { id: 'pendingMaintenance', title: kpis.pendingMaintenance.title, module: modules.maintenance, moduleEmoji: '🔧', moduleColor: 'gray', category: 'operational' },
     { id: 'maintenanceCost', title: kpis.maintenanceCost.title, module: modules.maintenance, moduleEmoji: '🔧', moduleColor: 'gray', category: 'financial' },
     { id: 'equipmentUptime', title: kpis.equipmentUptime.title, module: modules.maintenance, moduleEmoji: '🔧', moduleColor: 'gray', category: 'operational' },

@@ -208,6 +208,7 @@ export const esCO = {
   },
   kpis: {
     weeklyRevenue: { title: 'Ventas semanales', change: '+6% vs semana anterior' },
+    dailyExchangeRate: { title: 'Tipo de cambio del día', change: 'Referencia diaria', fallback: 'Última tasa disponible' },
     netProfit: { title: 'Utilidad neta', change: '+12% este mes' },
     activeClients: { title: 'Clientes activos', change: '+18 nuevos' },
     activeEmployees: { title: 'Personal activo', change: '+2 este mes' },
@@ -255,6 +256,7 @@ export const esCO = {
     action: 'Configurar indicadores',
   },
   kpiConfiguration: {
+    triggerLabel: 'Personalizar KPIs',
     title: 'Configurar indicadores',
     description: 'Selecciona y ordena los indicadores que quieres ver en tu panel.',
     availableTitle: (count: number) => `Indicadores disponibles (${count})`,

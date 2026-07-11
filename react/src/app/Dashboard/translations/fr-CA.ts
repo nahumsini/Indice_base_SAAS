@@ -208,6 +208,7 @@ export const frCA = {
   },
   kpis: {
     weeklyRevenue: { title: 'Ventes hebdomadaires', change: '+6 % vs semaine précédente' },
+    dailyExchangeRate: { title: 'Taux de change du jour', change: 'Référence quotidienne', fallback: 'Dernier taux disponible' },
     netProfit: { title: 'Bénéfice net', change: '+12 % ce mois-ci' },
     activeClients: { title: 'Clients actifs', change: '+18 nouveaux' },
     activeEmployees: { title: 'Employés actifs', change: '+2 ce mois-ci' },
@@ -255,6 +256,7 @@ export const frCA = {
     action: 'Configurer les indicateurs',
   },
   kpiConfiguration: {
+    triggerLabel: 'Personnaliser les indicateurs',
     title: 'Configurer les indicateurs',
     description: 'Sélectionnez et ordonnez les indicateurs à afficher dans votre tableau de bord.',
     availableTitle: (count: number) => `Indicateurs disponibles (${count})`,

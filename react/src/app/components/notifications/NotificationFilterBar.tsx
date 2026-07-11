@@ -50,11 +50,11 @@ export function NotificationFilterBar({
             placeholder={copy.searchPlaceholder}
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            className="h-10 pl-10"
+            className="h-10 border-[#D8DCE3] pl-10 focus-visible:border-[#59C3A5] focus-visible:ring-[#59C3A5]/25"
           />
         </div>
         <Select value={moduleFilter} onValueChange={onModuleFilterChange}>
-          <SelectTrigger className="h-10">
+          <SelectTrigger className="h-10 border-[#D8DCE3] focus:ring-[#59C3A5]/25">
             <Filter className="mr-2 h-4 w-4" />
             <SelectValue placeholder={copy.allModules} />
           </SelectTrigger>
@@ -66,7 +66,7 @@ export function NotificationFilterBar({
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={(value) => onPriorityFilterChange(value as NotificationPriorityFilter)}>
-          <SelectTrigger className="h-10">
+          <SelectTrigger className="h-10 border-[#D8DCE3] focus:ring-[#59C3A5]/25">
             <SelectValue placeholder={copy.allPriorities} />
           </SelectTrigger>
           <SelectContent>
@@ -76,20 +76,20 @@ export function NotificationFilterBar({
             <SelectItem value="low">{copy.lowPriority}</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={onRefresh} className="h-10">
+        <Button variant="outline" onClick={onRefresh} className="h-10 border-[#D8DCE3] hover:border-[#59C3A5]/50 hover:bg-[#E7F3F2]">
           <RefreshCw className="h-4 w-4" />
           {copy.refresh}
         </Button>
-        <Button variant="outline" onClick={onMarkAllRead} disabled={unreadCount === 0} className="h-10">
+        <Button variant="outline" onClick={onMarkAllRead} disabled={unreadCount === 0} className="h-10 border-[#D8DCE3] hover:border-[#59C3A5]/50 hover:bg-[#E7F3F2]">
           <Check className="h-4 w-4" />
           {copy.markAllRead}
         </Button>
       </div>
       <Tabs value={statusFilter} onValueChange={(value) => onStatusFilterChange(value as NotificationStatusFilter)}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all">{copy.all} ({totalCount})</TabsTrigger>
-          <TabsTrigger value="unread">{copy.unread} ({unreadCount})</TabsTrigger>
-          <TabsTrigger value="read">{copy.read} ({Math.max(totalCount - unreadCount, 0)})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 bg-[#E7F3F2]">
+          <TabsTrigger value="all" className="data-[state=active]:text-[#147514] data-[state=active]:shadow-sm">{copy.all} ({totalCount})</TabsTrigger>
+          <TabsTrigger value="unread" className="data-[state=active]:text-[#147514] data-[state=active]:shadow-sm">{copy.unread} ({unreadCount})</TabsTrigger>
+          <TabsTrigger value="read" className="data-[state=active]:text-[#147514] data-[state=active]:shadow-sm">{copy.read} ({Math.max(totalCount - unreadCount, 0)})</TabsTrigger>
         </TabsList>
       </Tabs>
     </div>

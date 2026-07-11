@@ -208,6 +208,7 @@ export const koCA = {
   },
   kpis: {
     weeklyRevenue: { title: '주간 매출', change: '전주 대비 +6%' },
+    dailyExchangeRate: { title: '오늘의 환율', change: '일일 기준 환율', fallback: '최근 이용 가능 환율' },
     netProfit: { title: '순이익', change: '이번 달 +12%' },
     activeClients: { title: '활성 고객', change: '신규 +18' },
     activeEmployees: { title: '활성 직원', change: '이번 달 +2' },
@@ -255,6 +256,7 @@ export const koCA = {
     action: 'KPI 설정',
   },
   kpiConfiguration: {
+    triggerLabel: 'KPI 맞춤 설정',
     title: 'KPI 설정',
     description: '대시보드에 표시할 KPI를 선택하고 순서를 정하세요.',
     availableTitle: (count: number) => `사용 가능한 KPI (${count})`,

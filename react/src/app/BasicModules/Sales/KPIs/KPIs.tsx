@@ -26,8 +26,7 @@ import {
   type SalesKpiDataSources,
 } from './salesKpiSelectors';
 import { useSalesKpisTranslations } from './hooks/useSalesKpisTranslations';
-
-const formatMoney = (value: number) => formatSalesCurrencyAmount(value);
+import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
 
 const percent = (value: number) => `${Math.round(value)}%`;
 
@@ -98,6 +97,7 @@ function ProgressLine({ value, danger = false }: { value: number; danger?: boole
 export default function KPIs() {
   const { contacts, opportunities, quotes, products, salesRecords } = useSalesCrm();
   const copy = useSalesKpisTranslations();
+  const { formatPreferred, preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
 
   const [businessUnitFilter, setBusinessUnitFilter] = useState('all');
   const [businessFilter, setBusinessFilter] = useState('all');
@@ -123,6 +123,30 @@ export default function KPIs() {
   const kpis = useMemo(() => getSalesKpiMetrics(filteredSources), [filteredSources]);
   const sellerRanking = useMemo(() => getSellerRanking(filteredSources), [filteredSources]);
   const filteredOpportunities = filteredSources.opportunities;
+  const salesSummary = summarize(filteredSources.sales.map((sale) => ({
+    amount: sale.totalAmount,
+    currency: sale.currency,
+  })));
+  const commissionSummary = summarize(filteredSources.sales.map((sale) => ({
+    amount: sale.commissionAmount || 0,
+    currency: sale.currency,
+  })));
+  const sellerMoney = useMemo(() => new Map(sellerRanking.map((row) => {
+    const sellerSales = filteredSources.sales.filter((sale) => sale.sellerName === row.seller);
+    const sellerOpportunities = filteredOpportunities.filter(
+      (opportunity) => opportunity.owner === row.seller && opportunity.status !== 'Closed',
+    );
+    return [row.seller, {
+      pipeline: summarize(sellerOpportunities.map((opportunity) => ({
+        amount: parseSalesKpiMoney(opportunity.estimatedValue),
+        currency: opportunity.currency ?? preferredCurrency,
+      }))).preferredTotalLabel,
+      sales: summarize(sellerSales.map((sale) => ({
+        amount: sale.totalAmount,
+        currency: sale.currency,
+      }))).preferredTotalLabel,
+    }];
+  })), [filteredOpportunities, filteredSources.sales, preferredCurrency, sellerRanking, summarize]);
 
   return (
     <div className="space-y-6">
@@ -179,9 +203,17 @@ export default function KPIs() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={Target} label={copy.cards.activeProspects.label} value={String(kpis.activeProspects)} detail={copy.cards.activeProspects.detail(kpis.totalProspects)} />
         <MetricCard icon={FileText} label={copy.cards.quotes.label} value={String(kpis.totalQuotes)} detail={copy.cards.quotes.detail(kpis.approvedQuotes + kpis.closedWonQuotes)} tone="yellow" />
-        <MetricCard icon={CircleDollarSign} label={copy.cards.salesRevenue.label} value={formatMoney(kpis.salesRevenue)} detail={copy.cards.salesRevenue.detail(kpis.totalSales)} tone="green" />
-        <MetricCard icon={BriefcaseBusiness} label={copy.cards.commissions.label} value={formatMoney(kpis.totalCommissions)} detail={copy.cards.commissions.detail} tone="purple" />
+        <MetricCard icon={CircleDollarSign} label={copy.cards.salesRevenue.label} value={salesSummary.preferredTotalLabel} detail={copy.cards.salesRevenue.detail(kpis.totalSales)} tone="green" />
+        <MetricCard icon={BriefcaseBusiness} label={copy.cards.commissions.label} value={commissionSummary.preferredTotalLabel} detail={copy.cards.commissions.detail} tone="purple" />
       </section>
+
+      {filteredSources.sales.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+          <span className="rounded-full border border-[#59C3A5]/25 bg-[#E7F3F2] px-3 py-1 text-[#257B68]">Totales en {preferredCurrency}</span>
+          <span>{rateContext.label} · {rateContext.effectiveDate}</span>
+          {salesSummary.nativeBreakdown ? <span>Nativo: {salesSummary.nativeBreakdown}</span> : null}
+        </div>
+      ) : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -233,7 +265,7 @@ export default function KPIs() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={UsersRound} label={copy.cards.contacts.label} value={String(kpis.totalContacts)} detail={copy.cards.contacts.detail(kpis.activeCustomers)} />
         <MetricCard icon={PackageCheck} label={copy.cards.products.label} value={String(kpis.totalProducts)} detail={copy.cards.products.detail(kpis.activeProducts)} tone="green" />
-        <MetricCard icon={ClipboardList} label={copy.cards.averageTicket.label} value={formatMoney(kpis.averageTicket)} detail={copy.cards.averageTicket.detail} tone="purple" />
+        <MetricCard icon={ClipboardList} label={copy.cards.averageTicket.label} value={formatPreferred(kpis.totalSales > 0 ? salesSummary.preferredTotal / kpis.totalSales : 0, preferredCurrency)} detail={copy.cards.averageTicket.detail} tone="purple" />
         <MetricCard icon={CheckCircle2} label={copy.cards.quoteApproval.label} value={percent(kpis.quoteApprovalRate)} detail={copy.cards.quoteApproval.detail(percent(kpis.quoteRejectionRate))} tone="yellow" />
       </section>
 
@@ -261,8 +293,8 @@ export default function KPIs() {
                 <tr key={row.seller} className="border-t border-slate-100">
                   <td className="px-5 py-4 font-bold">#{index + 1}</td>
                   <td className="px-5 py-4 font-semibold text-slate-950">{row.seller}</td>
-                  <td className="px-5 py-4 font-bold">{formatMoney(row.sales)}</td>
-                  <td className="px-5 py-4">{formatMoney(row.pipeline)}</td>
+                  <td className="px-5 py-4 font-bold">{sellerMoney.get(row.seller)?.sales}</td>
+                  <td className="px-5 py-4">{sellerMoney.get(row.seller)?.pipeline}</td>
                   <td className="px-5 py-4">{row.quotes}</td>
                   <td className="px-5 py-4">{row.closed}</td>
                   <td className="px-5 py-4">
@@ -306,7 +338,10 @@ export default function KPIs() {
                   <td className="px-5 py-4">{item.company}</td>
                   <td className="px-5 py-4">{item.stage}</td>
                   <td className="px-5 py-4">{item.owner}</td>
-                  <td className="px-5 py-4 font-bold">{formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</td>
+                  <td className="px-5 py-4 font-bold">
+                    <p>{formatPreferred(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
+                    {item.currency !== preferredCurrency ? <p className="text-xs font-medium text-slate-400">Nativo: {formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p> : null}
+                  </td>
                   <td className="px-5 py-4">{item.nextAction} · {item.nextActionDate}</td>
                   <td className="px-5 py-4">
                     <StatusPill

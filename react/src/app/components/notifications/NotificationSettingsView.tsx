@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
-import { BellRing, Info, Settings2 } from 'lucide-react';
+import { Info, Settings2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
 import {
-  notificationPreferenceGroups,
+  getLocalizedNotificationPreferenceGroups,
   type NotificationPreferenceItem,
   type NotificationPriority,
 } from './notificationCatalog';
+import { getModuleColorClasses } from './notificationStyles';
 import type { NotificationCenterCopy } from './notificationCenterCopy';
 
 interface NotificationSettingsViewProps {
   copy: NotificationCenterCopy;
+  locale: string;
 }
 
 const priorityTone: Record<NotificationPriority, string> = {
@@ -19,14 +21,15 @@ const priorityTone: Record<NotificationPriority, string> = {
   low: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 };
 
-export function NotificationSettingsView({ copy }: NotificationSettingsViewProps) {
+export function NotificationSettingsView({ copy, locale }: NotificationSettingsViewProps) {
+  const preferenceGroups = useMemo(() => getLocalizedNotificationPreferenceGroups(locale), [locale]);
   const defaultState = useMemo(() => {
     return Object.fromEntries(
-      notificationPreferenceGroups.flatMap((group) => (
+      preferenceGroups.flatMap((group) => (
         group.items.map((item) => [preferenceKey(group.module.slug, item.eventType), item.defaultEnabled])
       )),
     );
-  }, []);
+  }, [preferenceGroups]);
   const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(defaultState);
   const [quietMode, setQuietMode] = useState(false);
 
@@ -35,12 +38,12 @@ export function NotificationSettingsView({ copy }: NotificationSettingsViewProps
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+      <div className="rounded-lg border border-[#59C3A5]/30 bg-[#E7F3F2] px-4 py-3 text-sm text-[#147514]">
         <div className="flex gap-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-semibold">{copy.settingsSummary}</p>
-            <p className="mt-1 text-blue-700">{copy.settingsSummaryDescription} {copy.noPersistence}</p>
+            <p className="mt-1 text-[#147514]">{copy.settingsSummaryDescription} {copy.noPersistence}</p>
           </div>
         </div>
       </div>
@@ -56,7 +59,7 @@ export function NotificationSettingsView({ copy }: NotificationSettingsViewProps
               <p className="text-sm text-gray-600">{copy.quietModeDescription}</p>
             </div>
           </div>
-          <Switch checked={quietMode} onCheckedChange={setQuietMode} aria-label={copy.quietMode} />
+          <Switch checked={quietMode} onCheckedChange={setQuietMode} aria-label={copy.quietMode} className="data-[state=checked]:bg-[#59C3A5] focus-visible:ring-[#59C3A5]/30" />
         </div>
       </div>
 
@@ -71,12 +74,14 @@ export function NotificationSettingsView({ copy }: NotificationSettingsViewProps
       </div>
 
       <div className="grid gap-4">
-        {notificationPreferenceGroups.map((group) => (
-          <section key={group.module.slug} className="rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+        {preferenceGroups.map((group) => {
+          const moduleColorClasses = getModuleColorClasses(group.module.color);
+          return (
+          <section key={group.module.slug} className="overflow-hidden rounded-xl border border-[#59C3A5]/20 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#59C3A5]/15 px-4 py-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-950 text-white">
-                  <BellRing className="h-4 w-4" />
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg border text-xl ${moduleColorClasses.bg} ${moduleColorClasses.border}`} aria-hidden="true">
+                  {group.module.emoji}
                 </div>
                 <div>
                   <p className="font-bold text-gray-950">{group.module.label}</p>
@@ -107,7 +112,8 @@ export function NotificationSettingsView({ copy }: NotificationSettingsViewProps
               ))}
             </div>
           </section>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -147,7 +153,7 @@ function PreferenceRow({
         <span className={`text-sm font-semibold ${checked ? 'text-emerald-700' : 'text-gray-500'}`}>
           {checked ? copy.enabled : copy.disabled}
         </span>
-        <Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={item.label} />
+        <Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={item.label} className="data-[state=checked]:bg-[#59C3A5] focus-visible:ring-[#59C3A5]/30" />
       </div>
     </div>
   );

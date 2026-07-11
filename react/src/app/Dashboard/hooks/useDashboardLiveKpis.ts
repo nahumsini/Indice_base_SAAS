@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DashboardKpiCardData } from '../dashboardData';
 import type { MainDashboardTranslations } from '../translations';
+import { usePreferredBusinessCurrency } from '../../BasicModules/shared/BusinessCurrencyContext';
+import { convertBusinessCurrencyAmount } from '../../BasicModules/shared/businessCurrency';
 
 type DashboardLiveKpiMap = Partial<Record<string, DashboardKpiCardData>>;
 
@@ -60,6 +62,11 @@ const numericKpiValue = (source: Record<string, number | string | null>, key: st
 };
 
 export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: string) {
+  const {
+    exchangeRateMetadata,
+    exchangeRatesPerUsd,
+    preferredCurrency,
+  } = usePreferredBusinessCurrency();
   const [liveKpis, setLiveKpis] = useState<DashboardLiveKpiMap>({});
   const today = useMemo(() => toLocalIsoDate(new Date()), []);
 
@@ -94,7 +101,26 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
         return;
       }
 
-      const nextKpis: DashboardLiveKpiMap = {};
+      const preferredRate = exchangeRatesPerUsd[preferredCurrency as keyof typeof exchangeRatesPerUsd] ?? 1;
+      const preferredSource = exchangeRateMetadata.sourceDetails?.find(
+        (source) => source.currencyCode === preferredCurrency,
+      );
+      const sourceLabel = preferredSource?.status === 'official'
+        ? preferredSource.institution
+        : copy.kpis.dailyExchangeRate.fallback;
+      const sourceDate = preferredSource?.observedDate || exchangeRateMetadata.sourceDate;
+      const formattedRate = new Intl.NumberFormat(locale, {
+        maximumFractionDigits: preferredCurrency === 'COP' ? 2 : 4,
+      }).format(preferredRate);
+      const nextKpis: DashboardLiveKpiMap = {
+        dailyExchangeRate: {
+          title: copy.kpis.dailyExchangeRate.title,
+          value: `1 USD = ${formattedRate} ${preferredCurrency}`,
+          change: [sourceLabel, sourceDate].filter(Boolean).join(' · '),
+          isPositive: true,
+          tone: 'neutral',
+        },
+      };
 
       if (hrUsersResult.status === 'fulfilled') {
         const summary = hrUsersResult.value.summary;
@@ -168,6 +194,12 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
 
       if (financeOverviewResult.status === 'fulfilled') {
         const { currency, metrics } = financeOverviewResult.value;
+        const preferredMoney = (amount: number) => convertBusinessCurrencyAmount(
+          amount,
+          currency,
+          preferredCurrency,
+          exchangeRatesPerUsd,
+        );
         const consumed = metrics.planned - metrics.available;
         const budgetUtilization = metrics.planned > 0
           ? Math.max(0, (consumed / metrics.planned) * 100)
@@ -175,25 +207,25 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
 
         nextKpis.monthlyExpenses = {
           title: copy.kpis.monthlyExpenses.title,
-          value: formatCurrency(metrics.actual, locale, currency),
+          value: formatCurrency(preferredMoney(metrics.actual), locale, preferredCurrency),
           change: copy.kpis.monthlyExpenses.change,
           isPositive: metrics.planned <= 0 || metrics.actual <= metrics.planned,
         };
         nextKpis.pendingExpenses = {
           title: copy.kpis.pendingExpenses.title,
-          value: formatCurrency(metrics.pendingPayments, locale, currency),
+          value: formatCurrency(preferredMoney(metrics.pendingPayments), locale, preferredCurrency),
           change: copy.kpis.pendingExpenses.change,
           isPositive: metrics.pendingPayments <= 0,
         };
         nextKpis.overdueExpenses = {
           title: copy.kpis.overdueExpenses.title,
-          value: formatCurrency(metrics.overdueAmount, locale, currency),
+          value: formatCurrency(preferredMoney(metrics.overdueAmount), locale, preferredCurrency),
           change: copy.kpis.overdueExpenses.change,
           isPositive: metrics.overdueAmount <= 0,
         };
         nextKpis.budgetAvailable = {
           title: copy.kpis.budgetAvailable.title,
-          value: formatCurrency(metrics.available, locale, currency),
+          value: formatCurrency(preferredMoney(metrics.available), locale, preferredCurrency),
           change: copy.kpis.budgetAvailable.change,
           isPositive: metrics.available >= 0,
         };
@@ -205,7 +237,7 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
         };
         nextKpis.cashDue7Days = {
           title: copy.kpis.cashDue7Days.title,
-          value: formatCurrency(metrics.dueIn7Days, locale, currency),
+          value: formatCurrency(preferredMoney(metrics.dueIn7Days), locale, preferredCurrency),
           change: copy.kpis.cashDue7Days.change,
           isPositive: metrics.dueIn7Days <= 0,
         };
@@ -262,7 +294,7 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
     return () => {
       isMounted = false;
     };
-  }, [copy, locale, today]);
+  }, [copy, exchangeRateMetadata, exchangeRatesPerUsd, locale, preferredCurrency, today]);
 
   return liveKpis;
 }

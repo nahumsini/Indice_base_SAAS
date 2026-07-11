@@ -10,8 +10,8 @@ import { NotificationSummaryStrip } from './notifications/NotificationSummaryStr
 import {
   getNotificationModule,
   getNotificationPriority,
+  getLocalizedNotificationPreferenceGroups,
   isActionableNotification,
-  notificationPreferenceGroups,
 } from './notifications/notificationCatalog';
 import { getNotificationCenterCopy } from './notifications/notificationCenterCopy';
 
@@ -57,17 +57,18 @@ export function NotificationCenter(props: NotificationCenterProps) {
 
   const moduleOptions = useMemo(() => {
     const options = new Map<string, ReturnType<typeof getNotificationModule>>();
-    notificationPreferenceGroups.forEach((group) => options.set(group.module.slug, group.module));
+    getLocalizedNotificationPreferenceGroups(currentLanguage.code)
+      .forEach((group) => options.set(group.module.slug, group.module));
     items.forEach((item) => {
-      const moduleMeta = getNotificationModule(item);
+      const moduleMeta = getNotificationModule(item, currentLanguage.code);
       options.set(moduleMeta.slug, moduleMeta);
     });
     return Array.from(options.values()).sort((first, second) => first.label.localeCompare(second.label));
-  }, [items]);
+  }, [currentLanguage.code, items]);
 
   const visibleItems = useMemo(() => {
     return items.filter((notification) => {
-      const moduleMeta = getNotificationModule(notification);
+      const moduleMeta = getNotificationModule(notification, currentLanguage.code);
       const priority = getNotificationPriority(notification);
       const searchableText = `${notification.title} ${notification.description} ${moduleMeta.label}`.toLowerCase();
       const matchesSearch = !deferredSearch || searchableText.includes(deferredSearch);
@@ -79,7 +80,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
 
       return matchesSearch && matchesModule && matchesPriority && matchesStatus;
     });
-  }, [deferredSearch, items, moduleFilter, priorityFilter, statusFilter]);
+  }, [currentLanguage.code, deferredSearch, items, moduleFilter, priorityFilter, statusFilter]);
 
   const urgentCount = useMemo(
     () => items.filter((notification) => getNotificationPriority(notification) === 'high').length,
@@ -96,20 +97,19 @@ export function NotificationCenter(props: NotificationCenterProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200">
-        <div className="bg-[#2563EB] px-6 py-5 text-white">
+      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#59C3A5]/35 bg-white shadow-[0_28px_80px_rgba(34,40,49,0.24)] animate-in zoom-in-95 duration-200 dark:border-[#59C3A5]/30 dark:bg-[#222831]">
+        <div className="border-b border-[#3AAE90] bg-[#59C3A5] px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20">
                 <Bell className="h-6 w-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/75">Indice</p>
                 <h2 className="text-2xl font-bold leading-tight">{copy.title}</h2>
                 <p className="mt-1 text-sm text-white/80">{copy.subtitle}</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full text-white hover:bg-white/20">
+            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full text-white hover:bg-white/20 focus-visible:ring-white/70" aria-label={copy.close}>
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -117,7 +117,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
             <Button
               type="button"
               onClick={() => setActiveView('inbox')}
-              className={activeView === 'inbox' ? 'bg-white text-blue-700 hover:bg-white/90' : 'bg-white/10 text-white hover:bg-white/20'}
+              className={activeView === 'inbox' ? 'bg-white text-[#147514] hover:bg-white/90 focus-visible:ring-white/70' : 'bg-white/10 text-white hover:bg-white/20 focus-visible:ring-white/70'}
             >
               <Inbox className="h-4 w-4" />
               {copy.inbox}
@@ -125,7 +125,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
             <Button
               type="button"
               onClick={() => setActiveView('settings')}
-              className={activeView === 'settings' ? 'bg-white text-blue-700 hover:bg-white/90' : 'bg-white/10 text-white hover:bg-white/20'}
+              className={activeView === 'settings' ? 'bg-white text-[#147514] hover:bg-white/90 focus-visible:ring-white/70' : 'bg-white/10 text-white hover:bg-white/20 focus-visible:ring-white/70'}
             >
               <Settings className="h-4 w-4" />
               {copy.settings}
@@ -133,7 +133,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+        <div className="flex-1 overflow-y-auto bg-[#F7F8FA] p-6 dark:bg-[#222831]">
           {activeView === 'inbox' ? (
             <div className="space-y-5">
               <NotificationSummaryStrip
@@ -143,7 +143,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
                 actionableCount={actionableCount}
                 copy={copy}
               />
-              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="rounded-xl border border-[#59C3A5]/25 bg-white p-4 shadow-sm dark:border-[#59C3A5]/20 dark:bg-white/5">
                 <NotificationFilterBar
                   searchQuery={searchQuery}
                   moduleFilter={moduleFilter}
@@ -172,7 +172,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
                 </div>
               )}
               {!loading && !error && visibleItems.length === 0 && (
-                <div className="rounded-xl border border-dashed border-gray-300 bg-white py-14 text-center">
+                <div className="rounded-xl border border-dashed border-[#59C3A5]/40 bg-white py-14 text-center dark:bg-white/5">
                   <BellOff className="mx-auto mb-4 h-14 w-14 text-gray-300" />
                   <p className="text-lg font-bold text-gray-700">{copy.emptyTitle}</p>
                   <p className="mt-1 text-sm text-gray-500">{copy.emptyDescription}</p>
@@ -195,17 +195,17 @@ export function NotificationCenter(props: NotificationCenterProps) {
               )}
             </div>
           ) : (
-            <NotificationSettingsView copy={copy} />
+            <NotificationSettingsView copy={copy} locale={currentLanguage.code} />
           )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-blue-400 bg-[#2563EB] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-sm font-medium text-white/85">
+        <div className="flex flex-col gap-3 border-t border-[#59C3A5]/25 bg-[#E7F3F2] px-6 py-4 text-[#222831] dark:bg-[#59C3A5]/10 dark:text-white sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm font-medium text-[#4B5563] dark:text-white/85">
             {activeView === 'inbox'
               ? `${copy.showing} ${visibleItems.length} ${copy.of} ${items.length}`
               : copy.preferencesNotice}
           </span>
-          <Button variant="outline" size="sm" onClick={onClose} className="border-white/30 bg-white text-blue-700 hover:bg-white/90">
+          <Button variant="outline" size="sm" onClick={onClose} className="border-[#59C3A5]/35 bg-white text-[#147514] hover:bg-white/80 dark:border-[#59C3A5]/30 dark:bg-white/10 dark:text-[#8DE0C8] dark:hover:bg-white/15">
             {copy.close}
           </Button>
         </div>

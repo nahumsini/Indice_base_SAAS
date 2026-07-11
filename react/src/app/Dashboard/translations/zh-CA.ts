@@ -208,6 +208,7 @@ export const zhCA = {
   },
   kpis: {
     weeklyRevenue: { title: '每周销售额', change: '较上周 +6%' },
+    dailyExchangeRate: { title: '今日汇率', change: '每日参考汇率', fallback: '最近可用汇率' },
     netProfit: { title: '净利润', change: '本月 +12%' },
     activeClients: { title: '活跃客户', change: '新增 +18' },
     activeEmployees: { title: '在岗员工', change: '本月 +2' },
@@ -255,6 +256,7 @@ export const zhCA = {
     action: '配置 KPI',
   },
   kpiConfiguration: {
+    triggerLabel: '个性化 KPI',
     title: '配置 KPI',
     description: '选择并排序要在仪表板上显示的 KPI。',
     availableTitle: (count: number) => `可用 KPI (${count})`,

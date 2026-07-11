@@ -208,6 +208,7 @@ export const enCA = {
   },
   kpis: {
     weeklyRevenue: { title: 'Weekly Sales', change: '+6% vs previous week' },
+    dailyExchangeRate: { title: 'Daily exchange rate', change: 'Daily reference', fallback: 'Latest available rate' },
     netProfit: { title: 'Net Profit', change: '+12% this month' },
     activeClients: { title: 'Active Clients', change: '+18 new' },
     activeEmployees: { title: 'Active Employees', change: '+2 this month' },
@@ -255,6 +256,7 @@ export const enCA = {
     action: 'Configure KPIs',
   },
   kpiConfiguration: {
+    triggerLabel: 'Personalize KPIs',
     title: 'Configure KPIs',
     description: 'Select and order the KPIs you want to see on your dashboard.',
     availableTitle: (count: number) => `Available KPIs (${count})`,

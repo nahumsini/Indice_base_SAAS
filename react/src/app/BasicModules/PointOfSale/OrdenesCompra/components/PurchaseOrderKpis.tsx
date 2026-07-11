@@ -14,6 +14,7 @@ import type {
 import { OperationalKpiArea } from '../../../shared/operational';
 import type { PurchaseOrder, SupplierInvoice } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
+import { useCurrencyAwareMoney } from '../../../shared/useCurrencyAwareMoney';
 
 export function PurchaseOrderKpis({
   currency,
@@ -24,6 +25,7 @@ export function PurchaseOrderKpis({
   invoices: SupplierInvoice[];
   orders: PurchaseOrder[];
 }) {
+  const { formatPreferred, preferredCurrency, rateContext } = useCurrencyAwareMoney();
   const draftOrders = orders.filter((order) => order.status === 'DRAFT').length;
   const inApproval = orders.filter((order) => ['REQUESTED', 'IN_REVIEW', 'NEEDS_CLARIFICATION', 'APPROVED'].includes(order.status)).length;
   const inTransit = orders.filter((order) => ['ISSUED', 'SENT', 'CONFIRMED'].includes(order.status)).length;
@@ -64,7 +66,7 @@ export function PurchaseOrderKpis({
       id: 'expected-value',
       icon: <ClipboardList className="h-4 w-4" />,
       label: 'valor comprometido',
-      value: formatMoney(expectedValue, currency),
+      value: formatPreferred(expectedValue, currency),
       iconClassName: 'text-[#9A6B05]',
       valueClassName: 'text-[#9A6B05]',
     },
@@ -115,6 +117,15 @@ export function PurchaseOrderKpis({
     });
   }
 
+  if (expectedValue > 0 && currency !== preferredCurrency) {
+    alertChips.push({
+      id: 'native-value',
+      icon: <ClipboardList className="h-3.5 w-3.5" />,
+      label: `Nativo: ${formatMoney(expectedValue, currency)}`,
+      tone: 'info',
+    });
+  }
+
   const distributionSegments: OperationalDistributionSegment[] = [
     { id: 'draft', label: 'Borrador', count: draftOrders, className: 'bg-slate-400' },
     { id: 'approval', label: 'Aprobacion', count: inApproval, className: 'bg-[#F4C84A]' },
@@ -128,7 +139,7 @@ export function PurchaseOrderKpis({
   const insight = delayed > 0
     ? `${delayed} compras requieren seguimiento con proveedor antes de que afecten disponibilidad en caja.`
     : pendingReceive > 0
-      ? `Recibe ${pendingReceive} unidades pendientes para convertir compras abiertas en inventario vendible.`
+      ? `Recibe ${pendingReceive} unidades pendientes para convertir compras abiertas en inventario vendible. Total mostrado en ${preferredCurrency} con ${rateContext.label.toLowerCase()}.`
       : pendingInvoices > 0
         ? `Concilia ${pendingInvoices} facturas para cerrar el ciclo de compra y pago.`
         : 'No hay alertas operativas en compras POS con los filtros actuales.';

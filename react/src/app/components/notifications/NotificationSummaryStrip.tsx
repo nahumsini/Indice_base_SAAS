@@ -23,7 +23,7 @@ export function NotificationSummaryStrip({
   copy,
 }: NotificationSummaryStripProps) {
   const metrics = [
-    { label: copy.total, value: totalCount, icon: Bell, tone: 'text-blue-700 bg-blue-50 border-blue-100' },
+    { label: copy.total, value: totalCount, icon: Bell, tone: 'border-[#59C3A5]/30 bg-[#E7F3F2] text-[#147514]' },
     { label: copy.unread, value: unreadCount, icon: CircleDot, tone: 'text-amber-700 bg-amber-50 border-amber-100' },
     { label: copy.urgent, value: urgentCount, icon: AlertTriangle, tone: 'text-red-700 bg-red-50 border-red-100' },
     { label: copy.actionable, value: actionableCount, icon: CheckCircle2, tone: 'text-emerald-700 bg-emerald-50 border-emerald-100' },

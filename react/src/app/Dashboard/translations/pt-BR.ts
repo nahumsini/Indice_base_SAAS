@@ -208,6 +208,7 @@ export const ptBR = {
   },
   kpis: {
     weeklyRevenue: { title: 'Vendas Semanais', change: '+6% vs semana anterior' },
+    dailyExchangeRate: { title: 'Câmbio do dia', change: 'Referência diária', fallback: 'Última taxa disponível' },
     netProfit: { title: 'Lucro Líquido', change: '+12% este mês' },
     activeClients: { title: 'Clientes Ativos', change: '+18 novos' },
     activeEmployees: { title: 'Colaboradores Ativos', change: '+2 este mês' },
@@ -255,6 +256,7 @@ export const ptBR = {
     action: 'Configurar KPIs',
   },
   kpiConfiguration: {
+    triggerLabel: 'Personalizar KPIs',
     title: 'Configurar KPIs',
     description: 'Selecione e ordene os KPIs que deseja ver no painel.',
     availableTitle: (count: number) => `KPIs disponíveis (${count})`,

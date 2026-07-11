@@ -133,15 +133,19 @@ function buildPaymentMix(
   rows: PosCashClosingSummaryRow[],
   details: PosCashClosingDetailResponse[],
   revenue: number,
+  convertAmount: (amount: number, currency: string) => number,
 ) {
   const paymentTotals = details.length > 0
-    ? details.flatMap((detail) => detail.paymentsSummary ?? []).reduce((map, payment) => {
-        const label = paymentLabel(payment);
-        map.set(label, (map.get(label) ?? 0) + toNumber(payment.amount));
+    ? details.reduce((map, detail) => {
+        const currency = detail.shift?.currencyCode ?? 'MXN';
+        (detail.paymentsSummary ?? []).forEach((payment) => {
+          const label = paymentLabel(payment);
+          map.set(label, (map.get(label) ?? 0) + convertAmount(toNumber(payment.amount), currency));
+        });
         return map;
       }, new Map<string, number>())
     : new Map([
-        ['Efectivo', rows.reduce((sum, row) => sum + toNumber(row.cashSalesAmount), 0)],
+        ['Efectivo', rows.reduce((sum, row) => sum + convertAmount(toNumber(row.cashSalesAmount), row.currencyCode ?? 'MXN'), 0)],
       ]);
 
   const total = Array.from(paymentTotals.values()).reduce((sum, amount) => sum + amount, 0) || revenue;
@@ -156,11 +160,11 @@ function buildPaymentMix(
     }));
 }
 
-function buildHourlySales(rows: PosCashClosingSummaryRow[]) {
+function buildHourlySales(rows: PosCashClosingSummaryRow[], convertAmount: (amount: number, currency: string) => number) {
   const hourlyMap = groupSum(
     rows,
     (row) => String(new Date(row.closedAt).getHours()).padStart(2, '0'),
-    (row) => toNumber(row.totalSalesAmount),
+    (row) => convertAmount(toNumber(row.totalSalesAmount), row.currencyCode ?? 'MXN'),
   );
 
   return Array.from(hourlyMap.entries())
@@ -173,19 +177,29 @@ export function buildPosKpiAnalytics({
   details,
   period,
   totalCount,
+  preferredCurrency,
+  convertAmount,
 }: {
   rows: PosCashClosingSummaryRow[];
   details: PosCashClosingDetailResponse[];
   period: PosKpiPeriod;
   totalCount: number;
+  preferredCurrency: string;
+  convertAmount: (amount: number, currency: string) => number;
 }): PosKpiAnalytics {
-  const primaryCurrency = resolvePrimaryCurrency(rows, details);
-  const revenue = rows.reduce((sum, row) => sum + toNumber(row.totalSalesAmount), 0);
-  const totalCashSales = rows.reduce((sum, row) => sum + toNumber(row.cashSalesAmount), 0);
+  const primaryCurrency = preferredCurrency;
+  const nativeCurrencyTotals = groupSum(
+    rows,
+    (row) => row.currencyCode ?? resolvePrimaryCurrency(rows, details),
+    (row) => toNumber(row.totalSalesAmount),
+  );
+  const convertedRowAmount = (row: PosCashClosingSummaryRow, amount: number) => convertAmount(amount, row.currencyCode ?? 'MXN');
+  const revenue = rows.reduce((sum, row) => sum + convertedRowAmount(row, toNumber(row.totalSalesAmount)), 0);
+  const totalCashSales = rows.reduce((sum, row) => sum + convertedRowAmount(row, toNumber(row.cashSalesAmount)), 0);
   const tickets = rows.reduce((sum, row) => sum + Number(row.ticketsCount ?? 0), 0);
-  const netDifference = rows.reduce((sum, row) => sum + toNumber(row.overShortAmount), 0);
-  const expectedCash = rows.reduce((sum, row) => sum + toNumber(row.expectedCashAmount), 0);
-  const countedCash = rows.reduce((sum, row) => sum + toNumber(row.countedCashAmount), 0);
+  const netDifference = rows.reduce((sum, row) => sum + convertedRowAmount(row, toNumber(row.overShortAmount)), 0);
+  const expectedCash = rows.reduce((sum, row) => sum + convertedRowAmount(row, toNumber(row.expectedCashAmount)), 0);
+  const countedCash = rows.reduce((sum, row) => sum + convertedRowAmount(row, toNumber(row.countedCashAmount)), 0);
   const registerNameById = new Map(details.map((detail) => [
     String(detail.cashRegisterId),
     detail.cashRegister?.name || detail.cashRegister?.code || `Caja ${detail.cashRegisterId}`,
@@ -193,12 +207,12 @@ export function buildPosKpiAnalytics({
   const registerTotals = groupSum(
     rows,
     (row) => registerNameById.get(String(row.cashRegisterId)) ?? `Caja ${row.cashRegisterId}`,
-    (row) => toNumber(row.totalSalesAmount),
+    (row) => convertedRowAmount(row, toNumber(row.totalSalesAmount)),
   );
   const warehouseTotals = groupSum(
     rows,
     (row) => `Almacen ${row.warehouseId}`,
-    (row) => toNumber(row.totalSalesAmount),
+    (row) => convertedRowAmount(row, toNumber(row.totalSalesAmount)),
   );
 
   return {
@@ -214,9 +228,9 @@ export function buildPosKpiAnalytics({
     overShortRate: totalCashSales > 0 ? Math.abs(netDifference / totalCashSales) * 100 : 0,
     expectedCash,
     countedCash,
-    currencyTotals: [{ currency: primaryCurrency, amount: revenue }],
-    paymentMix: buildPaymentMix(rows, details, revenue),
-    hourlySales: buildHourlySales(rows),
+    currencyTotals: Array.from(nativeCurrencyTotals.entries()).map(([currency, amount]) => ({ currency, amount })),
+    paymentMix: buildPaymentMix(rows, details, revenue, convertAmount),
+    hourlySales: buildHourlySales(rows, convertAmount),
     topCashRegisters: rankedRowsFromMap(registerTotals, 'venta cerrada'),
     topWarehouses: rankedRowsFromMap(warehouseTotals, 'venta cerrada'),
   };

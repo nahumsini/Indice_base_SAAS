@@ -160,7 +160,7 @@ export function ModuleCard({
       relative 
       group 
       bg-white dark:bg-gray-800
-      border-2
+      border-[3px]
       ${isHighlighted ? 'border-blue-500 shadow-lg shadow-blue-200 ring-4 ring-blue-100 dark:ring-blue-900/40' : colorClasses[color].border}
       flex-shrink-0
       snap-center

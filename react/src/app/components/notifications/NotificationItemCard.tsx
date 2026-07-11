@@ -1,10 +1,10 @@
-import { AlertTriangle, Bell, Check, CheckCircle2, ClipboardList, Megaphone, Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 import type { AppNotification } from '../../api/notifications';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { formatNotificationTime } from './notificationTime';
-import { getModuleColorClasses, getNotificationStyle } from './notificationStyles';
-import { getNotificationModule, getNotificationPriority, type NotificationPriority } from './notificationCatalog';
+import { getModuleColorClasses } from './notificationStyles';
+import { getNotificationDisplayTitle, getNotificationModule, getNotificationPriority, type NotificationPriority } from './notificationCatalog';
 import type { NotificationCenterCopy } from './notificationCenterCopy';
 
 interface NotificationItemCardProps {
@@ -30,18 +30,17 @@ export function NotificationItemCard({
   onMarkRead,
   onDismiss,
 }: NotificationItemCardProps) {
-  const style = getNotificationStyle(notification);
-  const colorClasses = getModuleColorClasses(style.color);
-  const moduleMeta = getNotificationModule(notification);
+  const moduleMeta = getNotificationModule(notification, locale);
+  const colorClasses = getModuleColorClasses(moduleMeta.color);
   const priority = getNotificationPriority(notification);
-  const Icon = getNotificationIcon(notification, priority);
   const priorityLabel = getPriorityLabel(priority, copy);
+  const displayTitle = getNotificationDisplayTitle(notification, locale);
 
   return (
     <div
-      className={`group relative rounded-xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md ${
+      className={`group relative rounded-xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#59C3A5]/60 hover:shadow-md ${
         notification.is_unread
-          ? 'border-blue-200 bg-blue-50/60'
+          ? 'border-[#59C3A5]/40 bg-[#E7F3F2]/55'
           : 'border-gray-200 bg-white'
       }`}
       role="button"
@@ -55,17 +54,17 @@ export function NotificationItemCard({
       }}
     >
       <div className="flex gap-4">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${colorClasses.bg} ${colorClasses.border}`}>
-          <Icon className={`h-5 w-5 ${colorClasses.text}`} />
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border text-2xl ${colorClasses.bg} ${colorClasses.border}`} aria-hidden="true">
+          {moduleMeta.emoji}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <h3 className={`min-w-0 break-words font-bold ${notification.is_unread ? 'text-gray-950' : 'text-gray-700'}`}>
-                  {notification.title}
+                  {displayTitle}
                 </h3>
-                {notification.is_unread && <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />}
+                {notification.is_unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[#3AAE90]" />}
               </div>
               <p className="mt-1 line-clamp-2 break-words text-sm text-gray-600">
                 {notification.description}
@@ -103,7 +102,7 @@ export function NotificationItemCard({
                     event.stopPropagation();
                     onMarkRead(notification.id);
                   }}
-                  className="h-8 text-xs text-blue-700 hover:bg-blue-50"
+                  className="h-8 text-xs text-[#147514] hover:bg-[#E7F3F2]"
                 >
                   <Check className="h-3.5 w-3.5" />
                   {copy.markRead}
@@ -127,22 +126,6 @@ export function NotificationItemCard({
       </div>
     </div>
   );
-}
-
-function getNotificationIcon(notification: AppNotification, priority: NotificationPriority) {
-  if (priority === 'high') {
-    return AlertTriangle;
-  }
-  if (notification.source_type === 'announcement') {
-    return Megaphone;
-  }
-  if (notification.source_subtype.includes('task')) {
-    return ClipboardList;
-  }
-  if (priority === 'low') {
-    return CheckCircle2;
-  }
-  return Bell;
 }
 
 function getPriorityLabel(priority: NotificationPriority, copy: NotificationCenterCopy) {

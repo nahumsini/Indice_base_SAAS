@@ -7,8 +7,10 @@ import type {
 import { OperationalKpiArea } from '../../../shared/operational';
 import type { SupplierSubmission } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
+import { useCurrencyAwareMoney } from '../../../shared/useCurrencyAwareMoney';
 
 export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierSubmission[] }) {
+  const { preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
   const submitted = submissions.filter((submission) => submission.status === 'SUBMITTED').length;
   const inReview = submissions.filter((submission) => submission.status === 'IN_REVIEW').length;
   const needsClarification = submissions.filter((submission) => submission.status === 'NEEDS_CLARIFICATION').length;
@@ -32,9 +34,8 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
       return map;
     }, new Map<string, number>()),
   );
-  const valueLabel = valueByCurrency.length === 0
-    ? '$0'
-    : valueByCurrency.map(([currency, total]) => formatMoney(total, currency)).join(' / ');
+  const valueSummary = summarize(valueByCurrency.map(([currency, amount]) => ({ amount, currency })));
+  const valueLabel = valueByCurrency.length === 0 ? formatMoney(0, preferredCurrency) : valueSummary.preferredTotalLabel;
 
   const metrics: OperationalKpiMetric[] = [
     {
@@ -108,6 +109,15 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     });
   }
 
+  if (valueByCurrency.length > 1) {
+    alertChips.push({
+      id: 'native-value-breakdown',
+      icon: <Inbox className="h-3.5 w-3.5" />,
+      label: `Nativo: ${valueSummary.nativeBreakdown}`,
+      tone: 'info',
+    });
+  }
+
   const distributionSegments: OperationalDistributionSegment[] = [
     { id: 'submitted', label: 'Enviadas', count: submitted, className: 'bg-[#2563EB]' },
     { id: 'review', label: 'En revision', count: inReview, className: 'bg-[#F4C84A]' },
@@ -122,7 +132,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     : convertible > 0
       ? `Convierte ${convertible} propuestas aprobadas para iniciar reabastecimiento de tienda.`
       : pendingReview > 0
-        ? `Revisa ${pendingReview} propuestas de proveedor para decidir si se convierten en compra POS.`
+      ? `Revisa ${pendingReview} propuestas de proveedor para decidir si se convierten en compra POS. Valor total en ${preferredCurrency} con ${rateContext.label.toLowerCase()}.`
         : 'No hay propuestas de proveedor que requieran accion con los filtros actuales.';
 
   return (

@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BusinessExchangeRateService {
@@ -51,13 +52,16 @@ public class BusinessExchangeRateService {
     private final HttpClient httpClient;
     private final Duration requestTimeout;
     private final String banxicoToken;
+    private final BusinessExchangeRateSnapshotRepository snapshotRepository;
 
     public BusinessExchangeRateService(
         ObjectMapper objectMapper,
+        BusinessExchangeRateSnapshotRepository snapshotRepository,
         @Value("${app.exchange.banxico-token:}") String banxicoToken,
         @Value("${app.exchange.request-timeout-ms:7000}") long requestTimeoutMs
     ) {
         this.objectMapper = objectMapper;
+        this.snapshotRepository = snapshotRepository;
         this.banxicoToken = banxicoToken == null ? "" : banxicoToken.trim();
         this.requestTimeout = Duration.ofMillis(Math.max(1000, requestTimeoutMs));
         this.httpClient = HttpClient.newBuilder()
@@ -65,15 +69,35 @@ public class BusinessExchangeRateService {
             .build();
     }
 
+    @Transactional
     public BusinessExchangeRatesResponse loadDailyRates() {
+        var rateDate = LocalDate.now(BUSINESS_ZONE);
+        var cachedResponse = snapshotRepository.find(rateDate);
+        if (cachedResponse.isPresent()) {
+            return cachedResponse.get();
+        }
+
+        snapshotRepository.acquireDailyRefreshLock(rateDate);
+        try {
+            return snapshotRepository.find(rateDate).orElseGet(() -> {
+                var response = fetchDailyRates(snapshotRepository.findLatestBefore(rateDate));
+                snapshotRepository.save(rateDate, response);
+                return response;
+            });
+        } finally {
+            snapshotRepository.releaseDailyRefreshLock(rateDate);
+        }
+    }
+
+    private BusinessExchangeRatesResponse fetchDailyRates(Optional<BusinessExchangeRatesResponse> previousSnapshot) {
         var rates = new LinkedHashMap<>(DEFAULT_RATES_PER_USD);
         var sources = new ArrayList<BusinessExchangeRateSourceResponse>();
         var warnings = new ArrayList<String>();
 
-        applyObservation("MXN", rates, sources, warnings, this::fetchMxnFromBanxico);
-        applyObservation("CAD", rates, sources, warnings, this::fetchCadFromBankOfCanada);
-        applyObservation("COP", rates, sources, warnings, this::fetchCopFromDatosAbiertos);
-        applyObservation("BRL", rates, sources, warnings, this::fetchBrlFromBancoCentralDoBrasil);
+        applyObservation("MXN", rates, sources, warnings, previousSnapshot, this::fetchMxnFromBanxico);
+        applyObservation("CAD", rates, sources, warnings, previousSnapshot, this::fetchCadFromBankOfCanada);
+        applyObservation("COP", rates, sources, warnings, previousSnapshot, this::fetchCopFromDatosAbiertos);
+        applyObservation("BRL", rates, sources, warnings, previousSnapshot, this::fetchBrlFromBancoCentralDoBrasil);
         rates.put(BASE_CURRENCY, BigDecimal.ONE);
 
         var sourceDate = sources.stream()
@@ -107,6 +131,7 @@ public class BusinessExchangeRateService {
         Map<String, BigDecimal> rates,
         List<BusinessExchangeRateSourceResponse> sources,
         List<String> warnings,
+        Optional<BusinessExchangeRatesResponse> previousSnapshot,
         RateFetcher fetcher
     ) {
         try {
@@ -114,10 +139,26 @@ public class BusinessExchangeRateService {
             rates.put(currencyCode, observation.ratePerUsd());
             sources.add(observation.toResponse(OFFICIAL_STATUS, ""));
         } catch (Exception ex) {
-            var defaultRate = DEFAULT_RATES_PER_USD.get(currencyCode);
-            var fallback = fallbackSource(currencyCode, defaultRate, ex.getMessage());
+            var previousSource = previousSnapshot.stream()
+                .flatMap(snapshot -> snapshot.sources().stream())
+                .filter(source -> currencyCode.equals(source.currencyCode()) && !FALLBACK_STATUS.equals(source.status()))
+                .findFirst();
+            var fallback = previousSource
+                .map(source -> new BusinessExchangeRateSourceResponse(
+                    source.currencyCode(),
+                    source.ratePerUsd(),
+                    source.observedDate(),
+                    source.institution(),
+                    source.dataset(),
+                    source.sourceUrl(),
+                    source.licenseUrl(),
+                    "stale",
+                    "Última tasa oficial disponible; la fuente no respondió en el corte actual."
+                ))
+                .orElseGet(() -> fallbackSource(currencyCode, DEFAULT_RATES_PER_USD.get(currencyCode), ex.getMessage()));
+            rates.put(currencyCode, fallback.ratePerUsd());
             sources.add(fallback);
-            warnings.add("%s usa tasa interna porque la fuente oficial no estuvo disponible: %s".formatted(
+            warnings.add("%s usa la última tasa disponible porque la fuente oficial no estuvo disponible: %s".formatted(
                 currencyCode,
                 safeMessage(ex)
             ));

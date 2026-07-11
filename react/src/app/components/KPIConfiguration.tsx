@@ -29,6 +29,7 @@ export interface KPIItem {
 }
 
 export interface KPIConfigurationCopy {
+  triggerLabel: string;
   title: string;
   description: string;
   availableTitle: (count: number) => string;
@@ -97,12 +98,12 @@ const DraggableKPI = ({ kpi, index, moveKPI, onRemove }: DraggableKPIProps) => {
       }}
       className={`
         flex items-center gap-3 p-3 rounded-lg border-2 bg-white dark:bg-gray-800
-        ${isDragging ? 'opacity-50 border-blue-400' : 'border-gray-200 dark:border-gray-700'}
-        hover:border-[#2563EB] transition-all cursor-move relative
+        ${isDragging ? 'opacity-50 border-[#59C3A5]' : 'border-gray-200 dark:border-gray-700'}
+        hover:border-[#59C3A5] hover:shadow-sm transition-all cursor-move relative
       `}
     >
       {/* Display order indicator */}
-      <div className="bg-[#2563EB] text-white text-xs font-bold px-2 py-1 rounded">
+      <div className="rounded bg-[#59C3A5] px-2 py-1 text-xs font-bold text-white">
         #{index + 1}
       </div>
       <GripVertical className="h-5 w-5 text-gray-400" />
@@ -142,6 +143,7 @@ export function KPIConfiguration({
   const [tempSelectedKPIs, setTempSelectedKPIs] = useState<string[]>(selectedKPIIds);
 
   const fallbackCopy = useMemo<KPIConfigurationCopy>(() => ({
+    triggerLabel: 'Personalize KPIs',
     title: t.sections.configureKpis,
     description: 'Select and order the KPIs you want to see on your dashboard.',
     availableTitle: (count) => `Available KPIs (${count})`,
@@ -294,18 +296,23 @@ export function KPIConfiguration({
   return (
     <>
       {/* Configuration trigger */}
-      <Button variant="outline" size="sm" onClick={onOpen} className="w-full justify-center sm:w-auto">
-        <Settings className="h-4 w-4 mr-2" />
-        {resolvedCopy.title}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onOpen}
+        className="w-full justify-center rounded-xl border-[#59C3A5] bg-[#E7F3F2] px-4 font-semibold text-[#257B68] shadow-[0_4px_14px_rgba(37,123,104,0.08)] transition-all duration-200 hover:-translate-y-px hover:border-[#59C3A5] hover:bg-[#59C3A5] hover:text-white hover:shadow-[0_8px_20px_rgba(37,123,104,0.18)] focus-visible:ring-[#59C3A5]/40 dark:border-[#59C3A5]/60 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5] dark:hover:text-white sm:w-auto"
+      >
+        <Settings className="mr-2 h-4 w-4" />
+        {resolvedCopy.triggerLabel}
       </Button>
 
       {/* Configuration modal */}
       {isOpen && (
         <DndProvider backend={HTML5Backend}>
           <div className="fixed inset-0 z-50 flex animate-in items-center justify-center bg-black/50 p-2 backdrop-blur-sm duration-200 fade-in sm:p-4">
-            <div className="flex max-h-[calc(100vh-1rem)] w-full max-w-6xl animate-in flex-col overflow-hidden rounded-xl bg-white shadow-2xl duration-200 zoom-in-95 dark:bg-gray-800 sm:max-h-[90vh]">
+            <div className="flex max-h-[calc(100vh-1rem)] w-full max-w-6xl animate-in flex-col overflow-hidden rounded-3xl border border-[#59C3A5]/35 bg-white shadow-[0_28px_80px_rgba(34,40,49,0.24)] duration-200 zoom-in-95 dark:border-[#59C3A5]/30 dark:bg-[#222831] sm:max-h-[90vh]">
               {/* Header */}
-              <div className="flex items-start justify-between gap-3 bg-[#2563EB] p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3 border-b border-[#3AAE90] bg-[#59C3A5] p-4 sm:p-6">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="shrink-0 rounded-lg bg-white/20 p-2 backdrop-blur-sm">
                     <Eye className="h-6 w-6 text-white" />
@@ -323,17 +330,18 @@ export function KPIConfiguration({
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="shrink-0 rounded-full text-white hover:bg-white/20"
+                  className="shrink-0 rounded-full text-white hover:bg-white/20 focus-visible:ring-white/70"
+                  aria-label={resolvedCopy.cancel}
                 >
                   <X className="h-5 w-5" />
                 </Button>
               </div>
 
               {/* Main content */}
-              <div className="flex-1 overflow-y-auto md:flex md:overflow-hidden">
+              <div className="flex-1 overflow-y-auto bg-[#F7F8FA] md:flex md:overflow-hidden dark:bg-[#222831]">
                 {/* Left column - available KPIs */}
-                <div className="flex min-h-[280px] w-full flex-col border-b border-gray-200 dark:border-gray-700 md:w-1/2 md:border-b-0 md:border-r">
-                  <div className="border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
+                <div className="flex min-h-[280px] w-full flex-col border-b border-[#59C3A5]/20 dark:border-[#59C3A5]/20 md:w-1/2 md:border-b-0 md:border-r">
+                  <div className="border-b border-[#59C3A5]/20 bg-white p-4 dark:bg-white/5 sm:p-6">
                     <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-3">
                       {resolvedCopy.availableTitle(filteredAvailableKPIs.length)}
                     </h3>
@@ -343,7 +351,7 @@ export function KPIConfiguration({
                         placeholder={resolvedCopy.searchPlaceholder}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
+                        className="border-[#D8DCE3] bg-[#F7F8FA] pl-10 focus-visible:border-[#59C3A5] focus-visible:ring-[#59C3A5]/25 dark:bg-[#222831]"
                       />
                     </div>
                   </div>
@@ -354,12 +362,13 @@ export function KPIConfiguration({
                         return (
                           <div
                             key={kpi.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-[#2563EB] transition-all bg-white dark:bg-gray-800/50"
+                            className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-3 transition-all hover:border-[#59C3A5] hover:shadow-sm dark:border-gray-700 dark:bg-white/5"
                           >
                             <Checkbox
                               id={kpi.id}
                               checked={tempSelectedKPIs.includes(kpi.id)}
                               onCheckedChange={() => handleToggleKPI(kpi.id)}
+                              className="data-[state=checked]:border-[#59C3A5] data-[state=checked]:bg-[#59C3A5]"
                             />
                             <div className={`w-8 h-8 rounded-lg ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center text-sm`}>
                               {kpi.moduleEmoji}
@@ -384,7 +393,7 @@ export function KPIConfiguration({
 
                 {/* Right column - selected KPIs */}
                 <div className="flex min-h-[280px] w-full flex-col md:w-1/2">
-                  <div className="border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
+                  <div className="border-b border-[#59C3A5]/20 bg-white p-4 dark:bg-white/5 sm:p-6">
                     <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
                         {resolvedCopy.selectedTitle(orderedKPIs.length)}
@@ -393,7 +402,7 @@ export function KPIConfiguration({
                         variant="outline"
                         size="sm"
                         onClick={handleReset}
-                        className="w-full text-xs sm:w-auto"
+                        className="w-full border-[#D8DCE3] text-xs hover:border-[#59C3A5]/50 hover:bg-[#E7F3F2] sm:w-auto"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
                         {resolvedCopy.reset}
@@ -432,15 +441,15 @@ export function KPIConfiguration({
               </div>
 
               {/* Footer */}
-              <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex flex-col gap-3 border-t border-[#3AAE90] bg-[#59C3A5] p-4 text-white sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <p className="text-sm font-medium text-white/90">
                   {resolvedCopy.summary(orderedKPIs.length, availableKPIs.length)}
                 </p>
                 <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-                  <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+                  <Button variant="outline" onClick={onClose} className="w-full border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white sm:w-auto">
                     {resolvedCopy.cancel}
                   </Button>
-                  <Button onClick={handleSave} className="w-full bg-[#2563EB] text-white hover:bg-[#1D4ED8] sm:w-auto">
+                  <Button onClick={handleSave} className="w-full bg-white text-[#147514] hover:bg-white/90 sm:w-auto">
                     <Save className="h-4 w-4 mr-2" />
                     {resolvedCopy.save}
                   </Button>

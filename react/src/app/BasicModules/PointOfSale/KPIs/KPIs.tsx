@@ -22,6 +22,7 @@ import {
   type PosKpiAnalytics,
   type PosKpiPeriod,
 } from './utils/posKpiAnalytics';
+import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
 
 type MetricTone = 'orange' | 'emerald' | 'blue' | 'purple' | 'red';
 
@@ -34,6 +35,7 @@ const toneClasses: Record<MetricTone, string> = {
 };
 
 export default function KPIs() {
+  const { convertToPreferred, formatPreferred, preferredCurrency, rateContext } = useCurrencyAwareMoney();
   const [period, setPeriod] = useState<PosKpiPeriod>('today');
   const {
     rows,
@@ -51,13 +53,11 @@ export default function KPIs() {
     details,
     period,
     totalCount,
-  }), [details, period, rows, totalCount]);
+    preferredCurrency,
+    convertAmount: convertToPreferred,
+  }), [convertToPreferred, details, period, preferredCurrency, rows, totalCount]);
 
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: analytics.primaryCurrency,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  const formatCurrency = (amount: number) => formatPreferred(amount, preferredCurrency);
 
   const maxHourlySales = Math.max(...analytics.hourlySales.map((entry) => entry.sales), 0);
   const hasDifference = Math.abs(analytics.netDifference) >= 1;
@@ -140,6 +140,16 @@ export default function KPIs() {
         <MetricCard icon={Scale} label="Diferencia caja" value={`${analytics.netDifference > 0 ? '+' : ''}${formatCurrency(analytics.netDifference)}`} detail={`${analytics.overShortRate.toFixed(1)}% sobre efectivo`} tone={hasDifference ? 'red' : 'emerald'} />
       </section>
 
+      {analytics.closings > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300">
+          <span className="rounded-full border border-[#59C3A5]/25 bg-[#E7F3F2] px-3 py-1 text-[#257B68] dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">
+            Totales en {preferredCurrency}
+          </span>
+          <span>{rateContext.label} · {rateContext.effectiveDate}</span>
+          {analytics.primaryCurrency !== preferredCurrency ? <span>Origen: {analytics.primaryCurrency}</span> : null}
+        </div>
+      ) : null}
+
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <MetricCard icon={TrendingUp} label="Efectivo esperado" value={formatCurrency(analytics.expectedCash)} detail="Calculado por backend" tone="blue" />
         <MetricCard icon={Package} label="Efectivo contado" value={formatCurrency(analytics.countedCash)} detail="Reportado en cierres" tone="purple" />
@@ -165,7 +175,7 @@ export default function KPIs() {
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <TopList title="Cajas con venta" icon={Users} rows={analytics.topCashRegisters} formatValue={formatCurrency} emptyText="Sin cierres por caja en el periodo" />
         <TopList title="Almacenes POS" icon={Package} rows={analytics.topWarehouses} formatValue={formatCurrency} emptyText="Sin cierres por almacen en el periodo" />
-        <CurrencyPanel totals={analytics.currencyTotals} formatCurrency={formatCurrency} primaryCurrency={analytics.primaryCurrency} />
+        <CurrencyPanel totals={analytics.currencyTotals} formatCurrency={formatCurrency} primaryCurrency={preferredCurrency} />
       </section>
     </div>
   );

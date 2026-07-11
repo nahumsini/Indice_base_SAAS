@@ -1,4 +1,4 @@
-import { Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
+import { Check, Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -26,6 +26,7 @@ interface HeaderProps {
 }
 
 const USER_PROFILE_UPDATED_EVENT = 'indice:user-profile-updated';
+const HEADER_ACTION_BUTTON_CLASSES = 'h-10 w-10 rounded-full border border-transparent text-[#4B5563] transition-all hover:border-[#59C3A5]/35 hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:border-[#59C3A5]/45 dark:hover:bg-white/10 dark:hover:text-white';
 
 const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
   return [
@@ -126,19 +127,9 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     }
   };
   
-  const currentDate = new Date().toLocaleDateString(currentLanguage.code, { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-  const currentTime = new Date().toLocaleTimeString(currentLanguage.code, { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-
   const unreadCount = notifications.summary?.unread_count ?? 0;
   const showPreferredCurrencyControl = [
+    '/dashboard',
     '/expenses',
     '/human-resources/collaborators',
     '/human-resources/payroll',
@@ -156,6 +147,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     .map((part) => part[0])
     .join('')
     .toUpperCase() || 'U';
+  const currentUserPrimaryName = currentUserName.trim().split(/\s+/)[0] || 'User';
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -211,7 +203,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   };
 
   return (
-    <header className="bg-gradient-to-r from-[#e8ebff] via-[#f6f0e5] to-[#ddf7ed] dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5 shadow-sm transition-colors">
+    <header className="border-b border-[#D8DCE3] bg-[#E7F3F2] px-4 py-3 shadow-sm transition-colors dark:border-[#3A424E] dark:bg-[#222831] sm:px-8">
       <div className="max-w-[1600px] mx-auto">
         {/* Layout móvil y desktop */}
         <div className="flex items-center justify-between gap-3">
@@ -232,21 +224,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <span className="hidden sm:inline">{getGreetingIcon()}</span>
-                <span className="truncate">{getGreeting()}, <span className="hidden sm:inline">{currentUserName}</span><span className="sm:hidden">{currentUserName.split(' ')[0] || currentUserName}</span></span>
+                <span className="truncate">{getGreeting()}, {currentUserPrimaryName}</span>
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1 capitalize truncate">
-                {currentDate} • {currentTime}
-              </p>
             </div>
           </div>
 
           {/* Sección derecha - Acciones */}
-          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-            {showPreferredCurrencyControl ? (
-              <div className="hidden lg:flex">
-                <PreferredCurrencyControl />
-              </div>
-            ) : null}
+          <div className="flex flex-shrink-0 items-center gap-2">
+            {showPreferredCurrencyControl ? <PreferredCurrencyControl /> : null}
 
             {/* Notificaciones */}
             <NotificationMenu
@@ -263,9 +248,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             {/* Selector de idioma */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 relative h-9 w-9 sm:h-10 sm:w-10">
-                  <span className="absolute -top-1 -right-1 text-xs sm:text-sm">{currentLanguage.flag}</span>
-                  <Globe className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-300" />
+                <Button
+                  variant="ghost"
+                  className="h-10 min-w-14 gap-1.5 rounded-full border border-transparent px-2 text-[#4B5563] transition-all hover:border-[#59C3A5]/35 hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:border-[#59C3A5]/45 dark:hover:bg-white/10 dark:hover:text-white"
+                  aria-label={currentLanguage.name}
+                  title={currentLanguage.name}
+                >
+                  <Globe className="h-[18px] w-[18px]" />
+                  <span className="text-lg leading-none" aria-hidden="true">{currentLanguage.flag}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -273,10 +263,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   <DropdownMenuItem
                     key={language.code}
                     onClick={() => setCurrentLanguage(language)}
-                    className={currentLanguage.code === language.code ? 'bg-gray-100' : ''}
+                    className={`flex cursor-pointer items-center gap-2 ${currentLanguage.code === language.code ? 'bg-[#E7F3F2] focus:bg-[#E7F3F2] dark:bg-[#59C3A5]/15 dark:focus:bg-[#59C3A5]/20' : ''}`}
                   >
-                    <span className="text-xl mr-2">{language.flag}</span>
-                    {language.name}
+                    <span className="text-xl" aria-hidden="true">{language.flag}</span>
+                    <span className="min-w-0 flex-1">{language.name}</span>
+                    {currentLanguage.code === language.code ? (
+                      <Check className="h-4 w-4 shrink-0 text-[#3AAE90]" aria-hidden="true" />
+                    ) : null}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -286,13 +279,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             <Button 
               variant="ghost" 
               size="icon" 
-              className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 h-9 w-9 sm:h-10 sm:w-10"
+              className={`${HEADER_ACTION_BUTTON_CLASSES} ${darkMode ? 'border-[#59C3A5]/50 bg-white/75 dark:bg-white/10' : ''}`}
               onClick={onToggleDarkMode}
+              aria-pressed={darkMode}
             >
               {darkMode ? (
-                <Sun className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-300" />
+                <Sun className="h-5 w-5" />
               ) : (
-                <Moon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-300" />
+                <Moon className="h-5 w-5" />
               )}
             </Button>
 
@@ -300,22 +294,45 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             <Button 
               variant="ghost" 
               size="icon" 
-              className="hidden sm:flex rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={`hidden sm:flex ${HEADER_ACTION_BUTTON_CLASSES} ${learningModeActive ? 'border-[#59C3A5]/50 bg-white/75 dark:bg-white/10' : ''}`}
               onClick={onToggleLearningMode}
+              aria-label={t.header.learningMode}
+              aria-pressed={learningModeActive}
+              title={t.header.learningMode}
             >
-              <GraduationCap className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+              <GraduationCap className="h-5 w-5" />
             </Button>
 
             {/* User profile */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors h-9 w-9 sm:h-10 sm:w-10">
-                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-300" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`${HEADER_ACTION_BUTTON_CLASSES} overflow-hidden bg-white/70`}
+                  aria-label={t.header.profile}
+                  title={t.header.profile}
+                >
+                  {currentUserAvatarUrl ? (
+                    <img
+                      src={currentUserAvatarUrl}
+                      alt=""
+                      onError={() => setCurrentUserAvatarUrl('')}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-semibold text-[#2563EB] dark:text-blue-300">
+                      {currentUserInitials}
+                    </span>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-0">
+              <DropdownMenuContent
+                align="end"
+                className="w-64 overflow-hidden rounded-2xl border border-[#59C3A5]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[#59C3A5]/30 dark:bg-[#222831]"
+              >
                 {/* Profile header */}
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-[#2563EB]">
+                <div className="border-b border-[#3AAE90] bg-[#59C3A5] p-4">
                   <div className="flex items-center gap-3">
                     {currentUserAvatarUrl ? (
                       <img
@@ -341,32 +358,34 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 </div>
                 
                 {/* Menu options */}
-                <div className="py-1">
-                  <DropdownMenuItem className="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <div className="bg-white py-1 dark:bg-[#222831]">
+                  <DropdownMenuItem className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                     <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.profile}</span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-0" />
-                  <DropdownMenuItem className="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
+                  <DropdownMenuItem className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                     <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.settings}</span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-0" />
+                  <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
                   {/* Operational journey on mobile - menu only */}
                   <DropdownMenuItem 
-                    className="sm:hidden px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10 sm:hidden"
                     onClick={onToggleLearningMode}
                   >
                     <GraduationCap className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.learningMode}</span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="sm:hidden my-0" />
+                  <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
+                </div>
+                <div className="border-t border-[#59C3A5]/25 bg-[#E7F3F2] p-3 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10">
                   <DropdownMenuItem
-                    className="px-4 py-3 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20"
+                    className="cursor-pointer justify-center rounded-xl px-3 py-2 text-center hover:bg-white/70 focus:bg-white/70 dark:hover:bg-white/10 dark:focus:bg-white/10"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                   >
-                    <span className="text-sm font-medium text-red-600 dark:text-red-400">{t.header.logout}</span>
+                    <span className="text-sm font-semibold text-red-600 dark:text-red-400">{t.header.logout}</span>
                   </DropdownMenuItem>
                 </div>
               </DropdownMenuContent>
@@ -374,11 +393,6 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
           </div>
         </div>
 
-        {showPreferredCurrencyControl ? (
-          <div className="mt-3 flex lg:hidden">
-            <PreferredCurrencyControl />
-          </div>
-        ) : null}
       </div>
 
       {/* Centro de Notificaciones Modal */}

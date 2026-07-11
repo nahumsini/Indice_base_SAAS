@@ -208,6 +208,7 @@ export const esMX = {
   },
   kpis: {
     weeklyRevenue: { title: 'Ventas Semanales', change: '+6% vs semana anterior' },
+    dailyExchangeRate: { title: 'Tipo de cambio del día', change: 'Referencia diaria', fallback: 'Última tasa disponible' },
     netProfit: { title: 'Utilidad Neta', change: '+12% este mes' },
     activeClients: { title: 'Clientes Activos', change: '+18 nuevos' },
     activeEmployees: { title: 'Colaboradores Activos', change: '+2 este mes' },
@@ -255,6 +256,7 @@ export const esMX = {
     action: 'Configurar KPIs',
   },
   kpiConfiguration: {
+    triggerLabel: 'Personalizar KPIs',
     title: 'Configurar KPIs',
     description: 'Selecciona y ordena los KPIs que quieres ver en tu panel.',
     availableTitle: (count: number) => `KPIs disponibles (${count})`,

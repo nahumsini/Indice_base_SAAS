@@ -93,7 +93,7 @@ export function MainDashboard({
     () => sortBasicModulesForOperationalLauncher(mainModules),
     [mainModules],
   );
-  const standardBasicModules = learningModeActive ? mainModules : operationalLauncherModules;
+  const standardBasicModules = operationalLauncherModules;
   const complementaryModules = useMemo(
     () => availableModules.filter((module) => module.category === 'complementary'),
     [availableModules],
