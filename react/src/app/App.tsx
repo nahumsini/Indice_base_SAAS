@@ -258,9 +258,10 @@ function Dashboard({
       {/* Sección Favoritos - Solo visible cuando Modo Aprendiz está desactivado */}
       {!isGuidedLearningVisible && favoriteModules.length > 0 && (
         <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              ⭐ {t.sections.favorites}
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+              <span className="text-lg leading-none" aria-hidden="true">⭐</span>
+              <span>{t.sections.favorites}</span>
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.quickAccess}</span>
           </div>
@@ -281,9 +282,10 @@ function Dashboard({
 
       {/* Sección Módulos Principales */}
       <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            🏢 {t.sections.basicModules}
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+            <span className="text-lg leading-none" aria-hidden="true">⚙️</span>
+            <span>{t.sections.basicModules}</span>
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.main}</span>
         </div>
@@ -305,9 +307,10 @@ function Dashboard({
 
       {/* Sección Módulos Complementarios */}
       <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            🔧 {t.sections.complementaryModules}
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+            <span className="text-lg leading-none" aria-hidden="true">🧰</span>
+            <span>{t.sections.complementaryModules}</span>
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.additional}</span>
         </div>
@@ -327,9 +330,10 @@ function Dashboard({
 
       {/* Sección Módulos de IA */}
       <section className="pb-10">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            🤖 {t.sections.aiModules}
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+            <span className="text-lg leading-none" aria-hidden="true">🤖</span>
+            <span>{t.sections.aiModules}</span>
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.aiLabel}</span>
         </div>

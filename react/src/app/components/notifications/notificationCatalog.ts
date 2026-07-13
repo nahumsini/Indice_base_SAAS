@@ -304,6 +304,18 @@ const notificationTitles = {
     sales_invoice_overdue: 'Factura vencida',
     sales_customer_activity: 'Actividad de cliente',
   },
+  fr: {
+    general: 'Nouvelle notification', urgent: 'Communication urgente', reminder: 'Rappel', celebration: 'Nouvelle réussite', task_assigned: 'Tâche assignée', task_reassigned: 'Tâche réassignée', task_due_today: 'Tâche à remettre aujourd’hui', task_overdue: 'Tâche en retard', task_pending_audit: 'Tâche en attente de révision', task_audited: 'Tâche révisée', expense_submitted: 'Dépense soumise', expense_pending_approval: 'Dépense en attente d’approbation', expense_due: 'Paiement de dépense exigible', expense_paid: 'Dépense payée', pos_shift_opened: 'Quart de caisse ouvert', pos_shift_closed: 'Quart de caisse fermé', pos_stock_low: 'Stock faible', pos_purchase_pending: 'Achat en attente', sales_quote_follow_up: 'Suivi de soumission', sales_order_ready: 'Commande prête', sales_invoice_overdue: 'Facture en retard', sales_customer_activity: 'Activité client',
+  },
+  pt: {
+    general: 'Nova notificação', urgent: 'Comunicado urgente', reminder: 'Lembrete', celebration: 'Nova conquista', task_assigned: 'Tarefa atribuída', task_reassigned: 'Tarefa reatribuída', task_due_today: 'Tarefa vence hoje', task_overdue: 'Tarefa atrasada', task_pending_audit: 'Tarefa aguardando revisão', task_audited: 'Tarefa revisada', expense_submitted: 'Despesa enviada', expense_pending_approval: 'Despesa aguardando aprovação', expense_due: 'Pagamento de despesa pendente', expense_paid: 'Despesa paga', pos_shift_opened: 'Turno de caixa aberto', pos_shift_closed: 'Turno de caixa fechado', pos_stock_low: 'Estoque baixo', pos_purchase_pending: 'Compra pendente', sales_quote_follow_up: 'Acompanhamento de cotação', sales_order_ready: 'Pedido pronto', sales_invoice_overdue: 'Fatura vencida', sales_customer_activity: 'Atividade do cliente',
+  },
+  ko: {
+    general: '새 알림', urgent: '긴급 공지', reminder: '알림', celebration: '새 성과', task_assigned: '작업 배정됨', task_reassigned: '작업 재배정됨', task_due_today: '오늘 마감 작업', task_overdue: '기한이 지난 작업', task_pending_audit: '검토 대기 작업', task_audited: '검토된 작업', expense_submitted: '비용 제출됨', expense_pending_approval: '승인 대기 비용', expense_due: '비용 지급 기한', expense_paid: '비용 지급 완료', pos_shift_opened: 'POS 근무 시작', pos_shift_closed: 'POS 근무 종료', pos_stock_low: '재고 부족', pos_purchase_pending: '구매 대기', sales_quote_follow_up: '견적 후속 조치', sales_order_ready: '판매 주문 준비 완료', sales_invoice_overdue: '기한이 지난 송장', sales_customer_activity: '고객 활동',
+  },
+  zh: {
+    general: '新通知', urgent: '紧急公告', reminder: '提醒', celebration: '新成就', task_assigned: '已分配任务', task_reassigned: '已重新分配任务', task_due_today: '任务今日到期', task_overdue: '任务已逾期', task_pending_audit: '任务待审核', task_audited: '任务已审核', expense_submitted: '费用已提交', expense_pending_approval: '费用待批准', expense_due: '费用付款到期', expense_paid: '费用已支付', pos_shift_opened: 'POS 班次已开始', pos_shift_closed: 'POS 班次已结束', pos_stock_low: '库存不足', pos_purchase_pending: '采购待处理', sales_quote_follow_up: '报价跟进', sales_order_ready: '销售订单已就绪', sales_invoice_overdue: '发票已逾期', sales_customer_activity: '客户动态',
+  },
 } as const;
 
 const spanishModuleLabels: Record<string, { label: string; shortLabel: string }> = {
@@ -314,6 +326,23 @@ const spanishModuleLabels: Record<string, { label: string; shortLabel: string }>
   sales: { label: 'Ventas', shortLabel: 'Ventas' },
   point_of_sale: { label: 'Punto de venta', shortLabel: 'PDV' },
 };
+
+const localizedModuleLabels: Record<string, Record<string, { label: string; shortLabel: string }>> = {
+  es: spanishModuleLabels,
+  fr: { human_resources: { label: 'Ressources humaines', shortLabel: 'RH' }, processes_tasks: { label: 'Processus et tâches', shortLabel: 'Tâches' }, finance: { label: 'Finances', shortLabel: 'Finances' }, expenses: { label: 'Dépenses', shortLabel: 'Dépenses' }, sales: { label: 'Ventes', shortLabel: 'Ventes' }, point_of_sale: { label: 'Point de vente', shortLabel: 'PDV' } },
+  pt: { human_resources: { label: 'Recursos Humanos', shortLabel: 'RH' }, processes_tasks: { label: 'Processos e tarefas', shortLabel: 'Tarefas' }, finance: { label: 'Finanças', shortLabel: 'Finanças' }, expenses: { label: 'Despesas', shortLabel: 'Despesas' }, sales: { label: 'Vendas', shortLabel: 'Vendas' }, point_of_sale: { label: 'Ponto de venda', shortLabel: 'PDV' } },
+  ko: { human_resources: { label: '인사 관리', shortLabel: '인사' }, processes_tasks: { label: '프로세스 및 작업', shortLabel: '작업' }, finance: { label: '재무', shortLabel: '재무' }, expenses: { label: '비용', shortLabel: '비용' }, sales: { label: '영업', shortLabel: '영업' }, point_of_sale: { label: '판매 시점', shortLabel: 'POS' } },
+  zh: { human_resources: { label: '人力资源', shortLabel: '人力' }, processes_tasks: { label: '流程和任务', shortLabel: '任务' }, finance: { label: '财务', shortLabel: '财务' }, expenses: { label: '费用', shortLabel: '费用' }, sales: { label: '销售', shortLabel: '销售' }, point_of_sale: { label: '销售点', shortLabel: 'POS' } },
+};
+
+function notificationLanguage(locale: string): keyof typeof notificationTitles {
+  if (locale.startsWith('es')) return 'es';
+  if (locale.startsWith('fr')) return 'fr';
+  if (locale.startsWith('pt')) return 'pt';
+  if (locale.startsWith('ko')) return 'ko';
+  if (locale.startsWith('zh')) return 'zh';
+  return 'en';
+}
 
 const spanishPreferenceDescriptions: Record<string, string> = {
   general: 'Comunicados dirigidos a la empresa, unidad, departamento o colaborador.',
@@ -339,32 +368,35 @@ const spanishPreferenceDescriptions: Record<string, string> = {
   sales_customer_activity: 'Se registró actividad comercial relevante de un cliente.',
 };
 
-export function localizeNotificationModule(moduleMeta: NotificationModuleMeta, locale: string) {
-  if (!locale.toLowerCase().startsWith('es')) {
-    return moduleMeta;
-  }
+const preferenceDescriptionFallbacks: Partial<Record<keyof typeof notificationTitles, string>> = {
+  fr: 'Consultez cet événement et effectuez l’action opérationnelle requise.',
+  pt: 'Revise este evento e realize a ação operacional necessária.',
+  ko: '이 이벤트를 확인하고 필요한 운영 조치를 수행하세요.',
+  zh: '请查看此事件并完成所需的运营操作。',
+};
 
-  const localizedLabels = spanishModuleLabels[moduleMeta.slug];
+export function localizeNotificationModule(moduleMeta: NotificationModuleMeta, locale: string) {
+  const localizedLabels = localizedModuleLabels[notificationLanguage(locale)]?.[moduleMeta.slug];
   return localizedLabels ? { ...moduleMeta, ...localizedLabels } : moduleMeta;
 }
 
 export function getLocalizedNotificationPreferenceGroups(locale: string): NotificationPreferenceGroup[] {
-  if (!locale.toLowerCase().startsWith('es')) {
-    return notificationPreferenceGroups;
-  }
+  const language = notificationLanguage(locale);
 
   return notificationPreferenceGroups.map((group) => ({
     module: localizeNotificationModule(group.module, locale),
     items: group.items.map((item) => ({
       ...item,
-      label: notificationTitles.es[item.eventType as keyof typeof notificationTitles.es] ?? item.label,
-      description: spanishPreferenceDescriptions[item.eventType] ?? item.description,
+      label: notificationTitles[language][item.eventType as keyof typeof notificationTitles.en] ?? item.label,
+      description: language === 'es'
+        ? spanishPreferenceDescriptions[item.eventType] ?? item.description
+        : preferenceDescriptionFallbacks[language] ?? item.description,
     })),
   }));
 }
 
 export function getNotificationDisplayTitle(notification: AppNotification, locale: string) {
-  const language = locale.toLowerCase().startsWith('es') ? 'es' : 'en';
+  const language = notificationLanguage(locale);
   const subtype = notification.source_subtype as keyof typeof notificationTitles.en;
   const catalogTitle = notificationTitles[language][subtype];
 

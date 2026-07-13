@@ -1,5 +1,5 @@
 import { Check, Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import type { AppNotification } from '../api/notifications';
 import { NotificationMenu } from './notifications/NotificationMenu';
 import { useNotifications } from './notifications/useNotifications';
 import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurrencyControl';
+import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -40,8 +41,8 @@ const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
 
 export function Header({ learningModeActive, onToggleLearningMode, darkMode, onToggleDarkMode }: HeaderProps) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const { currentLanguage, setCurrentLanguage, t } = useLanguage();
+  const { currentLanguage, setCurrentLanguage } = useLanguage();
+  const { copy } = useHeaderTranslations();
   const currentHour = new Date().getHours();
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
@@ -97,11 +98,11 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   
   const getGreeting = () => {
     if (currentHour >= 6 && currentHour < 12) {
-      return currentLanguage.greetings.morning;
+      return copy.greetings.morning;
     } else if (currentHour >= 12 && currentHour < 19) {
-      return currentLanguage.greetings.afternoon;
+      return copy.greetings.afternoon;
     } else {
-      return currentLanguage.greetings.evening;
+      return copy.greetings.evening;
     }
   };
   
@@ -128,18 +129,6 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   };
   
   const unreadCount = notifications.summary?.unread_count ?? 0;
-  const showPreferredCurrencyControl = [
-    '/dashboard',
-    '/expenses',
-    '/human-resources/collaborators',
-    '/human-resources/payroll',
-    '/human-resources/assets',
-    '/human-resources/incentives',
-    '/human-resources/kpis',
-    '/point-of-sale',
-    '/sales',
-    '/receivables',
-  ].some((pathPrefix) => pathname.startsWith(pathPrefix));
   const currentUserInitials = currentUserName
     .split(/\s+/)
     .filter(Boolean)
@@ -231,7 +220,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
 
           {/* Sección derecha - Acciones */}
           <div className="flex flex-shrink-0 items-center gap-2">
-            {showPreferredCurrencyControl ? <PreferredCurrencyControl /> : null}
+            <PreferredCurrencyControl />
 
             {/* Notificaciones */}
             <NotificationMenu
@@ -251,7 +240,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 <Button
                   variant="ghost"
                   className="h-10 min-w-14 gap-1.5 rounded-full border border-transparent px-2 text-[#4B5563] transition-all hover:border-[#59C3A5]/35 hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:border-[#59C3A5]/45 dark:hover:bg-white/10 dark:hover:text-white"
-                  aria-label={currentLanguage.name}
+                  aria-label={`${copy.actions.language}: ${currentLanguage.name}`}
                   title={currentLanguage.name}
                 >
                   <Globe className="h-[18px] w-[18px]" />
@@ -282,6 +271,8 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               className={`${HEADER_ACTION_BUTTON_CLASSES} ${darkMode ? 'border-[#59C3A5]/50 bg-white/75 dark:bg-white/10' : ''}`}
               onClick={onToggleDarkMode}
               aria-pressed={darkMode}
+              aria-label={darkMode ? copy.actions.lightMode : copy.actions.darkMode}
+              title={darkMode ? copy.actions.lightMode : copy.actions.darkMode}
             >
               {darkMode ? (
                 <Sun className="h-5 w-5" />
@@ -296,9 +287,9 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               size="icon" 
               className={`hidden sm:flex ${HEADER_ACTION_BUTTON_CLASSES} ${learningModeActive ? 'border-[#59C3A5]/50 bg-white/75 dark:bg-white/10' : ''}`}
               onClick={onToggleLearningMode}
-              aria-label={t.header.learningMode}
+              aria-label={copy.actions.learningMode}
               aria-pressed={learningModeActive}
-              title={t.header.learningMode}
+              title={copy.actions.learningMode}
             >
               <GraduationCap className="h-5 w-5" />
             </Button>
@@ -310,8 +301,8 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   variant="ghost"
                   size="icon"
                   className={`${HEADER_ACTION_BUTTON_CLASSES} overflow-hidden bg-white/70`}
-                  aria-label={t.header.profile}
-                  title={t.header.profile}
+                  aria-label={copy.actions.profile}
+                  title={copy.actions.profile}
                 >
                   {currentUserAvatarUrl ? (
                     <img
@@ -359,14 +350,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 
                 {/* Menu options */}
                 <div className="bg-white py-1 dark:bg-[#222831]">
-                  <DropdownMenuItem className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                  <DropdownMenuItem onClick={() => navigate('/home-panel/profile')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                     <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.profile}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.profile}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
-                  <DropdownMenuItem className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                  <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                     <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.settings}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
                   {/* Operational journey on mobile - menu only */}
@@ -375,7 +366,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                     onClick={onToggleLearningMode}
                   >
                     <GraduationCap className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.header.learningMode}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.learningMode}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
                 </div>
@@ -385,7 +376,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                   >
-                    <span className="text-sm font-semibold text-red-600 dark:text-red-400">{t.header.logout}</span>
+                    <span className="text-sm font-semibold text-red-600 dark:text-red-400">{isLoggingOut ? copy.actions.loggingOut : copy.actions.logout}</span>
                   </DropdownMenuItem>
                 </div>
               </DropdownMenuContent>

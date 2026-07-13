@@ -8751,7 +8751,7 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
-const defaultLanguageCode = 'en-US';
+const defaultLanguageCode = 'en-CA';
 const languageStorageKey = 'frontend-indice-language';
 
 const getLanguageByCode = (code?: string) =>

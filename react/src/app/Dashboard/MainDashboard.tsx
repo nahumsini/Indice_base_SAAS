@@ -196,7 +196,7 @@ export function MainDashboard({
         />
       ) : (
         <ModuleSection
-          icon="🏢"
+          icon="⚙️"
           title={copy.sections.basicModules}
           label={copy.sections.main}
           modules={standardBasicModules}
@@ -215,7 +215,7 @@ export function MainDashboard({
       )}
 
       <ModuleSection
-        icon="🔧"
+        icon="🧰"
         title={copy.sections.complementaryModules}
         label={copy.sections.additional}
         modules={complementaryModules}

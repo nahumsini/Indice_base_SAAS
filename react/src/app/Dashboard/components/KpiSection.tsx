@@ -34,10 +34,11 @@ export function KpiSection({
 }: KpiSectionProps) {
   return (
     <section>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">
-            📊 {title}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
+            <span className="text-lg leading-none" aria-hidden="true">📊</span>
+            <span>{title}</span>
           </h2>
           {kpis.length > 0 && (
             <span className="bg-[#2563EB] text-white text-sm font-medium px-3 py-1 rounded-full">
