@@ -125,30 +125,30 @@ export const pettyCashSettlementLineStatusLabels: Record<PettyCashSettlementLine
 };
 
 export const pettyCashFundStatusClasses: Record<PettyCashFundStatus, string> = {
-  OPEN: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  LOW_BALANCE: 'border-amber-200 bg-amber-50 text-amber-700',
-  NEEDS_RECONCILIATION: 'border-sky-200 bg-sky-50 text-sky-700',
-  CLOSED: 'border-slate-200 bg-slate-50 text-slate-600',
+  OPEN: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+  LOW_BALANCE: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+  NEEDS_RECONCILIATION: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+  CLOSED: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
 export const pettyCashStatementStatusClasses: Record<PettyCashStatementStatus, string> = {
-  OPEN: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  CUT_PENDING: 'border-amber-200 bg-amber-50 text-amber-700',
-  PARTIALLY_SETTLED: 'border-sky-200 bg-sky-50 text-sky-700',
-  SETTLED: 'border-green-200 bg-green-50 text-green-700',
-  SHORTAGE: 'border-red-200 bg-red-50 text-red-700',
-  FORGIVEN_SHORTAGE: 'border-violet-200 bg-violet-50 text-violet-700',
-  CHARGED_TO_EMPLOYEE: 'border-orange-200 bg-orange-50 text-orange-700',
-  TRANSFERRED_TO_NEXT_CUT: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-  CLOSED: 'border-slate-200 bg-slate-50 text-slate-600',
+  OPEN: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+  CUT_PENDING: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+  PARTIALLY_SETTLED: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+  SETTLED: 'border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200',
+  SHORTAGE: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200',
+  FORGIVEN_SHORTAGE: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200',
+  CHARGED_TO_EMPLOYEE: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200',
+  TRANSFERRED_TO_NEXT_CUT: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200',
+  CLOSED: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
 export const pettyCashSettlementLineStatusClasses: Record<PettyCashSettlementLineStatus, string> = {
-  DRAFT: 'border-slate-200 bg-slate-50 text-slate-600',
-  RECEIPT_ATTACHED: 'border-sky-200 bg-sky-50 text-sky-700',
-  VALIDATED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  EXPENSE_CREATED: 'border-green-200 bg-green-50 text-green-700',
-  REJECTED: 'border-red-200 bg-red-50 text-red-700',
+  DRAFT: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  RECEIPT_ATTACHED: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+  VALIDATED: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+  EXPENSE_CREATED: 'border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200',
+  REJECTED: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200',
 };
 
 export function getPettyCashSummary(expenses: PettyCashExpense[]) {

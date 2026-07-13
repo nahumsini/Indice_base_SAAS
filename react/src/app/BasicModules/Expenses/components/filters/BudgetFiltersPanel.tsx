@@ -28,7 +28,7 @@ type BudgetFiltersPanelProps = {
   onSearchChange: (value: string) => void;
 };
 
-const filterInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
+const filterInputClass = 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function BudgetFiltersPanel({
   accountingAccountFilter,
@@ -56,10 +56,10 @@ export function BudgetFiltersPanel({
   const t = useBudgetsTranslations();
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
             <SlidersHorizontal className="h-4 w-4" />
           </span>
           <div>

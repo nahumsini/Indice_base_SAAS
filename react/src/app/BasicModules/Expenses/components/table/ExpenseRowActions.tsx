@@ -55,7 +55,7 @@ export function ExpenseRowActions({
         <Pencil className="h-4 w-4 text-amber-600" />
       </ActionButton>
       {showCreatePayable && onCreatePayable ? (
-        <ActionButton label="Crear CxP" colorClass="border-cyan-200 bg-cyan-50/80 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-300" onClick={() => onCreatePayable(expenseId)}>
+        <ActionButton label={t.expenses.rowActions.createPayable} colorClass="border-cyan-200 bg-cyan-50/80 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-300" onClick={() => onCreatePayable(expenseId)}>
           <FilePlus2 className="h-4 w-4 text-cyan-600" />
         </ActionButton>
       ) : null}
@@ -65,7 +65,7 @@ export function ExpenseRowActions({
         </ActionButton>
       )}
       {showMarkPaid && (
-        <ActionButton label={t.statuses.paid} colorClass="border-[#147514]/25 bg-[#147514]/12 text-[#147514] hover:bg-[#147514]/18 dark:border-[#147514]/35 dark:bg-[#147514]/15" onClick={() => onMarkPaid(expenseId)}>
+        <ActionButton label={t.expenses.rowActions.markPaid} colorClass="border-[#147514]/25 bg-[#147514]/12 text-[#147514] hover:bg-[#147514]/18 dark:border-[#147514]/35 dark:bg-[#147514]/15" onClick={() => onMarkPaid(expenseId)}>
           <CheckCircle2 className="h-4 w-4 text-emerald-600" />
         </ActionButton>
       )}

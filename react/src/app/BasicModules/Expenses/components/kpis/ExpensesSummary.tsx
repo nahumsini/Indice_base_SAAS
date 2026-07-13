@@ -85,21 +85,21 @@ export function ExpensesSummary({
 
   const openPaymentCount = expenses.filter(expense => getExpenseBalance(expense) > 0 && getEffectiveExpenseStatus(expense) !== 'paid').length;
   const insight = totals.overdueCount > 0
-    ? `${totals.overdueCount} ${totals.overdueCount === 1 ? 'cuenta vencida requiere' : 'cuentas vencidas requieren'} atención; saldo vencido ${overdueAmountLabel}.`
+    ? t.expenses.summary.insightOverdue(totals.overdueCount, overdueAmountLabel)
     : openPaymentCount > 0
-      ? `Hay ${openPaymentCount} ${openPaymentCount === 1 ? 'cuenta con saldo abierto' : 'cuentas con saldo abierto'}; cumplimiento actual ${paidPercentage.toFixed(0)}%.`
-      : 'Todas las cuentas visibles están pagadas o auditadas.';
+      ? t.expenses.summary.insightOpenBalance(openPaymentCount, paidPercentage.toFixed(0))
+      : t.expenses.summary.insightAllSettled;
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <Metric icon={<ReceiptText className="h-4 w-4" />} label={`Total visible · ${expenses.length}`} value={totalAmountLabel} />
-            <Metric icon={<CheckCircle2 className="h-4 w-4" />} label="Pagado" value={paidAmountLabel} valueClassName="text-[#147514]" />
-            <Metric icon={<CircleDollarSign className="h-4 w-4" />} label="Saldo por pagar" value={openAmountLabel} valueClassName="text-amber-600 dark:text-amber-400" />
-            <Metric icon={<Clock3 className="h-4 w-4" />} label="Vencido" value={overdueAmountLabel} valueClassName="text-rose-600 dark:text-rose-400" />
-            <Metric icon={<Percent className="h-4 w-4" />} label="Cumplimiento" value={`${paidPercentage.toFixed(0)}%`} valueClassName="text-sky-600 dark:text-sky-400" />
+            <Metric icon={<ReceiptText className="h-4 w-4" />} label={t.expenses.summary.metricTotalVisible(expenses.length)} value={totalAmountLabel} />
+            <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={t.expenses.summary.metricPaid} value={paidAmountLabel} valueClassName="text-[#147514]" />
+            <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.expenses.summary.metricOpenBalance} value={openAmountLabel} valueClassName="text-amber-600 dark:text-amber-400" />
+            <Metric icon={<Clock3 className="h-4 w-4" />} label={t.expenses.summary.metricOverdue} value={overdueAmountLabel} valueClassName="text-rose-600 dark:text-rose-400" />
+            <Metric icon={<Percent className="h-4 w-4" />} label={t.expenses.summary.metricCompliance} value={`${paidPercentage.toFixed(0)}%`} valueClassName="text-sky-600 dark:text-sky-400" />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -110,17 +110,17 @@ export function ExpensesSummary({
             ) : null}
             {openPaymentCount > 0 ? (
               <AlertChip tone="warning" icon={<Clock3 className="h-3.5 w-3.5" />}>
-                {openPaymentCount} con saldo
+                {t.expenses.summary.openBalanceChip(openPaymentCount)}
               </AlertChip>
             ) : null}
             {totalAmount > 0 ? (
               <AlertChip tone={paidPercentage >= 80 ? 'success' : 'warning'} icon={<WalletCards className="h-3.5 w-3.5" />}>
-                {paidPercentage.toFixed(0)}% pagado
+                {t.expenses.summary.paidPercentageChip(paidPercentage.toFixed(0))}
               </AlertChip>
             ) : null}
             {showNativeBreakdown ? (
               <AlertChip tone="success" icon={<WalletCards className="h-3.5 w-3.5" />}>
-                Nativo: {nativeTotalAmountLabel}
+                {t.expenses.summary.metricNative}: {nativeTotalAmountLabel}
               </AlertChip>
             ) : null}
           </div>
@@ -149,7 +149,7 @@ export function ExpensesSummary({
             ))}
           </div>
           <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-slate-200">
-            {showNativeBreakdown ? `${insight} Saldo nativo: ${nativeOpenAmountLabel}.` : insight}
+            {showNativeBreakdown ? `${insight} ${t.expenses.summary.nativeBalance(nativeOpenAmountLabel)}` : insight}
           </div>
         </div>
       </div>

@@ -47,7 +47,7 @@ export function ExpensesHeader({
             className="h-11 justify-center gap-2 rounded-xl border-[#147514]/25 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none hover:bg-[#147514] hover:text-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 dark:border-emerald-400/25 dark:bg-slate-800 dark:text-white"
           >
             <Landmark className="h-4 w-4" />
-            Cuenta por pagar
+            {t.expenses.headerActions.payableAccount}
           </Button>
 
           <Button
@@ -56,7 +56,7 @@ export function ExpensesHeader({
             className="h-11 justify-center gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           >
             <Store className="h-4 w-4" />
-            Kiosko CxP
+            {t.expenses.headerActions.payablesKiosk}
           </Button>
 
           <Button

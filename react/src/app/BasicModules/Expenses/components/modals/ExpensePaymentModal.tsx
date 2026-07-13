@@ -3,6 +3,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import type { PaymentAccount } from '../../PaymentAccounts/types';
 import type { Expense } from '../../types/expenses.types';
+import { isBackendId } from '../../adapters/adapter.utils';
 import { formatCurrency } from '../../utils/expenses.utils';
 
 type ExpensePaymentModalProps = {
@@ -23,8 +24,12 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const eligiblePaymentAccounts = useMemo(() => (
-    paymentAccounts.filter(account => account.isActive && account.currency === expense.currency)
-  ), [expense.currency, paymentAccounts]);
+    paymentAccounts.filter(account => (
+      account.isActive
+      && account.currency === expense.currency
+      && (!isBackendId(expense.id) || isBackendId(account.id))
+    ))
+  ), [expense.currency, expense.id, paymentAccounts]);
   const activePaymentAccountId = eligiblePaymentAccounts.some(account => account.id === paymentAccountId) ? paymentAccountId : '';
   const selectedPaymentAccountId = activePaymentAccountId || eligiblePaymentAccounts[0]?.id || '';
   const selectedPaymentAccount = eligiblePaymentAccounts.find(account => account.id === selectedPaymentAccountId);

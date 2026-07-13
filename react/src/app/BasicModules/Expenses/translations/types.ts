@@ -143,6 +143,17 @@ export type FinanceTranslations = {
     };
     columnModalDescription: string;
     columns: Record<string, FinanceColumnCopy>;
+    confirmDelete: {
+      bulkDescription: (count: number) => string;
+      bulkItemName: (count: number) => string;
+      bulkTitle: string;
+      description: string;
+      title: string;
+    };
+    headerActions: {
+      payableAccount: string;
+      payablesKiosk: string;
+    };
     messages: {
       accountLoadFailed: string;
       created: string;
@@ -153,12 +164,14 @@ export type FinanceTranslations = {
       duplicateFailed: string;
       saved: string;
       saveFailed: string;
+      payableCreated: string;
       updateFailed: string;
     };
     quick: {
       create: string;
       currency: string;
       description: string;
+      descriptionPlaceholder: string;
       saving: string;
       title: string;
     };
@@ -193,6 +206,32 @@ export type FinanceTranslations = {
       title: string;
       total: string;
     };
+    payableAccount: {
+      attachmentDelete: string;
+      attachmentHint: string;
+      attachmentTitle: string;
+      cancel: string;
+      conceptPlaceholder: string;
+      dueDate: string;
+      evidence: string;
+      mainData: string;
+      notes: string;
+      notesPlaceholder: string;
+      provider: string;
+      save: string;
+      saving: string;
+      sectionAmount: string;
+      subtitle: string;
+      taxTotal: string;
+      title: string;
+      totalPayable: string;
+      uploadFile: string;
+      unassignedProvider: string;
+    };
+    rowActions: {
+      createPayable: string;
+      markPaid: string;
+    };
     table: {
       addAudit: string;
       addDescription: string;
@@ -210,8 +249,22 @@ export type FinanceTranslations = {
       unitFor: (folio: string) => string;
     };
     summary: {
+      filteredTotals: string;
+      metricCompliance: string;
+      metricNative: string;
+      metricOpenBalance: string;
+      metricPaid: string;
+      metricTotalVisible: (count: number) => string;
+      metricOverdue: string;
+      nativeBalance: (amount: string) => string;
+      openBalanceChip: (count: number) => string;
+      paidPercentageChip: (percentage: string) => string;
+      selectedRows: (count: number) => string;
       overdue: (count: number) => string;
       records: (count: number) => string;
+      insightAllSettled: string;
+      insightOpenBalance: (count: number, percentage: string) => string;
+      insightOverdue: (count: number, amount: string) => string;
       total: string;
     };
   };
@@ -232,6 +285,14 @@ export type FinanceTranslations = {
     period: string;
     frequencies: Record<string, string>;
     columns: Record<string, FinanceColumnCopy>;
+    confirmDelete: {
+      bulkDescription: (count: number) => string;
+      bulkItemName: (count: number) => string;
+      bulkTitle: string;
+      description: string;
+      itemNameFallback: string;
+      title: string;
+    };
     filters: {
       accountingAccount: string;
       clearSearch: string;
@@ -244,13 +305,19 @@ export type FinanceTranslations = {
       searchPlaceholder: string;
       to: string;
     };
+    table: {
+      allVisibleSelection: string;
+      selectBudgetLine: (folio: string) => string;
+    };
     summary: {
       budgetLines: (count: number) => string;
       lineCount: (count: number) => string;
       noAccountingAccount: string;
       other: string;
+      selectedRows: (count: number) => string;
       totalEstimated: string;
     };
+    healthLabels: Record<string, string>;
     messages: {
       created: (count: number) => string;
       createFailed: string;
@@ -259,10 +326,17 @@ export type FinanceTranslations = {
       emptyMessage: string;
       emptyTitle: string;
       lineSaveFailed: string;
+      payableCreated: string;
       partialSaveFailed: string;
       updated: string;
       updateFailed: string;
     };
+    rowActions: {
+      createPayable: string;
+      deleteLine: string;
+      editLine: string;
+    };
+    statusLabels: Record<string, string>;
     modal: {
       account: string;
       amount: string;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { Plus } from 'lucide-react';
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { Button } from '../../../components/ui/button';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { isBackendId } from '../adapters/adapter.utils';
@@ -78,6 +79,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const [isQuickExpenseSubmitting, setIsQuickExpenseSubmitting] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [initialExpense, setInitialExpense] = useState<Expense | null>(null);
+  const [pendingDeleteExpenseIds, setPendingDeleteExpenseIds] = useState<string[]>([]);
   const [deletingExpenseIds, setDeletingExpenseIds] = useState<Set<string>>(() => new Set());
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const deletingExpenseIdsRef = useRef<Set<string>>(new Set());
@@ -486,7 +488,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         attachmentCount: uploadedAttachments.length,
       };
       setExpenses(currentExpenses => [savedExpenseWithAttachments, ...currentExpenses]);
-      setSuccessToastMessage('Cuenta por pagar registrada.');
+      setSuccessToastMessage(t.expenses.messages.payableCreated);
       setIsPayableAccountModalOpen(false);
     } catch (error) {
       setExpenses(currentExpenses => [payableExpense, ...currentExpenses]);
@@ -507,7 +509,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     setDeletingExpenseIds(nextIds);
   };
 
-  const handleDelete = async (id: string) => {
+  const executeDelete = async (id: string) => {
     if (deletingExpenseIdsRef.current.has(id)) return;
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
@@ -543,6 +545,26 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       setExpenseDeleting(id, false);
     }
   };
+
+  const requestDeleteExpense = (id: string) => {
+    setPendingDeleteExpenseIds([id]);
+  };
+
+  const requestDeleteExpenses = (ids: string[]) => {
+    setPendingDeleteExpenseIds(ids);
+  };
+
+  const confirmPendingDelete = () => {
+    const ids = pendingDeleteExpenseIds;
+    setPendingDeleteExpenseIds([]);
+    ids.forEach(id => {
+      void executeDelete(id);
+    });
+  };
+
+  const pendingDeleteExpenses = pendingDeleteExpenseIds
+    .map(id => expenses.find(expense => expense.id === id))
+    .filter((expense): expense is Expense => Boolean(expense));
 
   const handleAttachmentsChanged = (attachments: string[]) => {
     if (!attachmentsExpense) return;
@@ -680,13 +702,14 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       />
 
       <ExpenseTable
-        actionVisibility={{ showAudit: false, showMarkPaid: false }}
+        actionVisibility={{ showAudit: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={translatedColumns}
         deletingExpenseIds={deletingExpenseIds}
         expenses={filteredExpenses}
         getAttachments={getExpenseAttachments}
-        onDeleteExpense={handleDelete}
+        onDeleteExpense={requestDeleteExpense}
+        onDeleteExpenses={requestDeleteExpenses}
         onDuplicateExpense={handleDuplicate}
         onCreatePayableFromBudget={openBudgetPayableModal}
         onEditExpense={(expense) => {
@@ -781,6 +804,17 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         onSubmit={handleQuickExpenseSubmit}
         open={isQuickExpenseModalOpen}
         unitOptions={unitOptions}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={pendingDeleteExpenseIds.length > 0}
+        title={pendingDeleteExpenseIds.length > 1 ? t.expenses.confirmDelete.bulkTitle : t.expenses.confirmDelete.title}
+        description={pendingDeleteExpenseIds.length > 1 ? t.expenses.confirmDelete.bulkDescription(pendingDeleteExpenseIds.length) : t.expenses.confirmDelete.description}
+        itemName={pendingDeleteExpenseIds.length > 1 ? t.expenses.confirmDelete.bulkItemName(pendingDeleteExpenseIds.length) : pendingDeleteExpenses[0]?.folio}
+        confirmLabel={t.common.delete}
+        cancelLabel={t.common.cancel}
+        onConfirm={confirmPendingDelete}
+        onCancel={() => setPendingDeleteExpenseIds([])}
       />
 
       <SuccessToast

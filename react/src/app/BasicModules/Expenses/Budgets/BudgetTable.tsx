@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { isBackendId } from '../adapters/adapter.utils';
 import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
 import { mockProviders } from '../data/expenses.mock';
@@ -53,6 +54,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [payableInitialExpense, setPayableInitialExpense] = useState<Expense | null>(null);
+  const [pendingDeleteBudgetExpenseIds, setPendingDeleteBudgetExpenseIds] = useState<string[]>([]);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [tableColumns, setTableColumns] = useState(() => columns.map(column => ({ ...column })));
   const saveTimeoutsRef = useRef<Record<string, number>>({});
@@ -309,7 +311,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
     }, 700);
   }, [onExpensesChange, t.budgets.messages.lineSaveFailed]);
 
-  const deleteBudgetExpense = (expenseId: string) => {
+  const executeDeleteBudgetExpense = (expenseId: string) => {
     const expense = expenses.find(item => item.id === expenseId);
     onExpensesChange(currentExpenses => currentExpenses.filter(item => item.id !== expenseId));
     if (!expense || !expense.id.startsWith('budget-line-')) return;
@@ -321,6 +323,24 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
         setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.deleteFailed));
       });
   };
+
+  const requestDeleteBudgetExpense = (expenseId: string) => {
+    setPendingDeleteBudgetExpenseIds([expenseId]);
+  };
+
+  const requestDeleteBudgetExpenses = (expenseIds: string[]) => {
+    setPendingDeleteBudgetExpenseIds(expenseIds);
+  };
+
+  const confirmDeleteBudgetExpense = () => {
+    const expenseIds = pendingDeleteBudgetExpenseIds;
+    setPendingDeleteBudgetExpenseIds([]);
+    expenseIds.forEach(expenseId => executeDeleteBudgetExpense(expenseId));
+  };
+
+  const pendingDeleteBudgetExpenses = pendingDeleteBudgetExpenseIds
+    .map(expenseId => expenses.find(expense => expense.id === expenseId))
+    .filter((expense): expense is Expense => Boolean(expense));
 
   const openPayableFromBudget = (budgetExpense: Expense) => {
     const now = new Date();
@@ -418,7 +438,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       const savedExpense = await createPayableExpense(payableExpense);
       const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
       onExpensesChange(currentExpenses => [savedExpense, ...replaceBudgetExpense(currentExpenses, updatedBudgetExpense)]);
-      setSuccessToastMessage('Cuenta por pagar creada desde presupuesto.');
+      setSuccessToastMessage(t.budgets.messages.payableCreated);
     } catch (error) {
       onExpensesChange(currentExpenses => [payableExpense, ...currentExpenses]);
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
@@ -507,7 +527,8 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
         columns={tableColumns}
         expenses={filteredBudgetExpenses}
         onCreatePayable={openPayableFromBudget}
-        onDeleteExpense={deleteBudgetExpense}
+        onDeleteExpense={requestDeleteBudgetExpense}
+        onDeleteExpenses={requestDeleteBudgetExpenses}
         onEditExpense={openEditBudgetExpense}
       />
 
@@ -534,6 +555,17 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
           }}
         />
       )}
+
+      <ConfirmDeleteDialog
+        isVisible={pendingDeleteBudgetExpenseIds.length > 0}
+        title={pendingDeleteBudgetExpenseIds.length > 1 ? t.budgets.confirmDelete.bulkTitle : t.budgets.confirmDelete.title}
+        description={pendingDeleteBudgetExpenseIds.length > 1 ? t.budgets.confirmDelete.bulkDescription(pendingDeleteBudgetExpenseIds.length) : t.budgets.confirmDelete.description}
+        itemName={pendingDeleteBudgetExpenseIds.length > 1 ? t.budgets.confirmDelete.bulkItemName(pendingDeleteBudgetExpenseIds.length) : pendingDeleteBudgetExpenses[0]?.folio ?? t.budgets.confirmDelete.itemNameFallback}
+        confirmLabel={t.common.delete}
+        cancelLabel={t.common.cancel}
+        onConfirm={confirmDeleteBudgetExpense}
+        onCancel={() => setPendingDeleteBudgetExpenseIds([])}
+      />
 
       <SuccessToast
         isVisible={Boolean(successToastMessage)}

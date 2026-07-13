@@ -24,7 +24,7 @@ type BudgetCreateModalProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
+const inputClass = 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function BudgetCreateModal({
   accountingAccountOptions,
@@ -107,10 +107,10 @@ export function BudgetCreateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
-      <form onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+      <form onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">
               <Plus className="h-5 w-5" />
             </span>
             <div>
@@ -119,7 +119,7 @@ export function BudgetCreateModal({
               <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{isEditMode ? t.budgets.modal.editSubtitle : t.budgets.modal.subtitle}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -141,7 +141,7 @@ export function BudgetCreateModal({
                   type="button"
                   onClick={() => canOpenStep && setStepIndex(step.id)}
                   disabled={!canOpenStep}
-                  className={`flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${isActive ? 'border-[#147514]/40 bg-[#147514]/10 text-[#147514] shadow-sm' : isCompleted ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-[#147514]/25 hover:bg-white hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400'}`}
+                  className={`flex min-h-16 items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${isActive ? 'border-[#147514]/40 bg-[#147514]/10 text-[#147514] shadow-sm dark:text-emerald-300' : isCompleted ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-[#147514]/25 hover:bg-white hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-emerald-300'}`}
                 >
                   <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isActive ? 'bg-[#147514] text-white' : isCompleted ? 'bg-emerald-600 text-white' : 'border border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-900'}`}>
                     {isCompleted ? <Check className="h-4 w-4" /> : step.id + 1}
@@ -185,13 +185,13 @@ export function BudgetCreateModal({
         </div>
 
         <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-[#0b3f1b]">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
+          <button type="button" onClick={onClose} className="h-10 rounded-lg border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
           <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-            <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50">
+            <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50">
               <ChevronLeft className="h-4 w-4" />
               {t.budgets.modal.back}
             </button>
-            <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
+            <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
               {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               {isLastStep ? (isEditMode ? t.budgets.modal.finishEdit : t.budgets.modal.finishCreate) : t.common.continue}
             </button>
@@ -285,14 +285,14 @@ function BudgetScheduleStep({
           t={t}
         />
       </FieldGroup>
-      <div className="rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4">
-        <p className="text-sm font-extrabold text-slate-900">{t.budgets.modal.scheduleSummary}</p>
+      <div className="rounded-lg border border-[#147514]/20 bg-[#147514]/5 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+        <p className="text-sm font-extrabold text-slate-900 dark:text-white">{t.budgets.modal.scheduleSummary}</p>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <SummaryMetric label={t.budgets.budgetLine} value={String(scheduleCount)} />
           <SummaryMetric label={t.budgets.columns.total.label} value={formatCurrency(totalPerOrder, currency)} />
           <SummaryMetric label={t.budgets.period} value={formatCurrency(plannedTotal, currency)} />
         </div>
-        <p className="mt-3 text-xs font-semibold text-slate-500">
+        <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
           {scheduleCount > 0
             ? (mode === 'edit' ? t.budgets.modal.editSubtitle : t.budgets.modal.scheduleDescription)
             : t.budgets.modal.scheduleEmpty}
@@ -304,9 +304,9 @@ function BudgetScheduleStep({
 
 function StepCard({ children, description, icon: Icon, title }: { children: ReactNode; description: string; icon: LucideIcon; title: string }) {
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-6 flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
           <Icon className="h-5 w-5" />
         </span>
         <div>
@@ -321,7 +321,7 @@ function StepCard({ children, description, icon: Icon, title }: { children: Reac
 
 function FieldGroup({ children, title }: { children: ReactNode; title: string }) {
   return (
-    <section className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/45">
+    <section className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/45">
       <h4 className="mb-4 text-sm font-bold text-slate-950 dark:text-white">{title}</h4>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{children}</div>
     </section>
@@ -393,9 +393,9 @@ function BudgetSelect({
 
 function SummaryMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white bg-white px-4 py-3 shadow-sm">
-      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 text-base font-extrabold text-[#147514]">{value}</p>
+    <div className="rounded-lg border border-white bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-base font-extrabold text-[#147514] dark:text-emerald-300">{value}</p>
     </div>
   );
 }

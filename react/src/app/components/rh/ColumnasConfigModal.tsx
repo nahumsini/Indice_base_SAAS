@@ -29,7 +29,7 @@ interface ColumnasConfigModalProps {
   onSave: (columns: ColumnConfig[]) => void;
   defaultColumns?: ColumnConfig[];
   fixedColumns?: ColumnConfig[];
-  theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'receivables';
+  theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'receivables' | 'expenses';
 }
 
 interface DraggableColumnItemProps {
@@ -185,7 +185,7 @@ export function ColumnasConfigModal({
       };
     }
 
-    if (theme === 'receivables') {
+    if (theme === 'receivables' || theme === 'expenses') {
       return {
         accent: 'text-[#147514]',
         checkbox:

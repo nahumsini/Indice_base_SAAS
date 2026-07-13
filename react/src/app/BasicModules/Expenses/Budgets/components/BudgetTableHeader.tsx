@@ -10,11 +10,11 @@ export function BudgetTableHeader({ onConfigureColumns, onCreate }: BudgetTableH
   const t = useBudgetsTranslations();
 
   return (
-    <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/30 sm:px-6 sm:py-5">
+    <div className="rounded-lg border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/30 sm:px-6 sm:py-5">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#147514] text-white shadow-sm">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#147514] text-white shadow-sm">
               <ClipboardList className="h-6 w-6" />
             </span>
             <h2 className="text-2xl font-bold text-slate-950 dark:text-white sm:text-[28px]">{t.budgets.headerTitle}</h2>
@@ -28,7 +28,7 @@ export function BudgetTableHeader({ onConfigureColumns, onCreate }: BudgetTableH
           <button
             type="button"
             onClick={onConfigureColumns}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm transition-colors hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 sm:w-auto"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm transition-colors hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white sm:w-auto"
           >
             <Columns3 className="h-4 w-4" />
             {t.common.columns}
@@ -36,7 +36,7 @@ export function BudgetTableHeader({ onConfigureColumns, onCreate }: BudgetTableH
           <button
             type="button"
             onClick={onCreate}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#147514] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#105010] dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:w-auto"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#147514] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#105010] dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             {t.budgets.headerButton}
