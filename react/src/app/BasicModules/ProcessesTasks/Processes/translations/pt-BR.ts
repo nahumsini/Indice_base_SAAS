@@ -20,7 +20,7 @@ export const ptBR: ProcessesTranslations = {
     requiredFields: 'Os campos marcados com * sao obrigatorios.',
   },
   header: {
-    emoji: '✅',
+    emoji: '🔄',
     title: 'Processos',
     subtitle: 'Crie processos recorrentes que gerem tarefas reais na agenda de cada responsavel.',
     actions: {
@@ -38,7 +38,9 @@ export const ptBR: ProcessesTranslations = {
     business: 'Negocio',
     collaborator: 'Colaborador',
     frequency: 'Frequencia',
+    clear: 'Limpar filtros',
   },
+  diagram: { previousMonth: 'Mes anterior', nextMonth: 'Proximo mes' },
   statuses: {
     active: 'Ativo',
     paused: 'Pausado',

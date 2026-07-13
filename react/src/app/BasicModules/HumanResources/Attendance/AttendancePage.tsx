@@ -7,6 +7,7 @@ import { SuccessToast } from '../../../components/SuccessToast';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { Skeleton } from '../../../components/ui/skeleton';
+import { HrTitleBar, hrTitleBarPrimaryActionClass } from '../shared/HrTitleBar';
 import { useAttendancePhotoUpload } from '../../../hooks/useAttendancePhotoUpload';
 import { useLanguage } from '../../../shared/context';
 import {
@@ -376,32 +377,20 @@ export default function Attendance() {
         durationMs={4200}
       />
 
-      <div className="mb-5 rounded-lg border border-[#59C3A5]/30 bg-[#59C3A5]/10 p-6 shadow-sm dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
-              <span className="text-2xl">📅</span>
-              {copy.title}
-            </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              {copy.subtitle}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+      <HrTitleBar emoji="📅" title={copy.title} subtitle={copy.subtitle} actions={
             <Button
-              className="h-11 gap-2 rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#3AAE90] disabled:bg-gray-300 disabled:text-gray-500"
+              className={hrTitleBarPrimaryActionClass}
               onClick={() => setIsRecordsOpen(true)}
               disabled={!selectedItem}
             >
               <View className="h-4 w-4" />
               {copy.viewRecords}
             </Button>
-          </div>
-        </div>
-      </div>
+          }
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-6">
           {isLoadingDashboard ? (
             <div className="space-y-5">
               <div className="flex items-start gap-3">
@@ -444,7 +433,7 @@ export default function Attendance() {
               </div>
 
               <div className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
-                <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 dark:border-gray-700 dark:bg-gray-900/40">
+                <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-700 dark:bg-slate-900/40">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -504,13 +493,13 @@ export default function Attendance() {
               </div>
             </>
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-5 py-10 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
               {copy.labels.noEmployeeSelected}
             </div>
           )}
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-6">
           <div className="mb-6">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -557,7 +546,7 @@ export default function Attendance() {
                 </p>
               </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
                 type="button"
                 disabled={recorderDisabled || !canInlineCheckIn || isSubmitting}

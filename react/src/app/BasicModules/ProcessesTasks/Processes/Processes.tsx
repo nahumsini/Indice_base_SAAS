@@ -6,7 +6,8 @@ import {
   ArrowUpDown,
   CalendarPlus,
   CalendarRange,
-  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Columns3,
   Copy,
   Eye,
@@ -19,7 +20,9 @@ import {
   Search,
   Timer,
   Trash2,
+  X,
 } from 'lucide-react';
+import { useLanguage } from '../../../shared/context';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
@@ -28,6 +31,7 @@ import { Button } from '../../../components/ui/button';
 import { Checkbox } from '../../../components/ui/checkbox';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -73,6 +77,13 @@ import {
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
 import { useRowSelection } from '../../shared/operational';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../shared/assignmentScope';
+import {
+  processTaskModalCloseActionClass,
+  processTaskModalCompactFooterClass,
+  processTaskModalCompactHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../shared/processTaskModalStyles';
 import type {
   Option,
   ProcessBusinessOption,
@@ -123,14 +134,14 @@ function createProcessColumns(copy: ProcessesTranslations['columns']): ProcessCo
     { id: 'unit', label: copy.unit.label, visible: true, description: copy.unit.description },
     { id: 'business', label: copy.business.label, visible: true, description: copy.business.description },
     { id: 'title', label: copy.title.label, visible: true, description: copy.title.description },
-    { id: 'description', label: copy.description.label, visible: true, description: copy.description.description },
-    { id: 'template', label: copy.template.label, visible: true, description: copy.template.description },
-    { id: 'createdAt', label: copy.createdAt.label, visible: true, description: copy.createdAt.description },
+    { id: 'description', label: copy.description.label, visible: false, description: copy.description.description },
+    { id: 'template', label: copy.template.label, visible: false, description: copy.template.description },
+    { id: 'createdAt', label: copy.createdAt.label, visible: false, description: copy.createdAt.description },
     { id: 'frequency', label: copy.frequency.label, visible: true, description: copy.frequency.description },
     { id: 'nextOccurrence', label: copy.nextOccurrence.label, visible: true, description: copy.nextOccurrence.description },
     { id: 'generatedUntil', label: copy.generatedUntil.label, visible: false, description: copy.generatedUntil.description },
     { id: 'tasks', label: copy.tasks.label, visible: true, description: copy.tasks.description },
-    { id: 'creator', label: copy.creator.label, visible: true, description: copy.creator.description },
+    { id: 'creator', label: copy.creator.label, visible: false, description: copy.creator.description },
     { id: 'responsible', label: copy.responsible.label, visible: true, description: copy.responsible.description },
     { id: 'priority', label: copy.priority.label, visible: true, description: copy.priority.description },
   ];
@@ -146,6 +157,7 @@ function clampPercent(value: number) {
 
 interface ProcessKpiMetrics {
   activeCount: number;
+  averageProgress: number;
   completedTaskCount: number;
   healthScore: number;
   inactiveCount: number;
@@ -235,7 +247,7 @@ function ProcessKpiStrip({
     return (
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap items-center gap-4">
-          {Array.from({ length: 7 }).map((_, index) => (
+          {Array.from({ length: 5 }).map((_, index) => (
             <Skeleton key={index} className="h-8 w-36 rounded-lg" />
           ))}
         </div>
@@ -255,16 +267,6 @@ function ProcessKpiStrip({
       className: 'bg-slate-400',
       count: metrics.inactiveCount,
       label: copy.segments.paused,
-    },
-    {
-      className: 'bg-emerald-500',
-      count: metrics.completedTaskCount,
-      label: copy.segments.closedTasks,
-    },
-    {
-      className: 'bg-rose-500',
-      count: metrics.overdueTaskCount,
-      label: copy.segments.overdue,
     },
   ];
 
@@ -296,13 +298,6 @@ function ProcessKpiStrip({
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProcessKpiMetric
-            icon={<CheckCircle2 className="h-4 w-4" />}
-            label={copy.labels.closed}
-            value={metrics.completedTaskCount}
-            valueClassName="text-emerald-600 dark:text-emerald-400"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <ProcessKpiMetric
             icon={<AlertTriangle className="h-4 w-4" />}
             label={copy.labels.overdue}
             value={metrics.overdueTaskCount}
@@ -311,8 +306,9 @@ function ProcessKpiStrip({
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProcessKpiMetric
             icon={<Gauge className="h-4 w-4" />}
-            label={copy.labels.tasks}
-            value={metrics.linkedTaskCount}
+            label={copy.labels.averageProgress}
+            value={`${metrics.averageProgress}%`}
+            valueClassName="text-[#9A6B05] dark:text-[#FEF3C7]"
           />
         </div>
 
@@ -338,25 +334,31 @@ function ProcessKpiStrip({
       <div className="rounded-lg border border-[#F4C84A]/20 bg-[#F4C84A]/10 px-4 py-3 dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15">
         <div className="flex items-start gap-3">
           <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[#9A6B05]" />
-          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-            {metrics.activeCount} {copy.labels.active} · {metrics.openTaskCount} {copy.labels.open} · {metrics.overdueTaskCount} {copy.labels.overdue} · {metrics.linkedTaskCount} {copy.labels.tasks}
-          </p>
+          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildProcessInsight(metrics, copy.insights)}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat('es-MX', {
+function buildProcessInsight(metrics: ProcessKpiMetrics, copy: ProcessesTranslations['kpis']['insights']) {
+  if (metrics.totalCount === 0) return copy.empty;
+  if (metrics.overdueTaskCount > 0) return copy.overdue(metrics.overdueTaskCount, metrics.averageProgress, metrics.openTaskCount);
+  if (metrics.inactiveCount > 0) return copy.paused(metrics.inactiveCount, metrics.openTaskCount, metrics.healthScore);
+  if (metrics.healthScore >= 85) return copy.healthy(metrics.activeCount, metrics.completedTaskCount, metrics.healthScore);
+  return copy.default(metrics.healthScore, metrics.activeCount, metrics.averageProgress);
+}
+
+function formatDate(date: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   }).format(new Date(`${date}T00:00:00`));
 }
 
-function formatOptionalDate(date: string | null | undefined, fallback: string) {
-  return date ? formatDate(date) : fallback;
+function formatOptionalDate(date: string | null | undefined, fallback: string, locale: string) {
+  return date ? formatDate(date, locale) : fallback;
 }
 
 function dateFromProcessTimelineValue(value: string | null | undefined) {
@@ -384,8 +386,8 @@ function endOfProcessMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0);
 }
 
-function formatProcessMonth(date: Date) {
-  return new Intl.DateTimeFormat('es-MX', {
+function formatProcessMonth(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     month: 'long',
     year: 'numeric',
   }).format(date);
@@ -622,8 +624,14 @@ function getStoredProcessFilters(): StoredProcessFilters | null {
 }
 
 export default function Processes() {
+  const { currentLanguage } = useLanguage();
+  const locale = currentLanguage.code;
   const processCopy = useProcessesTranslations();
   const headerCopy = processCopy.header;
+  const processCollator = useMemo(
+    () => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }),
+    [locale],
+  );
   const localizedColumns = useMemo(() => createProcessColumns(processCopy.columns), [processCopy.columns]);
   const storedProcessFilters = useMemo(() => getStoredProcessFilters(), []);
   const [records, setRecords] = useState<ProcessRecord[]>([]);
@@ -664,22 +672,22 @@ export default function Processes() {
     () =>
       Array.from(
         new Set(catalogUnits.map((option) => option.name).filter(Boolean)),
-      ).sort((left, right) => left.localeCompare(right)),
-    [catalogUnits],
+      ).sort((left, right) => processCollator.compare(left, right)),
+    [catalogUnits, processCollator],
   );
   const businessOptions = useMemo(
     () =>
       Array.from(
         new Set(catalogBusinesses.map((option) => option.name).filter(Boolean)),
-      ).sort((left, right) => left.localeCompare(right)),
-    [catalogBusinesses],
+      ).sort((left, right) => processCollator.compare(left, right)),
+    [catalogBusinesses, processCollator],
   );
   const collaboratorOptions = useMemo(
     () =>
       Array.from(
         new Set(catalogCollaborators.map((option) => option.name).filter(Boolean)),
-      ).sort((left, right) => left.localeCompare(right)),
-    [catalogCollaborators],
+      ).sort((left, right) => processCollator.compare(left, right)),
+    [catalogCollaborators, processCollator],
   );
 
   const [form, setForm] = useState<ProcessFormState>(() =>
@@ -719,19 +727,19 @@ export default function Processes() {
         units
           .map(normalizeUnitOption)
           .filter((option) => option.name.length > 0)
-          .sort((left, right) => left.name.localeCompare(right.name)),
+          .sort((left, right) => processCollator.compare(left.name, right.name)),
       );
       setCatalogBusinesses(
         businesses
           .map(normalizeBusinessOption)
           .filter((option) => option.name.length > 0)
-          .sort((left, right) => left.name.localeCompare(right.name)),
+          .sort((left, right) => processCollator.compare(left.name, right.name)),
       );
       setCatalogCollaborators(
         hrUsers.items
           .map(normalizeCollaboratorOption)
           .filter((option): option is ProcessCollaboratorOption => option !== null)
-          .sort((left, right) => left.name.localeCompare(right.name)),
+          .sort((left, right) => processCollator.compare(left.name, right.name)),
       );
     } catch (error) {
       setProcessesError((currentError) =>
@@ -786,6 +794,7 @@ export default function Processes() {
   }, [localizedColumns]);
 
   const visibleColumns = columns.filter((column) => column.visible);
+  const tableMinWidth = Math.max(1280, visibleColumns.length * 170 + 360);
 
   const localizedUnitOptions: Option<UnitFilter>[] = [
     { value: 'all', label: processCopy.common.all },
@@ -871,7 +880,7 @@ export default function Processes() {
 
     const comparison =
       typeof leftValue === 'string' && typeof rightValue === 'string'
-        ? leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: 'base' })
+        ? processCollator.compare(leftValue, rightValue)
         : leftValue > rightValue
           ? 1
           : leftValue < rightValue
@@ -924,6 +933,9 @@ export default function Processes() {
   const openTaskCount = filteredRecords.reduce((sum, record) => sum + record.openTaskCount, 0);
   const completedTaskCount = filteredRecords.reduce((sum, record) => sum + record.completedTaskCount, 0);
   const overdueTaskCount = filteredRecords.reduce((sum, record) => sum + record.overdueTaskCount, 0);
+  const averageProgress = filteredRecords.length
+    ? Math.round(filteredRecords.reduce((sum, record) => sum + clampPercent(record.completionPercent), 0) / filteredRecords.length)
+    : 0;
   const activeRate = filteredRecords.length > 0 ? (activeCount / filteredRecords.length) * 100 : 0;
   const timelinessRate = linkedTaskCount > 0 ? ((linkedTaskCount - overdueTaskCount) / linkedTaskCount) * 100 : 0;
   const generationCoverageRate = filteredRecords.length > 0
@@ -938,6 +950,7 @@ export default function Processes() {
     : 0;
   const processKpiMetrics: ProcessKpiMetrics = {
     activeCount,
+    averageProgress,
     completedTaskCount,
     healthScore,
     inactiveCount,
@@ -1040,6 +1053,14 @@ export default function Processes() {
     setEditorMode('create');
     resetForm();
     setProcessEditorOpen(true);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setUnitFilter('all');
+    setBusinessFilter('all');
+    setCollaboratorFilter('all');
+    setFrequencyFilter('all');
   };
 
   const openEditDialog = (record: ProcessRecord) => {
@@ -1486,7 +1507,7 @@ export default function Processes() {
           </div>
         );
       case 'createdAt':
-        return <span className="text-sm text-slate-700 dark:text-slate-200">{formatDate(record.createdAt)}</span>;
+        return <span className="text-sm text-slate-700 dark:text-slate-200">{formatDate(record.createdAt, locale)}</span>;
       case 'frequency':
         return (
           <div className="min-w-[220px] space-y-2">
@@ -1513,18 +1534,18 @@ export default function Processes() {
         return (
           <div className="min-w-[190px] space-y-2">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">
-              {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate)}
+              {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate, locale)}
             </p>
             <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-              {processCopy.table.start}: {formatOptionalDate(record.startDate, processCopy.common.noDate)}
-              {record.endDate ? ` · ${processCopy.table.end}: ${formatOptionalDate(record.endDate, processCopy.common.noDate)}` : ''}
+              {processCopy.table.start}: {formatOptionalDate(record.startDate, processCopy.common.noDate, locale)}
+              {record.endDate ? ` · ${processCopy.table.end}: ${formatOptionalDate(record.endDate, processCopy.common.noDate, locale)}` : ''}
             </p>
           </div>
         );
       case 'generatedUntil':
         return (
           <div className="min-w-[190px] space-y-2 text-sm text-slate-700 dark:text-slate-200">
-            <p>{processCopy.table.until}: {formatOptionalDate(record.generatedUntilDate, processCopy.common.noDate)}</p>
+            <p>{processCopy.table.until}: {formatOptionalDate(record.generatedUntilDate, processCopy.common.noDate, locale)}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {processCopy.table.window(record.generationWindowDays ?? 45)}
             </p>
@@ -1626,8 +1647,8 @@ export default function Processes() {
     const activeRecordsCount = sortedRecords.filter((record) => record.isActive).length;
 
     return (
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="border-b border-slate-200 px-5 py-5 dark:border-slate-700">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{headerCopy.actions.diagram}</h3>
@@ -1640,23 +1661,23 @@ export default function Processes() {
                 type="button"
                 variant="outline"
                 className="h-9 w-9 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                aria-label="Previous month"
+                aria-label={processCopy.diagram.previousMonth}
                 onClick={() => setProcessDiagramMonth((currentMonth) => addProcessMonths(currentMonth, -1))}
               >
-                {'<'}
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               <Badge variant="outline" className="rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]">
                 <CalendarRange className="mr-1 h-4 w-4" />
-                {formatProcessMonth(processDiagramMonth)}
+                {formatProcessMonth(processDiagramMonth, locale)}
               </Badge>
               <Button
                 type="button"
                 variant="outline"
                 className="h-9 w-9 rounded-xl border-slate-200 bg-white p-0 text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                aria-label="Next month"
+                aria-label={processCopy.diagram.nextMonth}
                 onClick={() => setProcessDiagramMonth((currentMonth) => addProcessMonths(currentMonth, 1))}
               >
-                {'>'}
+                <ChevronRight className="h-4 w-4" />
               </Button>
               <Badge variant="outline" className="w-fit rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
                 {activeRecordsCount} {processCopy.statuses.active.toLowerCase()}
@@ -1666,12 +1687,24 @@ export default function Processes() {
         </div>
 
         {isLoadingProcesses ? (
-          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-            {processCopy.table.loading}
+          <div className="space-y-3 px-5 py-6" role="status" aria-label={processCopy.table.loading}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 w-full rounded-xl" />
+            ))}
           </div>
         ) : sortedRecords.length === 0 ? (
-          <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-            {processCopy.table.empty}
+          <div className="px-6 py-14 text-center">
+            <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4C84A]/15 text-2xl" aria-hidden="true">{headerCopy.emoji}</span>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{processCopy.table.empty}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button type="button" variant="outline" className="h-9 rounded-lg" onClick={clearFilters}>{processCopy.filters.clear}</Button>
+                <Button type="button" className={cn('h-9 rounded-lg', accentButtonClass)} onClick={openCreateDialog}>
+                  <Plus className="h-4 w-4" />
+                  {headerCopy.actions.create}
+                </Button>
+              </div>
+            </div>
           </div>
         ) : (
           <>
@@ -1685,7 +1718,7 @@ export default function Processes() {
                   {processTimeline.days.map((day) => (
                     <div key={day.toISOString()} className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700">
                       <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
-                        {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
+                        {new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day)}
                       </p>
                       <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
                     </div>
@@ -1751,7 +1784,7 @@ export default function Processes() {
                           <div className="flex h-full items-center justify-between gap-3">
                             <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{record.title}</span>
                             <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                              {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate)}
+                              {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate, locale)}
                             </span>
                           </div>
                         </div>
@@ -1815,7 +1848,7 @@ export default function Processes() {
                         {record.responsible || processCopy.common.unassigned}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
-                        {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate)}
+                        {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate, locale)}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                         {record.taskCount}
@@ -1847,22 +1880,24 @@ export default function Processes() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
+      <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
-              <span className="text-2xl leading-none" aria-hidden="true">{headerCopy.emoji}</span>
-              {headerCopy.title}
-            </h2>
-            <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
-              {headerCopy.subtitle}
-            </p>
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-[#FFF8DF] text-2xl shadow-sm dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15" aria-hidden="true">
+              {headerCopy.emoji}
+            </span>
+            <div className="min-w-0">
+              <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">{headerCopy.title}</h2>
+              <p className="max-w-3xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
+                {headerCopy.subtitle}
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 sm:w-auto sm:px-4 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsDialogOpen(true)}
               disabled={isLoadingProcesses}
             >
@@ -1871,7 +1906,7 @@ export default function Processes() {
             </Button>
             <Button
               type="button"
-              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              className={cn('h-10 w-full gap-2 rounded-xl px-3 text-sm font-semibold sm:w-auto sm:px-4', accentButtonClass)}
               onClick={openCreateDialog}
               disabled={isLoadingProcesses}
             >
@@ -1916,76 +1951,72 @@ export default function Processes() {
         </section>
       ) : null}
 
-      <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-5 text-base font-bold text-slate-800 dark:text-white">{processCopy.filters.title}</h3>
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{processCopy.filters.search}</label>
+      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-base font-bold text-slate-800 dark:text-white">{processCopy.filters.title}</h3>
+          <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+            <button
+              type="button"
+              aria-pressed={viewMode === 'table'}
+              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors', viewMode === 'table' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
+              onClick={() => setViewMode('table')}
+            >
+              <ListChecks className="h-4 w-4" />
+              {headerCopy.actions.table}
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'diagram'}
+              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors', viewMode === 'diagram' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
+              onClick={() => setViewMode('diagram')}
+            >
+              <CalendarRange className="h-4 w-4" />
+              {headerCopy.actions.diagram}
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
+          <div className="space-y-2 md:col-span-3 xl:col-span-4">
+            <label htmlFor="processes-search" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{processCopy.filters.search}</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
+                id="processes-search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={processCopy.filters.searchPlaceholder}
-                className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                className="h-10 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
           </div>
           <FilterSelect
+            className="md:col-span-3 xl:col-span-2"
             label={processCopy.filters.unit}
             value={unitFilter}
             onChange={(value) => setUnitFilter(value)}
             options={localizedUnitOptions}
           />
           <FilterSelect
+            className="md:col-span-3 xl:col-span-2"
             label={processCopy.filters.business}
             value={businessFilter}
             onChange={(value) => setBusinessFilter(value)}
             options={localizedBusinessOptions}
           />
           <FilterSelect
+            className="md:col-span-3 xl:col-span-2"
             label={processCopy.filters.collaborator}
             value={collaboratorFilter}
             onChange={(value) => setCollaboratorFilter(value)}
             options={localizedCollaboratorOptions}
           />
           <FilterSelect
+            className="md:col-span-3 xl:col-span-2"
             label={processCopy.filters.frequency}
             value={frequencyFilter}
             onChange={(value) => setFrequencyFilter(value)}
             options={localizedFrequencyOptions}
           />
-        </div>
-      </section>
-
-      <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-none dark:border-slate-700 dark:bg-slate-900">
-          <button
-            type="button"
-            className={cn(
-              'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-              viewMode === 'table'
-                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
-            )}
-            onClick={() => setViewMode('table')}
-          >
-            <ListChecks className="h-4 w-4" />
-            {headerCopy.actions.table}
-          </button>
-          <button
-            type="button"
-            className={cn(
-              'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
-              viewMode === 'diagram'
-                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
-            )}
-            onClick={() => setViewMode('diagram')}
-          >
-            <CalendarRange className="h-4 w-4" />
-            {headerCopy.actions.diagram}
-          </button>
         </div>
       </section>
 
@@ -2064,12 +2095,71 @@ export default function Processes() {
       ) : null}
 
       {viewMode === 'table' ? (
-        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="overflow-x-auto">
-          <Table className="min-w-[2160px]">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="md:hidden">
+            {isLoadingProcesses ? (
+              <div className="space-y-3 p-4" role="status" aria-label={processCopy.table.loading}>
+                {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-64 w-full rounded-2xl" />)}
+              </div>
+            ) : null}
+
+            {!isLoadingProcesses && paginatedRecords.length === 0 ? (
+              <div className="px-5 py-14 text-center">
+                <span className="mb-3 block text-3xl" aria-hidden="true">{headerCopy.emoji}</span>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{processCopy.table.empty}</p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Button type="button" variant="outline" className="h-9 rounded-lg" onClick={clearFilters}>{processCopy.filters.clear}</Button>
+                  <Button type="button" className={cn('h-9 rounded-lg', accentButtonClass)} onClick={openCreateDialog}><Plus className="h-4 w-4" />{headerCopy.actions.create}</Button>
+                </div>
+              </div>
+            ) : null}
+
+            {!isLoadingProcesses && paginatedRecords.length > 0 ? (
+              <div className="space-y-3 p-3">
+                {paginatedRecords.map((record) => {
+                  const selected = rowSelection.isSelected(record.id);
+                  return (
+                    <article key={record.id} className={cn('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800', !record.isActive && 'bg-slate-50/80 dark:bg-slate-900/40', selected && 'border-[#F4C84A]/60 bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15')}>
+                      <div className="flex items-start gap-3">
+                        <Checkbox aria-label={processCopy.bulk.selectRow(record.folio)} checked={selected} disabled={isRecordPending(record.id)} onCheckedChange={(checked) => rowSelection.toggleSelection(record.id, checked === true)} className="mt-1 border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9A6B05]">{record.folio}</p>
+                              <h3 className="mt-1 break-words text-base font-bold text-slate-950 dark:text-white">{record.title}</h3>
+                            </div>
+                            <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', record.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300')}>{record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}</Badge>
+                          </div>
+                          <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{record.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.frequency.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{processCopy.frequencies[record.frequency]}</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.responsible.label}</p><p className="mt-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{record.responsible || processCopy.common.unassigned}</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.nextOccurrence.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{record.nextOccurrenceDate ? formatDate(record.nextOccurrenceDate, locale) : processCopy.common.noDate}</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.tasks.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{record.completedTaskCount}/{record.taskCount} · {clampPercent(record.completionPercent)}%</p></div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
+                        <ProcessActionButton label={processCopy.actions.runEngine} onClick={() => { void handleMaterialize(record); }} disabled={isRecordPending(record.id)} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" icon={<CalendarPlus className="h-4 w-4" />} />
+                        <ProcessActionButton label={record.isActive ? processCopy.actions.pause : processCopy.actions.activate} onClick={() => { void handleToggleActive(record.id); }} disabled={isRecordPending(record.id)} className={record.isActive ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'} icon={record.isActive ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />} />
+                        <ProcessActionButton label={processCopy.actions.edit} onClick={() => openEditDialog(record)} disabled={isRecordPending(record.id)} className="border-amber-200 bg-amber-50 text-amber-700" icon={<Pencil className="h-4 w-4" />} />
+                        <ProcessActionButton label={processCopy.actions.copy} onClick={() => { void handleDuplicate(record); }} disabled={isRecordPending(record.id)} className="border-blue-200 bg-blue-50 text-blue-700" icon={<Copy className="h-4 w-4" />} />
+                        <ProcessActionButton label={processCopy.actions.delete} onClick={() => handleDelete(record)} disabled={isRecordPending(record.id)} className="border-red-200 bg-red-50 text-red-700" icon={<Trash2 className="h-4 w-4" />} />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
+          <Table style={{ minWidth: tableMinWidth }}>
           <TableHeader>
             <TableRow className="border-slate-200 dark:border-slate-700">
-              <TableHead className="px-5 py-5" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+              <TableHead className="px-4 py-4" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                 <Checkbox
                   aria-label={processCopy.bulk.selectVisible}
                   checked={
@@ -2088,7 +2178,7 @@ export default function Processes() {
                 const SortIcon = isActiveSort ? (sortState.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
 
                 return (
-                  <TableHead key={column.id} className="px-5 py-5">
+                  <TableHead key={column.id} className="px-4 py-4">
                     <button
                       type="button"
                       onClick={() => handleSort(column.id)}
@@ -2105,7 +2195,7 @@ export default function Processes() {
                   </TableHead>
                 );
               })}
-              <TableHead className="px-5 py-6 text-sm font-semibold uppercase text-slate-500 dark:text-slate-400">
+              <TableHead className="px-4 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
                 {processCopy.common.actions}
               </TableHead>
             </TableRow>
@@ -2120,7 +2210,7 @@ export default function Processes() {
                   rowSelection.isSelected(record.id) && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                 )}
               >
-                <TableCell className="px-5 py-6 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+                <TableCell className="px-4 py-3.5 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                   <Checkbox
                     aria-label={processCopy.bulk.selectRow(record.folio)}
                     checked={rowSelection.isSelected(record.id)}
@@ -2133,15 +2223,15 @@ export default function Processes() {
                   <TableCell
                     key={`${record.id}-${column.id}`}
                     className={cn(
-                      'px-5 py-6 align-middle',
+                      'px-4 py-3.5 align-middle',
                       column.id === 'description' || column.id === 'title' ? 'whitespace-normal' : '',
                     )}
                   >
                     {renderCell(record, column.id)}
                   </TableCell>
                 ))}
-                <TableCell className="px-5 py-6">
-                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+                <TableCell className="px-4 py-3.5">
+                  <div className="flex items-center gap-2">
                     <ProcessActionButton
                       label={processCopy.actions.runEngine}
                       onClick={() => {
@@ -2203,9 +2293,13 @@ export default function Processes() {
               <TableRow>
                 <TableCell
                   colSpan={visibleColumns.length + 2}
-                  className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
+                  className="px-4 py-5"
                 >
-                  {processCopy.table.loading}
+                  <div className="space-y-3" role="status" aria-label={processCopy.table.loading}>
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-10 w-full rounded-lg" />
+                    ))}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : null}
@@ -2213,9 +2307,21 @@ export default function Processes() {
               <TableRow>
                 <TableCell
                   colSpan={visibleColumns.length + 2}
-                  className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
+                  className="px-6 py-14 text-center"
                 >
-                  {processCopy.table.empty}
+                  <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4C84A]/15 text-2xl" aria-hidden="true">{headerCopy.emoji}</span>
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{processCopy.table.empty}</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button type="button" variant="outline" className="h-9 rounded-lg" onClick={clearFilters}>
+                        {processCopy.filters.clear}
+                      </Button>
+                      <Button type="button" className={cn('h-9 rounded-lg', accentButtonClass)} onClick={openCreateDialog}>
+                        <Plus className="h-4 w-4" />
+                        {headerCopy.actions.create}
+                      </Button>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : null}
@@ -2225,7 +2331,7 @@ export default function Processes() {
           {!isLoadingProcesses && paginatedRecordCount > 0 ? (
             <DataTablePagination
               currentPage={currentPage}
-              itemLabel="procesos"
+              itemLabel={headerCopy.title.toLocaleLowerCase(locale)}
               onPageChange={onPageChange}
               onPageSizeChange={onPageSizeChange}
               pageEnd={pageEnd}
@@ -2246,15 +2352,24 @@ export default function Processes() {
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[#F4C84A] px-5 py-4">
-            <DialogTitle className="text-lg font-bold text-slate-950">{processCopy.form.labels.responsible}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-slate-800/85">
-              {processCopy.bulk.assignDescription(rowSelection.selectedCount)}
-            </DialogDescription>
+          <div className={processTaskModalCompactHeaderClass}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-950">{processCopy.form.labels.responsible}</DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-slate-800/85">
+                  {processCopy.bulk.assignDescription(rowSelection.selectedCount)}
+                </DialogDescription>
+              </div>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isBulkActionRunning} aria-label={processCopy.common.cancel}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogClose>
+            </div>
           </div>
           <div className="space-y-3 px-5 py-5">
             <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -2267,11 +2382,11 @@ export default function Processes() {
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+          <DialogFooter className={processTaskModalCompactFooterClass}>
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              className={processTaskModalSecondaryActionClass}
               disabled={isBulkActionRunning}
               onClick={() => setIsBulkAssignOpen(false)}
             >
@@ -2279,7 +2394,7 @@ export default function Processes() {
             </Button>
             <Button
               type="button"
-              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              className={processTaskModalPrimaryActionClass}
               disabled={isBulkActionRunning}
               onClick={handleBulkAssign}
             >
@@ -2305,6 +2420,7 @@ export default function Processes() {
 
       <ProcessFormDialog
         copy={processCopy}
+        locale={locale}
         open={processEditorOpen}
         onOpenChange={handleEditorOpenChange}
         mode={editorMode}

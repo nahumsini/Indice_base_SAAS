@@ -111,6 +111,7 @@ function agendaDeepLinkFilters(search: string) {
     status: normalizeLegacyStatus(status),
     unit: params.get('unit'),
     business: params.get('business'),
+    project: params.get('project'),
     collaborator: params.get('collaborator'),
     from: isDateInputValue(from) ? from : null,
     to: isDateInputValue(to) ? to : null,
@@ -228,7 +229,9 @@ export function useAgendaFilters(search: string) {
   const [businessFilter, setBusinessFilter] = useState<OptionFilter>(
     initialDeepLinkFilters.business ?? storedAgendaFilters.business ?? 'all',
   );
-  const [projectFilter, setProjectFilter] = useState<OptionFilter>(storedAgendaFilters.project ?? 'all');
+  const [projectFilter, setProjectFilter] = useState<OptionFilter>(
+    initialDeepLinkFilters.project ?? storedAgendaFilters.project ?? 'all',
+  );
   const [collaboratorFilter, setCollaboratorFilter] = useState<OptionFilter>(
     initialDeepLinkFilters.collaborator ?? storedAgendaFilters.collaborator ?? 'all',
   );
@@ -264,6 +267,9 @@ export function useAgendaFilters(search: string) {
     }
     if (filters.business) {
       setBusinessFilter(filters.business);
+    }
+    if (filters.project) {
+      setProjectFilter(filters.project);
     }
     if (filters.collaborator) {
       setCollaboratorFilter(filters.collaborator);
@@ -331,10 +337,25 @@ export function useAgendaFilters(search: string) {
     [customDateFrom],
   );
 
+  const clearFilters = useCallback(() => {
+    const today = toDateInputValue(new Date());
+    setSearchQuery('');
+    setPeriodFilter('all');
+    setFocusFilter('team');
+    setStatusFilter('all');
+    setUnitFilter('all');
+    setBusinessFilter('all');
+    setProjectFilter('all');
+    setCollaboratorFilter('all');
+    setCustomDateFrom(today);
+    setCustomDateTo(today);
+  }, []);
+
   return {
     activeRange,
     businessFilter,
     collaboratorFilter,
+    clearFilters,
     customDateFrom,
     customDateTo,
     focusFilter,

@@ -16,6 +16,7 @@ import {
 } from '../../shared/StandardTableControls';
 import type { EmployeeRecord, RecordSeverity, RecordType } from '../types/records.types';
 import type { RecordsListCopy } from '../translations';
+import { HrMobileDataCard } from '../../shared/HrMobileDataCard';
 
 interface RecordsListProps {
   canManage: boolean;
@@ -194,7 +195,53 @@ export function RecordsList({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
+      <div className="grid grid-cols-1 gap-3 bg-slate-50/60 p-3 lg:grid-cols-2 xl:hidden dark:bg-slate-900/30">
+        {sortedRecords.map((record) => {
+          const typeInfo = typeConfig[record.type];
+          const severityInfo = record.severity ? severityConfig[record.severity] : null;
+          const isSelected = selectedRecordSet.has(record.id);
+          return (
+            <HrMobileDataCard
+              key={record.id}
+              accent={record.severity === 'high' ? 'red' : 'aqua'}
+              selected={isSelected}
+              onClick={canManage ? () => onRecordClick(record) : undefined}
+              selection={canManage ? (
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(event) => onSelectionChange(record.id, event.target.checked)}
+                  aria-label={copy.bulk.selectRecord(record.recordNumber || copy.list.recordFallback(record.id))}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
+                />
+              ) : undefined}
+              leading={<div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${typeInfo.bgColor} ${typeInfo.color}`}>{typeInfo.icon}</div>}
+              title={record.user.name}
+              subtitle={record.recordNumber || copy.list.recordFallback(record.id)}
+              badges={(
+                <>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${typeInfo.bgColor} ${typeInfo.color}`}>{typeInfo.icon}{copy.types[record.type]}</span>
+                  {severityInfo ? <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severityInfo.bgColor} ${severityInfo.color}`}>{copy.severity[record.severity!]}</span> : null}
+                </>
+              )}
+              details={[
+                { label: copy.columns.reportedBy, value: record.reportedBy.name },
+                { label: copy.columns.date, value: formatDate(record.eventDate, locale) },
+                { label: copy.columns.unit, value: record.unit || copy.list.emptyValue },
+                { label: copy.columns.business, value: record.business || copy.list.emptyValue },
+              ]}
+              actions={showActions ? (
+                <>
+                  <StandardActionButton label={copy.actions.view} onClick={() => onRecordClick(record)}><Eye className="h-4 w-4" /></StandardActionButton>
+                  <StandardActionButton label={copy.actions.edit} onClick={() => onEdit(record)}><Pencil className="h-4 w-4" /></StandardActionButton>
+                  <StandardActionButton label={copy.actions.downloadPdf} onClick={() => onDownload(record)} tone="success"><Download className="h-4 w-4" /></StandardActionButton>
+                </>
+              ) : undefined}
+            />
+          );
+        })}
+      </div>
+      <div className="hidden max-w-full overflow-x-auto xl:block">
         <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>

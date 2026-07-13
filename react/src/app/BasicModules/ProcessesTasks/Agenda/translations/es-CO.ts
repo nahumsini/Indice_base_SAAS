@@ -23,7 +23,7 @@ export const esCO: AgendaTranslations = {
     notAvailable: 'N/A',
   },
   header: {
-    emoji: '📅',
+    emoji: '🗓️',
     title: 'Agenda',
     subtitle: 'Agenda operativa con tareas reales, vencidas acumuladas, cierre, evidencia y auditoria.',
     actions: {
@@ -36,6 +36,7 @@ export const esCO: AgendaTranslations = {
     },
   },
   filters: {
+    clear: 'Limpiar filtros',
     title: 'Filtros',
     search: 'Buscar tarea',
     searchPlaceholder: 'Folio, titulo, descripcion o responsable',
@@ -144,6 +145,9 @@ export const esCO: AgendaTranslations = {
     files: 'Archivos',
   },
   bulk: {
+    selected: (count: number) => `${count} seleccionada${count === 1 ? '' : 's'}`,
+    actions: 'Acciones masivas',
+    success: (count: number) => `Acción masiva aplicada a ${count} tarea${count === 1 ? '' : 's'}.`,
     assignDescription: (count: number) => `Aplica un responsable a ${count} tarea${count === 1 ? '' : 's'} seleccionada${count === 1 ? '' : 's'}.`,
     unitDescription: (count: number) => `Aplica una unidad a ${count} tarea${count === 1 ? '' : 's'} seleccionada${count === 1 ? '' : 's'}.`,
   },

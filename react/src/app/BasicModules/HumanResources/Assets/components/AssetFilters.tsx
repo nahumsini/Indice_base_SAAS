@@ -35,7 +35,7 @@ export function AssetFilters({
   onUnitChange,
 }: AssetFiltersProps) {
   return (
-    <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="mb-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">{copy.filtersPanel.title}</h3>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_1fr_1fr_1fr]">
         <div>

@@ -23,7 +23,7 @@ export const zhCA: AgendaTranslations = {
     notAvailable: '不适用',
   },
   header: {
-    emoji: '📅',
+    emoji: '🗓️',
     title: '日程',
     subtitle: '运营日程包含真实任务、累积逾期、关闭、证据和审核。',
     actions: {
@@ -36,6 +36,7 @@ export const zhCA: AgendaTranslations = {
     },
   },
   filters: {
+    clear: '清除筛选条件',
     title: '筛选',
     search: 'Search task',
     searchPlaceholder: 'Folio, title, description, or responsible',
@@ -144,6 +145,9 @@ export const zhCA: AgendaTranslations = {
     files: '文件',
   },
   bulk: {
+    selected: (count: number) => `已选择 ${count} 项`,
+    actions: '批量操作',
+    success: (count: number) => `已对 ${count} 个任务应用批量操作。`,
     assignDescription: (count: number) => `将负责人应用到 ${count} 个已选择任务。`,
     unitDescription: (count: number) => `将单位应用到 ${count} 个已选择任务。`,
   },

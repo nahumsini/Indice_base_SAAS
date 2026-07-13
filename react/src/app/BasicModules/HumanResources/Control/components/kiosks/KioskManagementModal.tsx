@@ -14,6 +14,12 @@ import {
 } from '../../../../../components/ui/dialog';
 import { type AttendanceControlCopy, statusClasses } from '../ControlAttendanceWidgets';
 import { KioskCard } from './KioskCard';
+import {
+  hrModalCloseButtonClassName,
+  hrModalFooterClassName,
+  hrModalHeaderClassName,
+  hrModalShellClassName,
+} from '../../../shared/hrModalStyles';
 
 type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
 
@@ -201,9 +207,9 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
     >
       <DialogContent
         hideCloseButton
-        className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-0 text-slate-950 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
+        className={`max-h-[88vh] sm:max-w-5xl ${hrModalShellClassName}`}
       >
-        <div className="shrink-0 bg-[#59C3A5] px-6 py-4 text-white">
+        <div className={hrModalHeaderClassName}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15">
@@ -218,7 +224,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
             </div>
             <button
               type="button"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/70"
+              className={hrModalCloseButtonClassName}
               aria-label={copy.kiosk.management.closeAria}
               onClick={onClose}
             >
@@ -294,7 +300,7 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
           )}
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-[#3AAE90] bg-[#59C3A5] px-6 py-4">
+        <DialogFooter className={hrModalFooterClassName}>
           <Button
             type="button"
             variant="outline"

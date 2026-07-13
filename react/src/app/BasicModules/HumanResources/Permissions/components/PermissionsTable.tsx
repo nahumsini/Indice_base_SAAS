@@ -11,6 +11,7 @@ import {
 } from '../../shared/StandardTableControls';
 import type { PermissionItem } from '../types/permissions.types';
 import type { PermissionsTranslations } from '../translations';
+import { HrMobileDataCard } from '../../shared/HrMobileDataCard';
 
 interface PermissionsTableProps {
   copy: PermissionsTranslations;
@@ -173,7 +174,52 @@ export function PermissionsTable({
 
   return (
     <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
+      <div className="grid grid-cols-1 gap-3 bg-slate-50/60 p-3 lg:grid-cols-2 xl:hidden dark:bg-slate-900/30">
+        {paginatedPermissions.map((permission) => {
+          const isBusy = busyPermissionId === permission.id;
+          return (
+            <HrMobileDataCard
+              key={permission.id}
+              onClick={() => onView(permission)}
+              leading={(
+                <Avatar className="h-11 w-11 border border-[#59C3A5]/25">
+                  <AvatarImage src={permission.employee.avatar} />
+                  <AvatarFallback className="bg-[#EAF8F4] text-xs font-bold text-[#177d66]">{permission.employee.initials}</AvatarFallback>
+                </Avatar>
+              )}
+              title={permission.employee.name}
+              subtitle={permission.folio}
+              badges={(
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(permission)}`}>
+                  {getStatusLabel(copy, permission)}
+                </span>
+              )}
+              details={[
+                { label: copy.columns.type, value: getTypeLabel(copy, permission) },
+                { label: copy.columns.payrollTreatment, value: getPayrollTreatmentLabel(copy, permission) },
+                { label: copy.columns.startDate, value: permission.startDate },
+                { label: copy.columns.endDate, value: permission.endDate },
+                { label: copy.columns.days, value: permission.days },
+              ]}
+              actions={(
+                <>
+                  {isManager && permission.status === 'pending' && onApprove && onReject ? (
+                    <>
+                      <StandardActionButton label={copy.actions.approve} onClick={() => { void onApprove(permission.id); }} disabled={isBusy} tone="success"><Check className="h-4 w-4" /></StandardActionButton>
+                      <StandardActionButton label={copy.actions.reject} onClick={() => { void onReject(permission.id); }} disabled={isBusy} tone="danger"><X className="h-4 w-4" /></StandardActionButton>
+                    </>
+                  ) : null}
+                  {!isManager && permission.status === 'pending' && onDelete ? (
+                    <StandardActionButton label={copy.actions.delete} onClick={() => { void onDelete(permission.id); }} disabled={isBusy} tone="warning"><Trash2 className="h-4 w-4" /></StandardActionButton>
+                  ) : null}
+                  <StandardActionButton label={copy.actions.view} onClick={() => onView(permission)} disabled={isBusy}><Eye className="h-4 w-4" /></StandardActionButton>
+                </>
+              )}
+            />
+          );
+        })}
+      </div>
+      <div className="hidden max-w-full overflow-x-auto xl:block">
         <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>

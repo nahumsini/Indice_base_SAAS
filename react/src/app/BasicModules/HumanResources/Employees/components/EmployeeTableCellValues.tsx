@@ -21,13 +21,13 @@ import { cn } from '../../../../components/ui/utils';
 
 export function EmployeeIdentityCell({ employee }: { employee: EmployeeViewModel }) {
   return (
-    <div className="flex min-w-[250px] items-center gap-3">
+    <div className="flex w-full min-w-0 items-center gap-3 overflow-hidden">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#59C3A5]/10 text-sm font-bold text-[#59C3A5] dark:bg-[#59C3A5]/30 dark:text-blue-200">
         {getEmployeeInitials(employee)}
       </div>
       <div className="min-w-0">
         <p className="truncate text-base font-semibold text-slate-900 dark:text-white">{employee.fullName}</p>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{employee.code}</p>
+        <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400" title={employee.code}>{employee.code}</p>
       </div>
     </div>
   );
@@ -43,7 +43,7 @@ export function EmployeeTextCell({
   value: string | number | null | undefined;
 }) {
   return (
-    <span className={cn('inline-flex min-w-[140px] whitespace-normal text-base text-slate-700 dark:text-slate-200', className)}>
+    <span className={cn('block w-full min-w-0 break-words text-base text-slate-700 dark:text-slate-200', className)}>
       {value !== null && value !== undefined && String(value).trim() ? value : fallback}
     </span>
   );
@@ -59,7 +59,7 @@ export function EmployeeDateCell({
   value: string;
 }) {
   return (
-    <span className="inline-flex min-w-[160px] items-center gap-2 text-base text-slate-700 dark:text-slate-200">
+    <span className="flex w-full min-w-0 items-center gap-2 text-base text-slate-700 dark:text-slate-200">
       <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
       {formatDate(value, locale, fallback)}
     </span>
@@ -224,7 +224,7 @@ export function EmployeeDocumentCell({
 
 export function EmployeeEmailCell({ value }: { value: string }) {
   return (
-    <div className="inline-flex min-w-[240px] items-center gap-2 break-all text-base text-slate-600 dark:text-slate-300">
+    <div className="flex w-full min-w-0 items-start gap-2 break-all text-base text-slate-600 dark:text-slate-300">
       <Mail className="h-4 w-4 shrink-0 text-slate-400" />
       {value || '-'}
     </div>
@@ -239,7 +239,7 @@ export function EmployeePhoneCell({
   value: string;
 }) {
   return (
-    <div className="inline-flex min-w-[160px] items-center gap-2 text-base text-slate-600 dark:text-slate-300">
+    <div className="flex w-full min-w-0 items-center gap-2 text-base text-slate-600 dark:text-slate-300">
       <Phone className="h-4 w-4 shrink-0 text-slate-400" />
       {value || fallback}
     </div>

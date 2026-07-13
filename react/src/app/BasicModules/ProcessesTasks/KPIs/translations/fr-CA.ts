@@ -17,6 +17,8 @@ export const frCA: KpisTranslations = {
     unassigned: 'Non assigne',
     pending: 'en attente',
     overdue: 'en retard',
+    points: 'pts',
+    rowsPerPage: 'Lignes par page',
     collaborators: (count: number) => `${count} collaborateurs`,
   },
   header: {

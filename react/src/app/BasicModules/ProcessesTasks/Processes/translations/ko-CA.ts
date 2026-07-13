@@ -21,7 +21,7 @@ export const koCA: ProcessesTranslations = {
     requiredFields: '* 표시된 필드는 필수입니다.',
   },
   header: {
-    emoji: '✅',
+    emoji: '🔄',
     title: '프로세스',
     subtitle: '각 담당자의 일정에 실제 작업을 생성하는 반복 프로세스를 만듭니다.',
     actions: {
@@ -39,7 +39,9 @@ export const koCA: ProcessesTranslations = {
     business: '비즈니스',
     collaborator: '담당자',
     frequency: '빈도',
+    clear: '필터 지우기',
   },
+  diagram: { previousMonth: '이전 달', nextMonth: '다음 달' },
   statuses: {
     active: '활성',
     paused: '일시 중지',

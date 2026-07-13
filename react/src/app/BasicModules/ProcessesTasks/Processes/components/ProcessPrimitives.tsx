@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -16,20 +16,24 @@ const actionButtonBaseClass =
 
 export function FilterSelect<T extends string>({
   label,
+  className,
   onChange,
   options,
   value,
 }: {
   label: string;
+  className?: string;
   onChange: (value: T) => void;
   options: Option<T>[];
   value: T;
 }) {
+  const fieldId = useId();
+
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+    <div className={cn('space-y-2', className)}>
+      <label id={`${fieldId}-label`} className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+        <SelectTrigger aria-labelledby={`${fieldId}-label`} className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

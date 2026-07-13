@@ -20,7 +20,7 @@ export const esMX = {
   },
   headers: {
     agenda: {
-      emoji: '📅',
+      emoji: '🗓️',
       title: 'Agenda',
       subtitle: 'Agenda operativa con tareas reales, vencidas acumuladas, cierre, evidencia y auditoria.',
       actions: {
@@ -40,7 +40,7 @@ export const esMX = {
       },
     },
     processes: {
-      emoji: '✅',
+      emoji: '🔄',
       title: 'Procesos',
       subtitle: 'Crea procesos recurrentes que generen tareas reales en la agenda de cada responsable.',
       actions: {

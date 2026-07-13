@@ -17,6 +17,8 @@ export const koCA: KpisTranslations = {
     unassigned: '미배정',
     pending: '대기',
     overdue: '기한 초과',
+    points: '점',
+    rowsPerPage: '페이지당 행',
     collaborators: (count: number) => `${count}명`,
   },
   header: {

@@ -21,7 +21,7 @@ export const zhCA: ProcessesTranslations = {
     requiredFields: '标有 * 的字段为必填项。',
   },
   header: {
-    emoji: '✅',
+    emoji: '🔄',
     title: '流程',
     subtitle: '创建周期性流程，为每位负责人生成真实日程任务。',
     actions: {
@@ -39,7 +39,9 @@ export const zhCA: ProcessesTranslations = {
     business: '业务',
     collaborator: '协作者',
     frequency: '频率',
+    clear: '清除筛选',
   },
+  diagram: { previousMonth: '上个月', nextMonth: '下个月' },
   statuses: {
     active: '活跃',
     paused: '已暂停',

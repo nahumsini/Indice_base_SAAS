@@ -36,6 +36,7 @@ import { assetTypeOptionByValue } from './constants/assetCatalog';
 import { AssetFilters } from './components/AssetFilters';
 import { AssetHeaderBar } from './components/AssetHeaderBar';
 import { AssetKpiStrip } from './components/AssetKpiStrip';
+import { HrMobileDataCard } from '../shared/HrMobileDataCard';
 import { useAssetsTranslations } from './hooks/useAssetsTranslations';
 import type { AssetColumnId, AssetRow, AssetType } from './types/assets.types';
 import {
@@ -596,7 +597,40 @@ export default function Assets() {
       />
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-sm dark:border-slate-700 dark:bg-slate-800/95">
-        <div className="overflow-x-auto">
+        <div className="grid grid-cols-1 gap-3 bg-slate-50/60 p-3 lg:grid-cols-2 xl:hidden dark:bg-slate-900/30">
+          {isInitialLoading ? (
+            Array.from({ length: 3 }).map((_, index) => <div key={index} className="h-52 animate-pulse rounded-[22px] border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" />)
+          ) : loadError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-10 text-center text-sm text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">{loadError}</div>
+          ) : paginatedAssets.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">{t.emptyState}</div>
+          ) : paginatedAssets.map((asset) => (
+            <HrMobileDataCard
+              key={asset.backendId}
+              leading={<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF8F4] text-2xl dark:bg-[#13362F]">{getAssetTypeIcon(asset.assetType)}</div>}
+              title={asset.name}
+              subtitle={`${asset.assetCode} · ${getAssetTypeLabel(asset.assetType, t)}`}
+              badges={<span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getAssetStatusClasses(asset.status)}`}>{getAssetStatusLabel(asset.status, t)}</span>}
+              details={[
+                { label: assetColumnConfig.find((column) => column.id === 'responsible')?.label ?? '—', value: asset.responsibleName || t.emptyValue },
+                { label: assetColumnConfig.find((column) => column.id === 'unit')?.label ?? '—', value: asset.unitName || t.emptyValue },
+                { label: assetColumnConfig.find((column) => column.id === 'model')?.label ?? '—', value: asset.model || t.emptyValue },
+                { label: assetColumnConfig.find((column) => column.id === 'value')?.label ?? '—', value: formatAssetNativeValue(asset.valueAmount, asset.valueCurrency) },
+                { label: assetColumnConfig.find((column) => column.id === 'assignedAt')?.label ?? '—', value: formatAssetDate(asset.assignedAt, currentLanguage.code) },
+                { label: assetColumnConfig.find((column) => column.id === 'photos')?.label ?? '—', value: asset.photoCount },
+              ]}
+              actions={(
+                <>
+                  <StandardActionButton onClick={() => void handleViewDetails(asset)} label={t.actionsMenu.viewDetails}><Eye className="h-4 w-4" /></StandardActionButton>
+                  <StandardActionButton onClick={() => void handleViewPhotos(asset)} label={t.actionsMenu.viewPhotos}><Images className="h-4 w-4" /></StandardActionButton>
+                  {canManageAssets ? <StandardActionButton onClick={() => handleEditAsset(asset)} label={t.actionsMenu.edit}><Pencil className="h-4 w-4" /></StandardActionButton> : null}
+                  {canManageAssets ? <StandardActionButton onClick={() => setAssetPendingDeactivate(asset)} label={t.actionsMenu.delete} tone="danger"><Trash2 className="h-4 w-4" /></StandardActionButton> : null}
+                </>
+              )}
+            />
+          ))}
+        </div>
+        <div className="hidden max-w-full overflow-x-auto xl:block">
           <table className="min-w-full">
             <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>

@@ -38,6 +38,7 @@ export const ptBR: ProjectsTranslations = {
     business: 'Negócio',
     owner: 'Responsável',
     status: 'Status',
+    clear: 'Limpar filtros',
   },
   statuses: {
     active: 'Ativo',
@@ -105,6 +106,7 @@ export const ptBR: ProjectsTranslations = {
     labels: {
       visible: 'visíveis',
       active: 'ativos',
+      atRisk: 'em risco',
       open: 'abertas',
       closed: 'fechadas',
       overdue: 'vencidas',

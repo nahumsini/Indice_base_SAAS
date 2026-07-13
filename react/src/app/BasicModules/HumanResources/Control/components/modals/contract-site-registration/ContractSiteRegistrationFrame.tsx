@@ -64,7 +64,7 @@ export function ContractSiteRegistrationFrame({
         onClose={onFailureToastClose}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-        <div className="flex max-h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-gray-900 shadow-lg dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100">
+        <div className="flex max-h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white text-gray-900 shadow-2xl dark:border-[#59C3A5]/25 dark:bg-gray-950 dark:text-gray-100">
           <div className="flex shrink-0 items-center justify-between bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">

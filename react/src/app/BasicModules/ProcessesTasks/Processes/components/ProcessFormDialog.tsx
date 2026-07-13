@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { useEffect, useId, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import {
   CalendarDays,
   CalendarPlus,
@@ -38,6 +38,12 @@ import {
   priorityOptions,
   weekdayOptions,
 } from '../processesData';
+import {
+  processTaskModalFooterClass,
+  processTaskModalHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../../shared/processTaskModalStyles';
 import { defaultProcessesTranslations, type ProcessesTranslations } from '../translations';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../../shared/assignmentScope';
 import type {
@@ -54,6 +60,7 @@ interface ProcessFormDialogProps {
   copy?: ProcessesTranslations;
   form: ProcessFormState;
   isSubmitting?: boolean;
+  locale?: string;
   mode: 'create' | 'edit';
   onOpenChange: (open: boolean) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -75,11 +82,13 @@ function SelectField<T extends string>({
   options,
   value,
 }: SelectFieldProps<T>) {
+  const fieldId = useId();
+
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <label id={`${fieldId}-label`} className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+        <SelectTrigger aria-labelledby={`${fieldId}-label`} className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -106,6 +115,7 @@ function RecurrenceChip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
         'inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm font-semibold transition-colors',
@@ -120,8 +130,8 @@ function RecurrenceChip({
   );
 }
 
-function formatConfiguredDate(date: string) {
-  return new Intl.DateTimeFormat('es-MX', {
+function formatConfiguredDate(date: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -148,6 +158,7 @@ export function ProcessFormDialog({
   copy = defaultProcessesTranslations,
   form,
   isSubmitting = false,
+  locale = 'en-CA',
   mode,
   onOpenChange,
   onSubmit,
@@ -519,10 +530,11 @@ export function ProcessFormDialog({
               ))}
             </div>
             <div className="max-w-xs space-y-2">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <label htmlFor="process-biweekly-reference" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {copy.form.labels.referenceDate}
               </label>
               <Input
+                id="process-biweekly-reference"
                 type="date"
                 value={form.recurrence.biWeeklyAnchorDate}
                 onChange={(event) =>
@@ -534,7 +546,7 @@ export function ProcessFormDialog({
                     },
                   }))
                 }
-                className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
               />
             </div>
           </div>
@@ -574,13 +586,13 @@ export function ProcessFormDialog({
                 type="date"
                 value={specificDateDraft}
                 onChange={(event) => setSpecificDateDraft(event.target.value)}
-                className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
               />
               <Button
                 type="button"
                 onClick={addSpecificDate}
                 disabled={!specificDateDraft}
-                className={`h-11 rounded-xl px-4 text-sm font-semibold ${accentButtonClass}`}
+                className={`h-10 rounded-xl px-4 text-sm font-semibold ${accentButtonClass}`}
               >
                 <CalendarPlus className="mr-2 h-4 w-4" />
                 {copy.form.recurrence.addDate}
@@ -593,7 +605,7 @@ export function ProcessFormDialog({
                     key={date}
                     className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   >
-                    <span>{formatConfiguredDate(date)}</span>
+                    <span>{formatConfiguredDate(date, locale)}</span>
                     <button
                       type="button"
                       onClick={() => removeSpecificDate(date)}
@@ -619,18 +631,22 @@ export function ProcessFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-[860px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[860px] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
+      <DialogContent className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-3xl max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-3xl dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
+        <div className={processTaskModalHeaderClass}>
           <div className="flex items-center justify-between gap-4">
-            <div className="pr-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
+            <div className="flex min-w-0 items-start gap-3 pr-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#9A6B05]/20 bg-white/35 text-slate-950">
                 {mode === 'create' ? <Plus className="h-5 w-5" /> : <Save className="h-5 w-5" />}
-                {title}
-              </DialogTitle>
+              </span>
+              <div className="min-w-0">
+                <DialogTitle className="text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">{title}</DialogTitle>
+                <DialogDescription className="mt-1 max-w-2xl text-sm font-medium leading-5 text-slate-800/80">{description}</DialogDescription>
+              </div>
             </div>
             <DialogClose asChild>
               <button
                 type="button"
+                aria-label={copy.common.close}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#9A6B05]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
               >
                 <X className="h-4 w-4" />
@@ -642,9 +658,6 @@ export function ProcessFormDialog({
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
             <div className="space-y-3">
-              <DialogDescription className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-                {description}
-              </DialogDescription>
               <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
                 <Info className="h-3.5 w-3.5" />
                 {copy.common.requiredFields}
@@ -653,9 +666,9 @@ export function ProcessFormDialog({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.unit}</label>
+                <label id="process-unit-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.unit}</label>
                 <Select value={selectedUnitValue} onValueChange={updateUnit}>
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                  <SelectTrigger aria-labelledby="process-unit-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={copy.form.placeholders.unit} />
                   </SelectTrigger>
                   <SelectContent>
@@ -668,9 +681,9 @@ export function ProcessFormDialog({
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.business}</label>
+                <label id="process-business-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.business}</label>
                 <Select value={selectedBusinessValue} onValueChange={updateBusiness}>
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                  <SelectTrigger aria-labelledby="process-business-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={copy.form.placeholders.business} />
                   </SelectTrigger>
                   <SelectContent>
@@ -683,8 +696,9 @@ export function ProcessFormDialog({
                 </Select>
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.title}</label>
+                <label htmlFor="process-title" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.title}</label>
                 <Input
+                  id="process-title"
                   value={form.title}
                   onChange={(event) =>
                     setForm((currentForm) => ({
@@ -693,12 +707,13 @@ export function ProcessFormDialog({
                     }))
                   }
                   placeholder={copy.form.placeholders.title}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.description}</label>
+                <label htmlFor="process-description" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.description}</label>
                 <Textarea
+                  id="process-description"
                   value={form.description}
                   onChange={(event) =>
                     setForm((currentForm) => ({
@@ -720,10 +735,11 @@ export function ProcessFormDialog({
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <label htmlFor="process-task-title" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                       {copy.form.labels.taskTitle}
                     </label>
                     <Input
+                      id="process-task-title"
                       value={form.taskTitleTemplate}
                       onChange={(event) =>
                         setForm((currentForm) => ({
@@ -732,14 +748,15 @@ export function ProcessFormDialog({
                         }))
                       }
                       placeholder={copy.form.placeholders.taskTitle}
-                      className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                      className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <label htmlFor="process-task-description" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                       {copy.form.labels.taskDescription}
                     </label>
                     <Textarea
+                      id="process-task-description"
                       value={form.taskDescriptionTemplate}
                       onChange={(event) =>
                         setForm((currentForm) => ({
@@ -752,10 +769,11 @@ export function ProcessFormDialog({
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <label htmlFor="process-task-notes" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                       {copy.form.labels.taskNotes}
                     </label>
                     <Textarea
+                      id="process-task-notes"
                       value={form.taskNotesTemplate}
                       onChange={(event) =>
                         setForm((currentForm) => ({
@@ -778,6 +796,7 @@ export function ProcessFormDialog({
                         </p>
                       </div>
                       <Switch
+                        aria-label={copy.form.sections.evidenceRequired}
                         checked={form.evidenceRequired}
                         onCheckedChange={(checked) =>
                           setForm((currentForm) => ({
@@ -798,9 +817,9 @@ export function ProcessFormDialog({
                 options={localizedFrequencyOptions}
               />
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.responsible}</label>
+                <label id="process-responsible-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.responsible}</label>
                 <Select value={selectedResponsibleValue} onValueChange={updateResponsible}>
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                  <SelectTrigger aria-labelledby="process-responsible-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={copy.form.placeholders.responsible} />
                   </SelectTrigger>
                   <SelectContent>
@@ -828,8 +847,9 @@ export function ProcessFormDialog({
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.start}</label>
+                    <label htmlFor="process-start" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.start}</label>
                     <Input
+                      id="process-start"
                       type="date"
                       value={form.startDate}
                       max={form.endDate || undefined}
@@ -843,12 +863,13 @@ export function ProcessFormDialog({
                               : currentForm.endDate,
                         }))
                       }
-                      className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                      className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.end}</label>
+                    <label htmlFor="process-end" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.end}</label>
                     <Input
+                      id="process-end"
                       type="date"
                       value={form.endDate}
                       min={form.startDate || undefined}
@@ -858,14 +879,15 @@ export function ProcessFormDialog({
                           endDate: event.target.value,
                         }))
                       }
-                      className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                      className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <label htmlFor="process-grace-days" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                       {copy.form.labels.graceDays}
                     </label>
                     <Input
+                      id="process-grace-days"
                       type="number"
                       min="0"
                       max="365"
@@ -876,14 +898,15 @@ export function ProcessFormDialog({
                           graceDays: event.target.value,
                         }))
                       }
-                      className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                      className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <label htmlFor="process-window" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                       {copy.form.labels.window}
                     </label>
                     <Input
+                      id="process-window"
                       type="number"
                       min="1"
                       max="365"
@@ -894,7 +917,7 @@ export function ProcessFormDialog({
                           generationWindowDays: event.target.value,
                         }))
                       }
-                      className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                      className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -922,12 +945,12 @@ export function ProcessFormDialog({
             </div>
           </div>
 
-          <DialogFooter className="sticky bottom-0 z-10 shrink-0 border-t border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+          <DialogFooter className={`${processTaskModalFooterClass} sticky bottom-0 z-10`}>
             <DialogClose asChild>
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                className={processTaskModalSecondaryActionClass}
                 disabled={isSubmitting}
               >
                 {copy.common.cancel}
@@ -935,7 +958,7 @@ export function ProcessFormDialog({
             </DialogClose>
             <Button
               type="submit"
-              className={`h-10 rounded-xl px-4 text-sm font-semibold ${accentButtonClass}`}
+              className={processTaskModalPrimaryActionClass}
               disabled={!isFormValid || isSubmitting}
             >
               {mode === 'create' ? <Plus className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}

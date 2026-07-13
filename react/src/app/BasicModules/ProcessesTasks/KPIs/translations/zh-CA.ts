@@ -17,6 +17,8 @@ export const zhCA: KpisTranslations = {
     unassigned: '未分配',
     pending: '待处理',
     overdue: '逾期',
+    points: '点',
+    rowsPerPage: '每页行数',
     collaborators: (count: number) => `${count} 位协作者`,
   },
   header: {

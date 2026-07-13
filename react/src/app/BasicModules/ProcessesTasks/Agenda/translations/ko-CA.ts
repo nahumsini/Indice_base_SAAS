@@ -23,7 +23,7 @@ export const koCA: AgendaTranslations = {
     notAvailable: '해당 없음',
   },
   header: {
-    emoji: '📅',
+    emoji: '🗓️',
     title: '일정',
     subtitle: '실제 작업, 누적 지연, 마감, 증빙, 감사까지 관리하는 운영 일정입니다.',
     actions: {
@@ -36,6 +36,7 @@ export const koCA: AgendaTranslations = {
     },
   },
   filters: {
+    clear: '필터 초기화',
     title: '필터',
     search: 'Search task',
     searchPlaceholder: 'Folio, title, description, or responsible',
@@ -144,6 +145,9 @@ export const koCA: AgendaTranslations = {
     files: '파일',
   },
   bulk: {
+    selected: (count: number) => `${count}개 선택됨`,
+    actions: '일괄 작업',
+    success: (count: number) => `${count}개 작업에 일괄 작업을 적용했습니다.`,
     assignDescription: (count: number) => `선택한 작업 ${count}개에 담당자를 적용합니다.`,
     unitDescription: (count: number) => `선택한 작업 ${count}개에 유닛을 적용합니다.`,
   },

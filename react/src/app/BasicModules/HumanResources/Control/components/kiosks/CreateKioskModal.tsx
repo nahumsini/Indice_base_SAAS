@@ -12,6 +12,13 @@ import {
 } from '../../../../../components/ui/dialog';
 import { KioskFormSection } from './KioskFormSection';
 import type { KioskType } from './KioskTypeSelector';
+import {
+  hrModalBodyClassName,
+  hrModalCloseButtonClassName,
+  hrModalFooterClassName,
+  hrModalHeaderClassName,
+  hrModalShellClassName,
+} from '../../../shared/hrModalStyles';
 
 export interface KioskOption {
   id: number;
@@ -96,9 +103,9 @@ export function CreateKioskModal({
     >
       <DialogContent
         hideCloseButton
-        className="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-0 text-slate-950 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-3xl"
+        className={`max-h-[90vh] sm:max-w-3xl ${hrModalShellClassName}`}
       >
-        <div className="bg-[#59C3A5] px-6 py-4 text-white">
+        <div className={hrModalHeaderClassName}>
           <div className="flex items-start justify-between gap-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-xl font-semibold text-white">{modalTitle}</DialogTitle>
@@ -106,7 +113,7 @@ export function CreateKioskModal({
             </DialogHeader>
             <button
               type="button"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/70"
+              className={hrModalCloseButtonClassName}
               aria-label={copy.kiosk.form.closeAria}
               onClick={onClose}
             >
@@ -115,7 +122,7 @@ export function CreateKioskModal({
           </div>
         </div>
 
-        <div className="min-h-0 overflow-y-auto bg-slate-50 px-6 py-5 dark:bg-slate-950">
+        <div className={hrModalBodyClassName}>
           <div className="grid gap-4">
             <KioskFormSection
               title={copy.kiosk.form.typeSectionTitle}
@@ -270,7 +277,7 @@ export function CreateKioskModal({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-[#3AAE90] bg-[#59C3A5] px-6 py-4">
+        <DialogFooter className={hrModalFooterClassName}>
           <Button
             type="button"
             variant="outline"

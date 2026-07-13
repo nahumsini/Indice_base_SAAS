@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { Pencil, Plus, Save } from 'lucide-react';
+import { Pencil, Plus, Save, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   Dialog,
@@ -18,7 +18,13 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
-import { accentButtonClass } from '../../Processes/processesData';
+import {
+  processTaskModalCloseActionClass,
+  processTaskModalFooterClass,
+  processTaskModalHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../../shared/processTaskModalStyles';
 import type {
   ProcessBusinessOption,
   ProcessCollaboratorOption,
@@ -335,22 +341,28 @@ export function ProjectFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="!flex h-[min(88vh,780px)] w-[calc(100vw-2rem)] !max-w-[820px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[820px] dark:border-slate-700 dark:bg-slate-800"
+        className="!flex h-[min(88vh,780px)] w-[calc(100vw-2rem)] !max-w-3xl max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-3xl dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
+        <div className={processTaskModalHeaderClass}>
           <div className="flex items-center justify-between gap-4">
-            <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
-              {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-              {title}
-            </DialogTitle>
+            <div className="min-w-0 pr-4">
+              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
+                {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                {title}
+              </DialogTitle>
+              <DialogDescription className="mt-1 max-w-2xl text-sm font-medium leading-5 text-slate-800/80">
+                {formCopy.description}
+              </DialogDescription>
+            </div>
             <DialogClose asChild>
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-2xl border-[#9A6B05]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
+                className={`${processTaskModalCloseActionClass} w-9 shrink-0 px-0`}
                 disabled={isSubmitting}
+                aria-label={copy.common.close}
               >
-                {copy.common.close}
+                <X className="h-4 w-4" />
               </Button>
             </DialogClose>
           </div>
@@ -358,10 +370,6 @@ export function ProjectFormDialog({
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-            <DialogDescription className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-              {formCopy.description}
-            </DialogDescription>
-
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.name}</label>
@@ -464,12 +472,12 @@ export function ProjectFormDialog({
             </div>
           </div>
 
-          <DialogFooter className="sticky bottom-0 z-10 shrink-0 border-t border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+          <DialogFooter className={`${processTaskModalFooterClass} sticky bottom-0 z-10`}>
             <DialogClose asChild>
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                className={processTaskModalSecondaryActionClass}
                 disabled={isSubmitting}
               >
                 {copy.common.cancel}
@@ -477,7 +485,7 @@ export function ProjectFormDialog({
             </DialogClose>
             <Button
               type="submit"
-              className={`h-10 rounded-xl px-4 text-sm font-semibold ${accentButtonClass}`}
+              className={processTaskModalPrimaryActionClass}
               disabled={!isFormValid || isSubmitting}
             >
               {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}

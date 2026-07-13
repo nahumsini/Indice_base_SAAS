@@ -16,7 +16,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">{copy.filters.title}</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="md:col-span-2">

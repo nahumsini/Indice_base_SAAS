@@ -20,7 +20,7 @@ export const enCA = {
   },
   headers: {
     agenda: {
-      emoji: '📅',
+      emoji: '🗓️',
       title: 'Agenda',
       subtitle: 'Operational agenda with real tasks, carried-over overdue work, closure, evidence, and audit.',
       actions: {
@@ -40,7 +40,7 @@ export const enCA = {
       },
     },
     processes: {
-      emoji: '✅',
+      emoji: '🔄',
       title: 'Processes',
       subtitle: 'Create recurring processes that generate real agenda tasks for each responsible user.',
       actions: {

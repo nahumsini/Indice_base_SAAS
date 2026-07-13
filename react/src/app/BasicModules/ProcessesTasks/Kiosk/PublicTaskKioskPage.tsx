@@ -1160,7 +1160,7 @@ export default function PublicTaskKioskPage() {
           aria-modal="true"
           aria-labelledby="task-kiosk-create-title"
         >
-          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:max-w-xl sm:rounded-lg">
+          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200/80 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-xl sm:rounded-[28px]">
             <div className="bg-[#F4C84A] px-5 py-4 text-slate-950">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
@@ -1377,7 +1377,7 @@ export default function PublicTaskKioskPage() {
           aria-modal="true"
           aria-labelledby="task-kiosk-responsible-title"
         >
-          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:max-w-md sm:rounded-lg">
+          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200/80 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-md sm:rounded-[28px]">
             <div className="bg-[#F4C84A] px-5 py-4 text-slate-950">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -1464,7 +1464,7 @@ export default function PublicTaskKioskPage() {
           aria-modal="true"
           aria-labelledby="task-kiosk-completion-title"
         >
-          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:max-w-xl sm:rounded-lg">
+          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200/80 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-xl sm:rounded-[28px]">
             <div className="bg-[#F4C84A] px-5 py-4 text-slate-950">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 items-start gap-3">

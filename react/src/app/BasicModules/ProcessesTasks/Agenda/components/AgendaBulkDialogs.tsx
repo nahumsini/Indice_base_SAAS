@@ -1,6 +1,8 @@
+import { X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -15,10 +17,16 @@ import {
 } from '../../../../components/ui/select';
 import { cn } from '../../../../components/ui/utils';
 import type { ProcessCollaboratorOption, ProcessUnitOption } from '../../Processes/types';
+import {
+  processTaskModalCloseActionClass,
+  processTaskModalCompactFooterClass,
+  processTaskModalCompactHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../../shared/processTaskModalStyles';
 import type { AgendaTranslations } from '../translations';
 
 type AgendaBulkDialogsProps = {
-  accentButtonClassName: string;
   bulkResponsibleValue: string;
   bulkUnitValue: string;
   collaborators: ProcessCollaboratorOption[];
@@ -39,7 +47,6 @@ type AgendaBulkDialogsProps = {
 };
 
 export function AgendaBulkDialogs({
-  accentButtonClassName,
   bulkResponsibleValue,
   bulkUnitValue,
   collaborators,
@@ -65,11 +72,20 @@ export function AgendaBulkDialogs({
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[#F4C84A] px-5 py-4">
-            <DialogTitle className="text-lg font-bold text-slate-950">{copy.form.labels.responsible}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-slate-800/85">
-              {copy.bulk.assignDescription(selectedCount)}
-            </DialogDescription>
+          <div className={processTaskModalCompactHeaderClass}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-950">{copy.form.labels.responsible}</DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-slate-800/85">
+                  {copy.bulk.assignDescription(selectedCount)}
+                </DialogDescription>
+              </div>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isRunning} aria-label={copy.common.cancel}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogClose>
+            </div>
           </div>
           <div className="space-y-3 px-5 py-5">
             <Select value={bulkResponsibleValue} onValueChange={onResponsibleValueChange}>
@@ -86,11 +102,11 @@ export function AgendaBulkDialogs({
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+          <DialogFooter className={processTaskModalCompactFooterClass}>
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              className={processTaskModalSecondaryActionClass}
               disabled={isRunning}
               onClick={() => onAssignOpenChange(false)}
             >
@@ -98,7 +114,7 @@ export function AgendaBulkDialogs({
             </Button>
             <Button
               type="button"
-              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClassName)}
+              className={processTaskModalPrimaryActionClass}
               disabled={isRunning}
               onClick={onAssignConfirm}
             >
@@ -113,11 +129,20 @@ export function AgendaBulkDialogs({
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[#F4C84A] px-5 py-4">
-            <DialogTitle className="text-lg font-bold text-slate-950">{copy.form.labels.unit}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-slate-800/85">
-              {copy.bulk.unitDescription(selectedCount)}
-            </DialogDescription>
+          <div className={processTaskModalCompactHeaderClass}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-950">{copy.form.labels.unit}</DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-slate-800/85">
+                  {copy.bulk.unitDescription(selectedCount)}
+                </DialogDescription>
+              </div>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isRunning} aria-label={copy.common.cancel}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogClose>
+            </div>
           </div>
           <div className="space-y-3 px-5 py-5">
             <Select value={bulkUnitValue} onValueChange={onUnitValueChange}>
@@ -134,11 +159,11 @@ export function AgendaBulkDialogs({
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+          <DialogFooter className={processTaskModalCompactFooterClass}>
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              className={processTaskModalSecondaryActionClass}
               disabled={isRunning}
               onClick={() => onUnitOpenChange(false)}
             >
@@ -146,7 +171,7 @@ export function AgendaBulkDialogs({
             </Button>
             <Button
               type="button"
-              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClassName)}
+              className={processTaskModalPrimaryActionClass}
               disabled={isRunning}
               onClick={onUnitConfirm}
             >

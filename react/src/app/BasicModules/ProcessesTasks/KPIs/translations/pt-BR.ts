@@ -17,6 +17,8 @@ export const ptBR: KpisTranslations = {
     unassigned: 'Sem responsavel',
     pending: 'pendentes',
     overdue: 'vencidas',
+    points: 'pts',
+    rowsPerPage: 'Linhas por página',
     collaborators: (count: number) => `${count} colaboradores`,
   },
   header: {

@@ -15,7 +15,7 @@ export const tableTextareaClass =
   'min-h-[76px] rounded-xl border-slate-200 bg-white text-sm leading-5 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100';
 
 export const tableSelectTriggerClass =
-  'h-14 rounded-2xl border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 shadow-none transition-colors hover:border-slate-300 focus:ring-2 focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600';
+  'h-10 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none transition-colors hover:border-slate-300 focus:ring-2 focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600';
 
 const actionButtonBaseClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors disabled:cursor-not-allowed disabled:opacity-50';
@@ -104,7 +104,7 @@ export function AgendaSortableTableHead<TColumnId extends string, TResizeColumnI
 
   return (
     <TableHead
-      className="group relative px-5 py-5"
+      className="group relative px-4 py-4"
       style={{ width, minWidth: width }}
     >
       <div className="flex min-w-0 items-center justify-between gap-3 pr-2">
@@ -151,7 +151,7 @@ export function AgendaStaticTableHead<TColumnId extends string>({
 }: AgendaStaticTableHeadProps<TColumnId>) {
   return (
     <TableHead
-      className="group relative px-5 py-5"
+      className="group relative px-4 py-4"
       style={{ width, minWidth: width }}
     >
       <div className="flex min-w-0 items-center justify-between gap-3 pr-2">

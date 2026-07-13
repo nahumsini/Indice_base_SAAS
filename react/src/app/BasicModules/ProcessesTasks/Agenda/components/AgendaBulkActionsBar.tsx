@@ -41,9 +41,9 @@ export function AgendaBulkActionsBar({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05] dark:bg-slate-800 dark:text-[#FEF3C7]">
-            {selectedCount} seleccionadas
+            {copy.bulk.selected(selectedCount)}
           </Badge>
-          <span className="text-slate-500 dark:text-slate-400">Acciones masivas</span>
+          <span className="text-slate-500 dark:text-slate-400">{copy.bulk.actions}</span>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
           <Button

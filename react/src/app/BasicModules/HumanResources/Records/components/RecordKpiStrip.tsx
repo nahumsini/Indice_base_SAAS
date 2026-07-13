@@ -73,7 +73,7 @@ export function RecordKpiStrip({
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#59C3A5] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-blue-100">
+      <div className="rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#177d66] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-[#8DE1CB]">
         {copy.summary(pendingCount, reviewedCount, resolvedCount, highSeverityCount, visibleCount, totalCount)}
       </div>
     </div>

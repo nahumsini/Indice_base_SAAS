@@ -58,14 +58,14 @@ export function ControlOperationsWorkspace({
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-lg bg-[#f6f8fc] p-3 dark:bg-gray-950/30 sm:p-4">
+        <div className="rounded-[24px] bg-[#f6f8fc] p-3 dark:bg-gray-950/30 sm:p-4">
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.8fr]">
-            <Skeleton className="h-[900px] rounded-lg" />
-            <Skeleton className="h-[900px] rounded-lg" />
+            <Skeleton className="h-[900px] rounded-[24px]" />
+            <Skeleton className="h-[900px] rounded-[24px]" />
           </div>
         </div>
       ) : hasOverview ? (
-        <div className="rounded-lg bg-[#f6f8fc] p-3 dark:bg-gray-950/30 sm:p-4">
+        <div className="rounded-[24px] bg-[#f6f8fc] p-3 dark:bg-gray-950/30 sm:p-4">
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.92fr_1.78fr]">
             <AttendanceDailyBoard {...dailyBoard} />
 
@@ -77,7 +77,7 @@ export function ControlOperationsWorkspace({
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+        <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
           {loadingLabel}
         </div>
       )}

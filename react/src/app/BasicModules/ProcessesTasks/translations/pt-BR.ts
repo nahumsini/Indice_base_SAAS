@@ -20,7 +20,7 @@ export const ptBR = {
   },
   headers: {
     agenda: {
-      emoji: '📅',
+      emoji: '🗓️',
       title: 'Agenda',
       subtitle: 'Agenda operacional com tarefas reais, vencidas acumuladas, fechamento, evidencias e auditoria.',
       actions: {
@@ -40,7 +40,7 @@ export const ptBR = {
       },
     },
     processes: {
-      emoji: '✅',
+      emoji: '🔄',
       title: 'Processos',
       subtitle: 'Crie processos recorrentes que gerem tarefas reais na agenda de cada responsavel.',
       actions: {

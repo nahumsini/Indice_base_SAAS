@@ -145,15 +145,15 @@ export function ColumnasConfigModal({
   const modalTheme = (() => {
     if (theme === 'processes') {
       return {
-        accent: 'text-[rgb(235,165,52)]',
+        accent: 'text-[#9A6B05]',
         checkbox:
-          'data-[state=checked]:border-[rgb(235,165,52)] data-[state=checked]:bg-[rgb(235,165,52)] focus-visible:ring-[rgb(235,165,52)]/30',
+          'data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A] data-[state=checked]:text-slate-950 focus-visible:ring-[#F4C84A]/30',
         content: 'max-w-[760px] rounded-2xl',
-        footer: 'bg-[rgb(235,165,52)]',
-        header: 'bg-[rgb(235,165,52)]',
-        interactive: 'hover:border-[rgb(235,165,52)]/40 hover:bg-[rgb(235,165,52)]/5',
+        footer: 'bg-[#F4C84A]',
+        header: 'bg-[#F4C84A]',
+        interactive: 'hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10',
         primary:
-          'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[rgb(176,111,22)] shadow-sm hover:bg-slate-100 hover:text-[rgb(176,111,22)] focus-visible:ring-white/40 dark:bg-white dark:text-[rgb(176,111,22)] dark:hover:bg-slate-100',
+          'h-10 rounded-xl border border-white/80 bg-white px-5 text-sm font-semibold text-[#7A5404] shadow-sm hover:bg-white/85 hover:text-[#7A5404] focus-visible:ring-white/40 dark:bg-white dark:text-[#7A5404] dark:hover:bg-slate-100',
       };
     }
 
@@ -209,6 +209,7 @@ export function ColumnasConfigModal({
       primary: moduleModalPrimaryButtonClassName,
     };
   })();
+  const usesProcessesTheme = theme === 'processes';
   const copy = (() => {
     if (currentLanguage.code.startsWith('es')) {
       return {
@@ -410,24 +411,24 @@ export function ColumnasConfigModal({
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
-        <div className={cn('shrink-0 px-6 py-4 text-white', modalTheme.header)}>
+        <div className={cn('shrink-0 px-6 py-4', usesProcessesTheme ? 'text-slate-950' : 'text-white', modalTheme.header)}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+              <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm', usesProcessesTheme ? 'border border-[#9A6B05]/15 bg-white/35 text-slate-950' : 'bg-white/15 text-white')}>
                 <Columns3 className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <h2 className="pr-4 text-xl font-semibold leading-tight tracking-tight text-white" aria-hidden="true">
+                <h2 className={cn('pr-4 text-xl font-semibold leading-tight tracking-tight', usesProcessesTheme ? 'text-slate-950' : 'text-white')} aria-hidden="true">
                   {copy.title}
                 </h2>
-                <span className="mt-2 inline-flex items-center rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                <span className={cn('mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold', usesProcessesTheme ? 'border border-[#9A6B05]/20 bg-white/30 text-slate-800' : 'border border-white/25 bg-white/15 text-white')}>
                   {copy.visibleCount(visibleCount, totalColumns)}
                 </span>
               </div>
             </div>
             <button
               onClick={handleCancel}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
+              className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors', usesProcessesTheme ? 'border border-[#9A6B05]/25 bg-white/35 text-slate-950 hover:bg-white/60' : 'border border-white/25 bg-white/10 text-white hover:bg-white/20')}
               aria-label={copy.close}
             >
               <X className="h-4 w-4" />
@@ -526,7 +527,9 @@ export function ColumnasConfigModal({
         <DialogFooter className={cn('sticky bottom-0 z-10 shrink-0 px-6 py-4', modalTheme.footer)}>
           <Button
             variant="outline"
-            className={moduleModalOutlineButtonClassName}
+            className={usesProcessesTheme
+              ? 'h-10 rounded-xl border-[#9A6B05]/30 bg-transparent px-5 text-sm font-semibold text-slate-950 shadow-none hover:bg-white/35 hover:text-slate-950'
+              : moduleModalOutlineButtonClassName}
             onClick={handleCancel}
           >
             {copy.cancel}
