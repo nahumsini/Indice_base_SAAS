@@ -17,6 +17,7 @@ import {
 } from '../../components/table/ExpenseInlineControls';
 import { ExpenseAmountCells } from '../../components/table/ExpenseAmountCells';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
+import { getExpenseBalance } from '../../utils/expenseFilters';
 
 export type ExpenseWorkflowState = {
   authorizer: string;
@@ -107,6 +108,8 @@ export function EditableExpenseRow({
   const businessOptionsForUnit = filterBusinessesForUnit(options.businesses, expense.businessUnit);
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
+  const canRecordPayment = expense.type !== 'budget' && getExpenseBalance(expense) > 0;
+  const canMarkPaid = expense.type !== 'budget' && getExpenseBalance(expense) > 0;
   const statusOptions = options.statuses.filter(option => {
     if (!showMarkPaidAction && (option.value === 'paid' || option.value === 'partial')) return false;
     if (!showAuditAction && option.value === 'audited') return false;
@@ -364,8 +367,8 @@ export function EditableExpenseRow({
           isDeletePending={isDeletePending}
           showAudit={actionVisibility?.showAudit}
           showCreatePayable={expense.type === 'budget'}
-          showMarkPaid={expense.type !== 'budget' && (actionVisibility?.showMarkPaid ?? true)}
-          showRecordPayment={expense.type !== 'budget' && (actionVisibility?.showRecordPayment ?? true)}
+          showMarkPaid={canMarkPaid && (actionVisibility?.showMarkPaid ?? true)}
+          showRecordPayment={canRecordPayment && (actionVisibility?.showRecordPayment ?? true)}
         />
       </td>
     </tr>

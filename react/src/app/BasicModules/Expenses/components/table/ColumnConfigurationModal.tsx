@@ -20,7 +20,7 @@ export function ColumnConfigurationModal({
       defaultColumns={toSystemColumns(DEFAULT_EXPENSE_COLUMNS)}
       onClose={onClose}
       onSave={(nextColumns) => onSaveColumns(fromSystemColumns(nextColumns, columns))}
-      theme="humanResources"
+      theme="expenses"
     />
   );
 }

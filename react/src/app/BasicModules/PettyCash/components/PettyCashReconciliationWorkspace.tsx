@@ -770,7 +770,7 @@ export function PettyCashReconciliationWorkspace({
       <PettyCashHeaderBanner
         actionLabel={copy.reconciliation.header.uploadReceipt}
         description={copy.reconciliation.header.description}
-        emoji="🧾"
+        icon={ReceiptText}
         onAction={() => setIsReceiptModalOpen(true)}
         onSecondaryAction={() => setIsDepositModalOpen(true)}
         onTertiaryAction={() => setIsProviderModalOpen(true)}
@@ -782,7 +782,7 @@ export function PettyCashReconciliationWorkspace({
       />
 
       {referenceError ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {referenceError}
         </div>
       ) : null}
@@ -839,28 +839,28 @@ export function PettyCashReconciliationWorkspace({
       </PettyCashFilterShell>
 
       {selectedFund ? (
-        <section className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-wrap items-center gap-5">
             <PettyCashMetric icon={WalletCards} label={copy.reconciliation.metrics.fundBalance} tone="success" value={formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode)} />
             <PettyCashMetric icon={Landmark} label={copy.reconciliation.metrics.deposited} value={formatPettyCashCurrency(totalDeposits, selectedFund.currencyCode)} />
             <PettyCashMetric icon={ReceiptText} label={copy.reconciliation.metrics.receipts} tone="warning" value={formatPettyCashCurrency(totalReceipts, selectedFund.currencyCode)} />
             <PettyCashMetric icon={FileText} label={copy.reconciliation.metrics.pendingSettlement} tone={pendingSettlement > 0 ? 'warning' : 'success'} value={formatPettyCashCurrency(pendingSettlement, selectedFund.currencyCode)} />
           </div>
-          <div className="mt-4 grid gap-3 text-sm font-semibold text-slate-600 lg:grid-cols-4">
-            <div className="rounded-xl bg-slate-50 p-3">
-              <span className="block text-xs uppercase tracking-[0.16em] text-slate-400">{copy.reconciliation.metrics.responsible}</span>
+          <div className="mt-4 grid gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300 lg:grid-cols-4">
+            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
+              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.responsible}</span>
               {selectedFund.responsibleName}
             </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <span className="block text-xs uppercase tracking-[0.16em] text-slate-400">{copy.reconciliation.metrics.source}</span>
+            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
+              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.source}</span>
               {selectedFund.fundingSourceName}
             </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <span className="block text-xs uppercase tracking-[0.16em] text-slate-400">{copy.reconciliation.metrics.receivesBy}</span>
+            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
+              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.receivesBy}</span>
               {selectedFund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}
             </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <span className="block text-xs uppercase tracking-[0.16em] text-slate-400">{copy.reconciliation.metrics.spendsBy}</span>
+            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
+              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.spendsBy}</span>
               {selectedFund.spendingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}
             </div>
           </div>
@@ -870,19 +870,19 @@ export function PettyCashReconciliationWorkspace({
       )}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.2fr]">
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
             <div>
-              <h3 className="text-xl font-black text-slate-900">{copy.reconciliation.movements.title}</h3>
-              <p className="mt-1 text-sm font-medium text-slate-500">{copy.reconciliation.movements.subtitle}</p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">{copy.reconciliation.movements.title}</h3>
+              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.movements.subtitle}</p>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{selectedMovements.length}</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{selectedMovements.length}</span>
           </div>
           {selectedMovements.length > 0 ? (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px]">
-                  <thead className="border-b border-slate-200 bg-slate-50">
+                  <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
                     <tr>
                       {[
                         copy.reconciliation.movements.columns.date,
@@ -891,18 +891,18 @@ export function PettyCashReconciliationWorkspace({
                         copy.reconciliation.movements.columns.amount,
                         copy.reconciliation.movements.columns.reference,
                       ].map(column => (
-                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {movementPagination.paginatedRows.map(movement => (
-                      <tr key={movement.id} className="transition hover:bg-slate-50">
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(movement.movementDate)}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{copy.status.movement[movement.type]}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</td>
+                      <tr key={movement.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{formatPettyCashIsoDate(movement.movementDate)}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{copy.status.movement[movement.type]}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</td>
                         <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{getPettyCashMethodLabel(copy.funds.methodLabels, movement.reference)}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{getPettyCashMethodLabel(copy.funds.methodLabels, movement.reference)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -928,19 +928,19 @@ export function PettyCashReconciliationWorkspace({
           )}
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
             <div>
-              <h3 className="text-xl font-black text-slate-900">{copy.reconciliation.receipts.title}</h3>
-              <p className="mt-1 text-sm font-medium text-slate-500">{copy.reconciliation.receipts.subtitle}</p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">{copy.reconciliation.receipts.title}</h3>
+              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.receipts.subtitle}</p>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{filteredLines.length}</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{filteredLines.length}</span>
           </div>
           {filteredLines.length > 0 ? (
             <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[900px]">
-                  <thead className="border-b border-slate-200 bg-slate-50">
+                  <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
                     <tr>
                       {[
                         copy.reconciliation.receipts.columns.receipt,
@@ -952,28 +952,28 @@ export function PettyCashReconciliationWorkspace({
                         copy.reconciliation.receipts.columns.status,
                         copy.reconciliation.receipts.columns.actions,
                       ].map(column => (
-                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {linePagination.paginatedRows.map(line => {
                       const canCreateExpense = canCreateExpenseFromLine(line);
                       return (
-                      <tr key={line.id} className="transition hover:bg-slate-50">
+                      <tr key={line.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <td className="px-5 py-4">
-                          <p className="text-sm font-black text-slate-900">{line.description}</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">{line.receiptReference ?? copy.reconciliation.receipts.noReference}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-white">{line.description}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{line.receiptReference ?? copy.reconciliation.receipts.noReference}</p>
                         </td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{line.providerName ?? copy.common.notAvailable}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{line.accountingAccountName ?? copy.common.notAvailable}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(line.expenseDate)}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{line.providerName ?? copy.common.notAvailable}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{line.accountingAccountName ?? copy.common.notAvailable}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{formatPettyCashIsoDate(line.expenseDate)}</td>
                         <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(line.totalAmount, line.currencyCode)}</td>
                         <td className="px-5 py-4">
                           <button
                             type="button"
                             onClick={() => setAttachmentLine(line)}
-                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                           >
                             <Paperclip className="h-4 w-4 text-[#147514]" />
                             {line.attachmentCount}
@@ -985,7 +985,7 @@ export function PettyCashReconciliationWorkspace({
                             type="button"
                             disabled={!canCreateExpense || line.status === 'EXPENSE_CREATED' || expenseCreationLineId === line.id}
                             onClick={() => handleCreateExpenseFromLine(line)}
-                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#147514]/20 bg-[#147514] px-3 text-sm font-black text-white transition hover:bg-[#0f5f0f] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#147514]/20 bg-[#147514] px-3 text-sm font-black text-white transition hover:bg-[#0f5f0f] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:border-slate-700 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
                             title={canCreateExpense ? copy.reconciliation.receipts.createExpenseTitle : copy.reconciliation.receipts.createExpenseDisabledTitle}
                           >
                             {expenseCreationLineId === line.id ? (
@@ -1041,7 +1041,7 @@ export function PettyCashReconciliationWorkspace({
           )}
         >
           <table className="w-full min-w-[1120px]">
-            <thead className="border-b border-slate-200 bg-slate-50">
+            <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
               <tr>
                 {[
                   copy.reconciliation.statements.columns.statement,
@@ -1054,29 +1054,29 @@ export function PettyCashReconciliationWorkspace({
                   copy.reconciliation.statements.columns.status,
                   copy.reconciliation.statements.columns.actions,
                 ].map(column => (
-                  <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                  <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {statementPagination.paginatedRows.map((statement) => {
                 const fund = getFundById(funds, statement.pettyCashFundId);
                 return (
-                  <tr key={statement.id} className="transition hover:bg-slate-50">
-                    <td className="px-5 py-5 text-sm font-black text-slate-900">{statement.folio}</td>
-                    <td className="px-5 py-5 text-sm font-bold text-slate-700">{statement.periodKey}</td>
-                    <td className="px-5 py-5 text-sm font-bold text-slate-700">{fund?.responsibleName ?? statement.responsibleName}</td>
-                    <td className="px-5 py-5 text-sm font-black text-slate-900">{formatPettyCashCurrency(statement.assignedAmount + statement.additionalDepositAmount, statement.currencyCode)}</td>
+                  <tr key={statement.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                    <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{statement.folio}</td>
+                    <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{statement.periodKey}</td>
+                    <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund?.responsibleName ?? statement.responsibleName}</td>
+                    <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(statement.assignedAmount + statement.additionalDepositAmount, statement.currencyCode)}</td>
                     <td className="px-5 py-5 text-sm font-black text-[#147514]">{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-5 text-sm font-black text-slate-900">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-5 text-sm font-black text-amber-600">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</td>
+                    <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
+                    <td className="px-5 py-5 text-sm font-black text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</td>
                     <td className="px-5 py-5"><PettyCashStatusPill kind="statement" status={statement.status} /></td>
                     <td className="px-5 py-5">
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => handleDownloadStatementPdf(statement)}
-                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                         >
                           <Download className="h-4 w-4 text-[#2563EB]" />
                           PDF
@@ -1091,7 +1091,7 @@ export function PettyCashReconciliationWorkspace({
                             || statementCloseId === statement.id
                           }
                           onClick={() => setClosingStatement(statement)}
-                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
                         >
                           {statementCloseId === statement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-[#147514]" />}
                           {statementCloseId === statement.id ? copy.reconciliation.statements.closing : copy.reconciliation.statements.close}
@@ -1202,13 +1202,13 @@ function CloseStatementModal({
       title={copy.reconciliation.closeModal.title}
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl bg-slate-50 p-4">
-          <span className="block text-xs font-black uppercase tracking-[0.16em] text-slate-400">{copy.reconciliation.closeModal.cashBalance}</span>
+        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/70">
+          <span className="block text-xs font-black uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.closeModal.cashBalance}</span>
           <p className="mt-2 text-lg font-black text-[#147514]">{formatPettyCashCurrency(closingBalance, statement.currencyCode)}</p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-4">
-          <span className="block text-xs font-black uppercase tracking-[0.16em] text-slate-400">{copy.reconciliation.closeModal.pending}</span>
-          <p className={`mt-2 text-lg font-black ${pendingAmount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/70">
+          <span className="block text-xs font-black uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.closeModal.pending}</span>
+          <p className={`mt-2 text-lg font-black ${pendingAmount > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>
             {formatPettyCashCurrency(pendingAmount, statement.currencyCode)}
           </p>
         </div>
@@ -1257,7 +1257,7 @@ function CloseStatementModal({
           </PettyCashField>
         </div>
         {pendingAmount > 0 ? (
-          <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             {copy.reconciliation.closeModal.pendingWarning}
           </div>
         ) : null}
@@ -1355,7 +1355,7 @@ function DepositModal({
           </PettyCashField>
         </div>
         {!selectedSourceAccount ? (
-          <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             {copy.reconciliation.depositModal.noSource(fund.currencyCode)}
           </div>
         ) : null}
@@ -1460,7 +1460,7 @@ function ReceiptModal({
           />
         </PettyCashField>
         <PettyCashField label={copy.reconciliation.receiptModal.file}>
-          <label className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50">
+          <label className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
             <FolderOpen className="h-4 w-4" />
             {draft.attachments.length > 0 ? copy.common.fileCount(draft.attachments.length) : copy.reconciliation.receiptModal.selectReceipt}
             <input
@@ -1588,11 +1588,11 @@ function PettyCashAttachmentsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#147514]/30 bg-white shadow-2xl">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
         <header className="bg-[#147514] px-7 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
                 <Paperclip className="h-5 w-5" />
               </span>
               <div>
@@ -1600,7 +1600,7 @@ function PettyCashAttachmentsModal({
                 <p className="mt-1 text-sm font-semibold text-white/80">{line.description}</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 transition hover:bg-white/25">
+            <button type="button" onClick={onClose} className="rounded-lg bg-white/15 p-2 transition hover:bg-white/25">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -1608,21 +1608,21 @@ function PettyCashAttachmentsModal({
 
         <div className="overflow-y-auto px-7 py-6">
           {!hasBackendLine ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
               {copy.reconciliation.attachments.backendWarning}
             </div>
           ) : null}
 
           {error ? (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           ) : null}
 
-          <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#147514] bg-[#147514]/5 px-5 py-8 text-center transition hover:bg-[#147514]/10">
+          <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#147514] bg-[#147514]/5 px-5 py-8 text-center transition hover:bg-[#147514]/10 dark:bg-[#147514]/10">
             <Upload className="h-9 w-9 text-[#147514]" />
-            <span className="mt-3 text-lg font-black text-slate-900">{copy.reconciliation.attachments.selectTitle}</span>
-            <span className="mt-1 text-sm font-semibold text-slate-500">{copy.reconciliation.attachments.selectDescription}</span>
+            <span className="mt-3 text-lg font-black text-slate-900 dark:text-white">{copy.reconciliation.attachments.selectTitle}</span>
+            <span className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.reconciliation.attachments.selectDescription}</span>
             <input
               className="hidden"
               disabled={!hasBackendLine || isSaving}
@@ -1633,13 +1633,13 @@ function PettyCashAttachmentsModal({
           </label>
 
           {pendingFiles.length > 0 ? (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-black text-slate-900">{copy.reconciliation.attachments.pendingFiles(pendingFiles.length)}</p>
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70">
+              <p className="text-sm font-black text-slate-900 dark:text-white">{copy.reconciliation.attachments.pendingFiles(pendingFiles.length)}</p>
               <div className="mt-3 space-y-2">
                 {pendingFiles.map(file => (
-                  <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                  <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-300">
                     <span className="truncate">{file.name}</span>
-                    <span className="shrink-0 text-slate-500">{formatBytes(file.size)}</span>
+                    <span className="shrink-0 text-slate-500 dark:text-slate-400">{formatBytes(file.size)}</span>
                   </div>
                 ))}
               </div>
@@ -1648,30 +1648,30 @@ function PettyCashAttachmentsModal({
 
           <div className="mt-6">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h4 className="text-base font-black text-slate-900">{copy.reconciliation.attachments.savedTitle(attachments.length)}</h4>
-              <span className="text-sm font-semibold text-slate-500">{copy.reconciliation.attachments.total(formatBytes(totalSize))}</span>
+              <h4 className="text-base font-black text-slate-900 dark:text-white">{copy.reconciliation.attachments.savedTitle(attachments.length)}</h4>
+              <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.reconciliation.attachments.total(formatBytes(totalSize))}</span>
             </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-sm font-bold text-slate-500">
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-8 text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {copy.common.loadingAttachments}
               </div>
             ) : attachments.length > 0 ? (
               <div className="space-y-2">
                 {attachments.map(attachment => (
-                  <div key={attachment.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={attachment.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-900">{attachment.originalFilename}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                      <p className="truncate text-sm font-black text-slate-900 dark:text-white">{attachment.originalFilename}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
                         {formatBytes(attachment.sizeBytes)}
-                        {attachment.createdAt ? ` · ${formatPettyCashIsoDate(attachment.createdAt.slice(0, 10))}` : ''}
+                        {attachment.createdAt ? ` - ${formatPettyCashIsoDate(attachment.createdAt.slice(0, 10))}` : ''}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {attachment.downloadUrl ? (
                         <a
-                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                           href={attachment.downloadUrl}
                           rel="noreferrer"
                           target="_blank"
@@ -1680,7 +1680,7 @@ function PettyCashAttachmentsModal({
                           {copy.reconciliation.attachments.open}
                         </a>
                       ) : (
-                        <span className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-400">
+                        <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-bold text-slate-400 dark:border-slate-700 dark:text-slate-500">
                           <Download className="h-4 w-4" />
                           {copy.reconciliation.attachments.noLink}
                         </span>
@@ -1689,7 +1689,7 @@ function PettyCashAttachmentsModal({
                         type="button"
                         disabled={isSaving}
                         onClick={() => deleteAttachment(attachment.id)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20"
                         aria-label={copy.common.deleteAttachment}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1705,14 +1705,14 @@ function PettyCashAttachmentsModal({
         </div>
 
         <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
-          <button type="button" onClick={onClose} className="rounded-xl border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+          <button type="button" onClick={onClose} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
             {copy.common.close}
           </button>
           <button
             type="button"
             disabled={!hasBackendLine || pendingFiles.length === 0 || isSaving}
             onClick={uploadPendingFiles}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
             {copy.reconciliation.attachments.save}
@@ -1754,11 +1754,11 @@ function PettyCashOperationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#147514]/30 bg-white shadow-2xl">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
         <header className="bg-[#147514] px-7 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
                 {icon}
               </span>
               <div>
@@ -1766,25 +1766,25 @@ function PettyCashOperationModal({
                 <p className="mt-1 text-sm font-semibold text-white/80">{subtitle}</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 transition hover:bg-white/25">
+            <button type="button" onClick={onClose} className="rounded-lg bg-white/15 p-2 transition hover:bg-white/25">
               <X className="h-5 w-5" />
             </button>
           </div>
         </header>
         <div className="overflow-y-auto px-7 py-6">
-          <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <section className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
             {children}
           </section>
         </div>
         <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
-          <button type="button" onClick={onClose} className="rounded-xl border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+          <button type="button" onClick={onClose} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
             {copy.common.cancel}
           </button>
           <button
             type="button"
             disabled={!canSave}
             onClick={onSave}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
             {actionLabel}

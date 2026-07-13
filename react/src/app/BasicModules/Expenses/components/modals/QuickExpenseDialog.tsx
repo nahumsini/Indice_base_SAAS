@@ -82,10 +82,10 @@ export function QuickExpenseDialog({
               <ReceiptText className="h-5 w-5" />
             </span>
             <div>
-              <DialogTitle className="text-lg font-bold text-white">{t.expenses.quick.title}</DialogTitle>
-              <DialogDescription className="mt-1 text-sm leading-5 text-white/80">
-                Register a paid expense with the minimum required information.
-              </DialogDescription>
+            <DialogTitle className="text-lg font-bold text-white">{t.expenses.quick.title}</DialogTitle>
+            <DialogDescription className="mt-1 text-sm leading-5 text-white/80">
+                {t.expenses.quick.description}
+            </DialogDescription>
             </div>
           </div>
           <button type="button" onClick={() => onOpenChange(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
@@ -98,7 +98,7 @@ export function QuickExpenseDialog({
               <Input autoFocus maxLength={160} value={concept} onChange={(event) => setConcept(event.target.value)} placeholder={t.expenses.modal.placeholderConcept} className={inputClass} />
             </Field>
             <Field label={t.expenses.modal.description}>
-              <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className={`${inputClass} h-auto resize-none`} placeholder="What was paid and why?" />
+              <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className={`${inputClass} h-auto resize-none`} placeholder={t.expenses.quick.descriptionPlaceholder} />
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label={t.filters.unit}>

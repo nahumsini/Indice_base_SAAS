@@ -95,7 +95,7 @@ export function ExpenseBulkActionsBar({
               onClick={onMarkPaidSelected}
             >
               <CheckCircle2 className="h-4 w-4" />
-              {t.statuses.paid}
+              {t.expenses.rowActions.markPaid}
             </Button>
           ) : null}
           <Button

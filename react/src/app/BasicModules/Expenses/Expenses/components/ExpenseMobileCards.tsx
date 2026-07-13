@@ -126,6 +126,8 @@ function ExpenseMobileCard({
   const total = expense.total || expense.amount || 0;
   const paid = expense.amountPaid ?? 0;
   const balance = Math.max(total - paid, 0);
+  const canRecordPayment = expense.type !== 'budget' && balance > 0;
+  const canMarkPaid = expense.type !== 'budget' && balance > 0;
   const statusLabel = t.expenses.table.statuses[expense.status] ?? expense.status;
 
   return (
@@ -208,8 +210,8 @@ function ExpenseMobileCard({
             isDeletePending={isDeletePending}
             showAudit={actionVisibility?.showAudit}
             showCreatePayable={expense.type === 'budget'}
-            showMarkPaid={expense.type !== 'budget' && (actionVisibility?.showMarkPaid ?? true)}
-            showRecordPayment={expense.type !== 'budget' && (actionVisibility?.showRecordPayment ?? true)}
+            showMarkPaid={canMarkPaid && (actionVisibility?.showMarkPaid ?? true)}
+            showRecordPayment={canRecordPayment && (actionVisibility?.showRecordPayment ?? true)}
           />
         </div>
       </div>

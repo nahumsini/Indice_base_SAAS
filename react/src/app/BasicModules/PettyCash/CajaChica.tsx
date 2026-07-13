@@ -87,14 +87,14 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <LoadingBarOverlay
         isVisible={isTabLoading}
         title={copy.shell.loadingTitle}
         description={copy.shell.loadingDescription}
       />
 
-      <div className="border-b border-gray-200 bg-white px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
+      <div className="border-b border-slate-200 bg-white px-4 py-6 dark:border-slate-800 dark:bg-slate-900 sm:px-8">
         <div className="mx-auto max-w-[1600px]">
           <FavoritesBar
             onNavigate={(page) => {
@@ -104,19 +104,19 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
             currentModule="petty-cash"
           />
 
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="mb-2 text-3xl font-bold text-slate-950 dark:text-white">
                 {copy.shell.title}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="max-w-3xl text-sm font-medium text-slate-600 dark:text-slate-400">
                 {copy.shell.subtitle}
               </p>
             </div>
             <Button
               variant="outline"
               onClick={() => onNavigate()}
-              className="gap-2 text-sm"
+              className="gap-2 rounded-lg text-sm"
             >
               <Home className="h-4 w-4" /> {copy.shell.back}
             </Button>
@@ -127,10 +127,10 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                className={`flex h-10 items-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-bold transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:border-[#147514]/25 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-emerald-300'
                 }`}
               >
                 <span>{tab.icon}</span>
@@ -141,7 +141,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-8 py-6">
+      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-8">
         {renderActiveTab()}
       </div>
     </div>

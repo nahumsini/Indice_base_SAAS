@@ -121,7 +121,7 @@ export function PettyCashFinancialViewWorkspace({
     <div className="space-y-6">
       <PettyCashHeaderBanner
         description={copy.financial.header.description}
-        emoji="📊"
+        icon={WalletCards}
         title={copy.financial.header.title}
       />
 
@@ -165,7 +165,7 @@ export function PettyCashFinancialViewWorkspace({
         </PettyCashField>
       </PettyCashFilterShell>
 
-      <section className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-wrap items-center gap-5">
           <PettyCashMetric icon={WalletCards} label={copy.financial.metrics.assignedFunds} value={formatPettyCashCurrency(summary.assignedAmount, 'MXN')} />
           <PettyCashMetric icon={CheckCircle2} label={copy.financial.metrics.verifiedExpense} tone="success" value={formatPettyCashCurrency(summary.verifiedExpenseAmount, 'MXN')} />
@@ -174,13 +174,13 @@ export function PettyCashFinancialViewWorkspace({
           <PettyCashMetric icon={Landmark} label={copy.financial.metrics.estimatedAvailable} tone="info" value={formatPettyCashCurrency(budgetAvailable, 'MXN')} />
         </div>
 
-        <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
           <div className="h-full bg-[#147514]" style={{ width: `${verifiedWidth}%` }} />
           <div className="h-full bg-amber-400" style={{ width: `${pendingWidth}%` }} />
           <div className="h-full bg-red-500" style={{ width: `${shortageWidth}%` }} />
           <div className="h-full bg-sky-400" style={{ width: `${remainingWidth}%` }} />
         </div>
-        <div className="mt-3 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+        <div className="mt-3 flex flex-wrap gap-4 text-xs font-bold text-slate-500 dark:text-slate-400">
           <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#147514]" /> {copy.financial.progress.verified}</span>
           <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" /> {copy.financial.progress.pending}</span>
           <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-500" /> {copy.financial.progress.shortage}</span>
@@ -189,46 +189,46 @@ export function PettyCashFinancialViewWorkspace({
       </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#147514]/10 text-[#147514]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
               <CheckCircle2 className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-lg font-black text-slate-900">{copy.financial.cards.verifiedTitle}</h3>
-              <p className="text-sm font-medium text-slate-500">{copy.financial.cards.verifiedDescription}</p>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">{copy.financial.cards.verifiedTitle}</h3>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.financial.cards.verifiedDescription}</p>
             </div>
           </div>
-          <p className="mt-5 text-3xl font-black text-[#147514]">{formatPettyCashCurrency(summary.verifiedExpenseAmount, 'MXN')}</p>
-          <p className="mt-2 text-sm font-semibold text-slate-500">{copy.financial.cards.verifiedFooter(filteredLines.filter(line => line.status === 'EXPENSE_CREATED').length)}</p>
+          <p className="mt-5 text-3xl font-black text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(summary.verifiedExpenseAmount, 'MXN')}</p>
+          <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.financial.cards.verifiedFooter(filteredLines.filter(line => line.status === 'EXPENSE_CREATED').length)}</p>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
               <CalendarClock className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-lg font-black text-slate-900">{copy.financial.cards.pendingTitle}</h3>
-              <p className="text-sm font-medium text-slate-500">{copy.financial.cards.pendingDescription}</p>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">{copy.financial.cards.pendingTitle}</h3>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.financial.cards.pendingDescription}</p>
             </div>
           </div>
-          <p className="mt-5 text-3xl font-black text-amber-600">{formatPettyCashCurrency(summary.pendingReconciliationAmount, 'MXN')}</p>
-          <p className="mt-2 text-sm font-semibold text-slate-500">{copy.financial.cards.pendingFooter(reconciliationRate)}</p>
+          <p className="mt-5 text-3xl font-black text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(summary.pendingReconciliationAmount, 'MXN')}</p>
+          <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.financial.cards.pendingFooter(reconciliationRate)}</p>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-200">
               <AlertTriangle className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-lg font-black text-slate-900">{copy.financial.cards.riskTitle}</h3>
-              <p className="text-sm font-medium text-slate-500">{copy.financial.cards.riskDescription}</p>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">{copy.financial.cards.riskTitle}</h3>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.financial.cards.riskDescription}</p>
             </div>
           </div>
-          <p className="mt-5 text-3xl font-black text-red-600">{summary.riskCount}</p>
-          <p className="mt-2 text-sm font-semibold text-slate-500">{copy.financial.cards.riskFooter(formatPettyCashCurrency(summary.shortageAmount, 'MXN'))}</p>
+          <p className="mt-5 text-3xl font-black text-red-600 dark:text-red-300">{summary.riskCount}</p>
+          <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.financial.cards.riskFooter(formatPettyCashCurrency(summary.shortageAmount, 'MXN'))}</p>
         </section>
       </div>
 
@@ -249,7 +249,7 @@ export function PettyCashFinancialViewWorkspace({
         )}
       >
         <table className="w-full min-w-[1180px]">
-          <thead className="border-b border-slate-200 bg-slate-50">
+          <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
             <tr>
               {[
                 copy.financial.statements.columns.statement,
@@ -262,26 +262,26 @@ export function PettyCashFinancialViewWorkspace({
                 copy.financial.statements.columns.shortage,
                 copy.financial.statements.columns.status,
               ].map(column => (
-                <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {statementPagination.paginatedRows.map((statement) => {
               const fund = getFundById(funds, statement.pettyCashFundId);
               return (
-                <tr key={statement.id} className="transition hover:bg-slate-50">
-                  <td className="px-5 py-5 text-sm font-black text-slate-900">{statement.folio}</td>
+                <tr key={statement.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/70">
+                  <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{statement.folio}</td>
                   <td className="px-5 py-5">
-                    <p className="text-sm font-extrabold text-slate-900">{fund?.name ?? copy.financial.statements.noFund}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">{statement.responsibleName}</p>
+                    <p className="text-sm font-extrabold text-slate-900 dark:text-white">{fund?.name ?? copy.financial.statements.noFund}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{statement.responsibleName}</p>
                   </td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700">{statement.periodKey}</td>
-                  <td className="px-5 py-5 text-sm font-black text-slate-900">{formatPettyCashCurrency(statement.assignedAmount + statement.additionalDepositAmount, statement.currencyCode)}</td>
-                  <td className="px-5 py-5 text-sm font-black text-slate-900">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
-                  <td className="px-5 py-5 text-sm font-black text-[#147514]">{formatPettyCashCurrency(statement.verifiedExpenseAmount, statement.currencyCode)}</td>
-                  <td className="px-5 py-5 text-sm font-black text-amber-600">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</td>
-                  <td className="px-5 py-5 text-sm font-black text-red-600">{formatPettyCashCurrency(statement.shortageAmount, statement.currencyCode)}</td>
+                  <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{statement.periodKey}</td>
+                  <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(statement.assignedAmount + statement.additionalDepositAmount, statement.currencyCode)}</td>
+                  <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
+                  <td className="px-5 py-5 text-sm font-black text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(statement.verifiedExpenseAmount, statement.currencyCode)}</td>
+                  <td className="px-5 py-5 text-sm font-black text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</td>
+                  <td className="px-5 py-5 text-sm font-black text-red-600 dark:text-red-300">{formatPettyCashCurrency(statement.shortageAmount, statement.currencyCode)}</td>
                   <td className="px-5 py-5"><PettyCashStatusPill kind="statement" status={statement.status} /></td>
                 </tr>
               );
@@ -290,19 +290,19 @@ export function PettyCashFinancialViewWorkspace({
         </table>
       </PettyCashTableShell>
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-xl font-black text-slate-900">{copy.financial.movements.title}</h3>
-            <p className="mt-1 text-sm font-medium text-slate-500">{copy.financial.movements.subtitle}</p>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">{copy.financial.movements.title}</h3>
+            <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.financial.movements.subtitle}</p>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">{copy.financial.movements.result(filteredMovements.length)}</span>
+          <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-black text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{copy.financial.movements.result(filteredMovements.length)}</span>
         </div>
         {filteredMovements.length > 0 ? (
           <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px]">
-                <thead className="border-b border-slate-200 bg-slate-50">
+                <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
                   <tr>
                     {[
                       copy.financial.movements.columns.date,
@@ -313,22 +313,22 @@ export function PettyCashFinancialViewWorkspace({
                       copy.financial.movements.columns.amount,
                       copy.financial.movements.columns.reference,
                     ].map(column => (
-                      <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500">{column}</th>
+                      <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {movementPagination.paginatedRows.map((movement) => {
                     const fund = getFundById(funds, movement.pettyCashFundId);
                     return (
-                      <tr key={movement.id} className="transition hover:bg-slate-50">
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{formatPettyCashIsoDate(movement.movementDate)}</td>
-                        <td className="px-5 py-4 text-sm font-black text-slate-900">{fund?.name ?? copy.financial.movements.noFund}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{copy.status.movement[movement.type]}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700">{movement.toPaymentAccountName ?? copy.common.notAvailable}</td>
-                        <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{getPettyCashMethodLabel(copy.funds.methodLabels, movement.reference)}</td>
+                      <tr key={movement.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/70">
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{formatPettyCashIsoDate(movement.movementDate)}</td>
+                        <td className="px-5 py-4 text-sm font-black text-slate-900 dark:text-white">{fund?.name ?? copy.financial.movements.noFund}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{copy.status.movement[movement.type]}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</td>
+                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{movement.toPaymentAccountName ?? copy.common.notAvailable}</td>
+                        <td className="px-5 py-4 text-sm font-black text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{getPettyCashMethodLabel(copy.funds.methodLabels, movement.reference)}</td>
                       </tr>
                     );
                   })}

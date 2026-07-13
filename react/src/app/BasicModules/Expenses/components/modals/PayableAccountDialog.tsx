@@ -19,6 +19,7 @@ import { DEFAULT_FINANCE_CURRENCY, financeCurrencySelectOptions } from '../../co
 import type { Provider } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 export type PayableAccountValues = {
   amount: number;
@@ -74,6 +75,7 @@ export function PayableAccountDialog({
   open,
   providers,
 }: PayableAccountDialogProps) {
+  const t = useExpensesTranslations();
   const objectUrlsRef = useRef<Set<string>>(new Set());
   const [draft, setDraft] = useState<PayableDraft>(() => createDraft(currency));
   const amount = toMoneyNumber(draft.amount);
@@ -167,9 +169,9 @@ export function PayableAccountDialog({
               <Landmark className="h-5 w-5" />
             </span>
             <div>
-              <DialogTitle className="text-xl font-bold text-white">Cuenta por pagar</DialogTitle>
+              <DialogTitle className="text-xl font-bold text-white">{t.expenses.payableAccount.title}</DialogTitle>
               <DialogDescription className="mt-1 text-sm leading-5 text-white/80">
-                Registra credito de proveedor para pago futuro.
+                {t.expenses.payableAccount.subtitle}
               </DialogDescription>
             </div>
           </div>
@@ -177,7 +179,7 @@ export function PayableAccountDialog({
             type="button"
             onClick={() => onOpenChange(false)}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-            aria-label="Cerrar"
+            aria-label={t.columnModal.close}
           >
             <X className="h-5 w-5" />
           </button>
@@ -186,27 +188,27 @@ export function PayableAccountDialog({
         <form onSubmit={handleSubmit}>
           <div className="max-h-[calc(100vh-13rem)] space-y-5 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-              <h4 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Datos principales</h4>
+              <h4 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">{t.expenses.payableAccount.mainData}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Proveedor">
+                <Field label={t.expenses.payableAccount.provider}>
                   <select value={draft.providerId} onChange={(event) => updateDraft({ providerId: event.target.value })} className={inputClass}>
-                    <option value="">Sin proveedor asignado</option>
+                    <option value="">{t.expenses.payableAccount.unassignedProvider}</option>
                     {providers.filter(provider => provider.status !== 'inactive').map(provider => (
                       <option key={provider.id} value={provider.id}>{provider.name}</option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Fecha compromiso">
+                <Field label={t.expenses.payableAccount.dueDate}>
                   <input type="date" value={draft.dueDate} onChange={(event) => updateDraft({ dueDate: event.target.value })} className={inputClass} />
                 </Field>
                 <div className="md:col-span-2">
-                  <Field label="Concepto" required>
+                  <Field label={t.expenses.modal.concept} required>
                     <Input
                       autoFocus
                       maxLength={160}
                       value={draft.concept}
                       onChange={(event) => updateDraft({ concept: event.target.value })}
-                      placeholder="Ej. Servicio a credito, refaccion, insumo o compra pendiente"
+                      placeholder={t.expenses.payableAccount.conceptPlaceholder}
                       className={inputClass}
                     />
                   </Field>
@@ -215,9 +217,9 @@ export function PayableAccountDialog({
             </section>
 
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-              <h4 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Importe</h4>
+              <h4 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">{t.expenses.payableAccount.sectionAmount}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Monto" required>
+                <Field label={t.expenses.modal.amount} required>
                   <input
                     min={0.01}
                     step="0.01"
@@ -228,7 +230,7 @@ export function PayableAccountDialog({
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Divisa" required>
+                <Field label={t.expenses.modal.currency} required>
                   <select value={draft.budgetCurrencyCode} onChange={(event) => updateCurrency(event.target.value)} className={inputClass}>
                     {financeCurrencySelectOptions.map(option => (
                       <option key={option.value} value={option.value}>{option.label}</option>
@@ -237,9 +239,9 @@ export function PayableAccountDialog({
                 </Field>
                 <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
                 <div className="md:col-span-2 grid gap-3 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4 md:grid-cols-3">
-                  <SummaryMetric label="Subtotal" value={formatCurrency(subtotal, draft.budgetCurrencyCode)} />
-                  <SummaryMetric label="Impuestos" value={formatCurrency(taxes, draft.budgetCurrencyCode)} />
-                  <SummaryMetric label="Total por pagar" strong value={formatCurrency(total, draft.budgetCurrencyCode)} />
+                  <SummaryMetric label={t.expenses.modal.summarySubtotal} value={formatCurrency(subtotal, draft.budgetCurrencyCode)} />
+                  <SummaryMetric label={t.expenses.payableAccount.taxTotal} value={formatCurrency(taxes, draft.budgetCurrencyCode)} />
+                  <SummaryMetric label={t.expenses.payableAccount.totalPayable} strong value={formatCurrency(total, draft.budgetCurrencyCode)} />
                 </div>
               </div>
             </section>
@@ -247,7 +249,7 @@ export function PayableAccountDialog({
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <div className="mb-4 flex items-center gap-2">
                 <Paperclip className="h-4 w-4 text-[#147514]" />
-                <h4 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Evidencia</h4>
+                <h4 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">{t.expenses.payableAccount.evidence}</h4>
               </div>
               <label className={`flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-[22px] border-2 border-dashed bg-slate-50 px-4 py-6 text-center transition ${
                 canAttachMoreFiles
@@ -268,8 +270,8 @@ export function PayableAccountDialog({
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]">
                   <Upload className="h-5 w-5" />
                 </span>
-                <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">Subir fotografia o archivo</span>
-                <span className="mt-1 text-xs font-medium text-slate-500">Imagenes, PDF y documentos de soporte.</span>
+                <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{t.expenses.payableAccount.uploadFile}</span>
+                <span className="mt-1 text-xs font-medium text-slate-500">{t.expenses.payableAccount.attachmentHint}</span>
               </label>
               {draft.attachments.length > 0 ? (
                 <div className="mt-3 space-y-2">
@@ -282,7 +284,7 @@ export function PayableAccountDialog({
                         <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{attachment.name}</p>
                         <p className="text-xs font-medium text-slate-500">{formatFileSize(attachment.size)}</p>
                       </div>
-                      <button type="button" onClick={() => removeAttachment(attachment.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100" aria-label="Eliminar archivo">
+                      <button type="button" onClick={() => removeAttachment(attachment.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100" aria-label={t.expenses.payableAccount.attachmentDelete}>
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -291,11 +293,11 @@ export function PayableAccountDialog({
               ) : null}
             </section>
 
-            <Field label="Notas">
+            <Field label={t.expenses.payableAccount.notes}>
               <textarea
                 value={draft.notes}
                 onChange={(event) => updateDraft({ notes: event.target.value })}
-                placeholder="Condiciones, referencia del proveedor o instrucciones de pago."
+                placeholder={t.expenses.payableAccount.notesPlaceholder}
                 className={`${inputClass} min-h-24 resize-y`}
               />
             </Field>
@@ -309,7 +311,7 @@ export function PayableAccountDialog({
               disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {t.expenses.payableAccount.cancel}
             </Button>
             <Button
               type="submit"
@@ -317,7 +319,7 @@ export function PayableAccountDialog({
               disabled={!canSubmit}
             >
               <Check className="h-4 w-4" />
-              {isSubmitting ? 'Guardando...' : 'Guardar cuenta'}
+              {isSubmitting ? t.expenses.payableAccount.saving : t.expenses.payableAccount.save}
             </Button>
           </DialogFooter>
         </form>

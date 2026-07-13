@@ -48,6 +48,7 @@ type ExpenseTableProps = {
   expenses: Expense[];
   getAttachments: (expense: Expense) => string[];
   onDeleteExpense?: (expenseId: string) => void;
+  onDeleteExpenses?: (expenseIds: string[]) => void;
   onDuplicateExpense?: (expenseId: string) => void;
   onCreatePayableFromBudget?: (expense: Expense) => void;
   onEditExpense?: (expense: Expense) => void;
@@ -74,6 +75,7 @@ export function ExpenseTable({
   expenses,
   getAttachments,
   onDeleteExpense,
+  onDeleteExpenses,
   onDuplicateExpense,
   onCreatePayableFromBudget,
   onEditExpense,
@@ -321,6 +323,11 @@ export function ExpenseTable({
   };
 
   const handleDeleteSelected = () => {
+    if (onDeleteExpenses) {
+      onDeleteExpenses(rowSelection.selectedIdList);
+      rowSelection.clearSelection();
+      return;
+    }
     rowSelection.selectedIdList.forEach(id => handleDelete(id));
     rowSelection.clearSelection();
   };
@@ -359,6 +366,7 @@ export function ExpenseTable({
   const handlePay = async (id: string) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
+    if (expense.type === 'budget' || getExpenseBalance(expense) <= 0) return;
     if (onMarkExpensePaid) {
       const savedExpense = await onMarkExpensePaid(expense);
       if (savedExpense) replaceSavedExpense(savedExpense);
@@ -367,9 +375,19 @@ export function ExpenseTable({
     void handleStatusChange(id, 'paid');
   };
 
+  const openPaymentModal = (id: string) => {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense || getExpenseBalance(expense) <= 0) return;
+    setPaymentExpenseId(id);
+  };
+
   const handleRecordPayment = async (id: string, amount: number, paymentAccountId: string, paymentDate: Date) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
+    if (getExpenseBalance(expense) <= 0) {
+      setPaymentExpenseId(null);
+      return;
+    }
     if (onRecordExpensePayment) {
       const savedExpense = await onRecordExpensePayment(expense, amount, paymentAccountId, paymentDate);
       if (savedExpense) {
@@ -436,7 +454,7 @@ export function ExpenseTable({
         }}
         onMarkPaid={handlePay}
         onOpenAttachments={onOpenAttachments}
-        onRecordPayment={(expenseId) => setPaymentExpenseId(expenseId)}
+        onRecordPayment={openPaymentModal}
         onSelectionChange={rowSelection.toggleSelection}
       />
 
@@ -485,7 +503,7 @@ export function ExpenseTable({
                   onDelete={handleDelete}
                   onActionEdit={onEditExpense ? () => onEditExpense(expense) : undefined}
                   onMarkPaid={handlePay}
-                  onRecordPayment={(expenseId) => setPaymentExpenseId(expenseId)}
+                  onRecordPayment={openPaymentModal}
                   onAudit={setEditingRowId}
                 />
               ))
@@ -608,12 +626,12 @@ function ExpenseTablePagination({
         : 'rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700'
     }`}>
       {moneySummaries.length > 0 ? (
-        <MoneySummaryStrip label="Totales filtrados" summaries={moneySummaries} />
+        <MoneySummaryStrip label={t.expenses.summary.filteredTotals} summaries={moneySummaries} />
       ) : null}
       {selectedCount > 0 && selectedMoneySummaries.length > 0 ? (
         <MoneySummaryStrip
           emphasis
-          label={`${selectedCount} ${selectedCount === 1 ? 'fila seleccionada' : 'filas seleccionadas'}`}
+          label={t.expenses.summary.selectedRows(selectedCount)}
           summaries={selectedMoneySummaries}
         />
       ) : null}
