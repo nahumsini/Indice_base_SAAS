@@ -20,7 +20,7 @@ export const frCA: ProcessesTranslations = {
     requiredFields: 'Les champs marques avec * sont obligatoires.',
   },
   header: {
-    emoji: '✅',
+    emoji: '🔄',
     title: 'Processus',
     subtitle: "Creez des processus recurrents qui generent de vraies taches dans l'agenda de chaque responsable.",
     actions: {
@@ -38,7 +38,9 @@ export const frCA: ProcessesTranslations = {
     business: 'Secteur',
     collaborator: 'Collaborateur',
     frequency: 'Frequence',
+    clear: 'Effacer les filtres',
   },
+  diagram: { previousMonth: 'Mois precedent', nextMonth: 'Mois suivant' },
   statuses: {
     active: 'Actif',
     paused: 'En pause',

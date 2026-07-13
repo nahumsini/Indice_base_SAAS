@@ -1,8 +1,9 @@
 import { type FormEvent } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -10,10 +11,16 @@ import {
 } from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
+import {
+  processTaskModalCloseActionClass,
+  processTaskModalCompactFooterClass,
+  processTaskModalCompactHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../../shared/processTaskModalStyles';
 import type { AgendaTranslations } from '../translations';
 
 type AgendaQuickTaskDialogProps = {
-  accentButtonClassName: string;
   copy: AgendaTranslations;
   isSubmitting: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,7 +31,6 @@ type AgendaQuickTaskDialogProps = {
 };
 
 export function AgendaQuickTaskDialog({
-  accentButtonClassName,
   copy,
   isSubmitting,
   onOpenChange,
@@ -39,11 +45,26 @@ export function AgendaQuickTaskDialog({
         hideCloseButton
         className="max-w-[460px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="bg-[#F4C84A] px-5 py-4">
-          <DialogTitle className="text-lg font-bold text-slate-950">{copy.quickAdd.title}</DialogTitle>
-          <DialogDescription className="mt-1 text-sm text-slate-800/85">
-            {copy.quickAdd.description}
-          </DialogDescription>
+        <div className={processTaskModalCompactHeaderClass}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="text-lg font-bold text-slate-950">{copy.quickAdd.title}</DialogTitle>
+              <DialogDescription className="mt-1 text-sm text-slate-800/85">
+                {copy.quickAdd.description}
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')}
+                disabled={isSubmitting}
+                aria-label={copy.common.cancel}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </div>
         </div>
         <form onSubmit={onSubmit}>
           <div className="space-y-2 px-5 py-5">
@@ -59,11 +80,11 @@ export function AgendaQuickTaskDialog({
               className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             />
           </div>
-          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+          <DialogFooter className={processTaskModalCompactFooterClass}>
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              className={processTaskModalSecondaryActionClass}
               disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
@@ -71,7 +92,7 @@ export function AgendaQuickTaskDialog({
             </Button>
             <Button
               type="submit"
-              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClassName)}
+              className={processTaskModalPrimaryActionClass}
               disabled={!title.trim() || isSubmitting}
             >
               <Plus className="h-4 w-4" />

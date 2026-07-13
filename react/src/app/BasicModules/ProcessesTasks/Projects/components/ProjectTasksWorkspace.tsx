@@ -23,6 +23,7 @@ import {
   Target,
   Trash2,
   UserRound,
+  X,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -41,6 +42,7 @@ import {
   DialogTitle,
 } from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
+import { Skeleton } from '../../../../components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -57,6 +59,15 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
+import {
+  processTaskModalCloseActionClass,
+  processTaskModalCompactFooterClass,
+  processTaskModalCompactHeaderClass,
+  processTaskModalFooterClass,
+  processTaskModalHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../../shared/processTaskModalStyles';
 import { authApi } from '../../../../api/auth';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
 import { accentButtonClass } from '../../Processes/processesData';
@@ -157,12 +168,16 @@ interface ProjectTasksWorkspaceProps {
   businessOptions: ProcessBusinessOption[];
   collaboratorOptions: ProcessCollaboratorOption[];
   copy: ProjectsTranslations['workspace'];
+  diagramLabel: string;
+  itemLabel: string;
+  locale: string;
   onClose: () => void;
   onProjectChanged: () => Promise<void> | void;
   processes: ProcessRecord[];
   project: ProjectRecord;
   projects: ProjectRecord[];
   unitOptions: ProcessUnitOption[];
+  tableLabel: string;
 }
 
 const auditStatusClasses: Record<AgendaTaskItem['auditStatus'], string> = {
@@ -218,7 +233,6 @@ const NO_BUSINESS_VALUE = '__no_business__';
 const NO_PREDECESSOR_VALUE = '__no_predecessor__';
 const UNASSIGNED_RESPONSIBLE_VALUE = '__unassigned__';
 const projectTaskColumnsStorageKey = 'processes-tasks-project-task-columns-v1';
-const projectTaskSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
 const selectionColumnWidth = 64;
 const projectTaskDefaultColumnWidths: Record<ProjectTaskTableColumnId, number> = {
   folio: 140,
@@ -509,6 +523,7 @@ function compareSortValues(
   leftValue: ProjectTaskSortValue,
   rightValue: ProjectTaskSortValue,
   direction: ProjectTaskSortDirection,
+  collator: Intl.Collator,
 ) {
   const leftIsEmpty = leftValue == null || leftValue === '';
   const rightIsEmpty = rightValue == null || rightValue === '';
@@ -520,7 +535,7 @@ function compareSortValues(
   const result =
     typeof leftValue === 'number' && typeof rightValue === 'number'
       ? leftValue - rightValue
-      : projectTaskSortCollator.compare(String(leftValue), String(rightValue));
+      : collator.compare(String(leftValue), String(rightValue));
 
   return direction === 'asc' ? result : result * -1;
 }
@@ -570,13 +585,13 @@ function getSortValue(task: AgendaTaskItem, columnId: ProjectTaskColumnId, copy:
   }
 }
 
-function formatDate(value: string | null, includeTime: boolean, noDateLabel: string) {
+function formatDate(value: string | null, includeTime: boolean, noDateLabel: string, locale = 'en-CA') {
   if (!value) {
     return noDateLabel;
   }
 
   const date = includeTime ? new Date(value) : new Date(`${value}T00:00:00`);
-  return new Intl.DateTimeFormat('es-MX', {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -803,7 +818,7 @@ function reportValue(value: string | number | null | undefined, fallback: string
   return String(value);
 }
 
-function taskReportRows(task: AgendaTaskItem, copy: AgendaTranslations) {
+function taskReportRows(task: AgendaTaskItem, copy: AgendaTranslations, locale: string) {
   return [
     [copy.report.fields.folio, task.folio],
     [copy.report.fields.type, copy.taskTypes[task.taskType]],
@@ -819,10 +834,10 @@ function taskReportRows(task: AgendaTaskItem, copy: AgendaTranslations) {
     [copy.report.fields.priority, copy.priorities[task.priority]],
     [copy.report.fields.creator, task.createdByName ?? task.creator ?? copy.common.noRecord],
     [copy.report.fields.responsible, task.assignedName ?? copy.common.unassigned],
-    [copy.report.fields.createdAt, task.createdAt ? formatDate(task.createdAt, true, copy.common.noDate) : copy.common.noDate],
-    [copy.report.fields.startDate, task.startDate ? formatDate(task.startDate, false, copy.common.noDate) : copy.common.noDate],
-    [copy.report.fields.dueDate, task.dueDate ? formatDate(task.dueDate, false, copy.common.noDate) : copy.common.noDate],
-    [copy.report.fields.closedAt, task.completedAt ? formatDate(task.completedAt, true, copy.common.noDate) : copy.common.pending],
+    [copy.report.fields.createdAt, task.createdAt ? formatDate(task.createdAt, true, copy.common.noDate, locale) : copy.common.noDate],
+    [copy.report.fields.startDate, task.startDate ? formatDate(task.startDate, false, copy.common.noDate, locale) : copy.common.noDate],
+    [copy.report.fields.dueDate, task.dueDate ? formatDate(task.dueDate, false, copy.common.noDate, locale) : copy.common.noDate],
+    [copy.report.fields.closedAt, task.completedAt ? formatDate(task.completedAt, true, copy.common.noDate, locale) : copy.common.pending],
     [copy.report.fields.completion, `${clampPercent(task.completionPercent)}%`],
     [copy.report.fields.weighting, task.weighting != null ? `${Math.max(0, Math.min(5, task.weighting))}/5` : copy.table.noWeighting],
     [copy.report.fields.notes, task.notes ?? copy.common.noNotes],
@@ -834,12 +849,16 @@ export function ProjectTasksWorkspace({
   businessOptions,
   collaboratorOptions,
   copy,
+  diagramLabel,
+  itemLabel,
+  locale,
   onClose,
   onProjectChanged,
   processes,
   project,
   projects,
   unitOptions,
+  tableLabel,
 }: ProjectTasksWorkspaceProps) {
   const taskCopy = useAgendaTranslations();
   const defaultColumns = useMemo(() => createDefaultProjectTaskColumns(taskCopy.columns), [taskCopy.columns]);
@@ -854,6 +873,10 @@ export function ProjectTasksWorkspace({
       },
     ],
     [taskCopy.columns.actions.description, taskCopy.columns.actions.label],
+  );
+  const projectTaskSortCollator = useMemo(
+    () => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }),
+    [locale],
   );
   const [tasks, setTasks] = useState<AgendaTaskItem[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
@@ -1074,16 +1097,16 @@ export function ProjectTasksWorkspace({
   const responsibleOptions = useMemo(
     () =>
       Array.from(new Set(tasks.map((task) => task.assignedName ?? '').filter(Boolean))).sort((left, right) =>
-        left.localeCompare(right),
+        projectTaskSortCollator.compare(left, right),
       ),
-    [tasks],
+    [projectTaskSortCollator, tasks],
   );
   const predecessorOptions = useMemo(
     () =>
       tasks
         .slice()
         .sort((left, right) => projectTaskSortCollator.compare(left.folio || left.title, right.folio || right.title)),
-    [tasks],
+    [projectTaskSortCollator, tasks],
   );
 
   useEffect(() => {
@@ -1117,12 +1140,13 @@ export function ProjectTasksWorkspace({
           getSortValue(left.task, sortState.columnId, taskCopy),
           getSortValue(right.task, sortState.columnId, taskCopy),
           sortState.direction,
+          projectTaskSortCollator,
         );
 
         return comparison === 0 ? left.index - right.index : comparison;
       })
       .map(({ task }) => task);
-  }, [filteredTasks, sortState, taskCopy]);
+  }, [filteredTasks, projectTaskSortCollator, sortState, taskCopy]);
   const {
     currentPage,
     onPageChange,
@@ -1215,12 +1239,7 @@ export function ProjectTasksWorkspace({
 
   const projectContextItems = useMemo(
     () => [
-      { label: copy.header.context.folio, value: project.folio },
       { label: copy.header.context.status, value: copy.projectStatuses[project.status] },
-      {
-        label: copy.header.context.priority,
-        value: project.priority ? copy.projectPriorities[project.priority] : copy.emptyContext.noPriority,
-      },
       { label: copy.header.context.responsible, value: project.ownerName ?? copy.emptyContext.noResponsible },
       {
         label: copy.header.context.scope,
@@ -1228,11 +1247,17 @@ export function ProjectTasksWorkspace({
       },
       {
         label: copy.header.context.dueDate,
-        value: project.dueDate ? formatDate(project.dueDate, false, copy.emptyContext.noDate) : copy.emptyContext.noDate,
+        value: project.dueDate ? formatDate(project.dueDate, false, copy.emptyContext.noDate, locale) : copy.emptyContext.noDate,
       },
     ],
-    [copy, project],
+    [copy, locale, project],
   );
+
+  const clearTaskFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setResponsibleFilter('all');
+  };
 
   const projectInsight = useMemo(() => {
     if (metrics.total === 0) {
@@ -1815,7 +1840,7 @@ export function ProjectTasksWorkspace({
       startY: 36,
       theme: 'grid',
       head: [[taskCopy.report.pdf.headField, taskCopy.report.pdf.headValue]],
-      body: taskReportRows(task, taskCopy),
+      body: taskReportRows(task, taskCopy, locale),
       styles: {
         cellPadding: 3,
         fontSize: 9,
@@ -1915,7 +1940,7 @@ export function ProjectTasksWorkspace({
     const pending = isTaskPending(task.taskId);
 
     return (
-      <div className="flex w-full min-w-[310px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70 md:min-w-[310px] md:flex-nowrap">
         <TableActionButton
           label={taskCopy.actions.closeTask}
           onClick={() => handleCloseTask(task)}
@@ -2045,7 +2070,7 @@ export function ProjectTasksWorkspace({
           />
         );
       case 'createdAt':
-        return <div className="text-sm font-medium text-slate-900 dark:text-white">{formatDate(task.createdAt, true, taskCopy.common.noDate)}</div>;
+        return <div className="text-sm font-medium text-slate-900 dark:text-white">{formatDate(task.createdAt, true, taskCopy.common.noDate, locale)}</div>;
       case 'startDate':
         return (
           <Input
@@ -2268,7 +2293,7 @@ export function ProjectTasksWorkspace({
 
   const renderTaskDiagram = () => {
     const dayCount = Math.max(taskTimeline.days.length, 1);
-    const ganttDateFormatter = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short' });
+    const ganttDateFormatter = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' });
     const todayKey = toDateInputValue(new Date());
     const todayIndex = taskTimeline.days.findIndex((day) => toDateInputValue(day) === todayKey);
 
@@ -2311,7 +2336,7 @@ export function ProjectTasksWorkspace({
                   )}
                 >
                   <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
-                    {new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day)}
+                    {new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day)}
                   </p>
                   <p className={cn('mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100', isToday && 'text-[#9A6B05] dark:text-[#FEF3C7]')}>
                     {day.getDate()}
@@ -2519,9 +2544,9 @@ export function ProjectTasksWorkspace({
   };
 
   return (
-    <section className="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="border-b border-[#F4C84A]/35 bg-gradient-to-r from-[#FFF8DF] via-white to-[#F8FAFC] px-5 py-5 dark:border-[#F4C84A]/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+    <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="border-b border-[#F4C84A]/35 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/20 dark:bg-[#F4C84A]/10">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4C84A] text-slate-950 shadow-sm">
@@ -2565,6 +2590,7 @@ export function ProjectTasksWorkspace({
             <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-none dark:border-slate-700 dark:bg-slate-800">
               <button
                 type="button"
+                aria-pressed={workspaceViewMode === 'table'}
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   workspaceViewMode === 'table'
@@ -2574,10 +2600,11 @@ export function ProjectTasksWorkspace({
                 onClick={() => setWorkspaceViewMode('table')}
               >
                 <ListChecks className="h-4 w-4" />
-                {taskCopy.header.actions.table}
+                {tableLabel}
               </button>
               <button
                 type="button"
+                aria-pressed={workspaceViewMode === 'diagram'}
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
                   workspaceViewMode === 'diagram'
@@ -2587,7 +2614,7 @@ export function ProjectTasksWorkspace({
                 onClick={() => setWorkspaceViewMode('diagram')}
               >
                 <CalendarRange className="h-4 w-4" />
-                Gantt
+                {diagramLabel}
               </button>
             </div>
             <Button
@@ -2614,7 +2641,7 @@ export function ProjectTasksWorkspace({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {projectContextItems.map((item) => (
             <div key={item.label} className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{item.label}</p>
@@ -2630,20 +2657,21 @@ export function ProjectTasksWorkspace({
           <span>{projectInsight}</span>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-4">
-          <div className="space-y-2 xl:col-span-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-12">
+          <div className="space-y-2 md:col-span-4 xl:col-span-6">
+            <label htmlFor="project-tasks-search" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
             <Input
+              id="project-tasks-search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={copy.filters.searchPlaceholder}
-              className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.status}</label>
+          <div className="space-y-2 md:col-span-2 xl:col-span-3">
+            <label id="project-tasks-status-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.status}</label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger aria-labelledby="project-tasks-status-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -2656,10 +2684,10 @@ export function ProjectTasksWorkspace({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.responsible}</label>
+          <div className="space-y-2 md:col-span-2 xl:col-span-3">
+            <label id="project-tasks-responsible-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.responsible}</label>
             <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger aria-labelledby="project-tasks-responsible-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -2674,18 +2702,12 @@ export function ProjectTasksWorkspace({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Badge variant="outline" className="justify-center rounded-2xl border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
-            {copy.metrics.completed(metrics.completed)}
-          </Badge>
+        <div className="mt-4 flex flex-wrap gap-2">
           <Badge variant="outline" className="justify-center rounded-2xl border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
             {copy.metrics.overdue(metrics.overdue)}
           </Badge>
           <Badge variant="outline" className="justify-center rounded-2xl border-violet-200 bg-violet-50 px-3 py-2 font-semibold text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300">
             {copy.metrics.audited(metrics.audited)}
-          </Badge>
-          <Badge variant="outline" className="justify-center rounded-2xl border-slate-200 bg-white px-3 py-2 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-            {copy.metrics.total(metrics.total)}
           </Badge>
         </div>
       </div>
@@ -2808,11 +2830,60 @@ export function ProjectTasksWorkspace({
 
       {workspaceViewMode === 'table' ? (
         <>
-        <div className="overflow-x-auto">
+        <div className="md:hidden">
+          {isLoadingTasks ? (
+            <div className="space-y-3 py-3" role="status" aria-label={copy.table.loading}>
+              {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-56 w-full rounded-2xl" />)}
+            </div>
+          ) : null}
+
+          {!isLoadingTasks && paginatedTasks.length === 0 ? (
+            <div className="px-5 py-14 text-center">
+              <span className="mb-3 block text-3xl" aria-hidden="true">✅</span>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.table.empty}</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Button type="button" variant="outline" className="h-9 rounded-lg" onClick={clearTaskFilters}>{taskCopy.filters.clear}</Button>
+                <Button type="button" className={cn('h-9 rounded-lg', accentButtonClass)} onClick={handleCreateTaskClick}><Plus className="h-4 w-4" />{copy.header.createTask}</Button>
+              </div>
+            </div>
+          ) : null}
+
+          {!isLoadingTasks && paginatedTasks.length > 0 ? (
+            <div className="space-y-3 py-3">
+              {paginatedTasks.map((task) => {
+                const selected = rowSelection.isSelected(task.taskId);
+                const displayStatus = getTaskDisplayStatus(task);
+                return (
+                  <article key={task.taskId} className={cn('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800', selected && 'border-[#F4C84A]/60 bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15')}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox aria-label={copy.bulk.selectTaskLabel(task.folio)} checked={selected} disabled={isTaskPending(task.taskId)} onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)} className="mt-1 border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9A6B05]">{task.folio}</p><h4 className="mt-1 break-words text-base font-bold text-slate-950 dark:text-white">{task.title}</h4></div>
+                          <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', statusClasses[displayStatus])}>{taskCopy.statuses[displayStatus]}</Badge>
+                        </div>
+                        {task.description ? <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{task.description}</p> : null}
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.responsible.label}</p><p className="mt-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{task.assignedName || task.responsible || taskCopy.common.unassigned}</p></div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.dueDate.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{formatDate(task.dueDate, false, taskCopy.common.noDate, locale)}</p></div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.priority.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{taskCopy.priorities[task.priority]}</p></div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.completion.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{task.completionPercent}%</p></div>
+                    </div>
+                    <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700">{renderTaskActions(task)}</div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <Table style={{ minWidth: tableMinWidth }}>
           <TableHeader>
             <TableRow className="border-slate-200 dark:border-slate-700">
-              <TableHead className="px-5 py-5" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+              <TableHead className="px-4 py-4" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                 <Checkbox
                   aria-label={copy.bulk.selectAllVisibleLabel}
                   checked={
@@ -2843,7 +2914,7 @@ export function ProjectTasksWorkspace({
                 );
               })}
               <TableHead
-                className="group relative px-5 py-5"
+                className="group relative px-4 py-4"
                 style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}
               >
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.columns.actions.label}</span>
@@ -2870,7 +2941,7 @@ export function ProjectTasksWorkspace({
                   selected && 'bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                 )}
               >
-                <TableCell className="px-5 py-5 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
+                <TableCell className="px-4 py-3.5 align-middle" style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}>
                   <Checkbox
                     aria-label={copy.bulk.selectTaskLabel(task.folio)}
                     checked={selected}
@@ -2885,7 +2956,7 @@ export function ProjectTasksWorkspace({
                   return (
                     <TableCell
                       key={`${task.taskId}-${column.id}`}
-                      className="px-5 py-5 align-middle"
+                      className="px-4 py-3.5 align-middle"
                       style={{ width: columnWidths[columnId], minWidth: columnWidths[columnId] }}
                     >
                       {renderTaskCell(task, columnId)}
@@ -2893,7 +2964,7 @@ export function ProjectTasksWorkspace({
                   );
                 })}
                 <TableCell
-                  className="px-5 py-5 align-middle"
+                  className="px-4 py-3.5 align-middle"
                   style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}
                 >
                   {renderTaskActions(task)}
@@ -2904,16 +2975,32 @@ export function ProjectTasksWorkspace({
 
             {isLoadingTasks ? (
               <TableRow>
-                <TableCell colSpan={tableColumnCount} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                  {copy.table.loading}
+                <TableCell colSpan={tableColumnCount} className="px-4 py-5">
+                  <div className="space-y-3" role="status" aria-label={copy.table.loading}>
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-10 w-full rounded-lg" />
+                    ))}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : null}
 
             {!isLoadingTasks && sortedTasks.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={tableColumnCount} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                  {copy.table.empty}
+                <TableCell colSpan={tableColumnCount} className="px-6 py-14 text-center">
+                  <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4C84A]/15 text-2xl" aria-hidden="true">✅</span>
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{copy.table.empty}</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button type="button" variant="outline" className="h-9 rounded-lg" onClick={clearTaskFilters}>
+                        {taskCopy.filters.clear}
+                      </Button>
+                      <Button type="button" className={cn('h-9 rounded-lg', accentButtonClass)} onClick={handleCreateTaskClick}>
+                        <Plus className="h-4 w-4" />
+                        {copy.header.createTask}
+                      </Button>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : null}
@@ -2925,7 +3012,7 @@ export function ProjectTasksWorkspace({
             attached={false}
             className="mt-4"
             currentPage={currentPage}
-            itemLabel="tareas"
+            itemLabel={itemLabel}
             onPageChange={onPageChange}
             onPageSizeChange={onPageSizeChange}
             pageEnd={pageEnd}
@@ -3023,7 +3110,7 @@ export function ProjectTasksWorkspace({
           hideCloseButton
           className="!flex h-[min(88vh,760px)] w-[calc(100vw-2rem)] !max-w-[900px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[900px] dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
+          <div className={processTaskModalHeaderClass}>
             <div className="flex items-center justify-between gap-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
                 <FileText className="h-5 w-5" />
@@ -3033,9 +3120,10 @@ export function ProjectTasksWorkspace({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-9 rounded-2xl border-[#9A6B05]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
+                  className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')}
+                  aria-label={taskCopy.common.close}
                 >
-                  {taskCopy.common.close}
+                  <X className="h-4 w-4" />
                 </Button>
               </DialogClose>
             </div>
@@ -3110,10 +3198,10 @@ export function ProjectTasksWorkspace({
                 </div>
               </div>
 
-              <DialogFooter className="shrink-0 border-t border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+              <DialogFooter className={processTaskModalFooterClass}>
                 <Button
                   type="button"
-                  className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+                  className={processTaskModalPrimaryActionClass}
                   onClick={() => handleDownloadTaskReport(reportTask)}
                 >
                   <Download className="h-4 w-4" />
@@ -3130,11 +3218,20 @@ export function ProjectTasksWorkspace({
           hideCloseButton
           className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
         >
-          <div className="bg-[#F4C84A] px-5 py-4">
-            <DialogTitle className="text-lg font-bold text-slate-950">{taskCopy.form.labels.responsible}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-slate-800/85">
-              {copy.bulk.assignDescription(rowSelection.selectedCount)}
-            </DialogDescription>
+          <div className={processTaskModalCompactHeaderClass}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-950">{taskCopy.form.labels.responsible}</DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-slate-800/85">
+                  {copy.bulk.assignDescription(rowSelection.selectedCount)}
+                </DialogDescription>
+              </div>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isBulkActionRunning} aria-label={taskCopy.common.cancel}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogClose>
+            </div>
           </div>
           <div className="space-y-3 px-5 py-5">
             <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
@@ -3151,11 +3248,11 @@ export function ProjectTasksWorkspace({
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/60">
+          <DialogFooter className={processTaskModalCompactFooterClass}>
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              className={processTaskModalSecondaryActionClass}
               disabled={isBulkActionRunning}
               onClick={() => setIsBulkAssignOpen(false)}
             >
@@ -3163,7 +3260,7 @@ export function ProjectTasksWorkspace({
             </Button>
             <Button
               type="button"
-              className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClass)}
+              className={processTaskModalPrimaryActionClass}
               disabled={isBulkActionRunning}
               onClick={handleBulkAssign}
             >

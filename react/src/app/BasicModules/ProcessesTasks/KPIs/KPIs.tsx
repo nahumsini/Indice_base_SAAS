@@ -10,12 +10,9 @@ import {
   ExternalLink,
   Eye,
   FileCheck2,
-  FolderKanban,
   Gauge,
   ListChecks,
   Printer,
-  Repeat2,
-  Timer,
   Trophy,
   Users,
   UserX,
@@ -37,25 +34,15 @@ import { Input } from '../../../components/ui/input';
 import {
   SelectItem,
 } from '../../../components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
 import {
   listProcessTaskKpis,
-  type CollaboratorPerformanceRow,
-  type ProcessPerformanceRow,
   type ProcessTaskKpiCard,
   type ProcessTaskKpiDashboard,
   type ProcessTaskKpiStatus,
-  type ProjectPerformanceRow,
 } from './kpisApi';
 import { FilterSelect, KpiSkeleton } from './components/KpiControls';
+import { KpiPerformanceWorkspace } from './components/KpiPerformanceWorkspace';
 import { printKpisDashboardPdf } from './kpisPdf';
 import { useKpisTranslations, type KpisTranslations } from './translations';
 import { agendaFocusFilterValues, agendaStatusFilterValues } from '../Agenda/hooks/useAgendaFilters';
@@ -413,21 +400,26 @@ function ScoreBar({ score, status }: { score: number; status?: ProcessTaskKpiSta
 }
 
 function KpiCard({ card, copy }: { card: ProcessTaskKpiCard; copy: KpisTranslations }) {
+  const iconByCardId: Record<string, ReactNode> = {
+    productivity: <Gauge className="h-5 w-5" />,
+    compliance: <CheckCircle2 className="h-5 w-5" />,
+    timeliness: <Clock3 className="h-5 w-5" />,
+    audit: <ClipboardCheck className="h-5 w-5" />,
+    quality: <Trophy className="h-5 w-5" />,
+    collaborators: <Users className="h-5 w-5" />,
+  };
+
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{card.title}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{card.value}</p>
-        </div>
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/12 text-[#9A6B05] dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
+          {iconByCardId[card.id] ?? <Gauge className="h-5 w-5" />}
+        </span>
         <StatusBadge copy={copy} status={card.status} />
       </div>
-      <ScoreBar
-        score={Number.parseInt(card.value, 10) || (card.status === 'healthy' ? 100 : card.status === 'watch' ? 70 : 40)}
-        status={card.status}
-      />
-      <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">{card.target}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{card.description}</p>
+      <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">{card.title}</p>
+      <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{card.value}</p>
+      <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">{card.target}</p>
     </article>
   );
 }
@@ -534,7 +526,7 @@ function OperationalSignals({
                 {comparison.available ? `${comparison.productivityScore}%` : copy.common.notApplicable}
               </p>
             </div>
-            {comparison.available ? <DeltaPill value={comparison.productivityDelta} suffix=" pts" /> : null}
+            {comparison.available ? <DeltaPill value={comparison.productivityDelta} suffix={` ${copy.common.points}`} /> : null}
           </div>
           <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {comparison.available && comparison.from && comparison.to
@@ -550,7 +542,7 @@ function OperationalSignals({
                 <p className="text-slate-500 dark:text-slate-400">{copy.signals.comparison.completion}</p>
                 <div className="mt-1 flex items-center gap-1">
                   <span className="font-semibold text-slate-900 dark:text-white">{comparison.completionRate}%</span>
-                  <DeltaPill value={comparison.completionDelta} suffix=" pts" />
+                  <DeltaPill value={comparison.completionDelta} suffix={` ${copy.common.points}`} />
                 </div>
               </div>
               <div>
@@ -669,38 +661,17 @@ function SummaryStrip({
           <KpiMetric icon={<Eye className="h-4 w-4" />} label={copy.summary.labels.visible} value={summary.totalTasks} />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <KpiMetric
-            icon={<Timer className="h-4 w-4" />}
-            label={agendaCopy.statuses.pending}
-            value={summary.pendingTasks}
+            icon={<ListChecks className="h-4 w-4" />}
+            label={copy.summary.labels.open}
+            value={summary.openTasks}
             valueClassName="text-slate-700 dark:text-slate-200"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <KpiMetric
-            icon={<Clock3 className="h-4 w-4" />}
-            label={agendaCopy.statuses.in_progress}
-            value={summary.inProgressTasks}
-            valueClassName="text-blue-600 dark:text-blue-300"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <KpiMetric
-            icon={<Timer className="h-4 w-4" />}
-            label={agendaCopy.statuses.paused}
-            value={summary.pausedTasks}
-            valueClassName="text-amber-600 dark:text-amber-300"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <KpiMetric
             icon={<CheckCircle2 className="h-4 w-4" />}
-            label={agendaCopy.statuses.completed}
-            value={summary.completedTasks}
+            label={copy.summary.labels.closed}
+            value={summary.closedTasks}
             valueClassName="text-emerald-600 dark:text-emerald-400"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <KpiMetric
-            icon={<ClipboardCheck className="h-4 w-4" />}
-            label={agendaCopy.statuses.audited}
-            value={summary.auditedTasks}
-            valueClassName="text-violet-600 dark:text-violet-300"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <KpiMetric
@@ -752,204 +723,6 @@ function SummaryStrip({
           <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-[#9A6B05]" />
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{buildKpiInsight(summary, copy)}</p>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function CollaboratorsTable({ copy, rows }: { copy: KpisTranslations; rows: CollaboratorPerformanceRow[] }) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.collaboratorsTable.title}</h3>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            {copy.collaboratorsTable.subtitle}
-          </p>
-        </div>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
-          {copy.common.collaborators(rows.length)}
-        </span>
-      </div>
-
-      <div className="overflow-x-auto">
-        <Table className="min-w-[1180px]">
-          <TableHeader>
-            <TableRow className="border-slate-200 dark:border-slate-700">
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.rank}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.collaborator}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.context}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.score}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.tasks}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.closure}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.timeliness}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.audit}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.quality}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.evidence}</TableHead>
-              <TableHead className="px-5 py-4">{copy.collaboratorsTable.headers.status}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={`${row.collaboratorId ?? 'unassigned'}-${row.rank}`} className="border-slate-200 dark:border-slate-700">
-                <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white">#{row.rank}</TableCell>
-                <TableCell className="px-5 py-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">{row.collaboratorName}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {copy.collaboratorsTable.details.openOverdue(row.openTasks, row.overdueTasks)}
-                  </p>
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
-                  <p>{row.unitName ?? copy.common.noUnit}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{row.businessName ?? copy.common.noBusiness}</p>
-                </TableCell>
-                <TableCell className="px-5 py-4">
-                  <ScoreBar score={row.productivityScore} status={row.status} />
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {row.closedTasks}/{row.totalTasks}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">{row.completionRate}%</TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">{row.timelinessRate}%</TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {copy.collaboratorsTable.details.audit(row.auditRate, row.pendingAuditTasks)}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {formatWeighting(row.averageWeighting, copy.common.notApplicable)}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">{row.evidenceRate}%</TableCell>
-                <TableCell className="px-5 py-4">
-                  <StatusBadge copy={copy} status={row.status} />
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={11} className="px-6 py-16 text-center text-sm text-slate-500 dark:text-slate-400">
-                  {copy.collaboratorsTable.empty}
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </div>
-    </section>
-  );
-}
-
-function ProcessesTable({ copy, rows }: { copy: KpisTranslations; rows: ProcessPerformanceRow[] }) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.processesTable.title}</h3>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          {copy.processesTable.subtitle}
-        </p>
-      </div>
-      <div className="overflow-x-auto">
-        <Table className="min-w-[920px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-5 py-4">{copy.processesTable.headers.process}</TableHead>
-              <TableHead className="px-5 py-4">{copy.processesTable.headers.score}</TableHead>
-              <TableHead className="px-5 py-4">{copy.processesTable.headers.tasks}</TableHead>
-              <TableHead className="px-5 py-4">{copy.processesTable.headers.audit}</TableHead>
-              <TableHead className="px-5 py-4">{copy.processesTable.headers.next}</TableHead>
-              <TableHead className="px-5 py-4">{copy.processesTable.headers.engine}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.slice(0, 8).map((row) => (
-              <TableRow key={row.processId}>
-                <TableCell className="px-5 py-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">{row.processTitle}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{row.processFolio ?? copy.common.noFolio}</p>
-                </TableCell>
-                <TableCell className="px-5 py-4">
-                  <ScoreBar score={row.productivityScore} status={row.status} />
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {copy.processesTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {copy.processesTable.details.audit(row.auditRate, formatWeighting(row.averageWeighting, copy.common.notApplicable))}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {formatDate(row.nextOccurrenceDate, copy.common.noDate, copy.locale)}
-                </TableCell>
-                <TableCell className="px-5 py-4">
-                  <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', row.isActive ? statusClasses.healthy : statusClasses.watch)}>
-                    {row.isActive ? copy.statuses.active : copy.statuses.paused}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
-                  {copy.processesTable.empty}
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </div>
-    </section>
-  );
-}
-
-function ProjectsTable({ copy, rows }: { copy: KpisTranslations; rows: ProjectPerformanceRow[] }) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.projectsTable.title}</h3>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          {copy.projectsTable.subtitle}
-        </p>
-      </div>
-      <div className="overflow-x-auto">
-        <Table className="min-w-[880px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-5 py-4">{copy.projectsTable.headers.project}</TableHead>
-              <TableHead className="px-5 py-4">{copy.projectsTable.headers.health}</TableHead>
-              <TableHead className="px-5 py-4">{copy.projectsTable.headers.progress}</TableHead>
-              <TableHead className="px-5 py-4">{copy.projectsTable.headers.tasks}</TableHead>
-              <TableHead className="px-5 py-4">{copy.projectsTable.headers.audit}</TableHead>
-              <TableHead className="px-5 py-4">{copy.projectsTable.headers.dueDate}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.slice(0, 8).map((row) => (
-              <TableRow key={row.projectId}>
-                <TableCell className="px-5 py-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">{row.projectName}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{row.projectFolio ?? copy.common.noFolio}</p>
-                </TableCell>
-                <TableCell className="px-5 py-4">
-                  <ScoreBar score={row.healthScore} status={row.status} />
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">{row.averageCompletion}%</TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {copy.projectsTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {copy.projectsTable.details.audit(row.auditRate, row.pendingAuditTasks)}
-                </TableCell>
-                <TableCell className="px-5 py-4 text-sm text-slate-700 dark:text-slate-200">
-                  {formatDate(row.dueDate, copy.common.noDate, copy.locale)}
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
-                  {copy.projectsTable.empty}
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
       </div>
     </section>
   );
@@ -1108,24 +881,24 @@ export default function KPIs() {
           unitItems
             .map(normalizeUnit)
             .filter((unit) => unit.name)
-            .sort((left, right) => left.name.localeCompare(right.name)),
+            .sort((left, right) => left.name.localeCompare(right.name, copy.locale)),
         );
         setBusinesses(
           businessItems
             .map(normalizeBusiness)
             .filter((business) => business.name)
-            .sort((left, right) => left.name.localeCompare(right.name)),
+            .sort((left, right) => left.name.localeCompare(right.name, copy.locale)),
         );
         setProjects(
           projectItems
             .filter((project) => project.id > 0 && project.name)
-            .sort((left, right) => projectOptionLabel(left).localeCompare(projectOptionLabel(right))),
+            .sort((left, right) => projectOptionLabel(left).localeCompare(projectOptionLabel(right), copy.locale)),
         );
         setCollaborators(
           hrUsers.items
             .map(normalizeCollaborator)
             .filter((collaborator): collaborator is CollaboratorOption => collaborator != null)
-            .sort((left, right) => left.name.localeCompare(right.name)),
+            .sort((left, right) => left.name.localeCompare(right.name, copy.locale)),
         );
       } catch (catalogError) {
         if (isActive) {
@@ -1139,7 +912,7 @@ export default function KPIs() {
     return () => {
       isActive = false;
     };
-  }, [copy.messages.loadCatalogs]);
+  }, [copy.locale, copy.messages.loadCatalogs]);
 
   useEffect(() => {
     let isActive = true;
@@ -1263,16 +1036,16 @@ export default function KPIs() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
+      <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
-              <span className="text-2xl leading-none" aria-hidden="true">{headerCopy.emoji}</span>
-              {headerCopy.title}
-            </h2>
-            <p className="max-w-4xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
-              {headerCopy.subtitle}
-            </p>
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-white/80 text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">
+              {headerCopy.emoji}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{headerCopy.title}</h2>
+              <p className="mt-1 max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{headerCopy.subtitle}</p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button
@@ -1281,7 +1054,7 @@ export default function KPIs() {
               disabled={!dashboard || isPrintingPdf}
               title={copy.pdf.print}
               onClick={handlePrintPdf}
-              className="h-11 gap-2 rounded-lg border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-sm hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+              className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
             >
               <Printer className="h-4 w-4" />
               {copy.pdf.print}
@@ -1292,53 +1065,8 @@ export default function KPIs() {
 
       <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
         <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white sm:mb-5">{agendaCopy.filters.title}</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-7">
-          <FilterSelect
-            label={agendaCopy.filters.focus}
-            value={focusFilter}
-            onChange={(value) => handleFocusChange(value as AgendaFocusFilter)}
-          >
-            {agendaFocusFilterValues.map((value) => (
-              <SelectItem key={value} value={value}>
-                {agendaCopy.focus[value]}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect label={agendaCopy.filters.period} value={period} onChange={(value) => setPeriod(value as AgendaPeriodFilter)}>
-            {Object.entries(periodLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          {period === 'custom' ? (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.from}</label>
-                <Input
-                  type="date"
-                  value={customFrom}
-                  max={customTo}
-                  onChange={(event) => setCustomFrom(event.target.value)}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.to}</label>
-                <Input
-                  type="date"
-                  value={customTo}
-                  min={customFrom}
-                  onChange={(event) => setCustomTo(event.target.value)}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-            </>
-          ) : null}
-
-          <FilterSelect label={agendaCopy.filters.unit} value={unitFilter} onChange={handleUnitChange}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4">
+          <FilterSelect id="kpis-unit-filter" label={agendaCopy.filters.unit} value={unitFilter} onChange={handleUnitChange}>
             <SelectItem value={allValue}>{copy.common.allFemale}</SelectItem>
             {units.map((unit) => (
               <SelectItem key={unit.id} value={String(unit.id)}>
@@ -1347,7 +1075,7 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <FilterSelect label={agendaCopy.filters.business} value={businessFilter} onChange={handleBusinessChange}>
+          <FilterSelect id="kpis-business-filter" label={agendaCopy.filters.business} value={businessFilter} onChange={handleBusinessChange}>
             <SelectItem value={allValue}>{copy.common.all}</SelectItem>
             {scopedBusinesses.map((business) => (
               <SelectItem key={business.id} value={String(business.id)}>
@@ -1356,7 +1084,26 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <FilterSelect label={agendaCopy.form.labels.project} value={projectFilter} onChange={setProjectFilter}>
+          <FilterSelect id="kpis-period-filter" label={agendaCopy.filters.period} value={period} onChange={(value) => setPeriod(value as AgendaPeriodFilter)}>
+            {Object.entries(periodLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </FilterSelect>
+
+          <FilterSelect id="kpis-status-filter" label={agendaCopy.filters.status} value={statusFilter} onChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
+            {agendaStatusFilterValues.map((value) => (
+              <SelectItem key={value} value={value}>{agendaCopy.statuses[value]}</SelectItem>
+            ))}
+          </FilterSelect>
+
+          <FilterSelect id="kpis-focus-filter" label={agendaCopy.filters.focus} value={focusFilter} onChange={(value) => handleFocusChange(value as AgendaFocusFilter)}>
+            {agendaFocusFilterValues.map((value) => (
+              <SelectItem key={value} value={value}>{agendaCopy.focus[value]}</SelectItem>
+            ))}
+          </FilterSelect>
+
+          <FilterSelect id="kpis-project-filter" label={agendaCopy.form.labels.project} value={projectFilter} onChange={setProjectFilter}>
             <SelectItem value={allValue}>{copy.common.all}</SelectItem>
             {scopedProjects.map((project) => (
               <SelectItem key={project.id} value={String(project.id)}>
@@ -1365,7 +1112,7 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <FilterSelect label={agendaCopy.filters.collaborator} value={collaboratorFilter} onChange={setCollaboratorFilter}>
+          <FilterSelect id="kpis-collaborator-filter" label={agendaCopy.filters.collaborator} value={collaboratorFilter} onChange={setCollaboratorFilter}>
             <SelectItem value={allValue}>{copy.common.all}</SelectItem>
             {scopedCollaborators.map((collaborator) => (
               <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
@@ -1374,14 +1121,18 @@ export default function KPIs() {
             ))}
           </FilterSelect>
 
-          <FilterSelect label={agendaCopy.filters.status} value={statusFilter} onChange={(value) => setStatusFilter(value as StatusFilter)}>
-            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
-            {agendaStatusFilterValues.map((value) => (
-              <SelectItem key={value} value={value}>
-                {agendaCopy.statuses[value]}
-              </SelectItem>
-            ))}
-          </FilterSelect>
+          {period === 'custom' ? (
+            <>
+              <div className="space-y-2">
+                <label htmlFor="kpis-date-from" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.from}</label>
+                <Input id="kpis-date-from" type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="kpis-date-to" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.to}</label>
+                <Input id="kpis-date-to" type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+              </div>
+            </>
+          ) : null}
         </div>
       </section>
 
@@ -1395,6 +1146,12 @@ export default function KPIs() {
 
       {!isLoading && dashboard ? (
         <>
+          <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {dashboard.cards.map((card) => (
+              <KpiCard key={card.id} card={localizeKpiCard(card, dashboard, copy)} copy={copy} />
+            ))}
+          </section>
+
           <SummaryStrip agendaCopy={agendaCopy} copy={copy} dashboard={dashboard} />
 
           <OperationalSignals
@@ -1410,16 +1167,10 @@ export default function KPIs() {
             }
           />
 
-          <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {dashboard.cards.map((card) => (
-              <KpiCard key={card.id} card={localizeKpiCard(card, dashboard, copy)} copy={copy} />
-            ))}
-          </section>
-
-          <section className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800" aria-labelledby="kpis-trend-title">
             <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.chart.title}</h3>
+                <h3 id="kpis-trend-title" className="text-lg font-semibold text-slate-900 dark:text-white">{copy.chart.title}</h3>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   {copy.chart.subtitle}
                 </p>
@@ -1455,38 +1206,17 @@ export default function KPIs() {
                 </div>
               )}
             </div>
+            <p className="sr-only">{copy.chart.subtitle}</p>
           </section>
 
-          <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-4">
-            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <Users className="mb-4 h-5 w-5 text-blue-600 dark:text-blue-300" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">{copy.snapshots.collaborators}</p>
-              <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{dashboard.collaborators.length}</p>
-            </article>
-            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <Repeat2 className="mb-4 h-5 w-5 text-cyan-600 dark:text-cyan-300" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">{copy.snapshots.processTasks}</p>
-              <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{dashboard.summary.processTasks}</p>
-            </article>
-            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <FolderKanban className="mb-4 h-5 w-5 text-violet-600 dark:text-violet-300" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">{copy.snapshots.projectTasks}</p>
-              <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{dashboard.summary.projectTasks}</p>
-            </article>
-            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <Trophy className="mb-4 h-5 w-5 text-[#9A6B05]" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">{copy.snapshots.quality}</p>
-              <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{formatWeighting(dashboard.summary.averageWeighting, copy.common.notApplicable)}</p>
-            </article>
-          </section>
-
-          <div className="space-y-6">
-            <CollaboratorsTable copy={copy} rows={visibleCollaborators} />
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <ProcessesTable copy={copy} rows={dashboard.processes} />
-              <ProjectsTable copy={copy} rows={dashboard.projects} />
-            </div>
-          </div>
+          <KpiPerformanceWorkspace
+            agendaCopy={agendaCopy}
+            collaborators={visibleCollaborators}
+            copy={copy}
+            onOpenAgenda={openAgendaDrilldown}
+            processes={dashboard.processes}
+            projects={dashboard.projects}
+          />
         </>
       ) : null}
 

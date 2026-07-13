@@ -30,7 +30,7 @@ export function IncentiveColumnsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-      <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-[20px] border border-[#59C3A5]/30 bg-white shadow-2xl dark:bg-slate-900">
+      <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white shadow-2xl dark:border-[#59C3A5]/25 dark:bg-slate-900">
         <header className="flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
           <div>
             <h2 className="text-lg font-semibold">{copy.title}</h2>

@@ -38,7 +38,7 @@ export function AttendanceDailyBoard({
   onSelectAssignment: (assignment: AttendanceControlAssignment) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-[#59C3A5]/10 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-800">
+    <section className="overflow-hidden rounded-[24px] border border-[#59C3A5]/15 bg-white shadow-sm dark:border-[#59C3A5]/20 dark:bg-slate-800">
       <div className="border-b border-[#59C3A5]/10 px-5 py-5 dark:border-gray-800">
         <div className="flex items-start justify-between gap-4">
           <div>

@@ -507,7 +507,7 @@ function AccessProfileDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         hideCloseButton
-        className="max-h-[90vh] gap-0 overflow-hidden rounded-lg border border-[#59C3A5]/20 bg-white p-0 text-gray-900 shadow-lg dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[720px]"
+        className="max-h-[90vh] gap-0 overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white p-0 text-gray-900 shadow-2xl dark:border-[#59C3A5]/25 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[720px]"
         overlayClassName="bg-black/55"
       >
         <DialogHeader className="flex-row items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-left">

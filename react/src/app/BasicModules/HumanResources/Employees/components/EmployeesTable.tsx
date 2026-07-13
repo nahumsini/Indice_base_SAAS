@@ -282,7 +282,7 @@ function EmployeesTableBody({
           {columns.map((column) => (
             <TableCell
               key={`${employee.id}-${column.id}`}
-              className={cn('px-5 py-6 align-middle', wrappingColumnIds.has(column.id) ? 'whitespace-normal' : '')}
+              className={cn('overflow-hidden px-5 py-6 align-middle', wrappingColumnIds.has(column.id) ? 'whitespace-normal' : '')}
               style={{ width: getColumnWidth(column.id), minWidth: getColumnWidth(column.id) }}
             >
               {renderColumnCell(employee, column.id)}

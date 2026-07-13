@@ -20,7 +20,7 @@ export const frCA = {
   },
   headers: {
     agenda: {
-      emoji: '📅',
+      emoji: '🗓️',
       title: 'Agenda',
       subtitle: 'Agenda operationnel avec taches reelles, retards reportes, cloture, preuves et audit.',
       actions: {
@@ -40,7 +40,7 @@ export const frCA = {
       },
     },
     processes: {
-      emoji: '✅',
+      emoji: '🔄',
       title: 'Processus',
       subtitle: "Creez des processus recurrents qui generent de vraies taches dans l'agenda de chaque responsable.",
       actions: {

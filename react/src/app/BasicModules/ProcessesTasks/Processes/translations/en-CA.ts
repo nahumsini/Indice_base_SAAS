@@ -17,7 +17,7 @@ export const enCA = {
     requiredFields: 'Fields marked with * are required.',
   },
   header: {
-    emoji: '✅',
+    emoji: '🔄',
     title: 'Processes',
     subtitle: 'Create recurring processes that generate real agenda tasks for each responsible user.',
     actions: {
@@ -35,7 +35,9 @@ export const enCA = {
     business: 'Business',
     collaborator: 'Collaborator',
     frequency: 'Frequency',
+    clear: 'Clear filters',
   },
+  diagram: { previousMonth: 'Previous month', nextMonth: 'Next month' },
   statuses: {
     active: 'Active',
     paused: 'Paused',

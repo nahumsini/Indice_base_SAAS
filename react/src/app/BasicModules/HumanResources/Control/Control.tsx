@@ -7,8 +7,10 @@ import { ControlFeedback } from './components/ControlFeedback';
 import { ControlOperationsWorkspace } from './components/ControlOperationsWorkspace';
 import { SelfShiftCalendar } from './components/SelfShiftCalendar';
 import { useControlController } from './hooks/useControlController';
+import { useControlTranslations } from './hooks/useControlTranslations';
 
 export default function Control() {
+  const copy = useControlTranslations();
   const [role, setRole] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -35,8 +37,8 @@ export default function Control() {
     return (
       <LoadingBarOverlay
         isVisible
-        title="Loading control"
-        description="Checking your access."
+        title={copy.loading}
+        description={copy.subtitle}
       />
     );
   }

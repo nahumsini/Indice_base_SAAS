@@ -1,10 +1,8 @@
 import {
   AlertTriangle,
-  CheckCircle2,
   ClipboardCheck,
   Eye,
   Gauge,
-  ListChecks,
   Timer,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -187,13 +185,6 @@ export function AgendaKpiStrip({
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <AgendaKpiMetric
-            icon={<CheckCircle2 className="h-4 w-4" />}
-            label={copy.labels.completed}
-            value={metrics.completedCount}
-            valueClassName="text-emerald-600 dark:text-emerald-400"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <AgendaKpiMetric
             icon={<AlertTriangle className="h-4 w-4" />}
             label={copy.labels.overdue}
             value={metrics.overdueCount}
@@ -207,19 +198,6 @@ export function AgendaKpiStrip({
             valueClassName="text-violet-600 dark:text-violet-300"
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <AgendaKpiMetric
-            icon={<ListChecks className="h-4 w-4" />}
-            label={copy.labels.averageProgress}
-            value={`${metrics.averageCompletion}%`}
-            valueClassName="text-[#9A6B05]"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <AgendaKpiMetric
-            icon={<Gauge className="h-4 w-4" />}
-            label={copy.labels.weighting}
-            value={metrics.averageWeighting == null ? 'N/A' : `${metrics.averageWeighting}/5`}
-            valueClassName="text-slate-900 dark:text-white"
-          />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

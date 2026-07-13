@@ -337,7 +337,7 @@ export function TimeTableModal({
       }
     }}>
       <DialogContent
-        className="flex max-h-[94vh] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-0 text-gray-900 shadow-lg dark:border-slate-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[1180px]"
+        className="flex max-h-[94vh] flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white p-0 text-gray-900 shadow-2xl dark:border-[#59C3A5]/25 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[1180px]"
         overlayClassName="bg-slate-950/55 backdrop-blur-sm"
         hideCloseButton
       >

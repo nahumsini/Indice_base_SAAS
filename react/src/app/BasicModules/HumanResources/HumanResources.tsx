@@ -91,7 +91,7 @@ class TabContentErrorBoundary extends Component<TabContentErrorBoundaryProps, Ta
       return (
         <div
           role="alert"
-          className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100"
+          className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
         >
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700 dark:text-amber-300">
             {copy.eyebrow}
@@ -235,9 +235,9 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Header del módulo */}
-      <div className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <div className="max-w-[1600px] mx-auto">
           {/* Barra de Favoritos */}
           <FavoritesBar 
@@ -250,10 +250,10 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
           
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+              <h1 className="mb-2 text-2xl font-bold text-slate-950 dark:text-white sm:text-3xl">
                 {t.title}
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 sm:text-base">
+              <p className="text-sm text-slate-600 dark:text-slate-300 sm:text-base">
                 {t.subtitle}
               </p>
             </div>
@@ -276,7 +276,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
                   className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                     activeTab === tab.id
                       ? 'bg-[#59C3A5] text-white shadow-md shadow-[#59C3A5]/25'
-                      : 'bg-gray-100 text-gray-600 hover:bg-[#59C3A5]/10 hover:text-[#2F8F78] dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-[#59C3A5]/15 dark:hover:text-[#8BE0CB]'
+                      : 'bg-slate-100 text-slate-600 hover:bg-[#59C3A5]/10 hover:text-[#2F8F78] dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#59C3A5]/15 dark:hover:text-[#8BE0CB]'
                   }`}
                 >
                   <span>{tab.emoji}</span>
@@ -303,7 +303,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             {isAccessLoaded && ActiveComponent ? (
               <ActiveComponent />
             ) : isAccessLoaded ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+              <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                 {t.access.empty}
               </div>
             ) : (

@@ -104,7 +104,7 @@ export function IncentiveFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[20px] border border-[#59C3A5]/30 bg-white shadow-2xl">
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white shadow-2xl dark:border-[#59C3A5]/25 dark:bg-slate-900">
         <header className="flex items-center justify-between bg-[#59C3A5] px-7 py-5 text-white">
           <div className="flex items-center gap-4">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -137,7 +137,7 @@ export function IncentiveFormModal({
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Ej. Bono por puntualidad"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 />
               </Field>
 
@@ -145,7 +145,7 @@ export function IncentiveFormModal({
                 <select
                   value={status}
                   onChange={(event) => setStatus(event.target.value as CreateHrIncentivePayload['status'])}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
                   <option value="active">Activo</option>
                   <option value="scheduled">Programado</option>
@@ -159,7 +159,7 @@ export function IncentiveFormModal({
                   onChange={(event) => setAmount(event.target.value)}
                   inputMode="decimal"
                   placeholder="Ej. 1500"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 />
               </Field>
 
@@ -168,7 +168,7 @@ export function IncentiveFormModal({
                   <select
                     value={currency}
                     onChange={(event) => setCurrency(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   >
                     {currencyOptions.map((option) => (
                       <option key={option} value={option}>{option}</option>
@@ -182,7 +182,7 @@ export function IncentiveFormModal({
                       type="date"
                       value={effectiveDate}
                       onChange={(event) => setEffectiveDate(event.target.value)}
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     />
                   </div>
                 </Field>
@@ -193,13 +193,13 @@ export function IncentiveFormModal({
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   placeholder="Detalle interno del incentivo"
-                  className="min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 md:col-span-2"
+                  className="min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white md:col-span-2"
                 />
               </Field>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-slate-500">
                 <Users className="h-4 w-4 text-[#59C3A5]" />
@@ -224,7 +224,7 @@ export function IncentiveFormModal({
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Buscar colaborador, puesto o unidad"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   />
                 </div>
                 <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">

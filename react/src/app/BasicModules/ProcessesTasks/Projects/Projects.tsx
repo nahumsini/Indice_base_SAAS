@@ -14,6 +14,7 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react';
+import { useLanguage } from '../../../shared/context';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
@@ -118,7 +119,6 @@ const projectColumnsStorageKey = 'processes-tasks-projects-columns-v1';
 const projectFiltersStorageKey = 'processes-tasks-projects-filters-v1';
 const projectPriorityValues: ProjectPriority[] = ['low', 'medium', 'high'];
 const projectStatusValues: ProjectStatus[] = ['active', 'paused', 'completed', 'cancelled'];
-const projectSortCollator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
 const projectPrioritySortRank: Record<ProjectPriority, number> = {
   high: 3,
   medium: 2,
@@ -324,13 +324,13 @@ function buildProjectPayloadFromRecord(project: ProjectRecord, patch: Partial<Pr
   };
 }
 
-function formatDate(value: string | null, includeTime = false, noDateLabel: string) {
+function formatDate(value: string | null, includeTime = false, noDateLabel: string, locale = 'en-CA') {
   if (!value) {
     return noDateLabel;
   }
 
   const date = includeTime ? new Date(value) : new Date(`${value}T00:00:00`);
-  return new Intl.DateTimeFormat('es-MX', {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -358,6 +358,7 @@ function compareSortValues(
   leftValue: ProjectSortValue,
   rightValue: ProjectSortValue,
   direction: ProjectSortDirection,
+  collator: Intl.Collator,
 ) {
   const leftIsEmpty = leftValue == null || leftValue === '';
   const rightIsEmpty = rightValue == null || rightValue === '';
@@ -369,7 +370,7 @@ function compareSortValues(
   const result =
     typeof leftValue === 'number' && typeof rightValue === 'number'
       ? leftValue - rightValue
-      : projectSortCollator.compare(String(leftValue), String(rightValue));
+      : collator.compare(String(leftValue), String(rightValue));
 
   return direction === 'asc' ? result : result * -1;
 }
@@ -583,7 +584,7 @@ function ProjectKpiStrip({
     return (
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap items-center gap-4">
-          {Array.from({ length: 7 }).map((_, index) => (
+          {Array.from({ length: 5 }).map((_, index) => (
             <Skeleton key={index} className="h-8 w-36 rounded-lg" />
           ))}
         </div>
@@ -601,7 +602,7 @@ function ProjectKpiStrip({
         : 'border-[#FF2D5E]/30 bg-[#FF2D5E]/10 text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200';
 
   return (
-    <div className="mb-6 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="mb-6 space-y-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <ProjectKpiMetric icon={<Eye className="h-4 w-4" />} label={copy.labels.visible} value={metrics.totalCount} />
@@ -614,20 +615,14 @@ function ProjectKpiStrip({
           />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
           <ProjectKpiMetric
-            icon={<Timer className="h-4 w-4" />}
-            label={copy.labels.open}
-            value={metrics.openTaskCount}
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <ProjectKpiMetric
-            icon={<CheckCircle2 className="h-4 w-4" />}
-            label={copy.labels.closed}
-            value={metrics.completedTaskCount}
-            valueClassName="text-[#177D66] dark:text-emerald-200"
-          />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <ProjectKpiMetric
             icon={<AlertTriangle className="h-4 w-4" />}
+            label={copy.labels.atRisk}
+            value={metrics.atRiskCount}
+            valueClassName="text-[#C60037] dark:text-pink-200"
+          />
+          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
+          <ProjectKpiMetric
+            icon={<Timer className="h-4 w-4" />}
             label={copy.labels.overdue}
             value={metrics.overdueTaskCount}
             valueClassName="text-[#C60037] dark:text-pink-200"
@@ -639,8 +634,6 @@ function ProjectKpiStrip({
             value={`${metrics.averageProgress}%`}
             valueClassName="text-[#9A6B05] dark:text-[#FEF3C7]"
           />
-          <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <ProjectKpiMetric icon={<Gauge className="h-4 w-4" />} label={copy.labels.tasks} value={metrics.linkedTaskCount} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -678,6 +671,8 @@ function ProjectKpiStrip({
 }
 
 export default function Projects() {
+  const { currentLanguage } = useLanguage();
+  const locale = currentLanguage.code;
   const projectCopy = useProjectsTranslations();
   const headerCopy = projectCopy.header;
   const defaultColumns = useMemo(() => createDefaultProjectColumns(projectCopy.columns), [projectCopy.columns]);
@@ -717,6 +712,10 @@ export default function Projects() {
   const [catalogBusinesses, setCatalogBusinesses] = useState<ProcessBusinessOption[]>([]);
   const [catalogCollaborators, setCatalogCollaborators] = useState<ProcessCollaboratorOption[]>([]);
   const [processes, setProcesses] = useState<ProcessRecord[]>([]);
+  const projectSortCollator = useMemo(
+    () => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }),
+    [locale],
+  );
 
   const loadProjects = useCallback(async () => {
     setIsLoadingProjects(true);
@@ -799,7 +798,7 @@ export default function Projects() {
           ? unitResult.value
               .map(normalizeUnitOption)
               .filter((option): option is ProcessUnitOption => option !== null)
-              .sort((left, right) => left.name.localeCompare(right.name))
+              .sort((left, right) => projectSortCollator.compare(left.name, right.name))
           : [],
       );
       setCatalogBusinesses(
@@ -807,7 +806,7 @@ export default function Projects() {
           ? businessResult.value
               .map(normalizeBusinessOption)
               .filter((option): option is ProcessBusinessOption => option !== null)
-              .sort((left, right) => left.name.localeCompare(right.name))
+              .sort((left, right) => projectSortCollator.compare(left.name, right.name))
           : [],
       );
       setCatalogCollaborators(
@@ -815,13 +814,13 @@ export default function Projects() {
           ? hrUserResult.value.items
               .map(normalizeCollaboratorOption)
               .filter((option): option is ProcessCollaboratorOption => option !== null)
-              .sort((left, right) => left.name.localeCompare(right.name))
+              .sort((left, right) => projectSortCollator.compare(left.name, right.name))
           : [],
       );
     };
 
     void loadRelations();
-  }, []);
+  }, [projectSortCollator]);
 
   const unitOptions = useMemo(() => {
     const optionMap = new Map<string, string>();
@@ -833,9 +832,9 @@ export default function Projects() {
     });
 
     return Array.from(optionMap, ([value, label]) => ({ value, label })).sort((left, right) =>
-      left.label.localeCompare(right.label),
+      projectSortCollator.compare(left.label, right.label),
     );
-  }, [catalogUnits, projectCopy.form.labels.unit, projects]);
+  }, [catalogUnits, projectCopy.form.labels.unit, projectSortCollator, projects]);
 
   const businessOptions = useMemo(() => {
     const optionMap = new Map<string, string>();
@@ -855,9 +854,9 @@ export default function Projects() {
     });
 
     return Array.from(optionMap, ([value, label]) => ({ value, label })).sort((left, right) =>
-      left.label.localeCompare(right.label),
+      projectSortCollator.compare(left.label, right.label),
     );
-  }, [catalogBusinesses, projectCopy.form.labels.business, projects, unitFilter]);
+  }, [catalogBusinesses, projectCopy.form.labels.business, projectSortCollator, projects, unitFilter]);
 
   const ownerOptions = useMemo(() => {
     const optionMap = new Map<string, string>();
@@ -872,9 +871,9 @@ export default function Projects() {
     });
 
     return Array.from(optionMap, ([value, label]) => ({ value, label })).sort((left, right) =>
-      left.label.localeCompare(right.label),
+      projectSortCollator.compare(left.label, right.label),
     );
-  }, [catalogCollaborators, projectCopy.form.labels.owner, projects]);
+  }, [catalogCollaborators, projectCopy.form.labels.owner, projectSortCollator, projects]);
 
   useEffect(() => {
     if (unitFilter !== 'all' && !unitOptions.some((option) => option.value === unitFilter)) {
@@ -926,12 +925,13 @@ export default function Projects() {
           getProjectSortValue(left.project, sortState.columnId),
           getProjectSortValue(right.project, sortState.columnId),
           sortState.direction,
+          projectSortCollator,
         );
 
         return comparison === 0 ? left.index - right.index : comparison;
       })
       .map(({ project }) => project);
-  }, [filteredProjects, sortState]);
+  }, [filteredProjects, projectSortCollator, sortState]);
   const {
     currentPage,
     onPageChange,
@@ -1034,6 +1034,14 @@ export default function Projects() {
     setDialogMode('create');
     resetForm();
     setIsDialogOpen(true);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setUnitFilter('all');
+    setBusinessFilter('all');
+    setStatusFilter('all');
+    setOwnerFilter('all');
   };
 
   const openEditDialog = (project: ProjectRecord) => {
@@ -1262,7 +1270,7 @@ export default function Projects() {
     const isSelected = selectedProjectId === project.id;
 
     return (
-      <div className="flex w-full min-w-[265px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70 md:min-w-[265px] md:flex-nowrap">
         <ProjectActionButton
           label={isSelected ? projectCopy.actions.closeTasks : projectCopy.actions.openTasks}
           onClick={() => setSelectedProjectId(isSelected ? null : project.id)}
@@ -1527,34 +1535,36 @@ export default function Projects() {
           </div>
         );
       case 'updated':
-        return <div className="min-w-[170px] text-sm text-slate-700 dark:text-slate-200">{formatDate(project.updatedAt, true, projectCopy.common.noDate)}</div>;
+        return <div className="min-w-[170px] text-sm text-slate-700 dark:text-slate-200">{formatDate(project.updatedAt, true, projectCopy.common.noDate, locale)}</div>;
     }
   };
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15">
+      <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 shadow-sm dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
-              <span className="text-2xl leading-none" aria-hidden="true">{headerCopy.emoji}</span>
-              {headerCopy.title}
-            </h2>
-            <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
-              {headerCopy.subtitle}
-            </p>
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-[#FFF8DF] text-2xl shadow-sm dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15" aria-hidden="true">
+              {headerCopy.emoji}
+            </span>
+            <div className="min-w-0">
+              <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">{headerCopy.title}</h2>
+              <p className="max-w-3xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
+                {headerCopy.subtitle}
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-lg border-[#F4C84A]/25 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A]/10 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
+              className="h-10 w-full gap-2 rounded-lg border-[#F4C84A]/25 bg-white px-3 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A]/10 sm:w-auto sm:px-4 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
               {headerCopy.actions.columns}
             </Button>
-            <Button className="h-10 gap-2 rounded-lg bg-[#F4C84A] px-4 text-sm font-semibold text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835]" onClick={openCreateDialog}>
+            <Button className="h-10 w-full gap-2 rounded-lg bg-[#F4C84A] px-3 text-sm font-semibold text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835] sm:w-auto sm:px-4" onClick={openCreateDialog}>
               <Plus className="h-4 w-4" />
               {headerCopy.actions.create}
             </Button>
@@ -1580,25 +1590,26 @@ export default function Projects() {
         </section>
       ) : null}
 
-      <section className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-5 text-base font-bold text-slate-800 dark:text-white">{projectCopy.filters.title}</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <div className="space-y-2 xl:col-span-1">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.search}</label>
+      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{projectCopy.filters.title}</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
+          <div className="space-y-2 md:col-span-3 xl:col-span-4">
+            <label htmlFor="projects-search" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.search}</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
+                id="projects-search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={projectCopy.filters.searchPlaceholder}
-                className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                className="h-10 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.unit}</label>
+          <div className="space-y-2 md:col-span-3 xl:col-span-2">
+            <label id="projects-unit-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.unit}</label>
             <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger aria-labelledby="projects-unit-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1611,10 +1622,10 @@ export default function Projects() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.business}</label>
+          <div className="space-y-2 md:col-span-3 xl:col-span-2">
+            <label id="projects-business-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.business}</label>
             <Select value={businessFilter} onValueChange={setBusinessFilter}>
-              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger aria-labelledby="projects-business-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1627,26 +1638,10 @@ export default function Projects() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.owner}</label>
-            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{projectCopy.common.all}</SelectItem>
-                {ownerOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.status}</label>
+          <div className="space-y-2 md:col-span-3 xl:col-span-2">
+            <label id="projects-status-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.status}</label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+              <SelectTrigger aria-labelledby="projects-status-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1660,20 +1655,99 @@ export default function Projects() {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2 md:col-span-3 xl:col-span-2">
+            <label id="projects-owner-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.owner}</label>
+            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+              <SelectTrigger aria-labelledby="projects-owner-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{projectCopy.common.all}</SelectItem>
+                {ownerOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </section>
 
       <ProjectKpiStrip copy={projectCopy.kpis} isLoading={isLoadingProjects} metrics={metrics} />
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="overflow-x-auto">
+        <div className="md:hidden">
+          {isLoadingProjects ? (
+            <div className="space-y-3 p-4" role="status" aria-label={projectCopy.table.loading}>
+              {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-52 w-full rounded-2xl" />)}
+            </div>
+          ) : null}
+
+          {!isLoadingProjects && paginatedProjects.length === 0 ? (
+            <div className="px-5 py-14 text-center">
+              <span className="mb-3 block text-3xl" aria-hidden="true">{headerCopy.emoji}</span>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{projectCopy.table.empty}</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Button type="button" variant="outline" className="h-9 rounded-lg" onClick={clearFilters}>{projectCopy.filters.clear}</Button>
+                <Button type="button" className="h-9 rounded-lg bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={openCreateDialog}>
+                  <Plus className="h-4 w-4" />{headerCopy.actions.create}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {!isLoadingProjects && paginatedProjects.length > 0 ? (
+            <div className="space-y-3 p-3">
+              {paginatedProjects.map((project) => (
+                <article key={project.id} className={cn('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800', selectedProjectId === project.id && 'border-[#F4C84A]/60 bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15')}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9A6B05]">{project.folio}</p>
+                      <h3 className="mt-1 break-words text-base font-bold text-slate-950 dark:text-white">{project.name}</h3>
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{project.description || projectCopy.common.noDescription}</p>
+                    </div>
+                    <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', statusClasses[project.status])}>{projectCopy.statuses[project.status]}</Badge>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{projectCopy.columns.owner.label}</p>
+                      <p className="mt-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{project.ownerName || projectCopy.common.noResponsible}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{projectCopy.columns.dueDate.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{formatDate(project.dueDate, false, projectCopy.common.noDate, locale)}</p>
+                    </div>
+                    <div className="col-span-2 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
+                      <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+                        <span className="text-slate-600 dark:text-slate-300">{projectCopy.table.progress}</span>
+                        <span className="text-slate-950 dark:text-white">{clampPercent(project.completionPercent)}%</span>
+                      </div>
+                      <div className={cn(progressTrackClass, 'mt-2')}><div className="h-full rounded-full bg-[#F4C84A]" style={{ width: `${clampPercent(project.completionPercent)}%` }} /></div>
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span>{projectCopy.table.taskCounts.open} {project.openTaskCount}</span>
+                        <span>{projectCopy.table.taskCounts.closed} {project.completedTaskCount}</span>
+                        {project.overdueTaskCount > 0 ? <span className="text-[#C60037]">{projectCopy.table.taskCounts.overdue} {project.overdueTaskCount}</span> : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700">{renderProjectActions(project)}</div>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <Table style={{ minWidth: tableMinWidth }}>
             <TableHeader>
               <TableRow className="border-slate-200 dark:border-slate-700">
                 {visibleColumns.map((column) => (
                   <SortableTableHead key={column.id} column={column} sortState={sortState} onSort={handleSort} />
                 ))}
-                <TableHead className="px-5 py-5">
+                <TableHead className="px-4 py-4">
                   <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{projectCopy.common.actions}</span>
                 </TableHead>
               </TableRow>
@@ -1685,27 +1759,45 @@ export default function Projects() {
                     const columnId = column.id as ProjectColumnId;
 
                     return (
-                      <TableCell key={`${project.id}-${column.id}`} className="px-5 py-5 align-middle">
+                      <TableCell key={`${project.id}-${column.id}`} className="px-4 py-3.5 align-middle">
                         {renderProjectCell(project, columnId)}
                       </TableCell>
                     );
                   })}
-                  <TableCell className="px-5 py-5 align-middle">{renderProjectActions(project)}</TableCell>
+                  <TableCell className="px-4 py-3.5 align-middle">{renderProjectActions(project)}</TableCell>
                 </TableRow>
               ))}
 
               {isLoadingProjects ? (
                 <TableRow>
-                  <TableCell colSpan={tableColumnCount} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                    {projectCopy.table.loading}
+                  <TableCell colSpan={tableColumnCount} className="px-4 py-5">
+                    <div className="space-y-3" role="status" aria-label={projectCopy.table.loading}>
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <Skeleton key={index} className="h-10 w-full rounded-lg" />
+                      ))}
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : null}
 
               {!isLoadingProjects && sortedProjects.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={tableColumnCount} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                    {projectCopy.table.empty}
+                  <TableCell colSpan={tableColumnCount} className="px-6 py-14 text-center">
+                    <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4C84A]/15 text-2xl" aria-hidden="true">
+                        {headerCopy.emoji}
+                      </span>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{projectCopy.table.empty}</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <Button type="button" variant="outline" className="h-9 rounded-lg" onClick={clearFilters}>
+                          {projectCopy.filters.clear}
+                        </Button>
+                        <Button type="button" className="h-9 rounded-lg bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={openCreateDialog}>
+                          <Plus className="h-4 w-4" />
+                          {headerCopy.actions.create}
+                        </Button>
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -1715,7 +1807,7 @@ export default function Projects() {
         {!isLoadingProjects && paginatedProjectCount > 0 ? (
           <DataTablePagination
             currentPage={currentPage}
-            itemLabel="proyectos"
+            itemLabel={headerCopy.title.toLocaleLowerCase(locale)}
             onPageChange={onPageChange}
             onPageSizeChange={onPageSizeChange}
             pageEnd={pageEnd}
@@ -1731,10 +1823,14 @@ export default function Projects() {
       {selectedProject ? (
         <ProjectTasksWorkspace
           copy={projectCopy.workspace}
+          diagramLabel={headerCopy.actions.diagram}
+          itemLabel={projectCopy.columns.tasks.label.toLocaleLowerCase(locale)}
+          locale={locale}
           project={selectedProject}
           projects={projects}
           processes={processes}
           unitOptions={catalogUnits}
+          tableLabel={headerCopy.actions.table}
           businessOptions={catalogBusinesses}
           collaboratorOptions={catalogCollaborators}
           onClose={() => setSelectedProjectId(null)}

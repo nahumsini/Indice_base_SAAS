@@ -1,4 +1,4 @@
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   Dialog,
@@ -10,8 +10,14 @@ import {
 } from '../../../../components/ui/dialog';
 import { Textarea } from '../../../../components/ui/textarea';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
-import { accentButtonClass } from '../../Processes/processesData';
 import { ProgressSlider } from '../../shared/ProgressSlider';
+import {
+  processTaskModalCloseActionClass,
+  processTaskModalFooterClass,
+  processTaskModalHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../../shared/processTaskModalStyles';
 
 interface CompletableTask {
   description: string | null;
@@ -53,18 +59,26 @@ export function TaskCompletionDialog({
         hideCloseButton
         className="!flex max-h-[calc(100vh-3rem)] max-w-[560px] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
-          <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950">
-            <CheckCircle2 className="h-5 w-5" />
-            {copy.title}
-          </DialogTitle>
+        <div className={processTaskModalHeaderClass}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 pr-4">
+              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950">
+                <CheckCircle2 className="h-5 w-5" />
+                {copy.title}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-sm font-medium leading-5 text-slate-800/80">
+                {task ? copy.description(task.folio) : copy.fallbackDescription}
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className={`${processTaskModalCloseActionClass} w-9 shrink-0 px-0`} disabled={isSubmitting} aria-label={copy.cancel}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </div>
         </div>
 
         <div className="space-y-5 px-6 py-5">
-          <DialogDescription className="text-sm leading-6 text-slate-600 dark:text-slate-400">
-            {task ? copy.description(task.folio) : copy.fallbackDescription}
-          </DialogDescription>
-
           {task ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
               <p className="text-sm font-semibold text-slate-900 dark:text-white">{task.title}</p>
@@ -95,12 +109,12 @@ export function TaskCompletionDialog({
           </div>
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+        <DialogFooter className={processTaskModalFooterClass}>
           <DialogClose asChild>
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              className={processTaskModalSecondaryActionClass}
               disabled={isSubmitting}
             >
               {copy.cancel}
@@ -108,7 +122,7 @@ export function TaskCompletionDialog({
           </DialogClose>
           <Button
             type="button"
-            className={`h-10 rounded-xl px-4 text-sm font-semibold ${accentButtonClass}`}
+            className={processTaskModalPrimaryActionClass}
             disabled={!task || !isCompletionValid || isSubmitting}
             onClick={onConfirm}
           >

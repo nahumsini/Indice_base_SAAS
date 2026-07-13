@@ -36,6 +36,7 @@ export const esMX: ProjectsTranslations = {
     business: 'Negocio',
     owner: 'Responsable',
     status: 'Estado',
+    clear: 'Limpiar filtros',
   },
   statuses: {
     active: 'Activo',
@@ -103,6 +104,7 @@ export const esMX: ProjectsTranslations = {
     labels: {
       visible: 'visibles',
       active: 'activos',
+      atRisk: 'en riesgo',
       open: 'abiertas',
       closed: 'cerradas',
       overdue: 'vencidas',

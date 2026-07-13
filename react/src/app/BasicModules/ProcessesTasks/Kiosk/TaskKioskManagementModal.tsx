@@ -10,6 +10,13 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog';
 import type { ProcessBusinessOption, ProcessUnitOption } from '../Processes/types';
+import {
+  processTaskModalCompactFooterClass,
+  processTaskModalFooterClass,
+  processTaskModalHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../shared/processTaskModalStyles';
 import type { ProcessTaskKiosk, ProcessTaskKioskPayload } from './processTaskKioskApi';
 
 interface TaskKioskManagementModalProps {
@@ -195,9 +202,9 @@ export function TaskKioskManagementModal({
       >
         <DialogContent
           hideCloseButton
-          className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-0 text-slate-950 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
+          className="max-h-[92vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 text-slate-950 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-5xl"
         >
-          <div className="shrink-0 bg-[#F4C84A] px-6 py-4 text-slate-950">
+          <div className={processTaskModalHeaderClass}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/25">
@@ -360,11 +367,11 @@ export function TaskKioskManagementModal({
             </section>
           </div>
 
-          <DialogFooter className="shrink-0 border-t border-[#9A6B05]/30 bg-[#F4C84A] px-6 py-4">
+          <DialogFooter className={processTaskModalFooterClass}>
             <p className="mr-auto text-sm font-medium text-slate-600 dark:text-slate-300">
               Kiosk visibility follows the identified worker and their assigned open tasks.
             </p>
-            <Button type="button" variant="outline" className="rounded-lg border-white/30 bg-white text-[#9A6B05] hover:bg-white/90 hover:text-[#9A6B05]" onClick={handleClose}>
+            <Button type="button" variant="outline" className={processTaskModalSecondaryActionClass} onClick={handleClose}>
               Close
             </Button>
           </DialogFooter>
@@ -379,16 +386,21 @@ export function TaskKioskManagementModal({
           }
         }}
       >
-        <DialogContent className="overflow-hidden rounded-lg border border-slate-200 bg-white p-0 text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.2)] dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-xl">
-          <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-            <DialogHeader className="text-left">
-              <DialogTitle className="text-xl font-bold text-slate-950 dark:text-white">
-                {editingKioskId ? 'Edit kiosk' : 'Create kiosk'}
-              </DialogTitle>
-              <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
-                Configure the access point workers will use to open their assigned tasks.
-              </DialogDescription>
-            </DialogHeader>
+        <DialogContent hideCloseButton className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 text-slate-950 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:max-w-xl">
+          <div className={processTaskModalHeaderClass}>
+            <div className="flex items-start justify-between gap-4">
+              <DialogHeader className="text-left">
+                <DialogTitle className="text-xl font-bold text-slate-950">
+                  {editingKioskId ? 'Edit kiosk' : 'Create kiosk'}
+                </DialogTitle>
+                <DialogDescription className="text-sm font-medium text-slate-800/80">
+                  Configure the access point workers will use to open their assigned tasks.
+                </DialogDescription>
+              </DialogHeader>
+              <button type="button" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#9A6B05]/25 bg-white/35 text-slate-950 transition hover:bg-white/60" aria-label="Close kiosk editor" disabled={isSaving} onClick={closeEditor}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-4 px-6 py-5">
@@ -482,13 +494,13 @@ export function TaskKioskManagementModal({
             </div>
           </div>
 
-          <DialogFooter className="border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
-            <Button type="button" variant="outline" className="rounded-xl" onClick={closeEditor}>
+          <DialogFooter className={processTaskModalCompactFooterClass}>
+            <Button type="button" variant="outline" className={processTaskModalSecondaryActionClass} onClick={closeEditor}>
               Cancel
             </Button>
             <Button
               type="button"
-              className="gap-2 rounded-xl bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]"
+              className={`${processTaskModalPrimaryActionClass} gap-2`}
               disabled={!canSave}
               onClick={() => void handleSubmit()}
             >

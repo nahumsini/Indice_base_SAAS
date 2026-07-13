@@ -23,7 +23,7 @@ export const enUS: AgendaTranslations = {
     notAvailable: 'N/A',
   },
   header: {
-    emoji: '📅',
+    emoji: '🗓️',
     title: 'Agenda',
     subtitle: 'Operational agenda with real tasks, carried-over overdue work, closure, evidence, and audit.',
     actions: {
@@ -36,6 +36,7 @@ export const enUS: AgendaTranslations = {
     },
   },
   filters: {
+    clear: 'Clear filters',
     title: 'Filters',
     search: 'Search task',
     searchPlaceholder: 'Folio, title, description, or responsible',
@@ -144,6 +145,9 @@ export const enUS: AgendaTranslations = {
     files: 'Files',
   },
   bulk: {
+    selected: (count: number) => `${count} selected`,
+    actions: 'Bulk actions',
+    success: (count: number) => `Bulk action applied to ${count} task${count === 1 ? '' : 's'}.`,
     assignDescription: (count: number) => `Apply a responsible collaborator to ${count} selected task${count === 1 ? '' : 's'}.`,
     unitDescription: (count: number) => `Apply a unit to ${count} selected task${count === 1 ? '' : 's'}.`,
   },

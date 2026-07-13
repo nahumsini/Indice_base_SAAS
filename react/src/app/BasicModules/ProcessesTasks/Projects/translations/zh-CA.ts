@@ -39,6 +39,7 @@ export const zhCA: ProjectsTranslations = {
     business: '业务',
     owner: '负责人',
     status: '状态',
+    clear: '清除筛选',
   },
   statuses: {
     active: '活跃',
@@ -106,6 +107,7 @@ export const zhCA: ProjectsTranslations = {
     labels: {
       visible: '可见',
       active: '活跃',
+      atRisk: '有风险',
       open: '打开',
       closed: '关闭',
       overdue: '逾期',

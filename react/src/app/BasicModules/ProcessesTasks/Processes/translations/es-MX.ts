@@ -18,7 +18,7 @@ export const esMX: ProcessesTranslations = {
     requiredFields: 'Los campos marcados con * son obligatorios.',
   },
   header: {
-    emoji: '✅',
+    emoji: '🔄',
     title: 'Procesos',
     subtitle: 'Crea procesos recurrentes que generen tareas reales en la agenda de cada responsable.',
     actions: {
@@ -36,7 +36,9 @@ export const esMX: ProcessesTranslations = {
     business: 'Negocio',
     collaborator: 'Colaborador',
     frequency: 'Frecuencia',
+    clear: 'Limpiar filtros',
   },
+  diagram: { previousMonth: 'Mes anterior', nextMonth: 'Mes siguiente' },
   statuses: {
     active: 'Activo',
     paused: 'Pausado',

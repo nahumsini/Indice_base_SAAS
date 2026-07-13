@@ -34,6 +34,7 @@ export const enCA = {
     business: 'Business',
     owner: 'Responsible',
     status: 'Status',
+    clear: 'Clear filters',
   },
   statuses: {
     active: 'Active',
@@ -101,6 +102,7 @@ export const enCA = {
     labels: {
       visible: 'visible',
       active: 'active',
+      atRisk: 'at risk',
       open: 'open',
       closed: 'closed',
       overdue: 'overdue',

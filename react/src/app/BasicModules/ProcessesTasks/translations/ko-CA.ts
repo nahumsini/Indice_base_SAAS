@@ -20,7 +20,7 @@ export const koCA = {
   },
   headers: {
     agenda: {
-      emoji: '📅',
+      emoji: '🗓️',
       title: '일정',
       subtitle: '실제 작업, 누적 지연, 완료, 증빙, 감사가 포함된 운영 일정입니다.',
       actions: {
@@ -40,7 +40,7 @@ export const koCA = {
       },
     },
     processes: {
-      emoji: '✅',
+      emoji: '🔄',
       title: '프로세스',
       subtitle: '각 담당자의 일정에 실제 작업을 생성하는 반복 프로세스를 만듭니다.',
       actions: {

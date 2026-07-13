@@ -8,6 +8,7 @@ import {
 } from '../../shared/StandardTableControls';
 import type { AnnouncementView } from '../announcementTypes';
 import type { AnnouncementTableCopy } from '../translations';
+import { HrMobileDataCard } from '../../shared/HrMobileDataCard';
 
 interface AnnouncementTableProps {
   announcements: AnnouncementView[];
@@ -142,8 +143,59 @@ export function AnnouncementTable({
   }, [currentPage, totalPages]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="grid grid-cols-1 gap-3 bg-slate-50/60 p-3 lg:grid-cols-2 xl:hidden dark:bg-slate-900/30">
+        {paginatedAnnouncements.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            {copy.table.emptyState}
+          </div>
+        ) : paginatedAnnouncements.map((announcement) => (
+          <HrMobileDataCard
+            key={announcement.id}
+            selected={selectedIdSet.has(announcement.id)}
+            selection={(
+              <input
+                type="checkbox"
+                aria-label={copy.table.selectRow(announcement.title)}
+                checked={selectedIdSet.has(announcement.id)}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
+                onChange={() => onToggleSelection(announcement.id)}
+              />
+            )}
+            leading={(
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EAF8F4] text-sm font-bold text-[#177d66] dark:bg-[#13362F] dark:text-[#8DE1CB]">
+                {announcement.title.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            title={announcement.title}
+            subtitle={announcement.preview || copy.table.noPreview}
+            badges={(
+              <>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getTypeClasses(announcement.type)}`}>
+                  {copy.typeLabels[announcement.type]}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusClasses(announcement.status)}`}>
+                  {copy.statusLabels[announcement.status]}
+                </span>
+              </>
+            )}
+            details={[
+              { label: copy.table.columns.audience, value: getAudienceLabel(announcement) },
+              { label: copy.table.columns.publication, value: `${announcement.publicationDate} · ${announcement.publicationTime || copy.table.noTime}` },
+              { label: copy.table.columns.reads, value: announcement.readSummary },
+              { label: copy.table.columns.author, value: announcement.authorName },
+            ]}
+            actions={(
+              <>
+                <StandardActionButton label={copy.feedback.openDetails} onClick={() => onOpen(announcement)}><Eye className="h-4 w-4" /></StandardActionButton>
+                {canManage ? <StandardActionButton label={copy.table.edit} onClick={() => onEdit(announcement)}><Pencil className="h-4 w-4" /></StandardActionButton> : null}
+                {canManage ? <StandardActionButton label={copy.table.delete} tone="danger" onClick={() => onDelete(announcement)}><Trash2 className="h-4 w-4" /></StandardActionButton> : null}
+              </>
+            )}
+          />
+        ))}
+      </div>
+      <div className="hidden max-w-full overflow-x-auto xl:block">
         <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>

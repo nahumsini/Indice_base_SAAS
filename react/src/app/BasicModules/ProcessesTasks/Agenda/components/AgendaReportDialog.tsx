@@ -1,4 +1,4 @@
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, X } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import {
@@ -10,13 +10,19 @@ import {
   DialogTitle,
 } from '../../../../components/ui/dialog';
 import { cn } from '../../../../components/ui/utils';
+import {
+  processTaskModalCloseActionClass,
+  processTaskModalFooterClass,
+  processTaskModalHeaderClass,
+  processTaskModalPrimaryActionClass,
+  processTaskModalSecondaryActionClass,
+} from '../../shared/processTaskModalStyles';
 import type { AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
 import { clampPercent, formatWeightingScore, getTaskDisplayStatus } from '../utils/agendaTaskStatus';
 import { formatDate, reportValue } from '../utils/agendaReports';
 
 type AgendaReportDialogProps = {
-  accentButtonClassName: string;
   copy: AgendaTranslations;
   onDownload: (task: AgendaTaskItem) => void;
   onOpenChange: (open: boolean) => void;
@@ -24,7 +30,6 @@ type AgendaReportDialogProps = {
 };
 
 export function AgendaReportDialog({
-  accentButtonClassName,
   copy,
   onDownload,
   onOpenChange,
@@ -36,7 +41,7 @@ export function AgendaReportDialog({
         hideCloseButton
         className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-[920px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[920px] dark:border-slate-700 dark:bg-slate-800"
       >
-        <div className="shrink-0 bg-[#F4C84A] px-6 py-4">
+        <div className={processTaskModalHeaderClass}>
           <div className="flex items-center justify-between gap-4">
             <div className="pr-4">
               <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
@@ -48,9 +53,10 @@ export function AgendaReportDialog({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-2xl border-[#9A6B05]/25 bg-white/35 px-3 text-slate-950 hover:bg-white/60 hover:text-slate-950"
+                className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')}
+                aria-label={copy.common.close}
               >
-                {copy.common.close}
+                <X className="h-4 w-4" />
               </Button>
             </DialogClose>
           </div>
@@ -153,15 +159,15 @@ export function AgendaReportDialog({
               </div>
             </div>
 
-            <DialogFooter className="shrink-0 border-t border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+            <DialogFooter className={processTaskModalFooterClass}>
               <DialogClose asChild>
-                <Button type="button" variant="outline" className="h-10 rounded-xl border-slate-200 bg-white px-6 text-sm font-semibold dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                <Button type="button" variant="outline" className={cn(processTaskModalSecondaryActionClass, 'px-6')}>
                   {copy.common.close}
                 </Button>
               </DialogClose>
               <Button
                 type="button"
-                className={cn('h-10 rounded-xl px-6 text-sm font-semibold', accentButtonClassName)}
+                className={cn(processTaskModalPrimaryActionClass, 'px-6')}
                 onClick={() => onDownload(task)}
               >
                 <Download className="h-4 w-4" />

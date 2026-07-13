@@ -212,7 +212,7 @@ export function useAgendaBulkActions({
         }
 
         resetBulkState();
-        setAgendaNotice(`Accion masiva aplicada a ${selectedTasks.length} tarea${selectedTasks.length === 1 ? '' : 's'}.`);
+        setAgendaNotice(agendaCopy.bulk.success(selectedTasks.length));
         await loadAgenda();
       } catch (error) {
         if (import.meta.env.DEV) {

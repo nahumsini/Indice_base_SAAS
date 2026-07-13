@@ -9,7 +9,7 @@ import type {
 import type { EmployeesTranslations } from '../translations';
 
 export const columnsStorageKey = 'rh-colaboradores-columns-v6';
-export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v2';
+export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v3';
 export const allFilterValue = 'all';
 export const inlineUnassignedValue = '__unassigned__';
 export const employeesPerPage = 10;
@@ -61,7 +61,15 @@ export function getDefaultEmployeeColumnWidth(columnId: string) {
   }
 
   if (columnId === 'employee') {
-    return 260;
+    return 290;
+  }
+
+  if (columnId === 'employeeNumber') {
+    return 220;
+  }
+
+  if (columnId === 'firstName' || columnId === 'lastName') {
+    return 190;
   }
 
   if (columnId === 'email' || columnId === 'address') {
@@ -85,7 +93,15 @@ export function getMinimumEmployeeColumnWidth(columnId: string) {
   }
 
   if (columnId === 'employee') {
-    return 220;
+    return 260;
+  }
+
+  if (columnId === 'employeeNumber') {
+    return 190;
+  }
+
+  if (columnId === 'firstName' || columnId === 'lastName') {
+    return 170;
   }
 
   if (columnId === 'email' || columnId === 'address') {

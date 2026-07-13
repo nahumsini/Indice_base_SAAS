@@ -23,7 +23,7 @@ export const frCA: AgendaTranslations = {
     notAvailable: "S.O.",
   },
   header: {
-    emoji: "📅",
+    emoji: '🗓️',
     title: "Agenda",
     subtitle: "Agenda operationnel avec taches reelles, retards reportes, cloture, preuves et audit.",
     actions: {
@@ -36,6 +36,7 @@ export const frCA: AgendaTranslations = {
     },
   },
   filters: {
+    clear: 'Effacer les filtres',
     title: "Filtres",
     search: "Rechercher une tache",
     searchPlaceholder: "Folio, titre, description ou responsable",
@@ -144,6 +145,9 @@ export const frCA: AgendaTranslations = {
     files: "Fichiers",
   },
   bulk: {
+    selected: (count: number) => `${count} sélectionnée${count === 1 ? '' : 's'}`,
+    actions: 'Actions groupées',
+    success: (count: number) => `Action groupée appliquée à ${count} tâche${count === 1 ? '' : 's'}.`,
     assignDescription: (count: number) => `Attribuer une personne responsable a ${count} tache${count === 1 ? "" : "s"} selectionnee${count === 1 ? "" : "s"}.`,
     unitDescription: (count: number) => `Appliquer une unite a ${count} tache${count === 1 ? "" : "s"} selectionnee${count === 1 ? "" : "s"}.`,
   },

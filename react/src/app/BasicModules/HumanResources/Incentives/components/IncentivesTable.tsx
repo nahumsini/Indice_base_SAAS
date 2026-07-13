@@ -6,6 +6,7 @@ import {
 } from '../../shared/StandardTableControls';
 import type { IncentivesTranslations } from '../translations';
 import type { RHIncentivo } from '../types';
+import { HrMobileDataCard } from '../../shared/HrMobileDataCard';
 
 export type IncentiveColumnId =
   | 'incentive'
@@ -111,7 +112,28 @@ export function IncentivesTable({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
+      <div className="grid grid-cols-1 gap-3 bg-slate-50/60 p-3 lg:grid-cols-2 xl:hidden dark:bg-slate-900/30">
+        {paginatedIncentives.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm text-slate-500 dark:border-slate-700">{copy.table.empty}</div>
+        ) : paginatedIncentives.map((incentive) => (
+          <HrMobileDataCard
+            key={incentive.id}
+            selected={selectedIds.includes(incentive.id)}
+            selection={<input type="checkbox" checked={selectedIds.includes(incentive.id)} onChange={() => onToggleRow(incentive.id)} className="mt-1 h-4 w-4 rounded border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]" />}
+            leading={<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EAF8F4] text-xl dark:bg-[#13362F]">🎁</div>}
+            title={incentive.nombre}
+            subtitle={incentive.id}
+            badges={<span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClasses[incentive.estado]}`}>{copy.statuses[incentive.estado]}</span>}
+            details={[
+              { label: copy.columns.type, value: copy.types[incentive.tipo] },
+              { label: copy.columns.scope, value: incentive.alcance },
+              { label: copy.columns.amount, value: incentive.monto },
+              { label: copy.columns.application, value: incentive.aplicacion },
+            ]}
+          />
+        ))}
+      </div>
+      <div className="hidden max-w-full overflow-x-auto xl:block">
         <table className="min-w-full">
           <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>

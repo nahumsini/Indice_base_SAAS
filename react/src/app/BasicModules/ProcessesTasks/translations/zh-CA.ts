@@ -20,7 +20,7 @@ export const zhCA = {
   },
   headers: {
     agenda: {
-      emoji: '📅',
+      emoji: '🗓️',
       title: '日程',
       subtitle: '包含真实任务、累积逾期、关闭、证据和审核的运营日程。',
       actions: {
@@ -40,7 +40,7 @@ export const zhCA = {
       },
     },
     processes: {
-      emoji: '✅',
+      emoji: '🔄',
       title: '流程',
       subtitle: '创建周期性流程，为每位负责人生成真实日程任务。',
       actions: {

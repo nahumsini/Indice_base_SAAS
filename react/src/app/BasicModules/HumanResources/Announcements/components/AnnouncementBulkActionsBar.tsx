@@ -26,7 +26,7 @@ export function AnnouncementBulkActionsBar({
   }
 
   return (
-    <div className="mb-5 rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 shadow-sm dark:border-blue-400/25 dark:bg-blue-400/10">
+    <div className="mb-5 rounded-xl border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 shadow-sm dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/15">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#16866f] shadow-sm dark:bg-slate-800 dark:text-blue-200">

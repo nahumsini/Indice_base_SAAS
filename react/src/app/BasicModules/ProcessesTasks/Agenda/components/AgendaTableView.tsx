@@ -2,6 +2,7 @@ import { useMemo, type MouseEvent as ReactMouseEvent, type ReactNode } from 'rea
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { Checkbox } from '../../../../components/ui/checkbox';
+import { Button } from '../../../../components/ui/button';
 import {
   Table,
   TableBody,
@@ -35,6 +36,8 @@ interface AgendaTableViewProps {
   handleSort: (columnId: AgendaColumnId) => void;
   isAgendaViewLoading: boolean;
   isTaskPending: (taskId: number) => boolean;
+  onClearFilters: () => void;
+  onCreateTask: () => void;
   renderAgendaTaskCell: (task: AgendaTaskItem, columnId: AgendaColumnId) => ReactNode;
   renderTaskActions: (task: AgendaTaskItem) => ReactNode;
   resizingColumn: AgendaTableColumnId | null;
@@ -60,6 +63,8 @@ export function AgendaTableView({
   handleSort,
   isAgendaViewLoading,
   isTaskPending,
+  onClearFilters,
+  onCreateTask,
   renderAgendaTaskCell,
   renderTaskActions,
   resizingColumn,
@@ -110,7 +115,12 @@ export function AgendaTableView({
 
         {!isAgendaViewLoading && filteredTasks.length === 0 ? (
           <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-            {agendaCopy.table.empty}
+            <span className="mb-3 block text-3xl" aria-hidden="true">📋</span>
+            <p className="font-semibold">{agendaCopy.table.empty}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Button type="button" variant="outline" onClick={onClearFilters}>{agendaCopy.filters.clear}</Button>
+              <Button type="button" className="bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={onCreateTask}>{agendaCopy.header.actions.create}</Button>
+            </div>
           </div>
         ) : null}
 
@@ -129,7 +139,7 @@ export function AgendaTableView({
                 >
                   <div className="flex items-start gap-3">
                     <Checkbox
-                      aria-label={`Seleccionar ${task.folio}`}
+                      aria-label={`${agendaCopy.columns.folio.label}: ${task.folio}`}
                       checked={selected}
                       disabled={isTaskPending(task.taskId)}
                       onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
@@ -181,11 +191,11 @@ export function AgendaTableView({
           <TableHeader>
             <TableRow className="border-slate-200 dark:border-slate-700">
               <TableHead
-                className="px-5 py-5"
+                className="px-4 py-4"
                 style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}
               >
                 <Checkbox
-                  aria-label="Seleccionar tareas visibles"
+                  aria-label={agendaCopy.columns.folio.description}
                   checked={
                     pageSelection.allVisibleSelected
                       ? true
@@ -239,11 +249,11 @@ export function AgendaTableView({
                   )}
                 >
                   <TableCell
-                    className="px-5 py-5 align-middle"
+                    className="px-4 py-3.5 align-middle"
                     style={{ width: selectionColumnWidth, minWidth: selectionColumnWidth }}
                   >
                     <Checkbox
-                      aria-label={`Seleccionar ${task.folio}`}
+                      aria-label={`${agendaCopy.columns.folio.label}: ${task.folio}`}
                       checked={selected}
                       disabled={isTaskPending(task.taskId)}
                       onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
@@ -256,7 +266,7 @@ export function AgendaTableView({
                     return (
                       <TableCell
                         key={`${task.taskId}-${column.id}`}
-                        className="whitespace-normal break-words px-5 py-5 align-middle"
+                        className="whitespace-normal break-words px-4 py-3.5 align-middle"
                         style={{
                           width: agendaColumnWidths[columnId],
                           minWidth: agendaColumnWidths[columnId],
@@ -274,7 +284,7 @@ export function AgendaTableView({
                     return (
                       <TableCell
                         key={`${task.taskId}-${column.id}`}
-                        className="whitespace-normal px-5 py-5 align-middle"
+                        className="whitespace-normal px-4 py-3.5 align-middle"
                         style={{
                           width: agendaColumnWidths[columnId],
                           minWidth: agendaColumnWidths[columnId],
@@ -305,7 +315,12 @@ export function AgendaTableView({
                   colSpan={agendaTableColumnCount}
                   className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
                 >
-                  {agendaCopy.table.empty}
+                  <span className="mb-3 block text-3xl" aria-hidden="true">📋</span>
+                  <span className="font-semibold">{agendaCopy.table.empty}</span>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Button type="button" variant="outline" onClick={onClearFilters}>{agendaCopy.filters.clear}</Button>
+                    <Button type="button" className="bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={onCreateTask}>{agendaCopy.header.actions.create}</Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : null}
@@ -315,7 +330,7 @@ export function AgendaTableView({
       {!isAgendaViewLoading && totalCount > 0 ? (
         <DataTablePagination
           currentPage={currentPage}
-          itemLabel="tareas"
+          itemLabel={agendaCopy.header.title}
           labels={{
             next: agendaCopy.table.next,
             page: (page, pageCount) => `${page} / ${pageCount}`,

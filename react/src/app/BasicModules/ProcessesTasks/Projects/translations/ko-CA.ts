@@ -39,6 +39,7 @@ export const koCA: ProjectsTranslations = {
     business: '비즈니스',
     owner: '담당자',
     status: '상태',
+    clear: '필터 지우기',
   },
   statuses: {
     active: '활성',
@@ -106,6 +107,7 @@ export const koCA: ProjectsTranslations = {
     labels: {
       visible: '표시',
       active: '활성',
+      atRisk: '위험',
       open: '열림',
       closed: '닫힘',
       overdue: '기한 초과',

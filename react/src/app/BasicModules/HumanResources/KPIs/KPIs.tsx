@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Activity,
   AlertTriangle,
-  BarChart3,
   BriefcaseBusiness,
   CalendarCheck2,
   CheckCircle2,
@@ -55,6 +54,7 @@ import {
 } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { useKPIsTranslations } from './hooks/useKPIsTranslations';
+import { HrTitleBar, hrTitleBarPrimaryActionClass, hrTitleBarSecondaryActionClass } from '../shared/HrTitleBar';
 import type { KPIsTranslations } from './translations';
 import { printKpisReport } from './utils/kpisPrintReport';
 
@@ -446,7 +446,7 @@ function KpiCard({ card, copy }: { card: KpiCardModel; copy: KPIsTranslations })
   const displayedScore = card.score ?? (Number.isFinite(score) ? score : fallbackScore);
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-800">
@@ -483,7 +483,7 @@ function SelectField({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+        className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
       >
         {children}
       </select>
@@ -1229,26 +1229,12 @@ export default function KPIs() {
         description={copy.loading.description}
       />
 
-      <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
-              <BarChart3 className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-950 dark:text-white">
-                <span className="text-2xl">📊</span>
-                {copy.title}
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
-            </div>
-          </div>
-          <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:justify-end">
+      <HrTitleBar className="mb-0" emoji="📊" title={copy.title} subtitle={copy.subtitle} actions={<>
             <button
               type="button"
               onClick={() => void loadDashboard()}
               disabled={isLoading}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white px-4 text-sm font-semibold text-[#177d66] shadow-none transition hover:bg-[#59C3A5] hover:text-white disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#59C3A5]/40 dark:bg-slate-800 dark:text-emerald-200"
+              className={hrTitleBarSecondaryActionClass}
             >
               <RefreshCw className={cn('h-4 w-4', isLoading ? 'animate-spin' : '')} />
               {copy.dashboard.actions.refresh}
@@ -1256,16 +1242,15 @@ export default function KPIs() {
             <button
               type="button"
               onClick={handlePrintReport}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3AAE90]"
+              className={hrTitleBarPrimaryActionClass}
             >
               <Printer className="h-4 w-4" />
               {copy.dashboard.actions.printReport}
             </button>
-          </div>
-        </div>
-      </section>
+          </>}
+      />
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
           <Filter className="h-4 w-4 text-emerald-500" />
           {copy.dashboard.filters.title}
@@ -1281,7 +1266,7 @@ export default function KPIs() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={copy.dashboard.filters.searchPlaceholder}
-                className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
               />
             </span>
           </label>
@@ -1294,7 +1279,7 @@ export default function KPIs() {
               <select
                 value={periodFilter}
                 onChange={(event) => setPeriodFilter(event.target.value as PeriodFilter)}
-                className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
               >
                 {periodOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1308,7 +1293,7 @@ export default function KPIs() {
                   type="date"
                   value={selectedDate}
                   onChange={(event) => setSelectedDate(event.target.value || todayIsoDate())}
-                  className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+                  className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
                 />
               ) : null}
             </div>
@@ -1344,7 +1329,7 @@ export default function KPIs() {
       </section>
 
       {sourceWarnings.length > 0 ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+        <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
@@ -1361,7 +1346,7 @@ export default function KPIs() {
         ))}
       </section>
 
-      <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-5 text-sm text-emerald-800 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
+      <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/70 p-5 text-sm text-emerald-800 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-900 dark:text-emerald-300 dark:ring-emerald-900/40">
@@ -1379,7 +1364,7 @@ export default function KPIs() {
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.1fr]">
-        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.dashboard.sections.attendanceMix}</h3>
@@ -1409,14 +1394,14 @@ export default function KPIs() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 {copy.dashboard.common.noData}
               </div>
             )}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
             {attendanceChartData.map((item, index) => (
-              <div key={item.name} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-900/50">
+              <div key={item.name} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-900/50">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} />
                 <span className="font-semibold text-slate-700 dark:text-slate-200">{item.name}</span>
                 <span className="ml-auto text-slate-500 dark:text-slate-400">{item.value}</span>
@@ -1425,7 +1410,7 @@ export default function KPIs() {
           </div>
         </article>
 
-        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.dashboard.sections.unitPerformance}</h3>
@@ -1445,7 +1430,7 @@ export default function KPIs() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 {copy.dashboard.common.noData}
               </div>
             )}
@@ -1454,12 +1439,43 @@ export default function KPIs() {
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <article className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <article className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.dashboard.sections.unitSummary}</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitSummaryHint}</p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 bg-slate-50/60 p-3 dark:bg-slate-900/30 md:hidden">
+            {unitRows.length > 0 ? (
+              unitRows.map((row) => (
+                <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4 className="break-words font-bold text-slate-950 dark:text-white">{row.name}</h4>
+                      <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {copy.dashboard.table.employees}: {row.employees}
+                      </p>
+                    </div>
+                    <KpiStatusBadge copy={copy} status={row.status} />
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-4 text-sm dark:border-slate-700">
+                    <div><dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.dashboard.table.attendance}</dt><dd className="mt-1 font-bold text-slate-900 dark:text-white">{formatPercent(row.attendanceRate, copy)}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.dashboard.table.permissions}</dt><dd className="mt-1 font-bold text-slate-900 dark:text-white">{row.pendingPermissions}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.dashboard.table.records}</dt><dd className="mt-1 font-bold text-slate-900 dark:text-white">{row.unresolvedRecords}</dd></div>
+                    <div><dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.dashboard.table.assets}</dt><dd className="mt-1 font-bold text-slate-900 dark:text-white">{row.assignedAssets}</dd></div>
+                  </dl>
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.dashboard.table.readiness}</p>
+                    <KpiScoreBar score={row.readinessScore} status={row.status} />
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-10 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                {copy.dashboard.table.noRows}
+              </div>
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
               <thead className="bg-slate-50 dark:bg-slate-900/60">
                 <tr>
@@ -1501,7 +1517,7 @@ export default function KPIs() {
           </div>
         </article>
 
-        <article className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <article className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.dashboard.sections.attentionQueue}</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.attentionQueueHint}</p>
@@ -1538,7 +1554,7 @@ export default function KPIs() {
         </article>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4 text-xs font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-8">
+      <section className="grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 text-xs font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-8">
         <span>{copy.dashboard.labels.totalEmployees}: {employeeSummary.total_count}</span>
         <span>{copy.dashboard.labels.active}: {employeeSummary.active_count}</span>
         <span>{copy.dashboard.labels.inactive}: {employeeSummary.inactive_count}</span>

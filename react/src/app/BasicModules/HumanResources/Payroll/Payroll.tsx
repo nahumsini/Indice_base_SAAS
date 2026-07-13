@@ -92,6 +92,7 @@ import { PayrollOperationsPanel } from './components/PayrollOperationsPanel';
 import { PayrollRunActionsMenu } from './components/PayrollRunActionsMenu';
 import { PayrollSetupGuide } from './components/PayrollSetupGuide';
 import { StandardPaginationFooter, StandardSortIcon } from '../shared/StandardTableControls';
+import { HrMobileDataCard } from '../shared/HrMobileDataCard';
 import {
   filterPayrollItemsByJurisdiction,
   groupPayrollEntitiesByJurisdiction,
@@ -1718,6 +1719,50 @@ export default function Payroll() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-3 bg-slate-50/60 p-3 lg:grid-cols-2 xl:hidden dark:bg-slate-900/30">
+              {paginatedRuns.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">{copy.labels.noRuns}</div>
+              ) : paginatedRuns.map((run) => {
+                const operationalStatus = resolveOperationalStatus(run);
+                const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
+                const runNativeTotals = getRunNativeTotals(run, runJurisdictionLabel);
+                const runPreferredNetAmount = getRunPreferredNetAmount(run, preferredCurrency, exchangeRatesPerUsd, runJurisdictionLabel);
+                const nativeBreakdownLabel = formatRunNativeBreakdown(run, runJurisdictionLabel);
+                const shouldShowNativeBreakdown = runNativeTotals.length > 1 || runNativeTotals.some(([currencyCode]) => currencyCode !== preferredCurrency);
+                return (
+                  <HrMobileDataCard
+                    key={run.id}
+                    leading={<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF8F4] text-xl dark:bg-[#13362F]">💰</div>}
+                    title={`${formatDate(run.period_start_date, currentLanguage.code, run.period_start_date)} ${copy.runLedger.periodConnector} ${formatDate(run.period_end_date, currentLanguage.code, run.period_end_date)}`}
+                    subtitle={run.grouping_label || copy.runLedger.automaticGrouping}
+                    badges={<span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${operationalStatus.className}`}>{operationalStatus.label}</span>}
+                    details={[
+                      { label: copy.labels.frequency, value: copy.frequencies[run.pay_period] },
+                      { label: copy.labels.employees, value: run.users_count },
+                      { label: copy.labels.totalAmount, value: `${formatBusinessCurrencyAmount(runPreferredNetAmount, preferredCurrency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${shouldShowNativeBreakdown ? ` · ${nativeBreakdownLabel}` : ''}` },
+                      { label: copy.labels.jurisdiction, value: runJurisdictionLabel },
+                      { label: copy.labels.unit, value: resolveRunUnitLabel(run) },
+                      { label: copy.labels.business, value: resolveRunBusinessLabel(run) },
+                    ]}
+                    actions={(
+                      <PayrollRunActionsMenu
+                        copy={copy.runActions}
+                        run={run}
+                        isBusy={isSaving}
+                        onOpen={() => void openRunDetail(run.id)}
+                        onProcess={() => void handleProcessRunFromTable(run)}
+                        onApprove={() => void handleApproveRunFromTable(run)}
+                        onMarkPaid={() => void handlePayRunFromTable(run)}
+                        onExportPdf={() => void handleDownload('pdf', run)}
+                        onExportCsv={() => void handleDownload('csv', run)}
+                      />
+                    )}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="hidden max-w-full overflow-x-auto xl:block">
             <Table className="min-w-[1280px]">
               <TableHeader>
                 <TableRow className="border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
@@ -1944,6 +1989,7 @@ export default function Payroll() {
                 )}
               </TableBody>
             </Table>
+            </div>
             <StandardPaginationFooter
               currentPage={safeCurrentPage}
               labels={paginationCopy}
@@ -3451,7 +3497,7 @@ function PayrollColombiaSetupDialog({
         onClose();
       }
     }}>
-      <DialogContent className="z-[145] !flex h-[min(90vh,940px)] max-h-[calc(100vh-2rem)] max-w-[1080px] flex-col gap-0 overflow-hidden rounded-lg border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
+      <DialogContent className="z-[145] !flex h-[min(90vh,940px)] max-h-[calc(100vh-2rem)] max-w-[1080px] flex-col gap-0 overflow-hidden rounded-[28px] border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
         <DialogHeader className="shrink-0 bg-[#59C3A5] px-6 py-5 text-left text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
@@ -3822,7 +3868,7 @@ function PayrollGovernmentReportingDialog({
         onClose();
       }
     }}>
-      <DialogContent className="z-[140] !flex h-[min(88vh,900px)] max-h-[calc(100vh-2rem)] max-w-[1040px] flex-col gap-0 overflow-hidden rounded-lg border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
+      <DialogContent className="z-[140] !flex h-[min(88vh,900px)] max-h-[calc(100vh-2rem)] max-w-[1040px] flex-col gap-0 overflow-hidden rounded-[28px] border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
         <DialogHeader className="shrink-0 bg-[#59C3A5] px-6 py-5 text-left text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">

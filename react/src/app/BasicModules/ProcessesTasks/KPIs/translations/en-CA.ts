@@ -12,6 +12,8 @@ export const enCA = {
     unassigned: 'Unassigned',
     pending: 'pending',
     overdue: 'overdue',
+    points: 'pts',
+    rowsPerPage: 'Rows per page',
     collaborators: (count: number) => `${count} collaborators`,
   },
   header: {

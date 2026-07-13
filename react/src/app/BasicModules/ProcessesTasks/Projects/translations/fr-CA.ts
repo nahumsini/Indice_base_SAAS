@@ -38,6 +38,7 @@ export const frCA: ProjectsTranslations = {
     business: 'Secteur',
     owner: 'Responsable',
     status: 'Etat',
+    clear: 'Effacer les filtres',
   },
   statuses: {
     active: 'Actif',
@@ -105,6 +106,7 @@ export const frCA: ProjectsTranslations = {
     labels: {
       visible: 'visibles',
       active: 'actifs',
+      atRisk: 'a risque',
       open: 'ouvertes',
       closed: 'fermees',
       overdue: 'en retard',

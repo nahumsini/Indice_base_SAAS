@@ -106,7 +106,7 @@ export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
       [
         strongCell(copy.signals.comparison.title),
         textCell(comparison.available ? `${comparison.productivityScore}%` : copy.common.notApplicable),
-        textCell(comparison.available ? `${copy.pdf.delta}: ${formatSigned(comparison.productivityDelta, ' pts')}` : copy.signals.comparison.unavailable),
+        textCell(comparison.available ? `${copy.pdf.delta}: ${formatSigned(comparison.productivityDelta, ` ${copy.common.points}`)}` : copy.signals.comparison.unavailable),
       ],
       [
         strongCell(copy.signals.unassigned.title),
@@ -155,7 +155,7 @@ export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
       copy.processesTable.headers.audit,
       copy.processesTable.headers.next,
     ],
-    dashboard.processes.slice(0, 8).map((row) => [
+    dashboard.processes.map((row) => [
       strongCell(row.processTitle, row.processFolio ?? copy.common.noFolio),
       textCell(`${row.productivityScore}%`),
       textCell(copy.processesTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)),
@@ -174,7 +174,7 @@ export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
       copy.projectsTable.headers.audit,
       copy.projectsTable.headers.dueDate,
     ],
-    dashboard.projects.slice(0, 8).map((row) => [
+    dashboard.projects.map((row) => [
       strongCell(row.projectName, row.projectFolio ?? copy.common.noFolio),
       textCell(`${row.healthScore}%`),
       textCell(`${row.averageCompletion}%`),

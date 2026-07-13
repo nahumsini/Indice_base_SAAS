@@ -54,7 +54,7 @@ export function EmployeeAttendanceList({
             />
           ))
         ) : (
-          <div className="rounded-lg border border-dashed border-[#59C3A5]/15 bg-white px-6 py-10 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+          <div className="rounded-2xl border border-dashed border-[#59C3A5]/20 bg-white px-6 py-10 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
             {copy.labels.noEmployees}
           </div>
         )}
@@ -62,7 +62,7 @@ export function EmployeeAttendanceList({
 
       <DataTablePagination
         currentPage={currentPage}
-        itemLabel="colaboradores"
+        itemLabel={copy.summary.employees}
         labels={{
           next: copy.timeTable.nextPage,
           page: copy.timeTable.pageLabel,

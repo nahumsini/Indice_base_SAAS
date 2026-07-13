@@ -23,7 +23,7 @@ export const ptBR: AgendaTranslations = {
     notAvailable: 'N/D',
   },
   header: {
-    emoji: '📅',
+    emoji: '🗓️',
     title: 'Agenda',
     subtitle: 'Agenda operacional com tarefas reais, vencidas acumuladas, fechamento, evidências e auditoria.',
     actions: {
@@ -36,6 +36,7 @@ export const ptBR: AgendaTranslations = {
     },
   },
   filters: {
+    clear: 'Limpar filtros',
     title: 'Filtros',
     search: 'Buscar tarefa',
     searchPlaceholder: 'Folio, titulo, descricao ou responsavel',
@@ -144,6 +145,9 @@ export const ptBR: AgendaTranslations = {
     files: 'Arquivos',
   },
   bulk: {
+    selected: (count: number) => `${count} selecionada${count === 1 ? '' : 's'}`,
+    actions: 'Ações em massa',
+    success: (count: number) => `Ação em massa aplicada a ${count} tarefa${count === 1 ? '' : 's'}.`,
     assignDescription: (count: number) => `Aplicar um responsavel a ${count} tarefa${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}.`,
     unitDescription: (count: number) => `Aplicar uma unidade a ${count} tarefa${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}.`,
   },
