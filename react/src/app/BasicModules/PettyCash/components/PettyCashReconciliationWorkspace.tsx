@@ -26,6 +26,7 @@ import {
   getStatementLines,
   getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
+import { downloadPettyCashStatementPdf } from '../utils/pettyCashStatementPdf';
 import { getPettyCashMethodLabel, PETTY_CASH_METHOD_KEYS } from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
@@ -750,6 +751,20 @@ export function PettyCashReconciliationWorkspace({
     }
   };
 
+  const handleDownloadStatementPdf = (statement: PettyCashStatement) => {
+    const fund = getFundById(funds, statement.pettyCashFundId);
+    if (!fund) return;
+
+    downloadPettyCashStatementPdf({
+      copy,
+      fund,
+      locale: copy.locale,
+      movements,
+      settlementLines: getStatementLines(statement.id, settlementLines),
+      statement,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <PettyCashHeaderBanner
@@ -1057,21 +1072,31 @@ export function PettyCashReconciliationWorkspace({
                     <td className="px-5 py-5 text-sm font-black text-amber-600">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</td>
                     <td className="px-5 py-5"><PettyCashStatusPill kind="statement" status={statement.status} /></td>
                     <td className="px-5 py-5">
-                      <button
-                        type="button"
-                        disabled={
-                          statement.status === 'CLOSED'
-                          || statement.status === 'TRANSFERRED_TO_NEXT_CUT'
-                          || statement.status === 'FORGIVEN_SHORTAGE'
-                          || statement.status === 'CHARGED_TO_EMPLOYEE'
-                          || statementCloseId === statement.id
-                        }
-                        onClick={() => setClosingStatement(statement)}
-                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        {statementCloseId === statement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-[#147514]" />}
-                        {statementCloseId === statement.id ? copy.reconciliation.statements.closing : copy.reconciliation.statements.close}
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadStatementPdf(statement)}
+                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                        >
+                          <Download className="h-4 w-4 text-[#2563EB]" />
+                          PDF
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            statement.status === 'CLOSED'
+                            || statement.status === 'TRANSFERRED_TO_NEXT_CUT'
+                            || statement.status === 'FORGIVEN_SHORTAGE'
+                            || statement.status === 'CHARGED_TO_EMPLOYEE'
+                            || statementCloseId === statement.id
+                          }
+                          onClick={() => setClosingStatement(statement)}
+                          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          {statementCloseId === statement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-[#147514]" />}
+                          {statementCloseId === statement.id ? copy.reconciliation.statements.closing : copy.reconciliation.statements.close}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
