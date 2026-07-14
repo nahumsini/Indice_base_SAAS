@@ -49,9 +49,10 @@ export const isExpenseEffectivelyOverdue = (expense: Expense, referenceDate = ne
 
 export const getEffectiveExpenseStatus = (expense: Expense): Expense['status'] => {
   if (expense.status === 'audited') return 'audited';
-  if (isExpenseEffectivelyOverdue(expense)) return 'overdue';
   if (getExpenseBalance(expense) <= 0) return 'paid';
-  return expense.status;
+  if (getExpensePaidAmount(expense) > 0 || expense.status === 'partial') return 'partial';
+  if (isExpenseEffectivelyOverdue(expense)) return 'overdue';
+  return 'pending';
 };
 
 const isInPeriod = (dateValue: Date, periodFilter: ExpenseListFilters['periodFilter']) => {
@@ -98,8 +99,10 @@ export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters)
     const matchesBusiness = filters.businessFilter === 'all' || expense.business === filters.businessFilter;
     const matchesProvider = filters.providerFilter === 'all' || expense.providerId === filters.providerFilter;
     const effectiveStatus = getEffectiveExpenseStatus(expense);
+    const hasOverdueBalance = isExpenseEffectivelyOverdue(expense);
     const matchesStatus = filters.statusFilter === 'all'
-      || (filters.statusFilter === 'pending_and_overdue' && ['pending', 'overdue'].includes(effectiveStatus))
+      || (filters.statusFilter === 'pending_and_overdue' && (effectiveStatus === 'pending' || hasOverdueBalance))
+      || (filters.statusFilter === 'overdue' && hasOverdueBalance)
       || effectiveStatus === filters.statusFilter;
 
     return matchesSearch && matchesPeriod && matchesUnit && matchesBusiness && matchesProvider && matchesStatus;

@@ -21,7 +21,7 @@ import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeader
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
 import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
-import { getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import {
@@ -50,7 +50,6 @@ type ExpenseTableProps = {
   onDeleteExpense?: (expenseId: string) => void;
   onDeleteExpenses?: (expenseIds: string[]) => void;
   onDuplicateExpense?: (expenseId: string) => void;
-  onCreatePayableFromBudget?: (expense: Expense) => void;
   onEditExpense?: (expense: Expense) => void;
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
   onMarkExpensePaid?: (expense: Expense) => Promise<Expense | null>;
@@ -77,7 +76,6 @@ export function ExpenseTable({
   onDeleteExpense,
   onDeleteExpenses,
   onDuplicateExpense,
-  onCreatePayableFromBudget,
   onEditExpense,
   onExpensesChange,
   onMarkExpensePaid,
@@ -113,7 +111,11 @@ export function ExpenseTable({
   const editableRowOptions = useEditableRowOptions(expenses, providers, unitOptions, businessOptions, userOptions, accountingAccountOptions);
   const sortedExpenses = useMemo(() => {
     if (!sortField || !sortDirection) return expenses;
-    return [...expenses].sort((left, right) => compareSortValues(left[sortField], right[sortField], sortDirection));
+    return [...expenses].sort((left, right) => compareSortValues(
+      sortField === 'status' ? getEffectiveExpenseStatus(left) : left[sortField],
+      sortField === 'status' ? getEffectiveExpenseStatus(right) : right[sortField],
+      sortDirection,
+    ));
   }, [expenses, sortDirection, sortField]);
   const totalPages = Math.max(1, Math.ceil(sortedExpenses.length / pageSize));
   const pageStartIndex = (currentPage - 1) * pageSize;
@@ -332,12 +334,6 @@ export function ExpenseTable({
     rowSelection.clearSelection();
   };
 
-  const handleCreatePayableFromBudget = (id: string) => {
-    const expense = expenses.find(item => item.id === id);
-    if (!expense || expense.type !== 'budget') return;
-    onCreatePayableFromBudget?.(expense);
-  };
-
   const replaceSavedExpense = (savedExpense: Expense) => {
     onExpensesChange(prev => prev.map(expense => (expense.id === savedExpense.id ? savedExpense : expense)));
   };
@@ -444,7 +440,6 @@ export function ExpenseTable({
         onAudit={setEditingRowId}
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
-        onCreatePayable={handleCreatePayableFromBudget}
         onEdit={(expense) => {
           if (onEditExpense) {
             onEditExpense(expense);
@@ -499,7 +494,6 @@ export function ExpenseTable({
                   onUpdateWorkflow={updateExpenseWorkflow}
                   onOpenAttachments={onOpenAttachments}
                   onDuplicate={handleDuplicate}
-                  onCreatePayable={handleCreatePayableFromBudget}
                   onDelete={handleDelete}
                   onActionEdit={onEditExpense ? () => onEditExpense(expense) : undefined}
                   onMarkPaid={handlePay}

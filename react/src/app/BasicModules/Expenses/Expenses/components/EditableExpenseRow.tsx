@@ -17,7 +17,11 @@ import {
 } from '../../components/table/ExpenseInlineControls';
 import { ExpenseAmountCells } from '../../components/table/ExpenseAmountCells';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
-import { getExpenseBalance } from '../../utils/expenseFilters';
+import {
+  getEffectiveExpenseStatus,
+  getExpenseBalance,
+  isExpenseEffectivelyOverdue,
+} from '../../utils/expenseFilters';
 
 export type ExpenseWorkflowState = {
   authorizer: string;
@@ -53,7 +57,6 @@ type EditableExpenseRowProps = {
   onUpdateWorkflow: (expenseId: string, updates: Partial<ExpenseWorkflowState>) => void;
   onOpenAttachments: (expense: Expense) => void;
   onDuplicate: (expenseId: string) => void;
-  onCreatePayable?: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
   onActionEdit?: () => void;
   onMarkPaid: (expenseId: string) => void;
@@ -85,7 +88,6 @@ export function EditableExpenseRow({
   onUpdateWorkflow,
   onOpenAttachments,
   onDuplicate,
-  onCreatePayable,
   onDelete,
   onActionEdit,
   onMarkPaid,
@@ -100,7 +102,9 @@ export function EditableExpenseRow({
     : isSelected
       ? 'bg-[#147514]/5 dark:bg-[#147514]/10'
     : '';
-  const statusClass = getStatusBadgeColor(expense.status);
+  const effectiveStatus = getEffectiveExpenseStatus(expense);
+  const hasOverduePartialBalance = effectiveStatus === 'partial' && isExpenseEffectivelyOverdue(expense);
+  const statusClass = getStatusBadgeColor(effectiveStatus);
   const selectedProvider = expense.providerId ?? '';
   const accountingAccountLabel = options.accountingAccounts.find(option => option.value === expense.accountingAccount)?.label ?? expense.accountingAccount;
   const businessUnitLabel = options.businessUnits.find(option => option.value === expense.businessUnit)?.label ?? expense.businessUnit;
@@ -108,7 +112,7 @@ export function EditableExpenseRow({
   const businessOptionsForUnit = filterBusinessesForUnit(options.businesses, expense.businessUnit);
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
-  const canRecordPayment = expense.type !== 'budget' && getExpenseBalance(expense) > 0;
+  const canRecordPayment = getExpenseBalance(expense) > 0;
   const canMarkPaid = expense.type !== 'budget' && getExpenseBalance(expense) > 0;
   const statusOptions = options.statuses.filter(option => {
     if (!showMarkPaidAction && (option.value === 'paid' || option.value === 'partial')) return false;
@@ -137,10 +141,10 @@ export function EditableExpenseRow({
       className={`
         transition-colors group relative
         ${rowHighlightClass}
-        ${!isEditing && expense.status === 'overdue' ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20' : ''}
-        ${!isEditing && expense.status === 'pending' ? 'bg-yellow-50/30 dark:bg-yellow-900/5 hover:bg-yellow-50/60 dark:hover:bg-yellow-900/10' : ''}
-        ${!isEditing && expense.status === 'paid' ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
-        ${!isEditing && expense.status === 'partial' ? 'bg-blue-50/30 dark:bg-blue-900/5 hover:bg-blue-50/60 dark:hover:bg-blue-900/10' : ''}
+        ${!isEditing && effectiveStatus === 'overdue' ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20' : ''}
+        ${!isEditing && effectiveStatus === 'pending' ? 'bg-yellow-50/30 dark:bg-yellow-900/5 hover:bg-yellow-50/60 dark:hover:bg-yellow-900/10' : ''}
+        ${!isEditing && effectiveStatus === 'paid' ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
+        ${!isEditing && effectiveStatus === 'partial' ? 'bg-blue-50/30 dark:bg-blue-900/5 hover:bg-blue-50/60 dark:hover:bg-blue-900/10' : ''}
         ${expense.amount > 5000 ? 'border-l-2 border-l-yellow-400' : ''}
       `}
     >
@@ -280,7 +284,7 @@ export function EditableExpenseRow({
           {isEditing ? (
             <EditableSelect
               ariaLabel={`${t.expenses.columns.status.label} ${expense.folio}`}
-              value={expense.status}
+              value={effectiveStatus}
               options={statusOptions}
               onChange={(status) => {
                 if (onStatusChange) {
@@ -291,13 +295,20 @@ export function EditableExpenseRow({
               }}
             />
           ) : (
-            <button
-              type="button"
-              onClick={startEditing}
-              className={`w-full rounded-full border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${statusClass}`}
-            >
-              {t.expenses.table.statuses[expense.status] ?? expense.status}
-            </button>
+            <div className="flex flex-col items-start gap-1.5">
+              <button
+                type="button"
+                onClick={startEditing}
+                className={`w-full rounded-full border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${statusClass}`}
+              >
+                {t.expenses.table.statuses[effectiveStatus] ?? effectiveStatus}
+              </button>
+              {hasOverduePartialBalance ? (
+                <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                  {t.expenses.table.statuses.overdue}
+                </span>
+              ) : null}
+            </div>
           )}
         </td>
       )}
@@ -360,13 +371,11 @@ export function EditableExpenseRow({
           onAudit={onAudit}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
-          onCreatePayable={onCreatePayable}
           onMarkPaid={onMarkPaid}
           onRecordPayment={onRecordPayment}
           onStartEdit={startActionEdit}
           isDeletePending={isDeletePending}
           showAudit={actionVisibility?.showAudit}
-          showCreatePayable={expense.type === 'budget'}
           showMarkPaid={canMarkPaid && (actionVisibility?.showMarkPaid ?? true)}
           showRecordPayment={canRecordPayment && (actionVisibility?.showRecordPayment ?? true)}
         />

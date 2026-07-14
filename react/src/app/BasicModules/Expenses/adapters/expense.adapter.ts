@@ -51,11 +51,13 @@ const canonicalToLegacyStatus = (
   customFields: Record<string, unknown>,
 ): LegacyExpenseStatus => {
   const customStatus = customFields.legacyStatus;
+  // Payment progress is the primary row status. An outstanding overdue
+  // balance remains available through paymentStatus and the due-date alert.
+  if (status === 'PARTIALLY_PAID' || paymentStatus === 'PARTIALLY_PAID') return 'partial';
   if (paymentStatus === 'OVERDUE') return 'overdue';
   if (isLegacyExpenseStatus(customStatus) && ['DRAFT', 'PENDING_APPROVAL', 'APPROVED'].includes(status)) {
     return customStatus;
   }
-  if (status === 'PARTIALLY_PAID' || paymentStatus === 'PARTIALLY_PAID') return 'partial';
   if (status === 'CLOSED') return 'audited';
   if (status === 'PAID' || paymentStatus === 'PAID') return 'paid';
   return 'pending';

@@ -1,4 +1,4 @@
-import { CheckCircle2, Copy, FilePlus2, HandCoins, Loader2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { CheckCircle2, Copy, HandCoins, Loader2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
@@ -10,9 +10,7 @@ type ExpenseRowActionsProps = {
   onMarkPaid: (expenseId: string) => void;
   onRecordPayment: (expenseId: string) => void;
   onStartEdit: () => void;
-  onCreatePayable?: (expenseId: string) => void;
   isDeletePending?: boolean;
-  showCreatePayable?: boolean;
   showAudit?: boolean;
   showMarkPaid?: boolean;
   showRecordPayment?: boolean;
@@ -29,9 +27,7 @@ export function ExpenseRowActions({
   onMarkPaid,
   onRecordPayment,
   onStartEdit,
-  onCreatePayable,
   isDeletePending = false,
-  showCreatePayable = false,
   showAudit = true,
   showMarkPaid = true,
   showRecordPayment = true,
@@ -54,11 +50,6 @@ export function ExpenseRowActions({
       <ActionButton label={t.common.edit} colorClass="border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300" onClick={onStartEdit}>
         <Pencil className="h-4 w-4 text-amber-600" />
       </ActionButton>
-      {showCreatePayable && onCreatePayable ? (
-        <ActionButton label={t.expenses.rowActions.createPayable} colorClass="border-cyan-200 bg-cyan-50/80 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-300" onClick={() => onCreatePayable(expenseId)}>
-          <FilePlus2 className="h-4 w-4 text-cyan-600" />
-        </ActionButton>
-      ) : null}
       {showRecordPayment && (
         <ActionButton label={t.expenses.payment.action} colorClass="border-sky-200 bg-sky-50/80 text-sky-700 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300" onClick={() => onRecordPayment(expenseId)}>
           <HandCoins className="h-4 w-4 text-sky-600" />

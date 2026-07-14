@@ -404,39 +404,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     }
   };
 
-  const openBudgetPayableModal = (budgetExpense: Expense) => {
-    if (createExpenseDisabled) {
-      setFailureToastMessage(createExpenseDisabledReason);
-      return;
-    }
-
-    const now = new Date();
-    const budgetLineId = budgetExpense.budgetLineId
-      ?? (budgetExpense.id.startsWith('budget-line-') ? budgetExpense.id.replace('budget-line-', '') : undefined);
-    const payableAmount = budgetExpense.availableAmount && budgetExpense.availableAmount > 0
-      ? budgetExpense.availableAmount
-      : budgetExpense.total || budgetExpense.amount || 0;
-
-    setEditingExpense(null);
-    setInitialExpense({
-      ...budgetExpense,
-      id: `payable-${Date.now()}`,
-      folio: createExpenseFolio(expenses).replace('EXP-', 'CXP-'),
-      budgetLineId,
-      total: payableAmount,
-      amount: payableAmount,
-      amountPaid: 0,
-      taxes: 0,
-      status: 'pending',
-      type: 'payable',
-      date: now,
-      paymentDate: undefined,
-      createdAt: now,
-      updatedAt: now,
-    });
-    setIsAddExpenseModalOpen(true);
-  };
-
   const handlePayableAccountSubmit = async (values: PayableAccountValues) => {
     const provider = providers.find(item => item.id === values.providerId);
     const now = new Date();
@@ -711,7 +678,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         onDeleteExpense={requestDeleteExpense}
         onDeleteExpenses={requestDeleteExpenses}
         onDuplicateExpense={handleDuplicate}
-        onCreatePayableFromBudget={openBudgetPayableModal}
         onEditExpense={(expense) => {
           setEditingExpense(expense);
           setInitialExpense(null);

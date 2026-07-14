@@ -5,6 +5,7 @@ import { getStatusBadgeColor, type SelectOption } from '../../components/table/E
 import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense } from '../../types/expenses.types';
 import { formatCurrency, formatDate } from '../../utils/expenses.utils';
+import { getEffectiveExpenseStatus, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
 import type { EditableExpenseRowOptions, ExpenseRowActionVisibility } from './EditableExpenseRow';
 
 type ExpenseMobileCardsProps = {
@@ -20,7 +21,6 @@ type ExpenseMobileCardsProps = {
   onAudit: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
   onDuplicate: (expenseId: string) => void;
-  onCreatePayable?: (expenseId: string) => void;
   onEdit: (expense: Expense) => void;
   onMarkPaid: (expenseId: string) => void;
   onOpenAttachments: (expense: Expense) => void;
@@ -40,7 +40,6 @@ export function ExpenseMobileCards({
   onAudit,
   onDelete,
   onDuplicate,
-  onCreatePayable,
   onEdit,
   onMarkPaid,
   onOpenAttachments,
@@ -75,7 +74,6 @@ export function ExpenseMobileCards({
           onAudit={onAudit}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
-          onCreatePayable={onCreatePayable}
           onEdit={() => onEdit(expense)}
           onMarkPaid={onMarkPaid}
           onOpenAttachments={() => onOpenAttachments(expense)}
@@ -97,7 +95,6 @@ function ExpenseMobileCard({
   onAudit,
   onDelete,
   onDuplicate,
-  onCreatePayable,
   onEdit,
   onMarkPaid,
   onOpenAttachments,
@@ -115,7 +112,6 @@ function ExpenseMobileCard({
   onAudit: (expenseId: string) => void;
   onDelete: (expenseId: string) => void;
   onDuplicate: (expenseId: string) => void;
-  onCreatePayable?: (expenseId: string) => void;
   onEdit: () => void;
   onMarkPaid: (expenseId: string) => void;
   onOpenAttachments: () => void;
@@ -126,9 +122,11 @@ function ExpenseMobileCard({
   const total = expense.total || expense.amount || 0;
   const paid = expense.amountPaid ?? 0;
   const balance = Math.max(total - paid, 0);
-  const canRecordPayment = expense.type !== 'budget' && balance > 0;
+  const canRecordPayment = balance > 0;
   const canMarkPaid = expense.type !== 'budget' && balance > 0;
-  const statusLabel = t.expenses.table.statuses[expense.status] ?? expense.status;
+  const effectiveStatus = getEffectiveExpenseStatus(expense);
+  const statusLabel = t.expenses.table.statuses[effectiveStatus] ?? effectiveStatus;
+  const hasOverduePartialBalance = effectiveStatus === 'partial' && isExpenseEffectivelyOverdue(expense);
 
   return (
     <article className={`rounded-2xl border bg-white p-4 shadow-sm transition-colors dark:bg-slate-800 ${
@@ -153,9 +151,16 @@ function ExpenseMobileCard({
                 {expense.concept || '-'}
               </h3>
             </div>
-            <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadgeColor(expense.status)}`}>
-              {statusLabel}
-            </span>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadgeColor(effectiveStatus)}`}>
+                {statusLabel}
+              </span>
+              {hasOverduePartialBalance ? (
+                <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                  {t.expenses.table.statuses.overdue}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -203,13 +208,11 @@ function ExpenseMobileCard({
             onAudit={onAudit}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
-            onCreatePayable={onCreatePayable}
             onMarkPaid={onMarkPaid}
             onRecordPayment={onRecordPayment}
             onStartEdit={onEdit}
             isDeletePending={isDeletePending}
             showAudit={actionVisibility?.showAudit}
-            showCreatePayable={expense.type === 'budget'}
             showMarkPaid={canMarkPaid && (actionVisibility?.showMarkPaid ?? true)}
             showRecordPayment={canRecordPayment && (actionVisibility?.showRecordPayment ?? true)}
           />

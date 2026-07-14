@@ -69,7 +69,7 @@ export const expenseAttachmentsService = {
       throw new Error('Upload URL was not returned.');
     }
 
-    const uploadResponse = await fetch(buildApiUrl(uploadUrl), {
+    const uploadResponse = await fetch(resolveExpenseStorageUrl(uploadUrl), {
       method: 'PUT',
       body: file,
       headers: presign.uploadHeaders ?? presign.upload_headers ?? {},
@@ -106,7 +106,7 @@ function toExpenseAttachment(dto: ExpenseAttachmentApiDto): ExpenseAttachment {
       ? String(dto.uploadedByUserId ?? dto.uploaded_by_user_id)
       : undefined,
     uploadedByName: dto.uploadedByName ?? dto.uploaded_by_name,
-    downloadUrl: dto.downloadUrl ?? dto.download_url,
+    downloadUrl: resolveOptionalExpenseStorageUrl(dto.downloadUrl ?? dto.download_url),
     createdAt: dto.createdAt ?? dto.created_at,
   };
 }
@@ -124,4 +124,49 @@ function normalizeContentType(file: File) {
   if (name.endsWith('.xls')) return 'application/vnd.ms-excel';
   if (name.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   return 'application/octet-stream';
+}
+
+function resolveOptionalExpenseStorageUrl(storageUrl?: string) {
+  return storageUrl ? resolveExpenseStorageUrl(storageUrl) : undefined;
+}
+
+/**
+ * Published environments expose MinIO through Nginx at /storage/. Some older
+ * deployments still return a signed URL whose public host is localhost:8080.
+ * A browser cannot use that host from an HTTPS page, so preserve the signed
+ * path/query and route it through the current public origin instead.
+ *
+ * HTTP development keeps using the backend-provided URL unchanged.
+ */
+export function resolveExpenseStorageUrl(storageUrl: string) {
+  if (typeof window === 'undefined' || window.location.protocol !== 'https:') {
+    return buildApiUrl(storageUrl);
+  }
+
+  try {
+    const parsedUrl = new URL(storageUrl, window.location.origin);
+    const storageHosts = new Set(['localhost', '127.0.0.1', 'minio']);
+    const isInternalStorageHost = storageHosts.has(parsedUrl.hostname) || parsedUrl.port === '9000';
+    const isStorageProxyPath = parsedUrl.pathname.startsWith('/storage/');
+
+    if (parsedUrl.origin === window.location.origin) {
+      return parsedUrl.toString();
+    }
+
+    if (isInternalStorageHost && isStorageProxyPath) {
+      return `${window.location.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+
+    if (isInternalStorageHost) {
+      return `${window.location.origin}/storage${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+
+    if (parsedUrl.hostname === window.location.hostname && parsedUrl.protocol !== window.location.protocol) {
+      return `${window.location.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return buildApiUrl(storageUrl);
+  }
 }
