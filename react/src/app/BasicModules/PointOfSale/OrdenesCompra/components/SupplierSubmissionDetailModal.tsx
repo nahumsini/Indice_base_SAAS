@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowRight, CheckCircle2, ImageIcon, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, FileText, ImageIcon } from 'lucide-react';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalSecondaryActionClassName,
+} from '../../Sale/components/PosModalFrame';
 import type { PosWarehouseSummary } from '../../Sale/services/posBackendApi';
 import type {
   PurchaseOrder,
@@ -98,22 +103,29 @@ export function SupplierSubmissionDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <header className="bg-[#FF6B5E] px-6 py-5 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/75">Propuesta proveedor</p>
-              <h3 className="mt-1 text-2xl font-bold">{submission.submissionNumber}</h3>
-              <p className="mt-1 text-sm font-medium text-white/85">{submission.providerName} - {formatMoney(submission.totalAmount, submission.currencyCode)}</p>
-            </div>
-            <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20" aria-label="Close modal">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </header>
-
-        <div className="grid flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 lg:grid-cols-[1fr_340px]">
+    <PosModalFrame
+      onClose={onClose}
+      closeLabel="Cerrar propuesta de proveedor"
+      title={submission.submissionNumber}
+      subtitle={`${submission.providerName} - ${formatMoney(submission.totalAmount, submission.currencyCode)}`}
+      eyebrow="Propuesta proveedor"
+      icon={<FileText className="h-6 w-6" />}
+      tone="coral"
+      size="xl"
+      bodyClassName="p-0"
+      footerClassName={posModalModuleFooterClassName}
+      footer={
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-white/85">
+            {submission.items.length} partidas - Total {formatMoney(submission.totalAmount, submission.currencyCode)}
+          </p>
+          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+            Cerrar
+          </button>
+        </div>
+      }
+    >
+        <div className="grid min-h-0 bg-slate-50 dark:bg-slate-950 lg:grid-cols-[1fr_340px]">
           <main className="space-y-4 p-6">
             <section className="rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -204,12 +216,7 @@ export function SupplierSubmissionDetailModal({
             </section>
           </aside>
         </div>
-        <footer className="flex flex-col gap-3 bg-[#FF6B5E] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-white/85">{submission.items.length} partidas - Total {formatMoney(submission.totalAmount, submission.currencyCode)}</p>
-          <button type="button" onClick={onClose} className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white hover:bg-white/10">Cerrar</button>
-        </footer>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }
 

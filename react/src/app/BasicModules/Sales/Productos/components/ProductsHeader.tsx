@@ -29,7 +29,7 @@ export function ProductsHeader({
 }: ProductsHeaderProps) {
   return (
     <SalesTitleBar
-      icon={t.header.emoji}
+      icon="📦"
       rhIndent
       title={t.header.title}
       subtitle={t.header.subtitle}

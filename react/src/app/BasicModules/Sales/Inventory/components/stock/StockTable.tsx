@@ -34,9 +34,9 @@ const actionButtonClasses = [
   'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20',
   'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10 dark:text-[#B8F3E4] dark:hover:bg-[#59C3A5]/20',
   'border-[#F4C84A]/35 bg-[#F4C84A]/15 text-[#9a6b05] hover:bg-[#F4C84A]/25 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/10 dark:text-[#F9E7A0] dark:hover:bg-[#F4C84A]/20',
-  'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-500/20',
+  'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/15 dark:text-blue-200 dark:hover:bg-[#2563EB]/20',
 ];
-const actionButtonBase = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30 disabled:pointer-events-none disabled:opacity-50';
+const actionButtonBase = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30 disabled:pointer-events-none disabled:opacity-50';
 
 function getSortValue(row: InventoryStockRow, column: SortColumn) {
   const totals = getStockTotals(row);
@@ -58,11 +58,11 @@ function getSortValue(row: InventoryStockRow, column: SortColumn) {
 
 function ProductPhoto({ row, t }: { row: InventoryStockRow; t: InventoryTranslations }) {
   if (row.thumbnailUrl) {
-    return <img src={row.thumbnailUrl} alt={row.thumbnailAlt ?? row.name} className="h-12 w-12 rounded-xl border border-slate-200 bg-slate-50 object-cover dark:border-slate-700 dark:bg-slate-800" loading="lazy" />;
+    return <img src={row.thumbnailUrl} alt={row.thumbnailAlt ?? row.name} className="h-12 w-12 rounded-lg border border-slate-200 bg-slate-50 object-cover dark:border-slate-700 dark:bg-slate-800" loading="lazy" />;
   }
 
   return (
-    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
+    <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
       {t.operational.columns.photo}
     </span>
   );
@@ -159,7 +159,7 @@ export function StockTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
@@ -224,7 +224,7 @@ export function StockTable({
                   {canShow('estimatedValue') ? <TableCell className={`px-3 py-2 ${numberClass}`}>{formatInventoryCurrency(totals.estimatedValue)}</TableCell> : null}
                   {canShow('lastMovement') ? <TableCell className="px-3 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{row.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}
                   <TableCell className="px-3 py-2">
-                    <div className="flex justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[0]}`} title={t.operational.actions.addStock} onClick={() => onAddStock(row)}><PackagePlus className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[1]}`} title={t.operational.actions.transfer} onClick={() => onTransfer(row)}><ArrowRightLeft className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className={`${actionButtonBase} ${actionButtonClasses[2]}`} title={t.operational.actions.adjust} onClick={() => onAdjust(row)}><SlidersHorizontal className="h-4 w-4" /></Button>

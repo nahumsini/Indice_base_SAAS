@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { CreditCard, X, CheckCircle } from 'lucide-react';
+import { CheckCircle, CreditCard, Loader2 } from 'lucide-react';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 
 interface CardPaymentModalProps {
   isOpen: boolean;
@@ -11,113 +17,100 @@ interface CardPaymentModalProps {
 export function CardPaymentModal({ isOpen, onClose, totalAmount, onConfirmPayment }: CardPaymentModalProps) {
   const [processing, setProcessing] = useState(false);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  }).format(amount);
 
   const handleConfirm = () => {
     setProcessing(true);
-    // Simulate payment processing
     setTimeout(() => {
       setProcessing(false);
       onConfirmPayment();
     }, 1500);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
-        {/* Header */}
-        <div className="bg-blue-500 rounded-t-2xl px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-6 h-6 text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-white">Pago con Tarjeta</h2>
-          </div>
+    <PosModalFrame
+      closeLabel="Cerrar pago con tarjeta"
+      eyebrow="Cobro POS"
+      icon={<CreditCard className="h-6 w-6" />}
+      isCloseDisabled={processing}
+      onClose={onClose}
+      size="sm"
+      subtitle="Confirma la autorizacion de la terminal antes de cerrar la venta."
+      title="Pago con tarjeta"
+      tone="coral"
+      footerClassName={posModalModuleFooterClassName}
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
           <button
+            type="button"
             onClick={onClose}
             disabled={processing}
-            className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg disabled:opacity-50"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Total Display */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 rounded-xl p-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total a cobrar</p>
-            <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-              {formatCurrency(totalAmount)}
-            </p>
-          </div>
-
-          {/* Instructions */}
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300 text-center">
-              {processing ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  Procesando pago...
-                </span>
-              ) : (
-                'Solicita al cliente pasar su tarjeta por la terminal'
-              )}
-            </p>
-          </div>
-
-          {/* Terminal Simulation */}
-          <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-6 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-800 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className="text-gray-400 text-sm mb-2">Terminal de pago</p>
-            <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-2">
-              {processing && (
-                <div className="h-full bg-blue-500 animate-pulse"></div>
-              )}
-            </div>
-            <p className="text-xs text-gray-500">
-              {processing ? 'Esperando confirmación...' : 'Lista para recibir pago'}
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex gap-3">
-          <button
-            onClick={onClose}
-            disabled={processing}
-            className="flex-1 px-6 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={posModalSecondaryActionClassName}
           >
             Cancelar
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={processing}
-            className="flex-1 px-6 py-3 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className={posModalPrimaryActionClassName}
           >
             {processing ? (
               <>
-                <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                <Loader2 className="h-5 w-5 animate-spin" />
                 Procesando
               </>
             ) : (
               <>
-                <CheckCircle className="w-5 h-5" />
-                Confirmar Pago
+                <CheckCircle className="h-5 w-5" />
+                Confirmar pago
               </>
             )}
           </button>
         </div>
+      )}
+    >
+      <div className="space-y-5">
+        <section className="rounded-lg border border-blue-200 bg-blue-50 p-5 text-center dark:border-blue-500/30 dark:bg-blue-500/10">
+          <p className="text-sm font-black text-blue-700 dark:text-blue-200">Total a cobrar</p>
+          <p className="mt-2 text-4xl font-black text-blue-800 dark:text-blue-100">
+            {formatCurrency(totalAmount)}
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-gray-200 bg-white p-4 text-center dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+            {processing ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-[#FF6B5E]" />
+                Procesando pago...
+              </span>
+            ) : (
+              'Solicita al cliente pasar su tarjeta por la terminal.'
+            )}
+          </p>
+        </section>
+
+        <section className="rounded-lg bg-gray-950 p-6 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gray-800">
+            <CreditCard className="h-8 w-8 text-gray-400" />
+          </div>
+          <p className="text-sm font-bold text-gray-400">Terminal de pago</p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-800">
+            {processing ? <div className="h-full animate-pulse bg-[#FF6B5E]" /> : null}
+          </div>
+          <p className="mt-2 text-xs font-semibold text-gray-500">
+            {processing ? 'Esperando confirmacion...' : 'Lista para recibir pago'}
+          </p>
+        </section>
       </div>
-    </div>
+    </PosModalFrame>
   );
 }

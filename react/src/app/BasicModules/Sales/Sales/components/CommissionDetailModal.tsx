@@ -40,7 +40,7 @@ export function CommissionDetailModal({
       )}
     >
       <section>
-        <h3 className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.summary}</h3>
+        <h3 className="mb-3 text-sm font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.summary}</h3>
         <div className="grid gap-3 md:grid-cols-2">
           <DetailField label={fields.salesRep} value={record?.salesRepName ?? t.common.notAvailable} />
           <DetailField label={fields.customer} value={record?.customerName ?? t.common.notAvailable} />
@@ -50,7 +50,7 @@ export function CommissionDetailModal({
       </section>
 
       <section>
-        <h3 className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.ruleApplied}</h3>
+        <h3 className="mb-3 text-sm font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.ruleApplied}</h3>
         <div className="grid gap-3 md:grid-cols-4">
           <DetailField label={fields.ruleName} value={record?.commissionRuleName ?? t.common.notAvailable} />
           <DetailField label={fields.commissionType} value={record ? formatCommissionType(record.commissionType) : t.common.notAvailable} />
@@ -60,19 +60,19 @@ export function CommissionDetailModal({
       </section>
 
       <section>
-        <h3 className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.financial}</h3>
+        <h3 className="mb-3 text-sm font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.financial}</h3>
         <div className="grid gap-3 md:grid-cols-3">
           <DetailField label={fields.saleAmount} value={formatSalesCurrency(record?.saleAmount ?? 0, record?.currency)} />
           <DetailField label={fields.commissionAmount} value={formatSalesCurrency(record?.commissionAmount ?? 0, record?.currency)} />
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{fields.status}</p>
+          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{fields.status}</p>
             <div className="mt-2">{record ? <CommissionStatusBadge status={record.status} t={t} /> : t.common.notAvailable}</div>
           </div>
         </div>
       </section>
 
       <section>
-        <h3 className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.timeline}</h3>
+        <h3 className="mb-3 text-sm font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.timeline}</h3>
         <div className="grid gap-3 md:grid-cols-3">
           <DetailField label={fields.created} value={record?.createdDate ? formatSalesDate(record.createdDate) : t.common.notAvailable} />
           <DetailField label={fields.approved} value={record?.approvedDate ? formatSalesDate(record.approvedDate) : t.common.notAvailable} />

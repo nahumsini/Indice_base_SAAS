@@ -14,7 +14,6 @@ export const frCA = {
     none: 'Aucun',
   },
   header: {
-    emoji: '💼',
     title: 'Ventes',
     subtitle: 'Suivez les ventes gagnées, les preuves de paiement, les validations, la préparation de l’inventaire et les commissions.',
     columnsAction: 'Colonnes',

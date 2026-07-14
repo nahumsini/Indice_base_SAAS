@@ -12,7 +12,6 @@ export const enCA = {
     no: 'No',
   },
   header: {
-    emoji: '🏬',
     title: 'Inventory',
     subtitle: 'Track stock, locations, and inventory movements without mixing catalog and inventory logic.',
     primaryAction: 'New movement',

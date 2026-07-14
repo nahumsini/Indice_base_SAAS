@@ -1,10 +1,10 @@
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import ProveedoresPage from './ProveedoresPage';
 import type { ProvidersHeaderVariant } from './components/ProvidersHeaderBanner';
 import type { ProviderRecord } from './useProveedoresLogic';
 
 interface ProvidersProps {
-  headerIcon?: string;
+  headerIcon?: ReactNode;
   headerSubtitle?: string;
   headerTitle?: string;
   onProvidersChange?: Dispatch<SetStateAction<ProviderRecord[]>>;

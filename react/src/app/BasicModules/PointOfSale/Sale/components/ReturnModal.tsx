@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { X, RotateCcw, AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, RotateCcw } from 'lucide-react';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 
 interface ReturnModalProps {
   isOpen: boolean;
@@ -13,129 +19,144 @@ export function ReturnModal({ isOpen, onClose, onConfirm }: ReturnModalProps) {
   const [error, setError] = useState('');
 
   const handleConfirm = () => {
-    if (!saleId.trim()) {
+    const nextSaleId = saleId.trim();
+
+    if (!nextSaleId) {
       setError('Ingresa el numero de venta.');
       return;
     }
 
-    onConfirm(saleId, returnType);
+    onConfirm(nextSaleId, returnType);
     setSaleId('');
     setReturnType('full');
     setError('');
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800">
-        {/* Header */}
-        <div className="flex items-center justify-between bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <RotateCcw className="w-6 h-6 text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-white">Procesar Devolución</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-              {error}
-            </div>
-          )}
-
-          {/* Alert */}
-          <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-yellow-800 dark:text-yellow-300">
-              <p className="font-semibold mb-1">Importante</p>
-              <p>Verifica el ticket original antes de procesar la devolución. Se generará una nota de crédito automáticamente.</p>
-            </div>
-          </div>
-
-          {/* Sale ID Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Número de venta
-            </label>
-            <input
-              type="text"
-              value={saleId}
-              onChange={(e) => setSaleId(e.target.value)}
-              placeholder="V123456-0001"
-              className="w-full px-4 py-3 text-base border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent uppercase"
-              autoFocus
-            />
-          </div>
-
-          {/* Return Type */}
-          <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de devolución</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setReturnType('full')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  returnType === 'full'
-                    ? 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400'
-                    : 'bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400'
-                }`}
-              >
-                <p className="font-semibold text-sm">Devolución Total</p>
-                <p className="text-xs mt-1">Todos los productos</p>
-              </button>
-              <button
-                onClick={() => setReturnType('partial')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  returnType === 'partial'
-                    ? 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400'
-                    : 'bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400'
-                }`}
-              >
-                <p className="font-semibold text-sm">Devolución Parcial</p>
-                <p className="text-xs mt-1">Algunos productos</p>
-              </button>
-            </div>
-          </div>
-
-          {/* Info */}
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Reembolso:</span>
-              <span className="font-semibold text-gray-900 dark:text-white">Nota de crédito</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Inventario:</span>
-              <span className="font-semibold text-gray-900 dark:text-white">Se restaurará</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-6 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
+    <PosModalFrame
+      closeLabel="Cerrar devolucion"
+      eyebrow="Operacion sensible"
+      icon={<RotateCcw className="h-6 w-6" />}
+      onClose={onClose}
+      size="sm"
+      subtitle="Verifica el ticket original antes de restaurar inventario o generar nota."
+      title="Procesar devolucion"
+      tone="coral"
+      footerClassName={posModalModuleFooterClassName}
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
             Cancelar
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={!saleId.trim()}
-            className="flex-1 px-6 py-3 text-base font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className={posModalPrimaryActionClassName}
           >
+            <CheckCircle className="h-5 w-5" />
             Procesar
           </button>
         </div>
+      )}
+    >
+      <div className="space-y-4">
+        {error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            {error}
+          </div>
+        ) : null}
+
+        <section className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-500/30 dark:bg-yellow-500/10">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-700 dark:text-yellow-200" />
+          <div className="text-sm text-yellow-800 dark:text-yellow-100">
+            <p className="font-black">Importante</p>
+            <p className="mt-1 font-semibold">
+              La devolucion puede restaurar inventario y generar una nota de credito segun la configuracion del flujo.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+            Numero de venta
+          </label>
+          <input
+            type="text"
+            value={saleId}
+            onChange={(event) => {
+              setSaleId(event.target.value);
+              setError('');
+            }}
+            placeholder="V123456-0001"
+            className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-black uppercase text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            autoFocus
+          />
+        </section>
+
+        <section>
+          <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Tipo de devolucion</p>
+          <div className="grid grid-cols-2 gap-2">
+            <ReturnTypeButton
+              active={returnType === 'full'}
+              title="Total"
+              description="Todos los productos"
+              onClick={() => setReturnType('full')}
+            />
+            <ReturnTypeButton
+              active={returnType === 'partial'}
+              title="Parcial"
+              description="Algunos productos"
+              onClick={() => setReturnType('partial')}
+            />
+          </div>
+        </section>
+
+        <section className="space-y-2 rounded-lg border border-gray-200 bg-white p-4 text-sm dark:border-gray-700 dark:bg-gray-900">
+          <InfoRow label="Reembolso" value="Nota de credito" />
+          <InfoRow label="Inventario" value="Se restaurara" />
+        </section>
       </div>
+    </PosModalFrame>
+  );
+}
+
+function ReturnTypeButton({
+  active,
+  title,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border-2 p-4 text-left transition-all ${
+        active
+          ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 text-[#A7352C] dark:text-[#FFB5AE]'
+          : 'border-gray-300 bg-gray-50 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400'
+      }`}
+    >
+      <p className="text-sm font-black">Devolucion {title}</p>
+      <p className="mt-1 text-xs font-semibold">{description}</p>
+    </button>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="font-semibold text-gray-600 dark:text-gray-400">{label}:</span>
+      <span className="font-black text-gray-900 dark:text-white">{value}</span>
     </div>
   );
 }

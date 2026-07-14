@@ -15,7 +15,6 @@ export const ptBR = {
     no: 'Nao',
   },
   header: {
-    emoji: '🏬',
     title: 'Inventario',
     subtitle: 'Controle estoque, locais e movimentos sem misturar catalogo comercial com inventario.',
     primaryAction: 'Novo movimento',

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../../../components/ui/utils';
 
-export const pointOfSaleTitleBarPrimaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6B5E] px-5 text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/25 transition hover:bg-[#E85C50] focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 sm:w-auto';
+export const pointOfSaleTitleBarPrimaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-5 text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/25 transition hover:bg-[#E85C50] focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 sm:w-auto';
 
-export const pointOfSaleTitleBarSecondaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#FF6B5E]/20 bg-white px-4 text-sm font-semibold text-[#B63B32] shadow-sm shadow-slate-200/60 transition hover:border-[#FF6B5E]/40 hover:bg-[#FFF3F1] focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 sm:w-auto dark:border-[#FF6B5E]/30 dark:bg-gray-900 dark:text-[#FFB0AA] dark:shadow-none dark:hover:bg-[#FF6B5E]/10';
+export const pointOfSaleTitleBarSecondaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/20 bg-white px-4 text-sm font-semibold text-[#B63B32] shadow-sm shadow-slate-200/60 transition hover:border-[#FF6B5E]/40 hover:bg-[#FFF3F1] focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 sm:w-auto dark:border-[#FF6B5E]/30 dark:bg-gray-900 dark:text-[#FFB0AA] dark:shadow-none dark:hover:bg-[#FF6B5E]/10';
 
 export function PointOfSaleTitleBar({
   actions,
@@ -28,12 +28,12 @@ export function PointOfSaleTitleBar({
         {rhIndent ? (
           <div className="min-w-0">
             {eyebrow ? (
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B63B32] dark:text-[#FFB0AA]">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#B63B32] dark:text-[#FFB0AA]">
                 {eyebrow}
               </p>
             ) : null}
-            <h2 className={cn('mb-1 flex min-w-0 items-center gap-2 text-2xl font-semibold leading-tight text-slate-950 dark:text-white', eyebrow && 'mt-1')}>
-              <span className="shrink-0 text-[2rem] leading-none" aria-hidden="true">
+            <h2 className={cn('mb-1 flex min-w-0 items-center gap-3 text-2xl font-semibold leading-tight text-slate-950 dark:text-white', eyebrow && 'mt-1')}>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-white text-xl leading-none text-[#B63B32] shadow-sm dark:border-[#FFB0AA]/25 dark:bg-slate-950 dark:text-[#FFB0AA]" aria-hidden="true">
                 {icon}
               </span>
               <span className="min-w-0">{title}</span>
@@ -44,12 +44,12 @@ export function PointOfSaleTitleBar({
           </div>
         ) : (
           <div className="flex min-w-0 items-start gap-4">
-            <span className="mt-0.5 shrink-0 text-[2rem] leading-none" aria-hidden="true">
+            <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-white text-xl leading-none text-[#B63B32] shadow-sm dark:border-[#FFB0AA]/25 dark:bg-slate-950 dark:text-[#FFB0AA]" aria-hidden="true">
               {icon}
             </span>
             <div className="min-w-0">
               {eyebrow ? (
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B63B32] dark:text-[#FFB0AA]">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#B63B32] dark:text-[#FFB0AA]">
                   {eyebrow}
                 </p>
               ) : null}

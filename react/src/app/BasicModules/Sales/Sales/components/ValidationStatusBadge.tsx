@@ -12,7 +12,7 @@ export function ValidationStatusBadge({
   tone: BadgeTone;
 }) {
   return (
-    <Badge variant="outline" className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', validationStatusClasses[tone])}>
+    <Badge variant="outline" className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-normal', validationStatusClasses[tone])}>
       {label}
     </Badge>
   );

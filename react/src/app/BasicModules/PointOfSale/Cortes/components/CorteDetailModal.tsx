@@ -41,7 +41,7 @@ export function CorteDetailModal({
           <button
             type="button"
             onClick={onPrint}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <Printer className="h-4 w-4" />
             Imprimir
@@ -49,7 +49,7 @@ export function CorteDetailModal({
           <button
             type="button"
             onClick={onDownload}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#222831] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#111827]"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#222831] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#111827]"
           >
             <Download className="h-4 w-4" />
             Descargar
@@ -58,13 +58,13 @@ export function CorteDetailModal({
       )}
     >
       {loading ? (
-        <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-black text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-black text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
           Cargando detalle real del corte...
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[20px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-black text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-black text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
           {error}
         </div>
       ) : null}
@@ -72,7 +72,7 @@ export function CorteDetailModal({
       {detail ? (
         <div className="space-y-5">
           <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-            <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-normal text-[#B63B32] dark:text-[#FFB0AA]">Corte operativo</p>
@@ -99,7 +99,7 @@ export function CorteDetailModal({
               </div>
             </div>
 
-            <div className="rounded-[20px] border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
+            <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
               <p className="text-xs font-black uppercase tracking-normal text-[#B63B32] dark:text-[#FFB0AA]">Resumen</p>
               <p className="mt-3 text-4xl font-black text-slate-950 dark:text-white">
                 {formatCurrency(toNumber(detail.totalSalesAmount), currencyCode)}
@@ -153,7 +153,7 @@ export function CorteDetailModal({
 
 function InfoTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
       <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{label}</p>
       <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{value}</p>
     </div>
@@ -178,7 +178,7 @@ function MetricCard({
     : 'border-slate-200 bg-white text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
   return (
-    <div className={`rounded-[20px] border p-5 shadow-sm ${toneClass}`}>
+    <div className={`rounded-lg border p-5 shadow-sm ${toneClass}`}>
       <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
         {icon}
         <p className="text-xs font-black uppercase tracking-normal">{label}</p>
@@ -198,7 +198,7 @@ function DetailSection({
   title: string;
 }) {
   return (
-    <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center gap-2 text-[#FF6B5E]">
         {icon}
         <h4 className="text-lg font-black text-slate-950 dark:text-white">{title}</h4>

@@ -96,8 +96,8 @@ export function SaleNoShiftState({
   return (
     <>
       <div className="flex min-h-[calc(100vh-240px)] items-center justify-center">
-        <div className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:p-8">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-950 text-white dark:bg-white dark:text-gray-950">
+        <div className="w-full max-w-4xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:p-8">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-lg bg-gray-950 text-white dark:bg-white dark:text-gray-950">
             <LogIn className="h-10 w-10" />
           </div>
           <h2 className="mb-2 text-center text-2xl font-black text-gray-900 dark:text-white">
@@ -125,7 +125,7 @@ export function SaleNoShiftState({
           )}
 
           {!isLoading && !hasCashRegisters && (
-            <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left dark:border-gray-700 dark:bg-gray-900/40">
+            <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left dark:border-gray-700 dark:bg-gray-900/40">
               {!hasWarehouses ? (
                 <FirstUseAction
                   icon={Warehouse}

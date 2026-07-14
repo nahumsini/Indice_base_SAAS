@@ -1,6 +1,14 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { Navigate, useParams } from 'react-router';
-import { Home } from 'lucide-react';
+import {
+  BadgePercent,
+  BarChart3,
+  Home,
+  ReceiptText,
+  Scissors,
+  ShoppingCart,
+  UsersRound,
+} from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -97,18 +105,18 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
   );
 
   const tabs = useMemo(() => [
-    { id: 'sale' as const, label: t.tabs.sale, emoji: '🛒', component: Sale },
-    { id: 'cortes' as const, label: t.tabs.cortes, emoji: '✂️', component: Cortes },
-    { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👥', component: Clientes },
-    { id: 'facturacion' as const, label: t.tabs.facturacion, emoji: '🧾', component: Facturacion },
-    { id: 'descuentos' as const, label: t.tabs.descuentos, emoji: '🏷️', component: Descuentos },
-    { id: 'kpis' as const, label: t.tabs.kpis, emoji: '📊', component: KPIs },
+    { id: 'sale' as const, label: t.tabs.sale, emoji: '🧾', icon: ShoppingCart, component: Sale },
+    { id: 'cortes' as const, label: t.tabs.cortes, emoji: '💵', icon: Scissors, component: Cortes },
+    { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👤', icon: UsersRound, component: Clientes },
+    { id: 'facturacion' as const, label: t.tabs.facturacion, emoji: '🧾', icon: ReceiptText, component: Facturacion },
+    { id: 'descuentos' as const, label: t.tabs.descuentos, emoji: '🏷️', icon: BadgePercent, component: Descuentos },
+    { id: 'kpis' as const, label: t.tabs.kpis, emoji: '📊', icon: BarChart3, component: KPIs },
   ], [t]);
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || Sale;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-900 dark:text-white">
       <LoadingBarOverlay
         isVisible={isTabLoading}
         title={t.loading.openingTitle}
@@ -137,9 +145,9 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
             <Button
               variant="outline"
               onClick={() => onNavigate()}
-              className="w-full justify-center gap-2 text-sm sm:w-auto"
+              className="w-full justify-center gap-2 rounded-lg text-sm sm:w-auto"
             >
-              <Home className="h-4 w-4" />
+              <Home className="h-4 w-4" aria-hidden="true" />
               {t.back}
             </Button>
           </div>
@@ -148,7 +156,6 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
             <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
               {tabs.map((tab) => {
                 const active = activeTab === tab.id;
-
                 return (
                   <button
                     key={tab.id}
@@ -160,7 +167,9 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
                         : 'bg-slate-100 text-slate-600 hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-[#FF6B5E]/15 dark:hover:text-[#FFB0AA]'
                     }`}
                   >
-                    <span className="text-base leading-none" aria-hidden="true">{tab.emoji}</span>
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[15px] leading-none ${active ? 'bg-white/20' : 'bg-white shadow-sm dark:bg-slate-950'}`} aria-hidden="true">
+                      {tab.emoji}
+                    </span>
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -170,7 +179,7 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
@@ -182,7 +191,7 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
         >
           <ActiveComponent />
         </Suspense>
-      </div>
+      </main>
     </div>
   );
 }

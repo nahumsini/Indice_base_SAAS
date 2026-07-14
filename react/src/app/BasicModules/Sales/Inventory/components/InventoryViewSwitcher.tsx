@@ -21,7 +21,7 @@ export function InventoryViewSwitcher({
   onViewChange: (view: InventoryOperationalView) => void;
 }) {
   return (
-    <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       {views.map((view) => {
         const Icon = view.icon;
         const active = activeView === view.id;

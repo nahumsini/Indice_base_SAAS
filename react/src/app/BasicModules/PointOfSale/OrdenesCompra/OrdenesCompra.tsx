@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { buildSalesProductInputFromPointOfSale } from '../../CommerceCore/posProductMutations';
 import { toPointOfSaleProduct } from '../../CommerceCore/posCatalog';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
@@ -62,10 +63,25 @@ export default function OrdenesCompra() {
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<SupplierSubmission | null>(null);
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
+  const [orderPendingCancellation, setOrderPendingCancellation] = useState<PurchaseOrder | null>(null);
 
   const handleOrderAction = (order: PurchaseOrder, action: 'request' | 'approve' | 'send' | 'cancel') => {
-    void performOrderAction(order.id, action, action === 'cancel' ? 'Cancelada desde Punto de Venta.' : undefined)
+    if (action === 'cancel') {
+      setOrderPendingCancellation(order);
+      return;
+    }
+
+    void performOrderAction(order.id, action)
       .catch(() => undefined);
+  };
+
+  const confirmOrderCancellation = () => {
+    if (!orderPendingCancellation) {
+      return;
+    }
+
+    void performOrderAction(orderPendingCancellation.id, 'cancel', 'Cancelada desde Punto de Venta.')
+      .finally(() => setOrderPendingCancellation(null));
   };
 
   const handleInvoiceReview = (invoiceId: number, status: SupplierInvoiceStatus) => {
@@ -229,6 +245,18 @@ export default function OrdenesCompra() {
         onClose={() => setSelectedSubmission(null)}
         onConvert={handleSubmissionConvert}
         onReview={handleSubmissionReview}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(orderPendingCancellation)}
+        title="Cancelar orden de compra"
+        itemName={orderPendingCancellation?.folio}
+        description="Esta accion cambiara el estado de la orden a cancelada y detendra su avance operativo."
+        cancelLabel="Volver"
+        confirmDisabled={saving}
+        confirmLabel="Cancelar orden"
+        onCancel={() => setOrderPendingCancellation(null)}
+        onConfirm={confirmOrderCancellation}
       />
     </div>
   );

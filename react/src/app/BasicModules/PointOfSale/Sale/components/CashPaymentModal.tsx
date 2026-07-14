@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, X, Calculator } from 'lucide-react';
+import { Calculator, Check, DollarSign } from 'lucide-react';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 
 interface CashPaymentModalProps {
   isOpen: boolean;
@@ -29,6 +35,10 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
 
   // Quick amount buttons
   const quickAmounts = [100, 200, 500, 1000];
+  const paidAmount = parseFloat(amountPaid) || 0;
+  const hasPaidAmount = paidAmount > 0;
+  const isEnough = paidAmount >= totalAmount;
+  const missingAmount = Math.max(totalAmount - paidAmount, 0);
 
   const handleQuickAmount = (amount: number) => {
     setAmountPaid(amount.toString());
@@ -53,26 +63,38 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
-        {/* Header */}
-        <div className="bg-green-500 rounded-t-2xl px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-white">Cobro en Efectivo</h2>
-          </div>
+    <PosModalFrame
+      closeLabel="Cerrar cobro"
+      eyebrow="Cobro POS"
+      footerClassName={posModalModuleFooterClassName}
+      icon={<DollarSign className="h-6 w-6" />}
+      onClose={onClose}
+      size="sm"
+      subtitle="Captura efectivo recibido y cambio antes de confirmar."
+      title="Cobro en Efectivo"
+      tone="coral"
+      footer={(
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+            className={posModalSecondaryActionClassName}
           >
-            <X className="w-5 h-5" />
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={!isEnough}
+            className={posModalPrimaryActionClassName}
+          >
+            <Check className="h-4 w-4" />
+            Confirmar cobro
           </button>
         </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
+      )}
+    >
+        <div className="space-y-6">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
@@ -80,7 +102,7 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
           )}
 
           {/* Total to Pay */}
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total a cobrar</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">
               {formatCurrency(totalAmount)}
@@ -129,48 +151,30 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
           </div>
 
           {/* Change Display */}
-          {parseFloat(amountPaid) > 0 && (
-            <div className={`rounded-xl p-4 ${
-              change > 0
+          {hasPaidAmount && (
+            <div className={`rounded-lg p-4 ${
+              isEnough
                 ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500 dark:border-green-600'
                 : 'bg-red-50 dark:bg-red-900/20 border-2 border-red-500 dark:border-red-600'
             }`}>
               <div className="flex items-center gap-2 mb-2">
                 <Calculator className={`w-5 h-5 ${
-                  change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  isEnough ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`} />
                 <p className={`text-sm font-medium ${
-                  change > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+                  isEnough ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                 }`}>
-                  {change > 0 ? 'Cambio a devolver' : 'Monto insuficiente'}
+                  {isEnough ? (change > 0 ? 'Cambio a devolver' : 'Pago exacto') : 'Monto insuficiente'}
                 </p>
               </div>
               <p className={`text-3xl font-bold ${
-                change > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+                isEnough ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
               }`}>
-                {formatCurrency(Math.abs(change))}
+                {formatCurrency(isEnough ? change : missingAmount)}
               </p>
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-6 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={parseFloat(amountPaid) < totalAmount}
-            className="flex-1 px-6 py-3 text-base font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Confirmar Cobro
-          </button>
-        </div>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }

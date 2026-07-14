@@ -98,6 +98,9 @@ export const enCA = {
       fiscalRegime: 'Regime, classification, or responsibility',
       fiscalNotes: 'Fiscal conditions, billing requirements, tax use, or future integration notes.',
     },
+    validation: {
+      identityRequired: 'Capture at least a company, contact person, phone, email, legal name, or tax ID.',
+    },
     cancel: 'Cancel',
     saveChanges: 'Save changes',
     saveContact: 'Save contact',
@@ -324,6 +327,9 @@ export const esMX: ContactCopy = {
       fiscalEmail: 'facturacion@empresa.com',
       fiscalRegime: 'Régimen, clasificación o responsabilidad',
       fiscalNotes: 'Condiciones fiscales, requisitos de facturación, uso fiscal o notas para integración futura.',
+    },
+    validation: {
+      identityRequired: 'Captura al menos empresa, persona, telefono, email, razon social o identificacion fiscal.',
     },
     cancel: 'Cancelar',
     saveChanges: 'Guardar cambios',

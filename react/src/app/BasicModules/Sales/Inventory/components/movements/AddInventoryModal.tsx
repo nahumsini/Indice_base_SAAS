@@ -111,7 +111,7 @@ export function AddInventoryModal({
         </>
       )}
     >
-          <div className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
             <ReadOnlyField label={t.operational.modals.movementType} value={t.operational.movementTypes.supplierReceipt} />
             <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses.received} />
             {supplierOptions.length > 0 ? (
@@ -125,7 +125,7 @@ export function AddInventoryModal({
                 const warehouse = activeWarehouses.find((item) => item.id === destinationWarehouseId);
                 setDraft({ ...draft, destinationWarehouseId, businessUnitId: warehouse?.businessUnitId ?? '', businessId: warehouse?.businessId ?? '' });
               }}>
-                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue placeholder={t.operational.emptyStates.noWarehouses} /></SelectTrigger>
+                <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue placeholder={t.operational.emptyStates.noWarehouses} /></SelectTrigger>
                 <SelectContent>{activeWarehouses.map((warehouse) => <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>)}</SelectContent>
               </Select>
             </label>
@@ -136,13 +136,13 @@ export function AddInventoryModal({
 
           <MovementProductLines rows={rows} items={draft.items} fromWarehouseId="" needsAvailabilityCheck={false} t={t} onItemsChange={(items) => setDraft({ ...draft, items })} />
 
-          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">{t.operational.modals.files}</h3>
                 <p className="mt-1 text-xs font-semibold text-slate-500">{draft.attachments.length} files</p>
               </div>
-              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-[#FF6B5E]/25 bg-white px-3 text-xs font-semibold text-[#B63B32] hover:bg-[#FF6B5E]/10">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-white px-3 text-xs font-semibold text-[#B63B32] hover:bg-[#FF6B5E]/10">
                 <FileUp className="h-4 w-4" />
                 {t.operational.modals.addFiles}
                 <input type="file" multiple className="hidden" onChange={(event) => handleFilesChange(event.target.files)} />
@@ -162,7 +162,7 @@ function InputField({ label, value, type = 'text', onChange }: { label: string; 
   return (
     <label className="grid gap-2">
       <FieldLabel>{label}</FieldLabel>
-      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
+      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
     </label>
   );
 }
@@ -172,7 +172,7 @@ function SelectField({ label, value, options, onValueChange }: { label: string; 
     <label className="grid gap-2">
       <FieldLabel>{label}</FieldLabel>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
         <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>
     </label>
@@ -183,7 +183,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <label className="grid gap-2">
       <FieldLabel>{label}</FieldLabel>
-      <span className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700">{value}</span>
+      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700">{value}</span>
     </label>
   );
 }

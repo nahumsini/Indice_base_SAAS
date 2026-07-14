@@ -28,7 +28,7 @@ export function ProspectosLearningGuide({ copy }: ProspectosLearningGuideProps) 
       <div className="border-b border-[#FF6B5E]/10 bg-[#FF6B5E]/[0.06] p-5 dark:border-[#FFB4AD]/10 dark:bg-[#FF6B5E]/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#FF6B5E]/25 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#B63B32] shadow-sm dark:border-[#FFB4AD]/25 dark:bg-slate-950 dark:text-[#FFD8D4]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#FF6B5E]/25 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-normal text-[#B63B32] shadow-sm dark:border-[#FFB4AD]/25 dark:bg-slate-950 dark:text-[#FFD8D4]">
               <Lightbulb className="h-3.5 w-3.5" />
               {copy.eyebrow}
             </div>
@@ -52,7 +52,7 @@ export function ProspectosLearningGuide({ copy }: ProspectosLearningGuideProps) 
       {isCollapsed ? null : (
         <div className="space-y-4 p-5">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B63B32] dark:text-[#FFD8D4]">
+            <p className="text-xs font-black uppercase tracking-normal text-[#B63B32] dark:text-[#FFD8D4]">
               {copy.flowTitle}
             </p>
             <div className="mt-3 grid gap-3 lg:grid-cols-4">
@@ -74,7 +74,7 @@ export function ProspectosLearningGuide({ copy }: ProspectosLearningGuideProps) 
 
           <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/[0.04] p-4 dark:border-[#FFB4AD]/15 dark:bg-[#FF6B5E]/10">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B63B32] dark:text-[#FFD8D4]">
+              <p className="text-xs font-black uppercase tracking-normal text-[#B63B32] dark:text-[#FFD8D4]">
                 {copy.cardsTitle}
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -95,7 +95,7 @@ export function ProspectosLearningGuide({ copy }: ProspectosLearningGuideProps) 
             </div>
 
             <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">
                 {copy.checklistTitle}
               </p>
               <div className="mt-3 space-y-2">

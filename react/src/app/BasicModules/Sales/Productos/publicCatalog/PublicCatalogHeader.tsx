@@ -27,7 +27,7 @@ export function PublicCatalogHeader({
             <Store className="h-7 w-7" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B63B32]">{t.publicCatalog.publicCatalog}</p>
+            <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">{t.publicCatalog.publicCatalog}</p>
             <h1 className="mt-1 text-3xl font-black text-slate-950 md:text-4xl">{config.title}</h1>
             <p className="mt-2 max-w-3xl text-base font-medium leading-7 text-slate-600">{config.description}</p>
           </div>

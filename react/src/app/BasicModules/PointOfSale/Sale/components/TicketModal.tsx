@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
-import { X, Printer, Mail, Download } from 'lucide-react';
-import { SaleItem, Payment } from '../types/sale.types';
-import { Shift } from '../types/shift.types';
+import { useEffect, useState } from 'react';
+import { Download, Mail, Printer } from 'lucide-react';
+import type { Payment, SaleItem } from '../types/sale.types';
+import type { Shift } from '../types/shift.types';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 
 interface TicketModalProps {
   isOpen: boolean;
@@ -22,29 +28,29 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   const [isHovering, setIsHovering] = useState(false);
   const [countdown, setCountdown] = useState(2);
   const [notice, setNotice] = useState('');
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(amount);
-  };
 
-  // Auto-close timer
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  }).format(amount);
+
   useEffect(() => {
     if (!isOpen) {
       setCountdown(2);
       return;
     }
 
-    if (isHovering) return;
+    if (isHovering) {
+      return;
+    }
 
     const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
+      setCountdown((current) => {
+        if (current <= 1) {
           onClose();
           return 2;
         }
-        return prev - 1;
+        return current - 1;
       });
     }, 1000);
 
@@ -63,192 +69,150 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
     setNotice('La descarga PDF quedo preparada para usar el motor documental de POS.');
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const now = new Date();
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div
-        className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-800"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-gray-700 to-gray-800 px-6 py-4 print:hidden">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <Printer className="w-6 h-6 text-white" />
-              </div>
-              <h2 className="text-xl font-bold text-white">Ticket de Venta</h2>
+    <PosModalFrame
+      closeLabel="Cerrar ticket"
+      eyebrow="Comprobante POS"
+      icon={<Printer className="h-6 w-6" />}
+      onClose={onClose}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      size="sm"
+      subtitle={`Folio ${saleNumber}`}
+      title="Ticket de venta"
+      tone="coral"
+      footerClassName={posModalModuleFooterClassName}
+      footer={(
+        <div className="space-y-3">
+          {notice ? (
+            <div className="rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-xs font-bold text-white">
+              {notice}
             </div>
-            <button
-              onClick={onClose}
-              className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-            >
-              <X className="w-5 h-5" />
+          ) : null}
+          <div className="grid gap-2 sm:grid-cols-3">
+            <button type="button" onClick={handlePrint} className={posModalPrimaryActionClassName}>
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </button>
+            <button type="button" onClick={handleEmail} className={posModalSecondaryActionClassName}>
+              <Mail className="h-4 w-4" />
+              Email
+            </button>
+            <button type="button" onClick={handleDownload} className={posModalSecondaryActionClassName}>
+              <Download className="h-4 w-4" />
+              PDF
             </button>
           </div>
-          {!isHovering && countdown > 0 && (
-            <div className="flex items-center gap-2 text-white/70 text-sm">
-              <div className="w-full bg-white/20 rounded-full h-1.5">
-                <div
-                  className="bg-white h-1.5 rounded-full transition-all duration-1000"
-                  style={{ width: `${(countdown / 2) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs whitespace-nowrap">Cierra en {countdown}s</span>
-            </div>
-          )}
         </div>
+      )}
+    >
+      <div className="space-y-4">
+        {!isHovering && countdown > 0 ? (
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div
+                className="h-full rounded-full bg-[#FF6B5E] transition-all duration-1000"
+                style={{ width: `${(countdown / 2) * 100}%` }}
+              />
+            </div>
+            <span className="whitespace-nowrap text-xs">Cierra en {countdown}s</span>
+          </div>
+        ) : null}
 
-        {/* Ticket Content */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
-          <div className="font-mono text-sm space-y-4">
-            {/* Store Header */}
-            <div className="text-center border-b border-gray-300 dark:border-gray-600 pb-3">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">MI TIENDA</h3>
+        <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+          <div className="space-y-4 font-mono text-sm">
+            <div className="border-b border-gray-300 pb-3 text-center dark:border-gray-600">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white">MI TIENDA</h3>
               <p className="text-xs text-gray-600 dark:text-gray-400">RFC: ABC123456789</p>
               <p className="text-xs text-gray-600 dark:text-gray-400">Calle Principal #123</p>
               <p className="text-xs text-gray-600 dark:text-gray-400">Tel: (555) 123-4567</p>
             </div>
 
-            {/* Sale Info */}
-            <div className="text-xs text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-3">
-              <div className="flex justify-between">
-                <span>Folio:</span>
-                <span className="font-bold">{saleNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Fecha:</span>
-                <span>{now.toLocaleDateString('es-MX')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Hora:</span>
-                <span>{now.toLocaleTimeString('es-MX')}</span>
-              </div>
-              {shift && (
-                <div className="flex justify-between">
-                  <span>Cajero:</span>
-                  <span>{shift.cashierName}</span>
-                </div>
-              )}
+            <div className="border-b border-gray-300 pb-3 text-xs text-gray-700 dark:border-gray-600 dark:text-gray-300">
+              <TicketInfo label="Folio" value={saleNumber} strong />
+              <TicketInfo label="Fecha" value={now.toLocaleDateString('es-MX')} />
+              <TicketInfo label="Hora" value={now.toLocaleTimeString('es-MX')} />
+              {shift ? <TicketInfo label="Cajero" value={shift.cashierName} /> : null}
             </div>
 
-            {/* Items */}
-            <div className="border-b border-gray-300 dark:border-gray-600 pb-3">
-              <div className="text-xs font-bold text-gray-900 dark:text-white mb-2">
-                PRODUCTOS
-              </div>
+            <div className="border-b border-gray-300 pb-3 dark:border-gray-600">
+              <div className="mb-2 text-xs font-black text-gray-900 dark:text-white">PRODUCTOS</div>
               {items.map((item, index) => (
-                <div key={index} className="mb-2">
-                  <div className="flex justify-between text-gray-900 dark:text-white">
-                    <span className="font-semibold">{item.name}</span>
-                    <span className="font-bold">{formatCurrency(item.subtotal)}</span>
+                <div key={`${item.id}-${index}`} className="mb-2">
+                  <div className="flex justify-between gap-3 text-gray-900 dark:text-white">
+                    <span className="font-bold">{item.name}</span>
+                    <span className="font-black">{formatCurrency(item.subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
                     <span>{item.quantity} x {formatCurrency(item.price)}</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Totals */}
-            <div className="text-xs space-y-1 border-b border-gray-300 dark:border-gray-600 pb-3">
-              <div className="flex justify-between text-gray-700 dark:text-gray-300">
-                <span>Subtotal:</span>
-                <span>{formatCurrency(totals.subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-gray-700 dark:text-gray-300">
-                <span>IVA (16%):</span>
-                <span>{formatCurrency(totals.tax)}</span>
-              </div>
-              <div className="flex justify-between text-base font-bold text-gray-900 dark:text-white pt-2">
+            <div className="space-y-1 border-b border-gray-300 pb-3 text-xs dark:border-gray-600">
+              <TicketInfo label="Subtotal" value={formatCurrency(totals.subtotal)} />
+              <TicketInfo label="IVA (16%)" value={formatCurrency(totals.tax)} />
+              <div className="flex justify-between gap-3 pt-2 text-base font-black text-gray-900 dark:text-white">
                 <span>TOTAL:</span>
                 <span>{formatCurrency(totals.total)}</span>
               </div>
             </div>
 
-            {/* Payments */}
-            <div className="text-xs border-b border-gray-300 dark:border-gray-600 pb-3">
-              <div className="font-bold text-gray-900 dark:text-white mb-2">FORMA DE PAGO</div>
-              {payments.map((payment, index) => (
-                <div key={index} className="flex justify-between text-gray-700 dark:text-gray-300">
-                  <span className="capitalize">
+            <div className="border-b border-gray-300 pb-3 text-xs dark:border-gray-600">
+              <div className="mb-2 font-black text-gray-900 dark:text-white">FORMA DE PAGO</div>
+              {payments.map((payment) => (
+                <div key={payment.id} className="flex justify-between gap-3 text-gray-700 dark:text-gray-300">
+                  <span>
                     {payment.method === 'cash' && 'Efectivo'}
                     {payment.method === 'card' && 'Tarjeta'}
                     {payment.method === 'transfer' && 'Transferencia'}
                     {payment.method === 'credit' && 'Credito'}
-                    {payment.reference && ` (${payment.reference})`}
+                    {payment.reference ? ` (${payment.reference})` : ''}
                   </span>
                   <span>{formatCurrency(payment.amount)}</span>
                 </div>
               ))}
-              {payments.some((payment) => payment.creditDetails) && (
+              {payments.some((payment) => payment.creditDetails) ? (
                 <div className="mt-2 space-y-1 border-t border-gray-200 pt-2 text-gray-700 dark:border-gray-700 dark:text-gray-300">
                   {payments.filter((payment) => payment.creditDetails).map((payment) => (
                     <div key={payment.id}>
-                      <div className="flex justify-between">
-                        <span>Cliente credito:</span>
-                        <span>{payment.creditDetails?.customerName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Vencimiento:</span>
-                        <span>{payment.creditDetails?.dueDate}</span>
-                      </div>
+                      <TicketInfo label="Cliente credito" value={payment.creditDetails?.customerName ?? ''} />
+                      <TicketInfo label="Vencimiento" value={payment.creditDetails?.dueDate ?? ''} />
                     </div>
                   ))}
                 </div>
-              )}
-              {totals.change > 0 && (
-                <div className="flex justify-between font-bold text-gray-900 dark:text-white mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              ) : null}
+              {totals.change > 0 ? (
+                <div className="mt-2 flex justify-between gap-3 border-t border-gray-200 pt-2 font-black text-gray-900 dark:border-gray-700 dark:text-white">
                   <span>CAMBIO:</span>
                   <span>{formatCurrency(totals.change)}</span>
                 </div>
-              )}
+              ) : null}
             </div>
 
-            {/* Footer */}
-            <div className="text-center text-xs text-gray-600 dark:text-gray-400 pt-2">
-              <p>¡GRACIAS POR SU COMPRA!</p>
+            <div className="pt-2 text-center text-xs text-gray-600 dark:text-gray-400">
+              <p>GRACIAS POR SU COMPRA</p>
               <p className="mt-1">Conserve este ticket</p>
             </div>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 print:hidden">
-          {notice && (
-            <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
-              {notice}
-            </div>
-          )}
-          <div className="flex gap-2">
-          <button
-            onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-lg transition-colors"
-          >
-            <Printer className="w-4 h-4" />
-            <span className="font-medium">Imprimir</span>
-          </button>
-          <button
-            onClick={handleEmail}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <Mail className="w-4 h-4" />
-            <span className="font-medium">Email</span>
-          </button>
-          <button
-            onClick={handleDownload}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            <span className="font-medium">PDF</span>
-          </button>
-          </div>
-        </div>
+        </section>
       </div>
+    </PosModalFrame>
+  );
+}
+
+function TicketInfo({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span>{label}:</span>
+      <span className={strong ? 'font-black' : undefined}>{value}</span>
     </div>
   );
 }

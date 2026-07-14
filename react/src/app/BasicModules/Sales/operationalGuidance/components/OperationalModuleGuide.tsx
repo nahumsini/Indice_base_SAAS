@@ -135,17 +135,17 @@ export function OperationalModuleGuide({
   return (
     <section
       aria-labelledby="sales-guidance-title"
-      className="mt-5 overflow-hidden rounded-xl border border-[#FF6B5E]/20 bg-white/95 shadow-[0_18px_44px_-34px_rgba(255,107,94,0.65)] dark:border-[#FFB4AD]/20 dark:bg-slate-950/85"
+      className="mt-5 overflow-hidden rounded-lg border border-[#FF6B5E]/20 bg-white/95 shadow-sm dark:border-[#FFB4AD]/20 dark:bg-slate-950/85"
     >
       <div className="border-b border-[#FF6B5E]/10 bg-[#FF6B5E]/[0.04] p-4 dark:border-[#FFB4AD]/10 dark:bg-[#FF6B5E]/10">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#FF6B5E]/25 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#B63B32] shadow-sm dark:border-[#FFB4AD]/25 dark:bg-slate-950 dark:text-[#FFD8D4]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#FF6B5E]/25 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-normal text-[#B63B32] shadow-sm dark:border-[#FFB4AD]/25 dark:bg-slate-950 dark:text-[#FFD8D4]">
               <Lightbulb className="h-3.5 w-3.5" />
               {copy.eyebrow}
             </div>
             <div className="mt-2 flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-4">
-              <h2 id="sales-guidance-title" className="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
+              <h2 id="sales-guidance-title" className="text-lg font-semibold tracking-normal text-slate-950 dark:text-white">
                 {copy.title}
               </h2>
               <p className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -167,13 +167,13 @@ export function OperationalModuleGuide({
 
       {isCollapsed ? null : (
         <div className="grid gap-3 p-4 lg:grid-cols-2">
-          <article className="rounded-xl border border-[#FF6B5E]/15 bg-[linear-gradient(135deg,_#ffffff_0%,_#FFF1EF_100%)] p-3 dark:border-[#FFB4AD]/15 dark:bg-[linear-gradient(135deg,_#020617_0%,_#1E1B1B_100%)] sm:p-4">
+          <article className="rounded-lg border border-[#FF6B5E]/15 bg-white p-3 dark:border-[#FFB4AD]/15 dark:bg-slate-950 sm:p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/25 bg-white text-[#B63B32] shadow-sm dark:border-[#FFB4AD]/20 dark:bg-slate-950 dark:text-[#FFD8D4]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-white text-[#B63B32] shadow-sm dark:border-[#FFB4AD]/20 dark:bg-slate-950 dark:text-[#FFD8D4]">
                 <ActiveIcon className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#B63B32] dark:text-[#FFD8D4]">
+                <p className="text-[11px] font-semibold uppercase tracking-normal text-[#B63B32] dark:text-[#FFD8D4]">
                   {copy.controlLabel}
                 </p>
                 <h3 className="mt-1 text-base font-semibold text-slate-950 dark:text-white">
@@ -201,10 +201,10 @@ export function OperationalModuleGuide({
             </div>
           </article>
 
-          <aside className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/50 sm:p-4">
+          <aside className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/50 sm:p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">
                   {copy.functionsLabel}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-[#B63B32] dark:text-[#FFD8D4]">
@@ -249,9 +249,9 @@ export function OperationalModuleGuide({
               <div className="h-full rounded-full bg-[#FF6B5E] transition-all duration-300" style={{ width: `${guideProgress}%` }} />
             </div>
 
-            <article className="mt-3 min-h-[104px] rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+            <article className="mt-3 min-h-[104px] rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
               <div className="flex items-start gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32] dark:border-[#FFB4AD]/20 dark:bg-[#FFB4AD]/10 dark:text-[#FFD8D4]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32] dark:border-[#FFB4AD]/20 dark:bg-[#FFB4AD]/10 dark:text-[#FFD8D4]">
                   <CheckCircle2 className="h-4 w-4" />
                 </span>
                 <div>

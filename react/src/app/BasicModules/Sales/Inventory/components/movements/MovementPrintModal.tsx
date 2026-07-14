@@ -69,12 +69,12 @@ export function MovementPrintModal({
             <header className="border-b border-slate-200 pb-7">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B63B32]">INDICE SALES OS</p>
-                  <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">{t.operational.modals.movementDocumentTitle}</h1>
+                  <p className="text-xs font-semibold uppercase tracking-normal text-[#B63B32]">INDICE SALES OS</p>
+                  <h1 className="mt-3 text-4xl font-semibold tracking-normal text-slate-950">{t.operational.modals.movementDocumentTitle}</h1>
                   <p className="mt-2 text-sm font-semibold text-slate-500">{t.operational.movementTypes[movement.movementType]}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{t.operational.columns.movement}</p>
+                  <p className="text-xs font-bold uppercase tracking-normal text-slate-500">{t.operational.columns.movement}</p>
                   <p className="mt-1 text-lg font-semibold text-slate-950">{movement.movementNumber ?? movement.id}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{movement.movementDate}</p>
                 </div>
@@ -115,16 +115,16 @@ export function MovementPrintModal({
                 </table>
               </div>
               <div className="mt-4 rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-5 text-right">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#B63B32]">{t.operational.columns.estimatedValue}</p>
+                <p className="text-xs font-bold uppercase tracking-normal text-[#B63B32]">{t.operational.columns.estimatedValue}</p>
                 <p className="mt-2 text-2xl font-semibold text-slate-950">{formatInventoryCurrency(movementValue)}</p>
               </div>
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t.operational.columns.reference}</p>
+                <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">{t.operational.columns.reference}</p>
                 <p className="mt-2 font-semibold text-slate-900">{movement.reference ?? t.common.notAvailable}</p>
                 <p className="mt-4 text-sm leading-6 text-slate-600">{movement.reason}</p>
               </div>
               <div className="mt-5 rounded-lg border border-slate-200 bg-white p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t.operational.columns.files}</p>
+                <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">{t.operational.columns.files}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {movement.attachments?.length ? movement.attachments.map((file) => (
                     <span key={file.id} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">{file.name}</span>
@@ -140,7 +140,7 @@ export function MovementPrintModal({
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">{label}</p>
       <p className="mt-3 text-lg font-semibold text-slate-950">{value}</p>
     </div>
   );

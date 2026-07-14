@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { BriefcaseBusiness, FileText, UsersRound } from 'lucide-react';
+import { AlertCircle, BriefcaseBusiness, FileText, UsersRound } from 'lucide-react';
 
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
@@ -26,6 +26,7 @@ type ContactFormModalProps = {
   localizedFiscalCountryOptions: FiscalCountryOption[];
   ownerSelectOptions: ContactOwnerSelectOption[];
   defaultOwnerValue: string;
+  formError?: string;
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
   onOwnerChange: (value: string) => void;
@@ -40,6 +41,7 @@ export function ContactFormModal({
   localizedFiscalCountryOptions,
   ownerSelectOptions,
   defaultOwnerValue,
+  formError,
   onOpenChange,
   onSave,
   onOwnerChange,
@@ -73,6 +75,13 @@ export function ContactFormModal({
         </>
       }
     >
+      {formError ? (
+        <div className="flex items-start gap-3 rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-bold text-[#B63B32]">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{formError}</p>
+        </div>
+      ) : null}
+
       <ContactFormSection
         icon={BriefcaseBusiness}
         title={copy.modal.commercialTitle}
@@ -155,7 +164,7 @@ export function ContactFormModal({
               value={form.notes}
               onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
               placeholder={copy.modal.placeholders.notes}
-              className="min-h-24 rounded-xl border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+              className="min-h-24 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
             />
           </ContactFormField>
         </div>
@@ -270,7 +279,7 @@ export function ContactFormModal({
               value={form.fiscalNotes}
               onChange={(event) => setForm((current) => ({ ...current, fiscalNotes: event.target.value }))}
               placeholder={copy.modal.placeholders.fiscalNotes}
-              className="min-h-20 rounded-xl border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+              className="min-h-20 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
             />
           </ContactFormField>
         </div>

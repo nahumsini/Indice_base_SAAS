@@ -68,7 +68,7 @@ export function ProspectosAgendaItem({
 
       <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
         <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-2">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#B63B32]">{copy.agenda.nextAction}</p>
+          <p className="text-xs font-bold uppercase tracking-normal text-[#B63B32]">{copy.agenda.nextAction}</p>
           <p className="mt-1 text-sm font-semibold text-slate-900">{copy.options.nextActions[opportunity.nextAction]}</p>
         </div>
         <ProspectosQuickActions copy={copy.quickActions} opportunity={opportunity} onOpenFiles={onOpenFiles} onOpenHistory={onOpenHistory} onEdit={onEdit} />

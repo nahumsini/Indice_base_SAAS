@@ -1,10 +1,15 @@
 import { useMemo } from 'react';
-import { X, Download, Printer, FileText, TrendingUp, TrendingDown, CreditCard, Calendar } from 'lucide-react';
+import { Download, Printer, FileText, TrendingUp, TrendingDown, CreditCard, Calendar } from 'lucide-react';
 import { Customer } from '../types/customer.types';
 import { Transaction } from '../types/transaction.types';
 import { mockTransactions } from '../data/transactions.mock';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalSecondaryActionClassName,
+} from '../../Sale/components/PosModalFrame';
 
 interface AccountStatementModalProps {
   isOpen: boolean;
@@ -40,8 +45,8 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
     const labels = {
       sale: 'Venta',
       payment: 'Pago',
-      credit_note: 'Nota de Crédito',
-      debit_note: 'Nota de Débito',
+      credit_note: 'Nota de credito',
+      debit_note: 'Nota de debito',
     };
     return labels[type];
   };
@@ -71,11 +76,9 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
     let yPos = 20;
 
-    // Header
-    doc.setFillColor(59, 130, 246); // Blue
+    doc.setFillColor(59, 130, 246);
     doc.rect(0, 0, pageWidth, 35, 'F');
 
     doc.setTextColor(255, 255, 255);
@@ -89,7 +92,6 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
 
     yPos = 45;
 
-    // Customer Information
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
@@ -100,14 +102,12 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
     const col3X = 135;
     const col4X = 165;
 
-    // Labels
     doc.setTextColor(100, 100, 100);
     doc.text('RFC', col1X, infoY);
     doc.text('Email', col2X, infoY);
-    doc.text('Teléfono', col3X, infoY);
+    doc.text('Telefono', col3X, infoY);
     doc.text('Cuenta desde', col4X, infoY);
 
-    // Values
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
     doc.text(customer.rfc || 'N/A', col1X, infoY + 5);
@@ -117,41 +117,37 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
 
     yPos += 18;
 
-    // Summary Cards
     const cardWidth = 45;
     const cardHeight = 20;
     const cardSpacing = 3;
     const cardsY = yPos;
 
-    // Card 1 - Límite de Crédito
     doc.setFillColor(219, 234, 254);
     doc.roundedRect(15, cardsY, cardWidth, cardHeight, 2, 2, 'F');
     doc.setTextColor(37, 99, 235);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Límite de Crédito', 17, cardsY + 5);
+    doc.text('Limite de credito', 17, cardsY + 5);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(customer.creditLimit ? formatCurrency(customer.creditLimit) : 'N/A', 17, cardsY + 14);
 
-    // Card 2 - Saldo Actual
     doc.setFillColor(254, 226, 226);
     doc.roundedRect(15 + cardWidth + cardSpacing, cardsY, cardWidth, cardHeight, 2, 2, 'F');
     doc.setTextColor(220, 38, 38);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Saldo Actual', 17 + cardWidth + cardSpacing, cardsY + 5);
+    doc.text('Saldo actual', 17 + cardWidth + cardSpacing, cardsY + 5);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(customer.currentBalance), 17 + cardWidth + cardSpacing, cardsY + 14);
 
-    // Card 3 - Crédito Disponible
     doc.setFillColor(220, 252, 231);
     doc.roundedRect(15 + (cardWidth + cardSpacing) * 2, cardsY, cardWidth, cardHeight, 2, 2, 'F');
     doc.setTextColor(22, 163, 74);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Crédito Disponible', 17 + (cardWidth + cardSpacing) * 2, cardsY + 5);
+    doc.text('Credito disponible', 17 + (cardWidth + cardSpacing) * 2, cardsY + 5);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(
@@ -160,24 +156,22 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
       cardsY + 14
     );
 
-    // Card 4 - Total Compras
     doc.setFillColor(243, 232, 255);
     doc.roundedRect(15 + (cardWidth + cardSpacing) * 3, cardsY, cardWidth, cardHeight, 2, 2, 'F');
     doc.setTextColor(147, 51, 234);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Total Compras', 17 + (cardWidth + cardSpacing) * 3, cardsY + 5);
+    doc.text('Total compras', 17 + (cardWidth + cardSpacing) * 3, cardsY + 5);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(customer.totalPurchases), 17 + (cardWidth + cardSpacing) * 3, cardsY + 14);
 
     yPos = cardsY + cardHeight + 10;
 
-    // Transactions Title
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('Historial de Movimientos', 15, yPos);
+    doc.text('Historial de movimientos', 15, yPos);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
@@ -185,7 +179,6 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
 
     yPos += 10;
 
-    // Transactions Table
     const tableData = transactions.map(t => [
       formatDate(t.date),
       getTransactionTypeLabel(t.type),
@@ -198,7 +191,7 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Fecha', 'Tipo', 'Descripción', 'Referencia', 'Cargos', 'Abonos', 'Saldo']],
+      head: [['Fecha', 'Tipo', 'Descripcion', 'Referencia', 'Cargos', 'Abonos', 'Saldo']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -237,7 +230,6 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
       },
     });
 
-    // Footer with Totals
     const finalY = (doc as any).lastAutoTable.finalY + 10;
 
     doc.setFillColor(249, 250, 251);
@@ -246,34 +238,31 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
     const totalsY = finalY + 8;
     const totalsStartX = pageWidth - 135;
 
-    // Total Cargos
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Total Cargos', totalsStartX, totalsY);
+    doc.text('Total cargos', totalsStartX, totalsY);
     doc.setTextColor(220, 38, 38);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(totals.sales), totalsStartX, totalsY + 7, { align: 'left' });
 
-    // Total Abonos
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Total Abonos', totalsStartX + 45, totalsY);
+    doc.text('Total abonos', totalsStartX + 45, totalsY);
     doc.setTextColor(22, 163, 74);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(totals.payments), totalsStartX + 45, totalsY + 7, { align: 'left' });
 
-    // Saldo Final
     doc.setDrawColor(200, 200, 200);
     doc.line(totalsStartX + 85, totalsY - 5, totalsStartX + 85, totalsY + 12);
 
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Saldo Final', totalsStartX + 92, totalsY);
+    doc.text('Saldo final', totalsStartX + 92, totalsY);
     doc.setTextColor(37, 99, 235);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -300,208 +289,187 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-xl flex items-center justify-center">
-                <FileText className="w-6 h-6 text-white" />
+    <PosModalFrame
+      onClose={onClose}
+      closeLabel="Cerrar estado de cuenta"
+      title="Estado de cuenta"
+      subtitle={customer.name}
+      eyebrow="Cliente POS"
+      icon={<FileText className="h-6 w-6" />}
+      tone="coral"
+      size="lg"
+      actions={
+        <>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-white transition hover:bg-white/20"
+            title="Imprimir"
+            aria-label="Imprimir estado de cuenta"
+          >
+            <Printer className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-white transition hover:bg-white/20"
+            title="Descargar PDF"
+            aria-label="Descargar estado de cuenta en PDF"
+          >
+            <Download className="h-5 w-5" />
+          </button>
+        </>
+      }
+      footerClassName={posModalModuleFooterClassName}
+      footer={
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          {transactions.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-normal text-white/70">Total cargos</p>
+                <p className="text-lg font-black text-white">{formatCurrency(totals.sales)}</p>
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Estado de Cuenta
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {customer.name}
-                </p>
+                <p className="text-[11px] font-black uppercase tracking-normal text-white/70">Total abonos</p>
+                <p className="text-lg font-black text-white">{formatCurrency(totals.payments)}</p>
+              </div>
+              <div className="border-white/30 sm:border-l sm:pl-4">
+                <p className="text-[11px] font-black uppercase tracking-normal text-white/70">Saldo final</p>
+                <p className="text-xl font-black text-white">{formatCurrency(customer.currentBalance)}</p>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrint}
-              className="p-2 text-gray-600 hover:bg-white/50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="Imprimir"
-            >
-              <Printer className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleDownload}
-              className="p-2 text-gray-600 hover:bg-white/50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="Descargar PDF"
-            >
-              <Download className="w-5 h-5" />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-600 hover:bg-white/50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          ) : (
+            <p className="text-sm font-bold text-white/80">Sin movimientos registrados.</p>
+          )}
+
+          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+            Cerrar
+          </button>
         </div>
-
-        {/* Customer Info & Summary */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 space-y-4">
-          {/* Customer Details */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      }
+    >
+      <div className="space-y-5">
+        <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">RFC</p>
-              <p className="font-medium text-gray-900 dark:text-white font-mono">
-                {customer.rfc || 'N/A'}
-              </p>
+              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">RFC</p>
+              <p className="font-mono text-sm font-black text-gray-900 dark:text-white">{customer.rfc || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Email</p>
-              <p className="font-medium text-gray-900 dark:text-white text-sm">
-                {customer.email}
-              </p>
+              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">Email</p>
+              <p className="break-words text-sm font-black text-gray-900 dark:text-white">{customer.email}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Teléfono</p>
-              <p className="font-medium text-gray-900 dark:text-white">
-                {customer.phone}
-              </p>
+              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">Telefono</p>
+              <p className="text-sm font-black text-gray-900 dark:text-white">{customer.phone}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cliente desde</p>
-              <p className="font-medium text-gray-900 dark:text-white">
-                {formatDate(customer.createdAt)}
-              </p>
+              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">Cliente desde</p>
+              <p className="text-sm font-black text-gray-900 dark:text-white">{formatDate(customer.createdAt)}</p>
             </div>
           </div>
+        </section>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-2 mb-2">
-                <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Límite de Crédito</p>
-              </div>
-              <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-                {customer.creditLimit ? formatCurrency(customer.creditLimit) : 'N/A'}
-              </p>
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+            <div className="mb-2 flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <p className="text-xs font-black uppercase tracking-normal text-blue-700 dark:text-blue-300">Limite de credito</p>
             </div>
-
-            <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl p-4 border border-red-200 dark:border-red-800">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-4 h-4 text-red-600 dark:text-red-400" />
-                <p className="text-xs font-medium text-red-600 dark:text-red-400">Saldo Actual</p>
-              </div>
-              <p className="text-2xl font-bold text-red-900 dark:text-red-300">
-                {formatCurrency(customer.currentBalance)}
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <p className="text-xs font-medium text-green-600 dark:text-green-400">Crédito Disponible</p>
-              </div>
-              <p className="text-2xl font-bold text-green-900 dark:text-green-300">
-                {customer.creditLimit
-                  ? formatCurrency(customer.creditLimit - customer.currentBalance)
-                  : 'N/A'
-                }
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Total Compras</p>
-              </div>
-              <p className="text-2xl font-bold text-purple-900 dark:text-purple-300">
-                {formatCurrency(customer.totalPurchases)}
-              </p>
-            </div>
+            <p className="text-xl font-black text-blue-950 dark:text-blue-200">
+              {customer.creditLimit ? formatCurrency(customer.creditLimit) : 'N/A'}
+            </p>
           </div>
-        </div>
 
-        {/* Transactions Table */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-              Historial de Movimientos
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+            <div className="mb-2 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <p className="text-xs font-black uppercase tracking-normal text-red-700 dark:text-red-300">Saldo actual</p>
+            </div>
+            <p className="text-xl font-black text-red-950 dark:text-red-200">{formatCurrency(customer.currentBalance)}</p>
+          </div>
+
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+            <div className="mb-2 flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <p className="text-xs font-black uppercase tracking-normal text-green-700 dark:text-green-300">Credito disponible</p>
+            </div>
+            <p className="text-xl font-black text-green-950 dark:text-green-200">
+              {customer.creditLimit
+                ? formatCurrency(customer.creditLimit - customer.currentBalance)
+                : 'N/A'
+              }
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-4 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/10">
+            <div className="mb-2 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-[#C64237] dark:text-[#FFB5AE]" />
+              <p className="text-xs font-black uppercase tracking-normal text-[#C64237] dark:text-[#FFB5AE]">Total compras</p>
+            </div>
+            <p className="text-xl font-black text-[#222831] dark:text-white">{formatCurrency(customer.totalPurchases)}</p>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="border-b border-gray-200 p-5 dark:border-gray-700">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white">Historial de movimientos</h3>
+            <p className="mt-1 text-sm font-semibold text-gray-600 dark:text-gray-400">
               Total de transacciones: {transactions.length}
             </p>
           </div>
 
           {transactions.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">
-                No hay movimientos registrados
-              </p>
+            <div className="px-5 py-12 text-center">
+              <FileText className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+              <p className="font-semibold text-gray-500 dark:text-gray-400">No hay movimientos registrados</p>
             </div>
           ) : (
-            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[920px]">
+                <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                      Fecha
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                      Tipo
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                      Descripción
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                      Referencia
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                      Cargos
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                      Abonos
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                      Saldo
-                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Fecha</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Tipo</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Descripcion</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Referencia</th>
+                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Cargos</th>
+                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Abonos</th>
+                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Saldo</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {transactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
+                    <tr key={transaction.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/70">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
                         {formatDate(transaction.date)}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getTransactionTypeColor(transaction.type)}`}>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${getTransactionTypeColor(transaction.type)}`}>
                           {getTransactionTypeLabel(transaction.type)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
                         {transaction.description}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">
+                      <td className="px-4 py-3 font-mono text-sm text-gray-600 dark:text-gray-400">
                         {transaction.reference || transaction.invoice || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-semibold">
+                      <td className="px-4 py-3 text-right text-sm font-black">
                         {transaction.amount > 0 ? (
-                          <span className="text-red-600 dark:text-red-400">
-                            {formatCurrency(transaction.amount)}
-                          </span>
+                          <span className="text-red-600 dark:text-red-400">{formatCurrency(transaction.amount)}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-semibold">
+                      <td className="px-4 py-3 text-right text-sm font-black">
                         {transaction.amount < 0 ? (
-                          <span className="text-green-600 dark:text-green-400">
-                            {formatCurrency(Math.abs(transaction.amount))}
-                          </span>
+                          <span className="text-green-600 dark:text-green-400">{formatCurrency(Math.abs(transaction.amount))}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-white">
+                      <td className="px-4 py-3 text-right text-sm font-black text-gray-900 dark:text-white">
                         {formatCurrency(transaction.balance)}
                       </td>
                     </tr>
@@ -510,34 +478,8 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
               </table>
             </div>
           )}
-        </div>
-
-        {/* Footer with Totals */}
-        {transactions.length > 0 && (
-          <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-            <div className="flex justify-end gap-8">
-              <div className="text-right">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Cargos</p>
-                <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                  {formatCurrency(totals.sales)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Abonos</p>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                  {formatCurrency(totals.payments)}
-                </p>
-              </div>
-              <div className="text-right border-l-2 border-gray-300 dark:border-gray-600 pl-8">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Saldo Final</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {formatCurrency(customer.currentBalance)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        </section>
       </div>
-    </div>
+    </PosModalFrame>
   );
 }

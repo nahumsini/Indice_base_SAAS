@@ -1,5 +1,10 @@
-import { Copy, ExternalLink, KeyRound, Plus, Power, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { Copy, ExternalLink, KeyRound, Plus, Power, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalSecondaryActionClassName,
+} from '../../Sale/components/PosModalFrame';
 import type {
   ProviderOption,
   SupplierPortalAccess,
@@ -95,29 +100,38 @@ export function SupplierPortalAccessModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <header className="bg-[#FF6B5E] px-6 py-5 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-                <KeyRound className="h-6 w-6" />
-              </span>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/75">Kiosko proveedor</p>
-                <h3 className="text-2xl font-bold">Accesos por NIP</h3>
-                <p className="mt-1 text-sm font-medium text-white/85">
-                  Comparte un link controlado para que el proveedor capture propuestas de compra.
-                </p>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20" aria-label="Cerrar modal">
-              <X className="h-5 w-5" />
+    <PosModalFrame
+      onClose={onClose}
+      closeLabel="Cerrar accesos de proveedor"
+      title="Accesos por NIP"
+      subtitle="Comparte un link controlado para que el proveedor capture propuestas de compra."
+      eyebrow="Kiosko proveedor"
+      icon={<KeyRound className="h-6 w-6" />}
+      tone="coral"
+      size="lg"
+      bodyClassName="p-0"
+      footerClassName={posModalModuleFooterClassName}
+      footer={
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-white/85">{activeCount} activos - {pausedCount} inactivos</p>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+              Cerrar
+            </button>
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={() => void submit()}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-black text-[#B63B32] shadow-sm transition hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B63B32]/50 sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              Crear acceso
             </button>
           </div>
-        </header>
-
-        <div className="grid flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 lg:grid-cols-[360px_1fr]">
+        </div>
+      }
+    >
+        <div className="grid min-h-0 bg-slate-50 dark:bg-slate-950 lg:grid-cols-[360px_1fr]">
           <section className="border-r border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
             <h4 className="text-lg font-bold text-slate-950 dark:text-white">Crear acceso</h4>
             <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -236,22 +250,6 @@ export function SupplierPortalAccessModal({
             })}
           </section>
         </div>
-        <footer className="flex flex-col gap-3 bg-[#FF6B5E] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-white/85">{activeCount} activos - {pausedCount} inactivos</p>
-          <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" onClick={onClose} className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white hover:bg-white/10">Cerrar</button>
-            <button
-              type="button"
-              disabled={!canSubmit}
-              onClick={() => void submit()}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Plus className="h-4 w-4" />
-              Crear acceso
-            </button>
-          </div>
-        </footer>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }

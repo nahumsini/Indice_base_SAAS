@@ -41,7 +41,7 @@ export function ProductInlineCategorySelect({
         }
       }}
     >
-      <SelectTrigger className="h-10 w-full rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-900 shadow-none focus:ring-[#FF6B5E]/20 disabled:opacity-70">
+      <SelectTrigger className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm font-semibold text-slate-900 shadow-none focus:ring-[#FF6B5E]/20 disabled:opacity-70">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

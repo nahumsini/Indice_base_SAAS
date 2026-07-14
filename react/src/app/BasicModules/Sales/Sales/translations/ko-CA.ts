@@ -14,7 +14,6 @@ export const koCA = {
     none: '없음',
   },
   header: {
-    emoji: '💼',
     title: '판매',
     subtitle: '확정된 판매, 결제 증빙, 검증 진행, 재고 준비 상태와 커미션을 추적합니다.',
     columnsAction: '열',

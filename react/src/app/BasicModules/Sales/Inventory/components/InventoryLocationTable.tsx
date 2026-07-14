@@ -35,7 +35,7 @@ export function InventoryLocationTable({
   t: InventoryTranslations;
 }) {
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="border-b border-slate-100 p-5 dark:border-slate-700">
         <h3 className="text-xl font-black text-slate-950 dark:text-white">{t.locationsView.tableTitle}</h3>
       </div>
@@ -43,14 +43,14 @@ export function InventoryLocationTable({
         <Table className="min-w-[1280px] table-fixed">
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
-              <TableHead className="w-[270px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationLabels.name}</TableHead>
-              <TableHead className="w-[150px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationLabels.type}</TableHead>
-              <TableHead className="w-[160px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationLabels.scope}</TableHead>
-              <TableHead className="w-[260px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationLabels.linkedTo}</TableHead>
-              <TableHead className="w-[160px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationsView.trackedSkus}</TableHead>
-              <TableHead className="w-[170px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationsView.estimatedValue}</TableHead>
-              <TableHead className="w-[160px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationLabels.status}</TableHead>
-              <TableHead className="w-[190px] px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.locationsView.manager}</TableHead>
+              <TableHead className="w-[270px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationLabels.name}</TableHead>
+              <TableHead className="w-[150px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationLabels.type}</TableHead>
+              <TableHead className="w-[160px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationLabels.scope}</TableHead>
+              <TableHead className="w-[260px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationLabels.linkedTo}</TableHead>
+              <TableHead className="w-[160px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationsView.trackedSkus}</TableHead>
+              <TableHead className="w-[170px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationsView.estimatedValue}</TableHead>
+              <TableHead className="w-[160px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationLabels.status}</TableHead>
+              <TableHead className="w-[190px] px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.locationsView.manager}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

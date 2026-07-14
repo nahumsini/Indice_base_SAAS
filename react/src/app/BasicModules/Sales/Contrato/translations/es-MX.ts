@@ -13,7 +13,6 @@ export const esMX: DigitalContractsTranslations = {
     actions: 'Acciones',
   },
   header: {
-    emoji: '📝',
     title: 'Contratos digitales',
     subtitle: 'Centro operativo de contratos preparado para plantillas, asignaciones, versiones documentales e integraciones futuras de firma.',
     createContract: 'Crear contrato',

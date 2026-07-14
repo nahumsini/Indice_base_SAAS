@@ -58,7 +58,7 @@ function RowActionButton({
       size="icon"
       aria-label={label}
       className={cn(
-        'inline-flex h-9 w-9 shrink-0 rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
+        'inline-flex h-9 w-9 shrink-0 rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
         className,
         disabled && 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-800',
       )}
@@ -77,7 +77,7 @@ function RowActionButton({
       <TooltipContent
         side="top"
         sideOffset={8}
-        className="max-w-[220px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+        className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
       >
         {label}
       </TooltipContent>
@@ -216,7 +216,7 @@ export function SalesTableRow({
       {isVisible('movementReference') ? <TableCell className={cn(salesCellClassName, 'text-sm')}><OptionalText value={record.inventoryMovementReference} fallback={t.common.notAvailable} /></TableCell> : null}
       {isVisible('actions') ? (
         <TableCell className={cn(salesCellClassName, 'px-4')}>
-          <div className="mx-auto grid w-fit grid-cols-[repeat(3,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+          <div className="mx-auto grid w-fit grid-cols-[repeat(3,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
             <RowActionButton
               label={t.common.view}
               icon={<Eye className="h-4 w-4" />}
@@ -245,7 +245,7 @@ export function SalesTableRow({
             <RowActionButton
               label={financeApproved ? t.table.actions.financeApproved : t.table.actions.sendToFinance}
               icon={<Send className="h-4 w-4" />}
-              className="border-violet-500/25 bg-violet-500/10 text-violet-700 hover:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/20"
+              className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20"
               disabled={isCancelled || financeApproved}
               onClick={() => onSendToFinance(record)}
             />

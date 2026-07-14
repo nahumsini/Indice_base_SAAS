@@ -13,7 +13,6 @@ export const esMX: QuotesTranslations = {
     optional: 'Opcional',
   },
   header: {
-    emoji: '💬',
     title: 'Cotizaciones',
     subtitle: 'Mesa operativa de cotizaciones conectada a contactos, oportunidades y productos reutilizables.',
     primaryAction: 'Crear cotización',

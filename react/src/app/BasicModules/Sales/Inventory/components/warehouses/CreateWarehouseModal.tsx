@@ -129,9 +129,9 @@ export function CreateWarehouseModal({
       )}
     >
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FF6B5E]/10 text-[#B63B32]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#FF6B5E]/10 text-[#B63B32]">
                   <Plus className="h-5 w-5" />
                 </span>
                 <div>
@@ -204,7 +204,7 @@ export function CreateWarehouseModal({
 
               <Button
                 type="button"
-                className="mt-5 h-11 w-full gap-2 rounded-xl bg-[#FF6B5E] text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
+                className="mt-5 h-11 w-full gap-2 rounded-lg bg-[#FF6B5E] text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]"
                 disabled={!canCreateWarehouse}
                 onClick={handleCreateWarehouse}
               >
@@ -213,10 +213,10 @@ export function CreateWarehouseModal({
               </Button>
             </section>
 
-            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                     <PackageOpen className="h-5 w-5" />
                   </span>
                   <div>
@@ -233,7 +233,7 @@ export function CreateWarehouseModal({
 
               <div className="grid max-h-[560px] gap-3 overflow-y-auto pr-1">
                 {warehouses.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
                     <p className="text-sm font-semibold text-slate-700">{t.operational.emptyStates.warehousesTitle}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">{t.operational.emptyStates.warehousesDescription}</p>
                   </div>
@@ -244,7 +244,7 @@ export function CreateWarehouseModal({
                   const targetWarehouses = warehouses.filter((item) => item.id !== warehouse.id);
 
                   return (
-                    <article key={warehouse.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <article key={warehouse.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -268,7 +268,7 @@ export function CreateWarehouseModal({
                         </div>
                       </div>
 
-                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
                         {hasStock ? (
                           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                             <SelectField
@@ -280,7 +280,7 @@ export function CreateWarehouseModal({
                             <Button
                               type="button"
                               variant="outline"
-                              className="h-11 gap-2 rounded-xl border-cyan-200 bg-cyan-50 px-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
+                              className="h-11 gap-2 rounded-lg border-cyan-200 bg-cyan-50 px-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
                               disabled={!transferTargetId}
                               onClick={() => handleDelete(warehouse)}
                             >
@@ -297,7 +297,7 @@ export function CreateWarehouseModal({
                             <Button
                               type="button"
                               variant="outline"
-                              className="h-10 gap-2 rounded-xl border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100"
+                              className="h-10 gap-2 rounded-lg border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100"
                               onClick={() => handleDelete(warehouse)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -320,7 +320,7 @@ function InputField({ label, value, onChange }: { label: string; value: string; 
   return (
     <label className="grid gap-2">
       <span className="text-sm font-semibold text-slate-700">{label}</span>
-      <Input value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
+      <Input value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
     </label>
   );
 }
@@ -340,7 +340,7 @@ function SelectField({
     <label className="grid gap-2">
       <span className="text-sm font-semibold text-slate-700">{label}</span>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
         <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>
     </label>
@@ -349,7 +349,7 @@ function SelectField({
 
 function MiniMetric({ value, label }: { value: string; label: string }) {
   return (
-    <div className="min-w-[84px] rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">
+    <div className="min-w-[84px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
       <p className="text-sm font-semibold text-slate-950">{value}</p>
       <p className="mt-1 text-[10px] font-semibold text-slate-500">{label}</p>
     </div>

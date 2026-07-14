@@ -35,7 +35,7 @@ function InventoryAction({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30',
         className,
       )}
     >
@@ -50,13 +50,13 @@ function InventoryThumbnail({ item }: { item: InventoryStockItem }) {
       <img
         src={item.thumbnailUrl}
         alt={item.thumbnailAlt || item.name}
-        className="h-11 w-11 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
+        className="h-11 w-11 rounded-lg border border-slate-200 object-cover dark:border-slate-700"
       />
     );
   }
 
   return (
-    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB5AD]">
+    <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB5AD]">
       <Package className="h-5 w-5" />
     </span>
   );
@@ -126,7 +126,7 @@ export function InventoryTable({
   });
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="border-b border-slate-100 p-5 dark:border-slate-700">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-[#FF6B5E]" />
@@ -143,7 +143,7 @@ export function InventoryTable({
                 <TableHead
                   key={column}
                   className={cn(
-                    'px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300',
+                    'px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300',
                     column === 'item' && 'w-[360px]',
                     column === 'actions' && 'w-[190px]',
                   )}
@@ -170,7 +170,7 @@ export function InventoryTable({
                         <p className="truncate font-black text-slate-950 dark:text-white">{item.name}</p>
                         <p className="mt-1 line-clamp-2 max-w-[280px] text-sm leading-5 text-slate-500 dark:text-slate-300">{item.description}</p>
                         {item.isPackage ? (
-                          <p className="mt-2 rounded-xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-2 py-1 text-xs font-semibold text-[#9a6b05] dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#F8D86A]">
+                          <p className="mt-2 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-2 py-1 text-xs font-semibold text-[#9a6b05] dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#F8D86A]">
                             {t.table.packageWarning}
                           </p>
                         ) : null}
@@ -202,7 +202,7 @@ export function InventoryTable({
                 {isVisible('readyForSales') ? <TableCell className="px-5 py-5"><BooleanBadge value={item.readyForSales} t={t} /></TableCell> : null}
                 {isVisible('actions') ? (
                   <TableCell className="px-5 py-5">
-                    <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       <InventoryAction label={t.actions.viewMovements} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB5AD] dark:hover:bg-[#FF6B5E]/20" onClick={() => onViewMovements(item)} />
                       <InventoryAction label={t.actions.newMovement} icon={<PackagePlus className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:hover:bg-emerald-500/20" onClick={() => onNewMovement(item, 'stockIn')} />
                       <InventoryAction label={t.actions.adjustStock} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" onClick={() => onNewMovement(item, 'adjustment')} />

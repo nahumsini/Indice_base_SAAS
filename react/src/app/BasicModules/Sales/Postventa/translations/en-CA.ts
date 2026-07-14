@@ -11,7 +11,6 @@ export const enCA = {
     notAvailable: 'N/A',
   },
   header: {
-    emoji: '🤝',
     title: 'Post-sales',
     subtitle: 'Commercial continuity layer for customers, renewals, recurring accounts, service follow-ups and future reactivations.',
     createCase: 'Create case',

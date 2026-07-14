@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { AttachmentsModal } from '../Expenses/components/AttachmentsModal';
@@ -19,7 +19,7 @@ import {
 } from './useProveedoresLogic';
 
 interface ProveedoresPageProps {
-  headerIcon?: string;
+  headerIcon?: ReactNode;
   headerSubtitle?: string;
   headerTitle?: string;
   onProvidersChange?: Dispatch<SetStateAction<ProviderRecord[]>>;

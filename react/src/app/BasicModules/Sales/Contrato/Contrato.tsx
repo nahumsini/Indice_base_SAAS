@@ -41,6 +41,11 @@ import {
   useSalesCrm,
 } from '../salesCrmContext';
 import { SalesModalFrame } from '../components/SalesModalFrame';
+import {
+  SalesTitleBar,
+  salesTitleBarPrimaryActionClassName,
+  salesTitleBarSecondaryActionClassName,
+} from '../components/SalesTitleBar';
 import { getSalesModalActionClassNames } from '../salesModalStyles';
 import { digitalContractsBackendPreparation } from './services/digitalContractsService';
 import { digitalContractTemplateRegistry } from './templates/contractTemplateRegistry';
@@ -94,7 +99,7 @@ const statusClasses: Record<DigitalContractStatus, string> = {
   'Internal review': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F4C84A]',
   Sent: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-300',
   Viewed: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
-  'Pending signature': 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300',
+  'Pending signature': 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-300',
   Signed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300',
   Expired: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
   Cancelled: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FFB0AA]',
@@ -102,7 +107,7 @@ const statusClasses: Record<DigitalContractStatus, string> = {
 
 const signatureClasses: Record<DigitalSignatureStatus, string> = {
   'Not requested': 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  Waiting: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300',
+  Waiting: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-300',
   Signed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300',
   Declined: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FFB0AA]',
   Expired: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
@@ -212,7 +217,7 @@ function ActionButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25',
         className,
       )}
     >
@@ -433,34 +438,28 @@ export default function Contrato() {
 
   return (
     <section className="space-y-5">
-      <div className="rounded-lg border border-[#222831]/15 bg-[#222831]/5 p-6 shadow-sm dark:border-white/15 dark:bg-white/10">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white text-2xl shadow-sm ring-1 ring-[#222831]/15">
-              <span aria-hidden="true">{t.header.emoji}</span>
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-950">{t.header.title}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{t.header.subtitle}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button className="h-11 rounded-lg bg-[#222831] px-4 text-white shadow-sm shadow-[#222831]/15 hover:bg-slate-700" onClick={() => setIsCreateOpen(true)}>
+      <SalesTitleBar
+        icon="📝"
+        rhIndent
+        title={t.header.title}
+        subtitle={t.header.subtitle}
+        actions={(
+          <>
+            <Button className={salesTitleBarPrimaryActionClassName} onClick={() => setIsCreateOpen(true)}>
               <Plus className="h-4 w-4" />
               {t.header.createContract}
             </Button>
-            <Button variant="outline" className="h-11 rounded-lg border-slate-200 bg-white px-4 text-slate-800 hover:bg-slate-50" onClick={() => setIsTemplatesOpen(true)}>
+            <Button variant="outline" className={salesTitleBarSecondaryActionClassName} onClick={() => setIsTemplatesOpen(true)}>
               <FolderOpen className="h-4 w-4" />
               {t.header.templateLibrary}
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard icon={<FileSignature className="h-5 w-5" />} value={activeContracts} label={t.metrics.activeContracts} className="text-[#2563EB]" />
-        <MetricCard icon={<Send className="h-5 w-5" />} value={pendingSignatures} label={t.metrics.pendingSignatures} className="text-violet-600" />
+        <MetricCard icon={<Send className="h-5 w-5" />} value={pendingSignatures} label={t.metrics.pendingSignatures} className="text-[#2563EB]" />
         <MetricCard icon={<CalendarClock className="h-5 w-5" />} value={expiringSoon} label={t.metrics.expiringSoon} className="text-[#9a6b05]" />
         <MetricCard icon={<CheckCircle2 className="h-5 w-5" />} value={signedThisMonth} label={t.metrics.signedThisMonth} className="text-[#177d66]" />
         <MetricCard icon={<Sparkles className="h-5 w-5" />} value={renewalContracts} label={t.metrics.renewalContracts} className="text-[#b63b32]" />
@@ -524,18 +523,18 @@ export default function Contrato() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.title}</TableHead>
-                  <TableHead className="min-w-[180px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.client}</TableHead>
-                  <TableHead className="min-w-[220px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.opportunity}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.quote}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.type}</TableHead>
-                  <TableHead className="min-w-[175px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.status}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.owner}</TableHead>
-                  <TableHead className="min-w-[165px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.signature}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.updated}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.expiration}</TableHead>
-                  <TableHead className="min-w-[100px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.files}</TableHead>
-                  <TableHead className="min-w-[160px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.table.columns.actions}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.title}</TableHead>
+                  <TableHead className="min-w-[180px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.client}</TableHead>
+                  <TableHead className="min-w-[220px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.opportunity}</TableHead>
+                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.quote}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.type}</TableHead>
+                  <TableHead className="min-w-[175px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.status}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.owner}</TableHead>
+                  <TableHead className="min-w-[165px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.signature}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.updated}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.expiration}</TableHead>
+                  <TableHead className="min-w-[100px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.files}</TableHead>
+                  <TableHead className="min-w-[160px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -607,7 +606,7 @@ export default function Contrato() {
                       <TableCell className="px-5 py-4">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                           onClick={() => setFilesContract(contract)}
                         >
                           <FileText className="h-4 w-4 text-[#2563EB]" />
@@ -615,7 +614,7 @@ export default function Contrato() {
                         </button>
                       </TableCell>
                       <TableCell className="px-5 py-4">
-                        <div className="mx-auto grid w-fit grid-cols-[repeat(4,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                        <div className="mx-auto grid w-fit grid-cols-[repeat(4,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <ActionButton label={t.actions.preview} icon={<FileSignature className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" onClick={() => setSelectedContractId(contract.id)} />
                           <ActionButton label={t.actions.files} icon={<FolderOpen className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20 dark:text-[#F4C84A] dark:hover:bg-[#F4C84A]/25" onClick={() => setFilesContract(contract)} />
                           <ActionButton label={t.actions.requestSignature} icon={<Send className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/25" onClick={() => openSignatureModal(contract)} />
@@ -689,7 +688,7 @@ export default function Contrato() {
                 <div className="mt-3 grid gap-2">
                   {Object.entries(selectedContract.dynamicFieldValues).map(([key, value]) => (
                     <div key={key} className="rounded-lg bg-slate-50 p-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                      <p className="text-xs font-black uppercase tracking-normal text-slate-400">
                         {t.dynamicFieldLabels[key as keyof typeof t.dynamicFieldLabels] ?? key}
                       </p>
                       <p className="mt-1 text-sm font-bold text-slate-800">{value}</p>

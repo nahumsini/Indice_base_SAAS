@@ -11,7 +11,7 @@ import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inve
 import { WarehouseInventoryProducts } from './WarehouseInventoryProducts';
 
 const headerClass = 'h-12 px-5 text-sm font-semibold text-slate-500 dark:text-slate-300';
-const actionButtonClass = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30';
+const actionButtonClass = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30';
 const healthTone = {
   healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200',
   needsReview: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/35 dark:bg-blue-500/15 dark:text-blue-200',
@@ -104,7 +104,7 @@ export function WarehousesTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <Table className="min-w-[1280px]">
           <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
@@ -156,7 +156,7 @@ export function WarehousesTable({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="mt-0.5 h-8 w-8 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                          className="mt-0.5 h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                           aria-label={isExpanded ? t.operational.hideProducts : t.operational.showProducts}
                           onClick={() => toggleExpanded(warehouse.id)}
                         >
@@ -181,7 +181,7 @@ export function WarehousesTable({
                       <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-300">{warehouse.businessName ?? t.common.notAvailable}</p>
                     </TableCell>
                     <TableCell className="min-w-[300px] px-5 py-4 align-top">
-                      <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-left dark:border-slate-700 dark:bg-slate-900">
+                      <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-left dark:border-slate-700 dark:bg-slate-900">
                         <Metric value={formatInventoryNumber(summary.storedItems)} label={t.operational.columns.storedItems} />
                         <Metric value={formatInventoryNumber(summary.totalUnits)} label={t.operational.columns.totalUnits} />
                         <Metric value={formatInventoryCurrency(summary.estimatedValue)} label={t.operational.columns.estimatedValue} />
@@ -201,10 +201,10 @@ export function WarehousesTable({
                       {summary.lastMovement ?? t.common.notAvailable}
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
-                      <div className="flex justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                      <div className="flex justify-center gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                         <ActionButton className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:hover:bg-emerald-500/20" title={t.operational.actions.addStock} icon={<PackagePlus className="h-4 w-4" />} onClick={() => onAddStock(warehouse)} />
                         <ActionButton className="border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-500/35 dark:bg-cyan-500/15 dark:text-cyan-200 dark:hover:bg-cyan-500/20" title={t.operational.actions.transferStock} icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => onTransferStock(warehouse)} />
-                        <ActionButton className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-500/35 dark:bg-violet-500/15 dark:text-violet-200 dark:hover:bg-violet-500/20" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} onClick={() => onViewMovements(warehouse)} />
+                        <ActionButton className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/15 dark:text-blue-200 dark:hover:bg-[#2563EB]/20" title={t.operational.actions.viewMovements} icon={<History className="h-4 w-4" />} onClick={() => onViewMovements(warehouse)} />
                         <ActionButton className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/35 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/20" title={t.operational.actions.disable} icon={<Ban className="h-4 w-4" />} onClick={() => onDisableWarehouse(warehouse.id)} />
                       </div>
                     </TableCell>

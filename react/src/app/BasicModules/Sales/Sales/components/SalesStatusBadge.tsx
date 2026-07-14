@@ -12,7 +12,7 @@ export function SalesStatusBadge({
   t: SalesRecordsTranslations;
 }) {
   return (
-    <Badge variant="outline" className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', commercialStatusClasses[status])}>
+    <Badge variant="outline" className={cn('rounded-full px-3 py-1 text-xs font-black uppercase tracking-normal', commercialStatusClasses[status])}>
       {t.statuses.commercial[status]}
     </Badge>
   );

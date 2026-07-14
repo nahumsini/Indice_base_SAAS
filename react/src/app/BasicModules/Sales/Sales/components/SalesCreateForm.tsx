@@ -54,8 +54,8 @@ function SalesLineItemsPreview({
   const quoteLines = selectedQuote?.items ?? [];
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div className="grid min-w-[760px] grid-cols-[1.4fr_90px_130px_110px_130px] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-800">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+      <div className="grid min-w-[760px] grid-cols-[1.4fr_90px_130px_110px_130px] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-normal text-slate-500 dark:border-slate-700 dark:bg-slate-800">
         <span>{t.modal.summaryColumns.item}</span>
         <span>{t.modal.summaryColumns.quantity}</span>
         <span className="text-right">{t.modal.summaryColumns.unitPrice}</span>
@@ -140,7 +140,7 @@ export function SalesCreateForm({
 
         <TabsContent value="customer" className="mt-0 space-y-5">
           <SectionCard title={t.modal.sections.closeSource} description={t.modal.opportunitySelectorHelper}>
-            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4 text-sm font-semibold leading-6 text-[#B63B32] dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/10 dark:text-[#FFB5AE]">
+            <div className="mb-4 flex items-start gap-3 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4 text-sm font-semibold leading-6 text-[#B63B32] dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/10 dark:text-[#FFB5AE]">
               {selectedOpportunity ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />}
               <span>{opportunityHelper}</span>
             </div>
@@ -178,7 +178,7 @@ export function SalesCreateForm({
             </section>
 
             {acceptedQuotes.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#9a6b05] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15 dark:text-[#F8DC7E]">
+              <div className="mt-4 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#9a6b05] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15 dark:text-[#F8DC7E]">
                 {t.modal.quoteFallbackHelper}
               </div>
             ) : null}
@@ -281,7 +281,7 @@ export function SalesCreateForm({
 
           <SectionCard title={t.modal.sections.notes}>
             <FormField label={t.modal.fields.notes}>
-              <Textarea value={form.notes} onChange={(event) => onFormChange({ notes: event.target.value })} placeholder={t.modal.placeholders.notes} className="min-h-24 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+              <Textarea value={form.notes} onChange={(event) => onFormChange({ notes: event.target.value })} placeholder={t.modal.placeholders.notes} className="min-h-24 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
             </FormField>
           </SectionCard>
         </TabsContent>

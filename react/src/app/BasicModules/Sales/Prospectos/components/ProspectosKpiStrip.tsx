@@ -110,8 +110,8 @@ export function ProspectosKpiStrip({
       icon: <ListChecks className="h-4 w-4" />,
       label: copy.kpiEngine.labels.open,
       value: openCount,
-      iconClassName: 'text-violet-600',
-      valueClassName: 'text-violet-600',
+      iconClassName: 'text-[#2563EB]',
+      valueClassName: 'text-[#2563EB]',
     },
     {
       id: 'closed-period',

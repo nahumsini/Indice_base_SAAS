@@ -12,7 +12,6 @@ export const esMX: ProductsTranslations = {
     notAvailable: 'N/D',
   },
   header: {
-    emoji: '📦',
     title: 'Productos y servicios',
     subtitle: 'Catálogo comercial reutilizable preparado para cotizaciones, punto de venta, inventario y futuros canales operativos.',
     primaryAction: 'Agregar item',

@@ -31,7 +31,7 @@ export function WarehouseInventoryProducts({
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
+      <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
         <PackageSearch className="mx-auto h-8 w-8 text-slate-300" />
         <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-300">{t.operational.noWarehouseProducts}</p>
       </div>
@@ -39,7 +39,7 @@ export function WarehouseInventoryProducts({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
       <div className="overflow-x-auto">
         <Table className="min-w-[1060px]">
           <TableHeader className="bg-slate-50/90 dark:bg-slate-800">
@@ -63,7 +63,7 @@ export function WarehouseInventoryProducts({
               <TableRow key={row.id} className="border-slate-100 hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-800/80">
                 {canShow('photo') ? (
                   <TableCell className="px-3 py-3">
-                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400">
+                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400">
                       {row.thumbnailUrl ? (
                         <img src={row.thumbnailUrl} alt={row.thumbnailAlt ?? row.name} className="h-full w-full object-cover" loading="lazy" />
                       ) : (

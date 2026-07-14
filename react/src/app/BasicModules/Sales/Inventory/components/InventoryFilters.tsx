@@ -33,7 +33,7 @@ function FilterSelect({
     <label className="grid gap-2">
       <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -86,7 +86,7 @@ export function InventoryFilters({
       : t.operational.filterLabels.searchProduct;
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{t.operational.filtersTitle}</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
         <label className="grid gap-2 xl:col-span-2">
@@ -97,7 +97,7 @@ export function InventoryFilters({
               value={filters.search}
               onChange={(event) => onFiltersChange({ ...filters, search: event.target.value } as InventoryAnyFilters)}
               placeholder={searchLabel}
-              className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-sm font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-sm font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </span>
         </label>
@@ -126,11 +126,11 @@ export function InventoryFilters({
             />
             <label className="grid gap-2">
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.filters.dateFrom}</span>
-              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateFrom} onChange={(event) => onFiltersChange({ ...filters, dateFrom: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-xl border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateFrom} onChange={(event) => onFiltersChange({ ...filters, dateFrom: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-lg border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.filters.dateTo}</span>
-              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateTo} onChange={(event) => onFiltersChange({ ...filters, dateTo: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-xl border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+              <Input type="date" value={(filters as InventoryOperationalMovementFiltersState).dateTo} onChange={(event) => onFiltersChange({ ...filters, dateTo: event.target.value } as InventoryAnyFilters)} className="h-11 rounded-lg border-slate-200 text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </label>
           </>
         ) : null}

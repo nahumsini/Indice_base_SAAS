@@ -73,8 +73,8 @@ export function SalesKpiStrip({
       icon: <PackageCheck className="h-4 w-4" />,
       label: t.kpiEngine.labels.inventoryPending,
       value: formatSalesNumber(metrics.pendingInventoryMovement),
-      iconClassName: 'text-violet-600',
-      valueClassName: 'text-violet-600',
+      iconClassName: 'text-[#2563EB]',
+      valueClassName: 'text-[#2563EB]',
     },
     {
       id: 'deliveryProgress',
@@ -139,7 +139,7 @@ export function SalesKpiStrip({
       id: 'pendingInventory',
       label: t.kpiEngine.segments.pendingInventory,
       count: metrics.pendingInventorySales,
-      className: 'bg-violet-500',
+      className: 'bg-[#2563EB]',
     },
     {
       id: 'delivered',

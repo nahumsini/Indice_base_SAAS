@@ -19,10 +19,10 @@ export function IndiceSignalBar({
   const ticketSignal = suspendedCount === 0 ? 'sin tickets pausados' : `${suspendedCount} ticket${suspendedCount === 1 ? '' : 's'} pausado${suspendedCount === 1 ? '' : 's'}`;
 
   return (
-    <section className="rounded-2xl border border-blue-200 bg-[#eef5ff] px-4 py-3 shadow-sm dark:border-blue-800 dark:bg-blue-900/20">
+    <section className="rounded-lg border border-blue-200 bg-[#eef5ff] px-4 py-3 shadow-sm dark:border-blue-800 dark:bg-blue-900/20">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2563EB] text-white shadow-sm">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#2563EB] text-white shadow-sm">
             <Activity className="h-5 w-5" />
           </span>
           <div className="min-w-0">

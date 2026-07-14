@@ -14,7 +14,6 @@ export const zhCA = {
     none: '无',
   },
   header: {
-    emoji: '💼',
     title: '销售',
     subtitle: '跟踪已成交销售、付款凭证、验证进度、库存准备和佣金。',
     columnsAction: '列',

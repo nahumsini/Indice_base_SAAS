@@ -86,20 +86,20 @@ type SalesWorkspaceCopy = {
 export const salesModuleTabs: Array<{
   id: SalesTabId;
   translationKey: SalesTranslationKey;
-  icon: ComponentType<{ className?: string }>;
   emoji: string;
+  icon: ComponentType<{ className?: string }>;
   tone: SalesTone;
 }> = [
-  { id: 'leads', translationKey: 'prospectos', icon: Target, emoji: '🎯', tone: 'blue' },
-  { id: 'contacts', translationKey: 'contactos', icon: UsersRound, emoji: '👥', tone: 'aqua' },
-  { id: 'quotes', translationKey: 'cotizacion', icon: Quote, emoji: '💬', tone: 'yellow' },
-  { id: 'sales', translationKey: 'sales', icon: CircleDollarSign, emoji: '💼', tone: 'coral' },
-  { id: 'products', translationKey: 'productos', icon: PackageCheck, emoji: '📦', tone: 'aqua' },
-  { id: 'providers', translationKey: 'proveedores', icon: Building2, emoji: '🏢', tone: 'coral' },
-  { id: 'inventory', translationKey: 'inventario', icon: Warehouse, emoji: '🏬', tone: 'coral' },
-  { id: 'contracts', translationKey: 'contrato', icon: FileSignature, emoji: '📝', tone: 'graphite' },
-  { id: 'after-sales', translationKey: 'postventa', icon: Handshake, emoji: '🤝', tone: 'coral' },
-  { id: 'kpis', translationKey: 'kpis', icon: BarChart3, emoji: '📊', tone: 'blue' },
+  { id: 'leads', translationKey: 'prospectos', emoji: '🎯', icon: Target, tone: 'blue' },
+  { id: 'contacts', translationKey: 'contactos', emoji: '👥', icon: UsersRound, tone: 'aqua' },
+  { id: 'quotes', translationKey: 'cotizacion', emoji: '💬', icon: Quote, tone: 'yellow' },
+  { id: 'sales', translationKey: 'sales', emoji: '💰', icon: CircleDollarSign, tone: 'coral' },
+  { id: 'products', translationKey: 'productos', emoji: '📦', icon: PackageCheck, tone: 'aqua' },
+  { id: 'providers', translationKey: 'proveedores', emoji: '🏢', icon: Building2, tone: 'coral' },
+  { id: 'inventory', translationKey: 'inventario', emoji: '🏬', icon: Warehouse, tone: 'coral' },
+  { id: 'contracts', translationKey: 'contrato', emoji: '📝', icon: FileSignature, tone: 'graphite' },
+  { id: 'after-sales', translationKey: 'postventa', emoji: '🤝', icon: Handshake, tone: 'coral' },
+  { id: 'kpis', translationKey: 'kpis', emoji: '📊', icon: BarChart3, tone: 'blue' },
 ];
 
 export const visibleSalesModuleTabs = salesModuleTabs.filter(
@@ -145,7 +145,7 @@ const toneClasses: Record<SalesTone, {
     accent: 'bg-[#222831]',
     border: 'border-[#222831]/20 dark:border-white/15',
     icon: 'bg-[#222831] text-white',
-    soft: 'bg-[#222831]/5 dark:bg-white/10',
+    soft: 'bg-[#222831]/5 dark:bg-slate-950/10',
     text: 'text-[#222831] dark:text-white',
   },
 };
@@ -417,12 +417,12 @@ export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) 
       <div className={cn('rounded-lg border p-6 shadow-sm', tone.border, tone.soft)}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 gap-4">
-            <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white text-2xl shadow-sm ring-1', tone.border)}>
-              <span aria-hidden="true">{tab.emoji}</span>
+            <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1', tone.border)}>
+              <span className="text-2xl leading-none" aria-hidden="true">{tab.emoji}</span>
             </div>
             <div className="min-w-0">
-              <p className={cn('text-xs font-bold uppercase tracking-[0.16em]', tone.text)}>{blueprint.eyebrow}</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 dark:text-white">{blueprint.title}</h2>
+              <p className={cn('text-xs font-bold uppercase tracking-normal', tone.text)}>{blueprint.eyebrow}</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-normal text-slate-950 dark:text-white">{blueprint.title}</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{blueprint.description}</p>
             </div>
           </div>
@@ -452,7 +452,7 @@ export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) 
         {blueprint.metrics.map((metric, index) => (
           <article key={metric.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className={cn('mb-4 h-1 w-12 rounded-full', toneClass(salesModuleTabs[index]?.tone ?? tab.tone).accent)} />
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{metric.label}</p>
+            <p className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">{metric.label}</p>
             <p className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{metric.value}</p>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{metric.detail}</p>
           </article>

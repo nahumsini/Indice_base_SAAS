@@ -36,14 +36,14 @@ export function OpportunityDetailModal({
         </Button>
       )}
     >
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="font-bold text-slate-950">{opportunity?.opportunityName}</p>
             <p className="mt-1 text-sm text-slate-600">{opportunity?.company} · {opportunity?.contactPerson}</p>
           </div>
 
           <div className="space-y-3">
             {opportunity ? buildOpportunityHistory(opportunity).map((entry) => (
-              <div key={entry.id} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[14px_minmax(0,1fr)_150px] sm:items-start">
+              <div key={entry.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-[14px_minmax(0,1fr)_150px] sm:items-start">
                 <span
                   className={cn(
                     'mt-1 h-3.5 w-3.5 rounded-full',

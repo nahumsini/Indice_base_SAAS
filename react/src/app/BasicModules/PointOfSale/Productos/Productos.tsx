@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Package, AlertCircle, TrendingUp, DollarSign, Box, Layers } from 'lucide-react';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { buildSalesProductInputFromPointOfSale, buildSalesProductPatchFromPointOfSale } from '../../CommerceCore/posProductMutations';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
@@ -26,6 +27,7 @@ export default function Productos() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCompositeModal, setShowCompositeModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+  const [productPendingDeletion, setProductPendingDeletion] = useState<Product | null>(null);
   const [notice, setNotice] = useState('');
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const products = sharedProducts;
@@ -167,7 +169,7 @@ export default function Productos() {
     <div className="space-y-6">
       <PointOfSaleTitleBar
         eyebrow="Catálogo POS"
-        icon="🛍️"
+        icon="🏷️"
         rhIndent
         title="Productos"
         subtitle="Catálogo compartido con Sales, optimizado para códigos, precios, disponibilidad y venta rápida."
@@ -200,26 +202,26 @@ export default function Productos() {
       />
 
       {notice && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {notice}
         </div>
       )}
 
       {isLoadingInventoryBalances && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
           Sincronizando catálogo compartido de Sales e inventario disponible para POS.
         </div>
       )}
 
       {balanceLoadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
           {balanceLoadError}
         </div>
       )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
               <Package className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -231,7 +233,7 @@ export default function Productos() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
               <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -243,7 +245,7 @@ export default function Productos() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -255,7 +257,7 @@ export default function Productos() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
               <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -269,14 +271,14 @@ export default function Productos() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <div className="w-10 h-10 bg-[#FF6B5E]/10 dark:bg-[#FF6B5E]/10 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-[#C64237] dark:text-[#FFB5AE]" />
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Ganancia promedio</p>
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              <p className="text-2xl font-bold text-[#C64237] dark:text-[#FFB5AE]">
                 {kpis.avgMargin.toFixed(1)}%
               </p>
             </div>
@@ -285,7 +287,7 @@ export default function Productos() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1">
@@ -299,7 +301,7 @@ export default function Productos() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Nombre, código de barras o descripción..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
               />
             </div>
           </div>
@@ -312,7 +314,7 @@ export default function Productos() {
             <select
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
             >
               <option value="all">Todos</option>
               {departments.map(dept => (
@@ -329,7 +331,7 @@ export default function Productos() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as ProductStatus | 'all')}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
             >
               <option value="all">Todos</option>
               <option value="active">Activos</option>
@@ -340,7 +342,7 @@ export default function Productos() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
@@ -407,7 +409,7 @@ export default function Productos() {
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
                             {product.isComposite && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-[#FF6B5E]/10 text-[#A7352C] dark:bg-[#FF6B5E]/10 dark:text-[#FFB5AE]">
                                 <Layers className="w-3 h-3" />
                                 Compuesto
                               </span>
@@ -415,7 +417,7 @@ export default function Productos() {
                           </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{product.description}</p>
                           {product.isComposite && product.components && (
-                            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                            <p className="text-xs text-[#C64237] dark:text-[#FFB5AE] mt-1">
                               {product.components.length} componente{product.components.length !== 1 ? 's' : ''}
                             </p>
                           )}
@@ -432,7 +434,7 @@ export default function Productos() {
 	                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
 	                        {formatCurrency(product.costPrice, product.currency)}
 	                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-purple-600 dark:text-purple-400">
+                      <td className="px-4 py-3 text-sm font-semibold text-[#C64237] dark:text-[#FFB5AE]">
                         {product.profitMargin.toFixed(2)}%
                       </td>
 	                      <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
@@ -472,13 +474,13 @@ export default function Productos() {
                           <button
                             onClick={() => handleEditProduct(product)}
                             disabled={isSavingProduct}
-                            className="p-1.5 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded transition-colors"
+                            className="p-1.5 text-[#C64237] hover:bg-[#FF6B5E]/10 dark:hover:bg-[#FF6B5E]/10 rounded transition-colors"
                             title="Editar"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => { void handleDeleteProduct(product.id); }}
+                            onClick={() => setProductPendingDeletion(product)}
                             disabled={isSavingProduct}
                             className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                             title="Eliminar"
@@ -526,6 +528,23 @@ export default function Productos() {
         onSave={handleAddProduct}
         availableProducts={products}
         product={selectedProduct}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(productPendingDeletion)}
+        title="Retirar producto de POS"
+        itemName={productPendingDeletion?.name}
+        description="El producto se retirara del catalogo operativo POS, pero no se borrara del catalogo maestro de Sales."
+        cancelLabel="Cancelar"
+        confirmDisabled={isSavingProduct}
+        confirmLabel="Retirar producto"
+        onCancel={() => setProductPendingDeletion(null)}
+        onConfirm={() => {
+          if (productPendingDeletion) {
+            void handleDeleteProduct(productPendingDeletion.id);
+          }
+          setProductPendingDeletion(null);
+        }}
       />
     </div>
   );

@@ -46,14 +46,14 @@ export function CortesModalFrame({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[24px] border border-white/10 bg-white shadow-2xl dark:bg-slate-900',
+          'flex max-h-[90vh] w-full flex-col overflow-hidden rounded-lg border border-white/10 bg-white shadow-xl dark:bg-slate-900',
           sizeClassNames[size],
         )}
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-5 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex min-w-0 items-start gap-3">
             {icon ? (
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#FF6B5E]/10 text-[#FF6B5E]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#FF6B5E]/10 text-[#FF6B5E]">
                 {icon}
               </span>
             ) : null}
@@ -75,7 +75,7 @@ export function CortesModalFrame({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
             aria-label={closeLabel}
           >
             <X className="h-5 w-5" />

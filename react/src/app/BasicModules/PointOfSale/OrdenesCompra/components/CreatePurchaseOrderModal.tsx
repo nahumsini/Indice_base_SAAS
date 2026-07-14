@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, FileText, PackagePlus, Plus, Search, Trash2, Upload, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileText, PackagePlus, Plus, Search, Trash2, Upload } from 'lucide-react';
 import type { PosWarehouseSummary } from '../../Sale/services/posBackendApi';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from '../../Sale/components/PosModalFrame';
 import type { Product } from '../../shared/commercial/products';
 import { financeCurrencySelectOptions } from '../../../Expenses/constants/financeCurrencyOptions';
 import {
@@ -352,22 +358,34 @@ export function CreatePurchaseOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <header className="bg-[#FF6B5E] px-6 py-5 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/75">Reabastecimiento POS</p>
-              <h3 className="mt-1 text-2xl font-bold">Nueva compra POS</h3>
-              <p className="mt-1 text-sm font-medium text-white/85">Concilia factura, presupuesto e inventario antes de crear la compra.</p>
-            </div>
-            <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20" aria-label="Close modal">
-              <X className="h-5 w-5" />
+    <PosModalFrame
+      onClose={onClose}
+      closeLabel="Cerrar nueva compra POS"
+      title="Nueva compra POS"
+      subtitle="Concilia factura, presupuesto e inventario antes de crear la compra."
+      eyebrow="Reabastecimiento POS"
+      icon={<PackagePlus className="h-6 w-6" />}
+      tone="coral"
+      size="xl"
+      bodyClassName="p-0"
+      footerClassName={posModalModuleFooterClassName}
+      footer={
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-white/85">
+            {lines.length} partidas - {registerInvoice ? `Diferencia ${formatMoney(difference, currencyCode)}` : `Total ${formatMoney(totals.total, currencyCode)}`}
+          </p>
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+              Cancelar
+            </button>
+            <button type="button" disabled={!canCreate} onClick={() => void submit()} className={posModalPrimaryActionClassName}>
+              {savingStep || (registerInvoice ? 'Crear compra y factura' : 'Crear compra')}
             </button>
           </div>
-        </header>
-
-        <div className="grid flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 lg:grid-cols-[1fr_340px]">
+        </div>
+      }
+    >
+        <div className="grid min-h-0 bg-slate-50 dark:bg-slate-950 lg:grid-cols-[1fr_340px]">
           <main className="space-y-4 p-6">
             {saveError ? (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
@@ -580,20 +598,7 @@ export function CreatePurchaseOrderModal({
             )}
           </aside>
         </div>
-
-        <footer className="flex flex-col gap-3 bg-[#FF6B5E] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-white/85">
-            {lines.length} partidas - {registerInvoice ? `Diferencia ${formatMoney(difference, currencyCode)}` : `Total ${formatMoney(totals.total, currencyCode)}`}
-          </p>
-          <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" onClick={onClose} className="h-11 rounded-xl border border-white/30 px-5 text-sm font-bold text-white hover:bg-white/10">Cancelar</button>
-            <button type="button" disabled={!canCreate} onClick={() => void submit()} className="h-11 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] disabled:cursor-not-allowed disabled:opacity-60">
-              {savingStep || (registerInvoice ? 'Crear compra y factura' : 'Crear compra')}
-            </button>
-          </div>
-        </footer>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }
 

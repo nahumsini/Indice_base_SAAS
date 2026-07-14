@@ -130,7 +130,7 @@ export function MovementsKanban({
 
       {dragState ? (
         <div
-          className="pointer-events-none fixed z-[9999] rounded-xl border border-[#FF6B5E]/30 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-2xl ring-4 ring-[#FF6B5E]/10"
+          className="pointer-events-none fixed z-[9999] rounded-lg border border-[#FF6B5E]/30 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-xl ring-4 ring-[#FF6B5E]/10"
           style={{ left: dragState.x + 12, top: dragState.y + 12 }}
         >
           {dragState.label}
@@ -163,7 +163,7 @@ function MovementKanbanColumn({
   return (
     <section
       data-movement-status={status}
-      className={`min-h-[520px] rounded-2xl border p-3 transition ${isActiveDrop ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 shadow-sm shadow-[#FF6B5E]/20' : 'border-slate-200 bg-white/75'}`}
+      className={`min-h-[520px] rounded-lg border p-3 transition ${isActiveDrop ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 shadow-sm shadow-[#FF6B5E]/20' : 'border-slate-200 bg-white/75'}`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
@@ -180,7 +180,7 @@ function MovementKanbanColumn({
 
       <div className="space-y-3">
         {movements.length === 0 ? (
-          <div className={`flex min-h-[140px] items-center justify-center rounded-2xl border border-dashed px-4 text-center text-sm font-semibold transition ${isActiveDrop ? 'border-[#FF6B5E]/40 bg-[#FF6B5E]/10 text-[#B63B32]' : 'border-slate-200 bg-white/70 text-slate-400'}`}>
+          <div className={`flex min-h-[140px] items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm font-semibold transition ${isActiveDrop ? 'border-[#FF6B5E]/40 bg-[#FF6B5E]/10 text-[#B63B32]' : 'border-slate-200 bg-white/70 text-slate-400'}`}>
             {t.operational.emptyStates.movementsDescription}
           </div>
         ) : movements.map((movement) => (
@@ -202,7 +202,7 @@ function MovementKanbanCard({
 }) {
   return (
     <article
-      className={`select-none rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#FF6B5E]/50 hover:shadow-md ${movement.status === 'cancelled' ? 'opacity-80' : ''}`}
+      className={`select-none rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#FF6B5E]/50 hover:shadow-md ${movement.status === 'cancelled' ? 'opacity-80' : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -225,7 +225,7 @@ function MovementKanbanCard({
         <MovementFlow movement={movement} />
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-[9px] font-semibold text-slate-400">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-semibold text-slate-400">
           {movement.productImageUrl ? <img src={movement.productImageUrl} alt={movement.productImageAlt ?? movement.productName} className="h-full w-full object-cover" loading="lazy" /> : t.operational.columns.photo}
         </div>
         <div className="min-w-0">

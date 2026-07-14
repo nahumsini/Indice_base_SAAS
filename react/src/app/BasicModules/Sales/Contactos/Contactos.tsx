@@ -99,6 +99,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   const [editingContact, setEditingContact] = useState<SalesContact | null>(null);
   const [pendingDeleteContact, setPendingDeleteContact] = useState<SalesContact | null>(null);
   const [form, setForm] = useState<ContactFormState>(initialContactForm);
+  const [contactFormError, setContactFormError] = useState('');
   const [sortState, setSortState] = useState<ContactSortState>({ columnId: 'contact', direction: 'asc' });
   const [visibleContactColumns, setVisibleContactColumns] = useState<ContactColumnId[]>(defaultContactVisibleColumns);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
@@ -205,6 +206,21 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
     };
   };
 
+  const hasContactIdentity = (draft: ContactFormState) => [
+    draft.company,
+    draft.contactPerson,
+    draft.phone,
+    draft.email,
+    draft.fiscalLegalName,
+    draft.fiscalTaxId,
+  ].some((value) => value.trim());
+
+  useEffect(() => {
+    if (contactFormError && hasContactIdentity(form)) {
+      setContactFormError('');
+    }
+  }, [contactFormError, form]);
+
   const filteredContacts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return contacts;
@@ -260,7 +276,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
     <TableHead className={cn('whitespace-normal px-5 py-5', className)}>
       <button
         type="button"
-        className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
+        className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-normal text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
         onClick={() => handleSort(columnId)}
       >
         <span className="min-w-0 whitespace-normal break-words">{label}</span>
@@ -287,6 +303,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
 
   const handleOpenCreateContact = () => {
     setEditingContact(null);
+    setContactFormError('');
     setForm(buildInitialForm());
     setIsContactModalOpen(true);
   };
@@ -294,6 +311,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   const handleOpenEditContact = (contact: SalesContact) => {
     const ownerValue = getContactOwnerSelectValue(contact, ownerOptions);
     setEditingContact(contact);
+    setContactFormError('');
     setForm({
       company: contact.company,
       contactPerson: contact.contactPerson,
@@ -323,6 +341,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   const handleContactModalOpenChange = (open: boolean) => {
     setIsContactModalOpen(open);
     if (!open) {
+      setContactFormError('');
       setEditingContact(null);
       setForm(buildInitialForm());
     }
@@ -432,12 +451,29 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   };
 
   const handleSaveContact = () => {
-    if (!form.company.trim() || !form.contactPerson.trim()) return;
+    if (!hasContactIdentity(form)) {
+      setContactFormError(t.modal.validation.identityRequired);
+      return;
+    }
 
     const ownerPayload = getOwnerPayloadFromValue(form.ownerValue || defaultOwnerValue);
+    const companyName = form.company.trim()
+      || form.fiscalLegalName.trim()
+      || form.fiscalTaxId.trim()
+      || form.contactPerson.trim()
+      || form.email.trim()
+      || form.phone.trim()
+      || t.defaults.importedCompany;
+    const contactPerson = form.contactPerson.trim()
+      || form.company.trim()
+      || form.fiscalLegalName.trim()
+      || form.fiscalTaxId.trim()
+      || form.email.trim()
+      || form.phone.trim()
+      || t.defaults.importedPerson;
     const contactPayload = {
-      company: form.company.trim(),
-      contactPerson: form.contactPerson.trim(),
+      company: companyName,
+      contactPerson,
       role: form.role.trim() || t.defaults.commercialContact,
       phone: form.phone.trim(),
       email: form.email.trim(),
@@ -466,6 +502,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
       addContact(contactPayload);
     }
 
+    setContactFormError('');
     setForm(buildInitialForm());
     setEditingContact(null);
     setIsContactModalOpen(false);
@@ -474,7 +511,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   return (
     <section className="space-y-5">
       <SalesTitleBar
-        icon="🏢"
+        icon="👥"
         rhIndent
         title={t.header.title}
         subtitle={t.header.subtitle}
@@ -512,7 +549,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
 
       {learningModeActive ? <ContactLearningGuide copy={learningCopy} /> : null}
 
-      <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -520,17 +557,17 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={t.search.placeholder}
-              className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+          <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             <span>{t.search.visibleContacts}</span>
             <span className="font-black text-[#B63B32]">{sortedContacts.length}</span>
           </div>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <Table className="min-w-[1740px] table-fixed">
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
@@ -540,10 +577,10 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
               {canShowContactColumn('email') ? renderSortableHead('email', t.table.columns.email, 'w-[230px]') : null}
               {canShowContactColumn('source') ? renderSortableHead('source', t.table.columns.source, 'w-[170px]') : null}
               {canShowContactColumn('owner') ? renderSortableHead('owner', t.table.columns.owner, 'w-[220px]') : null}
-              {canShowContactColumn('relationship') ? <TableHead className="w-[190px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.relationship}</TableHead> : null}
-              {canShowContactColumn('fiscal') ? <TableHead className="w-[170px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.fiscal}</TableHead> : null}
+              {canShowContactColumn('relationship') ? <TableHead className="w-[190px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.relationship}</TableHead> : null}
+              {canShowContactColumn('fiscal') ? <TableHead className="w-[170px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.fiscal}</TableHead> : null}
               {canShowContactColumn('notes') ? renderSortableHead('notes', t.table.columns.notes, 'w-[300px]') : null}
-              <TableHead className="w-[170px] whitespace-normal px-4 py-5 text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
+              <TableHead className="w-[170px] whitespace-normal px-4 py-5 text-center text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -619,11 +656,11 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
                       value={contact.notes}
                       onChange={(event) => updateContact(contact.id, { notes: event.target.value })}
                       placeholder={t.table.notesPlaceholder}
-                      className="min-h-[58px] w-full min-w-0 resize-none rounded-xl border-slate-200 bg-white text-sm text-slate-800 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      className="min-h-[58px] w-full min-w-0 resize-none rounded-lg border-slate-200 bg-white text-sm text-slate-800 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     />
                   </TableCell> : null}
                   <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
-                    <div className="mx-auto grid w-fit grid-cols-[repeat(3,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <div className="mx-auto grid w-fit grid-cols-[repeat(3,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       <ContactActionButton label={hasPhone ? t.actions.call(contact.contactPerson) : t.actions.noPhone} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" href={hasPhone ? getPhoneHref(contact.phone) : undefined} disabled={!hasPhone} />
                       <ContactActionButton label={hasPhone ? t.actions.whatsapp(contact.contactPerson) : t.actions.noPhone} icon={<MessageCircle className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/25" href={hasPhone ? getWhatsAppHref(contact.phone) : undefined} disabled={!hasPhone} />
                       <ContactActionButton label={hasEmail ? t.actions.email(contact.contactPerson) : t.actions.noEmail} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" href={hasEmail ? `mailto:${contact.email}` : undefined} disabled={!hasEmail} />
@@ -669,6 +706,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
         localizedFiscalCountryOptions={localizedFiscalCountryOptions}
         ownerSelectOptions={ownerSelectOptions}
         defaultOwnerValue={defaultOwnerValue}
+        formError={contactFormError}
         onOpenChange={handleContactModalOpenChange}
         onSave={handleSaveContact}
         onOwnerChange={handleFormOwnerChange}

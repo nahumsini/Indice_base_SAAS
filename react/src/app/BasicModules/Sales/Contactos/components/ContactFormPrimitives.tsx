@@ -35,14 +35,14 @@ export function ContactFormSection({
   return (
     <section
       className={cn(
-        'rounded-[24px] border bg-white p-5 shadow-sm',
+        'rounded-lg border bg-white p-5 shadow-sm',
         tone === 'coral' ? 'border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04]' : 'border-slate-200',
       )}
     >
       <div className="mb-5 flex items-start gap-3">
         <span
           className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border',
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border',
             tone === 'coral'
               ? 'border-[#FF6B5E]/20 bg-white text-[#B63B32]'
               : 'border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]',

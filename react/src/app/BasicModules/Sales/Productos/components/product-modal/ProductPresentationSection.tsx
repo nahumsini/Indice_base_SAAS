@@ -300,7 +300,7 @@ export function ProductPresentationSection({
       </div>
 
       <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-3">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#B63B32]">{t.presentation.packageSummary}</p>
+        <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">{t.presentation.packageSummary}</p>
         <p className="mt-1 text-sm font-semibold text-slate-600">
           {t.presentation.packageSummaryValue(form.bundleItems.length, estimatedBundlePrice)}
         </p>

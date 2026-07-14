@@ -1,4 +1,4 @@
-import { Download, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import {
   PointOfSaleTitleBar,
   pointOfSaleTitleBarPrimaryActionClassName,
@@ -14,7 +14,7 @@ export function CashAuditHeader({ onRefresh, onExport }: CashAuditHeaderProps) {
   return (
     <PointOfSaleTitleBar
       eyebrow="Control supervisor"
-      icon={<ShieldCheck className="h-8 w-8 text-orange-600 dark:text-orange-300" />}
+      icon="🧮"
       rhIndent
       title="Arqueos de caja"
       subtitle="Valida diferencias de efectivo, evidencia operativa y cierres que requieren seguimiento."

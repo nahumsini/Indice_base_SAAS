@@ -62,9 +62,9 @@ function OpportunitySection({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm', className)}>
+    <section className={cn('rounded-lg border border-slate-200 bg-white p-5 shadow-sm', className)}>
       <div className="mb-5 flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]">
           <Icon className="h-4 w-4" />
         </span>
         <h3 className="text-lg font-bold text-slate-950">{title}</h3>

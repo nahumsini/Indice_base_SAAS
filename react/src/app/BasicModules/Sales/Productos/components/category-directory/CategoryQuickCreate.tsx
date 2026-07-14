@@ -22,7 +22,7 @@ export function CategoryQuickCreate({
       <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <Input
           value={value}
-          className="h-11 min-w-0 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+          className="h-11 min-w-0 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
           placeholder={t.categoryManager.namePlaceholder}
           onChange={(event) => onValueChange(event.target.value)}
           onKeyDown={(event) => {
@@ -34,7 +34,7 @@ export function CategoryQuickCreate({
         />
         <Button
           type="button"
-          className="h-11 gap-2 rounded-xl bg-[#FF6B5E] text-sm font-semibold text-white hover:bg-[#E85C50]"
+          className="h-11 gap-2 rounded-lg bg-[#FF6B5E] text-sm font-semibold text-white hover:bg-[#E85C50]"
           onClick={onCreate}
         >
           <Plus className="h-4 w-4" />

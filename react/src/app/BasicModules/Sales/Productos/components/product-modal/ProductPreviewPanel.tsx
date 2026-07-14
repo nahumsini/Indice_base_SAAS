@@ -55,7 +55,7 @@ export function ProductPreviewPanel({
 
           <div className="space-y-4 p-5">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{product.sku}</p>
+              <p className="text-xs font-black uppercase tracking-normal text-slate-400">{product.sku}</p>
               <h3 className="mt-2 text-lg font-black text-slate-950">{product.name}</h3>
               <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{product.description}</p>
             </div>
@@ -82,7 +82,7 @@ export function ProductPreviewPanel({
 
             {product.packaging ? (
               <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 px-3 py-3">
-                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[#B63B32]">
+                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-[#B63B32]">
                   <Boxes className="h-4 w-4" />
                   {t.packaging.previewTitle}
                 </p>
@@ -101,7 +101,7 @@ export function ProductPreviewPanel({
 
             {product.barcode ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{t.form.fields.barcode}</p>
+                <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.form.fields.barcode}</p>
                 <p className="mt-1 flex items-center gap-2 font-mono text-sm font-black text-slate-900">
                   <Barcode className="h-4 w-4 text-[#B63B32]" />
                   {product.barcode}

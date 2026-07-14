@@ -41,7 +41,7 @@ export function ProspectosKanbanColumn({
     <div
       onDragOver={(event) => event.preventDefault()}
       onDrop={handleStageDrop}
-      className="min-h-[560px] rounded-2xl border border-slate-200 bg-slate-50/80 p-3 transition-colors hover:border-[#FF6B5E]/35 hover:bg-[#FF6B5E]/[0.03]"
+      className="min-h-[560px] rounded-lg border border-slate-200 bg-slate-50/80 p-3 transition-colors hover:border-[#FF6B5E]/35 hover:bg-[#FF6B5E]/[0.03]"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -62,7 +62,7 @@ export function ProspectosKanbanColumn({
         ))}
 
         {opportunities.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center text-sm font-medium text-slate-400">
+          <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-10 text-center text-sm font-medium text-slate-400">
             {copy.kanban.emptyColumn}
           </div>
         ) : null}

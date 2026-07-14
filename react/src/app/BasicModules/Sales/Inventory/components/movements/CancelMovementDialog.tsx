@@ -44,7 +44,7 @@ export function CancelMovementDialog({
         </>
       )}
     >
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+      <div className="rounded-lg border border-red-200 bg-red-50 p-5">
         <p className="text-sm font-semibold text-slate-950">{movement?.movementNumber ?? movement?.id}</p>
         <p className="mt-1 text-xs font-semibold text-red-700">{movement?.reference ?? t.common.notAvailable}</p>
       </div>

@@ -11,7 +11,6 @@ export const enCA = {
     optional: 'Optional',
   },
   header: {
-    emoji: '💬',
     title: 'Quotes',
     subtitle: 'Operational quote workspace connected to contacts, opportunities and reusable products.',
     primaryAction: 'Create quote',

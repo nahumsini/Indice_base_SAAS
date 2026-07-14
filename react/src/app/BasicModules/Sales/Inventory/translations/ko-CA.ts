@@ -15,7 +15,6 @@ export const koCA = {
     no: '아니요',
   },
   header: {
-    emoji: '🏬',
     title: '재고',
     subtitle: '상업 카탈로그와 재고 흐름을 분리한 상태로 재고, 위치, 이동을 관리합니다.',
     primaryAction: '새 이동',

@@ -19,7 +19,7 @@ export function InventoryMovementBadge({
       <TooltipTrigger asChild>
         <Badge
           variant="outline"
-          className={cn('h-auto max-w-full whitespace-normal break-words rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', inventoryMovementStatusClasses[status])}
+          className={cn('h-auto max-w-full whitespace-normal break-words rounded-full px-3 py-1 text-xs font-black uppercase tracking-normal', inventoryMovementStatusClasses[status])}
         >
           {t.statuses.movement[status]}
         </Badge>
@@ -27,7 +27,7 @@ export function InventoryMovementBadge({
       <TooltipContent
         side="top"
         sideOffset={8}
-        className="max-w-[260px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+        className="max-w-[260px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
       >
         {tooltip}
       </TooltipContent>

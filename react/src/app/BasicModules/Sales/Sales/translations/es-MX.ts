@@ -14,7 +14,6 @@ export const esMX = {
     none: 'Ninguno',
   },
   header: {
-    emoji: '💼',
     title: 'Ventas',
     subtitle: 'Controla ventas ganadas, evidencia de pago, validaciones, preparación de inventario y comisiones.',
     columnsAction: 'Columnas',

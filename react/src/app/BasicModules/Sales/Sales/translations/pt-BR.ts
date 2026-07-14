@@ -14,7 +14,6 @@ export const ptBR = {
     none: 'Nenhum',
   },
   header: {
-    emoji: '💼',
     title: 'Vendas',
     subtitle: 'Acompanhe vendas ganhas, comprovantes de pagamento, validações, preparo de estoque e comissões.',
     columnsAction: 'Colunas',

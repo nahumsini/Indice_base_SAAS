@@ -53,7 +53,7 @@ export function FilterSelect({
     <div className="space-y-2">
       <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className={cn('h-11 rounded-xl px-4 text-base font-semibold text-slate-950', coralFieldClassName)}>
+        <SelectTrigger className={cn('h-11 rounded-lg px-4 text-base font-semibold text-slate-950', coralFieldClassName)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -85,7 +85,7 @@ export function QuoteSortableHeader({
   return (
     <button
       type="button"
-      className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+      className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-normal text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
       onClick={() => onSort(columnId)}
     >
       <span className="min-w-0 whitespace-normal break-words">{label}</span>
@@ -146,7 +146,7 @@ export function QuoteAction({
           aria-label={label}
           onClick={onClick}
           className={cn(
-            'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
+            'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
             className,
           )}
         >
@@ -156,7 +156,7 @@ export function QuoteAction({
       <TooltipContent
         side="top"
         sideOffset={8}
-        className="max-w-[220px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+        className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
       >
         {label}
       </TooltipContent>
@@ -178,7 +178,7 @@ export function QuoteProductCard({
   onAdd: () => void;
 }) {
   return (
-    <article className="rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-black text-slate-950 dark:text-white">{product.name}</p>

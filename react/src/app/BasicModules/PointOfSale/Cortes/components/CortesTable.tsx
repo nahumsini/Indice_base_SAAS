@@ -65,7 +65,7 @@ export function CortesTable({
   const columnSpan = visibleColumns.length + 2;
 
   return (
-    <section className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-black text-slate-950 dark:text-white">Historial de cortes</h3>
@@ -115,7 +115,7 @@ export function CortesTable({
             {loading ? (
               <tr>
                 <td colSpan={columnSpan} className="px-6 py-12">
-                  <div className="flex items-center justify-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-5 text-sm font-black text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+                  <div className="flex items-center justify-center gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-5 text-sm font-black text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Cargando cortes reales del punto de venta...
                   </div>
@@ -144,7 +144,7 @@ export function CortesTable({
                   </td>
                 ))}
                 <td className="px-5 py-4 text-right">
-                  <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                     <IconButton label={`Ver corte COR-${row.id}`} onClick={() => onSelect(row)}>
                       <Eye className="h-4 w-4" />
                     </IconButton>

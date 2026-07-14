@@ -12,7 +12,6 @@ export const esMX = {
     no: 'No',
   },
   header: {
-    emoji: '🏬',
     title: 'Inventario',
     subtitle: 'Controla stock, ubicaciones y movimientos sin mezclar catálogo comercial con inventario.',
     primaryAction: 'Nuevo movimiento',

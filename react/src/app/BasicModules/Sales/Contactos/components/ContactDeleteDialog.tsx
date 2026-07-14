@@ -50,9 +50,9 @@ export function ContactDeleteDialog({
         </>
       )}
     >
-      <div className="rounded-2xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04] p-4">
+      <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04] p-4">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-white text-[#B63B32]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-white text-[#B63B32]">
             <AlertTriangle className="h-4 w-4" />
           </span>
           <div className="min-w-0">

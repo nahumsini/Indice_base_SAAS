@@ -30,11 +30,11 @@ export function CortesDayView({
       {groups.map((group) => (
         <article
           key={group.date}
-          className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+          className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
         >
           <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FF6B5E]/10 text-[#FF6B5E]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#FF6B5E]/10 text-[#FF6B5E]">
                 <CalendarDays className="h-5 w-5" />
               </span>
               <div>
@@ -102,7 +102,7 @@ export function CortesDayView({
       ))}
 
       {groups.length === 0 ? (
-        <div className="rounded-[20px] border border-slate-200 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <p className="text-lg font-black text-slate-950 dark:text-white">No hay dias con cortes visibles</p>
           <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
             Ajusta el periodo para consultar cierres anteriores.

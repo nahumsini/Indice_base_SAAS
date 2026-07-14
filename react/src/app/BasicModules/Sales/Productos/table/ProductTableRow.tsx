@@ -53,7 +53,7 @@ function CatalogAction({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/20',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/20',
         className,
       )}
     >
@@ -111,8 +111,8 @@ export function ProductTableRow({
             </div>
           </div>
           {!hasDedicatedSkuColumn ? (
-            <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">SKU</p>
+            <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-[10px] font-semibold uppercase tracking-normal text-slate-400">SKU</p>
               <p className="mt-1 max-w-full whitespace-normal text-xs font-semibold leading-4 text-slate-600 [overflow-wrap:anywhere] dark:text-slate-300">{product.sku}</p>
             </div>
           ) : null}
@@ -171,7 +171,7 @@ export function ProductTableRow({
         <TableCell className="truncate px-5 py-4 align-middle font-semibold text-slate-600 dark:text-slate-300">{product.lastUpdated}</TableCell>
       ) : null}
       <TableCell className="px-5 py-4 align-middle">
-        <div className="ml-auto flex w-max items-center justify-end gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="ml-auto flex w-max items-center justify-end gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <CatalogAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" onClick={() => onViewProduct(product)} />
           <CatalogAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => onEditProduct(product)} />
           <CatalogAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15 dark:text-[#F9D96D]" onClick={() => onDuplicateProduct(product)} />

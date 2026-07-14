@@ -86,7 +86,7 @@ export function PublicCatalogPage({
   return (
     <main className={embedded ? 'min-h-0 bg-slate-50' : 'min-h-screen bg-slate-50'}>
       {!embedded ? (
-        <div className="border-b border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-5 py-2 text-center text-xs font-black uppercase tracking-[0.16em] text-[#B63B32]">
+        <div className="border-b border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-5 py-2 text-center text-xs font-black uppercase tracking-normal text-[#B63B32]">
           {t.publicCatalog.demoLinkLabel}: {params.publicAccessToken ?? activeConfig.publicAccessToken}
         </div>
       ) : null}

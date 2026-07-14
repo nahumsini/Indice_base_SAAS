@@ -39,7 +39,7 @@ function GroupedProducts({ group, t }: { group: MovementGroup; t: InventoryTrans
   return (
     <div className="min-w-[300px] space-y-2">
       {group.lines.slice(0, 4).map((movement) => (
-        <div key={movement.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+        <div key={movement.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-semibold uppercase text-slate-400">
             {movement.productImageUrl ? <img src={movement.productImageUrl} alt={movement.productImageAlt ?? movement.productName} className="h-full w-full object-cover" loading="lazy" /> : t.operational.columns.photo}
           </div>
@@ -108,7 +108,7 @@ export function MovementsTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <Table className="min-w-[1300px]">
             <TableHeader className="bg-slate-50/90 dark:bg-slate-900">
@@ -168,7 +168,7 @@ export function MovementsTable({
                       <p className="text-sm font-semibold text-slate-800 dark:text-white">{movement.reference ?? t.common.notAvailable}</p>
                       <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{movement.reason}</p>
                       {movement.status === 'cancelled' ? (
-                        <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold leading-5 text-red-700">
+                        <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold leading-5 text-red-700">
                           {t.operational.cancelledReturnMessage}
                         </p>
                       ) : null}
@@ -176,7 +176,7 @@ export function MovementsTable({
                     <TableCell className="min-w-[150px] px-4 py-4 align-top">
                       {attachmentCount ? (
                         <div className="flex flex-col gap-1">
-                          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700">
+                          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2.5 py-1 text-xs font-bold text-[#1D4ED8]">
                             <Paperclip className="h-3.5 w-3.5" />
                             {attachmentCount}
                           </span>

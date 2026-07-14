@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, Users, UserCheck, UserX, DollarSign, User, CreditCard, FileText } from 'lucide-react';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { buildSalesContactInputFromPointOfSale, buildSalesContactPatchFromPointOfSale } from '../../CommerceCore/posCustomerMutations';
 import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
@@ -23,6 +24,7 @@ export default function Clientes() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAccountStatementModal, setShowAccountStatementModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>();
+  const [customerPendingDeletion, setCustomerPendingDeletion] = useState<Customer | null>(null);
   const [notice, setNotice] = useState('');
 
   const customers = useMemo(() => {
@@ -160,7 +162,7 @@ export default function Clientes() {
     <div className="space-y-6">
       <PointOfSaleTitleBar
         eyebrow="Clientes POS"
-        icon="👥"
+        icon="👤"
         rhIndent
         title="Clientes"
         subtitle="Directorio rápido compartido con Sales para tickets, crédito operativo y estados de cuenta POS."
@@ -179,14 +181,14 @@ export default function Clientes() {
       />
 
       {notice && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {notice}
         </div>
       )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
               <Users className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -198,7 +200,7 @@ export default function Clientes() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
               <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -210,7 +212,7 @@ export default function Clientes() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
               <UserX className="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -222,21 +224,21 @@ export default function Clientes() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <DollarSign className="w-5 h-5 text-[#C64237] dark:text-[#FFB5AE]" />
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Ventas totales</p>
-              <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+              <p className="text-lg font-bold text-[#C64237] dark:text-[#FFB5AE]">
                 {formatCurrency(kpis.totalRevenue)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
               <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -252,7 +254,7 @@ export default function Clientes() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1">
@@ -266,7 +268,7 @@ export default function Clientes() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Nombre, email, teléfono o RFC..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
               />
             </div>
           </div>
@@ -279,7 +281,7 @@ export default function Clientes() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | 'all')}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
             >
               <option value="all">Todos</option>
               <option value="active">Activos</option>
@@ -290,7 +292,7 @@ export default function Clientes() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
@@ -388,7 +390,7 @@ export default function Clientes() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleEditCustomer(customer)}
-                          className="p-1.5 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded transition-colors"
+                          className="p-1.5 text-[#C64237] transition-colors hover:bg-[#FF6B5E]/10 dark:text-[#FFB5AE] dark:hover:bg-[#FF6B5E]/10 rounded"
                           title="Editar cliente"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -408,7 +410,7 @@ export default function Clientes() {
                           <FileText className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteCustomer(customer.id)}
+                          onClick={() => setCustomerPendingDeletion(customer)}
                           className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                           title="Eliminar"
                         >
@@ -448,6 +450,26 @@ export default function Clientes() {
           customer={selectedCustomer}
         />
       )}
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(customerPendingDeletion)}
+        title="Quitar cliente de POS"
+        itemName={customerPendingDeletion?.name}
+        description={
+          customerPendingDeletion && sharedCustomers.some((customer) => customer.id === customerPendingDeletion.id)
+            ? 'Se desactivara para POS sin borrar el contacto maestro de Sales.'
+            : 'Se ocultara del directorio operativo POS.'
+        }
+        cancelLabel="Cancelar"
+        confirmLabel="Quitar cliente"
+        onCancel={() => setCustomerPendingDeletion(null)}
+        onConfirm={() => {
+          if (customerPendingDeletion) {
+            handleDeleteCustomer(customerPendingDeletion.id);
+          }
+          setCustomerPendingDeletion(null);
+        }}
+      />
     </div>
   );
 }

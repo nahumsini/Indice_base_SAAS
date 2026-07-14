@@ -48,7 +48,7 @@ export function InventoryLocationsView({
   return (
     <section className="space-y-5">
       <SalesTitleBar
-        icon={<MapPinned className="h-7 w-7" />}
+        icon="📍"
         rhIndent
         title={t.locationsView.title}
         subtitle={t.locationsView.subtitle}

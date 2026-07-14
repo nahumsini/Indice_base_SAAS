@@ -17,10 +17,10 @@ interface PosSetupProgressProps {
 
 export function PosSetupProgress({ hasWarehouses, hasCashRegisters }: PosSetupProgressProps) {
   return (
-    <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-left dark:border-orange-500/30 dark:bg-orange-500/10">
+    <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4 text-left dark:border-orange-500/30 dark:bg-orange-500/10">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-orange-600 dark:text-orange-300">
+          <p className="text-xs font-black uppercase tracking-normal text-orange-600 dark:text-orange-300">
             POS Setup
           </p>
           <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
@@ -72,7 +72,7 @@ function SetupStep({
   active: boolean;
 }) {
   return (
-    <div className={`rounded-xl border p-4 ${
+    <div className={`rounded-lg border p-4 ${
       complete
         ? 'border-emerald-200 bg-white dark:border-emerald-500/30 dark:bg-gray-900/60'
         : active
@@ -80,7 +80,7 @@ function SetupStep({
           : 'border-gray-200 bg-white/70 dark:border-gray-700 dark:bg-gray-900/30'
     }`}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${
           complete
             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
             : active
@@ -121,7 +121,7 @@ export function FirstUseAction({
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 gap-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
           <Icon className="h-6 w-6" />
         </span>
         <div className="min-w-0">
@@ -135,7 +135,7 @@ export function FirstUseAction({
         <button
           type="button"
           onClick={onSecondary}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-sm font-bold text-gray-800 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-700"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-bold text-gray-800 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-700"
         >
           <RefreshCw className="h-4 w-4" />
           {secondaryLabel}
@@ -143,7 +143,7 @@ export function FirstUseAction({
         <button
           type="button"
           onClick={onPrimary}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-sm font-black text-white shadow-sm transition hover:bg-orange-700"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-orange-600 px-5 text-sm font-black text-white shadow-sm transition hover:bg-orange-700"
         >
           {primaryLabel === 'Crear caja' ? <Plus className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
           {primaryLabel}

@@ -30,7 +30,7 @@ export function OpportunityQuoteSignalBadge({
       </p>
       <Badge
         variant="outline"
-        className={cn('h-auto max-w-full whitespace-normal rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', quoteSignalClassNames[signal.state])}
+        className={cn('h-auto max-w-full whitespace-normal rounded-full px-3 py-1 text-xs font-black uppercase tracking-normal', quoteSignalClassNames[signal.state])}
       >
         {copy.labels[signal.state]}
       </Badge>

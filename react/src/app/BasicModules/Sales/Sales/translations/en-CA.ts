@@ -10,7 +10,6 @@ export const enCA = {
     none: 'None',
   },
   header: {
-    emoji: '💼',
     title: 'Sales',
     subtitle: 'Track won sales, payment evidence, validation progress, inventory readiness, and commissions.',
     columnsAction: 'Columns',

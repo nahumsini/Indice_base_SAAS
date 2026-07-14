@@ -1,6 +1,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Search, X, Plus, Barcode } from 'lucide-react';
+import { Barcode, Plus, Search } from 'lucide-react';
 import { findCatalogProductByBarcode, type Product } from '../../shared/commercial/products';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 
 interface ProductSearchModalProps {
   isOpen: boolean;
@@ -40,17 +45,19 @@ export function ProductSearchModal({
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter((product) =>
-        product.name.toLowerCase().includes(search) ||
-        product.barcode.toLowerCase().includes(search)
+        product.name.toLowerCase().includes(search)
+        || product.barcode.toLowerCase().includes(search)
       );
     }
 
     return filtered;
   }, [products, searchTerm, selectedCategory]);
 
-  const handleBarcodeScan = (e: FormEvent) => {
-    e.preventDefault();
-    if (!barcodeInput.trim()) return;
+  const handleBarcodeScan = (event: FormEvent) => {
+    event.preventDefault();
+    if (!barcodeInput.trim()) {
+      return;
+    }
 
     const product = findCatalogProductByBarcode(products, barcodeInput);
     if (product) {
@@ -58,172 +65,152 @@ export function ProductSearchModal({
       setBarcodeInput('');
       setScanError('');
     } else {
-      setScanError('Producto no encontrado en el catálogo compartido.');
+      setScanError('Producto no encontrado en el catalogo compartido.');
       setBarcodeInput('');
     }
   };
 
-  const formatCurrency = (amount: number, productCurrency?: string) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: productCurrency || currency,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number, productCurrency?: string) => new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: productCurrency || currency,
+  }).format(amount);
 
-  const handleAddProduct = (product: Product) => {
-    onAddProduct(product);
-  };
-
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col">
-        {/* Header */}
-        <div className="bg-orange-500 rounded-t-2xl px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 dark:bg-white/10 rounded-lg flex items-center justify-center">
-              <Search className="w-6 h-6 text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-white">Buscar Productos</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
-          >
-            <X className="w-5 h-5" />
+    <PosModalFrame
+      closeLabel="Cerrar busqueda de productos"
+      eyebrow="Catalogo POS"
+      icon={<Search className="h-6 w-6" />}
+      onClose={onClose}
+      size="lg"
+      subtitle="Busca por codigo, nombre o categoria y agrega productos al ticket."
+      title="Buscar productos"
+      tone="coral"
+      footerClassName={posModalModuleFooterClassName}
+      footer={(
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-bold text-white/85">
+            {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} disponible{filteredProducts.length !== 1 ? 's' : ''}
+          </p>
+          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+            Cerrar
           </button>
         </div>
+      )}
+    >
+      <div className="space-y-5">
+        {(error || scanError) ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            {error || scanError}
+          </div>
+        ) : null}
 
-        {/* Search & Filters */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 space-y-4">
-          {(error || scanError) && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-              {error || scanError}
-            </div>
-          )}
-
-          {/* Barcode Scanner */}
-          <form onSubmit={handleBarcodeScan} className="flex gap-2">
+        <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+          <form onSubmit={handleBarcodeScan} className="flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
-              <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Barcode className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                placeholder="Escanear código de barras..."
-                className="w-full pl-12 pr-4 py-3 text-lg border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                onChange={(event) => setBarcodeInput(event.target.value)}
+                placeholder="Escanear codigo de barras..."
+                className="min-h-12 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-base font-bold text-gray-900 placeholder-gray-400 transition-all focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-950 dark:text-white"
               />
             </div>
             <button
               type="submit"
-              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors text-lg"
+              className="min-h-12 rounded-lg bg-[#FF6B5E] px-6 py-3 text-sm font-black text-white transition hover:bg-[#ff5a4b]"
             >
               Buscar
             </button>
           </form>
 
-          {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nombre o código..."
-              className="w-full pl-12 pr-4 py-3 text-lg border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por nombre o codigo..."
+              className="min-h-12 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-base font-bold text-gray-900 placeholder-gray-400 transition-all focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-950 dark:text-white"
             />
           </div>
 
-          {/* Category Filters */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map((category) => (
               <button
                 key={category}
+                type="button"
                 onClick={() => setSelectedCategory(category)}
-                className={`px-5 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${
+                className={`min-h-10 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-black transition-all ${
                   selectedCategory === category
-                    ? 'bg-orange-500 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    ? 'bg-[#FF6B5E] text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                 }`}
               >
                 {category}
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Products Grid */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {isLoading ? (
-            <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-              Cargando catálogo compartido de Sales...
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 text-center text-sm font-semibold text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-              No hay productos disponibles para POS con los filtros actuales.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => handleAddProduct(product)}
-                  className="p-5 bg-gray-50 dark:bg-gray-700/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 border-2 border-gray-200 dark:border-gray-600 hover:border-orange-500 rounded-xl transition-all text-left group"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
-                        {product.barcode}
-                      </span>
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${
-                        product.currentStock > 50
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : product.currentStock > 20
-                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                      }`}>
-                        Stock: {product.currentStock}
-                      </span>
-                    </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 min-h-[2.5rem]">
-                      {product.name}
-                    </p>
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                          {formatCurrency(product.salePrice, product.currency)}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Costo: {formatCurrency(product.costPrice, product.currency)}
-                        </p>
-                      </div>
-                      <div className="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Plus className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} disponible{filteredProducts.length !== 1 ? 's' : ''}
-            </p>
-            <button
-              onClick={onClose}
-              className="px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Cerrar
-            </button>
+        {isLoading ? (
+          <div className="flex min-h-[260px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-sm font-bold text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+            Cargando catalogo compartido de Sales...
           </div>
-        </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="flex min-h-[260px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-6 text-center text-sm font-bold text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+            No hay productos disponibles para POS con los filtros actuales.
+          </div>
+        ) : (
+          <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {filteredProducts.map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => onAddProduct(product)}
+                className="group rounded-lg border-2 border-gray-200 bg-white p-4 text-left transition-all hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/10 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-[#FF6B5E]/10"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="truncate text-xs font-mono text-gray-500 dark:text-gray-400">
+                      {product.barcode}
+                    </span>
+                    <span className={`shrink-0 rounded px-2 py-1 text-xs font-black ${
+                      product.currentStock > 50
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                        : product.currentStock > 20
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                    }`}>
+                      Stock: {product.currentStock}
+                    </span>
+                  </div>
+                  <p className="min-h-[2.5rem] text-sm font-black text-gray-900 line-clamp-2 dark:text-white">
+                    {product.name}
+                  </p>
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-xl font-black text-[#C64237] dark:text-[#FFB5AE]">
+                        {formatCurrency(product.salePrice, product.currency)}
+                      </p>
+                      <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        Costo: {formatCurrency(product.costPrice, product.currency)}
+                      </p>
+                    </div>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FF6B5E] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      <Plus className="h-5 w-5" />
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </section>
+        )}
       </div>
-    </div>
+    </PosModalFrame>
   );
 }

@@ -44,9 +44,9 @@ export function ProspectosAgendaCalendar({
 }) {
   if (mode === 'week') {
     return (
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div
-          className="grid min-w-[1180px] border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          className="grid min-w-[1180px] border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-normal text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
           style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
         >
           <div className="border-r border-slate-200 px-3 py-3">{copy.agenda.hour}</div>
@@ -111,7 +111,7 @@ export function ProspectosAgendaCalendar({
                         onEdit={onEdit}
                       />
                     )) : (
-                        <div className="flex h-full min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-500">
+                        <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-500">
                         {copy.agenda.dropHere}
                       </div>
                     )}
@@ -148,7 +148,7 @@ export function ProspectosAgendaCalendar({
                         onEdit={onEdit}
                       />
                     )) : (
-                      <div className="flex h-full min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-500">
+                      <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-500">
                         {copy.agenda.noTime}
                       </div>
                     )}
@@ -164,7 +164,7 @@ export function ProspectosAgendaCalendar({
 
   if (mode === 'list') {
     return (
-      <section className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {weekDates.map((date) => {
           const dateOpportunities = opportunitiesForDate(date);
 
@@ -173,7 +173,7 @@ export function ProspectosAgendaCalendar({
               key={date}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => onDateDrop(event, date)}
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900"
+              className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-bold capitalize text-slate-950 dark:text-white">{formatAgendaDayLabel(date, 'long')}</p>
@@ -195,7 +195,7 @@ export function ProspectosAgendaCalendar({
                     onEdit={onEdit}
                   />
                 )) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-500">
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-500">
                     {copy.agenda.noFollowUps}
                   </div>
                 )}
@@ -208,8 +208,8 @@ export function ProspectosAgendaCalendar({
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="grid border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}>
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="grid border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-normal text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}>
         <div className="px-4 py-3">{copy.agenda.hour}</div>
         <div className="px-4 py-3">{copy.agenda.contactPlan}</div>
       </div>
@@ -244,7 +244,7 @@ export function ProspectosAgendaCalendar({
                   onEdit={onEdit}
                 />
               )) : (
-                <div className="flex h-full min-h-[72px] items-center rounded-2xl border border-dashed border-slate-200 px-4 text-sm font-medium text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                <div className="flex h-full min-h-[72px] items-center rounded-lg border border-dashed border-slate-200 px-4 text-sm font-medium text-slate-400 dark:border-slate-700 dark:text-slate-500">
                   {copy.agenda.dragOpportunityHere}
                 </div>
               )}

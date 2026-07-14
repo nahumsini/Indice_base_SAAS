@@ -14,7 +14,12 @@ import {
   Warehouse,
   type LucideIcon,
 } from 'lucide-react';
-import { PosModalFrame } from './PosModalFrame';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 import {
   businessCurrencyOptions,
   formatBusinessCurrencyAmount,
@@ -239,19 +244,21 @@ export function OpenShiftModal({
       size="lg"
       subtitle="Selecciona contexto, divisa y fondo inicial para iniciar el turno."
       title="Abrir caja"
+      tone="coral"
+      footerClassName={posModalModuleFooterClassName}
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="min-h-14 rounded-2xl border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
+            className={posModalSecondaryActionClassName}
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
             disabled={isSubmitting || hasWarehouseBlocker || hasIncompleteContext || hasRegisterBlocker || !registerContext}
-            className="min-h-14 rounded-2xl bg-[#FF6B5E] px-8 py-3 text-base font-black text-white shadow-sm transition hover:bg-[#ff5a4b] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+            className={posModalPrimaryActionClassName}
           >
             {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
           </button>
@@ -265,7 +272,7 @@ export function OpenShiftModal({
           </div>
 
           {(error || hasWarehouseBlocker || hasRegisterBlocker) && (
-            <div className="mb-5 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+            <div className="mb-5 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
               <span className="flex gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
@@ -278,10 +285,10 @@ export function OpenShiftModal({
             </div>
           )}
 
-          <section className="mb-5 rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900/40">
+          <section className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900/40">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
                   Contexto operativo
                 </p>
                 <h3 className="mt-1 text-lg font-black text-gray-950 dark:text-white">
@@ -337,9 +344,9 @@ export function OpenShiftModal({
           </section>
 
           <div className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-4">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
                   Divisa y fondo inicial
                 </p>
                 <h3 className="mt-1 text-lg font-black text-gray-950 dark:text-white">
@@ -360,7 +367,7 @@ export function OpenShiftModal({
                       setError('');
                     }}
                     disabled={isSubmitting}
-                    className="min-h-14 w-full rounded-2xl border border-gray-300 bg-white py-3 pl-14 pr-4 text-lg font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    className="min-h-14 w-full rounded-lg border border-gray-300 bg-white py-3 pl-14 pr-4 text-lg font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     {businessCurrencyOptions.map((option) => (
                       <option key={option.code} value={option.code}>
@@ -369,7 +376,7 @@ export function OpenShiftModal({
                     ))}
                   </select>
                 </span>
-                <span className="mt-2 block rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                <span className="mt-2 block rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                   Esta divisa controla pagos, corte de caja y cierre del turno. Si cambias país fiscal después, debe coincidir con esta moneda.
                 </span>
               </label>
@@ -387,7 +394,7 @@ export function OpenShiftModal({
                   onChange={(event) => setInitialCash(event.target.value)}
                   disabled={isSubmitting}
                   placeholder="0.00"
-                  className="min-h-16 w-full rounded-2xl border-2 border-gray-300 bg-white py-4 pl-14 pr-4 text-3xl font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="min-h-16 w-full rounded-lg border-2 border-gray-300 bg-white py-4 pl-14 pr-4 text-3xl font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
 
@@ -399,7 +406,7 @@ export function OpenShiftModal({
                       key={amount}
                       onClick={() => setInitialCash(amount.toFixed(2))}
                       disabled={isSubmitting}
-                      className="min-h-12 rounded-xl bg-gray-100 px-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                      className="min-h-12 rounded-lg bg-gray-100 px-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                     >
                       {amount === 0 ? formatCurrency(0, selectedCurrencyCode).replace('.00', '') : formatCurrency(amount, selectedCurrencyCode).replace('.00', '')}
                     </button>
@@ -418,14 +425,14 @@ export function OpenShiftModal({
                   disabled={isSubmitting}
                   placeholder="Opcional"
                   rows={3}
-                  className="w-full resize-none rounded-2xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="w-full resize-none rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
             </section>
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-4">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
                   Modo operativo
                 </p>
                 <h3 className="mt-1 text-lg font-black text-gray-950 dark:text-white">
@@ -462,14 +469,14 @@ function SetupTile({
   active: boolean;
 }) {
   return (
-    <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
+    <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
       complete
         ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
         : active
           ? 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200'
           : 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300'
     }`}>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-gray-900">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm dark:bg-gray-900">
         <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
@@ -500,7 +507,7 @@ function SelectField({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+      <span className="mb-2 block text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
         {label}
       </span>
       <span className="relative block">
@@ -509,7 +516,7 @@ function SelectField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
-          className="min-h-12 w-full rounded-xl border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+          className="min-h-12 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
         >
           <option value="">{placeholder}</option>
           {options.map((option) => (
@@ -531,8 +538,8 @@ function ContextPill({
   value: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
+    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">

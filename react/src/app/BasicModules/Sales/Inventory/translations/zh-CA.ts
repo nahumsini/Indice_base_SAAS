@@ -15,7 +15,6 @@ export const zhCA = {
     no: '否',
   },
   header: {
-    emoji: '🏬',
     title: '库存',
     subtitle: '在不混合商业目录和库存逻辑的情况下，管理库存、地点和库存移动。',
     primaryAction: '新建移动',

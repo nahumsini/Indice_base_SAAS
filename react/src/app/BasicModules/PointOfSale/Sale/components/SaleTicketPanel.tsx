@@ -1,5 +1,5 @@
 import type { FormEvent, RefObject } from 'react';
-import { Barcode, Minus, Package, Percent, Plus, Trash2, X } from 'lucide-react';
+import { Barcode, Minus, Package, Percent, Plus, ScanLine, ShoppingCart, Trash2, X } from 'lucide-react';
 import type { Product } from '../../shared/commercial/products';
 import type { SaleItem } from '../types/sale.types';
 import type { SaleTotals } from '../utils/saleCalculations';
@@ -43,11 +43,11 @@ export function SaleTicketPanel({
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#222831]/10 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-[#222831]/10 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222831]/10 bg-[#222831] px-5 py-3 text-white dark:border-gray-700 dark:bg-[#111827]">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/20 text-2xl dark:bg-[#59C3A5]/15" aria-hidden="true">
-            🛒
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#59C3A5]/20 text-white dark:bg-[#59C3A5]/15" aria-hidden="true">
+            <ShoppingCart className="h-5 w-5" />
           </span>
           <div className="min-w-0">
             <h2 className="text-xl font-black text-white">Ticket actual</h2>
@@ -60,7 +60,7 @@ export function SaleTicketPanel({
         <button
           onClick={onClearCart}
           disabled={cart.length === 0}
-          className="flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-[#FF8A80] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-[#FF8A80] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <X className="h-4 w-4" />
           <span>Cancelar</span>
@@ -79,7 +79,7 @@ export function SaleTicketPanel({
             value={barcodeInput}
             onChange={(event) => onBarcodeInputChange(event.target.value)}
             placeholder="Escanea código de barras..."
-            className="min-h-14 w-full rounded-xl border-2 border-gray-300 bg-white py-3 pl-12 pr-4 font-mono text-lg transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-200 dark:border-gray-600 dark:bg-gray-800 dark:focus:ring-blue-900/30"
+            className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-12 pr-4 font-mono text-lg transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-200 dark:border-gray-600 dark:bg-gray-800 dark:focus:ring-blue-900/30"
             autoComplete="off"
           />
         </form>
@@ -91,8 +91,8 @@ export function SaleTicketPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
         {cart.length === 0 ? (
-          <div className="flex min-h-[180px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#59C3A5]/40 bg-[#59C3A5]/10 p-6 text-center text-gray-500 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-gray-400">
-            <span className="mb-3 text-4xl" aria-hidden="true">📡</span>
+          <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-[#59C3A5]/40 bg-[#59C3A5]/10 p-6 text-center text-gray-500 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-gray-400">
+            <ScanLine className="mb-3 h-10 w-10 text-[#14745F] dark:text-[#9DE7D3]" aria-hidden="true" />
             <p className="text-xl font-semibold text-gray-600 dark:text-gray-300">Escanea o toca un producto</p>
             <p className="mt-1 text-sm">El ticket se arma aqui con cantidades, descuentos y stock visible.</p>
           </div>
@@ -105,7 +105,7 @@ export function SaleTicketPanel({
               return (
                 <div
                   key={item.id}
-                  className={`group rounded-[22px] border p-3 transition ${
+                  className={`group rounded-lg border p-3 transition ${
                     lastAddedItem === item.id
                       ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 shadow-md ring-2 ring-[#FF6B5E]/15 dark:bg-[#FF6B5E]/10 dark:ring-[#FF6B5E]/25'
                       : 'border-gray-200 bg-white hover:bg-[#59C3A5]/10 dark:border-gray-700 dark:bg-gray-900/30 dark:hover:bg-[#59C3A5]/10'
@@ -113,13 +113,13 @@ export function SaleTicketPanel({
                 >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#F4C84A]/25 text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
+                      <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-[#F4C84A]/25 text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
                         <span className="text-xl font-black leading-none">{item.quantity}</span>
                         <span className="text-[10px] font-black uppercase leading-none">uds</span>
                       </div>
 
                       <div
-                        className="-m-1 min-w-0 flex-1 cursor-pointer rounded-xl p-1 transition hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                        className="-m-1 min-w-0 flex-1 cursor-pointer rounded-lg p-1 transition hover:bg-gray-100 dark:hover:bg-gray-800/70"
                         onClick={() => {
                           if (product) {
                             onOpenProductPanel(product);
@@ -176,21 +176,21 @@ export function SaleTicketPanel({
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F8FA] p-2 dark:bg-gray-950/30">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#F7F8FA] p-2 dark:bg-gray-950/30">
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                          className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-100 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-100 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Restar ${item.name}`}
                         >
                           <Minus className="h-4 w-4" />
                         </button>
-                        <span className="min-w-10 rounded-xl bg-white px-3 py-2 text-center text-sm font-black text-[#222831] shadow-sm dark:bg-gray-800 dark:text-white">
+                        <span className="min-w-10 rounded-lg bg-white px-3 py-2 text-center text-sm font-black text-[#222831] shadow-sm dark:bg-gray-800 dark:text-white">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                          className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-100 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-100 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Sumar ${item.name}`}
                         >
                           <Plus className="h-4 w-4" />
@@ -200,7 +200,7 @@ export function SaleTicketPanel({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onOpenItemDiscount(item)}
-                          className="flex h-10 min-w-10 items-center justify-center rounded-xl bg-purple-50 px-3 text-sm font-black text-purple-600 transition hover:bg-purple-100 active:scale-95 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+                          className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-purple-50 px-3 text-sm font-black text-purple-600 transition hover:bg-purple-100 active:scale-95 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
                           title="Aplicar descuento"
                           aria-label={`Aplicar descuento a ${item.name}`}
                         >
@@ -208,7 +208,7 @@ export function SaleTicketPanel({
                         </button>
                         <button
                           onClick={() => onRemoveItem(item.id)}
-                          className="flex h-10 min-w-10 items-center justify-center rounded-xl bg-red-50 px-3 text-sm font-black text-red-600 transition hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                          className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-red-50 px-3 text-sm font-black text-red-600 transition hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                           aria-label={`Quitar ${item.name}`}
                         >
                           <Trash2 className="h-4 w-4" />

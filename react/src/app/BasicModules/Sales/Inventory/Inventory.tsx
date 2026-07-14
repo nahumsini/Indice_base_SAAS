@@ -643,7 +643,7 @@ function MovementViewModeSwitcher({
 
   return (
     <div className="flex justify-end">
-      <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      <div className="inline-flex h-10 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
         {modes.map((mode) => (
           <button
             key={mode.id}

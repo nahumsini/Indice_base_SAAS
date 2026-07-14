@@ -455,12 +455,12 @@ export default function Postventa() {
 
   return (
     <section className="space-y-5">
-      <SalesTitleBar icon={t.header.emoji} rhIndent title={t.header.title} subtitle={t.header.subtitle} />
+      <SalesTitleBar icon="🤝" rhIndent title={t.header.title} subtitle={t.header.subtitle} />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-sm text-slate-600">
           <KpiMetric icon={<ShieldCheck className="h-4 w-4" />} value={activePostSales} label={t.metrics.activeCustomers} valueClassName="text-[#177d66]" />
-          <KpiMetric icon={<CalendarClock className="h-4 w-4" />} value={renewalsSoon} label={t.metrics.renewalsThisMonth} valueClassName="text-violet-600" />
+          <KpiMetric icon={<CalendarClock className="h-4 w-4" />} value={renewalsSoon} label={t.metrics.renewalsThisMonth} valueClassName="text-[#9A6B05]" />
           <KpiMetric icon={<AlertTriangle className="h-4 w-4" />} value={revenueAtRiskDisplay} label={t.metrics.revenueAtRisk} valueClassName="text-[#b63b32]" />
           <KpiMetric icon={<RefreshCw className="h-4 w-4" />} value={recoveredCustomers} label={t.metrics.recoveredCustomers} valueClassName="text-[#2563EB]" />
           <KpiMetric icon={<Sparkles className="h-4 w-4" />} value={futureOpportunities} label={t.metrics.futureOpportunities} valueClassName="text-[#B63B32]" />
@@ -487,7 +487,7 @@ export default function Postventa() {
         </div>
       </section>
 
-      <div className="flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex w-fit rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {(['table', 'followUp'] as ViewMode[]).map((view) => (
           <Button
             key={view}
@@ -502,7 +502,7 @@ export default function Postventa() {
         ))}
       </div>
 
-      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
         <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-2">
@@ -513,7 +513,7 @@ export default function Postventa() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t.filters.searchPlaceholder}
-                className="h-11 rounded-xl border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className="h-11 rounded-lg border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -524,22 +524,22 @@ export default function Postventa() {
       </div>
 
       {viewMode === 'table' ? (
-        <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
-                  <TableHead className="min-w-[280px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.client}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.customerHealth}</TableHead>
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.salesHistory}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.lastPurchase}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.lifetimeValue}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.revenueAtRisk}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.nextFollowUp}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.futureOpportunities}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.status}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.owner}</TableHead>
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
+                  <TableHead className="min-w-[280px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.client}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.customerHealth}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.salesHistory}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.lastPurchase}</TableHead>
+                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.lifetimeValue}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.revenueAtRisk}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.nextFollowUp}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.futureOpportunities}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.status}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.owner}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -655,7 +655,7 @@ export default function Postventa() {
                         </TableCell>
                         <TableCell className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">{history.owner}</TableCell>
                         <TableCell className="px-5 py-4">
-                          <div className="mx-auto grid w-fit grid-cols-[repeat(5,2.25rem)] gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                          <div className="mx-auto grid w-fit grid-cols-[repeat(5,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                             <ActionButton label={t.actions.call} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" disabled={!history.phone} onClick={() => openPhoneCall(history.phone)} />
                             <ActionButton label={t.actions.whatsapp} icon={<MessageCircle className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/25" disabled={!history.phone} onClick={() => openWhatsApp(history.phone)} />
                             <ActionButton label={t.actions.email} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" disabled={!history.email} onClick={() => openEmail(history.email, history.clientName)} />
@@ -667,9 +667,9 @@ export default function Postventa() {
                       {isExpanded ? (
                         <TableRow key={`${history.id}-history`} className="bg-slate-50/70 dark:bg-slate-900/70">
                           <TableCell colSpan={11} className="px-8 py-5">
-                            <div className="rounded-[20px] border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                            <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
                               <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
-                                <p className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.saleHistory.title}</p>
+                                <p className="text-sm font-black uppercase tracking-normal text-slate-500">{t.saleHistory.title}</p>
                                 <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{t.saleHistory.description}</p>
                               </div>
                               {history.sales.length ? (
@@ -686,15 +686,15 @@ export default function Postventa() {
                                         <p className="mt-1 text-xs font-semibold text-slate-500">{sale.quoteReference}</p>
                                       </div>
                                       <div>
-                                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.date}</p>
+                                        <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.saleHistory.date}</p>
                                         <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{sale.saleDate}</p>
                                       </div>
                                       <div>
-                                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.total}</p>
+                                        <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.saleHistory.total}</p>
                                         <p className="mt-1 font-black text-slate-950 dark:text-white">{formatCurrency(sale.totalAmount, sale.currency)}</p>
                                       </div>
                                       <div>
-                                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t.saleHistory.products}</p>
+                                        <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.saleHistory.products}</p>
                                         <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{sale.saleLines.length}</p>
                                       </div>
                                       <span className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-3 text-sm font-black text-[#B63B32]">
@@ -769,17 +769,17 @@ export default function Postventa() {
       >
         <section className="grid gap-3 md:grid-cols-3">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.saleReference}</p>
+            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.saleReference}</p>
             <p className="mt-2 font-black text-slate-950">{selectedSale?.saleNumber}</p>
             <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.quoteReference}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.total}</p>
+            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.total}</p>
             <p className="mt-2 font-black text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0, selectedSale?.currency)}</p>
             <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.currency}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.status}</p>
+            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.status}</p>
             <p className="mt-2 font-black text-slate-950">{selectedSale?.commercialStatus}</p>
             <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.financeStatus} · {selectedSale?.inventoryStatus}</p>
           </div>
@@ -787,17 +787,17 @@ export default function Postventa() {
 
         <section className="rounded-lg border border-slate-200 bg-white">
           <div className="border-b border-slate-100 px-5 py-4">
-            <p className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.lines}</p>
+            <p className="text-sm font-black uppercase tracking-normal text-slate-500">{t.saleDetail.lines}</p>
           </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.product}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.quantity}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.unitPrice}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.margin}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{t.saleDetail.warehouse}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.product}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.quantity}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.unitPrice}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.margin}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.warehouse}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -897,7 +897,7 @@ export default function Postventa() {
         }
       >
         <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#B63B32]">{t.forms.lost.contextTitle}</p>
+          <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">{t.forms.lost.contextTitle}</p>
           <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
             <div>
               <p className="font-black text-slate-950">{automationCase?.clientName}</p>
@@ -960,12 +960,12 @@ export default function Postventa() {
       >
         <p className="text-sm font-bold text-slate-500 dark:text-slate-400">{selectedFilesCase?.clientName}</p>
         {selectedFilesCase?.files.length ? selectedFilesCase.files.map((file) => (
-          <div key={file} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+          <div key={file} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
             <FileText className="h-4 w-4 text-[#B63B32] dark:text-[#FFB0AA]" />
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{file}</span>
           </div>
         )) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
             {t.filesModal.empty}
           </div>
         )}

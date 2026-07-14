@@ -39,6 +39,7 @@ export default function LoginPage() {
   const copy = t.loginPage;
 
   const normalizedEmail = normalizeEmail(email);
+  const normalizedPassword = password.trim();
   const emailIsValid = isValidEmail(normalizedEmail);
   const showEmailError = emailTouched && normalizedEmail.length > 0 && !emailIsValid;
   const normalizedResetEmail = normalizeEmail(resetEmail);
@@ -46,8 +47,8 @@ export default function LoginPage() {
   const showResetEmailError = resetEmailTouched && normalizedResetEmail.length > 0 && !resetEmailIsValid;
 
   const canSubmit = useMemo(
-    () => normalizedEmail.length > 0 && emailIsValid && password.trim().length > 0 && !isSubmitting,
-    [emailIsValid, isSubmitting, normalizedEmail, password],
+    () => normalizedEmail.length > 0 && emailIsValid && normalizedPassword.length > 0 && !isSubmitting,
+    [emailIsValid, isSubmitting, normalizedEmail, normalizedPassword],
   );
 
   const canSubmitReset = useMemo(
@@ -71,7 +72,7 @@ export default function LoginPage() {
       await runWithMinimumDuration(
         authApi.login({
           email: normalizedEmail,
-          password,
+          password: normalizedPassword,
         }),
         LOGIN_MINIMUM_LOADING_MS,
       );
@@ -87,6 +88,16 @@ export default function LoginPage() {
       setErrorMessage(error instanceof Error ? error.message : copy.errorFallback);
       setIsSubmitting(false);
     }
+  };
+
+  const updateEmail = (value: string) => {
+    setEmail(value);
+    setErrorMessage('');
+  };
+
+  const updatePassword = (value: string) => {
+    setPassword(value);
+    setErrorMessage('');
   };
 
   const openResetModal = () => {
@@ -164,9 +175,9 @@ export default function LoginPage() {
             canSubmit={canSubmit}
             showEmailError={showEmailError}
             errorMessage={errorMessage}
-            onEmailChange={setEmail}
+            onEmailChange={updateEmail}
             onEmailBlur={() => setEmailTouched(true)}
-            onPasswordChange={setPassword}
+            onPasswordChange={updatePassword}
             onTogglePassword={() => setShowPassword((current) => !current)}
             onOpenResetModal={openResetModal}
             onSubmit={handleSubmit}

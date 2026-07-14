@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { DollarSign, CreditCard, Smartphone, Calculator, WalletCards } from 'lucide-react';
-import { PosModalFrame } from './PosModalFrame';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 import {
   evaluateCreditPurchase,
   findCreditRuleForCustomer,
@@ -177,25 +182,21 @@ export function AddPaymentModal({
         return {
           title: 'Agregar Pago en Efectivo',
           icon: <DollarSign className="h-6 w-6" />,
-          confirmClass: 'bg-emerald-600 hover:bg-emerald-700',
         };
       case 'card':
         return {
           title: 'Agregar Pago con Tarjeta',
           icon: <CreditCard className="h-6 w-6" />,
-          confirmClass: 'bg-blue-600 hover:bg-blue-700',
         };
       case 'transfer':
         return {
           title: 'Agregar Pago por Transferencia',
           icon: <Smartphone className="h-6 w-6" />,
-          confirmClass: 'bg-purple-600 hover:bg-purple-700',
         };
       case 'credit':
         return {
           title: 'Agregar Venta a Credito',
           icon: <WalletCards className="h-6 w-6" />,
-          confirmClass: 'bg-amber-600 hover:bg-amber-700',
         };
     }
   };
@@ -211,18 +212,20 @@ export function AddPaymentModal({
       size="md"
       title={config.title}
       subtitle={`Restante ${formatCurrency(remainingAmount)}`}
+      tone="coral"
+      footerClassName={posModalModuleFooterClassName}
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={onClose}
-            className="min-h-14 flex-1 rounded-2xl border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
+            className={posModalSecondaryActionClassName}
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
             disabled={!amount || parseFloat(amount) <= 0}
-            className={`min-h-14 flex-1 rounded-2xl px-6 py-3 text-base font-black text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 ${config.confirmClass}`}
+            className={posModalPrimaryActionClassName}
           >
             {paymentMethod === 'credit' ? 'Agregar Credito' : 'Agregar Pago'}
           </button>
@@ -231,13 +234,13 @@ export function AddPaymentModal({
     >
         <div className="space-y-4">
           {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
 
           {/* Remaining Amount Display */}
-          <div className="rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 p-4 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10">
+          <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 p-4 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10">
             <p className="mb-1 text-sm font-black text-[#7A5B00] dark:text-[#F8E08A]">Falta por pagar</p>
             <p className="text-3xl font-black text-gray-950 dark:text-white">
               {formatCurrency(remainingAmount)}
@@ -258,7 +261,7 @@ export function AddPaymentModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
@@ -269,31 +272,31 @@ export function AddPaymentModal({
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <button
                 onClick={() => handleQuickAmount(remainingAmount)}
-                className="min-h-12 rounded-2xl border-2 border-orange-500 bg-orange-50 px-3 py-2 text-sm font-black text-orange-700 transition hover:bg-orange-100 active:scale-[0.98] dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
+                className="min-h-12 rounded-lg border-2 border-orange-500 bg-orange-50 px-3 py-2 text-sm font-black text-orange-700 transition hover:bg-orange-100 active:scale-[0.98] dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
               >
                 Restante
               </button>
               <button
                 onClick={() => handleQuickAmount(100)}
-                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $100
               </button>
               <button
                 onClick={() => handleQuickAmount(200)}
-                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $200
               </button>
               <button
                 onClick={() => handleQuickAmount(500)}
-                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $500
               </button>
               <button
                 onClick={() => handleQuickAmount(1000)}
-                className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $1,000
               </button>
@@ -315,7 +318,7 @@ export function AddPaymentModal({
                     value={cashReceived}
                     onChange={(e) => setCashReceived(e.target.value)}
                     placeholder="0.00"
-                    className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -326,31 +329,31 @@ export function AddPaymentModal({
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <button
                     onClick={() => handleQuickCash(parseFloat(amount) || 0)}
-                    className="min-h-12 rounded-2xl border-2 border-green-500 bg-green-50 px-3 py-2 text-sm font-black text-green-700 transition hover:bg-green-100 active:scale-[0.98] dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30"
+                    className="min-h-12 rounded-lg border-2 border-green-500 bg-green-50 px-3 py-2 text-sm font-black text-green-700 transition hover:bg-green-100 active:scale-[0.98] dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30"
                   >
                     Exacto
                   </button>
                   <button
                     onClick={() => handleQuickCash(100)}
-                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $100
                   </button>
                   <button
                     onClick={() => handleQuickCash(200)}
-                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $200
                   </button>
                   <button
                     onClick={() => handleQuickCash(500)}
-                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $500
                   </button>
                   <button
                     onClick={() => handleQuickCash(1000)}
-                    className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $1,000
                   </button>
@@ -359,7 +362,7 @@ export function AddPaymentModal({
 
               {/* Change Display */}
               {parseFloat(cashReceived) > 0 && (
-                <div className={`rounded-2xl p-4 ${
+                <div className={`rounded-lg p-4 ${
                   change > 0
                     ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
                     : 'bg-red-50 dark:bg-red-900/20 border-2 border-red-500'
@@ -385,7 +388,7 @@ export function AddPaymentModal({
           )}
 
           {paymentMethod === 'credit' && (
-            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
               <div>
                 <label className="mb-2 block text-sm font-black text-amber-900 dark:text-amber-100">
                   Cliente con linea de credito
@@ -393,7 +396,7 @@ export function AddPaymentModal({
                 <select
                   value={selectedCustomerId}
                   onChange={(event) => setSelectedCustomerId(event.target.value)}
-                  className="min-h-14 w-full rounded-2xl border-2 border-amber-200 bg-white px-4 py-3 text-base font-black text-gray-900 focus:ring-2 focus:ring-amber-500 dark:border-amber-500/30 dark:bg-gray-900 dark:text-white"
+                  className="min-h-14 w-full rounded-lg border-2 border-amber-200 bg-white px-4 py-3 text-base font-black text-gray-900 focus:ring-2 focus:ring-amber-500 dark:border-amber-500/30 dark:bg-gray-900 dark:text-white"
                 >
                   <option value="">Selecciona cliente</option>
                   {creditCustomers
@@ -418,7 +421,7 @@ export function AddPaymentModal({
               )}
 
               {creditEvaluation && (
-                <div className={`rounded-2xl px-4 py-3 text-xs font-bold ${
+                <div className={`rounded-lg px-4 py-3 text-xs font-bold ${
                   creditEvaluation.decision === 'blocked'
                     ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
                     : creditEvaluation.decision === 'review'
@@ -437,7 +440,7 @@ export function AddPaymentModal({
               {!showReferenceField ? (
                 <button
                   onClick={() => setShowReferenceField(true)}
-                  className="min-h-12 w-full rounded-2xl border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-black text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 active:scale-[0.98] dark:border-gray-600 dark:text-gray-400 dark:hover:text-white"
+                  className="min-h-12 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-black text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 active:scale-[0.98] dark:border-gray-600 dark:text-gray-400 dark:hover:text-white"
                 >
                   + Agregar referencia (opcional)
                 </button>
@@ -452,7 +455,7 @@ export function AddPaymentModal({
                         setShowReferenceField(false);
                         setReference('');
                       }}
-                      className="min-h-10 rounded-xl px-3 text-xs font-black text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                      className="min-h-10 rounded-lg px-3 text-xs font-black text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-300"
                     >
                       Quitar
                     </button>
@@ -462,7 +465,7 @@ export function AddPaymentModal({
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     placeholder={paymentMethod === 'card' ? '1234 / AUTH123' : paymentMethod === 'credit' ? 'AUT-CRED-001' : 'REF123456'}
-                    className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
               )}
@@ -475,7 +478,7 @@ export function AddPaymentModal({
 
 function CreditStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white p-3 dark:bg-gray-900/60">
+    <div className="rounded-lg bg-white p-3 dark:bg-gray-900/60">
       <p className="text-[11px] font-black uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400">{label}</p>
       <p className="mt-1 text-sm font-black text-gray-950 dark:text-white">{value}</p>
     </div>

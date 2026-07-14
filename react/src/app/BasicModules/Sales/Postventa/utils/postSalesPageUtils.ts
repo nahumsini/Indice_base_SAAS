@@ -26,7 +26,7 @@ export const statusClasses: Record<PostSaleStatus, string> = {
   Active: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
   'Pending follow-up': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
   'In service': 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] dark:text-blue-300',
-  'Renewal soon': 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300',
+  'Renewal soon': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
   Recurrent: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
   'At risk': 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FFB0AA]',
   Completed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10 dark:text-[#7AD8BF]',
@@ -36,7 +36,7 @@ export const statusClasses: Record<PostSaleStatus, string> = {
 export const relationClasses: Record<CustomerRelationType, string> = {
   'One-time customer': 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
   'Recurrent customer': 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
-  'Renewal customer': 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300',
+  'Renewal customer': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
   'Dormant customer': 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
   'Lost prospect': 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] dark:text-[#FFB0AA]',
 };
@@ -66,7 +66,7 @@ export const statusProgressClasses: Record<PostSaleStatus, string> = {
   Active: 'bg-[#59C3A5]',
   'Pending follow-up': 'bg-[#F4C84A]',
   'In service': 'bg-[#2563EB]',
-  'Renewal soon': 'bg-violet-500',
+  'Renewal soon': 'bg-[#F4C84A]',
   Recurrent: 'bg-[#177d66]',
   'At risk': 'bg-[#FF6B5E]',
   Completed: 'bg-emerald-500',

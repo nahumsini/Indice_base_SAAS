@@ -31,7 +31,13 @@ export function SalesTabsNav({
                   : 'bg-slate-100 text-slate-600 hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-[#FF6B5E]/15 dark:hover:text-[#FFB0AA]',
               )}
             >
-              <span className="text-base leading-none" aria-hidden="true">
+              <span
+                className={cn(
+                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[15px] leading-none',
+                  active ? 'bg-white/20' : 'bg-white shadow-sm dark:bg-slate-950',
+                )}
+                aria-hidden="true"
+              >
                 {tab.emoji}
               </span>
               <span>{copy.tabs[tab.translationKey]}</span>

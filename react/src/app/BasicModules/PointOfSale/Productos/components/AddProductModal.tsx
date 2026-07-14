@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Check, Package } from 'lucide-react';
 import { Product } from '../types/product.types';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from '../../Sale/components/PosModalFrame';
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -109,23 +115,37 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {product ? 'Editar Producto' : 'Nuevo Producto'}
-          </h2>
+    <PosModalFrame
+      closeLabel="Cerrar producto"
+      eyebrow="Catalogo POS"
+      footerClassName={posModalModuleFooterClassName}
+      icon={<Package className="h-6 w-6" />}
+      onClose={onClose}
+      size="lg"
+      subtitle="Configura codigos, precios e inventario para venta rapida."
+      title={product ? 'Editar Producto' : 'Nuevo Producto'}
+      tone="coral"
+      footer={(
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-gray-600 hover:bg-white/50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className={posModalSecondaryActionClassName}
           >
-            <X className="w-5 h-5" />
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            form="pos-product-form"
+            className={posModalPrimaryActionClassName}
+          >
+            <Check className="h-4 w-4" />
+            {product ? 'Guardar cambios' : 'Crear producto'}
           </button>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6">
+      )}
+    >
+        <form id="pos-product-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-6">
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -138,7 +158,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                   required
                   value={formData.barcode}
                   onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   placeholder="750105317394"
                 />
               </div>
@@ -151,7 +171,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                   type="text"
                   value={formData.cfdi}
                   onChange={(e) => setFormData({ ...formData, cfdi: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                 />
               </div>
 
@@ -164,7 +184,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   placeholder="Trapeador"
                 />
               </div>
@@ -178,7 +198,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   placeholder="Descripción del producto"
                 />
               </div>
@@ -197,7 +217,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     value="unit"
                     checked={formData.saleType === 'unit'}
                     onChange={(e) => setFormData({ ...formData, saleType: e.target.value as any })}
-                    className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+                    className="w-4 h-4 text-[#FF6B5E] focus:ring-[#FF6B5E]"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">Por Unidad/Pza</span>
                 </label>
@@ -208,7 +228,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     value="bulk"
                     checked={formData.saleType === 'bulk'}
                     onChange={(e) => setFormData({ ...formData, saleType: e.target.value as any })}
-                    className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+                    className="w-4 h-4 text-[#FF6B5E] focus:ring-[#FF6B5E]"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">A Granel (Usa Decimales)</span>
                 </label>
@@ -219,7 +239,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     value="package"
                     checked={formData.saleType === 'package'}
                     onChange={(e) => setFormData({ ...formData, saleType: e.target.value as any })}
-                    className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+                    className="w-4 h-4 text-[#FF6B5E] focus:ring-[#FF6B5E]"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">Como paquete (kit)</span>
                 </label>
@@ -241,7 +261,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     step="0.01"
                     value={formData.costPrice}
                     onChange={(e) => handleCostChange(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -258,7 +278,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     step="0.01"
                     value={formData.profitMargin?.toFixed(2)}
                     onChange={(e) => handleMarginChange(parseFloat(e.target.value) || 0)}
-                    className="w-full pr-8 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full pr-8 pl-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   />
                   <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
                 </div>
@@ -277,7 +297,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     step="0.01"
                     value={formData.salePrice?.toFixed(2)}
                     onChange={(e) => handleSalePriceChange(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -294,7 +314,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     step="0.01"
                     value={formData.wholesalePrice}
                     onChange={(e) => setFormData({ ...formData, wholesalePrice: parseFloat(e.target.value) || 0 })}
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -309,7 +329,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                   step="1"
                   value={formData.taxRate}
                   onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                 />
               </div>
             </div>
@@ -325,7 +345,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                   required
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   placeholder="Para el hogar"
                 />
               </div>
@@ -338,7 +358,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                   type="text"
                   value={formData.supplierId}
                   onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                   placeholder="115"
                 />
               </div>
@@ -352,7 +372,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                     type="checkbox"
                     checked={formData.useInventory}
                     onChange={(e) => setFormData({ ...formData, useInventory: e.target.checked })}
-                    className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                    className="w-4 h-4 text-[#FF6B5E] rounded focus:ring-[#FF6B5E]"
                   />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Este producto SI utiliza inventario
@@ -371,7 +391,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                       min="0"
                       value={formData.currentStock}
                       onChange={(e) => setFormData({ ...formData, currentStock: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                     />
                   </div>
 
@@ -384,7 +404,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                       min="0"
                       value={formData.minStock}
                       onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                     />
                   </div>
 
@@ -397,7 +417,7 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
                       min="0"
                       value={formData.maxStock}
                       onChange={(e) => setFormData({ ...formData, maxStock: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6B5E] focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -405,25 +425,6 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
             </div>
           </div>
         </form>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors"
-          >
-            {product ? 'Guardar cambios' : 'Crear producto'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </PosModalFrame>
   );
 }

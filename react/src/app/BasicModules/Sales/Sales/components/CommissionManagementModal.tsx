@@ -90,7 +90,7 @@ export function CommissionManagementModal({
         </>
       )}
     >
-      <div className="rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 px-4 py-3">
+      <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 px-4 py-3">
         <p className="text-sm font-black text-[#B63B32]">{record?.saleNumber ?? t.common.notAvailable}</p>
         <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
           {record?.customerName ?? t.common.notAvailable} · {formatSalesCurrency(record?.totalAmount ?? 0, record?.currency ?? defaultSalesCurrency)}
@@ -111,7 +111,7 @@ export function CommissionManagementModal({
           <Input type="number" value={draft.commissionAmount} onChange={(event) => setDraft((current) => ({ ...current, commissionAmount: Number(event.target.value) }))} className={salesFieldClassName} />
         </FormField>
         <div className="flex items-end">
-          <Button type="button" variant="outline" className="h-11 rounded-xl border-[#FF6B5E]/25 bg-white px-4 font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-950 dark:text-[#FFB0AA]" onClick={handleUseSuggestedAmount}>
+          <Button type="button" variant="outline" className="h-11 rounded-lg border-[#FF6B5E]/25 bg-white px-4 font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-950 dark:text-[#FFB0AA]" onClick={handleUseSuggestedAmount}>
             {t.commissionModal.useSuggestedAmount}
           </Button>
         </div>
@@ -122,7 +122,7 @@ export function CommissionManagementModal({
           value={draft.commissionNotes}
           onChange={(event) => setDraft((current) => ({ ...current, commissionNotes: event.target.value }))}
           placeholder={t.commissionModal.notesPlaceholder}
-          className="min-h-28 rounded-xl border-slate-200 bg-white shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          className="min-h-28 rounded-lg border-slate-200 bg-white shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
         />
       </FormField>
     </SalesModalFrame>

@@ -60,6 +60,9 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backendUrl,
           changeOrigin: true,
+          headers: {
+            Origin: backendUrl,
+          },
         },
       },
     },

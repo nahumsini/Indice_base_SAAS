@@ -33,7 +33,7 @@ function ProductCardAction({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
         className,
       )}
     >
@@ -67,7 +67,7 @@ export function ProductCardsView({
 
   return (
     <>
-      <section className="rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="border-b border-slate-100 p-5 dark:border-slate-700">
           <h3 className="text-xl font-black text-slate-950 dark:text-white">{t.sections.cardsTitle}</h3>
           <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{t.sections.cardsDescription}</p>
@@ -82,7 +82,7 @@ export function ProductCardsView({
               const galleryCount = galleryImages.length;
 
               return (
-                <article key={product.id} className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm transition hover:border-[#FF6B5E]/35 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
+                <article key={product.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-[#FF6B5E]/35 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
                   <div className="relative bg-slate-50 p-3 dark:bg-slate-800">
                     <button
                       type="button"
@@ -108,22 +108,22 @@ export function ProductCardsView({
 
                   <div className="space-y-4 p-5">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{product.sku}</p>
+                      <p className="text-xs font-black uppercase tracking-normal text-slate-400">{product.sku}</p>
                       <h3 className="mt-2 text-lg font-black text-slate-950 dark:text-white">{product.name}</h3>
                       <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{product.description}</p>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
                         <p className="font-semibold text-slate-500">{t.labels.price}</p>
                         <p className="mt-1 font-black text-slate-950 dark:text-white">{formatProductCurrency(product.price, product.currency)}</p>
                       </div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
                         <p className="font-semibold text-slate-500">{t.labels.profit}</p>
                         <p className="mt-1 font-black text-[#177d66]">{formatProductCurrency(getProductProfit(product), product.currency)}</p>
                         <p className="text-xs font-bold text-[#B63B32]">{getProductMargin(product)}%</p>
                       </div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
                         <p className="font-semibold text-slate-500">{t.labels.category}</p>
                         <p className="mt-1 truncate font-black text-slate-950 dark:text-white">{getCategoryLabel(product.category, t)}</p>
                       </div>
@@ -135,7 +135,7 @@ export function ProductCardsView({
                     </div>
                     <ProductHealthIndicators product={product} t={t} />
 
-                    <div className="flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 dark:border-slate-700 dark:bg-slate-800">
+                    <div className="flex items-center justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 dark:border-slate-700 dark:bg-slate-800">
                       <ProductCardAction label={t.actions.viewImages} icon={<Images className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB8B1] dark:hover:bg-[#FF6B5E]/25" onClick={() => openCarousel(product)} />
                       <ProductCardAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => onEditProduct?.(product)} />
                       <ProductCardAction label={t.actions.duplicate} icon={<Copy className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#F7D86B] dark:hover:bg-[#F4C84A]/25" onClick={() => onDuplicateProduct?.(product)} />

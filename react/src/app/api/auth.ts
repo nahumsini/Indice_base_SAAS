@@ -99,7 +99,12 @@ export const authApi = {
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401) {
         cacheSession(null);
-        throw new Error(error.message || 'Invalid email or password.');
+        throw new Error('Correo o contraseña incorrectos. Usa demo@example.com / demo123 para el demo.');
+      }
+
+      if (error instanceof ApiClientError && error.status === 403) {
+        cacheSession(null);
+        throw new Error('El backend rechazo el origen de este puerto de desarrollo. Recarga el servidor local y vuelve a intentar.');
       }
 
       throw error;

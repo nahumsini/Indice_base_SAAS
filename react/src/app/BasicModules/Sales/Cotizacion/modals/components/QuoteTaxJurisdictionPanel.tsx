@@ -112,7 +112,7 @@ export function QuoteTaxJurisdictionPanel({
 
         <div className="grid gap-3 sm:grid-cols-2 2xl:min-w-[440px]">
           <div className="grid gap-2">
-            <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            <label className="text-xs font-black uppercase tracking-normal text-slate-500">
               {t.taxBuilder.jurisdiction}
             </label>
             <Select value={form.taxJurisdiction} onValueChange={(value) => handleJurisdictionChange(value as QuoteTaxJurisdiction)}>
@@ -130,7 +130,7 @@ export function QuoteTaxJurisdictionPanel({
           </div>
 
           <div className="grid gap-2">
-            <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            <label className="text-xs font-black uppercase tracking-normal text-slate-500">
               {t.labels.currency}
             </label>
             {form.taxJurisdiction === 'custom' ? (

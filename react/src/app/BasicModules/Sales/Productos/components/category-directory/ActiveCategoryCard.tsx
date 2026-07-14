@@ -58,7 +58,7 @@ export function ActiveCategoryCard({
         <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
         <Input
           value={category.name}
-          className="h-10 min-w-0 rounded-xl border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+          className="h-10 min-w-0 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
           onChange={(event) => onUpdate(category.id, (current) => ({
             ...current,
             name: event.target.value,

@@ -52,7 +52,7 @@ export function SaleSidePanel({
         aria-label="Cerrar panel lateral"
       />
 
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col border-l border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col border-l border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-start justify-between border-b border-gray-200 bg-blue-700 px-5 py-4 text-white dark:border-gray-700">
           <div>
             <p className="text-xs font-semibold uppercase text-blue-100">

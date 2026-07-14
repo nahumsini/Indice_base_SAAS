@@ -13,7 +13,6 @@ export const esMX: PostSalesTranslations = {
     notAvailable: 'N/D',
   },
   header: {
-    emoji: '🤝',
     title: 'Postventa',
     subtitle: 'Capa de continuidad comercial para clientes, renovaciones, cuentas recurrentes, seguimientos de servicio y reactivaciones futuras.',
     createCase: 'Crear caso',

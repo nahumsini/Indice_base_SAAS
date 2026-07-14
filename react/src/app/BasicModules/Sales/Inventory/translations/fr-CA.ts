@@ -15,7 +15,6 @@ export const frCA = {
     no: 'Non',
   },
   header: {
-    emoji: '🏬',
     title: 'Inventaire',
     subtitle: 'Contrôlez le stock, les emplacements et les mouvements sans mélanger catalogue commercial et inventaire.',
     primaryAction: 'Nouveau mouvement',

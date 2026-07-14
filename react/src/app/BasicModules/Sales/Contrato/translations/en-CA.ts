@@ -11,7 +11,6 @@ export const enCA = {
     actions: 'Actions',
   },
   header: {
-    emoji: '📝',
     title: 'Digital Contracts',
     subtitle: 'Operational contract centre prepared for templates, assignments, document versions and future signature integrations.',
     createContract: 'Create contract',

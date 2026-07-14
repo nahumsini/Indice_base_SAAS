@@ -45,8 +45,8 @@ function SummaryMetric({
   } as const;
 
   return (
-    <div className={cn('rounded-2xl border border-slate-200 bg-slate-50 p-4 pl-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60', 'border-l-4', accents[tone])}>
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{label}</p>
+    <div className={cn('rounded-lg border border-slate-200 bg-slate-50 p-4 pl-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60', 'border-l-4', accents[tone])}>
+      <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{label}</p>
       <p className="mt-2 text-lg font-black text-slate-950 dark:text-white">{value}</p>
     </div>
   );
@@ -69,9 +69,9 @@ export function SalesCreateSummaryPanel({
 
   return (
     <aside className="space-y-4 lg:sticky lg:top-0">
-      <section className="rounded-[24px] border border-[#FF6B5E]/20 bg-white p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-slate-900/70">
+      <section className="rounded-lg border border-[#FF6B5E]/20 bg-white p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-slate-900/70">
         <div className="flex items-start gap-3">
-          <div className="rounded-2xl bg-[#FF6B5E]/10 p-3 text-[#FF6B5E] dark:bg-[#FF6B5E]/15">
+          <div className="rounded-lg bg-[#FF6B5E]/10 p-3 text-[#FF6B5E] dark:bg-[#FF6B5E]/15">
             <ClipboardCheck className="h-5 w-5" />
           </div>
           <div>
@@ -92,8 +92,8 @@ export function SalesCreateSummaryPanel({
         </div>
       </section>
 
-      <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-        <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t.modal.workspace.readinessTitle}</h3>
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+        <h3 className="text-sm font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.modal.workspace.readinessTitle}</h3>
         <div className="mt-4 flex flex-wrap gap-2">
           <StatusPill tone={selectedOpportunity ? 'green' : 'slate'}>
             {selectedOpportunity ? t.modal.workspace.opportunityLoaded : t.modal.workspace.opportunityPending}
@@ -105,8 +105,8 @@ export function SalesCreateSummaryPanel({
           <StatusPill tone="yellow">{t.statuses.inventory[form.inventoryStatus]}</StatusPill>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t.modal.workspace.nextAction}</p>
+        <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+          <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.modal.workspace.nextAction}</p>
           <p className="mt-2 text-sm font-bold leading-6 text-slate-950 dark:text-white">{nextAction}</p>
         </div>
       </section>

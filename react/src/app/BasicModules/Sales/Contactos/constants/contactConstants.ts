@@ -13,8 +13,8 @@ export const defaultContactVisibleColumns: ContactColumnId[] = [
   'notes',
 ];
 
-export const contactInputClassName = 'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
-export const contactSelectClassName = 'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
+export const contactInputClassName = 'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
+export const contactSelectClassName = 'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 export const contactModalActionClassNames = getSalesModalActionClassNames('coral');
 export const contactSortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
 

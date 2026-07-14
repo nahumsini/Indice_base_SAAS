@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, DollarSign, Landmark, Loader2, RotateCw } from 'lucide-react';
-import { PosModalFrame } from './PosModalFrame';
+import {
+  PosModalFrame,
+  posModalModuleFooterClassName,
+  posModalPrimaryActionClassName,
+  posModalSecondaryActionClassName,
+} from './PosModalFrame';
 import type { PosCashMovementType } from '../services/posBackendApi';
 
 interface CashMovementModalProps {
@@ -130,19 +135,21 @@ export function CashMovementModal({
       size="md"
       subtitle="Registra ajustes operativos del turno actual."
       title="Movimiento de efectivo"
+      tone="coral"
+      footerClassName={posModalModuleFooterClassName}
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="min-h-14 flex-1 rounded-2xl border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
+            className={posModalSecondaryActionClassName}
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
             disabled={isSubmitting || !amount || Number(amount) <= 0 || !reason.trim()}
-            className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FF6B5E] px-6 py-3 text-base font-black text-white shadow-sm transition hover:bg-[#ff5a4b] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+            className={posModalPrimaryActionClassName}
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {isSubmitting ? 'Registrando...' : 'Registrar movimiento'}
@@ -152,7 +159,7 @@ export function CashMovementModal({
     >
         <div className="space-y-5">
           {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
@@ -169,7 +176,7 @@ export function CashMovementModal({
                     key={option.type}
                     type="button"
                     onClick={() => setType(option.type)}
-                    className={`min-h-24 rounded-2xl border-2 p-4 text-left transition-all active:scale-[0.98] ${
+                    className={`min-h-24 rounded-lg border-2 p-4 text-left transition-all active:scale-[0.98] ${
                       isActive
                         ? option.tone
                       : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300'
@@ -199,14 +206,14 @@ export function CashMovementModal({
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   placeholder="0.00"
-                  className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white py-3 pl-12 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-12 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
             </div>
 
             <div>
               <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Vista previa</p>
-              <div className={`rounded-2xl border-2 p-4 ${activeOption.tone}`}>
+              <div className={`rounded-lg border-2 p-4 ${activeOption.tone}`}>
                 <p className="text-xs font-black uppercase">{activeOption.label}</p>
                 <p className="mt-1 text-2xl font-black">
                   {formatCurrency(Number(amount) || 0, currency)}
@@ -223,7 +230,7 @@ export function CashMovementModal({
                   key={value}
                   type="button"
                   onClick={() => handleQuickAmount(value)}
-                  className="min-h-12 rounded-2xl bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                 >
                   {formatCurrency(value, currency)}
                 </button>
@@ -241,7 +248,7 @@ export function CashMovementModal({
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Describe el motivo"
-                className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
 
@@ -254,7 +261,7 @@ export function CashMovementModal({
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
                 placeholder="Opcional"
-                className="min-h-14 w-full rounded-2xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
@@ -267,7 +274,7 @@ export function CashMovementModal({
                   key={reasonOption}
                   type="button"
                   onClick={() => setReason(reasonOption)}
-                  className={`min-h-12 rounded-2xl border px-3 py-2 text-left text-sm font-black transition-all active:scale-[0.98] ${
+                  className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-black transition-all active:scale-[0.98] ${
                     reason === reasonOption
                       ? activeOption.tone
                       : 'border-gray-300 bg-gray-50 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300'

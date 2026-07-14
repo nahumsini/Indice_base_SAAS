@@ -8,10 +8,10 @@ import {
 import type { OpportunityColumnId, OpportunityFormState } from '../types/prospectosTypes';
 
 export const opportunityInputClassName =
-  'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
+  'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
 
 export const opportunitySelectClassName =
-  'h-11 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
+  'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
 
 export const initialOpportunityForm: OpportunityFormState = {
   opportunityName: '',
@@ -108,7 +108,7 @@ export const stageProgressStyles: Record<OpportunityStage, string> = {
   Contacted: 'bg-[#59C3A5]',
   Qualified: 'bg-[#22C55E]',
   Proposal: 'bg-[#F4C84A]',
-  Negotiation: 'bg-violet-500',
+  Negotiation: 'bg-[#FF6B5E]',
   Won: 'bg-emerald-600',
   Lost: 'bg-[#FF2D5E]',
 };
@@ -118,7 +118,7 @@ export const stageClasses: Record<OpportunityStage, string> = {
   Contacted: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
   Qualified: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   Proposal: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05]',
-  Negotiation: 'border-violet-200 bg-violet-50 text-violet-700',
+  Negotiation: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
   Won: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   Lost: 'border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32]',
 };

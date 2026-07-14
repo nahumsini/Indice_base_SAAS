@@ -57,7 +57,7 @@ function MetricCard({
   label: string;
   value: string;
   detail: string;
-  tone?: 'coral' | 'blue' | 'green' | 'yellow' | 'red' | 'purple';
+  tone?: 'coral' | 'blue' | 'green' | 'yellow' | 'red';
 }) {
   const tones = {
     coral: 'text-[#B63B32]',
@@ -65,11 +65,10 @@ function MetricCard({
     green: 'text-emerald-600',
     yellow: 'text-amber-600',
     red: 'text-rose-600',
-    purple: 'text-violet-600',
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <Icon className={`h-5 w-5 ${tones[tone]}`} />
       </div>
@@ -164,7 +163,7 @@ export default function KPIs() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="mb-4 text-base font-bold text-slate-950">{copy.filters.title}</h3>
         <div className="grid gap-4 md:grid-cols-4">
           <select value={businessUnitFilter} onChange={(event) => setBusinessUnitFilter(event.target.value)} className="rounded-lg border border-slate-200 px-4 py-3 text-sm">
@@ -204,7 +203,7 @@ export default function KPIs() {
         <MetricCard icon={Target} label={copy.cards.activeProspects.label} value={String(kpis.activeProspects)} detail={copy.cards.activeProspects.detail(kpis.totalProspects)} />
         <MetricCard icon={FileText} label={copy.cards.quotes.label} value={String(kpis.totalQuotes)} detail={copy.cards.quotes.detail(kpis.approvedQuotes + kpis.closedWonQuotes)} tone="yellow" />
         <MetricCard icon={CircleDollarSign} label={copy.cards.salesRevenue.label} value={salesSummary.preferredTotalLabel} detail={copy.cards.salesRevenue.detail(kpis.totalSales)} tone="green" />
-        <MetricCard icon={BriefcaseBusiness} label={copy.cards.commissions.label} value={commissionSummary.preferredTotalLabel} detail={copy.cards.commissions.detail} tone="purple" />
+        <MetricCard icon={BriefcaseBusiness} label={copy.cards.commissions.label} value={commissionSummary.preferredTotalLabel} detail={copy.cards.commissions.detail} tone="blue" />
       </section>
 
       {filteredSources.sales.length > 0 ? (
@@ -215,7 +214,7 @@ export default function KPIs() {
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="text-lg font-bold text-slate-950">{copy.signals.title}</h3>
@@ -230,7 +229,7 @@ export default function KPIs() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 p-5">
+          <div className="rounded-lg border border-slate-200 p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className="font-bold text-slate-700">{copy.signals.conversion}</p>
               <TrendingUp className="h-5 w-5 text-[#B63B32]" />
@@ -239,7 +238,7 @@ export default function KPIs() {
             <ProgressLine value={kpis.quoteConversionRate} danger={kpis.quoteConversionRate < 25} />
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-5">
+          <div className="rounded-lg border border-slate-200 p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className="font-bold text-slate-700">{copy.signals.inventoryReadiness}</p>
               <Warehouse className="h-5 w-5 text-emerald-600" />
@@ -249,7 +248,7 @@ export default function KPIs() {
             <ProgressLine value={kpis.inventoryReadiness} danger={kpis.inventoryReadiness < 60} />
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-5">
+          <div className="rounded-lg border border-slate-200 p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className="font-bold text-slate-700">{copy.signals.commercialRisk}</p>
               <AlertTriangle className="h-5 w-5 text-rose-600" />
@@ -265,11 +264,11 @@ export default function KPIs() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={UsersRound} label={copy.cards.contacts.label} value={String(kpis.totalContacts)} detail={copy.cards.contacts.detail(kpis.activeCustomers)} />
         <MetricCard icon={PackageCheck} label={copy.cards.products.label} value={String(kpis.totalProducts)} detail={copy.cards.products.detail(kpis.activeProducts)} tone="green" />
-        <MetricCard icon={ClipboardList} label={copy.cards.averageTicket.label} value={formatPreferred(kpis.totalSales > 0 ? salesSummary.preferredTotal / kpis.totalSales : 0, preferredCurrency)} detail={copy.cards.averageTicket.detail} tone="purple" />
+        <MetricCard icon={ClipboardList} label={copy.cards.averageTicket.label} value={formatPreferred(kpis.totalSales > 0 ? salesSummary.preferredTotal / kpis.totalSales : 0, preferredCurrency)} detail={copy.cards.averageTicket.detail} tone="blue" />
         <MetricCard icon={CheckCircle2} label={copy.cards.quoteApproval.label} value={percent(kpis.quoteApprovalRate)} detail={copy.cards.quoteApproval.detail(percent(kpis.quoteRejectionRate))} tone="yellow" />
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
           <h3 className="text-lg font-bold text-slate-950">{copy.sellerTable.title}</h3>
           <p className="text-sm text-slate-500">{copy.sellerTable.subtitle}</p>
@@ -277,7 +276,7 @@ export default function KPIs() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-xs uppercase tracking-normal text-slate-500">
               <tr>
                 <th className="px-5 py-4">{copy.sellerTable.columns.rank}</th>
                 <th className="px-5 py-4">{copy.sellerTable.columns.seller}</th>
@@ -307,7 +306,7 @@ export default function KPIs() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5">
           <h3 className="text-lg font-bold text-slate-950">{copy.prospectsTable.title}</h3>
           <p className="text-sm text-slate-500">
@@ -317,7 +316,7 @@ export default function KPIs() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[950px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-xs uppercase tracking-normal text-slate-500">
               <tr>
                 <th className="px-5 py-4">{copy.prospectsTable.columns.prospect}</th>
                 <th className="px-5 py-4">{copy.prospectsTable.columns.customer}</th>

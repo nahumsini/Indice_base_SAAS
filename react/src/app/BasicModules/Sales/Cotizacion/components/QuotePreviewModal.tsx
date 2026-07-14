@@ -117,7 +117,7 @@ function PreviewMetricCard({
       <div className="flex min-h-[92px]">
         <span className={cn('w-2 shrink-0', accentClassName)} aria-hidden="true" />
         <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
+          <p className="text-xs font-black uppercase tracking-normal text-slate-500">{label}</p>
           <p className="truncate text-xl font-black text-slate-950">{value}</p>
         </div>
       </div>
@@ -338,12 +338,12 @@ export function QuotePreviewModal({
             <header className="border-b border-slate-200 pb-7">
               <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.table.columns.number}</p>
+                  <p className="text-xs font-black uppercase tracking-normal text-slate-500">{copy.table.columns.number}</p>
                   <p className="mt-1 text-lg font-black text-slate-950">{quote.quoteNumber}</p>
                 </div>
                 <div className="text-left md:text-center">
                   <p className="text-2xl font-black text-slate-950">{copy.previewModal.documentTitle}</p>
-                  <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                  <p className="mt-1 text-xs font-bold uppercase tracking-normal text-slate-500">
                     {copy.previewModal.documentEyebrow}
                   </p>
                 </div>
@@ -359,7 +359,7 @@ export function QuotePreviewModal({
 
               <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.24em] text-[#B63B32]">
+                  <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">
                     {copy.previewModal.documentLabel}
                   </p>
                   <h1 className="mt-3 text-5xl font-black leading-[0.95] text-slate-950">
@@ -370,7 +370,7 @@ export function QuotePreviewModal({
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5 text-right">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#B63B32]">
+                  <p className="text-xs font-bold uppercase tracking-normal text-[#B63B32]">
                     {copy.labels.total} · {quoteCurrency}
                   </p>
                   <p className="mt-2 text-3xl font-black text-slate-950">{formatCurrency(quote.total, quoteCurrency)}</p>
@@ -409,7 +409,7 @@ export function QuotePreviewModal({
 
             <section className="grid gap-4 border-b border-slate-200 py-7 md:grid-cols-2">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.previewModal.clientBlock}</p>
+                <p className="text-xs font-black uppercase tracking-normal text-slate-500">{copy.previewModal.clientBlock}</p>
                 <h2 className="mt-3 text-xl font-black text-slate-950">{quote.clientName}</h2>
                 <p className="mt-1 font-semibold text-slate-600">{quote.contactPerson}</p>
                 <div className="mt-4 space-y-1 text-sm font-medium text-slate-500">
@@ -418,7 +418,7 @@ export function QuotePreviewModal({
                 </div>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{copy.previewModal.commercialBlock}</p>
+                <p className="text-xs font-black uppercase tracking-normal text-slate-500">{copy.previewModal.commercialBlock}</p>
                 <h2 className="mt-3 text-xl font-black text-slate-950">{quote.assignedSeller}</h2>
                 <div className="mt-4 grid gap-2 text-sm font-medium text-slate-500">
                   <p>{copy.labels.opportunity}: {opportunity?.opportunityName ?? copy.common.unassigned}</p>
@@ -432,7 +432,7 @@ export function QuotePreviewModal({
             <section className="py-7">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
                 <h2 className="text-xl font-black text-slate-950">{copy.previewModal.itemsTitle}</h2>
-                <span className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[#B63B32]">
+                <span className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-black uppercase tracking-normal text-[#B63B32]">
                   {copy.statusLabels[quote.status]}
                 </span>
               </div>
@@ -484,11 +484,11 @@ export function QuotePreviewModal({
 
               <div className="mt-6 grid gap-4 md:grid-cols-[1fr_300px]">
                 <div className="rounded-lg border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">{copy.labels.notes}</h3>
+                  <h3 className="text-sm font-black uppercase tracking-normal text-slate-500">{copy.labels.notes}</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{quote.notes || copy.previewModal.noNotes}</p>
                 </div>
                 <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5">
-                  <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-[#B63B32]">{copy.labels.currency}: {quoteCurrency}</p>
+                  <p className="mb-2 text-xs font-black uppercase tracking-normal text-[#B63B32]">{copy.labels.currency}: {quoteCurrency}</p>
                   {[
                     [copy.labels.subtotal, quote.subtotal],
                     [copy.labels.discountTotal, quote.discountTotal],
@@ -510,7 +510,7 @@ export function QuotePreviewModal({
               </div>
 
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">{copy.labels.terms}</h3>
+                <h3 className="text-sm font-black uppercase tracking-normal text-slate-500">{copy.labels.terms}</h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">{quote.terms || copy.previewModal.defaultTerms}</p>
               </div>
 
@@ -521,7 +521,7 @@ export function QuotePreviewModal({
                   : 'border-[#59C3A5]/30 bg-[#F3FCF8]',
               )}
               >
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-700">{intelligenceLabels.decisionSignal}</h3>
+                <h3 className="text-sm font-black uppercase tracking-normal text-slate-700">{intelligenceLabels.decisionSignal}</h3>
                 <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
                   {hasMissingCosts
                     ? copy.marginGuidance.messages.missingCost

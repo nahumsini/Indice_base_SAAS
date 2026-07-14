@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Building2, Clock3, LogOut, Monitor, Package, ReceiptText, RotateCcw, Store, TrendingUp, User, UserRound } from 'lucide-react';
 import type { Shift } from '../types/shift.types';
 
 interface ShiftBarProps {
@@ -52,9 +53,9 @@ export function ShiftBar({
   const warehouseName = shift.warehouseName?.trim() || shift.cashRegisterName || 'Almacén no asignado';
 
   return (
-    <div className="rounded-[24px] border border-[#222831] bg-[#222831] p-2 text-gray-950 shadow-sm dark:border-gray-700 dark:bg-[#111827] dark:text-white">
+    <div className="rounded-lg border border-[#222831] bg-[#222831] p-2 text-gray-950 shadow-sm dark:border-gray-700 dark:bg-[#111827] dark:text-white">
       <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(620px,840px)] xl:items-stretch">
-        <div className="min-w-0 rounded-[20px] border border-white/10 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div className="min-w-0 rounded-lg border border-white/10 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
             <div>
               <p className="text-[11px] font-black uppercase tracking-normal text-[#FF6B5E] dark:text-[#FF8A80]">Turno operativo</p>
@@ -68,12 +69,12 @@ export function ShiftBar({
           </div>
 
           <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-            <ShiftPill emoji="🏢" label="Unidad" value={shift.businessUnitName} tone="blue" />
-            <ShiftPill emoji="🏬" label="Negocio" value={shift.businessName} tone="aqua" />
-            <ShiftPill emoji="📦" label="Almacén" value={warehouseName} tone="yellow" />
-            <ShiftPill emoji="👤" label="Responsable" value={shift.cashierName} tone="coral" />
+            <ShiftPill icon={<Building2 className="h-4 w-4" />} label="Unidad" value={shift.businessUnitName} tone="blue" />
+            <ShiftPill icon={<Store className="h-4 w-4" />} label="Negocio" value={shift.businessName} tone="aqua" />
+            <ShiftPill icon={<Package className="h-4 w-4" />} label="Almacén" value={warehouseName} tone="yellow" />
+            <ShiftPill icon={<UserRound className="h-4 w-4" />} label="Responsable" value={shift.cashierName} tone="coral" />
             <ShiftPill
-              emoji="🕒"
+              icon={<Clock3 className="h-4 w-4" />}
               label="Turno"
               value={`Inició ${shiftStartedAt}`}
               detail={`Abierta · ${elapsed}`}
@@ -87,11 +88,11 @@ export function ShiftBar({
             <button
               type="button"
               onClick={onOpenFiscalSettings}
-              className="group flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-[20px] border border-white/10 bg-white px-2.5 py-3 text-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/10 hover:shadow-md active:translate-y-0 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-[#F4C84A]/40 dark:hover:bg-[#F4C84A]/10"
+              className="group flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white px-2.5 py-3 text-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/10 hover:shadow-md active:translate-y-0 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-[#F4C84A]/40 dark:hover:bg-[#F4C84A]/10"
               aria-label="Configurar divisa e impuestos"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#F4C84A]/20 text-xl transition-all duration-200 group-hover:rotate-6 group-hover:scale-110 dark:bg-[#F4C84A]/15" aria-hidden="true">
-                🧾
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A]/20 transition-all duration-200 group-hover:rotate-6 group-hover:scale-110 dark:bg-[#F4C84A]/15" aria-hidden="true">
+                <ReceiptText className="h-4 w-4" />
               </span>
               <span className="flex min-w-0 flex-col items-center gap-1">
                 <span className="block text-[10px] font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">Divisa / Impuestos</span>
@@ -109,7 +110,7 @@ export function ShiftBar({
 
           {onOpenReturn && (
             <ActionButton
-              emoji="🔄"
+              icon={<RotateCcw className="h-4 w-4" />}
               label="Devolución"
               title="Procesar devolución"
               onClick={onOpenReturn}
@@ -118,7 +119,7 @@ export function ShiftBar({
           )}
 
           <ActionButton
-            emoji="📈"
+            icon={<TrendingUp className="h-4 w-4" />}
             label="Movimientos"
             title="Entradas/Salidas de efectivo"
             onClick={onOpenCashMovement}
@@ -127,7 +128,7 @@ export function ShiftBar({
 
           {onToggleFullscreen && (
             <ActionButton
-              emoji="🖥️"
+              icon={<Monitor className="h-4 w-4" />}
               label="Pantalla"
               title="Modo pantalla completa"
               onClick={onToggleFullscreen}
@@ -137,7 +138,7 @@ export function ShiftBar({
 
           {onOpenCustomerDisplay && (
             <ActionButton
-              emoji="🪞"
+              icon={<User className="h-4 w-4" />}
               label="Espejo"
               title="Pantalla espejo del cliente"
               onClick={onOpenCustomerDisplay}
@@ -146,7 +147,7 @@ export function ShiftBar({
           )}
 
           <ActionButton
-            emoji="🚪"
+            icon={<LogOut className="h-4 w-4" />}
             label="Cerrar turno"
             title="Cerrar turno"
             onClick={onCloseShift}
@@ -159,13 +160,13 @@ export function ShiftBar({
 }
 
 function ShiftPill({
-  emoji,
+  icon,
   label,
   value,
   detail,
   tone = 'default',
 }: {
-  emoji: string;
+  icon: ReactNode;
   label: string;
   value: string;
   detail?: string;
@@ -192,9 +193,9 @@ function ShiftPill({
   }[tone];
 
   return (
-    <div className={`flex min-h-[66px] min-w-0 items-center gap-2 rounded-2xl border border-black/5 px-2.5 py-2 shadow-sm dark:border-white/10 ${toneClassName}`}>
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-lg ${iconClassName}`} aria-hidden="true">
-        {emoji}
+    <div className={`flex min-h-[66px] min-w-0 items-center gap-2 rounded-lg border border-black/5 px-2.5 py-2 shadow-sm dark:border-white/10 ${toneClassName}`}>
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`} aria-hidden="true">
+        {icon}
       </span>
       <div className="min-w-0 flex-1 text-center">
         <p className="text-[10px] font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">{label}</p>
@@ -208,14 +209,14 @@ function ShiftPill({
 }
 
 function ActionButton({
-  emoji,
+  icon,
   label,
   title,
   onClick,
   variant = 'default',
   tone = 'default',
 }: {
-  emoji: string;
+  icon: ReactNode;
   label: string;
   title: string;
   onClick: () => void;
@@ -243,13 +244,13 @@ function ActionButton({
     <button
       onClick={onClick}
       aria-label={title}
-      className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[20px] border px-2.5 py-3 text-center text-sm font-black shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98] ${className}`}
+      className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2.5 py-3 text-center text-sm font-black shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98] ${className}`}
     >
       {variant === 'danger' && (
         <span className="absolute inset-0 animate-pulse bg-white/0 transition-colors group-hover:bg-white/5" aria-hidden="true" />
       )}
-      <span className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-xl transition-all duration-200 group-hover:scale-110 ${iconClassName}`} aria-hidden="true">
-        {emoji}
+      <span className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-200 group-hover:scale-110 ${iconClassName}`} aria-hidden="true">
+        {icon}
       </span>
       <span className="relative max-w-full whitespace-normal break-words leading-tight">{label}</span>
     </button>

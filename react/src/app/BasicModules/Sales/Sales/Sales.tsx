@@ -69,7 +69,7 @@ function SaleCancelDialog({
         </>
       )}
     >
-      <div className="rounded-2xl border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/30 dark:bg-slate-800">
+      <div className="rounded-lg border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/30 dark:bg-slate-800">
         <p className="break-all text-base font-black text-slate-950 dark:text-slate-50">{record?.saleNumber}</p>
         <p className="mt-1 break-words text-sm font-semibold text-slate-600 dark:text-slate-300">{record?.customerName}</p>
       </div>

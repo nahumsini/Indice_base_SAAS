@@ -36,7 +36,7 @@ export default function SalesProviders() {
         onClose={() => setFailureToastMessage('')}
       />
       <ProveedoresPage
-        headerIcon={copy.header.icon}
+        headerIcon="🏢"
         headerSubtitle={copy.header.subtitle}
         headerTitle={copy.header.title}
         onProvidersChange={setProviders}

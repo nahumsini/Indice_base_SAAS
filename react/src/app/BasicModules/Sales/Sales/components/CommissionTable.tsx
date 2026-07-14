@@ -31,7 +31,7 @@ export function CommissionStatusBadge({
   t: SalesRecordsTranslations;
 }) {
   return (
-    <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.12em]', statusClasses[status])}>
+    <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-normal', statusClasses[status])}>
       {t.commissions.statuses[status]}
     </span>
   );
@@ -64,13 +64,13 @@ export function CommissionTable({
   });
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <Table className="min-w-[1380px] table-fixed">
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
               {[columns.commissionId, columns.salesRep, columns.customer, columns.sale, columns.product, columns.commissionAmount, columns.status, columns.createdDate, columns.actions].map((column) => (
-                <TableHead key={column} className="whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                <TableHead key={column} className="whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-400">
                   {column}
                 </TableHead>
               ))}
@@ -110,13 +110,13 @@ export function CommissionTable({
                         variant="outline"
                         size="icon"
                         aria-label={t.commissions.table.actions.viewDetail}
-                        className="h-9 w-9 rounded-xl border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/25"
+                        className="h-9 w-9 rounded-lg border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/25"
                         onClick={() => onViewRecord(record)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" sideOffset={8} className="max-w-[220px] rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl">
+                    <TooltipContent side="top" sideOffset={8} className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl">
                       {t.commissions.table.actions.viewDetail}
                     </TooltipContent>
                   </Tooltip>

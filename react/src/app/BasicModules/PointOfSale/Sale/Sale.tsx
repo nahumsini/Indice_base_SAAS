@@ -497,7 +497,7 @@ export default function Sale() {
       <div
         ref={posFullscreenRef}
         data-pos-fullscreen-root
-        className="rounded-[28px] bg-[#F7F8FA] p-3 dark:bg-[#111827]"
+        className="rounded-lg bg-[#F7F8FA] p-3 dark:bg-[#111827]"
       >
         <div data-pos-terminal-shell className="mx-auto flex min-h-0 w-full flex-col">
           <ShiftBar
@@ -681,7 +681,7 @@ function OperationalNotice({
   onDismiss?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
       <span className="flex min-w-0 items-center gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         <span className="min-w-0">{message}</span>

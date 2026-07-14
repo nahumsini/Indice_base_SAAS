@@ -71,15 +71,15 @@ export function SmartAlertsStrip({ alerts }: { alerts: SmartAlert[] }) {
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#F4C84A]/40 bg-white shadow-sm dark:border-[#F4C84A]/25 dark:bg-gray-800">
+    <section className="overflow-hidden rounded-lg border border-[#F4C84A]/40 bg-white shadow-sm dark:border-[#F4C84A]/25 dark:bg-gray-800">
       <button
         onClick={() => setIsOpen((current) => !current)}
         className="flex min-h-[68px] w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#F4C84A]/10 dark:hover:bg-[#F4C84A]/10"
         aria-expanded={isOpen}
       >
         <span className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/25 text-xl dark:bg-[#F4C84A]/15" aria-hidden="true">
-            ⚠️
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A]/25 dark:bg-[#F4C84A]/15" aria-hidden="true">
+            <AlertTriangle className="h-5 w-5 text-[#8A6500] dark:text-[#F4C84A]" />
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-black text-[#222831] dark:text-white">Alertas inteligentes</span>
@@ -103,9 +103,9 @@ export function SmartAlertsStrip({ alerts }: { alerts: SmartAlert[] }) {
                   key={alert.id}
                   type="button"
                   onClick={alert.onAction}
-                  className={`flex w-[300px] items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition hover:shadow-md ${styles.shell}`}
+                  className={`flex w-[300px] items-start gap-3 rounded-lg border px-4 py-3 text-left shadow-sm transition hover:shadow-md ${styles.shell}`}
                 >
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${styles.icon}`}>
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">

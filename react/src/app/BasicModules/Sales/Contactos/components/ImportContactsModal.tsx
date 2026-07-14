@@ -137,13 +137,13 @@ export function ImportContactsModal({
             <button
               type="button"
               className={cn(
-                'rounded-2xl border border-[#FF6B5E]/25 bg-white p-4 text-left shadow-sm transition hover:bg-[#FF6B5E]/10',
+                'rounded-lg border border-[#FF6B5E]/25 bg-white p-4 text-left shadow-sm transition hover:bg-[#FF6B5E]/10',
                 !canUseNativeContacts && 'opacity-70',
               )}
               onClick={handlePickNativeContacts}
               disabled={!canUseNativeContacts || isReadingContacts}
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6B5E] text-white">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#FF6B5E] text-white">
                 <Smartphone className="h-5 w-5" />
               </span>
               <span className="mt-3 block text-sm font-black text-slate-950">{copy.fromPhone}</span>
@@ -157,11 +157,11 @@ export function ImportContactsModal({
 
             <button
               type="button"
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#FF6B5E]/35 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#FF6B5E]/35 hover:bg-slate-50"
               onClick={() => fileInputRef.current?.click()}
               disabled={isReadingContacts}
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
                 <FileUp className="h-5 w-5" />
               </span>
               <span className="mt-3 block text-sm font-black text-slate-950">{copy.fileTitle}</span>
@@ -172,10 +172,10 @@ export function ImportContactsModal({
             <input ref={fileInputRef} type="file" accept=".vcf,.csv,text/vcard,text/csv" className="hidden" onChange={handleFileChange} />
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">{copy.previewTitle}</h3>
+                <h3 className="text-sm font-black uppercase tracking-normal text-slate-500">{copy.previewTitle}</h3>
                 <p className="mt-1 text-sm text-slate-600">{copy.previewDescription}</p>
               </div>
               <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
@@ -185,13 +185,13 @@ export function ImportContactsModal({
 
             <div className="mt-4 max-h-56 space-y-2 overflow-y-auto">
               {drafts.length > 0 ? drafts.slice(0, 8).map((contact, index) => (
-                <div key={`${contact.contactPerson}-${contact.email}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div key={`${contact.contactPerson}-${contact.email}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="break-words font-bold text-slate-950">{contact.contactPerson}</p>
                   <p className="mt-1 break-words text-sm font-semibold text-slate-500">{contact.company}</p>
                   <p className="mt-1 break-all text-xs text-slate-500">{[contact.phone, contact.email].filter(Boolean).join(' · ') || copy.noPhoneEmail}</p>
                 </div>
               )) : (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-400">
+                <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-400">
                   {copy.emptyPreview}
                 </div>
               )}
@@ -202,7 +202,7 @@ export function ImportContactsModal({
           </section>
 
           {statusMessage ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 text-sm font-semibold text-[#177D66]">
+            <div className="flex items-start gap-3 rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 text-sm font-semibold text-[#177D66]">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{statusMessage}</span>
             </div>

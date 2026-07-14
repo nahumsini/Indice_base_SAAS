@@ -123,19 +123,19 @@ export default function Facturacion() {
         <Kpi icon={AlertTriangle} label="Pendientes" value={String(kpis.pending)} tone={kpis.pending > 0 ? 'orange' : 'green'} />
       </div>
 
-      <div className="rounded-[20px] border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
+      <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
         {kpis.pending > 0
           ? `${kpis.pending} tickets necesitan cliente fiscal antes de emitir factura.`
           : 'Los tickets filtrados tienen informacion suficiente para preparar facturacion.'}
       </div>
 
       {notice && (
-        <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
           {notice}
         </div>
       )}
 
-      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-gray-800">
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-gray-800">
         <h3 className="text-base font-bold text-slate-800 dark:text-white">Filtros</h3>
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_repeat(2,minmax(180px,1fr))]">
           <label className="relative min-w-0">
@@ -144,14 +144,14 @@ export default function Facturacion() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar ticket, cliente, metodo o divisa"
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
             />
           </label>
           <Select value={period} onChange={(value) => setPeriod(value as PeriodFilter)} options={periodLabels} />
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as FiscalStatusFilter)}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+            className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
           >
             <option value="all">Todos los estados</option>
             {Object.entries(fiscalStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -159,7 +159,7 @@ export default function Facturacion() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-gray-800">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-gray-800">
         <div className="overflow-x-auto">
           <table className="min-w-[1080px] w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-gray-900/40">
@@ -187,10 +187,10 @@ export default function Facturacion() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-gray-900">
+                      <div className="inline-flex items-center justify-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-gray-900">
                         <button
                           onClick={() => openCreditSale(sale)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
                           aria-label={`Pasar ticket ${sale.saleNumber} a credito`}
                           title="Pasar a credito"
                         >
@@ -198,7 +198,7 @@ export default function Facturacion() {
                         </button>
                         <button
                           onClick={() => setNotice(`El ticket ${sale.saleNumber} queda listo para conectar emision fiscal y envio al cliente.`)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20"
                           aria-label={`Preparar factura ${sale.saleNumber}`}
                           title="Preparar factura"
                         >
@@ -238,9 +238,9 @@ function Kpi({ icon: Icon, label, value, tone = 'gray' }: {
   };
 
   return (
-    <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-gray-800">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-gray-800">
       <div className="flex items-center gap-3">
-        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}><Icon className="h-5 w-5" /></span>
+        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${tones[tone]}`}><Icon className="h-5 w-5" /></span>
         <div><p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{label}</p><p className="text-lg font-bold text-slate-950 dark:text-white">{value}</p></div>
       </div>
     </div>
@@ -258,7 +258,7 @@ function Select({ value, onChange, options }: {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+        className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
       >
         {Object.entries(options).map(([optionValue, label]) => <option key={optionValue} value={optionValue}>{label}</option>)}
       </select>

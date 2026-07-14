@@ -32,7 +32,7 @@ export function CommissionsView({
 
   return (
     <>
-      <section className="rounded-[24px] border border-[#FF6B5E]/25 bg-[#FF6B5E]/[0.08] p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
+      <section className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/[0.08] p-5 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-[#FF6B5E]/15">
         <div className="flex items-start gap-3">
           <span className="mt-1 shrink-0 text-[#B63B32] dark:text-[#FFB0AA]" aria-hidden="true">
             <BadgePercent className="h-6 w-6" />

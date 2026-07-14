@@ -79,7 +79,7 @@ export function ProductCommercialSection({
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{t.priceBuilder.costBlock}</p>
+          <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.priceBuilder.costBlock}</p>
           <ProductNumberField
             label={t.priceBuilder.baseCost}
             value={form.cost}
@@ -102,7 +102,7 @@ export function ProductCommercialSection({
         </div>
 
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{t.priceBuilder.suggestionBlock}</p>
+          <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.priceBuilder.suggestionBlock}</p>
           <ProductNumberField
             label={t.priceBuilder.desiredMargin}
             value={form.desiredMarginPercentage}
@@ -124,7 +124,7 @@ export function ProductCommercialSection({
         </div>
 
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{t.priceBuilder.finalBlock}</p>
+          <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.priceBuilder.finalBlock}</p>
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">{t.labels.currency}</label>
             <Select value={form.currency} onValueChange={(value) => onFormChange((current) => ({ ...current, currency: value }))}>

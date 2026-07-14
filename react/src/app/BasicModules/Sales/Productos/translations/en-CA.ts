@@ -10,7 +10,6 @@ export const enCA = {
     notAvailable: 'N/A',
   },
   header: {
-    emoji: '📦',
     title: 'Products & Services',
     subtitle: 'Reusable commercial catalog prepared for quotes, POS, inventory and future operational channels.',
     primaryAction: 'Add item',

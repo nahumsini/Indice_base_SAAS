@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AlertCircle, Check, ChevronDown, ChevronUp, Eye, Monitor, Pause, RotateCcw, Trash2, User } from 'lucide-react';
 import type { OperationalActivity } from './OperationalActivityFeed';
 import { OperationalActivityFeed } from './OperationalActivityFeed';
 import type { SuspendedSale } from './SuspendedSalesPanel';
@@ -76,9 +76,9 @@ export function SalePaymentPanel({
 
   return (
     <>
-      <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#222831]/10 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-[#222831]/10 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <section className="space-y-2.5 border-b border-gray-200 p-3 dark:border-gray-700">
-          <div className={`rounded-[20px] p-3 text-white shadow-sm ${totals.isPaid ? 'bg-[#59C3A5]' : 'bg-[#222831]'}`}>
+          <div className={`rounded-lg p-3 text-white shadow-sm ${totals.isPaid ? 'bg-[#59C3A5]' : 'bg-[#222831]'}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-bold opacity-90">Cobro</p>
@@ -101,7 +101,7 @@ export function SalePaymentPanel({
             />
           </div>
 
-          <div className={`flex items-start gap-2 rounded-2xl border px-3 py-2.5 ${
+          <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${
             totals.isPaid
               ? 'border-[#59C3A5]/50 bg-[#59C3A5]/10'
               : 'border-[#F4C84A]/60 bg-[#F4C84A]/15'
@@ -124,7 +124,7 @@ export function SalePaymentPanel({
           </div>
 
           {payments.length > 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-[#F7F8FA] px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
+            <div className="rounded-lg border border-gray-200 bg-[#F7F8FA] px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
               <p className="text-xs font-black uppercase text-gray-500 dark:text-gray-400">Pagos registrados</p>
               <p className="text-base font-black text-[#222831] dark:text-white">
                 {payments.length} pago{payments.length === 1 ? '' : 's'} · {formatCurrency(totals.paid)}
@@ -136,7 +136,7 @@ export function SalePaymentPanel({
             type="button"
             onClick={() => setIsCheckoutOpen(true)}
             disabled={!canOpenCheckout || isCompletingSale}
-            className="min-h-12 w-full rounded-[20px] bg-[#FF6B5E] px-5 py-2.5 text-lg font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ff5a4b] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-12 w-full rounded-lg bg-[#FF6B5E] px-5 py-2.5 text-lg font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ff5a4b] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {cartItemCount === 0 && payments.length === 0
               ? 'Agrega productos'
@@ -240,7 +240,7 @@ function CompactPosActions({
               key={quantity}
               type="button"
               onClick={() => onQuantityChange(quantity)}
-              className={`min-h-9 rounded-xl text-sm font-black transition active:scale-95 ${
+              className={`min-h-9 rounded-lg text-sm font-black transition active:scale-95 ${
                 selectedQuickQuantity === quantity
                   ? 'bg-[#FF6B5E] text-white shadow-sm'
                   : 'bg-[#F7F8FA] text-gray-700 ring-1 ring-gray-200 hover:bg-[#FF6B5E]/10 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700'
@@ -253,14 +253,14 @@ function CompactPosActions({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <QuickActionButton label="Pausar" emoji="⏸️" disabled={!canSuspend} onClick={onSuspend} />
-        <QuickActionButton label="Ticket" emoji="👁️" onClick={onOpenSalePanel} />
-        <QuickActionButton label="Devolución" emoji="🔄" onClick={onOpenReturn} />
-        <QuickActionButton label="Pantalla" emoji="🖥️" onClick={onFullscreen} />
-        <QuickActionButton label="Espejo" emoji="🪞" onClick={onOpenCustomerDisplay} />
+        <QuickActionButton label="Pausar" icon={<Pause className="h-4 w-4" />} disabled={!canSuspend} onClick={onSuspend} />
+        <QuickActionButton label="Ticket" icon={<Eye className="h-4 w-4" />} onClick={onOpenSalePanel} />
+        <QuickActionButton label="Devolución" icon={<RotateCcw className="h-4 w-4" />} onClick={onOpenReturn} />
+        <QuickActionButton label="Pantalla" icon={<Monitor className="h-4 w-4" />} onClick={onFullscreen} />
+        <QuickActionButton label="Espejo" icon={<User className="h-4 w-4" />} onClick={onOpenCustomerDisplay} />
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-[#F7F8FA] p-3 dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="rounded-lg border border-gray-200 bg-[#F7F8FA] p-3 dark:border-gray-700 dark:bg-gray-900/40">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-black text-[#222831] dark:text-white">Tickets pausados</p>
@@ -280,7 +280,7 @@ function CompactPosActions({
         {suspendedSales.length > 0 && (
           <div className="mt-2 space-y-2">
             {visibleSuspendedSales.map((sale) => (
-              <div key={sale.id} className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 dark:bg-gray-950/40">
+              <div key={sale.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 dark:bg-gray-950/40">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-black text-[#222831] dark:text-white">{sale.title}</p>
                   <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{formatCurrency(sale.total)}</p>
@@ -318,12 +318,12 @@ function CompactPosActions({
 
 function QuickActionButton({
   label,
-  emoji,
+  icon,
   onClick,
   disabled = false,
 }: {
   label: string;
-  emoji: string;
+  icon: ReactNode;
   onClick: () => void;
   disabled?: boolean;
 }) {
@@ -332,9 +332,9 @@ function QuickActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-white px-2.5 py-2 text-xs font-black text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#59C3A5]/10 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700"
+      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-xs font-black text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#59C3A5]/10 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700"
     >
-      <span aria-hidden="true">{emoji}</span>
+      <span aria-hidden="true">{icon}</span>
       {label}
     </button>
   );
@@ -356,7 +356,7 @@ function StatusTile({
   }[tone];
 
   return (
-    <div className={`rounded-2xl px-3 py-2.5 ${toneClass}`}>
+    <div className={`rounded-lg px-3 py-2.5 ${toneClass}`}>
       <p className="text-[10px] font-black uppercase tracking-normal opacity-75">{label}</p>
       <p className="mt-0.5 break-words text-base font-black leading-tight">{value}</p>
     </div>
