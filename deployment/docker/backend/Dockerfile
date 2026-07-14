@@ -9,7 +9,7 @@ RUN --mount=type=cache,target=/root/.m2 \
         exit 0; \
       fi; \
       echo "Maven dependency download failed on attempt ${attempt}; retrying..." >&2; \
-      sleep $((attempt * 10)); \
+      if [ "${attempt}" -lt 5 ]; then sleep $((attempt * 10)); fi; \
     done; \
     exit 1
 
@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/root/.m2 \
         exit 0; \
       fi; \
       echo "Maven package failed on attempt ${attempt}; retrying..." >&2; \
-      sleep $((attempt * 10)); \
+      if [ "${attempt}" -lt 3 ]; then sleep $((attempt * 10)); fi; \
     done; \
     exit 1
 
