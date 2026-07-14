@@ -2,10 +2,28 @@ FROM maven:3.9.11-eclipse-temurin-21-alpine AS build
 WORKDIR /workspace
 
 COPY pom.xml ./
-RUN --mount=type=cache,target=/root/.m2 mvn -q -DskipTests dependency:go-offline
+RUN --mount=type=cache,target=/root/.m2 \
+    set -eux; \
+    for attempt in 1 2 3 4 5; do \
+      if mvn -q -U -DskipTests dependency:go-offline; then \
+        exit 0; \
+      fi; \
+      echo "Maven dependency download failed on attempt ${attempt}; retrying..." >&2; \
+      sleep $((attempt * 10)); \
+    done; \
+    exit 1
 
 COPY src src
-RUN --mount=type=cache,target=/root/.m2 mvn -q -Dmaven.test.skip=true package
+RUN --mount=type=cache,target=/root/.m2 \
+    set -eux; \
+    for attempt in 1 2 3; do \
+      if mvn -q -U -Dmaven.test.skip=true package; then \
+        exit 0; \
+      fi; \
+      echo "Maven package failed on attempt ${attempt}; retrying..." >&2; \
+      sleep $((attempt * 10)); \
+    done; \
+    exit 1
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
