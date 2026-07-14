@@ -29,6 +29,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 LABEL org.opencontainers.image.title="Indice ERP Backend"
+LABEL org.opencontainers.image.description="Indice ERP Spring Boot API"
 
 RUN addgroup -S spring \
     && adduser -S spring -G spring \
