@@ -1084,6 +1084,16 @@ export default function Agenda() {
         setForm={setTaskForm}
       />
 
+      <Button
+        type="button"
+        title={agendaCopy.quickAdd.buttonLabel}
+        aria-label={agendaCopy.quickAdd.buttonLabel}
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 h-12 w-12 rounded-full border border-[#F4C84A]/60 bg-[#F4C84A] p-0 text-slate-950 shadow-lg shadow-[#F4C84A]/25 hover:bg-[#E5B835] sm:bottom-6 sm:right-6"
+        onClick={() => setIsQuickTaskDialogOpen(true)}
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
+
       <AgendaQuickTaskDialog
         copy={agendaCopy}
         isSubmitting={isSubmittingTask}

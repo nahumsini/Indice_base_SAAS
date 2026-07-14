@@ -1,9 +1,12 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
+import { ArrowLeft, BarChart3, BellRing, FileSpreadsheet, LayoutDashboard, type LucideIcon } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { cn } from '../../components/ui/utils';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useKpisTranslations } from '../../hooks/useKpisTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { KPI_ACCENT } from './kpisExecutiveData';
 
 const KPIs = lazy(() => import('./KPIs/KPIs'));
 const InformesContables = lazy(() => import('./InformesContables'));
@@ -21,9 +24,17 @@ const kpiTabIds = [
 
 type KpiTabId = (typeof kpiTabIds)[number];
 
+type KpiTab = {
+  id: KpiTabId;
+  label: string;
+  icon: LucideIcon;
+  iconClassName: string;
+  component: ComponentType;
+};
+
 const legacyKpiTabAliases: Partial<Record<string, KpiTabId>> = {
-  informesContables: 'accounting-reports',
   informesAutomatizados: 'automated-reports',
+  informesContables: 'accounting-reports',
 };
 
 export default function Kpis({ onNavigate }: KpisProps) {
@@ -34,87 +45,136 @@ export default function Kpis({ onNavigate }: KpisProps) {
     legacyKpiTabAliases,
   );
 
-  const tabs = [
-    { id: 'kpis', label: t.tabs.kpis, emoji: '📊', component: KPIs },
-    { id: 'accounting-reports', label: t.tabs.informesContables, emoji: '📈', component: InformesContables },
-    { id: 'automated-reports', label: t.tabs.informesAutomatizados, emoji: '🤖', component: InformesAutomatizados },
+  const tabs: KpiTab[] = [
+    {
+      id: 'kpis',
+      label: t.tabs.kpis,
+      icon: LayoutDashboard,
+      iconClassName: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+      component: KPIs,
+    },
+    {
+      id: 'accounting-reports',
+      label: t.tabs.informesContables,
+      icon: FileSpreadsheet,
+      iconClassName: 'text-sky-700 bg-sky-50 border-sky-200',
+      component: InformesContables,
+    },
+    {
+      id: 'automated-reports',
+      label: t.tabs.informesAutomatizados,
+      icon: BellRing,
+      iconClassName: 'text-amber-700 bg-amber-50 border-amber-200',
+      component: InformesAutomatizados,
+    },
   ];
 
-  // Get the active component
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || KPIs;
+  const activeTabConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+  const ActiveComponent = activeTabConfig.component;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
       <LoadingBarOverlay
         isVisible={isTabLoading}
-        title="Loading KPI tab"
-        description="Opening the selected reports workspace."
+        title={t.loadingTitle}
+        description={t.loadingDescription}
       />
 
-      {/* Header del módulo */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-8 py-6">
-        <div className="max-w-[1600px] mx-auto">
-          {/* Barra de Favoritos */}
-          <FavoritesBar 
+      <header className="border-b border-slate-200 bg-white/95 px-6 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/95">
+        <div className="mx-auto max-w-[1600px] space-y-5">
+          <FavoritesBar
             onNavigate={(page) => {
               if (page === 'kpis') return;
               onNavigate(page);
-            }} 
-            currentModule="kpis" 
+            }}
+            currentModule="kpis"
           />
-          
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {t.title}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {t.subtitle}
-              </p>
+
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <span
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-white shadow-sm"
+                style={{ backgroundColor: KPI_ACCENT }}
+                aria-hidden="true"
+              >
+                <BarChart3 className="h-6 w-6" />
+              </span>
+              <div className="min-w-0">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
+                    {t.badges.executive}
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                    {t.badges.proforma}
+                  </span>
+                </div>
+                <h1 className="text-2xl font-bold tracking-normal text-slate-950 dark:text-white md:text-3xl">
+                  {t.title}
+                </h1>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  {t.subtitle}
+                </p>
+              </div>
             </div>
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               onClick={() => onNavigate()}
-              className="text-sm gap-2"
+              className="h-10 w-fit gap-2 rounded-lg border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             >
-              <span className="text-lg">🏠</span> {t.back}
+              <ArrowLeft className="h-4 w-4" />
+              {t.back}
             </Button>
           </div>
 
-          {/* Pestañas */}
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as KpiTabId)}
-                className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-purple-600 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                <span>{tab.emoji}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+          <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="KPI workspace tabs">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
 
-      {/* Contenido del tab activo */}
-      <div className="max-w-[1600px] mx-auto px-8 py-6">
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex h-11 shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors',
+                    isActive
+                      ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-200',
+                  )}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  <span
+                    className={cn(
+                      'flex h-7 w-7 items-center justify-center rounded-md border',
+                      isActive ? 'border-white/25 bg-white/15 text-white' : tab.iconClassName,
+                    )}
+                    aria-hidden="true"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[1600px] px-6 py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
               isVisible
-              title="Loading KPI tab"
-              description="Downloading only the selected report workspace."
+              title={t.loadingTitle}
+              description={t.loadingDescription}
             />
           )}
         >
           <ActiveComponent />
         </Suspense>
-      </div>
+      </main>
     </div>
   );
 }
