@@ -17,6 +17,7 @@ import type { FinanceReferenceOption } from '../../types/finance-reference.types
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 
 export type ExpenseFormValues = {
   accountingAccount: string;
@@ -83,6 +84,7 @@ export function ExpenseFormModal({
   onSubmitExpense,
 }: ExpenseFormModalProps) {
   const t = useExpensesTranslations();
+  const { panelRef, titleId } = useFinanceModalAccessibility<HTMLFormElement>(onClose);
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);
@@ -152,14 +154,14 @@ export function ExpenseFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
-      <form onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+      <form ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
               {isEditMode ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
             </span>
             <div>
-              <h3 className="text-xl font-bold text-white">{isEditMode ? t.expenses.modal.edit : t.expenses.headerButton}</h3>
+              <h3 id={titleId} className="text-xl font-bold text-white">{isEditMode ? t.expenses.modal.edit : t.expenses.headerButton}</h3>
               <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{t.expenses.modal.subtitle}</p>
             </div>
           </div>

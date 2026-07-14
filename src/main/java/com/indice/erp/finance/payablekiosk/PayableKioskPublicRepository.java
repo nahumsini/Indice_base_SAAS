@@ -5,8 +5,6 @@ import com.indice.erp.finance.payablekiosk.dto.PublicProviderRegistrationRequest
 import java.math.BigDecimal;
 import java.sql.Statement;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -49,6 +47,25 @@ class PayableKioskPublicRepository {
         return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
     }
 
+    boolean providerRegistrationExists(PayableKioskRow kiosk, PublicProviderRegistrationRequest request) {
+        var taxId = PayableKioskRules.blankToNull(request.taxId());
+        var email = PayableKioskRules.blankToNull(request.email());
+        var count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM finance_providers
+                WHERE company_id = ? AND deleted_at IS NULL
+                  AND ((? IS NOT NULL AND tax_id = ?) OR (? IS NOT NULL AND LOWER(email) = LOWER(?)))
+                """,
+                Integer.class,
+                kiosk.companyId(),
+                taxId,
+                taxId,
+                email,
+                email);
+        return count != null && count > 0;
+    }
+
     long insertPayable(PayableKioskRow kiosk, Long providerId, PublicPayableRequest request, String customJson, String metadataJson) {
         var keyHolder = new GeneratedKeyHolder();
         var folio = "CXP-" + LocalDate.now().getYear() + "-" + Long.toString(System.currentTimeMillis()).substring(7);
@@ -62,7 +79,7 @@ class PayableKioskPublicRepository {
                       status, payment_status, attachment_count, custom_fields_json, metadata_json
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, 'VARIABLE', ?, ?, ?, 0, ?, ?, ?, ?, NULL,
-                      'APPROVED', ?, 0, ?, ?)
+                      'DRAFT', ?, 0, ?, ?)
                     """,
                     Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, kiosk.companyId());
@@ -76,7 +93,7 @@ class PayableKioskPublicRepository {
             statement.setBigDecimal(9, request.taxAmount());
             statement.setBigDecimal(10, request.totalAmount());
             statement.setBigDecimal(11, request.totalAmount().max(BigDecimal.ZERO));
-            statement.setString(12, PayableKioskRules.normalizeCurrency(request.currencyCode()));
+            statement.setString(12, kiosk.currencyCode());
             statement.setObject(13, LocalDate.now());
             statement.setObject(14, request.dueDate());
             statement.setString(15, paymentStatusFor(request.dueDate()));
@@ -110,40 +127,21 @@ class PayableKioskPublicRepository {
         return count != null && count > 0;
     }
 
-    boolean payableBelongsToKiosk(PayableKioskRow kiosk, long expenseId) {
+    boolean payableBelongsToProvider(PayableKioskRow kiosk, long providerId, long expenseId) {
         var count = jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
                 FROM finance_expenses
-                WHERE company_id = ?
-                  AND id = ?
-                  AND deleted_at IS NULL
+                WHERE company_id = ? AND id = ? AND provider_id = ? AND deleted_at IS NULL
                   AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.source')) = 'payable-kiosk'
                   AND CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.kioskId')) AS UNSIGNED) = ?
                 """,
                 Integer.class,
                 kiosk.companyId(),
                 expenseId,
+                providerId,
                 kiosk.id());
         return count != null && count > 0;
     }
 
-    List<Map<String, Object>> publicProviders(PayableKioskRow kiosk) {
-        return jdbcTemplate.query(
-                """
-                SELECT id, name
-                FROM finance_providers
-                WHERE company_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
-                  AND (? IS NULL OR id = ? OR unit_id IS NULL OR unit_id = ?)
-                  AND (? IS NULL OR business_id IS NULL OR business_id = ?)
-                ORDER BY name ASC
-                """,
-                (rs, rowNum) -> Map.of("id", rs.getLong("id"), "name", rs.getString("name")),
-                kiosk.companyId(),
-                kiosk.providerId(),
-                kiosk.providerId(),
-                kiosk.unitId(),
-                kiosk.businessId(),
-                kiosk.businessId());
-    }
 }

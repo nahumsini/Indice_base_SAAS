@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -13,6 +13,8 @@ import {
   Gauge,
   ListChecks,
   Printer,
+  RefreshCw,
+  Search,
   Trophy,
   Users,
   UserX,
@@ -21,7 +23,10 @@ import { useNavigate, useParams } from 'react-router';
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -45,6 +50,7 @@ import { FilterSelect, KpiSkeleton } from './components/KpiControls';
 import { KpiPerformanceWorkspace } from './components/KpiPerformanceWorkspace';
 import { printKpisDashboardPdf } from './kpisPdf';
 import { useKpisTranslations, type KpisTranslations } from './translations';
+import { getProcessTaskStandardUiCopy } from './translations/standardUiCopy';
 import { agendaFocusFilterValues, agendaStatusFilterValues } from '../Agenda/hooks/useAgendaFilters';
 import { useAgendaTranslations, type AgendaTranslations } from '../Agenda/translations';
 import type { AgendaFocusFilter, PeriodFilter as AgendaPeriodFilter, StatusFilter } from '../Agenda/types';
@@ -315,45 +321,27 @@ function buildKpiInsight(summary: ProcessTaskKpiDashboard['summary'], copy: Kpis
 function localizeKpiCard(
   card: ProcessTaskKpiCard,
   dashboard: ProcessTaskKpiDashboard,
-  copy: KpisTranslations,
+  standardCopy: ReturnType<typeof getProcessTaskStandardUiCopy>,
 ): ProcessTaskKpiCard {
   const { summary } = dashboard;
+  const localized = standardCopy.cards[card.id];
+  return localized
+    ? { ...card, title: localized.title, target: localized.target(summary), description: localized.description }
+    : card;
+}
 
-  switch (card.id) {
-    case 'productivity':
-      return { ...card, ...copy.cards.productivity };
-    case 'compliance':
-      return {
-        ...card,
-        title: copy.cards.compliance.title,
-        target: copy.cards.compliance.target(summary.closedTasks),
-        description: copy.cards.compliance.description,
-      };
-    case 'timeliness':
-      return {
-        ...card,
-        title: copy.cards.timeliness.title,
-        target: copy.cards.timeliness.target(summary.overdueTasks),
-        description: copy.cards.timeliness.description,
-      };
-    case 'audit':
-      return {
-        ...card,
-        title: copy.cards.audit.title,
-        target: copy.cards.audit.target(summary.pendingAuditTasks),
-        description: copy.cards.audit.description,
-      };
-    case 'quality':
-      return { ...card, ...copy.cards.quality };
-    case 'collaborators':
-      return {
-        ...card,
-        title: copy.cards.collaborators.title,
-        target: copy.cards.collaborators.target(dashboard.projects.length, dashboard.processes.length),
-        description: copy.cards.collaborators.description,
-      };
-    default:
-      return card;
+function cardProgress(cardId: string, summary: ProcessTaskKpiDashboard['summary']) {
+  const percent = (value: number, total: number) => total > 0 ? Math.round((value * 100) / total) : 0;
+  switch (cardId) {
+    case 'volume': return summary.totalTasks > 0 ? 100 : 0;
+    case 'closed': return summary.completionRate;
+    case 'open': return 100 - percent(summary.openTasks, summary.actionableTasks);
+    case 'overdue': return 100 - percent(summary.overdueTasks, summary.actionableTasks);
+    case 'timeliness': return summary.timelinessRate;
+    case 'audit': return summary.auditRate;
+    case 'evidence': return summary.evidenceRate;
+    case 'productivity': return summary.productivityScore;
+    default: return 0;
   }
 }
 
@@ -399,18 +387,23 @@ function ScoreBar({ score, status }: { score: number; status?: ProcessTaskKpiSta
   );
 }
 
-function KpiCard({ card, copy }: { card: ProcessTaskKpiCard; copy: KpisTranslations }) {
+function KpiCard({ card, copy, progress }: { card: ProcessTaskKpiCard; copy: KpisTranslations; progress: number }) {
   const iconByCardId: Record<string, ReactNode> = {
+    volume: <ListChecks className="h-5 w-5" />,
+    closed: <CheckCircle2 className="h-5 w-5" />,
+    open: <Clock3 className="h-5 w-5" />,
+    overdue: <AlertTriangle className="h-5 w-5" />,
     productivity: <Gauge className="h-5 w-5" />,
     compliance: <CheckCircle2 className="h-5 w-5" />,
     timeliness: <Clock3 className="h-5 w-5" />,
     audit: <ClipboardCheck className="h-5 w-5" />,
+    evidence: <FileCheck2 className="h-5 w-5" />,
     quality: <Trophy className="h-5 w-5" />,
     collaborators: <Users className="h-5 w-5" />,
   };
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <article className="flex min-h-[220px] flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-start justify-between gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/12 text-[#9A6B05] dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
           {iconByCardId[card.id] ?? <Gauge className="h-5 w-5" />}
@@ -419,7 +412,14 @@ function KpiCard({ card, copy }: { card: ProcessTaskKpiCard; copy: KpisTranslati
       </div>
       <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">{card.title}</p>
       <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{card.value}</p>
-      <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">{card.target}</p>
+      <div className="mt-4 flex items-center gap-3">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+          <div className={cn('h-full rounded-full', scoreBarClasses[card.status])} style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+        </div>
+        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{progress}%</span>
+      </div>
+      <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">{card.target}</p>
+      <p className="mt-2 text-sm leading-5 text-slate-600 dark:text-slate-300">{card.description}</p>
     </article>
   );
 }
@@ -728,10 +728,48 @@ function SummaryStrip({
   );
 }
 
+function RankingPanel({
+  emptyLabel,
+  rows,
+  title,
+}: {
+  emptyLabel: string;
+  rows: Array<{ id: string; label: string; detail: string; value: string; progress: number; onClick?: () => void }>;
+  title: string;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <h4 className="text-base font-bold text-slate-900 dark:text-white">{title}</h4>
+      <div className="mt-4 space-y-3">
+        {rows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">{emptyLabel}</p> : rows.map((row, index) => (
+          <button
+            key={row.id}
+            type="button"
+            onClick={row.onClick}
+            disabled={!row.onClick}
+            className="grid w-full grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl p-2 text-left transition enabled:hover:bg-[#F4C84A]/10 disabled:cursor-default"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">{index + 1}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-slate-900 dark:text-white">{row.label}</span>
+              <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{row.detail}</span>
+              <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                <span className="block h-full rounded-full bg-[#E4AD18]" style={{ width: `${Math.max(4, Math.min(100, row.progress))}%` }} />
+              </span>
+            </span>
+            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{row.value}</span>
+          </button>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 export default function KPIs() {
   const navigate = useNavigate();
   const { pageId } = useParams();
   const copy = useKpisTranslations();
+  const standardCopy = getProcessTaskStandardUiCopy(copy.locale);
   const agendaCopy = useAgendaTranslations();
   const headerCopy = copy.header;
   const periodLabels = agendaCopy.periods;
@@ -739,6 +777,9 @@ export default function KPIs() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPrintingPdf, setIsPrintingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [period, setPeriod] = useState<AgendaPeriodFilter>('today');
   const [focusFilter, setFocusFilter] = useState<AgendaFocusFilter>('mine');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -933,6 +974,7 @@ export default function KPIs() {
           projectId: selectedProjectId,
           focus: focusFilter,
           status: statusFilter,
+          search: deferredSearchQuery,
         });
 
         if (isActive) {
@@ -967,11 +1009,39 @@ export default function KPIs() {
     focusFilter,
     statusFilter,
     copy.messages.loadKpis,
+    deferredSearchQuery,
+    refreshKey,
   ]);
 
   const visibleCollaborators = useMemo(() => {
     return dashboard?.collaborators ?? [];
   }, [dashboard]);
+
+  const compositionData = useMemo(() => dashboard ? [
+    { name: agendaCopy.statuses.pending, value: dashboard.summary.pendingTasks, color: '#94a3b8' },
+    { name: agendaCopy.statuses.in_progress, value: dashboard.summary.inProgressTasks, color: '#3b82f6' },
+    { name: agendaCopy.statuses.paused, value: dashboard.summary.pausedTasks, color: '#f59e0b' },
+    { name: agendaCopy.statuses.completed, value: dashboard.summary.completedTasks, color: '#10b981' },
+    { name: agendaCopy.statuses.audited, value: dashboard.summary.auditedTasks, color: '#8b5cf6' },
+    { name: agendaCopy.statuses.overdue, value: dashboard.summary.overdueTasks, color: '#f43f5e' },
+  ].filter((item) => item.value > 0) : [], [agendaCopy.statuses, dashboard]);
+
+  const topCompliance = useMemo(
+    () => [...(dashboard?.collaborators ?? [])].filter((row) => row.totalTasks > 0).sort((a, b) => b.productivityScore - a.productivityScore).slice(0, 5),
+    [dashboard],
+  );
+  const topOverdue = useMemo(
+    () => [...(dashboard?.collaborators ?? [])].filter((row) => row.overdueTasks > 0).sort((a, b) => b.overdueTasks - a.overdueTasks).slice(0, 5),
+    [dashboard],
+  );
+  const riskyProcesses = useMemo(
+    () => [...(dashboard?.processes ?? [])].filter((row) => row.overdueTasks > 0 || row.pendingAuditTasks > 0).sort((a, b) => b.overdueTasks - a.overdueTasks || a.productivityScore - b.productivityScore).slice(0, 5),
+    [dashboard],
+  );
+  const riskyProjects = useMemo(
+    () => [...(dashboard?.projects ?? [])].filter((row) => row.overdueTasks > 0 || row.pendingAuditTasks > 0).sort((a, b) => b.overdueTasks - a.overdueTasks || a.healthScore - b.healthScore).slice(0, 5),
+    [dashboard],
+  );
 
   const handleUnitChange = (value: string) => {
     setUnitFilter(value);
@@ -989,6 +1059,19 @@ export default function KPIs() {
   const handleFocusChange = (value: AgendaFocusFilter) => {
     setFocusFilter(value);
     setCollaboratorFilter(allValue);
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setUnitFilter(allValue);
+    setBusinessFilter(allValue);
+    setPeriod('today');
+    setStatusFilter('all');
+    setFocusFilter('mine');
+    setProjectFilter(allValue);
+    setCollaboratorFilter(allValue);
+    setCustomFrom(localDateString(new Date()));
+    setCustomTo(localDateString(new Date()));
   };
 
   const handlePrintPdf = () => {
@@ -1043,11 +1126,21 @@ export default function KPIs() {
               {headerCopy.emoji}
             </span>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{headerCopy.title}</h2>
-              <p className="mt-1 max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{headerCopy.subtitle}</p>
+              <h2 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{standardCopy.title}</h2>
+              <p className="mt-1 max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{standardCopy.subtitle}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isLoading}
+              onClick={() => setRefreshKey((current) => current + 1)}
+              className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+              {standardCopy.refresh}
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -1064,8 +1157,31 @@ export default function KPIs() {
       </section>
 
       <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-        <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white sm:mb-5">{agendaCopy.filters.title}</h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-[#B98508]" />
+            <h3 className="text-base font-bold text-slate-800 dark:text-white">{standardCopy.filterTitle}</h3>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>{standardCopy.results(dashboard?.summary.totalTasks ?? 0)}</span>
+            <button type="button" onClick={handleClearFilters} className="inline-flex items-center gap-1.5 transition hover:text-[#9A6B05] dark:hover:text-[#FEF3C7]">
+              <RefreshCw className="h-3.5 w-3.5" />{standardCopy.clear}
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4">
+          <label className="flex min-w-0 flex-col gap-2 sm:col-span-2">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{standardCopy.search}</span>
+            <span className="relative block min-w-0">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={standardCopy.searchPlaceholder}
+                className="h-11 w-full min-w-0 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </span>
+          </label>
           <FilterSelect id="kpis-unit-filter" label={agendaCopy.filters.unit} value={unitFilter} onChange={handleUnitChange}>
             <SelectItem value={allValue}>{copy.common.allFemale}</SelectItem>
             {units.map((unit) => (
@@ -1146,9 +1262,23 @@ export default function KPIs() {
 
       {!isLoading && dashboard ? (
         <>
-          <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <section className="mb-6 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{standardCopy.contextTitle}</h3>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.contextSubtitle}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.selectedRange}: {formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} – {formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}</span>
+                <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.selectedScope}: {agendaCopy.focus[focusFilter]}</span>
+                <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.updated}: {dashboard.generatedAt ? new Intl.DateTimeFormat(copy.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dashboard.generatedAt)) : '—'}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {dashboard.cards.map((card) => (
-              <KpiCard key={card.id} card={localizeKpiCard(card, dashboard, copy)} copy={copy} />
+              <KpiCard key={card.id} card={localizeKpiCard(card, dashboard, standardCopy)} copy={copy} progress={cardProgress(card.id, dashboard.summary)} />
             ))}
           </section>
 
@@ -1207,6 +1337,60 @@ export default function KPIs() {
               )}
             </div>
             <p className="sr-only">{copy.chart.subtitle}</p>
+          </section>
+
+          <section className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{standardCopy.compositionTitle}</h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.compositionSubtitle}</p>
+              <div className="mt-4 h-80">
+                {compositionData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={compositionData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={2}>
+                        {compositionData.map((item) => <Cell key={item.name} fill={item.color} />)}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : <div className="flex h-full items-center justify-center text-sm text-slate-500">{standardCopy.noData}</div>}
+              </div>
+              <div className="flex flex-wrap justify-center gap-3 text-xs text-slate-600 dark:text-slate-300">
+                {compositionData.map((item) => <span key={item.name} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />{item.name}: {item.value}</span>)}
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{standardCopy.unitsTitle}</h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.unitsSubtitle}</p>
+              <div className="mt-4 h-80">
+                {dashboard.units.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dashboard.units.slice(0, 8)} layout="vertical" margin={{ left: 16, right: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                      <YAxis type="category" dataKey="unitName" width={110} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="productivityScore" name={standardCopy.productivity} fill="#E4AD18" radius={[0, 5, 5, 0]} />
+                      <Bar dataKey="timelinessRate" name={standardCopy.timeliness} fill="#10b981" radius={[0, 5, 5, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <div className="flex h-full items-center justify-center text-sm text-slate-500">{standardCopy.noData}</div>}
+              </div>
+            </article>
+          </section>
+
+          <section className="mb-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{standardCopy.topsTitle}</h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.topsSubtitle}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.topCompliance} rows={topCompliance.map((row) => ({ id: `compliance-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.closedTasks}/${row.totalTasks} ${standardCopy.tasks}`, value: `${row.productivityScore} ${standardCopy.score}`, progress: row.productivityScore, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}` }) }))} />
+              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.topOverdue} rows={topOverdue.map((row) => ({ id: `overdue-${row.collaboratorId ?? 'none'}`, label: row.collaboratorName, detail: `${row.openTasks} ${copy.summary.labels.open}`, value: `${row.overdueTasks} ${copy.common.overdue}`, progress: row.totalTasks > 0 ? (row.overdueTasks / row.totalTasks) * 100 : 0, onClick: row.collaboratorId == null ? undefined : () => openAgendaDrilldown({ collaborator: `user-company:${row.collaboratorId}`, status: 'overdue' }) }))} />
+              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProcesses} rows={riskyProcesses.map((row) => ({ id: `process-${row.processId}`, label: row.processTitle, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.overdueTasks} ${copy.common.overdue}`, progress: 100 - row.productivityScore, onClick: () => openAgendaDrilldown({ search: row.processFolio ?? row.processTitle }) }))} />
+              <RankingPanel emptyLabel={standardCopy.noData} title={standardCopy.riskyProjects} rows={riskyProjects.map((row) => ({ id: `project-${row.projectId}`, label: row.projectName, detail: `${row.pendingAuditTasks} ${copy.common.pending}`, value: `${row.overdueTasks} ${copy.common.overdue}`, progress: 100 - row.healthScore, onClick: () => openAgendaDrilldown({ project: `project:${row.projectId}` }) }))} />
+            </div>
           </section>
 
           <KpiPerformanceWorkspace

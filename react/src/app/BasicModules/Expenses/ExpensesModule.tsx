@@ -89,14 +89,15 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
   );
   const [providers, setProviders] = useState<ProviderRecord[]>(mockProviderRecords);
   const [expenses, setExpenses] = useState<Expense[]>(createInitialExpenseState);
+  const [budgetLoadError, setBudgetLoadError] = useState('');
   const [isFinanceDataLoading, setIsFinanceDataLoading] = useState(false);
   const [financeRefreshKey, setFinanceRefreshKey] = useState(0);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const tabs = [
-    { id: 'expenses' as TabId, label: t.module.tabs.expenses, emoji: '💰' },
+    { id: 'expenses' as TabId, label: t.module.tabs.expenses, emoji: '💸' },
     { id: 'budgets' as TabId, label: t.module.tabs.budgets, emoji: '📋' },
     { id: 'providers' as TabId, label: t.module.tabs.providers, emoji: '🏢' },
-    { id: 'accounting' as TabId, label: t.module.tabs.accountingAccounts, emoji: '📊' },
+    { id: 'accounting' as TabId, label: t.module.tabs.accountingAccounts, emoji: '📚' },
     { id: 'payment_accounts' as TabId, label: t.module.tabs.paymentAccounts, emoji: '💳' },
     { id: 'kpis' as TabId, label: t.module.tabs.kpis, emoji: '📊' },
   ];
@@ -129,6 +130,9 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
       const nextBudgetExpenses = budgetResult.status === 'fulfilled'
         ? budgetResult.value
         : fallbackExpenses.filter(expense => expense.type === 'budget');
+      const nextBudgetLoadError = budgetResult.status === 'rejected'
+        ? toFinanceApiErrorMessage(budgetResult.reason)
+        : '';
 
       if (expenseResult.status === 'rejected') {
         nextFailureMessage = toFinanceApiErrorMessage(expenseResult.reason);
@@ -138,20 +142,23 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
 
       setProviders(nextProviders);
       setExpenses([...nextRealExpenses, ...nextBudgetExpenses]);
+      setBudgetLoadError(nextBudgetLoadError);
       setFailureToastMessage(nextFailureMessage);
       setIsFinanceDataLoading(false);
     };
 
     loadFinanceData().catch((error) => {
       if (!isMounted) return;
-      setFailureToastMessage(toFinanceApiErrorMessage(error));
+      const message = toFinanceApiErrorMessage(error);
+      setBudgetLoadError(message);
+      setFailureToastMessage(message);
       setIsFinanceDataLoading(false);
     });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [financeRefreshKey]);
 
   const requestFinanceDataRefresh = useCallback(() => {
     setFinanceRefreshKey(currentKey => currentKey + 1);
@@ -160,7 +167,16 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'budgets':
-        return <Budgets expenses={expenses} providers={providers} onExpensesChange={setExpenses} />;
+        return (
+          <Budgets
+            expenses={expenses}
+            loadError={budgetLoadError}
+            onProvidersChange={setProviders}
+            providers={providers}
+            onExpensesChange={setExpenses}
+            onRetryLoad={requestFinanceDataRefresh}
+          />
+        );
       case 'providers':
         return <Providers providers={providers} onProvidersChange={setProviders} />;
       case 'kpis':
@@ -174,6 +190,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
         return (
           <Expenses
             expenses={expenses}
+            onProvidersChange={setProviders}
             providers={providers}
             onExpensesChange={setExpenses}
             onFinanceDataChanged={requestFinanceDataRefresh}

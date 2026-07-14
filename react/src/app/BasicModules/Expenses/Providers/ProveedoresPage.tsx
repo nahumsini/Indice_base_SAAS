@@ -4,7 +4,8 @@ import { SuccessToast } from '../../../components/SuccessToast';
 import { AttachmentsModal } from '../Expenses/components/AttachmentsModal';
 import { useProvidersTranslations } from './hooks/useProvidersTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
-import { accountingAccountsService, toFinanceApiErrorMessage } from '../services';
+import { usePersistentTableColumns } from '../hooks/usePersistentTableColumns';
+import { accountingAccountsService, providersService, toFinanceApiErrorMessage } from '../services';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { defaultProviderColumns, type ProviderColumnKey } from './providerTableConfig';
 import { ProviderColumnsModal } from './components/ProviderColumnsModal';
@@ -12,6 +13,7 @@ import { ProviderCreateModal } from './components/ProviderCreateModal';
 import { ProvidersFilterBar } from './components/ProvidersFilterBar';
 import { ProvidersHeaderBanner, type ProvidersHeaderVariant } from './components/ProvidersHeaderBanner';
 import { ProvidersTable } from './components/ProvidersTable';
+import { ProviderKioskAccessModal } from './components/ProviderKioskAccessModal';
 import {
   type ProviderRecord,
   type ProviderFormValues,
@@ -90,6 +92,7 @@ export default function ProveedoresPage({
   const [editingProvider, setEditingProvider] = useState<ProviderRecord | null>(null);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [accessProvider, setAccessProvider] = useState<ProviderRecord | null>(null);
   const translatedProviderColumns = useMemo(() => defaultProviderColumns.map(column => {
     const copy = t.providers.columns[column.key];
     return {
@@ -98,17 +101,10 @@ export default function ProveedoresPage({
       label: copy?.label ?? column.label,
     };
   }), [t]);
-  const [visibleColumns, setVisibleColumns] = useState(() => translatedProviderColumns.map(column => ({ ...column })));
-
-  useEffect(() => {
-    setVisibleColumns(currentColumns => translatedProviderColumns.map(column => {
-      const current = currentColumns.find(item => item.key === column.key);
-      return {
-        ...column,
-        visible: current?.visible ?? column.visible,
-      };
-    }));
-  }, [translatedProviderColumns]);
+  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns(
+    'indice.expenses.providers.columns.v1',
+    translatedProviderColumns,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -133,6 +129,23 @@ export default function ProveedoresPage({
       isMounted = false;
     };
   }, [t.expenses.messages.accountLoadFailed]);
+
+  useEffect(() => {
+    if (!onProvidersChange) return;
+    let isMounted = true;
+    providersService.getProviderRecords()
+      .then(nextProviders => {
+        if (isMounted) onProvidersChange([...nextProviders].sort((left, right) => {
+          const leftPending = left.status === 'inactive' && left.registrationSource === 'payable-kiosk-registration' ? 0 : 1;
+          const rightPending = right.status === 'inactive' && right.registrationSource === 'payable-kiosk-registration' ? 0 : 1;
+          return leftPending - rightPending || right.createdAt.getTime() - left.createdAt.getTime();
+        }));
+      })
+      .catch(error => {
+        if (isMounted) setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudieron actualizar los proveedores.'));
+      });
+    return () => { isMounted = false; };
+  }, [onProvidersChange]);
 
   const effectiveUnitOptions = useMemo<FinanceReferenceOption[]>(() => (
     unitOptions.length > 0
@@ -221,6 +234,13 @@ export default function ProveedoresPage({
         onOpenEditProvider={setEditingProvider}
         onOpenAttachments={setAttachmentsProvider}
         onUpdateProvider={updateProvider}
+        onManageAccess={setAccessProvider}
+      />
+      <ProviderKioskAccessModal
+        provider={accessProvider}
+        onClose={() => setAccessProvider(null)}
+        onError={setFailureToastMessage}
+        onSuccess={setSuccessToastMessage}
       />
       {attachmentsProvider && (
         <AttachmentsModal

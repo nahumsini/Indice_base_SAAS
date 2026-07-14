@@ -20,6 +20,7 @@ import type { Provider } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import { QuickProviderField } from './QuickProviderField';
 
 export type PayableAccountValues = {
   amount: number;
@@ -39,6 +40,7 @@ export type PayableAccountValues = {
 type PayableAccountDialogProps = {
   currency: string;
   isSubmitting: boolean;
+  onCreateProvider?: (name: string) => Promise<Provider>;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: PayableAccountValues) => void | Promise<void>;
   open: boolean;
@@ -70,6 +72,7 @@ const MAX_PAYABLE_ATTACHMENTS = 5;
 export function PayableAccountDialog({
   currency,
   isSubmitting,
+  onCreateProvider,
   onOpenChange,
   onSubmit,
   open,
@@ -89,7 +92,23 @@ export function PayableAccountDialog({
     if (!open) {
       revokeLocalUrls(objectUrlsRef.current);
       setDraft(createDraft(currency));
+      return;
     }
+
+    const preferredCurrency = currency || DEFAULT_FINANCE_CURRENCY;
+    setDraft(current => {
+      if (current.budgetCurrencyCode === preferredCurrency) return current;
+      const taxCountry = normalizeTaxCountry(inferTaxCountryFromCurrency(preferredCurrency));
+      const defaultTaxProfile = getDefaultBudgetTaxProfile(taxCountry);
+      return {
+        ...current,
+        budgetCurrencyCode: preferredCurrency,
+        taxes: '',
+        taxCountry,
+        taxProfileId: defaultTaxProfile?.id ?? '',
+        taxRate: defaultTaxProfile ? taxRateToPercentInput(defaultTaxProfile.rate) : '',
+      };
+    });
   }, [currency, open]);
 
   useEffect(() => () => revokeLocalUrls(objectUrlsRef.current), []);
@@ -190,14 +209,14 @@ export function PayableAccountDialog({
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <h4 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">{t.expenses.payableAccount.mainData}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label={t.expenses.payableAccount.provider}>
-                  <select value={draft.providerId} onChange={(event) => updateDraft({ providerId: event.target.value })} className={inputClass}>
-                    <option value="">{t.expenses.payableAccount.unassignedProvider}</option>
-                    {providers.filter(provider => provider.status !== 'inactive').map(provider => (
-                      <option key={provider.id} value={provider.id}>{provider.name}</option>
-                    ))}
-                  </select>
-                </Field>
+                <QuickProviderField
+                  emptyLabel={t.expenses.payableAccount.unassignedProvider}
+                  label={t.expenses.payableAccount.provider}
+                  onChange={(providerId) => updateDraft({ providerId })}
+                  onCreateProvider={onCreateProvider}
+                  providers={providers}
+                  value={draft.providerId}
+                />
                 <Field label={t.expenses.payableAccount.dueDate}>
                   <input type="date" value={draft.dueDate} onChange={(event) => updateDraft({ dueDate: event.target.value })} className={inputClass} />
                 </Field>

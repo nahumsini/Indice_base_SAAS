@@ -4,7 +4,6 @@ import {
   Check,
   ChevronRight,
   Columns3,
-  Search,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
@@ -15,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../../../components/ui/dropdown-menu';
-import { Input } from '../../../../components/ui/input';
 import {
   Table,
   TableBody,
@@ -518,7 +516,7 @@ export function KpiPerformanceWorkspace({
   projects: ProjectPerformanceRow[];
 }) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('collaborators');
-  const [query, setQuery] = useState('');
+  const query = '';
   const tabs: Array<{ id: WorkspaceTab; label: string; subtitle: string; count: number }> = [
     { id: 'collaborators', label: copy.collaboratorsTable.title, subtitle: copy.collaboratorsTable.subtitle, count: collaborators.length },
     { id: 'processes', label: copy.processesTable.title, subtitle: copy.processesTable.subtitle, count: processes.length },
@@ -529,23 +527,10 @@ export function KpiPerformanceWorkspace({
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-700 sm:px-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
           <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">{activeTabCopy.label}</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{activeTabCopy.subtitle}</p>
-          </div>
-          <div className="w-full xl:max-w-md">
-            <label htmlFor="kpis-performance-search" className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                id="kpis-performance-search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={copy.filters.searchPlaceholder}
-                className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              />
-            </div>
           </div>
         </div>
         <div className="mt-4 flex w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900/70 sm:w-fit">

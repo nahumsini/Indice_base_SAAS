@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, ExternalLink, File, Image as ImageIcon, Paperclip, Trash2, Upload, X } from 'lucide-react';
 import { expenseAttachmentsService, type ExpenseAttachment } from '../../services/expense-attachments.service';
 import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
+import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 
 interface LocalAttachment {
   id: string;
@@ -37,9 +38,11 @@ export function AttachmentsModal({
   onChanged,
 }: AttachmentsModalProps) {
   const t = useExpensesTranslations();
+  const { panelRef, titleId } = useFinanceModalAccessibility(onClose);
   const accent = moduleVariant === 'sales' ? '#FF6B5E' : '#147514';
   const accentText = moduleVariant === 'sales' ? '#B63B32' : '#147514';
   const objectUrlsRef = useRef<Set<string>>(new Set());
+  const onChangedRef = useRef(onChanged);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -47,6 +50,10 @@ export function AttachmentsModal({
   const [storedFiles, setStoredFiles] = useState<ExpenseAttachment[]>([]);
   const [localFiles, setLocalFiles] = useState<LocalAttachment[]>([]);
   const usesBackend = Boolean(expenseId && /^\d+$/.test(expenseId));
+
+  useEffect(() => {
+    onChangedRef.current = onChanged;
+  }, [onChanged]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -62,10 +69,10 @@ export function AttachmentsModal({
       .then(files => {
         if (!isMounted) return;
         setStoredFiles(files);
-        onChanged?.(files.map(file => file.originalFilename));
+        onChangedRef.current?.(files.map(file => file.originalFilename));
       })
       .catch(error => {
-        if (isMounted) setErrorMessage(messageFrom(error));
+        if (isMounted) setErrorMessage(messageFrom(error, t.expenses.attachments.operationFailed));
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -73,7 +80,7 @@ export function AttachmentsModal({
     return () => {
       isMounted = false;
     };
-  }, [expenseId, isOpen, onChanged, usesBackend]);
+  }, [expenseId, isOpen, usesBackend]);
 
   useEffect(() => () => revokeLocalUrls(objectUrlsRef.current), []);
 
@@ -92,7 +99,7 @@ export function AttachmentsModal({
         setStoredFiles(nextFiles);
         onChanged?.(nextFiles.map(file => file.originalFilename));
       } catch (error) {
-        setErrorMessage(messageFrom(error));
+        setErrorMessage(messageFrom(error, t.expenses.attachments.operationFailed));
       } finally {
         setIsUploading(false);
       }
@@ -114,7 +121,7 @@ export function AttachmentsModal({
       setStoredFiles(nextFiles);
       onChanged?.(nextFiles.map(item => item.originalFilename));
     } catch (error) {
-      setErrorMessage(messageFrom(error));
+      setErrorMessage(messageFrom(error, t.expenses.attachments.operationFailed));
     }
   };
 
@@ -133,14 +140,14 @@ export function AttachmentsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-gray-800">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-gray-800">
         <div className="flex flex-shrink-0 items-center justify-between px-6 py-4 text-white" style={{ backgroundColor: accent }}>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20">
               <Paperclip className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">{t.expenses.attachments.title}</h2>
+              <h2 id={titleId} className="text-xl font-bold text-white">{t.expenses.attachments.title}</h2>
               <p className="text-sm text-white/90">{expenseFolio} - {expenseConcept}</p>
             </div>
           </div>
@@ -157,6 +164,10 @@ export function AttachmentsModal({
             isDragging={isDragging}
             onDragChange={setIsDragging}
             onFiles={addFiles}
+            selectLabel={t.expenses.attachments.selectFiles}
+            subtitle={t.expenses.attachments.supportedFormats}
+            title={t.expenses.quick.attachEvidence}
+            uploadingLabel={t.expenses.attachments.uploading}
           />
 
           {errorMessage && (
@@ -175,17 +186,17 @@ export function AttachmentsModal({
               </span>
             </div>
             {isLoading ? (
-              <EmptyState label="Loading attachments..." />
+              <EmptyState label={t.expenses.attachments.loading} />
             ) : usesBackend ? (
-              <BackendFiles files={storedFiles} onRemove={removeBackendFile} />
+              <BackendFiles emptyLabel={t.expenses.attachments.empty} files={storedFiles} onRemove={removeBackendFile} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
             ) : (
-              <LocalFiles files={localFiles} onRemove={removeLocalFile} />
+              <LocalFiles emptyLabel={t.expenses.attachments.empty} files={localFiles} onRemove={removeLocalFile} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
             )}
           </div>
         </div>
 
         <div className="flex flex-shrink-0 items-center justify-between gap-3 px-6 py-4 text-white" style={{ backgroundColor: accent }}>
-          <p className="text-xs text-white/80">{usesBackend ? 'Files are stored in document storage.' : t.expenses.attachments.saveHint}</p>
+          <p className="text-xs text-white/80">{usesBackend ? t.expenses.attachments.storedHint : t.expenses.attachments.saveHint}</p>
           <button onClick={onClose} type="button" className="rounded-xl bg-white px-5 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50" style={{ color: accentText }}>
             {t.common.cancel}
           </button>
@@ -202,6 +213,10 @@ function UploadDropzone({
   isDragging,
   onDragChange,
   onFiles,
+  selectLabel,
+  subtitle,
+  title,
+  uploadingLabel,
 }: {
   accent: string;
   accentText: string;
@@ -209,6 +224,10 @@ function UploadDropzone({
   isDragging: boolean;
   onDragChange: (value: boolean) => void;
   onFiles: (files: File[]) => void;
+  selectLabel: string;
+  subtitle: string;
+  title: string;
+  uploadingLabel: string;
 }) {
   return (
     <div
@@ -229,13 +248,13 @@ function UploadDropzone({
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}1A` }}>
           <Upload className="h-8 w-8" style={{ color: accentText }} />
         </div>
-        <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Add evidence</h3>
-        <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">Photos, PDF, Word, Excel, CSV or TXT. 10MB max per file.</p>
+        <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">{subtitle}</p>
         <label className={disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}>
           <input type="file" multiple onChange={(event) => void onFiles(Array.from(event.target.files ?? []))} disabled={disabled} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" />
           <span className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors" style={{ backgroundColor: accent }}>
             <Upload className="h-4 w-4" />
-            {disabled ? 'Uploading...' : 'Select files'}
+            {disabled ? uploadingLabel : selectLabel}
           </span>
         </label>
       </div>
@@ -243,8 +262,10 @@ function UploadDropzone({
   );
 }
 
-function BackendFiles({ files, onRemove }: { files: ExpenseAttachment[]; onRemove: (file: ExpenseAttachment) => void }) {
-  if (files.length === 0) return <EmptyState label="No attachments registered yet." />;
+type FileActionsCopy = { downloadLabel: string; emptyLabel: string; openLabel: string; removeLabel: string };
+
+function BackendFiles({ downloadLabel, emptyLabel, files, onRemove, openLabel, removeLabel }: FileActionsCopy & { files: ExpenseAttachment[]; onRemove: (file: ExpenseAttachment) => void }) {
+  if (files.length === 0) return <EmptyState label={emptyLabel} />;
   return (
     <div className="space-y-2">
       {files.map(file => (
@@ -256,14 +277,17 @@ function BackendFiles({ files, onRemove }: { files: ExpenseAttachment[]; onRemov
           url={file.downloadUrl}
           uploadedAt={file.createdAt}
           onRemove={() => void onRemove(file)}
+          downloadLabel={downloadLabel}
+          openLabel={openLabel}
+          removeLabel={removeLabel}
         />
       ))}
     </div>
   );
 }
 
-function LocalFiles({ files, onRemove }: { files: LocalAttachment[]; onRemove: (id: string) => void }) {
-  if (files.length === 0) return <EmptyState label="No attachments registered yet." />;
+function LocalFiles({ downloadLabel, emptyLabel, files, onRemove, openLabel, removeLabel }: FileActionsCopy & { files: LocalAttachment[]; onRemove: (id: string) => void }) {
+  if (files.length === 0) return <EmptyState label={emptyLabel} />;
   return (
     <div className="space-y-2">
       {files.map(file => (
@@ -275,13 +299,16 @@ function LocalFiles({ files, onRemove }: { files: LocalAttachment[]; onRemove: (
           url={file.url}
           uploadedAt={file.uploadedAt.toISOString()}
           onRemove={() => onRemove(file.id)}
+          downloadLabel={downloadLabel}
+          openLabel={openLabel}
+          removeLabel={removeLabel}
         />
       ))}
     </div>
   );
 }
 
-function FileRow({ name, onRemove, size, type, uploadedAt, url }: { name: string; onRemove: () => void; size: number; type: string; uploadedAt?: string; url?: string }) {
+function FileRow({ downloadLabel, name, onRemove, openLabel, removeLabel, size, type, uploadedAt, url }: { downloadLabel: string; name: string; onRemove: () => void; openLabel: string; removeLabel: string; size: number; type: string; uploadedAt?: string; url?: string }) {
   return (
     <div className="group flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-gray-600 dark:bg-gray-700/50">
       <div className="flex-shrink-0">{type.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-blue-500" /> : <File className="h-5 w-5 text-gray-500" />}</div>
@@ -292,12 +319,12 @@ function FileRow({ name, onRemove, size, type, uploadedAt, url }: { name: string
       <div className="flex items-center gap-2">
         <button onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')} type="button" disabled={!url} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">
           <ExternalLink className="h-4 w-4" />
-          Open
+          {openLabel}
         </button>
-        <button onClick={() => downloadFile(name, url)} type="button" disabled={!url} className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent">
+        <button onClick={() => downloadFile(name, url)} type="button" disabled={!url} aria-label={`${downloadLabel}: ${name}`} title={downloadLabel} className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent">
           <Download className="h-4 w-4" />
         </button>
-        <button onClick={onRemove} type="button" className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50">
+        <button onClick={onRemove} type="button" aria-label={`${removeLabel}: ${name}`} title={removeLabel} className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50">
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -380,6 +407,6 @@ function getFileType(name: string) {
   return 'application/octet-stream';
 }
 
-function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : 'Attachment operation failed.';
+function messageFrom(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }

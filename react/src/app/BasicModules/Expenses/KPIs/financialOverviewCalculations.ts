@@ -19,11 +19,13 @@ interface BuildFinancialOverviewParams {
   budgetLines: FinanceBudgetLine[];
   budgets: FinanceBudget[];
   currentDate?: Date;
+  convertAmount?: (amount: number, nativeCurrency: FinanceCurrency) => number;
   expenses: FinanceExpense[];
   locale?: FinanceLocale;
   paymentAccounts: PaymentAccount[];
   providers: ProviderRecord[];
   referenceData: FinanceReferenceData;
+  targetCurrency?: FinanceCurrency;
   alertCopy: FinanceTranslations['kpis']['alertCopy'];
 }
 
@@ -107,8 +109,9 @@ const groupDrivers = (
   expenses: FinanceExpense[],
   currency: FinanceCurrency,
   getDriver: (expense: FinanceExpense) => { id: string; name: string },
+  getTotal: (expense: FinanceExpense) => number = expense => expense.total,
 ) => {
-  const total = sum(expenses, expense => expense.total);
+  const total = sum(expenses, getTotal);
   const groups = new Map<string, FinancialOverviewCostDriver>();
 
   expenses.forEach((expense) => {
@@ -124,7 +127,7 @@ const groupDrivers = (
     };
 
     current.count += 1;
-    current.total += expense.total;
+    current.total += getTotal(expense);
     groups.set(driver.id, current);
   });
 
@@ -163,21 +166,30 @@ export const buildFinancialOverviewData = ({
   budgetLines,
   budgets,
   currentDate = new Date(),
+  convertAmount,
   expenses,
   locale = 'en-CA',
   paymentAccounts,
   providers,
   referenceData,
+  targetCurrency,
   alertCopy,
 }: BuildFinancialOverviewParams): FinancialOverviewDataSet => {
-  const currency = dominantCurrency(expenses, budgetLines);
+  const dominantSourceCurrency = dominantCurrency(expenses, budgetLines);
   const currencies = Array.from(new Set([
     ...expenses.map(expense => expense.currency),
-    ...budgetLines.map(line => line.currencyCode ?? currency),
+    ...budgetLines.map(line => line.currencyCode ?? dominantSourceCurrency),
   ])).filter(Boolean);
-  const excludedCurrencies = currencies.filter(item => item !== currency);
-  const visibleExpenses = expenses.filter(expense => !isClosed(expense) && expense.currency === currency);
-  const visibleBudgetLines = budgetLines.filter(line => (line.currencyCode ?? currency) === currency);
+  const hasCurrencyConversion = Boolean(convertAmount && targetCurrency);
+  const currency = targetCurrency ?? dominantSourceCurrency;
+  const convert = (amount: number, nativeCurrency: FinanceCurrency) => (
+    convertAmount ? convertAmount(amount, nativeCurrency) : amount
+  );
+  const excludedCurrencies = hasCurrencyConversion ? [] : currencies.filter(item => item !== currency);
+  const visibleExpenses = expenses.filter(expense => !isClosed(expense) && (hasCurrencyConversion || expense.currency === currency));
+  const visibleBudgetLines = budgetLines.filter(line => hasCurrencyConversion || (line.currencyCode ?? currency) === currency);
+  const expenseAmount = (expense: FinanceExpense, amount: number) => convert(amount, expense.currency);
+  const budgetAmount = (line: FinanceBudgetLine, amount: number) => convert(amount, line.currencyCode ?? dominantSourceCurrency);
   const today = startOfDay(currentDate);
   const dueInDays = (expense: FinanceExpense, days: number) => {
     const dueDate = parseDate(expense.dueDate);
@@ -189,47 +201,48 @@ export const buildFinancialOverviewData = ({
     const dueDate = parseDate(expense.dueDate);
     return isPaymentOpen(expense) && (expense.paymentStatus === PaymentStatus.OVERDUE || Boolean(dueDate && dueDate < today));
   };
-  const actualFromBudgetLines = sum(visibleBudgetLines, line => line.actualExpenseAmount);
-  const actualFromPaidExpenses = sum(visibleExpenses.filter(isActualExpense), expense => expense.total);
+  const actualFromBudgetLines = sum(visibleBudgetLines, line => budgetAmount(line, line.actualExpenseAmount));
+  const actualFromPaidExpenses = sum(visibleExpenses.filter(isActualExpense), expense => expenseAmount(expense, expense.total));
   const metrics = {
     actual: actualFromBudgetLines > 0 ? actualFromBudgetLines : actualFromPaidExpenses,
     actualFallbackUsed: actualFromBudgetLines === 0 && actualFromPaidExpenses > 0,
-    available: sum(visibleBudgetLines, availableFor),
+    available: sum(visibleBudgetLines, line => budgetAmount(line, availableFor(line))),
     budgetLineCount: visibleBudgetLines.length,
-    committed: sum(visibleBudgetLines, line => line.committedAmount),
-    dueIn7Days: sum(visibleExpenses.filter(expense => dueInDays(expense, 7)), balanceOf),
-    dueIn30Days: sum(visibleExpenses.filter(expense => dueInDays(expense, 30)), balanceOf),
+    committed: sum(visibleBudgetLines, line => budgetAmount(line, line.committedAmount)),
+    dueIn7Days: sum(visibleExpenses.filter(expense => dueInDays(expense, 7)), expense => expenseAmount(expense, balanceOf(expense))),
+    dueIn30Days: sum(visibleExpenses.filter(expense => dueInDays(expense, 30)), expense => expenseAmount(expense, balanceOf(expense))),
     expenseCount: visibleExpenses.length,
-    overdueAmount: sum(visibleExpenses.filter(isOverdue), balanceOf),
+    overdueAmount: sum(visibleExpenses.filter(isOverdue), expense => expenseAmount(expense, balanceOf(expense))),
     overdueExpenseCount: visibleExpenses.filter(isOverdue).length,
-    pendingPayments: sum(visibleExpenses.filter(isPaymentOpen), balanceOf),
-    planned: sum(visibleBudgetLines, line => line.plannedAmount),
+    pendingPayments: sum(visibleExpenses.filter(isPaymentOpen), expense => expenseAmount(expense, balanceOf(expense))),
+    planned: sum(visibleBudgetLines, line => budgetAmount(line, line.plannedAmount)),
     unpaidExpenseCount: visibleExpenses.filter(isPaymentOpen).length,
   };
   const budgetsById = new Map(budgets.map(budget => [budget.id, budget]));
   const budgetHealthRows = visibleBudgetLines.map((line) => {
-    const available = availableFor(line);
-    const consumed = line.plannedAmount - available;
+    const planned = budgetAmount(line, line.plannedAmount);
+    const available = budgetAmount(line, availableFor(line));
+    const consumed = planned - available;
     return {
-      actual: line.actualExpenseAmount,
+      actual: budgetAmount(line, line.actualExpenseAmount),
       available,
       budgetId: line.budgetId,
       budgetName: budgetsById.get(line.budgetId)?.name,
-      committed: line.committedAmount,
+      committed: budgetAmount(line, line.committedAmount),
       currency,
-      healthStatus: deriveBudgetHealthStatus(line.plannedAmount, available, line.healthStatus),
+      healthStatus: deriveBudgetHealthStatus(planned, available, line.healthStatus),
       id: line.id,
       name: line.name,
-      planned: line.plannedAmount,
-      usagePercent: line.plannedAmount > 0 ? Math.max(0, (consumed / line.plannedAmount) * 100) : 0,
+      planned,
+      usagePercent: planned > 0 ? Math.max(0, (consumed / planned) * 100) : 0,
     };
   }).sort((left, right) => right.usagePercent - left.usagePercent);
   const costDrivers = {
-    ACCOUNTING_ACCOUNT: groupDrivers('ACCOUNTING_ACCOUNT', visibleExpenses, currency, expense => ({ id: expense.accountingAccountId ?? 'missing-account', name: accountLabel(accountingAccounts, expense.accountingAccountId) })),
-    BUSINESS: groupDrivers('BUSINESS', visibleExpenses, currency, expense => ({ id: expense.businessId ?? 'missing-business', name: labelFrom(referenceData.businesses, expense.businessId, 'Negocio') })),
-    PAYMENT_ACCOUNT: groupDrivers('PAYMENT_ACCOUNT', visibleExpenses, currency, expense => ({ id: expense.paymentAccountId ?? 'missing-payment-account', name: paymentAccountLabel(paymentAccounts, expense.paymentAccountId) })),
-    PROVIDER: groupDrivers('PROVIDER', visibleExpenses, currency, expense => ({ id: expense.providerId ?? 'missing-provider', name: labelFrom(providers, expense.providerId, 'Proveedor') })),
-    UNIT: groupDrivers('UNIT', visibleExpenses, currency, expense => ({ id: expense.unitId ?? 'missing-unit', name: labelFrom(referenceData.units, expense.unitId, 'Unidad') })),
+    ACCOUNTING_ACCOUNT: groupDrivers('ACCOUNTING_ACCOUNT', visibleExpenses, currency, expense => ({ id: expense.accountingAccountId ?? 'missing-account', name: accountLabel(accountingAccounts, expense.accountingAccountId) }), expense => expenseAmount(expense, expense.total)),
+    BUSINESS: groupDrivers('BUSINESS', visibleExpenses, currency, expense => ({ id: expense.businessId ?? 'missing-business', name: labelFrom(referenceData.businesses, expense.businessId, 'Negocio') }), expense => expenseAmount(expense, expense.total)),
+    PAYMENT_ACCOUNT: groupDrivers('PAYMENT_ACCOUNT', visibleExpenses, currency, expense => ({ id: expense.paymentAccountId ?? 'missing-payment-account', name: paymentAccountLabel(paymentAccounts, expense.paymentAccountId) }), expense => expenseAmount(expense, expense.total)),
+    PROVIDER: groupDrivers('PROVIDER', visibleExpenses, currency, expense => ({ id: expense.providerId ?? 'missing-provider', name: labelFrom(providers, expense.providerId, 'Proveedor') }), expense => expenseAmount(expense, expense.total)),
+    UNIT: groupDrivers('UNIT', visibleExpenses, currency, expense => ({ id: expense.unitId ?? 'missing-unit', name: labelFrom(referenceData.units, expense.unitId, 'Unidad') }), expense => expenseAmount(expense, expense.total)),
   };
   const overviewWithoutAlerts: Omit<FinancialOverviewDataSet, 'alerts'> = {
     budgetHealthRows,

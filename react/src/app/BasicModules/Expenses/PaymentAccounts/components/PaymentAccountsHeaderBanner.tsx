@@ -14,16 +14,18 @@ export function PaymentAccountsHeaderBanner({
   const t = usePaymentAccountsTranslations();
 
   return (
-    <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6 sm:py-5">
+    <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white sm:text-[28px]">
-            <span className="text-3xl leading-none" aria-hidden="true">💳</span>
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#147514]/20 bg-white text-2xl leading-none shadow-sm dark:bg-slate-900" aria-hidden="true">💳</span>
+          <div className="min-w-0">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
             {t.paymentAccounts.headerTitle}
           </h2>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-400">
             {t.paymentAccounts.headerSubtitle}
           </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">

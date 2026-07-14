@@ -28,6 +28,7 @@ export type {
   PayableKioskBootstrap,
   PayableKioskPayload,
   PayableKioskPublicProvider,
+  PayableKioskProviderAccess,
 } from './payable-kiosks.service';
 export { providersService } from './providers.service';
 export { shouldUseMockFallback, toFinanceApiErrorMessage } from './finance-api.errors';

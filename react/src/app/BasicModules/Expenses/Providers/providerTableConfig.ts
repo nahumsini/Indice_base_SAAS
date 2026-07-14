@@ -29,7 +29,7 @@ export const defaultProviderColumnWidths: Record<string, number> = {
   attachments: 130,
   authorizer: 150,
   performer: 150,
-  actions: 180,
+  actions: 270,
 };
 
 export const defaultProviderColumns: ProviderColumnConfig[] = [

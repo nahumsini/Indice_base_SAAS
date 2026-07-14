@@ -10,7 +10,9 @@ import type { Provider } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls } from './BudgetTaxControls';
 import { useBudgetsTranslations } from '../../Budgets/hooks/useBudgetsTranslations';
+import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 import type { FinanceTranslations } from '../../translations';
+import { QuickProviderField } from './QuickProviderField';
 
 type BudgetCreateModalProps = {
   accountingAccountOptions: FinanceReferenceOption[];
@@ -20,6 +22,7 @@ type BudgetCreateModalProps = {
   providers: Provider[];
   unitOptions: FinanceReferenceOption[];
   onClose: () => void;
+  onCreateProvider?: (name: string) => Promise<Provider>;
   onDraftChange: (updates: Partial<BudgetDraftState>) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -34,10 +37,12 @@ export function BudgetCreateModal({
   providers,
   unitOptions,
   onClose,
+  onCreateProvider,
   onDraftChange,
   onSubmit,
 }: BudgetCreateModalProps) {
   const t = useBudgetsTranslations();
+  const { panelRef, titleId } = useFinanceModalAccessibility<HTMLFormElement>(onClose);
   const [stepIndex, setStepIndex] = useState(0);
   const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
     { id: 0, label: t.budgets.modal.stepCost, icon: FileText, title: t.budgets.modal.titleCost, description: t.budgets.modal.subtitle },
@@ -47,7 +52,6 @@ export function BudgetCreateModal({
   const isEditMode = mode === 'edit';
   const isLastStep = stepIndex === steps.length - 1;
   const progressPercentage = `${((stepIndex + 1) / steps.length) * 100}%`;
-  const providerOptions = useMemo(() => providers.map(provider => ({ value: provider.id, label: provider.name })), [providers]);
   const scopedBusinessOptions = useMemo(() => (
     businessOptions.filter(option => !option.unitId || !draft.businessUnit || option.unitId === draft.businessUnit)
   ), [businessOptions, draft.businessUnit]);
@@ -107,19 +111,19 @@ export function BudgetCreateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
-      <form onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+      <form ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
               <Plus className="h-5 w-5" />
             </span>
             <div>
               <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</div>
-              <h3 className="text-xl font-bold text-white">{isEditMode ? t.budgets.modal.editTitle : t.budgets.modal.createTitle}</h3>
+              <h3 id={titleId} className="text-xl font-bold text-white">{isEditMode ? t.budgets.modal.editTitle : t.budgets.modal.createTitle}</h3>
               <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{isEditMode ? t.budgets.modal.editSubtitle : t.budgets.modal.subtitle}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -163,7 +167,8 @@ export function BudgetCreateModal({
                 accountingAccountOptions={accountingAccountOptions}
                 businessOptions={scopedBusinessOptions}
                 draft={draft}
-                providerOptions={providerOptions}
+                onCreateProvider={onCreateProvider}
+                providers={providers}
                 unitOptions={unitOptions}
                 onDraftChange={onDraftChange}
                 t={t}
@@ -206,7 +211,8 @@ function BudgetCostStep({
   accountingAccountOptions,
   businessOptions,
   draft,
-  providerOptions,
+  onCreateProvider,
+  providers,
   unitOptions,
   onDraftChange,
   t,
@@ -214,7 +220,8 @@ function BudgetCostStep({
   accountingAccountOptions: FinanceReferenceOption[];
   businessOptions: FinanceReferenceOption[];
   draft: BudgetDraftState;
-  providerOptions: FinanceReferenceOption[];
+  onCreateProvider?: (name: string) => Promise<Provider>;
+  providers: Provider[];
   unitOptions: FinanceReferenceOption[];
   onDraftChange: (updates: Partial<BudgetDraftState>) => void;
   t: FinanceTranslations;
@@ -235,7 +242,14 @@ function BudgetCostStep({
     <div className="space-y-4">
       <FieldGroup title={t.budgets.modal.fieldGroupCost}>
         <BudgetTextInput label={t.budgets.modal.concept} required value={draft.concept} onChange={updateConcept} placeholder={t.expenses.modal.placeholderConcept} />
-        <BudgetSelect label={t.budgets.modal.provider} includeEmpty value={draft.providerId} onChange={(providerId) => onDraftChange({ providerId })} options={providerOptions} t={t} />
+        <QuickProviderField
+          emptyLabel={t.expenses.payableAccount.unassignedProvider}
+          label={t.budgets.modal.provider}
+          onChange={(providerId) => onDraftChange({ providerId })}
+          onCreateProvider={onCreateProvider}
+          providers={providers}
+          value={draft.providerId}
+        />
         <BudgetSelect label={t.budgets.modal.account} required value={draft.accountingAccount} onChange={(accountingAccount) => onDraftChange({ accountingAccount })} options={accountingAccountOptions} t={t} />
         <BudgetSelect label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} t={t} />
         <BudgetMoneyInput label={t.budgets.modal.amount} required value={draft.amount} onChange={(amount) => onDraftChange({ amount })} placeholder="0.00" />

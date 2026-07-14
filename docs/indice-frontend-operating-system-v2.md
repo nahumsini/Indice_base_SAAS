@@ -634,6 +634,14 @@ KPIs should be decision-oriented only.
 
 Avoid vanity metrics.
 
+For complete KPI-tab composition, analytics behavior, formulas, comparisons, charts,
+rankings, responsive rules, and the implementation checklist, also follow:
+
+- [`KPI_TAB_STANDARD.md`](./KPI_TAB_STANDARD.md)
+
+The specialized KPI standard extends this operating system. It does not replace or
+override the rules in this document.
+
 KPI strip:
 
 - lives outside dashboard cards
@@ -659,6 +667,29 @@ Example:
 ```txt
 Showing 25 employees - 21 active - 4 inactive.
 ```
+
+### Global Preferred Currency
+
+The preferred-currency control must always remain visible in the global app header.
+
+It is a persistent system utility, not a module-level control. Do not hide it when the
+active view has no monetary fields and do not duplicate it inside module title bars.
+
+Rules:
+
+- changing the preferred currency immediately updates monetary KPIs, financial summaries,
+  selected-row totals and table footers across modules
+- convert every native amount to the preferred currency before summing
+- never sum raw values from different currencies
+- counts, percentages, dates and operational statuses are never converted
+- row-level and legally relevant values preserve their native currency
+- multi-currency KPI areas show the native breakdown as secondary context
+- missing or stale exchange-rate information must produce a visible warning state
+- the control and its exchange-rate popover use USD as the exchange-rate base
+- the user preference persists across navigation and sessions
+
+The global control may be visually compact on non-financial views, but it remains visible
+and opens the same currency and exchange-rate experience everywhere.
 
 ---
 
@@ -1109,6 +1140,9 @@ Required:
 - operational insights
 - recommended actions
 - no vanity-only metrics
+
+Analytics tabs must also follow the specialized
+[`KPI Tab Standard`](./KPI_TAB_STANDARD.md).
 
 ---
 

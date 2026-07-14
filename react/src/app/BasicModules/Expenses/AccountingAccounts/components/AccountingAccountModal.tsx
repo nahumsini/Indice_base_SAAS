@@ -2,6 +2,7 @@ import { BookOpen, Check, ChevronLeft, ChevronRight, FileText, Layers3, MapPinne
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
+import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { typeOptions } from '../accountingAccounts.utils';
 import type { AccountingAccount, AccountingAccountType } from '../types';
@@ -28,6 +29,7 @@ const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3
 
 export function AccountingAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit }: AccountingAccountModalProps) {
   const t = useAccountingAccountsTranslations();
+  const { panelRef, titleId } = useFinanceModalAccessibility<HTMLFormElement>(onClose);
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<AccountingFormValues>({
     businessId: account?.businessId ?? '',
@@ -88,7 +90,7 @@ export function AccountingAccountModal({ account, businessOptions, unitOptions, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <form onSubmit={handleSubmit} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+      <form ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={handleSubmit} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
@@ -98,7 +100,7 @@ export function AccountingAccountModal({ account, businessOptions, unitOptions, 
               <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">
                 {t.budgets.modal.stepOf(stepIndex + 1, steps.length)}
               </div>
-              <h2 className="text-xl font-bold text-white">{account ? `${t.common.edit} ${t.accountingAccounts.headerTitle}` : t.accountingAccounts.add}</h2>
+              <h2 id={titleId} className="text-xl font-bold text-white">{account ? `${t.common.edit} ${t.accountingAccounts.headerTitle}` : t.accountingAccounts.add}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
                 {account ? account.code : t.accountingAccounts.modal.defaultSubtitle}
               </p>

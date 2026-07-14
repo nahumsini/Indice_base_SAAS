@@ -39,7 +39,7 @@ export function PaymentAccountsFilters({
   ], [t]);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-base font-semibold text-slate-900 dark:text-white">{t.filters.title}</h3>
         <span className="text-sm text-slate-500 dark:text-slate-400">{t.common.results(filteredCount)}</span>

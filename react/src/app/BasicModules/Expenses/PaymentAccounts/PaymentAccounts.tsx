@@ -6,6 +6,7 @@ import { SuccessToast } from '../../../components/SuccessToast';
 import { usePettyCash } from '../../PettyCash/context/PettyCashContext';
 import { isBackendId } from '../adapters/adapter.utils';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
+import { usePersistentTableColumns } from '../hooks/usePersistentTableColumns';
 import { usePaymentAccountsTranslations } from './hooks/usePaymentAccountsTranslations';
 import { paymentAccountsService, toFinanceApiErrorMessage } from '../services';
 import type { PaymentAccount, PaymentSortField, SortDirection } from './types';
@@ -38,7 +39,6 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState(() => defaultPaymentColumns.map(column => ({ ...column })));
   const {
     businessOptions,
     unitOptions,
@@ -52,16 +52,10 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
       label: copy?.label ?? column.label,
     };
   }), [t]);
-
-  useEffect(() => {
-    setVisibleColumns(currentColumns => translatedPaymentColumns.map(column => {
-      const currentColumn = currentColumns.find(item => item.key === column.key);
-      return {
-        ...column,
-        visible: currentColumn ? (column.fixed ? true : currentColumn.visible) : column.visible,
-      };
-    }));
-  }, [translatedPaymentColumns]);
+  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns(
+    'indice.expenses.payment-accounts.columns.v1',
+    translatedPaymentColumns,
+  );
 
   useEffect(() => {
     let isMounted = true;

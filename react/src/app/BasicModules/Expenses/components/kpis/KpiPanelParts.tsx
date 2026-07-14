@@ -41,13 +41,17 @@ export function OverviewMetric({
   valueClassName = 'text-slate-900 dark:text-white',
 }: OverviewMetricProps) {
   return (
-    <div className="flex min-w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#147514] shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-emerald-300 dark:ring-slate-700">
+    <div className="flex min-w-0 items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#147514] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-emerald-300 dark:ring-slate-700">
         {icon}
       </span>
-      <span className={cn('font-bold', valueClassName)}>{value}</span>
-      <span className="font-medium">{label}</span>
-      {helper ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{helper}</span> : null}
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className={cn('truncate text-sm font-extrabold', valueClassName)}>{value}</p>
+          {helper ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{helper}</span> : null}
+        </div>
+        <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+      </div>
     </div>
   );
 }
@@ -166,30 +170,30 @@ export function BudgetHealthTable({
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-[0.22em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
-            <th className="px-3 py-3">{labels.line}</th>
-            <th className="px-3 py-3 text-right">{labels.planned}</th>
-            <th className="px-3 py-3 text-right">{labels.committed}</th>
-            <th className="px-3 py-3 text-right">{labels.actual}</th>
-            <th className="px-3 py-3 text-right">{labels.available}</th>
-            <th className="px-3 py-3 text-center">{labels.consumption}</th>
-            <th className="px-3 py-3 text-center">{labels.health}</th>
+          <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+            <th className="px-5 py-4">{labels.line}</th>
+            <th className="px-5 py-4 text-right">{labels.planned}</th>
+            <th className="px-5 py-4 text-right">{labels.committed}</th>
+            <th className="px-5 py-4 text-right">{labels.actual}</th>
+            <th className="px-5 py-4 text-right">{labels.available}</th>
+            <th className="px-5 py-4 text-center">{labels.consumption}</th>
+            <th className="px-5 py-4 text-center">{labels.health}</th>
           </tr>
         </thead>
         <tbody>
           {rows.slice(0, 7).map(row => (
             <tr key={row.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
-              <td className="max-w-[260px] px-3 py-4 font-semibold text-slate-900 dark:text-white">
+              <td className="max-w-[260px] px-6 py-4 font-semibold text-slate-900 dark:text-white">
                 <span className="block truncate">{row.name}</span>
                 <span className="text-xs font-medium text-slate-500">
                   {row.budgetName ? `${row.budgetName} - ` : null}{formatKpiPercent(row.usagePercent)} {labels.used}
                 </span>
               </td>
-              <td className="px-3 py-4 text-right font-semibold text-slate-700 dark:text-slate-200">{formatKpiCurrency(row.planned, currency, locale)}</td>
-              <td className="px-3 py-4 text-right text-slate-600 dark:text-slate-300">{formatKpiCurrency(row.committed, currency, locale)}</td>
-              <td className="px-3 py-4 text-right text-slate-600 dark:text-slate-300">{formatKpiCurrency(row.actual, currency, locale)}</td>
-              <td className="px-3 py-4 text-right font-bold text-[#147514] dark:text-emerald-300">{formatKpiCurrency(row.available, currency, locale)}</td>
-              <td className="px-3 py-4">
+              <td className="px-6 py-4 text-right font-semibold text-slate-700 dark:text-slate-200">{formatKpiCurrency(row.planned, currency, locale)}</td>
+              <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300">{formatKpiCurrency(row.committed, currency, locale)}</td>
+              <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300">{formatKpiCurrency(row.actual, currency, locale)}</td>
+              <td className="px-6 py-4 text-right font-semibold text-[#147514] dark:text-emerald-300">{formatKpiCurrency(row.available, currency, locale)}</td>
+              <td className="px-6 py-4">
                 <div className="mx-auto w-28">
                   <div className="mb-1 text-center text-xs font-bold text-slate-600 dark:text-slate-300">{formatKpiPercent(row.usagePercent)}</div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
@@ -197,8 +201,8 @@ export function BudgetHealthTable({
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-4 text-center">
-                <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-bold', healthClasses[row.healthStatus])}>
+              <td className="px-6 py-4 text-center">
+                <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-semibold', healthClasses[row.healthStatus])}>
                   {healthLabels[row.healthStatus]}
                 </span>
               </td>

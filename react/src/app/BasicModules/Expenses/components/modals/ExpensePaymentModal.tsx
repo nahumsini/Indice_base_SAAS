@@ -1,6 +1,7 @@
 import { Check, HandCoins, Loader2, X } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 import type { PaymentAccount } from '../../PaymentAccounts/types';
 import type { Expense } from '../../types/expenses.types';
 import { isBackendId } from '../../adapters/adapter.utils';
@@ -44,6 +45,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
   const handleClose = () => {
     if (!isSubmitting) onClose();
   };
+  const { panelRef, titleId } = useFinanceModalAccessibility<HTMLFormElement>(handleClose);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,9 +61,13 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={handleClose}>
       <form
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         onSubmit={handleSubmit}
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[calc(100vh-3rem)] w-full max-w-[620px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+        className="flex max-h-[calc(100vh-3rem)] w-full max-w-[560px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
       >
         <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
           <div className="flex items-start gap-3">
@@ -69,7 +75,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
               <HandCoins className="h-5 w-5" />
             </span>
             <div>
-              <h3 className="text-xl font-bold text-white">{t.expenses.payment.title}</h3>
+              <h3 id={titleId} className="text-xl font-bold text-white">{t.expenses.payment.title}</h3>
               <p className="mt-1 max-w-xl text-sm leading-5 text-white/80">{t.expenses.payment.subtitle}</p>
             </div>
           </div>
@@ -78,35 +84,49 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
-          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-5 flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]">
-                <HandCoins className="h-5 w-5" />
-              </span>
-              <div>
-                <h4 className="text-base font-bold text-slate-950 dark:text-white">{t.expenses.payment.sectionTitle}</h4>
-                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.expenses.payment.sectionDescription}</p>
-                <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{expense.folio} - {expense.concept}</p>
+        <div className="flex-1 overflow-y-auto bg-slate-50/70 p-5 dark:bg-slate-950/40 sm:p-6">
+          <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-slate-950 dark:text-white">{expense.concept}</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-slate-500 dark:text-slate-400">{expense.folio}</p>
+                </div>
+                <span className="shrink-0 rounded-full border border-[#147514]/20 bg-[#147514]/8 px-3 py-1 text-xs font-bold text-[#147514]">
+                  {expense.currency}
+                </span>
               </div>
             </div>
 
-            <div className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/45">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label>
-                  <FieldLabel label={t.expenses.payment.amount} required />
+            <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100 dark:divide-slate-700 dark:border-slate-700">
+              <PaymentMetric label={t.expenses.payment.total} value={formatCurrency(expense.total, expense.currency)} />
+              <PaymentMetric label={t.expenses.payment.currentPaid} value={formatCurrency(currentPaid, expense.currency)} />
+              <PaymentMetric label={t.expenses.payment.remainingBalance} value={formatCurrency(remainingBalance, expense.currency)} warning={remainingBalance > 0} />
+            </div>
+
+            <div className="space-y-4 p-5">
+              <label className="block">
+                <FieldLabel label={t.expenses.payment.amount} required />
+                <div className="relative">
                   <input
                     autoFocus
                     inputMode="decimal"
+                    max={remainingBalance}
                     min="0"
                     placeholder="0.00"
+                    step="0.01"
+                    type="number"
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
-                    className={inputClass}
+                    className={`${inputClass} pr-16 text-lg font-bold`}
                   />
-                </label>
+                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs font-bold text-slate-400">{expense.currency}</span>
+                </div>
+              </label>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label>
-                  <FieldLabel label={t.paymentAccounts.headerTitle} required />
+                  <FieldLabel label={t.paymentAccounts.columns.name?.label ?? t.paymentAccounts.headerTitle} required />
                   <select
                     required
                     value={selectedPaymentAccountId}
@@ -118,7 +138,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
                     ) : null}
                     {eligiblePaymentAccounts.map(account => (
                       <option key={account.id} value={account.id}>
-                        {account.name} - {formatCurrency(account.balance, account.currency)}
+                        {account.name} · {formatCurrency(account.balance, account.currency)}
                       </option>
                     ))}
                   </select>
@@ -135,19 +155,24 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
                 </label>
               </div>
 
-              <div className="mt-4 grid gap-3 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4 md:grid-cols-5">
-                <PaymentMetric label={t.expenses.payment.total} value={formatCurrency(expense.total, expense.currency)} />
-                <PaymentMetric label={t.expenses.payment.currentPaid} value={formatCurrency(currentPaid, expense.currency)} />
-                <PaymentMetric label={t.expenses.payment.remainingBalance} value={formatCurrency(remainingBalance, expense.currency)} warning={remainingBalance > 0} />
-                <PaymentMetric label={t.expenses.payment.newBalance} value={formatCurrency(newBalance, expense.currency)} strong />
-                <PaymentMetric label={t.paymentAccounts.columns.balance?.label ?? t.paymentAccounts.headerTitle} value={selectedPaymentAccount ? formatCurrency(selectedPaymentAccount.balance - paymentAmount, selectedPaymentAccount.currency) : '-'} />
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{t.expenses.payment.newBalance}</p>
+                  <p className="mt-1 text-xl font-extrabold text-[#147514]">{formatCurrency(newBalance, expense.currency)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{t.paymentAccounts.columns.balance?.label ?? t.paymentAccounts.headerTitle}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
+                    {selectedPaymentAccount ? formatCurrency(selectedPaymentAccount.balance - paymentAmount, selectedPaymentAccount.currency) : '-'}
+                  </p>
+                </div>
               </div>
 
               {remainingBalance <= 0 && (
-                <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">{t.expenses.payment.noBalance}</p>
+                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">{t.expenses.payment.noBalance}</p>
               )}
               {exceedsBalance && (
-                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">{t.expenses.payment.amountExceedsBalance}</p>
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">{t.expenses.payment.amountExceedsBalance}</p>
               )}
             </div>
           </section>
@@ -173,9 +198,9 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 
 function PaymentMetric({ label, strong, value, warning }: { label: string; strong?: boolean; value: string; warning?: boolean }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+    <div className="min-w-0 px-3 py-4 text-center sm:px-4">
       <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{label}</p>
-      <p className={`mt-1 text-sm ${strong ? 'font-extrabold text-[#147514]' : warning ? 'font-bold text-amber-700 dark:text-amber-300' : 'font-bold text-slate-900 dark:text-slate-100'}`}>{value}</p>
+      <p className={`mt-1 truncate text-sm ${strong ? 'font-extrabold text-[#147514]' : warning ? 'font-bold text-amber-700 dark:text-amber-300' : 'font-bold text-slate-900 dark:text-slate-100'}`}>{value}</p>
     </div>
   );
 }

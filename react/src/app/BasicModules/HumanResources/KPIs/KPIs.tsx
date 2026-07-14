@@ -6,7 +6,6 @@ import {
   CalendarCheck2,
   CheckCircle2,
   ClipboardList,
-  Coins,
   FileWarning,
   Filter,
   IdCard,
@@ -57,6 +56,8 @@ import { useKPIsTranslations } from './hooks/useKPIsTranslations';
 import { HrTitleBar, hrTitleBarPrimaryActionClass, hrTitleBarSecondaryActionClass } from '../shared/HrTitleBar';
 import type { KPIsTranslations } from './translations';
 import { printKpisReport } from './utils/kpisPrintReport';
+import { HrEmployeeOperationsTable, type HrEmployeeOperationsRow } from './components/HrEmployeeOperationsTable';
+import { getHrKpiStandardCopy } from './translations/standardUiCopy';
 
 type PeriodFilter = 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'annualized' | 'specificDate';
 type HealthStatus = 'healthy' | 'watch' | 'critical';
@@ -132,6 +133,12 @@ const addMonthsClamped = (value: string, offset: number) => {
   return toIsoDate(target);
 };
 
+const addDays = (value: string, offset: number) => {
+  const date = parseIsoDate(value);
+  date.setDate(date.getDate() + offset);
+  return toIsoDate(date);
+};
+
 const effectiveControlDateForPeriod = (period: PeriodFilter, selectedDate: string) =>
   period === 'lastMonth' ? addMonthsClamped(selectedDate, -1) : selectedDate;
 
@@ -163,6 +170,22 @@ const periodRangeFor = (period: PeriodFilter, selectedDate: string) => {
     start: toIsoDate(new Date(year, month, 1)),
     end: toIsoDate(new Date(year, month + 1, 0)),
   };
+};
+
+const previousPeriodRangeFor = (period: PeriodFilter, selectedDate: string) => {
+  if (period === 'specificDate') {
+    const date = addDays(selectedDate, -1);
+    return { start: date, end: date };
+  }
+  if (period === 'thisQuarter') {
+    const effectiveDate = parseIsoDate(selectedDate);
+    effectiveDate.setMonth(effectiveDate.getMonth() - 3);
+    return periodRangeFor('thisQuarter', toIsoDate(effectiveDate));
+  }
+  if (period === 'annualized') {
+    return periodRangeFor('annualized', addMonthsClamped(selectedDate, -12));
+  }
+  return periodRangeFor('thisMonth', addMonthsClamped(effectiveControlDateForPeriod(period, selectedDate), -1));
 };
 
 const emptyHrSummary = {
@@ -236,6 +259,14 @@ function formatPercent(value: number | null, copy: KPIsTranslations) {
 
 function formatDateLabel(date: string, locale: string) {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseIsoDate(date));
+}
+
+function formatComparison(current: number | null, previous: number | null) {
+  if (current === null || previous === null || previous === 0) {
+    return '—';
+  }
+  const change = ((current - previous) / Math.abs(previous)) * 100;
+  return `${change >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(change))}%`;
 }
 
 function getHealthStatus(score: number): HealthStatus {
@@ -387,7 +418,7 @@ function assignmentMatchesFilters(
     assignment.unit_name,
     assignment.business_name,
   ].join(' ');
-  const matchesEmployeeScope = employeeIds.size === 0 || employeeIds.has(assignment.user_company_id);
+  const matchesEmployeeScope = employeeIds.has(assignment.user_company_id);
 
   return (
     matchesEmployeeScope &&
@@ -441,9 +472,7 @@ function KpiScoreBar({ score, status }: { score: number; status: HealthStatus })
 }
 
 function KpiCard({ card, copy }: { card: KpiCardModel; copy: KPIsTranslations }) {
-  const score = Number.parseInt(card.value, 10);
-  const fallbackScore = card.status === 'healthy' ? 92 : card.status === 'watch' ? 74 : 42;
-  const displayedScore = card.score ?? (Number.isFinite(score) ? score : fallbackScore);
+  const displayedScore = card.score ?? 0;
 
   return (
     <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -478,12 +507,12 @@ function SelectField({
   children: ReactNode;
 }) {
   return (
-    <label className="flex min-w-0 flex-col gap-2">
+    <label className="flex min-w-0 flex-col gap-2 overflow-hidden">
       <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+        className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
       >
         {children}
       </select>
@@ -494,10 +523,12 @@ function SelectField({
 export default function KPIs() {
   const copy = useKPIsTranslations();
   const { currentLanguage } = useLanguage();
+  const standardCopy = getHrKpiStandardCopy(currentLanguage.code);
   const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
   const [employeeSummary, setEmployeeSummary] = useState(emptyHrSummary);
   const [attendanceOverview, setAttendanceOverview] = useState<AttendanceControlOverviewResponse | null>(null);
+  const [previousAttendanceOverview, setPreviousAttendanceOverview] = useState<AttendanceControlOverviewResponse | null>(null);
   const [assets, setAssets] = useState<HrAsset[]>([]);
   const [assetSummary, setAssetSummary] = useState<HrAssetsSummary>(emptyAssetSummary);
   const [permissions, setPermissions] = useState<BackendPermissionItem[]>([]);
@@ -511,6 +542,7 @@ export default function KPIs() {
   const [unitFilter, setUnitFilter] = useState(allValue);
   const [businessFilter, setBusinessFilter] = useState(allValue);
   const [departmentFilter, setDepartmentFilter] = useState(allValue);
+  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState(allValue);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [sourceWarnings, setSourceWarnings] = useState<string[]>([]);
@@ -521,10 +553,8 @@ export default function KPIs() {
     [businessFilter, departmentFilter, searchQuery, unitFilter],
   );
 
-  const controlDate = useMemo(
-    () => effectiveControlDateForPeriod(periodFilter, selectedDate),
-    [periodFilter, selectedDate],
-  );
+  const controlDate = selectedDate;
+  const previousControlDate = useMemo(() => addDays(selectedDate, -7), [selectedDate]);
 
   const loadDashboard = async () => {
     setIsLoading(true);
@@ -544,6 +574,7 @@ export default function KPIs() {
     const results = await runWithMinimumDuration(Promise.allSettled([
       humanResourcesApi.listHrUsers(),
       humanResourcesApi.getAttendanceControlOverview(controlDate),
+      humanResourcesApi.getAttendanceControlOverview(previousControlDate),
       fetchAllPages<HrAsset, Awaited<ReturnType<typeof hrAssetsApi.listAssets>>>(
         (page, size) => hrAssetsApi.listAssets({ page, size }),
         500,
@@ -560,6 +591,7 @@ export default function KPIs() {
     const [
       employeesResult,
       attendanceResult,
+      previousAttendanceResult,
       assetsResult,
       permissionsResult,
       recordsResult,
@@ -588,6 +620,8 @@ export default function KPIs() {
       warnings.push(getErrorMessage(attendanceResult.reason, copy.dashboard.errors.attendance));
       setAttendanceOverview(null);
     }
+
+    setPreviousAttendanceOverview(previousAttendanceResult.status === 'fulfilled' ? previousAttendanceResult.value : null);
 
     if (assetsResult.status === 'fulfilled') {
       setAssets(assetsResult.value.items);
@@ -625,17 +659,25 @@ export default function KPIs() {
 
   useEffect(() => {
     void loadDashboard();
-  }, [controlDate]);
+  }, [controlDate, previousControlDate]);
 
   const scopedEmployees = useMemo(
     () => employees.filter((employee) => employeeMatchesFilters(employee, filters)),
     [employees, filters],
   );
 
-  const filteredEmployees = useMemo(
+  const baseActiveEmployees = useMemo(
     () => scopedEmployees.filter(isActiveEmployee),
     [scopedEmployees],
   );
+
+  const filteredEmployees = useMemo(() => {
+    if (attendanceStatusFilter === allValue) return baseActiveEmployees;
+    const matchingIds = new Set((attendanceOverview?.assignments ?? [])
+      .filter(assignment => assignment.today_status === attendanceStatusFilter)
+      .map(assignment => assignment.user_company_id));
+    return baseActiveEmployees.filter(employee => matchingIds.has(employee.id));
+  }, [attendanceOverview?.assignments, attendanceStatusFilter, baseActiveEmployees]);
 
   const filteredEmployeeIds = useMemo(
     () => new Set(filteredEmployees.map((employee) => employee.id)),
@@ -678,9 +720,17 @@ export default function KPIs() {
   const filteredAssignments = useMemo(
     () =>
       (attendanceOverview?.assignments ?? []).filter((assignment) =>
-        assignmentMatchesFilters(assignment, filteredEmployeeIds, filters),
+        assignmentMatchesFilters(assignment, filteredEmployeeIds, filters)
+        && (attendanceStatusFilter === allValue || assignment.today_status === attendanceStatusFilter),
       ),
-    [attendanceOverview?.assignments, filteredEmployeeIds, filters],
+    [attendanceOverview?.assignments, attendanceStatusFilter, filteredEmployeeIds, filters],
+  );
+
+  const previousFilteredAssignments = useMemo(
+    () => (previousAttendanceOverview?.assignments ?? []).filter((assignment) =>
+      assignmentMatchesFilters(assignment, filteredEmployeeIds, filters)
+      && (attendanceStatusFilter === allValue || assignment.today_status === attendanceStatusFilter)),
+    [attendanceStatusFilter, filteredEmployeeIds, filters, previousAttendanceOverview?.assignments],
   );
 
   const filteredPermissions = useMemo(
@@ -689,7 +739,6 @@ export default function KPIs() {
         const employeeId = permission.employee.id;
         const employeeName = permission.employee.name.toLowerCase();
         const matchesEmployee =
-          filteredEmployeeIds.size === 0 ||
           (employeeId ? filteredEmployeeIds.has(employeeId) : filteredEmployeeNames.has(employeeName));
         const haystack = [permission.folio, permission.employee.name, permission.employee.position, permission.employee.department, permission.reason]
           .join(' ');
@@ -706,7 +755,7 @@ export default function KPIs() {
   const filteredRecords = useMemo(
     () =>
       records.filter((record) => {
-        const matchesEmployee = filteredEmployeeIds.size === 0 || filteredEmployeeIds.has(record.user.id);
+        const matchesEmployee = filteredEmployeeIds.has(record.user.id);
         const haystack = [
           record.record_number,
           record.user.name,
@@ -733,7 +782,6 @@ export default function KPIs() {
     () =>
       assets.filter((asset) => {
         const matchesResponsible =
-          filteredEmployeeIds.size === 0 ||
           (asset.responsible_user_company_id ? filteredEmployeeIds.has(asset.responsible_user_company_id) : false);
         const matchesUnit = unitFilter === allValue || String(asset.unit_id ?? '') === unitFilter;
         const haystack = [asset.asset_code, asset.asset_type, asset.name, asset.model, asset.serial_number, asset.responsible_name, asset.unit_name]
@@ -747,6 +795,25 @@ export default function KPIs() {
       }),
     [assets, departmentFilter, filteredEmployeeIds, searchQuery, unitFilter],
   );
+
+  const previousPeriodRange = useMemo(
+    () => previousPeriodRangeFor(periodFilter, selectedDate),
+    [periodFilter, selectedDate],
+  );
+
+  const previousFilteredPermissions = useMemo(() => permissions.filter((permission) => {
+    const employeeId = permission.employee.id;
+    const employeeName = permission.employee.name.toLowerCase();
+    const matchesEmployee = employeeId ? filteredEmployeeIds.has(employeeId) : filteredEmployeeNames.has(employeeName);
+    const permissionStart = (permission.startDate || getDateFromPermission(permission)).slice(0, 10);
+    const permissionEnd = (permission.endDate || permissionStart).slice(0, 10);
+    return matchesEmployee && Boolean(permissionStart) && permissionStart <= previousPeriodRange.end && permissionEnd >= previousPeriodRange.start;
+  }), [filteredEmployeeIds, filteredEmployeeNames, permissions, previousPeriodRange]);
+
+  const previousFilteredRecords = useMemo(() => records.filter((record) => {
+    const date = getDateFromRecord(record).slice(0, 10);
+    return filteredEmployeeIds.has(record.user.id) && date >= previousPeriodRange.start && date <= previousPeriodRange.end;
+  }), [filteredEmployeeIds, previousPeriodRange, records]);
 
   const attendanceSummary = useMemo(() => {
     const onTime = filteredAssignments.filter((assignment) => assignment.today_status === 'on_time').length;
@@ -774,6 +841,16 @@ export default function KPIs() {
     };
   }, [filteredAssignments, filteredEmployees.length]);
 
+  const previousAttendanceSummary = useMemo(() => {
+    const onTime = previousFilteredAssignments.filter(assignment => assignment.today_status === 'on_time').length;
+    const late = previousFilteredAssignments.filter(assignment => assignment.today_status === 'late').length;
+    const denominator = Math.max(previousFilteredAssignments.length, filteredEmployees.length);
+    return {
+      attendanceRate: denominator > 0 ? clampScore(((onTime + late) / denominator) * 100) : null,
+      punctualityRate: denominator > 0 ? clampScore((onTime / denominator) * 100) : null,
+    };
+  }, [filteredEmployees.length, previousFilteredAssignments]);
+
   const permissionCounts = useMemo(
     () => ({
       total: filteredPermissions.length,
@@ -783,6 +860,10 @@ export default function KPIs() {
     }),
     [filteredPermissions],
   );
+  const previousPermissionCounts = useMemo(() => ({
+    pending: previousFilteredPermissions.filter(permission => permission.status === 'pending').length,
+    total: previousFilteredPermissions.length,
+  }), [previousFilteredPermissions]);
 
   const recordCounts = useMemo(
     () => ({
@@ -794,6 +875,10 @@ export default function KPIs() {
     }),
     [filteredRecords],
   );
+  const previousRecordCounts = useMemo(() => ({
+    risk: previousFilteredRecords.filter(record => record.status !== 'resolved' || record.severity === 'high').length,
+    total: previousFilteredRecords.length,
+  }), [previousFilteredRecords]);
 
   const assetCounts = useMemo(
     () => ({
@@ -850,8 +935,9 @@ export default function KPIs() {
     ? clampScore((assetCounts.assigned / filteredEmployees.length) * 100)
     : null;
   const healthScore = weightedAverage([
-    { value: activeRate, weight: 0.2 },
-    { value: attendanceSummary.attendanceRate, weight: 0.3 },
+    { value: activeRate, weight: 0.15 },
+    { value: attendanceSummary.attendanceRate, weight: 0.2 },
+    { value: attendanceSummary.punctualityRate, weight: 0.15 },
     { value: permissionResolutionRate, weight: 0.15 },
     {
       value: recordResolutionRate === null
@@ -879,19 +965,29 @@ export default function KPIs() {
         id: 'attendance',
         title: copy.dashboard.cards.attendance.title,
         value: formatPercent(attendanceSummary.attendanceRate, copy),
-        target: copy.dashboard.cards.attendance.target(attendanceSummary.onTime + attendanceSummary.late, attendanceSummary.denominator),
+        target: `${copy.dashboard.cards.attendance.target(attendanceSummary.onTime + attendanceSummary.late, attendanceSummary.denominator)} · ${formatComparison(attendanceSummary.attendanceRate, previousAttendanceSummary.attendanceRate)}`,
         description: copy.dashboard.cards.attendance.description,
         status: getHealthStatus(attendanceSummary.attendanceRate ?? 0),
         icon: <CalendarCheck2 className="h-5 w-5" />,
         score: attendanceSummary.attendanceRate,
       },
       {
+        id: 'punctuality',
+        title: copy.cards.punctuality,
+        value: formatPercent(attendanceSummary.punctualityRate, copy),
+        target: formatComparison(attendanceSummary.punctualityRate, previousAttendanceSummary.punctualityRate),
+        description: copy.dashboard.cards.attendance.description,
+        status: getHealthStatus(attendanceSummary.punctualityRate ?? 0),
+        icon: <CalendarCheck2 className="h-5 w-5" />,
+        score: attendanceSummary.punctualityRate,
+      },
+      {
         id: 'late',
         title: copy.dashboard.cards.late.title,
-        value: formatNumber(attendanceSummary.late, currentLanguage.code),
+        value: formatNumber(attendanceSummary.late + attendanceSummary.absence + attendanceSummary.noRecord, currentLanguage.code),
         target: copy.dashboard.cards.late.target(attendanceSummary.absence, attendanceSummary.noRecord),
         description: copy.dashboard.cards.late.description,
-        status: attendanceSummary.late === 0 ? 'healthy' : attendanceSummary.late <= 2 ? 'watch' : 'critical',
+        status: attendanceSummary.late + attendanceSummary.absence + attendanceSummary.noRecord === 0 ? 'healthy' : attendanceSummary.absence > 0 ? 'critical' : 'watch',
         icon: <Activity className="h-5 w-5" />,
         score: attendanceSummary.denominator > 0
           ? clampScore(
@@ -906,7 +1002,7 @@ export default function KPIs() {
         id: 'permissions',
         title: copy.dashboard.cards.permissions.title,
         value: formatNumber(permissionCounts.pending, currentLanguage.code),
-        target: copy.dashboard.cards.permissions.target(permissionCounts.total),
+        target: `${copy.dashboard.cards.permissions.target(permissionCounts.total)} · ${formatComparison(permissionCounts.pending, previousPermissionCounts.pending)}`,
         description: copy.dashboard.cards.permissions.description,
         status: permissionCounts.pending === 0 ? 'healthy' : permissionCounts.pending <= 3 ? 'watch' : 'critical',
         icon: <ClipboardList className="h-5 w-5" />,
@@ -923,20 +1019,10 @@ export default function KPIs() {
         score: assetCoverageRate,
       },
       {
-        id: 'asset-value',
-        title: copy.dashboard.cards.assetValue.title,
-        value: assetValueSummary.preferredTotalLabel,
-        target: copy.dashboard.cards.assetValue.target(assetValueSummary.nativeBreakdownLabel),
-        description: copy.dashboard.cards.assetValue.description(preferredCurrency),
-        status: assetValueSummary.assetCountWithValue > 0 ? 'healthy' : 'watch',
-        icon: <Coins className="h-5 w-5" />,
-        score: assetValueSummary.valueCoverageRate,
-      },
-      {
         id: 'records',
         title: copy.dashboard.cards.records.title,
         value: formatNumber(recordCounts.pending + recordCounts.highSeverity, currentLanguage.code),
-        target: copy.dashboard.cards.records.target(recordCounts.total),
+        target: `${copy.dashboard.cards.records.target(recordCounts.total)} · ${formatComparison(recordCounts.pending + recordCounts.highSeverity, previousRecordCounts.risk)}`,
         description: copy.dashboard.cards.records.description,
         status: recordCounts.pending + recordCounts.highSeverity === 0 ? 'healthy' : recordCounts.highSeverity > 0 ? 'critical' : 'watch',
         icon: <FileWarning className="h-5 w-5" />,
@@ -1127,6 +1213,70 @@ export default function KPIs() {
     [unitRows],
   );
 
+  const permissionChartData = useMemo(() => [
+    { name: copy.dashboard.labels.pending, value: permissionCounts.pending },
+    { name: standardCopy.approved, value: permissionCounts.approved },
+    { name: standardCopy.rejected, value: permissionCounts.rejected },
+  ].filter(item => item.value > 0), [copy.dashboard.labels.pending, permissionCounts, standardCopy]);
+
+  const recordsChartData = useMemo(() => [
+    { name: copy.dashboard.labels.pending, value: recordCounts.pending },
+    { name: standardCopy.reviewed, value: recordCounts.reviewed },
+    { name: standardCopy.resolved, value: recordCounts.resolved },
+    { name: copy.dashboard.statuses.critical, value: recordCounts.highSeverity },
+  ].filter(item => item.value > 0), [copy.dashboard.labels.pending, copy.dashboard.statuses.critical, recordCounts, standardCopy]);
+
+  const departmentRiskRows = useMemo(() => {
+    const assignmentByEmployee = new Map(filteredAssignments.map(assignment => [assignment.user_company_id, assignment]));
+    const groups = new Map<string, { employees: number; exceptions: number }>();
+    filteredEmployees.forEach((employee) => {
+      const department = employee.department || copy.dashboard.labels.noDepartment;
+      const group = groups.get(department) ?? { employees: 0, exceptions: 0 };
+      const status = assignmentByEmployee.get(employee.id)?.today_status;
+      group.employees += 1;
+      if (!status || ['late', 'absence', 'pending', 'not_scheduled'].includes(status)) group.exceptions += 1;
+      groups.set(department, group);
+    });
+    return Array.from(groups.entries()).map(([name, values]) => ({ name, ...values, percentage: values.employees > 0 ? (values.exceptions / values.employees) * 100 : 0 })).sort((left, right) => right.exceptions - left.exceptions).slice(0, 5);
+  }, [copy.dashboard.labels.noDepartment, filteredAssignments, filteredEmployees]);
+
+  const employeeOperationsRows = useMemo<HrEmployeeOperationsRow[]>(() => {
+    const assignmentByEmployee = new Map(filteredAssignments.map(assignment => [assignment.user_company_id, assignment]));
+    const permissionsByEmployee = new Map<number, number>();
+    const recordsByEmployee = new Map<number, number>();
+    const assetsByEmployee = new Map<number, number>();
+    filteredPermissions.forEach(permission => { if (permission.status === 'pending' && permission.employee.id) permissionsByEmployee.set(permission.employee.id, (permissionsByEmployee.get(permission.employee.id) ?? 0) + 1); });
+    filteredRecords.forEach(record => { if (record.status !== 'resolved' || record.severity === 'high') recordsByEmployee.set(record.user.id, (recordsByEmployee.get(record.user.id) ?? 0) + 1); });
+    filteredAssets.forEach(asset => { if (asset.responsible_user_company_id && ['assigned', 'custody'].includes(asset.status)) assetsByEmployee.set(asset.responsible_user_company_id, (assetsByEmployee.get(asset.responsible_user_company_id) ?? 0) + 1); });
+    const attendanceScores: Record<string, number> = { on_time: 100, rest: 100, leave: 90, late: 72, pending: 40, not_scheduled: 40, absence: 10 };
+    const attendanceLabels: Record<string, string> = { on_time: copy.dashboard.labels.onTime, rest: copy.dashboard.labels.rest, leave: copy.dashboard.labels.leave, late: copy.dashboard.labels.late, pending: copy.dashboard.labels.noRecord, not_scheduled: copy.dashboard.labels.noRecord, absence: copy.dashboard.labels.absence };
+    return filteredEmployees.map(employee => {
+      const assignment = assignmentByEmployee.get(employee.id);
+      const statusKey = assignment?.today_status ?? 'pending';
+      const pendingPermissions = permissionsByEmployee.get(employee.id) ?? 0;
+      const openRecords = recordsByEmployee.get(employee.id) ?? 0;
+      const assignedAssets = assetsByEmployee.get(employee.id) ?? 0;
+      const score = weightedAverage([
+        { value: attendanceScores[statusKey] ?? 40, weight: 0.45 },
+        { value: Math.max(0, 100 - pendingPermissions * 20), weight: 0.2 },
+        { value: Math.max(0, 100 - openRecords * 25), weight: 0.25 },
+        { value: assignedAssets > 0 ? 100 : 40, weight: 0.1 },
+      ]);
+      return {
+        id: employee.id,
+        position: 0,
+        name: getEmployeeDisplayName(employee),
+        meta: `${employee.position_title || employee.position || copy.dashboard.labels.noDepartment} · ${employee.unit_name || copy.dashboard.labels.noUnit}`,
+        attendance: attendanceLabels[statusKey] ?? copy.dashboard.labels.noRecord,
+        permissions: pendingPermissions,
+        records: openRecords,
+        assets: assignedAssets,
+        score,
+        status: getHealthStatus(score),
+      };
+    }).sort((left, right) => left.score - right.score || left.name.localeCompare(right.name)).map((row, index) => ({ ...row, position: index + 1 }));
+  }, [copy.dashboard.labels, filteredAssignments, filteredAssets, filteredEmployees, filteredPermissions, filteredRecords]);
+
   const healthInsight = useMemo(() => {
     if (filteredEmployees.length === 0) {
       return copy.dashboard.insights.empty;
@@ -1166,6 +1316,9 @@ export default function KPIs() {
     ? copy.dashboard.filters.allBusinesses
     : businessOptions.find((business) => business.id === businessFilter)?.name ?? copy.dashboard.filters.allBusinesses;
   const selectedDepartmentLabel = departmentFilter === allValue ? copy.dashboard.filters.allDepartments : departmentFilter;
+  const selectedAttendanceStatusLabel = attendanceStatusFilter === allValue
+    ? standardCopy.allStatuses
+    : ({ on_time: copy.dashboard.labels.onTime, late: copy.dashboard.labels.late, leave: copy.dashboard.labels.leave, rest: copy.dashboard.labels.rest, absence: copy.dashboard.labels.absence, pending: copy.dashboard.labels.noRecord } as Record<string, string>)[attendanceStatusFilter] ?? standardCopy.allStatuses;
 
   const lastUpdatedLabel = lastUpdatedAt
     ? new Intl.DateTimeFormat(currentLanguage.code, {
@@ -1199,6 +1352,7 @@ export default function KPIs() {
         { label: copy.dashboard.filters.search, value: searchQuery.trim() || copy.dashboard.common.notAvailable },
         { label: copy.dashboard.filters.period, value: `${periodLabel} · ${periodScopeLabel}` },
         { label: copy.dashboard.labels.attendanceControlDate, value: attendanceScopeLabel },
+        { label: standardCopy.status, value: selectedAttendanceStatusLabel },
         { label: copy.dashboard.labels.preferredCurrency, value: preferredCurrency },
         { label: copy.dashboard.filters.unit, value: selectedUnitLabel },
         { label: copy.dashboard.filters.business, value: selectedBusinessLabel },
@@ -1251,35 +1405,51 @@ export default function KPIs() {
       />
 
       <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
-          <Filter className="h-4 w-4 text-emerald-500" />
-          {copy.dashboard.filters.title}
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+            <Filter className="h-4 w-4 text-emerald-500" />
+            {copy.dashboard.filters.title}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-semibold text-slate-500 dark:text-slate-400 sm:justify-end">
+            <span>{standardCopy.results(filteredEmployees.length)}</span>
+            <button type="button" onClick={() => { setSearchQuery(''); setUnitFilter(allValue); setBusinessFilter(allValue); setPeriodFilter('thisMonth'); setAttendanceStatusFilter(allValue); setDepartmentFilter(allValue); setSelectedDate(todayIsoDate()); }} className="inline-flex items-center gap-1.5 transition hover:text-emerald-600 dark:hover:text-emerald-300"><RefreshCw className="h-3.5 w-3.5" />{standardCopy.clear}</button>
+          </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1.7fr_1.25fr_1fr_1fr_1fr]">
-          <label className="flex min-w-0 flex-col gap-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <label className="flex min-w-0 flex-col gap-2 md:col-span-2">
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               {copy.dashboard.filters.search}
             </span>
-            <span className="relative">
+            <span className="relative block min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={copy.dashboard.filters.searchPlaceholder}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+                className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
               />
             </span>
           </label>
 
-          <label className="flex min-w-0 flex-col gap-2">
+          <SelectField label={copy.dashboard.filters.unit} value={unitFilter} onChange={(value) => { setUnitFilter(value); setBusinessFilter(allValue); }}>
+            <option value={allValue}>{copy.dashboard.filters.allUnits}</option>
+            {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+          </SelectField>
+
+          <SelectField label={copy.dashboard.filters.business} value={businessFilter} onChange={setBusinessFilter}>
+            <option value={allValue}>{copy.dashboard.filters.allBusinesses}</option>
+            {businessOptions.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+          </SelectField>
+
+          <label className="flex min-w-0 flex-col gap-2 overflow-hidden">
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               {copy.dashboard.filters.period}
             </span>
-            <div className={cn('grid gap-2', periodFilter === 'specificDate' ? 'grid-cols-1' : '')}>
+            <div className="grid gap-2">
               <select
                 value={periodFilter}
                 onChange={(event) => setPeriodFilter(event.target.value as PeriodFilter)}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
+                className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
               >
                 {periodOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1287,34 +1457,17 @@ export default function KPIs() {
                   </option>
                 ))}
               </select>
-              {periodFilter === 'specificDate' ? (
-                <input
-                  aria-label={copy.dashboard.filters.date}
-                  type="date"
-                  value={selectedDate}
-                  onChange={(event) => setSelectedDate(event.target.value || todayIsoDate())}
-                  className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
-                />
-              ) : null}
             </div>
           </label>
 
-          <SelectField label={copy.dashboard.filters.unit} value={unitFilter} onChange={setUnitFilter}>
-            <option value={allValue}>{copy.dashboard.filters.allUnits}</option>
-            {unitOptions.map((unit) => (
-              <option key={unit.id} value={unit.id}>
-                {unit.name}
-              </option>
-            ))}
-          </SelectField>
-
-          <SelectField label={copy.dashboard.filters.business} value={businessFilter} onChange={setBusinessFilter}>
-            <option value={allValue}>{copy.dashboard.filters.allBusinesses}</option>
-            {businessOptions.map((business) => (
-              <option key={business.id} value={business.id}>
-                {business.name}
-              </option>
-            ))}
+          <SelectField label={standardCopy.status} value={attendanceStatusFilter} onChange={setAttendanceStatusFilter}>
+            <option value={allValue}>{standardCopy.allStatuses}</option>
+            <option value="on_time">{copy.dashboard.labels.onTime}</option>
+            <option value="late">{copy.dashboard.labels.late}</option>
+            <option value="leave">{copy.dashboard.labels.leave}</option>
+            <option value="rest">{copy.dashboard.labels.rest}</option>
+            <option value="absence">{copy.dashboard.labels.absence}</option>
+            <option value="pending">{copy.dashboard.labels.noRecord}</option>
           </SelectField>
 
           <SelectField label={copy.dashboard.filters.department} value={departmentFilter} onChange={setDepartmentFilter}>
@@ -1325,6 +1478,11 @@ export default function KPIs() {
               </option>
             ))}
           </SelectField>
+
+          <label className="flex min-w-0 flex-col gap-2 overflow-hidden">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{standardCopy.operationalDate}</span>
+            <input aria-label={standardCopy.operationalDate} type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value || todayIsoDate())} className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30" />
+          </label>
         </div>
       </section>
 
@@ -1357,8 +1515,13 @@ export default function KPIs() {
               <p className="mt-1 leading-6">{healthInsight}</p>
             </div>
           </div>
-          <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-            {copy.dashboard.labels.lastUpdated}: {lastUpdatedLabel}
+          <div className="flex flex-wrap gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 lg:justify-end">
+            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{periodLabel}: {periodScopeLabel}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.operationalDate}: {attendanceScopeLabel}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.preferredCurrency}: {preferredCurrency}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.totalAssetValue}: {assetValueSummary.nativeBreakdownLabel}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{standardCopy.comparison}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1.5 dark:bg-slate-900/60">{copy.dashboard.labels.lastUpdated}: {lastUpdatedLabel}</span>
           </div>
         </div>
       </section>
@@ -1436,6 +1599,27 @@ export default function KPIs() {
             )}
           </div>
         </article>
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {[
+          { title: copy.dashboard.cards.permissions.title, description: copy.dashboard.cards.permissions.description, data: permissionChartData, icon: <ClipboardList className="h-5 w-5" /> },
+          { title: copy.dashboard.cards.records.title, description: copy.dashboard.cards.records.description, data: recordsChartData, icon: <FileWarning className="h-5 w-5" /> },
+        ].map((panel) => (
+          <article key={panel.title} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="mb-4 flex items-start justify-between gap-3"><div><h3 className="text-base font-bold text-slate-900 dark:text-white">{panel.title}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{panel.description}</p></div><span className="text-emerald-500">{panel.icon}</span></div>
+            <div className="h-64">
+              {panel.data.length > 0 ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={panel.data} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={3}>{panel.data.map((item, index) => <Cell key={item.name} fill={pieColors[index % pieColors.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">{copy.dashboard.common.noData}</div>}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">{panel.data.map((item, index) => <span key={item.name} className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-900/60 dark:text-slate-300"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} />{item.name}: {item.value}</span>)}</div>
+          </article>
+        ))}
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-bold text-slate-900 dark:text-white">{standardCopy.topUnits}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.unitPerformanceHint}</p><div className="mt-5 space-y-3">{unitRows.slice(0, 5).map((row, index) => <button key={row.id} type="button" disabled={row.id === 'none'} onClick={() => { setUnitFilter(row.id); setBusinessFilter(allValue); }} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-emerald-50 disabled:cursor-default dark:hover:bg-emerald-950/20"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-black dark:bg-slate-700">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-700 dark:text-slate-200">{row.name}</span><span className={`rounded-full border px-2 py-1 text-xs font-bold ${statusClasses[row.status]}`}>{row.readinessScore}%</span></button>)}{unitRows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p> : null}</div></article>
+        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-bold text-slate-900 dark:text-white">{standardCopy.topDepartments}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.cards.late.description}</p><div className="mt-5 space-y-3">{departmentRiskRows.map((row, index) => <button key={row.name} type="button" onClick={() => setDepartmentFilter(row.name)} className="block w-full rounded-xl p-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-950/20"><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-black dark:bg-slate-700">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-700 dark:text-slate-200">{row.name}</span><span className="text-sm font-black text-slate-900 dark:text-white">{row.exceptions}</span></div><div className="ml-11 mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, row.percentage)}%` }} /></div></button>)}{departmentRiskRows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.common.noData}</p> : null}</div></article>
+        <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 className="font-bold text-slate-900 dark:text-white">{standardCopy.topAttention}</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.dashboard.sections.attentionQueueHint}</p><div className="mt-5 space-y-3">{attentionRows.slice(0, 5).map((row, index) => <button key={row.id} type="button" onClick={() => setSearchQuery(row.employee)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-emerald-50 dark:hover:bg-emerald-950/20"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-black dark:bg-slate-700">{index + 1}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-700 dark:text-slate-200">{row.employee}</span><span className="block truncate text-xs text-slate-500">{row.signals[0]}</span></span><KpiStatusBadge copy={copy} status={row.status} /></button>)}{attentionRows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">{copy.dashboard.sections.noAttentionSignals}</p> : null}</div></article>
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -1553,6 +1737,26 @@ export default function KPIs() {
           </div>
         </article>
       </section>
+
+      <HrEmployeeOperationsTable
+        labels={{
+          title: standardCopy.performanceTitle,
+          subtitle: standardCopy.performanceSubtitle,
+          employee: copy.dashboard.table.employees,
+          attendance: copy.dashboard.table.attendance,
+          permissions: copy.dashboard.table.permissions,
+          records: copy.dashboard.table.records,
+          assets: copy.dashboard.table.assets,
+          readiness: copy.dashboard.table.readiness,
+          noRows: copy.dashboard.table.noRows,
+          focus: standardCopy.focus,
+          statuses: copy.dashboard.statuses,
+        }}
+        locale={currentLanguage.code}
+        onFocus={(row) => setSearchQuery(row.name)}
+        resetKey={[searchQuery, unitFilter, businessFilter, periodFilter, attendanceStatusFilter, departmentFilter, selectedDate].join('|')}
+        rows={employeeOperationsRows}
+      />
 
       <section className="grid grid-cols-2 gap-3 rounded-[24px] border border-slate-200 bg-white p-4 text-xs font-semibold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 md:grid-cols-4 xl:grid-cols-8">
         <span>{copy.dashboard.labels.totalEmployees}: {employeeSummary.total_count}</span>

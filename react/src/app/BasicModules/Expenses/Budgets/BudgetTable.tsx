@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type DragEvent, type FormEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
-import { isBackendId } from '../adapters/adapter.utils';
-import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
+import { providerRecordsToExpenseProviders, toExpenseProvider } from '../adapters/provider.adapter';
 import { mockProviders } from '../data/expenses.mock';
-import type { Expense } from '../types/expenses.types';
+import type { Expense, Provider } from '../types/expenses.types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
-import { accountingAccountsService, budgetLinesService, expensesService, toFinanceApiErrorMessage } from '../services';
+import { createQuickProviderRecord } from '../Providers/providerRecordFactory';
+import { accountingAccountsService, budgetLinesService, providersService, toFinanceApiErrorMessage } from '../services';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import type { ColumnConfig } from '../types/expenseView.types';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { BudgetCreateModal } from '../components/modals/BudgetCreateModal';
-import { ExpenseFormModal, type ExpenseFormValues } from '../components/modals/ExpenseFormModal';
 import { BudgetFiltersPanel } from '../components/filters/BudgetFiltersPanel';
 import { ColumnConfigurationModal } from '../components/table/ColumnConfigurationModal';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -24,40 +24,32 @@ import { BudgetSummaryBar } from './components/BudgetSummaryBar';
 import { BudgetTableHeader } from './components/BudgetTableHeader';
 import { MISSING_ACCOUNTING_ACCOUNT_FILTER, useBudgetLogic } from './useBudgetLogic';
 import { useBudgetMasters } from './useBudgetMasters';
+import { useBudgetTableColumns } from './hooks/useBudgetTableColumns';
+import { toBudgetLineTableRow } from './types/budgetLineTable.types';
 
 interface BudgetTableProps {
   columns: ColumnConfig[];
   expenses: Expense[];
+  loadError?: string;
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
+  onProvidersChange?: Dispatch<SetStateAction<ProviderRecord[]>>;
+  onRetryLoad?: () => void;
   providers?: ProviderRecord[];
 }
 
-const createPayableFolio = (currentExpenses: Expense[]) => {
-  const year = new Date().getFullYear();
-  const prefix = `CXP-${year}-`;
-  const nextSequence = currentExpenses.reduce((highest, expense) => {
-    if (!expense.folio.startsWith(prefix)) return highest;
-    const sequence = Number(expense.folio.slice(prefix.length));
-    return Number.isFinite(sequence) ? Math.max(highest, sequence) : highest;
-  }, 0) + 1;
-
-  return `${prefix}${String(nextSequence).padStart(3, '0')}`;
-};
-
-export default function BudgetTable({ columns, expenses, onExpensesChange, providers: providerRecords }: BudgetTableProps) {
+export default function BudgetTable({ columns, expenses, loadError, onExpensesChange, onProvidersChange, onRetryLoad, providers: providerRecords }: BudgetTableProps) {
   const t = useBudgetsTranslations();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [activeAccountingAccountOptions, setActiveAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
-  const [draft, setDraft] = useState(createInitialBudgetDraftState);
-  const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
+  const [draft, setDraft] = useState(() => createInitialBudgetDraftState(preferredCurrency));
   const [editingBudgetExpense, setEditingBudgetExpense] = useState<Expense | null>(null);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [payableInitialExpense, setPayableInitialExpense] = useState<Expense | null>(null);
   const [pendingDeleteBudgetExpenseIds, setPendingDeleteBudgetExpenseIds] = useState<string[]>([]);
   const [successToastMessage, setSuccessToastMessage] = useState('');
-  const [tableColumns, setTableColumns] = useState(() => columns.map(column => ({ ...column })));
   const saveTimeoutsRef = useRef<Record<string, number>>({});
+  const { columns: tableColumns, applyColumns } = useBudgetTableColumns(columns);
   const {
     accountingAccountFilter,
     businessFilter,
@@ -82,7 +74,6 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   ), [providerRecords]);
   const {
     businessOptions: referenceBusinessOptions,
-    currentUser,
     unitOptions: referenceUnitOptions,
   } = useFinanceReferenceData(setFailureToastMessage);
   const {
@@ -93,10 +84,6 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   useEffect(() => () => {
     Object.values(saveTimeoutsRef.current).forEach(timeoutId => window.clearTimeout(timeoutId));
   }, []);
-
-  useEffect(() => {
-    setTableColumns(currentColumns => reconcileBudgetColumns(currentColumns, columns));
-  }, [columns]);
 
   useEffect(() => {
     let isMounted = true;
@@ -151,6 +138,10 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   const selectableAccountingAccountOptions = activeAccountingAccountOptions.length > 0
     ? activeAccountingAccountOptions
     : fallbackAccountingAccountOptions;
+  const budgetTableRows = useMemo(
+    () => filteredBudgetExpenses.map(toBudgetLineTableRow),
+    [filteredBudgetExpenses],
+  );
   const accountingAccountFilterOptions = useMemo(() => {
     const accounts = new Set<string>();
     let hasMissingAccount = false;
@@ -173,19 +164,37 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
   }, [expenses, t.budgets.columns.accountingAccount.label, t.common.all]);
 
   const openCreateModal = () => {
-    setDraft(createInitialBudgetDraftState());
+    setDraft(createInitialBudgetDraftState(preferredCurrency));
     setEditingBudgetExpense(null);
     setIsCreateModalOpen(true);
   };
 
   const closeBudgetModal = () => {
-    setDraft(createInitialBudgetDraftState());
+    setDraft(createInitialBudgetDraftState(preferredCurrency));
     setEditingBudgetExpense(null);
     setIsCreateModalOpen(false);
   };
 
   const updateDraft = (updates: Partial<ReturnType<typeof createInitialBudgetDraftState>>) => {
     setDraft(current => ({ ...current, ...updates }));
+  };
+
+  const handleQuickProviderCreate = async (name: string): Promise<Provider> => {
+    const normalizedName = name.trim();
+    const existingProvider = providers.find(provider => provider.name.trim().toLocaleLowerCase() === normalizedName.toLocaleLowerCase());
+    if (existingProvider) return existingProvider;
+
+    const providerRecord = createQuickProviderRecord(providerRecords ?? [], normalizedName);
+    try {
+      const savedProvider = await providersService.createProvider(providerRecord);
+      onProvidersChange?.(currentProviders => [savedProvider, ...currentProviders]);
+      setSuccessToastMessage(t.expenses.payableAccount.quickProviderCreated);
+      return toExpenseProvider(savedProvider);
+    } catch (error) {
+      onProvidersChange?.(currentProviders => [providerRecord, ...currentProviders]);
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.payableAccount.quickProviderSaveFailed));
+      return toExpenseProvider(providerRecord);
+    }
   };
 
   const revealCreatedBudgetEntries = (entries: Expense[]) => {
@@ -210,6 +219,11 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
     setDraft(createBudgetDraftStateFromExpense(expense));
     setEditingBudgetExpense(expense);
     setIsCreateModalOpen(true);
+  };
+
+  const openEditBudgetLine = (budgetLineId: string) => {
+    const expense = filteredBudgetExpenses.find(item => item.id === budgetLineId);
+    if (expense) openEditBudgetExpense(expense);
   };
 
   const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -239,7 +253,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       } else {
         setSuccessToastMessage(t.budgets.messages.created(savedEntries.length));
       }
-      setDraft(createInitialBudgetDraftState());
+      setDraft(createInitialBudgetDraftState(preferredCurrency));
       setIsCreateModalOpen(false);
     } catch (error) {
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.createFailed));
@@ -342,142 +356,6 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
     .map(expenseId => expenses.find(expense => expense.id === expenseId))
     .filter((expense): expense is Expense => Boolean(expense));
 
-  const openPayableFromBudget = (budgetExpense: Expense) => {
-    const now = new Date();
-    const budgetLineId = budgetExpense.budgetLineId
-      ?? (budgetExpense.id.startsWith('budget-line-') ? budgetExpense.id.replace('budget-line-', '') : undefined);
-    const payableAmount = budgetExpense.availableAmount && budgetExpense.availableAmount > 0
-      ? budgetExpense.availableAmount
-      : budgetExpense.total || budgetExpense.amount || 0;
-
-    setPayableInitialExpense({
-      ...budgetExpense,
-      id: `payable-${Date.now()}`,
-      folio: createPayableFolio(expenses),
-      budgetLineId,
-      total: payableAmount,
-      amount: payableAmount,
-      amountPaid: 0,
-      taxes: 0,
-      status: 'pending',
-      type: 'payable',
-      date: now,
-      paymentDate: undefined,
-      requestedByUserId: budgetExpense.requestedByUserId ?? currentUser?.id,
-      createdAt: now,
-      updatedAt: now,
-    });
-  };
-
-  const closePayableModal = () => {
-    setPayableInitialExpense(null);
-  };
-
-  const createPayableExpense = async (payableExpense: Expense) => {
-    const createdExpense = await expensesService.createPayableAccount(payableExpense, providers);
-    if (!payableExpense.budgetLineId || !isBackendId(createdExpense.id)) {
-      return createdExpense;
-    }
-
-    const submittedExpense = await expensesService.submitExpense(createdExpense.id, providers);
-    return expensesService.approveExpense(submittedExpense.id, providers);
-  };
-
-  const getUpdatedBudgetExpense = async (budgetLineId?: string) => {
-    if (!budgetLineId) return null;
-    try {
-      return await budgetLinesService.getBudgetExpense(budgetLineId);
-    } catch {
-      return null;
-    }
-  };
-
-  const replaceBudgetExpense = (currentExpenses: Expense[], budgetExpense: Expense | null) => (
-    budgetExpense
-      ? currentExpenses.map(item => (item.id === budgetExpense.id ? budgetExpense : item))
-      : currentExpenses
-  );
-
-  const handleBudgetPayableSubmit = async (values: ExpenseFormValues) => {
-    if (!payableInitialExpense) return;
-
-    const provider = providers.find(item => item.id === values.providerId);
-    const now = new Date();
-    const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : payableInitialExpense.dueDate;
-    const payableExpense: Expense = {
-      ...payableInitialExpense,
-      businessUnit: values.businessUnit,
-      business: values.business,
-      concept: values.concept,
-      description: values.description,
-      providerId: values.providerId,
-      providerName: provider?.name,
-      total: values.total,
-      taxes: values.taxes,
-      taxCountry: values.taxCountry,
-      taxIncluded: values.taxIncluded,
-      taxMode: values.taxMode,
-      taxName: values.taxName,
-      taxProfileId: values.taxProfileId,
-      taxRate: values.taxRate,
-      taxRegion: values.taxRegion,
-      taxSpecialAmount: values.taxSpecialAmount,
-      amount: values.amount,
-      amountPaid: 0,
-      currency: values.currency,
-      dueDate,
-      paymentDate: values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined,
-      paymentMethod: values.paymentMethod,
-      accountingAccount: values.accountingAccount,
-      status: 'pending',
-      type: 'payable',
-      updatedAt: now,
-    };
-
-    try {
-      const savedExpense = await createPayableExpense(payableExpense);
-      const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
-      onExpensesChange(currentExpenses => [savedExpense, ...replaceBudgetExpense(currentExpenses, updatedBudgetExpense)]);
-      setSuccessToastMessage(t.budgets.messages.payableCreated);
-    } catch (error) {
-      onExpensesChange(currentExpenses => [payableExpense, ...currentExpenses]);
-      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
-    } finally {
-      closePayableModal();
-    }
-  };
-
-  const handleColumnDragStart = (index: number) => {
-    setDraggedColumnIndex(index);
-  };
-
-  const handleColumnDragOver = (event: DragEvent, index: number) => {
-    event.preventDefault();
-    if (draggedColumnIndex === null || draggedColumnIndex === index) return;
-
-    setTableColumns(currentColumns => {
-      const nextColumns = [...currentColumns];
-      const draggedColumn = nextColumns[draggedColumnIndex];
-      nextColumns.splice(draggedColumnIndex, 1);
-      nextColumns.splice(index, 0, draggedColumn);
-      return nextColumns;
-    });
-    setDraggedColumnIndex(index);
-  };
-
-  const handleColumnDragEnd = () => {
-    setDraggedColumnIndex(null);
-  };
-
-  const updateColumnVisibility = (index: number, visible: boolean) => {
-    setTableColumns(currentColumns => {
-      const nextColumns = [...currentColumns];
-      const targetColumn = nextColumns[index];
-      nextColumns[index] = { ...targetColumn, visible: targetColumn.fixed ? true : visible };
-      return nextColumns;
-    });
-  };
-
   return (
     <div className="space-y-6">
       <LoadingBarOverlay isVisible={isLoadingBudgets} title={t.budgets.loadingTitle} description={t.budgets.loadingDescription} />
@@ -516,6 +394,7 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
           draft={draft}
           mode={editingBudgetExpense ? 'edit' : 'create'}
           providers={providers}
+          onCreateProvider={onProvidersChange ? handleQuickProviderCreate : undefined}
           unitOptions={unitOptions}
           onClose={closeBudgetModal}
           onDraftChange={updateDraft}
@@ -524,33 +403,22 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       )}
 
       <BudgetLinesTable
+        budgetLines={budgetTableRows}
         columns={tableColumns}
-        expenses={filteredBudgetExpenses}
-        onCreatePayable={openPayableFromBudget}
-        onDeleteExpense={requestDeleteBudgetExpense}
-        onDeleteExpenses={requestDeleteBudgetExpenses}
-        onEditExpense={openEditBudgetExpense}
+        errorMessage={loadError}
+        onDeleteBudgetLine={requestDeleteBudgetExpense}
+        onDeleteBudgetLines={requestDeleteBudgetExpenses}
+        onEditBudgetLine={openEditBudgetLine}
+        onRetry={onRetryLoad}
       />
-
-      {payableInitialExpense && (
-        <ExpenseFormModal
-          accountingAccountOptions={activeAccountingAccountOptions}
-          businessOptions={businessOptions}
-          editingExpense={null}
-          initialExpense={payableInitialExpense}
-          onClose={closePayableModal}
-          providers={providers}
-          unitOptions={unitOptions}
-          onSubmitExpense={handleBudgetPayableSubmit}
-        />
-      )}
 
       {isColumnModalOpen && (
         <ColumnConfigurationModal
           columns={tableColumns}
+          defaultColumns={columns}
           onClose={() => setIsColumnModalOpen(false)}
           onSaveColumns={(nextColumns) => {
-            setTableColumns(nextColumns);
+            applyColumns(nextColumns);
             setIsColumnModalOpen(false);
           }}
         />
@@ -579,41 +447,6 @@ export default function BudgetTable({ columns, expenses, onExpensesChange, provi
       />
     </div>
   );
-}
-
-function reconcileBudgetColumns(currentColumns: ColumnConfig[], sourceColumns: ColumnConfig[]) {
-  const sourceByKey = new Map(sourceColumns.map(column => [column.key, column]));
-  const currentByKey = new Map(currentColumns.map(column => [column.key, column]));
-  const nextColumns = [
-    ...currentColumns
-      .filter(column => sourceByKey.has(column.key))
-      .map(column => {
-        const sourceColumn = sourceByKey.get(column.key);
-        return {
-          ...sourceColumn,
-          visible: sourceColumn?.fixed ? true : column.visible,
-        } as ColumnConfig;
-      }),
-    ...sourceColumns
-      .filter(column => !currentByKey.has(column.key))
-      .map(column => ({ ...column })),
-  ];
-
-  return areColumnConfigsEqual(currentColumns, nextColumns) ? currentColumns : nextColumns;
-}
-
-function areColumnConfigsEqual(leftColumns: ColumnConfig[], rightColumns: ColumnConfig[]) {
-  if (leftColumns.length !== rightColumns.length) return false;
-
-  return leftColumns.every((leftColumn, index) => {
-    const rightColumn = rightColumns[index];
-    return (
-      leftColumn.key === rightColumn.key
-      && leftColumn.label === rightColumn.label
-      && leftColumn.visible === rightColumn.visible
-      && Boolean(leftColumn.fixed) === Boolean(rightColumn.fixed)
-    );
-  });
 }
 
 function toDateFromInput(value: string) {

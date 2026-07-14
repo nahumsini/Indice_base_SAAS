@@ -21,14 +21,10 @@ export type PayableKiosk = {
 };
 
 export type PayableKioskPayload = {
-  accessType: PayableKioskAccessType;
-  allowProviderRegistration: boolean;
   businessId?: number | null;
   code: string;
   currencyCode: string;
   name: string;
-  providerId?: number | null;
-  status: 'ACTIVE' | 'INACTIVE';
   unitId?: number | null;
 };
 
@@ -40,7 +36,19 @@ export type PayableKioskPublicProvider = {
 export type PayableKioskBootstrap = {
   csrfToken?: string;
   kiosk: Omit<PayableKiosk, 'id' | 'pin' | 'publicAccessToken'>;
-  providers: PayableKioskPublicProvider[];
+  provider?: PayableKioskPublicProvider;
+  authorized?: boolean;
+};
+
+export type PayableKioskProviderAccess = {
+  id: number;
+  kioskId: number;
+  kioskName: string;
+  providerId: number;
+  providerName: string;
+  publicAccessToken: string;
+  status: 'ACTIVE' | 'REVOKED';
+  pin?: string;
 };
 
 export type PublicPayablePayload = {
@@ -49,7 +57,6 @@ export type PublicPayablePayload = {
   description?: string;
   dueDate?: string;
   externalReference?: string;
-  providerId?: number | null;
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
@@ -96,13 +103,30 @@ export const payableKiosksService = {
     return response.kiosk;
   },
 
-  async rotatePin(kioskId: number): Promise<PayableKiosk> {
-    const response = await apiClient<{ kiosk: PayableKiosk }>(`${adminPath}/${kioskId}/rotate-pin`, { method: 'POST' });
-    return response.kiosk;
-  },
-
   async delete(kioskId: number): Promise<void> {
     await apiClient(`${adminPath}/${kioskId}`, { method: 'DELETE' });
+  },
+
+  async listProviderAccesses(): Promise<PayableKioskProviderAccess[]> {
+    const response = await apiClient<{ items: PayableKioskProviderAccess[] }>(`${adminPath}/provider-accesses`);
+    return response.items;
+  },
+
+  async issueProviderAccess(kioskId: number, providerId: number): Promise<PayableKioskProviderAccess> {
+    const response = await apiClient<{ access: PayableKioskProviderAccess }>(`${adminPath}/provider-accesses`, {
+      method: 'POST',
+      body: JSON.stringify({ kioskId, providerId }),
+    });
+    return response.access;
+  },
+
+  async rotateProviderPin(accessId: number): Promise<PayableKioskProviderAccess> {
+    const response = await apiClient<{ access: PayableKioskProviderAccess }>(`${adminPath}/provider-accesses/${accessId}/rotate-pin`, { method: 'POST' });
+    return response.access;
+  },
+
+  async revokeProviderAccess(accessId: number): Promise<void> {
+    await apiClient(`${adminPath}/provider-accesses/${accessId}`, { method: 'DELETE' });
   },
 };
 

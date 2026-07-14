@@ -34,4 +34,8 @@ public class FinanceApiException extends RuntimeException {
     public static FinanceApiException conflict(String message) {
         return new FinanceApiException(HttpStatus.CONFLICT, message);
     }
+
+    public static FinanceApiException tooManyRequests(String message) {
+        return new FinanceApiException(HttpStatus.TOO_MANY_REQUESTS, message);
+    }
 }

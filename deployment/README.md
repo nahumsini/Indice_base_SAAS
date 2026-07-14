@@ -36,6 +36,7 @@ cp deployment/env/.env.example deployment/env/.env
 - `APP_WEB_ALLOWED_ORIGINS`
 - `MINIO_CORS_ALLOWED_ORIGINS`
 - `APP_SESSION_COOKIE_SECURE`
+- `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
 - `MYSQL_*`
 - `MINIO_*`
 
@@ -52,6 +53,25 @@ Local stack with extra admin/debug ports:
 ```bash
 ./deployment/scripts/up.sh dev
 ```
+
+## Preflight de despliegue
+
+Antes de publicar, ejecuta la validación completa con el archivo de entorno real:
+
+```bash
+./deployment/scripts/preflight.sh
+```
+
+El preflight valida la configuración de producción, scripts, Compose, frontend,
+backend y la construcción de ambas imágenes Docker. No muestra los valores de
+las credenciales. Para comprobar solamente el repositorio con la plantilla:
+
+```bash
+./deployment/scripts/preflight.sh --example
+```
+
+`--example` permite los valores inseguros documentales de `.env.example`; nunca
+debe usarse como autorización para desplegar esos valores en producción.
 
 ## Endpoints
 

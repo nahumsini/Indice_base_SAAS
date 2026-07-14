@@ -141,6 +141,22 @@ export interface ProjectPerformanceRow {
   status: ProcessTaskKpiStatus;
 }
 
+export interface UnitPerformanceRow {
+  unitId: number | null;
+  unitName: string;
+  totalTasks: number;
+  openTasks: number;
+  closedTasks: number;
+  overdueTasks: number;
+  pendingAuditTasks: number;
+  completionRate: number;
+  timelinessRate: number;
+  auditRate: number;
+  evidenceRate: number;
+  productivityScore: number;
+  status: ProcessTaskKpiStatus;
+}
+
 export interface ProcessTaskKpiTrendPoint {
   date: string;
   totalTasks: number;
@@ -162,6 +178,7 @@ export interface ProcessTaskKpiDashboard {
   collaborators: CollaboratorPerformanceRow[];
   processes: ProcessPerformanceRow[];
   projects: ProjectPerformanceRow[];
+  units: UnitPerformanceRow[];
   trend: ProcessTaskKpiTrendPoint[];
   generatedAt: string;
 }
@@ -177,6 +194,7 @@ export interface ProcessTaskKpiParams {
   projectId?: number | null;
   focus?: string;
   status?: string;
+  search?: string;
 }
 
 type BackendRecord = Record<string, unknown>;
@@ -357,6 +375,24 @@ function normalizeProject(record: BackendRecord): ProjectPerformanceRow {
   };
 }
 
+function normalizeUnit(record: BackendRecord): UnitPerformanceRow {
+  return {
+    unitId: asNumberOrNull(record.unitId),
+    unitName: String(record.unitName ?? 'Sin unidad'),
+    totalTasks: asNumber(record.totalTasks),
+    openTasks: asNumber(record.openTasks),
+    closedTasks: asNumber(record.closedTasks),
+    overdueTasks: asNumber(record.overdueTasks),
+    pendingAuditTasks: asNumber(record.pendingAuditTasks),
+    completionRate: asNumber(record.completionRate),
+    timelinessRate: asNumber(record.timelinessRate),
+    auditRate: asNumber(record.auditRate),
+    evidenceRate: asNumber(record.evidenceRate),
+    productivityScore: asNumber(record.productivityScore),
+    status: asStatus(record.status),
+  };
+}
+
 function normalizeTrendPoint(record: BackendRecord): ProcessTaskKpiTrendPoint {
   return {
     date: String(record.date ?? ''),
@@ -396,6 +432,9 @@ export async function listProcessTaskKpis(params: ProcessTaskKpiParams) {
   if (params.status && params.status !== 'all') {
     query.set('status', params.status);
   }
+  if (params.search?.trim()) {
+    query.set('search', params.search.trim());
+  }
 
   const response = await apiClient<BackendRecord>(`/api/v1/process-task-kpis?${query.toString()}`);
   const range = (response.range ?? {}) as BackendRecord;
@@ -418,6 +457,9 @@ export async function listProcessTaskKpis(params: ProcessTaskKpiParams) {
       : [],
     projects: Array.isArray(response.projects)
       ? response.projects.map((item) => normalizeProject(item as BackendRecord))
+      : [],
+    units: Array.isArray(response.units)
+      ? response.units.map((item) => normalizeUnit(item as BackendRecord))
       : [],
     trend: Array.isArray(response.trend)
       ? response.trend.map((item) => normalizeTrendPoint(item as BackendRecord))

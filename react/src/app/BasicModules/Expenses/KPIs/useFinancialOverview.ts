@@ -14,7 +14,7 @@ import {
   toFinanceApiErrorMessage,
 } from '../services';
 import type { Expense } from '../types/expenses.types';
-import type { FinanceBudget, FinanceBudgetLine, FinanceExpense } from '../types/finance-domain.types';
+import type { FinanceBudget, FinanceBudgetLine, FinanceCurrency, FinanceExpense } from '../types/finance-domain.types';
 import type { FinanceReferenceData } from '../types/finance-reference.types';
 import { BudgetStatus } from '../types/finance-status.types';
 import { getFinanceTranslations, type FinanceLocale, type FinanceTranslations } from '../translations';
@@ -32,15 +32,22 @@ interface FinancialOverviewSources {
 }
 
 interface UseFinancialOverviewParams {
+  accountingAccountId?: string;
   alertCopy?: FinanceTranslations['kpis']['alertCopy'];
   customEndDate?: string;
   customStartDate?: string;
   currentDate?: Date;
+  convertAmount?: (amount: number, nativeCurrency: FinanceCurrency) => number;
   fallbackExpenses: Expense[];
   fallbackProviders: ProviderRecord[];
   locale?: FinanceLocale;
+  businessId?: string;
   periodFilter?: PeriodFilter;
+  paymentStatus?: string;
+  providerId?: string;
   refreshKey?: number;
+  targetCurrency?: FinanceCurrency;
+  unitId?: string;
 }
 
 const emptyReferenceData: FinanceReferenceData = {
@@ -116,6 +123,23 @@ const rangesOverlap = (
   right: { start: Date; end: Date },
 ) => left.start <= right.end && right.start <= left.end;
 
+const getPreviousPeriodRange = (
+  periodFilter: PeriodFilter,
+  currentDate: Date,
+  range: { start: Date; end: Date },
+) => {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  if (periodFilter === 'this_month') return { end: endOfDay(new Date(year, month, 0)), start: new Date(year, month - 1, 1) };
+  if (periodFilter === 'last_month') return { end: endOfDay(new Date(year, month - 1, 0)), start: new Date(year, month - 2, 1) };
+  if (periodFilter === 'two_months_ago') return { end: endOfDay(new Date(year, month - 2, 0)), start: new Date(year, month - 3, 1) };
+  if (periodFilter === 'this_year') return { end: endOfDay(new Date(year - 1, 11, 31)), start: new Date(year - 1, 0, 1) };
+  if (periodFilter === 'last_year') return { end: endOfDay(new Date(year - 2, 11, 31)), start: new Date(year - 2, 0, 1) };
+  const duration = range.end.getTime() - range.start.getTime();
+  const end = new Date(range.start.getTime() - 1);
+  return { end, start: new Date(end.getTime() - duration) };
+};
+
 const fallbackBudgetLineFromExpense = (expense: Expense): FinanceBudgetLine => {
   const available = Math.max((expense.total || expense.amount) - (expense.amountPaid ?? 0), 0);
 
@@ -159,15 +183,22 @@ const buildFallbackSources = (
 });
 
 export function useFinancialOverview({
+  accountingAccountId = 'all',
   alertCopy = getFinanceTranslations('en-CA').kpis.alertCopy,
   customEndDate,
   customStartDate,
   currentDate,
+  convertAmount,
   fallbackExpenses,
   fallbackProviders,
   locale = 'en-CA',
+  businessId = 'all',
   periodFilter = 'this_month',
+  paymentStatus = 'all',
+  providerId = 'all',
   refreshKey = 0,
+  targetCurrency,
+  unitId = 'all',
 }: UseFinancialOverviewParams) {
   const [sources, setSources] = useState<FinancialOverviewSources>(() => (
     buildFallbackSources(fallbackExpenses, fallbackProviders)
@@ -248,39 +279,76 @@ export function useFinancialOverview({
     };
   }, [fallbackExpenses, fallbackProviders, refreshKey]);
 
-  const overview = useMemo(() => {
+  const scopedData = useMemo(() => {
     const referenceDate = currentDate ?? new Date();
     const periodRange = getPeriodRange(periodFilter, referenceDate, customStartDate, customEndDate);
+    const comparisonRange = getPreviousPeriodRange(periodFilter, referenceDate, periodRange);
     const budgetsById = new Map(sources.budgets.map(budget => [budget.id, budget]));
+    const matchesDimensions = (expense: FinanceExpense) => (
+      (unitId === 'all' || expense.unitId === unitId)
+      && (businessId === 'all' || expense.businessId === businessId)
+      && (providerId === 'all' || expense.providerId === providerId)
+      && (accountingAccountId === 'all' || expense.accountingAccountId === accountingAccountId)
+      && (paymentStatus === 'all' || expense.paymentStatus === paymentStatus)
+    );
     const filteredExpenses = sources.expenses.filter(expense => (
-      isWithinRange(parseLocalDate(expense.expenseDate), periodRange)
+      isWithinRange(parseLocalDate(expense.expenseDate), periodRange) && matchesDimensions(expense)
     ));
-    const filteredBudgetLines = sources.budgetLines.filter((line) => {
+    const comparisonExpenses = sources.expenses.filter(expense => (
+      isWithinRange(parseLocalDate(expense.expenseDate), comparisonRange) && matchesDimensions(expense)
+    ));
+    const filterBudgetLines = (range: { start: Date; end: Date }) => sources.budgetLines.filter((line) => {
+      if (unitId !== 'all' && line.unitId !== unitId) return false;
+      if (businessId !== 'all' && line.businessId !== businessId) return false;
       const budget = budgetsById.get(line.budgetId);
       const budgetStart = parseLocalDate(budget?.periodStart);
       const budgetEnd = parseLocalDate(budget?.periodEnd);
 
       if (budgetStart && budgetEnd) {
-        return rangesOverlap({ start: budgetStart, end: endOfDay(budgetEnd) }, periodRange);
+        return rangesOverlap({ start: budgetStart, end: endOfDay(budgetEnd) }, range);
       }
 
-      return isWithinRange(parseLocalDate(line.period), periodRange) || !line.period;
+      return isWithinRange(parseLocalDate(line.period), range) || !line.period;
     });
+    const filteredBudgetLines = filterBudgetLines(periodRange);
+    const comparisonBudgetLines = filterBudgetLines(comparisonRange);
 
+    return { comparisonBudgetLines, comparisonExpenses, comparisonRange, filteredBudgetLines, filteredExpenses, referenceDate };
+  }, [accountingAccountId, businessId, currentDate, customEndDate, customStartDate, paymentStatus, periodFilter, providerId, sources, unitId]);
+
+  const overview = useMemo(() => {
     return buildFinancialOverviewData({
       ...sources,
       alertCopy,
-      budgetLines: filteredBudgetLines,
-      currentDate: referenceDate,
-      expenses: filteredExpenses,
+      budgetLines: scopedData.filteredBudgetLines,
+      currentDate: scopedData.referenceDate,
+      convertAmount,
+      expenses: scopedData.filteredExpenses,
       locale,
+      targetCurrency,
     });
-  }, [alertCopy, currentDate, customEndDate, customStartDate, locale, periodFilter, sources]);
+  }, [alertCopy, convertAmount, locale, scopedData, sources, targetCurrency]);
+
+  const comparisonOverview = useMemo(() => buildFinancialOverviewData({
+    ...sources,
+    alertCopy,
+    budgetLines: scopedData.comparisonBudgetLines,
+    currentDate: scopedData.comparisonRange.end,
+    convertAmount,
+    expenses: scopedData.comparisonExpenses,
+    locale,
+    targetCurrency,
+  }), [alertCopy, convertAmount, locale, scopedData, sources, targetCurrency]);
 
   return {
     ...overview,
+    comparisonExpenses: scopedData.comparisonExpenses,
+    comparisonOverview,
     errorMessage,
     fallbackWarnings,
+    filteredBudgetLines: scopedData.filteredBudgetLines,
+    filteredExpenses: scopedData.filteredExpenses,
     isLoading,
+    sources,
   };
 }

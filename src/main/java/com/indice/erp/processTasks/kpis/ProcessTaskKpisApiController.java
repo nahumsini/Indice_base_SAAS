@@ -35,7 +35,8 @@ public class ProcessTaskKpisApiController {
             @RequestParam(required = false) Long collaboratorId,
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) String focus,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
         var access = guard.requireRead(session);
         if (access.denied()) {
             return access.error();
@@ -54,7 +55,8 @@ public class ProcessTaskKpisApiController {
                     collaboratorId,
                     projectId,
                     focus,
-                    status));
+                    status,
+                    search));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

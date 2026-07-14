@@ -5,6 +5,7 @@ import { SuccessToast } from '../../../components/SuccessToast';
 import { isBackendId } from '../adapters/adapter.utils';
 import { useAccountingAccountsTranslations } from './hooks/useAccountingAccountsTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
+import { usePersistentTableColumns } from '../hooks/usePersistentTableColumns';
 import { accountingAccountsService, toFinanceApiErrorMessage } from '../services';
 import { mockAccounts } from './accountingAccounts.mock';
 import type { AccountingAccount, AccountingSortField, SortDirection } from './types';
@@ -47,21 +48,14 @@ export default function AccountingAccounts() {
       label: copy?.label ?? column.label,
     };
   }), [t]);
-  const [visibleColumns, setVisibleColumns] = useState(() => translatedAccountingColumns.map(column => ({ ...column })));
+  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns(
+    'indice.expenses.accounting-accounts.columns.v1',
+    translatedAccountingColumns,
+  );
   const {
     businessOptions,
     unitOptions,
   } = useFinanceReferenceData(setFailureToastMessage);
-
-  useEffect(() => {
-    setVisibleColumns(currentColumns => translatedAccountingColumns.map(column => {
-      const current = currentColumns.find(item => item.key === column.key);
-      return {
-        ...column,
-        visible: current?.visible ?? column.visible,
-      };
-    }));
-  }, [translatedAccountingColumns]);
 
   useEffect(() => {
     let isMounted = true;

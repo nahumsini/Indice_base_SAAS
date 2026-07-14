@@ -88,11 +88,21 @@ public class ExpenseService {
     @Transactional
     public DeleteExpenseResponse deleteDraft(FinanceContext context, long expenseId) {
         var existing = requireExpense(context, expenseId);
-        validator.requireDraft(existing, "deleted");
-        if (!repository.softDelete(context, expenseId)) {
-            throw FinanceApiException.conflict("Only draft expenses can be deleted.");
+        if (existing.status() != ExpenseStatus.DRAFT && !isUnpaidPayableKioskSubmission(existing)) {
+            validator.requireDraft(existing, "deleted");
         }
+        if (!repository.softDelete(context, expenseId, existing.status())) {
+            throw FinanceApiException.conflict("Expense could not be deleted because its status changed.");
+        }
+        refreshBudgetLine(context, existing.budgetLineId());
         return new DeleteExpenseResponse(true);
+    }
+
+    private boolean isUnpaidPayableKioskSubmission(ExpenseRecord record) {
+        return record.metadataJson() != null
+            && record.metadataJson().contains("\"source\":\"payable-kiosk\"")
+            && record.paidAmount().compareTo(BigDecimal.ZERO) == 0
+            && record.paymentStatus() != PaymentStatus.PAID;
     }
 
     @Transactional

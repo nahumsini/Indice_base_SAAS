@@ -19,8 +19,8 @@ const signalToneClasses = {
   warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300',
 };
 
-export function ExecutiveSignalList({ alerts }: { alerts: FinancialOverviewAlert[] }) {
-  if (alerts.length === 0) return <KpiEmptyState message="No executive signals." />;
+export function ExecutiveSignalList({ alerts, emptyMessage }: { alerts: FinancialOverviewAlert[]; emptyMessage: string }) {
+  if (alerts.length === 0) return <KpiEmptyState message={emptyMessage} />;
 
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">

@@ -31,6 +31,7 @@ type ProvidersTableProps = {
   onOpenEditProvider: (provider: ProviderRecord) => void;
   onOpenAttachments: (provider: ProviderRecord) => void;
   onUpdateProvider: (providerId: string, updates: Partial<ProviderRecord>) => void;
+  onManageAccess: (provider: ProviderRecord) => void;
 };
 
 export function ProvidersTable({
@@ -45,6 +46,7 @@ export function ProvidersTable({
   onOpenEditProvider,
   onOpenAttachments,
   onUpdateProvider,
+  onManageAccess,
   providers,
   unitOptions,
   userOptions,
@@ -131,6 +133,7 @@ export function ProvidersTable({
         onDuplicateProvider={onDuplicateProvider}
         onOpenAttachments={onOpenAttachments}
         onOpenEditProvider={onOpenEditProvider}
+        onManageAccess={onManageAccess}
       />
       <div className="hidden overflow-x-auto md:block">
         <table className="min-w-[1180px]">
@@ -161,6 +164,7 @@ export function ProvidersTable({
                 onOpenEditProvider={onOpenEditProvider}
                 onOpenAttachments={onOpenAttachments}
                 onUpdateProvider={onUpdateProvider}
+                onManageAccess={onManageAccess}
               />
             ))}
           </tbody>

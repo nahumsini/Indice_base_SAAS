@@ -2,6 +2,7 @@ package com.indice.erp.finance.payablekiosk;
 
 import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.payablekiosk.dto.PayableKioskRequest;
+import com.indice.erp.finance.payablekiosk.dto.PayableKioskProviderAccessRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -62,16 +63,49 @@ public class FinancePayableKioskController {
         return ResponseEntity.ok(service.update(access.context(), kioskId, request));
     }
 
-    @PostMapping("/{kioskId}/rotate-pin")
-    public ResponseEntity<?> rotatePin(
+    @GetMapping("/provider-accesses")
+    public ResponseEntity<?> listProviderAccesses(HttpSession session) {
+        var access = guard.requireReadAccess(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(service.listProviderAccesses(access.context()));
+    }
+
+    @PostMapping("/provider-accesses")
+    public ResponseEntity<?> issueProviderAccess(
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
-            @PathVariable long kioskId) {
+            @Valid @RequestBody PayableKioskProviderAccessRequest request) {
         var access = guard.requireWriteAccess(session, csrfToken);
         if (access.denied()) {
             return access.error();
         }
-        return ResponseEntity.ok(service.rotatePin(access.context(), kioskId));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.issueProviderAccess(access.context(), request));
+    }
+
+    @PostMapping("/provider-accesses/{accessId}/rotate-pin")
+    public ResponseEntity<?> rotateProviderPin(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(service.rotateProviderPin(access.context(), accessId));
+    }
+
+    @DeleteMapping("/provider-accesses/{accessId}")
+    public ResponseEntity<?> revokeProviderAccess(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(service.revokeProviderAccess(access.context(), accessId));
     }
 
     @DeleteMapping("/{kioskId}")

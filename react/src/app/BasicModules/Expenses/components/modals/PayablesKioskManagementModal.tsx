@@ -1,17 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, ExternalLink, KeyRound, Loader2, Plus, Store, Trash2, X } from 'lucide-react';
+import {
+  Building2,
+  CircleDollarSign,
+  Copy,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Plus,
+  Store,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from '../../../../components/ui/dialog';
+import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '../../../../components/ui/dialog';
 import { DEFAULT_FINANCE_CURRENCY } from '../../constants/financeCurrencyOptions';
 import type { Provider } from '../../types/expenses.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import {
   payableKiosksService,
   type PayableKiosk,
-  type PayableKioskAccessType,
+  type PayableKioskProviderAccess,
   type PayableKioskPayload,
 } from '../../services';
 import { PayablesKioskAccessFormModal } from './PayablesKioskAccessFormModal';
+import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
 
 type PayablesKioskManagementModalProps = {
   businessOptions: FinanceReferenceOption[];
@@ -24,24 +38,16 @@ type PayablesKioskManagementModalProps = {
 };
 
 export type PayableKioskFormState = {
-  accessType: PayableKioskAccessType;
-  allowProviderRegistration: boolean;
   businessId: string;
   currencyCode: string;
   name: string;
-  status: 'ACTIVE' | 'INACTIVE';
   unitId: string;
 };
 
-export const payableKioskCurrencyOptions = ['MXN', 'USD', 'CAD', 'COP', 'BRL', 'EUR', 'GBP', 'CLP', 'PEN', 'ARS'];
-
 const emptyForm: PayableKioskFormState = {
-  accessType: 'MIXED',
-  allowProviderRegistration: true,
   businessId: '',
   currencyCode: DEFAULT_FINANCE_CURRENCY,
   name: '',
-  status: 'ACTIVE',
   unitId: '',
 };
 
@@ -53,16 +59,23 @@ export function PayablesKioskManagementModal({
   onSuccess,
   unitOptions,
 }: PayablesKioskManagementModalProps) {
+  const t = useExpensesTranslations();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const copyText = t.expenses.payablesKiosk;
   const [editing, setEditing] = useState<PayableKiosk | null>(null);
   const [form, setForm] = useState<PayableKioskFormState>(emptyForm);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [kiosks, setKiosks] = useState<PayableKiosk[]>([]);
-  const [visiblePin, setVisiblePin] = useState('');
+  const [providerAccesses, setProviderAccesses] = useState<PayableKioskProviderAccess[]>([]);
+  const [pendingDeleteKiosk, setPendingDeleteKiosk] = useState<PayableKiosk | null>(null);
 
   const publicUrl = (kiosk: PayableKiosk) => `${window.location.origin}/expenses/kiosk/cuentas-por-pagar/${kiosk.publicAccessToken}`;
   const activeCount = useMemo(() => kiosks.filter(kiosk => kiosk.status === 'ACTIVE').length, [kiosks]);
+  const optionLabel = (options: FinanceReferenceOption[], id?: number | null) => (
+    options.find(option => String(option.value) === String(id))?.label
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,9 +85,14 @@ export function PayablesKioskManagementModal({
   const loadKiosks = async () => {
     setIsLoading(true);
     try {
-      setKiosks(await payableKiosksService.list());
+      const [nextKiosks, nextAccesses] = await Promise.all([
+        payableKiosksService.list(),
+        payableKiosksService.listProviderAccesses(),
+      ]);
+      setKiosks(nextKiosks);
+      setProviderAccesses(nextAccesses);
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'No se pudieron cargar los kioskos.');
+      onError(error instanceof Error ? error.message : copyText.messages.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -82,21 +100,16 @@ export function PayablesKioskManagementModal({
 
   const openCreate = () => {
     setEditing(null);
-    setVisiblePin('');
-    setForm(emptyForm);
+    setForm({ ...emptyForm, currencyCode: preferredCurrency });
     setIsFormOpen(true);
   };
 
   const openEdit = (kiosk: PayableKiosk) => {
     setEditing(kiosk);
-    setVisiblePin('');
     setForm({
-      accessType: kiosk.accessType,
-      allowProviderRegistration: kiosk.allowProviderRegistration,
       businessId: kiosk.businessId ? String(kiosk.businessId) : '',
       currencyCode: kiosk.currencyCode,
       name: kiosk.name,
-      status: kiosk.status,
       unitId: kiosk.unitId ? String(kiosk.unitId) : '',
     });
     setIsFormOpen(true);
@@ -105,54 +118,33 @@ export function PayablesKioskManagementModal({
   const closeForm = () => {
     setIsFormOpen(false);
     setEditing(null);
-    setVisiblePin('');
-    setForm(emptyForm);
+    setForm({ ...emptyForm, currencyCode: preferredCurrency });
   };
 
   const save = async () => {
     if (!form.name.trim()) {
-      onError('El nombre del acceso es requerido.');
+      onError(copyText.messages.nameRequired);
       return;
     }
     setIsSaving(true);
     try {
       const payload: PayableKioskPayload = {
-        accessType: form.accessType,
-        allowProviderRegistration: form.allowProviderRegistration,
         businessId: toOptionalNumber(form.businessId),
         code: createCodeFromName(form.name),
         currencyCode: form.currencyCode,
         name: form.name,
-        providerId: null,
-        status: form.status,
         unitId: toOptionalNumber(form.unitId),
       };
-      const saved = editing
-        ? await payableKiosksService.update(editing.id, payload)
-        : await payableKiosksService.create(payload);
-      setVisiblePin(saved.pin ?? '');
-      onSuccess(editing ? 'Kiosko actualizado.' : 'Kiosko creado. Copia el PIN antes de cerrar.');
-      await loadKiosks();
-      if (editing || !saved.pin) {
-        closeForm();
+      if (editing) {
+        await payableKiosksService.update(editing.id, payload);
+      } else {
+        await payableKiosksService.create(payload);
       }
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'No se pudo guardar el kiosko.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const rotatePin = async (kiosk: PayableKiosk) => {
-    setIsSaving(true);
-    try {
-      const saved = await payableKiosksService.rotatePin(kiosk.id);
-      openEdit(kiosk);
-      setVisiblePin(saved.pin ?? '');
-      onSuccess('PIN actualizado. Copialo antes de cerrar.');
+      onSuccess(editing ? copyText.messages.updated : copyText.messages.created);
       await loadKiosks();
+      closeForm();
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'No se pudo cambiar el PIN.');
+      onError(error instanceof Error ? error.message : copyText.messages.saveFailed);
     } finally {
       setIsSaving(false);
     }
@@ -162,11 +154,12 @@ export function PayablesKioskManagementModal({
     setIsSaving(true);
     try {
       await payableKiosksService.delete(kiosk.id);
-      onSuccess('Kiosko desactivado.');
+      setPendingDeleteKiosk(null);
+      onSuccess(copyText.messages.deactivated);
       await loadKiosks();
       if (editing?.id === kiosk.id) closeForm();
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'No se pudo desactivar el kiosko.');
+      onError(error instanceof Error ? error.message : copyText.messages.deactivateFailed);
     } finally {
       setIsSaving(false);
     }
@@ -179,76 +172,111 @@ export function PayablesKioskManagementModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent hideCloseButton className="max-h-[calc(100vh-1rem)] w-[min(94vw,760px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 shadow-2xl">
-          <header className="flex items-start justify-between gap-4 bg-[#147514] px-5 py-5 text-white sm:px-6">
-            <div className="flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-                <Store className="h-6 w-6" />
-              </span>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-white/70">Payables kiosk</p>
-                <DialogTitle className="mt-1 text-2xl font-black text-white">Configurar kiosko CxP</DialogTitle>
-                <p className="mt-1 max-w-xl text-sm font-semibold text-white/80">Controla accesos para proveedores y empleados sin acceso completo al modulo.</p>
+      <Dialog open={isOpen && !isFormOpen && !pendingDeleteKiosk} onOpenChange={(open) => !open && !isFormOpen && !pendingDeleteKiosk && onClose()}>
+        <DialogContent hideCloseButton className="max-h-[calc(100vh-3rem)] w-[min(94vw,760px)] overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+          <header className="flex items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
+              <div className="flex items-start gap-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
+                  <Store className="h-5 w-5" />
+                </span>
+                <div>
+                  <DialogTitle className="text-xl font-bold text-white">{copyText.configureTitle}</DialogTitle>
+                  <DialogDescription className="mt-1 max-w-lg text-sm font-semibold leading-5 text-white/80">{copyText.configureDescription}</DialogDescription>
+                </div>
               </div>
-            </div>
-            <button onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 hover:bg-white/20" type="button">
-              <X className="h-5 w-5" />
-            </button>
+              <button onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 transition hover:bg-white/20" type="button" aria-label={t.columnModal.close}>
+                <X className="h-5 w-5" />
+              </button>
           </header>
 
-          <section className="max-h-[calc(100vh-12rem)] space-y-4 overflow-y-auto bg-slate-50 p-4 sm:p-5">
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-black text-slate-900">Accesos configurados</p>
-                <p className="text-xs font-semibold text-slate-500">{activeCount} activos de {kiosks.length}</p>
+          <section className="max-h-[calc(100vh-13rem)] overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
+            <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h4 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{copyText.configuredAccess}</h4>
+                  <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{copyText.activeCount(activeCount, kiosks.length)}</p>
+                </div>
+                <Button type="button" onClick={openCreate} className="h-10 rounded-xl bg-[#147514] px-4 text-white hover:bg-[#105f10]">
+                  <Plus className="h-4 w-4" />
+                  {copyText.newAccess}
+                </Button>
               </div>
-              <Button type="button" onClick={openCreate} className="h-11 rounded-xl bg-[#147514] text-white hover:bg-[#105010]">
-                <Plus className="h-4 w-4" />
-                Nuevo acceso
-              </Button>
-            </div>
 
-            {isLoading ? (
-              <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-slate-500">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Cargando accesos
+              {isLoading ? (
+              <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> {copyText.loading}
               </div>
             ) : kiosks.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                <p className="text-base font-black text-slate-900">Todavia no hay accesos CxP.</p>
-                <p className="mt-1 text-sm font-medium text-slate-500">Crea un kiosko para compartir un link controlado.</p>
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+                <p className="text-base font-black text-slate-900 dark:text-slate-100">{copyText.emptyTitle}</p>
+                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copyText.emptyDescription}</p>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-3">
                 {kiosks.map(kiosk => (
-                  <article key={kiosk.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-base font-black text-slate-900">{kiosk.name}</p>
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{kiosk.accessType} - {kiosk.currencyCode}</p>
+                  <article key={kiosk.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-emerald-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-800">
+                    <div className="p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-[#147514] dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
+                          <Store className="h-6 w-6" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-base font-black text-slate-950 dark:text-white">{kiosk.name}</p>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${kiosk.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {kiosk.status === 'ACTIVE' ? t.common.active : t.common.inactive}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{copyText.mobilePortal}</p>
+                        </div>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-[11px] font-black ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {kiosk.status}
-                      </span>
+
+                      <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                        <KioskAction ariaLabel={t.common.edit} onClick={() => openEdit(kiosk)} icon={<Pencil className="h-4 w-4" />} />
+                        <KioskAction ariaLabel="Link" onClick={() => copy(publicUrl(kiosk), copyText.messages.linkCopied)} icon={<Copy className="h-4 w-4" />} />
+                        <button type="button" onClick={() => window.open(publicUrl(kiosk), '_blank', 'noopener,noreferrer')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-black text-white transition hover:bg-[#105f10]">
+                          {copyText.open} <ExternalLink className="h-4 w-4" />
+                        </button>
+                      </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <KioskInfoPanel
+                          icon={<Building2 className="h-4 w-4" />}
+                          label={copyText.kioskScope}
+                          value={`${optionLabel(unitOptions, kiosk.unitId) ?? copyText.allUnits} · ${optionLabel(businessOptions, kiosk.businessId) ?? copyText.allBusinesses}`}
+                        />
+                        <KioskInfoPanel
+                          icon={<CircleDollarSign className="h-4 w-4" />}
+                          label={copyText.kioskSettings}
+                          value={`${kiosk.currencyCode} · ${copyText.providerRegistrationEnabled}`}
+                        />
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <KioskMeta label={copyText.accessReady} />
+                        <KioskMeta label={copyText.providerAccessCount(providerAccesses.filter(access => access.kioskId === kiosk.id && access.status === 'ACTIVE').length)} />
+                        <KioskMeta icon={<CircleDollarSign className="h-3.5 w-3.5" />} label={kiosk.currencyCode} />
+                      </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <KioskAction onClick={() => openEdit(kiosk)}>Editar</KioskAction>
-                      <KioskAction onClick={() => copy(publicUrl(kiosk), 'Link copiado.')} icon={<Copy className="h-4 w-4" />}>Link</KioskAction>
-                      <KioskAction onClick={() => window.open(publicUrl(kiosk), '_blank', 'noopener,noreferrer')} icon={<ExternalLink className="h-4 w-4" />}>Abrir</KioskAction>
-                      <KioskAction onClick={() => rotatePin(kiosk)} icon={<KeyRound className="h-4 w-4" />}>PIN</KioskAction>
-                      <button type="button" onClick={() => deleteKiosk(kiosk)} className="col-span-2 h-10 rounded-xl border border-red-100 bg-white text-sm font-bold text-red-600 hover:bg-red-50">
-                        <Trash2 className="mr-2 inline h-4 w-4" /> Desactivar
+                    <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2.5 dark:border-slate-800 dark:bg-slate-950/40 sm:px-5">
+                      <p className="min-w-0 truncate font-mono text-[11px] font-semibold text-slate-400">{publicUrl(kiosk)}</p>
+                      <button type="button" onClick={() => setPendingDeleteKiosk(kiosk)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-300">
+                        <Trash2 className="h-3.5 w-3.5" /> {copyText.deactivate}
                       </button>
                     </div>
                   </article>
                 ))}
               </div>
-            )}
+              )}
+            </div>
           </section>
 
-          <DialogFooter className="gap-3 bg-[#147514] px-6 py-4">
+          <DialogFooter className="gap-3 bg-[#147514] px-6 py-4 dark:bg-[#0b3f1b]">
             <Button type="button" variant="outline" className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={onClose}>
-              Cerrar
+              {t.common.cancel}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -261,22 +289,49 @@ export function PayablesKioskManagementModal({
         isOpen={isFormOpen}
         isSaving={isSaving}
         onClose={closeForm}
-        onCopyPin={() => copy(visiblePin, 'PIN copiado.')}
         onFormChange={setForm}
         onSave={save}
         unitOptions={unitOptions}
-        visiblePin={visiblePin}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(pendingDeleteKiosk)}
+        title={copyText.deactivateTitle}
+        description={copyText.deactivateDescription}
+        itemName={pendingDeleteKiosk?.name}
+        confirmLabel={copyText.deactivate}
+        cancelLabel={t.common.cancel}
+        confirmDisabled={isSaving}
+        onCancel={() => setPendingDeleteKiosk(null)}
+        onConfirm={() => pendingDeleteKiosk && void deleteKiosk(pendingDeleteKiosk)}
       />
     </>
   );
 }
 
-function KioskAction({ children, icon, onClick }: { children: React.ReactNode; icon?: React.ReactNode; onClick: () => void }) {
+function KioskAction({ ariaLabel, icon, onClick }: { ariaLabel: string; icon: React.ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="h-10 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50">
-      {icon ? <span className="mr-2 inline-flex align-[-2px]">{icon}</span> : null}
-      {children}
+    <button type="button" onClick={onClick} aria-label={ariaLabel} title={ariaLabel} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/40">
+      {icon}
     </button>
+  );
+}
+
+function KioskMeta({ icon, label }: { icon?: React.ReactNode; label: string }) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+      {icon}
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+function KioskInfoPanel({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
+      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400"><span className="text-[#147514]">{icon}</span>{label}</div>
+      <p className="mt-2 text-sm font-bold leading-5 text-slate-900 dark:text-white">{value}</p>
+    </div>
   );
 }
 

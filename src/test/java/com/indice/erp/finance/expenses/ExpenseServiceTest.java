@@ -166,12 +166,34 @@ class ExpenseServiceTest {
         var service = service();
         var context = context();
         when(repository.findById(context, 13L)).thenReturn(Optional.of(record(13L, ExpenseStatus.DRAFT, "Draft")));
-        when(repository.softDelete(context, 13L)).thenReturn(true);
+        when(repository.softDelete(context, 13L, ExpenseStatus.DRAFT)).thenReturn(true);
 
         var response = service.deleteDraft(context, 13L);
 
         assertTrue(response.success());
-        verify(repository).softDelete(context, 13L);
+        verify(repository).softDelete(context, 13L, ExpenseStatus.DRAFT);
+    }
+
+    @Test
+    void deleteDraftAlsoAllowsUnpaidPayableKioskSubmissionsCreatedBeforeDraftFix() {
+        var service = service();
+        var context = context();
+        var kioskExpense = recordWithPaymentStatusAndMetadata(
+            14L,
+            ExpenseStatus.APPROVED,
+            PaymentStatus.OVERDUE,
+            "Kiosk payable",
+            BigDecimal.ZERO,
+            new BigDecimal("116.00"),
+            "{\"source\":\"payable-kiosk\",\"kioskId\":1}"
+        );
+        when(repository.findById(context, 14L)).thenReturn(Optional.of(kioskExpense));
+        when(repository.softDelete(context, 14L, ExpenseStatus.APPROVED)).thenReturn(true);
+
+        var response = service.deleteDraft(context, 14L);
+
+        assertTrue(response.success());
+        verify(repository).softDelete(context, 14L, ExpenseStatus.APPROVED);
     }
 
     @Test
@@ -419,6 +441,18 @@ class ExpenseServiceTest {
             String concept,
             BigDecimal paidAmount,
             BigDecimal balanceAmount) {
+        return recordWithPaymentStatusAndMetadata(
+            id, status, paymentStatus, concept, paidAmount, balanceAmount, null);
+    }
+
+    private ExpenseRecord recordWithPaymentStatusAndMetadata(
+            long id,
+            ExpenseStatus status,
+            PaymentStatus paymentStatus,
+            String concept,
+            BigDecimal paidAmount,
+            BigDecimal balanceAmount,
+            String metadataJson) {
         return new ExpenseRecord(
             id,
             7L,
@@ -457,7 +491,7 @@ class ExpenseServiceTest {
             null,
             0L,
             null,
-            null
+            metadataJson
         );
     }
 }

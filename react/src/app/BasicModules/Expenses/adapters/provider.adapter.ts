@@ -50,6 +50,7 @@ const toBackendStatus = (status?: ProviderStatus) => (
 
 export const toProviderRecord = (provider: ProviderApiDto): ProviderRecord => {
   const customFields = asObject(provider.customFields);
+  const metadata = asObject(provider.metadata);
 
   return {
     id: String(provider.id),
@@ -72,6 +73,8 @@ export const toProviderRecord = (provider: ProviderApiDto): ProviderRecord => {
     auditNotes: provider.notes ?? asString(customFields.auditNotes, ''),
     createdAt: toDate(provider.createdAt),
     updatedAt: toDate(provider.updatedAt ?? provider.createdAt),
+    registrationSource: asString(metadata.source, ''),
+    registrationKioskId: asNumber(metadata.kioskId, undefined),
   };
 };
 
@@ -113,7 +116,10 @@ export const toProviderApiRequest = (provider: ProviderRecord): ProviderApiReque
 	    performer: provider.performer,
     providerType: provider.type,
   }),
-  metadata: { source: 'expenses-frontend' },
+  metadata: compactObject({
+    source: provider.registrationSource || 'expenses-frontend',
+    kioskId: provider.registrationKioskId,
+  }),
 });
 
 export const providerRecordsToExpenseProviders = (providers: ProviderRecord[]) => (

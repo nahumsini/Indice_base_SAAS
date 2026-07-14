@@ -6,14 +6,15 @@ import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { Button } from '../../../components/ui/button';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { isBackendId } from '../adapters/adapter.utils';
-import { providerRecordsToExpenseProviders } from '../adapters/provider.adapter';
+import { providerRecordsToExpenseProviders, toExpenseProvider } from '../adapters/provider.adapter';
 import { mockExpenses, mockProviders } from '../data/expenses.mock';
-import { accountingAccountsService, expenseAttachmentsService, expensesService, paymentAccountsService, toFinanceApiErrorMessage } from '../services';
+import { accountingAccountsService, expenseAttachmentsService, expensesService, paymentAccountsService, providersService, toFinanceApiErrorMessage } from '../services';
 import { budgetLinesService } from '../services/budget-lines.service';
 import type { Expense, ExpenseStatus, Provider } from '../types/expenses.types';
 import type { ExpenseListFilters } from '../types/expenseView.types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
+import { createQuickProviderRecord } from '../Providers/providerRecordFactory';
 import { calculateExpenseTotals, filterExpenses } from '../utils/expenseFilters';
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
@@ -36,6 +37,7 @@ interface ExpensesProps {
   expenses?: Expense[];
   onFinanceDataChanged?: () => void;
   onExpensesChange?: Dispatch<SetStateAction<Expense[]>>;
+  onProvidersChange?: Dispatch<SetStateAction<ProviderRecord[]>>;
   providers?: ProviderRecord[];
 }
 
@@ -63,7 +65,7 @@ const createExpenseFolio = (currentExpenses: Expense[]) => {
   return `${prefix}${String(nextSequence).padStart(3, '0')}`;
 };
 
-export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, providers: providerRecords }: ExpensesProps = {}) {
+export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useExpensesTranslations();
   const [localExpenses, setLocalExpenses] = useState<Expense[]>(mockExpenses);
   const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
@@ -217,7 +219,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     setIsPayablesKioskModalOpen(true);
   };
 
-  const handleQuickExpenseSubmit = async ({ amount, attachmentFiles, business, businessUnit, concept, currency, description }: QuickExpenseValues) => {
+  const handleQuickExpenseSubmit = async ({ amount, attachmentFiles, business, businessUnit, concept, currency, description, taxes, taxCountry, taxIncluded, taxMode, taxName, taxProfileId, taxRate, taxRegion, total }: QuickExpenseValues) => {
     setIsQuickExpenseSubmitting(true);
     try {
       const now = new Date();
@@ -229,10 +231,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         concept,
         description,
         category: mockExpenses[0].category,
-        total: amount,
-        taxes: 0,
+        total,
+        taxes,
         amount,
-        amountPaid: amount,
+        amountPaid: total,
         currency,
         dueDate: now,
         paymentDate: now,
@@ -241,12 +243,19 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         status: 'pending',
         requestedByUserId: currentUser?.id,
         attachments: [],
+        taxCountry,
+        taxIncluded,
+        taxMode,
+        taxName,
+        taxProfileId,
+        taxRate,
+        taxRegion,
         type: 'real',
         createdAt: now,
         updatedAt: now,
       };
       const createdExpense = await expensesService.createExpense(draftExpense, providers);
-      const paidExpense = await expensesService.updateExpenseStatus(createdExpense.id, 'paid', providers, amount, now);
+      const paidExpense = await expensesService.updateExpenseStatus(createdExpense.id, 'paid', providers, total, now);
       const uploadedAttachments = [];
       for (const file of attachmentFiles) {
         uploadedAttachments.push(await expenseAttachmentsService.upload(paidExpense.id, file));
@@ -462,6 +471,24 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
     } finally {
       setIsPayableAccountSubmitting(false);
+    }
+  };
+
+  const handleQuickProviderCreate = async (name: string): Promise<Provider> => {
+    const normalizedName = name.trim();
+    const existingProvider = providers.find(provider => provider.name.trim().toLocaleLowerCase() === normalizedName.toLocaleLowerCase());
+    if (existingProvider) return existingProvider;
+
+    const providerRecord = createQuickProviderRecord(providerRecords ?? [], normalizedName);
+    try {
+      const savedProvider = await providersService.createProvider(providerRecord);
+      onProvidersChange?.(currentProviders => [savedProvider, ...currentProviders]);
+      setSuccessToastMessage(t.expenses.payableAccount.quickProviderCreated);
+      return toExpenseProvider(savedProvider);
+    } catch (error) {
+      onProvidersChange?.(currentProviders => [providerRecord, ...currentProviders]);
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.payableAccount.quickProviderSaveFailed));
+      return toExpenseProvider(providerRecord);
     }
   };
 
@@ -737,6 +764,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         currency={preferredCurrency}
         isSubmitting={isPayableAccountSubmitting}
         onOpenChange={setIsPayableAccountModalOpen}
+        onCreateProvider={onProvidersChange ? handleQuickProviderCreate : undefined}
         onSubmit={handlePayableAccountSubmit}
         open={isPayableAccountModalOpen}
         providers={providers}
@@ -763,13 +791,11 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       </Button>
 
       <QuickExpenseDialog
-        businessOptions={businessOptions}
         currency={preferredCurrency}
         isSubmitting={isQuickExpenseSubmitting}
         onOpenChange={setIsQuickExpenseModalOpen}
         onSubmit={handleQuickExpenseSubmit}
         open={isQuickExpenseModalOpen}
-        unitOptions={unitOptions}
       />
 
       <ConfirmDeleteDialog

@@ -4,10 +4,10 @@ import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import type { BudgetDraft } from './budgetUtils';
 import { getBudgetTaxProfile, getDefaultBudgetTaxProfile, inferTaxCountryFromCurrency, taxRateToPercentInput, type BudgetTaxCountry, type BudgetTaxMode } from './budgetTaxCatalog';
 
-export const createInitialBudgetDraftState = (budgetId = '') => ({
+export const createInitialBudgetDraftState = (preferredCurrency: string = DEFAULT_FINANCE_CURRENCY, budgetId = '') => ({
   accountingAccount: '',
   amount: '',
-  budgetCurrencyCode: DEFAULT_FINANCE_CURRENCY as string,
+  budgetCurrencyCode: preferredCurrency || DEFAULT_FINANCE_CURRENCY,
   budgetDescription: '',
   budgetId,
   budgetName: '',
@@ -21,11 +21,11 @@ export const createInitialBudgetDraftState = (budgetId = '') => ({
   frequency: 'monthly' as ExpenseFrequency,
   providerId: '',
   taxes: '',
-  taxCountry: inferTaxCountryFromCurrency(DEFAULT_FINANCE_CURRENCY),
+  taxCountry: inferTaxCountryFromCurrency(preferredCurrency || DEFAULT_FINANCE_CURRENCY),
   taxEnabled: false,
   taxIncluded: false,
   taxMode: 'none' as BudgetTaxMode,
-  taxProfileId: getDefaultBudgetTaxProfile(inferTaxCountryFromCurrency(DEFAULT_FINANCE_CURRENCY))?.id ?? '',
+  taxProfileId: getDefaultBudgetTaxProfile(inferTaxCountryFromCurrency(preferredCurrency || DEFAULT_FINANCE_CURRENCY))?.id ?? '',
   taxRate: '',
   taxSpecialAmount: '',
   startDate: '',

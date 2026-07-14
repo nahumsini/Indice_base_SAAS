@@ -46,6 +46,8 @@ export type ProviderRecord = {
   auditNotes: string;
   createdAt: Date;
   updatedAt: Date;
+  registrationSource?: string;
+  registrationKioskId?: number;
 };
 
 export type ProviderFormValues = Pick<
@@ -291,7 +293,18 @@ export function useProveedoresLogic({
   };
 
   const activateProvider = (providerId: string) => {
-    updateProvider(providerId, { status: 'active' });
+    const provider = providers.find(item => item.id === providerId);
+    if (!provider) return;
+    const activatedProvider = { ...provider, status: 'active' as const, updatedAt: new Date() };
+    setProviders(currentProviders => currentProviders.map(item => item.id === providerId ? activatedProvider : item));
+    if (!isBackendId(providerId)) return;
+    window.clearTimeout(saveTimeoutsRef.current[providerId]);
+    providersService.updateProvider(activatedProvider)
+      .then(savedProvider => setProviders(currentProviders => currentProviders.map(item => item.id === providerId ? savedProvider : item)))
+      .catch(error => {
+        setProviders(currentProviders => currentProviders.map(item => item.id === providerId ? provider : item));
+        reportError(error, 'No se pudo activar el proveedor.');
+      });
   };
 
   return {

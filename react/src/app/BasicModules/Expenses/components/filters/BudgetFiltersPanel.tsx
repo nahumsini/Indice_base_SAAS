@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import type { Provider } from '../../types/expenses.types';
 import type { BudgetFutureFilter } from '../../Budgets/useBudgetLogic';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
@@ -28,7 +28,7 @@ type BudgetFiltersPanelProps = {
   onSearchChange: (value: string) => void;
 };
 
-const filterInputClass = 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
+const filterInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
 export function BudgetFiltersPanel({
   accountingAccountFilter,
@@ -56,21 +56,16 @@ export function BudgetFiltersPanel({
   const t = useBudgetsTranslations();
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
-            <SlidersHorizontal className="h-4 w-4" />
-          </span>
-          <div>
-            <h3 className="text-base font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
-            <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{t.budgets.filters.defaultHelp}</p>
-          </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
+          <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{t.budgets.filters.defaultHelp}</p>
         </div>
         <span className="inline-flex w-fit items-center rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-xs font-bold text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">{t.common.results(resultCount)}</span>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <div className="xl:col-span-2">
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{t.common.search}</label>
           <div className="relative">
@@ -83,6 +78,9 @@ export function BudgetFiltersPanel({
             )}
           </div>
         </div>
+
+        <Select label={t.filters.unit} value={businessUnitFilter} onChange={onBusinessUnitChange} options={businessUnitOptions.map(option => [option.value, option.label])} />
+        <Select label={t.filters.business} value={businessFilter} onChange={onBusinessChange} options={businessOptions.map(option => [option.value, option.label])} />
 
         <Select label={t.budgets.filters.futurePeriod} value={futureFilter} onChange={(value) => onFutureFilterChange(value as BudgetFutureFilter)} options={[
           ['next_month', t.budgets.filters.nextMonth],
@@ -97,12 +95,10 @@ export function BudgetFiltersPanel({
           </>
         )}
 
-        <Select label={t.filters.unit} value={businessUnitFilter} onChange={onBusinessUnitChange} options={businessUnitOptions.map(option => [option.value, option.label])} />
-        <Select label={t.filters.business} value={businessFilter} onChange={onBusinessChange} options={businessOptions.map(option => [option.value, option.label])} />
         <Select label={t.filters.provider} value={providerFilter} onChange={onProviderChange} options={[['all', t.common.all], ...providers.map(provider => [provider.id, provider.name])]} />
         <Select label={t.budgets.filters.accountingAccount} value={accountingAccountFilter} onChange={onAccountingAccountChange} options={accountingAccountOptions.map(option => [option.value, option.label])} />
       </div>
-    </div>
+    </section>
   );
 }
 

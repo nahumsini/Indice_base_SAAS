@@ -1,6 +1,7 @@
 import { escapePrintHtml, printHtmlDocument } from '../../HumanResources/Control/utils/timeTablePrint';
 import type { ProcessTaskKpiDashboard } from './kpisApi';
 import type { KpisTranslations } from './translations';
+import { getProcessTaskStandardUiCopy } from './translations/standardUiCopy';
 
 interface PrintKpisPdfParams {
   dashboard: ProcessTaskKpiDashboard;
@@ -84,6 +85,7 @@ function strongCell(value: string | number | null | undefined, detail?: string |
 
 export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
   const { copy, dashboard } = params;
+  const standardCopy = getProcessTaskStandardUiCopy(copy.locale);
   const { comparison, summary } = dashboard;
   const generated = new Intl.DateTimeFormat(copy.locale, {
     dateStyle: 'medium',
@@ -91,14 +93,10 @@ export function printKpisDashboardPdf(params: PrintKpisPdfParams) {
   }).format(new Date());
   const title = `${copy.pdf.title} - ${params.rangeLabel}`;
 
-  const metricsHtml = [
-    metricHtml(copy.cards.productivity.title, `${summary.productivityScore}%`),
-    metricHtml(copy.cards.compliance.title, `${summary.completionRate}%`),
-    metricHtml(copy.cards.timeliness.title, `${summary.timelinessRate}%`),
-    metricHtml(copy.cards.audit.title, `${summary.auditRate}%`),
-    metricHtml(copy.cards.quality.title, formatWeighting(summary.averageWeighting, copy.common.notApplicable)),
-    metricHtml(copy.summary.labels.withEvidence, `${summary.evidenceRate}%`),
-  ].join('');
+  const metricsHtml = dashboard.cards.map((card) => {
+    const localized = standardCopy.cards[card.id];
+    return metricHtml(localized?.title ?? card.title, card.value);
+  }).join('');
 
   const signalsTable = tableHtml(
     [copy.pdf.columns.metric, copy.pdf.columns.value, copy.pdf.columns.detail],

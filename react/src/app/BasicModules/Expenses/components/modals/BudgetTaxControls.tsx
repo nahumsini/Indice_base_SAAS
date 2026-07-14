@@ -28,13 +28,14 @@ export type TaxControlDraft = {
 };
 
 type BudgetTaxControlsProps<TDraft extends TaxControlDraft> = {
+  compact?: boolean;
   draft: TDraft;
   onDraftChange: (updates: Partial<TDraft>) => void;
 };
 
 const fieldClass = 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:disabled:bg-slate-800 dark:disabled:text-slate-500';
 
-export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDraftChange }: BudgetTaxControlsProps<TDraft>) {
+export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = false, draft, onDraftChange }: BudgetTaxControlsProps<TDraft>) {
   const t = useBudgetsTranslations();
   const applyDraftChange = (updates: Partial<TaxControlDraft>) => {
     onDraftChange(updates as Partial<TDraft>);
@@ -128,16 +129,34 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDra
     });
   };
 
+  const toggleTaxIncluded = (included: boolean) => {
+    if (!included || draft.taxEnabled) {
+      applyDraftChange({ taxIncluded: included });
+      return;
+    }
+
+    const defaultProfile = getDefaultBudgetTaxProfile(country) ?? profiles[0];
+    applyDraftChange({
+      taxCountry: country,
+      taxEnabled: true,
+      taxIncluded: true,
+      taxMode: 'auto',
+      taxProfileId: defaultProfile?.id ?? '',
+      taxRate: defaultProfile?.manualRate ? '' : defaultProfile ? taxRateToPercentInput(defaultProfile.rate) : '',
+      taxSpecialAmount: '',
+    });
+  };
+
   return (
     <section className="md:col-span-2 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className={compact ? 'flex flex-col gap-3' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <div>
           <p className="text-sm font-bold text-slate-950 dark:text-white">{t.tax.consumptionTaxes}</p>
           <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
             {draft.taxEnabled ? `${draft.budgetCurrencyCode} · ${selectedTaxLabel}` : `${draft.budgetCurrencyCode} · ${availableTaxLabel}`}
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className={compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'flex flex-col gap-2 sm:flex-row sm:items-center'}>
           <label className="inline-flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
             <input
               type="checkbox"
@@ -151,7 +170,7 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ draft, onDra
             <input
               type="checkbox"
               checked={draft.taxIncluded}
-              onChange={(event) => applyDraftChange({ taxIncluded: event.target.checked })}
+              onChange={(event) => toggleTaxIncluded(event.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-[#147514] focus:ring-[#147514]"
             />
             {t.tax.amountIncludesTax}

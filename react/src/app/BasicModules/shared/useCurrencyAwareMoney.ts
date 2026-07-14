@@ -71,6 +71,7 @@ export function useCurrencyAwareMoney() {
     effectiveDate: exchangeRateMetadata.sourceDate,
     hasWarnings: Boolean(exchangeRateMetadata.warnings?.length),
     label: exchangeRateMetadata.mode === 'manual' ? 'Tasa manual' : 'Tasa diaria',
+    mode: exchangeRateMetadata.mode,
     source: exchangeRateMetadata.sourceName ?? 'Referencia de divisas',
   }), [exchangeRateMetadata]);
 
@@ -83,4 +84,3 @@ export function useCurrencyAwareMoney() {
     summarize,
   };
 }
-

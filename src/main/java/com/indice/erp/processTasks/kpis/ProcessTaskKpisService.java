@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -40,7 +41,8 @@ public class ProcessTaskKpisService {
             Long collaboratorId,
             Long projectId,
             String focus,
-            String status) {
+            String status,
+            String search) {
         var scope = parseScope(
                 companyId,
                 userId,
@@ -53,12 +55,14 @@ public class ProcessTaskKpisService {
                 collaboratorId,
                 projectId,
                 focus,
-                status);
+                status,
+                search);
 
         var summary = loadSummary(scope);
         var collaborators = loadCollaborators(scope);
         var processes = loadProcesses(scope);
         var projects = loadProjects(scope);
+        var units = loadUnits(scope);
         var trend = loadTrend(scope);
 
         var body = new LinkedHashMap<String, Object>();
@@ -73,13 +77,15 @@ public class ProcessTaskKpisService {
                 "collaboratorId", nullable(scope.collaboratorId()),
                 "projectId", nullable(scope.projectId()),
                 "focus", scope.focus(),
-                "status", scope.statusFilter() == null ? "all" : scope.statusFilter()));
+                "status", scope.statusFilter() == null ? "all" : scope.statusFilter(),
+                "search", scope.search()));
         body.put("summary", summary);
         body.put("comparison", buildComparison(scope, summary));
         body.put("cards", buildCards(summary, collaborators, processes, projects));
         body.put("collaborators", collaborators);
         body.put("processes", processes);
         body.put("projects", projects);
+        body.put("units", units);
         body.put("trend", trend);
         body.put("generatedAt", LocalDateTime.now().toString());
         return body;
@@ -97,7 +103,8 @@ public class ProcessTaskKpisService {
             Long collaboratorId,
             Long projectId,
             String focus,
-            String status) {
+            String status,
+            String search) {
         var today = LocalDate.now();
         var from = parseDateOrDefault(fromValue, today, "from");
         var to = parseDateOrDefault(toValue, today, "to");
@@ -127,6 +134,7 @@ public class ProcessTaskKpisService {
                 positiveOrNull(projectId),
                 normalizeFocus(focus),
                 normalizeStatusFilter(overdueOnly ? "overdue" : status),
+                normalizeSearch(search),
                 assignmentScopeService.taskVisibilityFilter(companyId, userId, "pt", "business"));
     }
 
@@ -404,6 +412,57 @@ public class ProcessTaskKpisService {
         return rows;
     }
 
+    private List<Map<String, Object>> loadUnits(KpiScope scope) {
+        var filter = taskFilter(scope, "pt");
+        var statusExpression = agendaStatusExpression(scope, "pt");
+        var sql = """
+                SELECT pt.unit_id,
+                       COALESCE(MAX(task_unit.name), 'Sin unidad') AS unit_name,
+                       COUNT(*) AS total_task_count,
+                       COUNT(*) AS actionable_task_count,
+                       SUM(CASE WHEN %1$s = 'pending' THEN 1 ELSE 0 END) AS pending_task_count,
+                       SUM(CASE WHEN %1$s = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_task_count,
+                       SUM(CASE WHEN %1$s = 'paused' THEN 1 ELSE 0 END) AS paused_task_count,
+                       SUM(CASE WHEN %1$s IN ('pending', 'in_progress', 'paused', 'overdue') THEN 1 ELSE 0 END) AS open_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS completed_task_count,
+                       SUM(CASE WHEN %1$s IN ('completed', 'audited') THEN 1 ELSE 0 END) AS closed_task_count,
+                       SUM(CASE WHEN %1$s = 'overdue' THEN 1 ELSE 0 END) AS overdue_task_count,
+                       SUM(CASE WHEN %1$s = 'completed' THEN 1 ELSE 0 END) AS pending_audit_task_count,
+                       SUM(CASE WHEN %1$s = 'audited' THEN 1 ELSE 0 END) AS audited_task_count,
+                       ROUND(AVG(COALESCE(pt.completion_percent, CASE WHEN %1$s IN ('completed', 'audited') THEN 100 ELSE 0 END)), 0) AS average_completion,
+                       ROUND(AVG(CASE WHEN %1$s = 'audited' AND pt.weighting IS NOT NULL THEN LEAST(5, GREATEST(0, pt.weighting)) ELSE NULL END), 1) AS average_weighting,
+                       SUM(CASE WHEN COALESCE(attachment_summary.attachments, 0) > 0 THEN 1 ELSE 0 END) AS evidence_task_count
+                FROM process_tasks pt
+                LEFT JOIN units task_unit ON task_unit.id = pt.unit_id
+                LEFT JOIN businesses business ON business.id = pt.business_id
+                    AND (business.company_id = pt.company_id OR business.company_id IS NULL)
+                LEFT JOIN (
+                    SELECT company_id, task_id, COUNT(*) AS attachments
+                    FROM process_task_attachments
+                    WHERE deleted_at IS NULL
+                    GROUP BY company_id, task_id
+                ) attachment_summary ON attachment_summary.company_id = pt.company_id
+                    AND attachment_summary.task_id = pt.id
+                WHERE
+                """.formatted(statusExpression) + filter.sql() + """
+                GROUP BY pt.unit_id
+                """;
+
+        var rows = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            var row = mapAggregateBase(rs);
+            row.put("unitId", nullable(rs.getObject("unit_id", Long.class)));
+            row.put("unitName", fallback(rs.getString("unit_name"), "Sin unidad"));
+            addComputedScores(row);
+            row.put("status", statusFromScore((Integer) row.get("productivityScore")));
+            return row;
+        }, filter.params().toArray());
+        rows.sort(Comparator
+                .comparingInt((Map<String, Object> row) -> (Integer) row.get("productivityScore"))
+                .reversed()
+                .thenComparing(row -> String.valueOf(row.get("unitName"))));
+        return rows;
+    }
+
     private List<Map<String, Object>> loadTrend(KpiScope scope) {
         var filter = taskFilter(scope, "pt");
         var statusExpression = agendaStatusExpression(scope, "pt");
@@ -446,9 +505,10 @@ public class ProcessTaskKpisService {
 
     private Map<String, Object> buildComparison(KpiScope scope, Map<String, Object> summary) {
         var comparison = new LinkedHashMap<String, Object>();
-        comparison.put("available", !scope.overdueOnly());
+        var openEnded = scope.from().getYear() <= 1900 || scope.to().getYear() >= 2999;
+        comparison.put("available", !scope.overdueOnly() && !openEnded);
 
-        if (scope.overdueOnly()) {
+        if (scope.overdueOnly() || openEnded) {
             comparison.put("from", null);
             comparison.put("to", null);
             comparison.put("productivityScore", 0);
@@ -462,9 +522,20 @@ public class ProcessTaskKpisService {
             return comparison;
         }
 
-        var days = ChronoUnit.DAYS.between(scope.from(), scope.to()) + 1;
-        var previousTo = scope.from().minusDays(1);
-        var previousFrom = previousTo.minusDays(Math.max(0, days - 1));
+        LocalDate previousFrom;
+        LocalDate previousTo;
+        var currentMonth = YearMonth.from(scope.from());
+        var isFullCalendarMonth = scope.from().equals(currentMonth.atDay(1))
+                && scope.to().equals(currentMonth.atEndOfMonth());
+        if (isFullCalendarMonth) {
+            var previousMonth = currentMonth.minusMonths(1);
+            previousFrom = previousMonth.atDay(1);
+            previousTo = previousMonth.atEndOfMonth();
+        } else {
+            var days = ChronoUnit.DAYS.between(scope.from(), scope.to()) + 1;
+            previousTo = scope.from().minusDays(1);
+            previousFrom = previousTo.minusDays(Math.max(0, days - 1));
+        }
         var previousSummary = loadSummary(scope.withRange(previousFrom, previousTo));
 
         comparison.put("from", previousFrom.toString());
@@ -629,19 +700,33 @@ public class ProcessTaskKpisService {
             List<Map<String, Object>> projects) {
         var cards = new ArrayList<Map<String, Object>>();
         cards.add(card(
-                "productivity",
-                "Productividad operativa",
-                summary.get("productivityScore") + "%",
-                "Meta 85%",
-                "Score combinado de avance, cierre, puntualidad, auditoria, calidad y evidencia.",
-                statusFromScore((Integer) summary.get("productivityScore"))));
+                "volume",
+                "Tareas del periodo",
+                String.valueOf(summary.get("totalTasks")),
+                summary.get("openTasks") + " abiertas",
+                "Volumen de trabajo visible dentro del alcance seleccionado.",
+                intFrom(summary, "totalTasks") > 0 ? "healthy" : "watch"));
         cards.add(card(
-                "compliance",
-                "Cumplimiento de agenda",
-                summary.get("completionRate") + "%",
-                summary.get("closedTasks") + " cerradas",
-                "Relacion entre tareas accionables y tareas cerradas.",
+                "closed",
+                "Tareas cerradas",
+                String.valueOf(summary.get("closedTasks")),
+                summary.get("completionRate") + "% de cumplimiento",
+                "Tareas completadas o auditadas dentro del periodo.",
                 statusFromScore((Integer) summary.get("completionRate"))));
+        cards.add(card(
+                "open",
+                "Tareas abiertas",
+                String.valueOf(summary.get("openTasks")),
+                summary.get("closedTasks") + " cerradas",
+                "Carga pendiente, en curso, pausada o vencida que requiere seguimiento.",
+                inverseRatioStatus(intFrom(summary, "openTasks"), intFrom(summary, "actionableTasks"))));
+        cards.add(card(
+                "overdue",
+                "Tareas vencidas",
+                String.valueOf(summary.get("overdueTasks")),
+                summary.get("overdue8PlusDays") + " con 8+ dias",
+                "Compromisos que superaron su fecha de entrega sin cierre oportuno.",
+                riskCountStatus(intFrom(summary, "overdueTasks"), intFrom(summary, "actionableTasks"))));
         cards.add(card(
                 "timeliness",
                 "Puntualidad",
@@ -657,20 +742,41 @@ public class ProcessTaskKpisService {
                 "Cierres revisados por jefatura o auditor responsable.",
                 statusFromScore((Integer) summary.get("auditRate"))));
         cards.add(card(
-                "quality",
-                "Calidad auditada",
-                summary.get("averageWeighting") == null ? "N/A" : summary.get("averageWeighting") + "/5",
-                "Ponderacion maxima 5",
-                "Promedio de ponderacion sobre tareas auditadas.",
-                statusFromScore((Integer) summary.get("qualityScore"))));
+                "evidence",
+                "Evidencia completa",
+                summary.get("evidenceRate") + "%",
+                summary.get("evidenceTasks") + " con archivos",
+                "Cobertura documental de las tareas incluidas en el alcance.",
+                statusFromScore((Integer) summary.get("evidenceRate"))));
         cards.add(card(
-                "collaborators",
-                "Colaboradores medidos",
-                String.valueOf(collaborators.size()),
-                projects.size() + " proyectos / " + processes.size() + " procesos",
-                "Personas con tareas dentro del filtro seleccionado.",
-                collaborators.isEmpty() ? "critical" : "healthy"));
+                "productivity",
+                "Salud operativa",
+                summary.get("productivityScore") + "/100",
+                "Meta 85/100",
+                "Score combinado de avance, cierre, puntualidad, auditoria, calidad y evidencia.",
+                statusFromScore((Integer) summary.get("productivityScore"))));
         return cards;
+    }
+
+    private String inverseRatioStatus(int value, int total) {
+        if (total <= 0) {
+            return "watch";
+        }
+        var ratio = (value * 100.0) / total;
+        if (ratio <= 25) {
+            return "healthy";
+        }
+        return ratio <= 50 ? "watch" : "critical";
+    }
+
+    private String riskCountStatus(int value, int total) {
+        if (value <= 0) {
+            return "healthy";
+        }
+        if (total <= 0) {
+            return "critical";
+        }
+        return (value * 100.0) / total <= 10 ? "watch" : "critical";
     }
 
     private Map<String, Object> card(
@@ -766,6 +872,26 @@ public class ProcessTaskKpisService {
         if (scope.projectId() != null) {
             sql.append(" AND ").append(alias).append(".project_id = ?");
             params.add(scope.projectId());
+        }
+        if (!scope.search().isBlank()) {
+            var searchPattern = "%" + scope.search() + "%";
+            sql.append(" AND (")
+                    .append("LOWER(CONCAT_WS(' ', COALESCE(").append(alias).append(".folio, ''), COALESCE(")
+                    .append(alias).append(".title, ''), COALESCE(").append(alias).append(".description, ''), COALESCE(")
+                    .append(alias).append(".assigned_name, ''))) LIKE ?")
+                    .append(" OR EXISTS (SELECT 1 FROM processes search_process WHERE search_process.id = ")
+                    .append(alias).append(".process_id AND search_process.company_id = ").append(alias)
+                    .append(".company_id AND LOWER(CONCAT_WS(' ', COALESCE(search_process.folio, ''), COALESCE(search_process.title, ''))) LIKE ?)")
+                    .append(" OR EXISTS (SELECT 1 FROM projects search_project WHERE search_project.id = ")
+                    .append(alias).append(".project_id AND search_project.company_id = ").append(alias)
+                    .append(".company_id AND LOWER(CONCAT_WS(' ', COALESCE(search_project.folio, ''), COALESCE(search_project.name, ''))) LIKE ?)")
+                    .append(" OR EXISTS (SELECT 1 FROM user_companies search_uc INNER JOIN users search_user ON search_user.id = search_uc.user_id WHERE search_uc.id = ")
+                    .append(alias).append(".assigned_user_company_id AND search_uc.company_id = ").append(alias)
+                    .append(".company_id AND LOWER(CONCAT_WS(' ', COALESCE(search_user.full_name, ''), COALESCE(search_user.email, ''))) LIKE ?))");
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
         }
         appendFocusFilter(sql, params, scope, alias);
         sql.append(" AND ").append(statusExpression).append(" IS NOT NULL");
@@ -875,6 +1001,14 @@ public class ProcessTaskKpisService {
             case "pending_audit" -> "completed";
             default -> throw new IllegalArgumentException("status must be a valid agenda status.");
         };
+    }
+
+    private String normalizeSearch(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        var normalized = value.trim().replaceAll("\\s+", " ").toLowerCase();
+        return normalized.length() > 120 ? normalized.substring(0, 120) : normalized;
     }
 
     private String sqlDate(LocalDate value) {
@@ -987,6 +1121,7 @@ public class ProcessTaskKpisService {
             Long projectId,
             String focus,
             String statusFilter,
+            String search,
             ProcessTaskAssignmentScopeService.TaskVisibilityFilter visibility) {
 
         KpiScope withRange(LocalDate nextFrom, LocalDate nextTo) {
@@ -1011,6 +1146,7 @@ public class ProcessTaskKpisService {
                     projectId,
                     focus,
                     statusFilter,
+                    search,
                     visibility);
         }
     }

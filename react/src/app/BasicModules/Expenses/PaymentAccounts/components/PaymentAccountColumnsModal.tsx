@@ -1,6 +1,7 @@
 import { Eye, EyeOff, GripVertical, RotateCcw, Search, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
+import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 import type { PaymentColumnConfig } from '../paymentAccountsTableConfig';
 
 type PaymentAccountColumnsModalProps = {
@@ -23,6 +24,7 @@ export function PaymentAccountColumnsModal({
   onToggleColumn,
 }: PaymentAccountColumnsModalProps) {
   const t = usePaymentAccountsTranslations();
+  const { panelRef, titleId } = useFinanceModalAccessibility(onClose);
   const [searchTerm, setSearchTerm] = useState('');
   const visibleCount = columns.filter(column => column.visible).length;
   const filteredColumns = useMemo(() => {
@@ -37,10 +39,10 @@ export function PaymentAccountColumnsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div className="flex h-[min(86vh,820px)] max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.32)]">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="flex h-[min(86vh,820px)] max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.32)] dark:border-slate-700 dark:bg-slate-900">
         <div className="flex shrink-0 items-center justify-between bg-[#147514] px-6 py-5 text-white">
           <div className="min-w-0">
-            <h2 className="text-2xl font-extrabold tracking-normal">{t.columnModal.title}</h2>
+            <h2 id={titleId} className="text-2xl font-extrabold tracking-normal">{t.columnModal.title}</h2>
             <p className="mt-1 text-sm font-medium text-white/85">{t.paymentAccounts.headerSubtitle}</p>
           </div>
           <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/10 text-white transition hover:bg-white/20" aria-label={t.columnModal.close}>

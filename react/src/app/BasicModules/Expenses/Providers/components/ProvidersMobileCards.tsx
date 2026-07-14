@@ -14,6 +14,7 @@ type ProvidersMobileCardsProps = {
   onDuplicateProvider: (providerId: string) => void;
   onOpenAttachments: (provider: ProviderRecord) => void;
   onOpenEditProvider: (provider: ProviderRecord) => void;
+  onManageAccess: (provider: ProviderRecord) => void;
 };
 
 export function ProvidersMobileCards({
@@ -23,6 +24,7 @@ export function ProvidersMobileCards({
   onDuplicateProvider,
   onOpenAttachments,
   onOpenEditProvider,
+  onManageAccess,
   providers,
   unitOptions,
 }: ProvidersMobileCardsProps) {
@@ -49,6 +51,7 @@ export function ProvidersMobileCards({
           onDuplicateProvider={onDuplicateProvider}
           onOpenAttachments={onOpenAttachments}
           onOpenEditProvider={onOpenEditProvider}
+          onManageAccess={onManageAccess}
         />
       ))}
     </div>
@@ -62,6 +65,7 @@ function ProviderMobileCard({
   onDuplicateProvider,
   onOpenAttachments,
   onOpenEditProvider,
+  onManageAccess,
   provider,
   unitOptions,
 }: {
@@ -71,6 +75,7 @@ function ProviderMobileCard({
   onDuplicateProvider: (providerId: string) => void;
   onOpenAttachments: (provider: ProviderRecord) => void;
   onOpenEditProvider: (provider: ProviderRecord) => void;
+  onManageAccess: (provider: ProviderRecord) => void;
   provider: ProviderRecord;
   unitOptions: FinanceReferenceOption[];
 }) {
@@ -84,6 +89,7 @@ function ProviderMobileCard({
         <div className="min-w-0">
           <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{provider.folio}</p>
           <h3 className="mt-1 truncate text-base font-extrabold text-slate-950 dark:text-white">{provider.name}</h3>
+          {provider.registrationSource === 'payable-kiosk-registration' ? <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Registro desde kiosko</span> : null}
           <p className="mt-1 truncate text-sm font-semibold text-slate-500 dark:text-slate-400">{provider.company || '-'}</p>
         </div>
         <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${getProviderStatusClass(provider.status)}`}>{statusLabel}</span>
@@ -117,6 +123,7 @@ function ProviderMobileCard({
             onDeleteProvider={onDeleteProvider}
             onDuplicateProvider={onDuplicateProvider}
             onEditProvider={() => onOpenEditProvider(provider)}
+            onManageAccess={() => onManageAccess(provider)}
           />
         </div>
       </div>

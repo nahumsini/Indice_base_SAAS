@@ -48,7 +48,7 @@ public class PublicPayableKioskController {
         if (csrfError != null) {
             return csrfError;
         }
-        return ResponseEntity.ok(service.publicAuthenticate(token, request));
+        return ResponseEntity.ok(service.publicAuthenticate(session, token, request));
     }
 
     @PostMapping("/provider-registrations")
@@ -74,7 +74,7 @@ public class PublicPayableKioskController {
         if (csrfError != null) {
             return csrfError;
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.createPayable(token, request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.createPayable(session, token, request));
     }
 
     @PostMapping("/payables/{expenseId}/attachments/presign-upload")
@@ -89,7 +89,7 @@ public class PublicPayableKioskController {
             return csrfError;
         }
         try {
-            return ResponseEntity.ok(service.presignPayableAttachment(token, expenseId, request));
+            return ResponseEntity.ok(service.presignPayableAttachment(session, token, expenseId, request));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -113,7 +113,7 @@ public class PublicPayableKioskController {
             return csrfError;
         }
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(service.registerPayableAttachment(token, expenseId, request));
+            return ResponseEntity.status(HttpStatus.CREATED).body(service.registerPayableAttachment(session, token, expenseId, request));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {

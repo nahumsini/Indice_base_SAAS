@@ -4,12 +4,14 @@ import type { ColumnConfig } from '../../types/expenseView.types';
 
 type ColumnConfigurationModalProps = {
   columns: ColumnConfig[];
+  defaultColumns?: ColumnConfig[];
   onClose: () => void;
   onSaveColumns: (columns: ColumnConfig[]) => void;
 };
 
 export function ColumnConfigurationModal({
   columns,
+  defaultColumns,
   onClose,
   onSaveColumns,
 }: ColumnConfigurationModalProps) {
@@ -17,7 +19,7 @@ export function ColumnConfigurationModal({
     <ColumnasConfigModal
       isOpen
       columns={toSystemColumns(columns)}
-      defaultColumns={toSystemColumns(DEFAULT_EXPENSE_COLUMNS)}
+      defaultColumns={toSystemColumns(defaultColumns ?? DEFAULT_EXPENSE_COLUMNS)}
       onClose={onClose}
       onSave={(nextColumns) => onSaveColumns(fromSystemColumns(nextColumns, columns))}
       theme="expenses"

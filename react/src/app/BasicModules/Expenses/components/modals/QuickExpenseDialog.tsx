@@ -1,10 +1,16 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
-import { Paperclip, Plus, ReceiptText, X } from 'lucide-react';
+import { Plus, ReceiptText, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
-import type { FinanceReferenceOption } from '../../types/finance-reference.types';
-import { financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
+import {
+  getBudgetTaxProfile,
+  getDefaultBudgetTaxProfile,
+  inferTaxCountryFromCurrency,
+  taxRateToPercentInput,
+} from '../../Budgets/budgetTaxCatalog';
+import { formatCurrency } from '../../utils/expenses.utils';
+import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 export type QuickExpenseValues = {
@@ -15,67 +21,76 @@ export type QuickExpenseValues = {
   concept: string;
   currency: string;
   description: string;
+  taxes: number;
+  taxCountry?: string;
+  taxIncluded: boolean;
+  taxMode: TaxControlDraft['taxMode'];
+  taxName?: string;
+  taxProfileId?: string;
+  taxRate?: number;
+  taxRegion?: string;
+  total: number;
 };
 
 type QuickExpenseDialogProps = {
-  businessOptions: FinanceReferenceOption[];
   currency: string;
   isSubmitting: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: QuickExpenseValues) => void | Promise<void>;
   open: boolean;
-  unitOptions: FinanceReferenceOption[];
 };
 
 export function QuickExpenseDialog({
-  businessOptions,
   currency,
   isSubmitting,
   onOpenChange,
   onSubmit,
   open,
-  unitOptions,
 }: QuickExpenseDialogProps) {
   const t = useExpensesTranslations();
-  const [amount, setAmount] = useState('');
-  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
-  const [business, setBusiness] = useState('');
-  const [businessUnit, setBusinessUnit] = useState('');
   const [concept, setConcept] = useState('');
-  const [selectedCurrency, setSelectedCurrency] = useState(currency);
-  const [description, setDescription] = useState('');
-  const parsedAmount = toMoneyNumber(amount);
-  const canSubmit = concept.trim().length > 0 && parsedAmount > 0 && !isSubmitting;
+  const [draft, setDraft] = useState<TaxControlDraft>(() => createQuickTaxDraft(currency));
+  const enteredAmount = toMoneyNumber(draft.amount);
+  const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;
+  const subtotal = draft.taxEnabled && draft.taxIncluded ? Math.max(enteredAmount - taxes, 0) : enteredAmount;
+  const total = draft.taxEnabled && !draft.taxIncluded ? enteredAmount + taxes : enteredAmount;
+  const canSubmit = concept.trim().length > 0 && enteredAmount > 0 && !isSubmitting;
+  const updateDraft = (updates: Partial<TaxControlDraft>) => setDraft(current => ({ ...current, ...updates }));
 
   useEffect(() => {
     if (!open) {
-      setAmount('');
-      setAttachmentFiles([]);
-      setBusiness('');
-      setBusinessUnit('');
       setConcept('');
-      setDescription('');
-      setSelectedCurrency(currency);
+      setDraft(createQuickTaxDraft(currency));
     }
   }, [currency, open]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
+    const taxProfile = draft.taxEnabled ? getBudgetTaxProfile(draft.taxProfileId, draft.taxCountry) : undefined;
     void onSubmit({
-      amount: parsedAmount,
-      attachmentFiles,
-      business,
-      businessUnit,
+      amount: subtotal,
+      attachmentFiles: [],
+      business: '',
+      businessUnit: '',
       concept: concept.trim(),
-      currency: selectedCurrency,
-      description: description.trim(),
+      currency,
+      description: '',
+      taxes,
+      taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
+      taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
+      taxMode: draft.taxEnabled ? draft.taxMode : 'none',
+      taxName: draft.taxEnabled ? taxProfile?.shortName ?? taxProfile?.label : undefined,
+      taxProfileId: draft.taxEnabled ? draft.taxProfileId : undefined,
+      taxRate: draft.taxEnabled ? toPercentNumber(draft.taxRate) : undefined,
+      taxRegion: taxProfile?.region,
+      total,
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideCloseButton className="max-w-[560px] overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+      <DialogContent hideCloseButton className="max-w-[480px] overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-start justify-between gap-4 bg-[#147514] px-5 py-4 text-white dark:bg-[#0b3f1b]">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
@@ -97,41 +112,17 @@ export function QuickExpenseDialog({
             <Field label={t.expenses.modal.concept}>
               <Input autoFocus maxLength={160} value={concept} onChange={(event) => setConcept(event.target.value)} placeholder={t.expenses.modal.placeholderConcept} className={inputClass} />
             </Field>
-            <Field label={t.expenses.modal.description}>
-              <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className={`${inputClass} h-auto resize-none`} placeholder={t.expenses.quick.descriptionPlaceholder} />
+            <Field label={`${t.expenses.modal.amount} · ${currency}`}>
+              <Input min={0.01} step="0.01" type="number" value={draft.amount} onChange={(event) => updateDraft({ amount: event.target.value })} placeholder="0.00" className={inputClass} />
             </Field>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label={t.filters.unit}>
-                <select value={businessUnit} onChange={(event) => setBusinessUnit(event.target.value)} className={inputClass}>
-                  <option value="">No unit</option>
-                  {unitOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </Field>
-              <Field label={t.filters.business}>
-                <select value={business} onChange={(event) => setBusiness(event.target.value)} className={inputClass}>
-                  <option value="">No business</option>
-                  {businessOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </Field>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label={t.expenses.modal.amount}>
-                <Input min={0.01} step="0.01" type="number" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" className={inputClass} />
-              </Field>
-              <Field label={t.expenses.modal.currency}>
-                <select value={selectedCurrency} onChange={(event) => setSelectedCurrency(event.target.value)} className={inputClass}>
-                  {financeCurrencySelectOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </Field>
-            </div>
-            <label className="rounded-2xl border border-dashed border-[#147514]/30 bg-white p-4 text-sm font-semibold text-slate-700 transition hover:bg-[#147514]/5">
-              <span className="mb-2 flex items-center gap-2">
-                <Paperclip className="h-4 w-4 text-[#147514]" />
-                Attach evidence
-              </span>
-              <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onChange={(event) => setAttachmentFiles(Array.from(event.target.files ?? []).slice(0, 5))} className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-[#147514] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" />
-              <span className="mt-2 block text-xs font-medium text-slate-500">{attachmentFiles.length} files selected. Maximum 5 files.</span>
-            </label>
+            <BudgetTaxControls compact draft={draft} onDraftChange={updateDraft} />
+            {draft.taxEnabled ? (
+              <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 p-3 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+                <QuickSummary label={t.expenses.modal.summarySubtotal} value={formatCurrency(subtotal, currency)} />
+                <QuickSummary label={t.expenses.modal.summaryTaxes} value={formatCurrency(taxes, currency)} />
+                <QuickSummary label={t.expenses.modal.summaryTotal} value={formatCurrency(total, currency)} strong />
+              </div>
+            ) : null}
           </div>
           <DialogFooter className="gap-3 bg-[#147514] px-5 py-4 dark:bg-[#0b3f1b]">
             <Button type="button" variant="outline" className="h-10 rounded-xl border-white/30 bg-white/10 px-4 text-sm font-semibold text-white shadow-none hover:bg-white/20 hover:text-white" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
@@ -159,7 +150,38 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
+function QuickSummary({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+      <p className="truncate text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`mt-1 truncate text-sm font-bold ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
+    </div>
+  );
+}
+
+function createQuickTaxDraft(currency: string): TaxControlDraft {
+  const taxCountry = inferTaxCountryFromCurrency(currency);
+  const defaultTaxProfile = getDefaultBudgetTaxProfile(taxCountry);
+  return {
+    amount: '',
+    budgetCurrencyCode: currency,
+    taxes: '',
+    taxCountry,
+    taxEnabled: false,
+    taxIncluded: false,
+    taxMode: 'none',
+    taxProfileId: defaultTaxProfile?.id ?? '',
+    taxRate: defaultTaxProfile ? taxRateToPercentInput(defaultTaxProfile.rate) : '',
+    taxSpecialAmount: '',
+  };
+}
+
 function toMoneyNumber(value: string) {
   const parsedValue = Number(value.replace(/,/g, '').trim());
   return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function toPercentNumber(value: string) {
+  const parsedValue = Number(value.replace('%', '').replace(',', '.').trim());
+  return Number.isFinite(parsedValue) ? parsedValue / 100 : 0;
 }

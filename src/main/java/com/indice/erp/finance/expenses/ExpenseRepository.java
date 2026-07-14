@@ -136,7 +136,7 @@ class ExpenseRepository {
         return updated > 0;
     }
 
-    boolean softDelete(FinanceContext context, long expenseId) {
+    boolean softDelete(FinanceContext context, long expenseId, ExpenseStatus expectedStatus) {
         var updated = jdbcTemplate.update(
             """
             UPDATE finance_expenses
@@ -151,7 +151,7 @@ class ExpenseRepository {
             context.userId(),
             context.companyId(),
             expenseId,
-            ExpenseStatus.DRAFT.name()
+            expectedStatus.name()
         );
         return updated > 0;
     }

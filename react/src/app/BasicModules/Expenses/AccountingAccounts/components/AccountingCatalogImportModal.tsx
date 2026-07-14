@@ -1,6 +1,7 @@
 import { Check, Globe2, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
+import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 import type { AccountingAccount, AccountingCountryCode } from '../types';
 import {
   accountMatchesCatalogTemplate,
@@ -24,6 +25,7 @@ export function AccountingCatalogImportModal({
   onImport,
 }: AccountingCatalogImportModalProps) {
   const t = useAccountingAccountsTranslations();
+  const { panelRef, titleId } = useFinanceModalAccessibility(onClose);
   const [activeCountry, setActiveCountry] = useState<AccountingCountryCode>('MX');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -68,14 +70,14 @@ export function AccountingCatalogImportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div className="flex h-[min(88vh,860px)] max-h-[calc(100vh-3rem)] w-full max-w-[980px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.32)]">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="flex h-[min(88vh,860px)] max-h-[calc(100vh-3rem)] w-full max-w-[980px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.32)] dark:border-slate-700 dark:bg-slate-900">
         <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-5 text-white">
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
               <Globe2 className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-2xl font-extrabold tracking-normal">{t.accountingAccounts.importCatalog}</h2>
+              <h2 id={titleId} className="text-2xl font-extrabold tracking-normal">{t.accountingAccounts.importCatalog}</h2>
               <p className="mt-1 max-w-2xl text-sm font-medium text-white/85">
                 {t.accountingAccounts.catalog.description}
               </p>
