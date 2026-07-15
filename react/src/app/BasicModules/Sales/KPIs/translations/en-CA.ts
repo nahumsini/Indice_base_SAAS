@@ -3,6 +3,9 @@ export const enCA = {
     title: 'Commercial KPIs',
     subtitle: 'Live sales board: prospects, quotes, wins, commissions, products, and commercial inventory.',
   },
+  actions: {
+    printReport: 'Print report',
+  },
   filters: {
     title: 'Filters',
     allUnits: 'All units',
@@ -19,9 +22,21 @@ export const enCA = {
       label: 'Quotes',
       detail: (count: number) => `${count} approved or won`,
     },
+    pipeline: {
+      label: 'Active pipeline',
+      detail: (count: number) => `${count} active prospects`,
+    },
+    quoteConversion: {
+      label: 'Quote to sale conversion',
+      detail: (count: number) => `Based on ${count} quotes`,
+    },
     salesRevenue: {
       label: 'Sales revenue',
       detail: (count: number) => `${count} registered ${count === 1 ? 'sale' : 'sales'}`,
+    },
+    commercialRisk: {
+      label: 'Commercial risk',
+      detail: (count: number) => `${count} overdue or pending follow-up`,
     },
     commissions: {
       label: 'Commissions',
@@ -54,6 +69,18 @@ export const enCA = {
     inventoryReadyDetail: (ready: number, total: number) => `${ready} of ${total} products ready`,
     commercialRisk: 'Commercial risk',
     commercialRiskDescription: 'Overdue, stalled, or unscheduled prospects.',
+  },
+  context: {
+    preferredCurrency: 'Preferred currency',
+    native: 'Native',
+    records: 'Records included',
+  },
+  pagination: {
+    next: 'Next',
+    page: 'Page',
+    previous: 'Previous',
+    records: 'records',
+    rows: 'Rows',
   },
   sellerTable: {
     title: 'Seller performance',

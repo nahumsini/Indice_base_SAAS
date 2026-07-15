@@ -10,15 +10,22 @@ import {
   CheckCircle2,
   CircleDollarSign,
   ClipboardList,
+  CreditCard,
   Gauge,
   Landmark,
+  LayoutDashboard,
   LineChart,
+  Package,
   PackageCheck,
   ReceiptText,
   ShieldCheck,
+  ShoppingCart,
+  Store,
   TrendingDown,
   TrendingUp,
+  Users,
   WalletCards,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -107,9 +114,61 @@ export type AutomationRule = {
   description: string;
 };
 
-export const KPI_ACCENT = '#147514';
-export const KPI_ACCENT_DARK = '#105010';
-export const KPI_ACCENT_SOFT = '#EAF7EA';
+export type KpiModuleGroup = 'basic' | 'complementary';
+export type KpiVariableType = 'money' | 'percentage' | 'count' | 'score' | 'days' | 'ratio';
+export type KpiVariableDirection = 'higher' | 'lower' | 'target';
+
+export type KpiSourceModule = {
+  id: string;
+  name: string;
+  group: KpiModuleGroup;
+  domain: string;
+  icon: LucideIcon;
+  color: string;
+  status: KpiStatus;
+  availableVariables: number;
+  activeKpis: number;
+  alerts: number;
+  summary: string;
+};
+
+export type KpiVariable = {
+  id: string;
+  name: string;
+  moduleId: string;
+  category: string;
+  type: KpiVariableType;
+  valueLabel: string;
+  sampleValue: number;
+  status: KpiStatus;
+  cadence: string;
+  freshness: string;
+  direction: KpiVariableDirection;
+  formula: string;
+  usedBy: number;
+  description: string;
+};
+
+export type KpiTemplateComponent = {
+  variableId: string;
+  weight: number;
+  role: string;
+};
+
+export type KpiBuilderTemplate = {
+  id: string;
+  title: string;
+  category: string;
+  status: KpiStatus;
+  target: number;
+  score: number;
+  description: string;
+  components: KpiTemplateComponent[];
+};
+
+export const KPI_ACCENT = '#2563EB';
+export const KPI_ACCENT_DARK = '#1D4ED8';
+export const KPI_ACCENT_SOFT = '#EFF6FF';
 
 const financials = {
   revenue: 428500,
@@ -255,6 +314,24 @@ export const executiveMetrics: BaseMetric[] = [
     description: 'Saldo pendiente de cobro para convertir a efectivo.',
     icon: ReceiptText,
   },
+  {
+    id: 'operational-score',
+    title: 'Salud operativa',
+    value: '74/100',
+    source: 'Procesos + RH + evidencias',
+    status: 'watch',
+    description: 'Score compuesto de cumplimiento, productividad, evidencia y tareas vencidas.',
+    icon: ShieldCheck,
+  },
+  {
+    id: 'inventory-risk',
+    title: 'Inventario en riesgo',
+    value: formatCurrency(22800),
+    source: 'Inventarios + POS',
+    status: 'watch',
+    description: 'Valor estimado en inventario lento, merma o cobertura por debajo del objetivo.',
+    icon: PackageCheck,
+  },
 ];
 
 export const compositeKpis: CompositeKpi[] = [
@@ -313,6 +390,479 @@ export const compositeKpis: CompositeKpi[] = [
       { label: 'Conversion', source: 'Cotizaciones', score: 73, weight: 20, drilldown: 'Cotizaciones' },
       { label: 'Ticket promedio', source: 'POS', score: 79, weight: 15, drilldown: 'Punto de venta' },
       { label: 'Cobranza', source: 'Receivables', score: 77, weight: 10, drilldown: 'Cuentas por cobrar' },
+    ],
+  },
+];
+
+export const kpiSourceModules: KpiSourceModule[] = [
+  {
+    id: 'sales',
+    name: 'Ventas',
+    group: 'basic',
+    domain: 'Comercial',
+    icon: ShoppingCart,
+    color: '#C0392B',
+    status: 'healthy',
+    availableVariables: 14,
+    activeKpis: 6,
+    alerts: 1,
+    summary: 'Pipeline, conversion, ticket, utilidad y velocidad comercial.',
+  },
+  {
+    id: 'point-of-sale',
+    name: 'Punto de venta',
+    group: 'basic',
+    domain: 'Operacion diaria',
+    icon: Store,
+    color: '#D35400',
+    status: 'healthy',
+    availableVariables: 13,
+    activeKpis: 5,
+    alerts: 0,
+    summary: 'Ventas mostrador, arqueos, mezcla de pago, cortes y devoluciones.',
+  },
+  {
+    id: 'inventory',
+    name: 'Inventarios',
+    group: 'basic',
+    domain: 'Producto',
+    icon: Package,
+    color: '#16A085',
+    status: 'watch',
+    availableVariables: 12,
+    activeKpis: 4,
+    alerts: 2,
+    summary: 'Stock, rotacion, cobertura, mermas, margen y reposicion.',
+  },
+  {
+    id: 'expenses',
+    name: 'Expenses',
+    group: 'basic',
+    domain: 'Finanzas',
+    icon: ReceiptText,
+    color: '#147514',
+    status: 'watch',
+    availableVariables: 16,
+    activeKpis: 7,
+    alerts: 3,
+    summary: 'Gastos, presupuestos, CxP, proveedores, impuestos y evidencia.',
+  },
+  {
+    id: 'petty-cash',
+    name: 'Petty cash',
+    group: 'basic',
+    domain: 'Fondos',
+    icon: WalletCards,
+    color: '#0F766E',
+    status: 'watch',
+    availableVariables: 9,
+    activeKpis: 3,
+    alerts: 2,
+    summary: 'Cajas, cortes, comprobacion, saldo, faltantes y politicas.',
+  },
+  {
+    id: 'processes-tasks',
+    name: 'Procesos y tareas',
+    group: 'basic',
+    domain: 'Ejecucion',
+    icon: Workflow,
+    color: '#7C3AED',
+    status: 'watch',
+    availableVariables: 15,
+    activeKpis: 5,
+    alerts: 4,
+    summary: 'Cumplimiento, productividad, auditoria, vencidas y responsables.',
+  },
+  {
+    id: 'human-resources',
+    name: 'Recursos humanos',
+    group: 'basic',
+    domain: 'Personas',
+    icon: Users,
+    color: '#2563EB',
+    status: 'healthy',
+    availableVariables: 11,
+    activeKpis: 4,
+    alerts: 1,
+    summary: 'Asistencia, permisos, nomina, rotacion, cobertura y desempeno.',
+  },
+  {
+    id: 'receivables',
+    name: 'Cartera',
+    group: 'basic',
+    domain: 'Cobranza',
+    icon: CreditCard,
+    color: '#0EA5E9',
+    status: 'healthy',
+    availableVariables: 10,
+    activeKpis: 4,
+    alerts: 1,
+    summary: 'CxC, antiguedad, credito, cobranza, promesas y conversion a efectivo.',
+  },
+  {
+    id: 'dashboard',
+    name: 'Dashboard',
+    group: 'complementary',
+    domain: 'Direccion',
+    icon: LayoutDashboard,
+    color: '#334155',
+    status: 'healthy',
+    availableVariables: 6,
+    activeKpis: 2,
+    alerts: 0,
+    summary: 'Resumen global, diagnostico y lectura de direccion.',
+  },
+  {
+    id: 'providers',
+    name: 'Proveedores',
+    group: 'complementary',
+    domain: 'Abasto',
+    icon: Building2,
+    color: '#64748B',
+    status: 'watch',
+    availableVariables: 7,
+    activeKpis: 2,
+    alerts: 2,
+    summary: 'Riesgo, concentracion, condiciones, kioscos y cumplimiento documental.',
+  },
+  {
+    id: 'projects',
+    name: 'Proyectos',
+    group: 'complementary',
+    domain: 'Planeacion',
+    icon: ClipboardList,
+    color: '#9333EA',
+    status: 'watch',
+    availableVariables: 8,
+    activeKpis: 2,
+    alerts: 1,
+    summary: 'Avance, presupuesto, responsables, bloqueos y entregables.',
+  },
+  {
+    id: 'sales-agent',
+    name: 'Agente IA',
+    group: 'complementary',
+    domain: 'Automatizacion',
+    icon: BellRing,
+    color: '#F59E0B',
+    status: 'watch',
+    availableVariables: 5,
+    activeKpis: 1,
+    alerts: 1,
+    summary: 'Seguimiento inteligente, sugerencias, automatizaciones y oportunidades.',
+  },
+];
+
+export const basicKpiModules = kpiSourceModules.filter((module) => module.group === 'basic');
+export const complementaryKpiModules = kpiSourceModules.filter((module) => module.group === 'complementary');
+
+export const kpiVariableLibrary: KpiVariable[] = [
+  {
+    id: 'sales.revenue',
+    name: 'Ingresos por ventas',
+    moduleId: 'sales',
+    category: 'Ingresos',
+    type: 'money',
+    valueLabel: formatCurrency(financials.revenue),
+    sampleValue: 88,
+    status: 'healthy',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'higher',
+    formula: 'Ventas ganadas + ventas entregadas netas de devoluciones',
+    usedBy: 4,
+    description: 'Mide escala comercial y alimenta rentabilidad, margen y forecast.',
+  },
+  {
+    id: 'sales.conversion',
+    name: 'Conversion comercial',
+    moduleId: 'sales',
+    category: 'Pipeline',
+    type: 'percentage',
+    valueLabel: '34.8%',
+    sampleValue: 74,
+    status: 'watch',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'higher',
+    formula: 'Cotizaciones aceptadas / cotizaciones emitidas',
+    usedBy: 3,
+    description: 'Explica calidad del embudo y disciplina de seguimiento.',
+  },
+  {
+    id: 'pos.ticket',
+    name: 'Ticket promedio POS',
+    moduleId: 'point-of-sale',
+    category: 'Venta diaria',
+    type: 'money',
+    valueLabel: formatCurrency(835),
+    sampleValue: 79,
+    status: 'healthy',
+    cadence: 'Diaria',
+    freshness: 'Ultimo corte',
+    direction: 'higher',
+    formula: 'Venta neta POS / numero de tickets',
+    usedBy: 2,
+    description: 'Lee calidad de venta mostrador y mezcla de productos.',
+  },
+  {
+    id: 'pos.cash-delta',
+    name: 'Diferencia de corte',
+    moduleId: 'point-of-sale',
+    category: 'Control',
+    type: 'money',
+    valueLabel: formatCurrency(640),
+    sampleValue: 86,
+    status: 'healthy',
+    cadence: 'Por corte',
+    freshness: 'Ultimo corte',
+    direction: 'lower',
+    formula: 'Esperado en caja - contado fisico',
+    usedBy: 2,
+    description: 'Mide disciplina de caja y riesgo operativo en mostrador.',
+  },
+  {
+    id: 'inventory.rotation',
+    name: 'Rotacion de inventario',
+    moduleId: 'inventory',
+    category: 'Producto',
+    type: 'ratio',
+    valueLabel: '3.7x',
+    sampleValue: 76,
+    status: 'watch',
+    cadence: 'Semanal',
+    freshness: 'Actualizado ayer',
+    direction: 'higher',
+    formula: 'Costo de venta / inventario promedio',
+    usedBy: 3,
+    description: 'Conecta stock con ventas y capital inmovilizado.',
+  },
+  {
+    id: 'inventory.stockout-risk',
+    name: 'Riesgo de quiebre',
+    moduleId: 'inventory',
+    category: 'Disponibilidad',
+    type: 'percentage',
+    valueLabel: '11.4%',
+    sampleValue: 69,
+    status: 'watch',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'lower',
+    formula: 'Items bajo minimo / items activos',
+    usedBy: 2,
+    description: 'Anticipa ventas perdidas por falta de producto.',
+  },
+  {
+    id: 'expenses.budget-used',
+    name: 'Presupuesto comprometido',
+    moduleId: 'expenses',
+    category: 'Presupuesto',
+    type: 'percentage',
+    valueLabel: '96.5%',
+    sampleValue: 71,
+    status: 'watch',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'lower',
+    formula: '(Gasto real + comprometido) / presupuesto aprobado',
+    usedBy: 5,
+    description: 'Controla riesgo de exceder presupuesto antes de pagar.',
+  },
+  {
+    id: 'expenses.payables-overdue',
+    name: 'CxP vencida',
+    moduleId: 'expenses',
+    category: 'Pagos',
+    type: 'money',
+    valueLabel: formatCurrency(24200),
+    sampleValue: 68,
+    status: 'watch',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'lower',
+    formula: 'Saldo pendiente con fecha de pago vencida',
+    usedBy: 4,
+    description: 'Expone presion de caja y riesgo con proveedores.',
+  },
+  {
+    id: 'petty-cash.cut-compliance',
+    name: 'Cortes de caja chica al dia',
+    moduleId: 'petty-cash',
+    category: 'Control',
+    type: 'percentage',
+    valueLabel: '82.0%',
+    sampleValue: 82,
+    status: 'watch',
+    cadence: 'Semanal',
+    freshness: 'Actualizado ayer',
+    direction: 'higher',
+    formula: 'Cajas con corte vigente / cajas activas',
+    usedBy: 2,
+    description: 'Relaciona fondos administrados con disciplina de comprobacion.',
+  },
+  {
+    id: 'petty-cash.shortage',
+    name: 'Faltante por saldar',
+    moduleId: 'petty-cash',
+    category: 'Riesgo',
+    type: 'money',
+    valueLabel: formatCurrency(1800),
+    sampleValue: 73,
+    status: 'watch',
+    cadence: 'Por corte',
+    freshness: 'Ultimo corte',
+    direction: 'lower',
+    formula: 'Saldo entregado - comprobado - devuelto',
+    usedBy: 2,
+    description: 'Identifica saldo que debe saldarse al cerrar caja.',
+  },
+  {
+    id: 'tasks.on-time',
+    name: 'Cumplimiento de tareas',
+    moduleId: 'processes-tasks',
+    category: 'Ejecucion',
+    type: 'percentage',
+    valueLabel: '78.4%',
+    sampleValue: 78,
+    status: 'watch',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'higher',
+    formula: 'Tareas completadas a tiempo / tareas vencidas en periodo',
+    usedBy: 4,
+    description: 'Mide ejecucion real sin mezclar actividad con resultado.',
+  },
+  {
+    id: 'tasks.audit-score',
+    name: 'Score de auditoria',
+    moduleId: 'processes-tasks',
+    category: 'Calidad',
+    type: 'score',
+    valueLabel: '62/100',
+    sampleValue: 62,
+    status: 'critical',
+    cadence: 'Semanal',
+    freshness: 'Actualizado ayer',
+    direction: 'higher',
+    formula: 'Evidencia + revision + cierre correcto ponderados',
+    usedBy: 3,
+    description: 'Explica si el trabajo esta documentado y listo para revision.',
+  },
+  {
+    id: 'hr.attendance',
+    name: 'Asistencia efectiva',
+    moduleId: 'human-resources',
+    category: 'Personas',
+    type: 'percentage',
+    valueLabel: '94.2%',
+    sampleValue: 89,
+    status: 'healthy',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'higher',
+    formula: 'Asistencias validas / jornadas esperadas',
+    usedBy: 2,
+    description: 'Conecta disponibilidad del equipo con capacidad operativa.',
+  },
+  {
+    id: 'hr.payroll-variance',
+    name: 'Variacion de nomina',
+    moduleId: 'human-resources',
+    category: 'Costo laboral',
+    type: 'percentage',
+    valueLabel: '4.1%',
+    sampleValue: 84,
+    status: 'healthy',
+    cadence: 'Quincenal',
+    freshness: 'Ultimo cierre',
+    direction: 'lower',
+    formula: 'Nomina real vs nomina planeada',
+    usedBy: 2,
+    description: 'Ayuda a controlar costo laboral contra presupuesto.',
+  },
+  {
+    id: 'receivables.collection-speed',
+    name: 'Velocidad de cobranza',
+    moduleId: 'receivables',
+    category: 'Cobranza',
+    type: 'days',
+    valueLabel: '18 dias',
+    sampleValue: 81,
+    status: 'healthy',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'lower',
+    formula: 'Dias promedio entre venta a credito y cobro',
+    usedBy: 3,
+    description: 'Convierte venta en liquidez y explica presion de caja.',
+  },
+  {
+    id: 'receivables.overdue',
+    name: 'Cartera vencida',
+    moduleId: 'receivables',
+    category: 'Riesgo',
+    type: 'money',
+    valueLabel: formatCurrency(14600),
+    sampleValue: 77,
+    status: 'watch',
+    cadence: 'Diaria',
+    freshness: 'Actualizado hoy',
+    direction: 'lower',
+    formula: 'CxC con dias vencidos mayor a cero',
+    usedBy: 3,
+    description: 'Mide riesgo de cobro y necesidad de seguimiento.',
+  },
+];
+
+export const kpiBuilderTemplates: KpiBuilderTemplate[] = [
+  {
+    id: 'financial-control',
+    title: 'Salud financiera integral',
+    category: 'Direccion',
+    status: 'watch',
+    target: 85,
+    score: 77,
+    description: 'Combina rentabilidad, caja, presupuesto, pagos y cobranza.',
+    components: [
+      { variableId: 'sales.revenue', weight: 15, role: 'Escala' },
+      { variableId: 'expenses.budget-used', weight: 20, role: 'Control presupuestal' },
+      { variableId: 'expenses.payables-overdue', weight: 20, role: 'Riesgo de pago' },
+      { variableId: 'receivables.collection-speed', weight: 20, role: 'Liquidez' },
+      { variableId: 'petty-cash.cut-compliance', weight: 10, role: 'Fondos menores' },
+      { variableId: 'hr.payroll-variance', weight: 15, role: 'Costo laboral' },
+    ],
+  },
+  {
+    id: 'commercial-execution',
+    title: 'Ejecucion comercial',
+    category: 'Comercial',
+    status: 'healthy',
+    target: 85,
+    score: 82,
+    description: 'Une ventas, POS, inventario y cobranza para leer continuidad comercial.',
+    components: [
+      { variableId: 'sales.conversion', weight: 25, role: 'Pipeline' },
+      { variableId: 'pos.ticket', weight: 20, role: 'Mostrador' },
+      { variableId: 'inventory.rotation', weight: 20, role: 'Producto' },
+      { variableId: 'inventory.stockout-risk', weight: 15, role: 'Disponibilidad' },
+      { variableId: 'receivables.collection-speed', weight: 20, role: 'Cobranza' },
+    ],
+  },
+  {
+    id: 'operational-discipline',
+    title: 'Disciplina operativa',
+    category: 'Operacion',
+    status: 'watch',
+    target: 85,
+    score: 73,
+    description: 'Mide cumplimiento, evidencia, caja diaria y disponibilidad de equipo.',
+    components: [
+      { variableId: 'tasks.on-time', weight: 25, role: 'Cumplimiento' },
+      { variableId: 'tasks.audit-score', weight: 20, role: 'Calidad' },
+      { variableId: 'pos.cash-delta', weight: 15, role: 'Caja diaria' },
+      { variableId: 'petty-cash.shortage', weight: 15, role: 'Fondos' },
+      { variableId: 'hr.attendance', weight: 25, role: 'Capacidad' },
     ],
   },
 ];

@@ -50,21 +50,21 @@ export default function Kpis({ onNavigate }: KpisProps) {
       id: 'kpis',
       label: t.tabs.kpis,
       icon: LayoutDashboard,
-      iconClassName: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+      iconClassName: 'text-blue-700 bg-blue-50 border-blue-200',
       component: KPIs,
     },
     {
       id: 'accounting-reports',
       label: t.tabs.informesContables,
       icon: FileSpreadsheet,
-      iconClassName: 'text-sky-700 bg-sky-50 border-sky-200',
+      iconClassName: 'text-blue-700 bg-blue-50 border-blue-200',
       component: InformesContables,
     },
     {
       id: 'automated-reports',
       label: t.tabs.informesAutomatizados,
       icon: BellRing,
-      iconClassName: 'text-amber-700 bg-amber-50 border-amber-200',
+      iconClassName: 'text-blue-700 bg-blue-50 border-blue-200',
       component: InformesAutomatizados,
     },
   ];
@@ -101,7 +101,7 @@ export default function Kpis({ onNavigate }: KpisProps) {
               </span>
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
+                  <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200">
                     {t.badges.executive}
                   </span>
                   <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
@@ -140,8 +140,8 @@ export default function Kpis({ onNavigate }: KpisProps) {
                   className={cn(
                     'flex h-11 shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors',
                     isActive
-                      ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-200',
+                      ? 'border-blue-700 bg-blue-700 text-white shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/40 dark:hover:text-blue-200',
                   )}
                   aria-current={isActive ? 'page' : undefined}
                 >
