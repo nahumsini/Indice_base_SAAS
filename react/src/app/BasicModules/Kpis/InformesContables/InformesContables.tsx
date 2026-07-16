@@ -1,17 +1,31 @@
 import { useMemo, useState } from 'react';
-import { FileSpreadsheet, PackageOpen, Printer, ShieldCheck } from 'lucide-react';
+import { CalendarDays, FileSpreadsheet, Printer, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import {
   financialStatements,
   formatCurrency,
-  reportPackages,
   statusClasses,
   statusLabels,
   type FinancialStatement,
   type StatementId,
   type StatementLine,
 } from '../kpisExecutiveData';
+
+type PeriodPreset = {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+};
+
+const periodPresets: PeriodPreset[] = [
+  { id: 'current-month', label: 'Mes actual', from: '2026-07-01', to: '2026-07-31' },
+  { id: 'previous-month', label: 'Mes anterior', from: '2026-06-01', to: '2026-06-30' },
+  { id: 'quarter', label: 'Trimestre actual', from: '2026-07-01', to: '2026-09-30' },
+  { id: 'year', label: 'Anio actual', from: '2026-01-01', to: '2026-12-31' },
+  { id: 'custom', label: 'Personalizado', from: '2026-07-01', to: '2026-07-31' },
+];
 
 function StatusBadge({ status }: { status: FinancialStatement['status'] }) {
   return (
@@ -28,7 +42,7 @@ function formatCellValue(value: string | number) {
 
 function lineClassName(line: StatementLine) {
   if (line.kind === 'total') {
-    return 'bg-emerald-50 font-bold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100';
+    return 'bg-blue-50 font-bold text-blue-950 dark:bg-blue-950/30 dark:text-blue-100';
   }
   if (line.kind === 'subtotal') {
     return 'bg-slate-50 font-semibold text-slate-950 dark:bg-slate-950 dark:text-white';
@@ -44,42 +58,188 @@ function amountClassName(value: number, kind?: StatementLine['kind']) {
 
 export default function InformesContables() {
   const [activeStatementId, setActiveStatementId] = useState<StatementId>('income');
+  const [periodPresetId, setPeriodPresetId] = useState('current-month');
+  const [periodFrom, setPeriodFrom] = useState(periodPresets[0].from);
+  const [periodTo, setPeriodTo] = useState(periodPresets[0].to);
+  const [calculationBasis, setCalculationBasis] = useState('accrual');
+  const [documentScope, setDocumentScope] = useState('all');
   const activeStatement = useMemo(
     () => financialStatements.find((statement) => statement.id === activeStatementId) ?? financialStatements[0],
     [activeStatementId],
   );
 
-  const healthyCount = financialStatements.filter((statement) => statement.status === 'healthy').length;
-  const watchCount = financialStatements.filter((statement) => statement.status === 'watch').length;
-  const criticalCount = financialStatements.filter((statement) => statement.status === 'critical').length;
+  const filteredStatements = useMemo(() => (
+    documentScope === 'all'
+      ? financialStatements
+      : financialStatements.filter((statement) => statement.category === documentScope)
+  ), [documentScope]);
+  const documentCategories = useMemo(
+    () => Array.from(new Set(financialStatements.map((statement) => statement.category))),
+    [],
+  );
+  const selectedPreset = periodPresets.find((preset) => preset.id === periodPresetId) ?? periodPresets[0];
   const ActiveIcon = activeStatement.icon;
+
+  const handlePeriodPresetChange = (presetId: string) => {
+    const preset = periodPresets.find((option) => option.id === presetId);
+    if (!preset) return;
+
+    setPeriodPresetId(presetId);
+    setPeriodFrom(preset.from);
+    setPeriodTo(preset.to);
+  };
+
+  const resetPeriodFilters = () => {
+    setPeriodPresetId(periodPresets[0].id);
+    setPeriodFrom(periodPresets[0].from);
+    setPeriodTo(periodPresets[0].to);
+    setCalculationBasis('accrual');
+    setDocumentScope('all');
+  };
+
+  const handleDocumentScopeChange = (scope: string) => {
+    setDocumentScope(scope);
+
+    const nextStatements = scope === 'all'
+      ? financialStatements
+      : financialStatements.filter((statement) => statement.category === scope);
+
+    if (nextStatements.length > 0 && !nextStatements.some((statement) => statement.id === activeStatementId)) {
+      setActiveStatementId(nextStatements[0].id);
+    }
+  };
 
   return (
     <div className="space-y-5">
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Estados disponibles
-          </p>
-          <p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{financialStatements.length}</p>
+      <section className="rounded-lg border border-blue-200 bg-blue-50/80 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
+        <div className="flex min-w-0 gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-700 shadow-sm dark:border-blue-900 dark:bg-slate-950 dark:text-blue-200">
+            <FileSpreadsheet className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+              Estados financieros
+            </p>
+            <h2 className="mt-1 text-xl font-bold tracking-normal text-slate-950 dark:text-white">
+              Documentos proforma por periodo
+            </h2>
+            <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-700 dark:text-slate-200">
+              Calcula y revisa documentos contables con filtros de periodo, base y tipo de reporte.
+            </p>
+          </div>
         </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-            Sanos
-          </p>
-          <p className="mt-2 text-2xl font-bold text-emerald-900 dark:text-emerald-100">{healthyCount}</p>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+              <CalendarDays className="h-4 w-4 text-blue-700 dark:text-blue-300" />
+              Periodo de calculo
+            </div>
+            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Define el rango con el que se calcularan los estados financieros proforma.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={resetPeriodFilters}
+            className="h-10 w-fit rounded-lg border-slate-300 text-sm font-semibold dark:border-slate-700"
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Limpiar filtros
+          </Button>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950/30">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-            En atencion
-          </p>
-          <p className="mt-2 text-2xl font-bold text-amber-900 dark:text-amber-100">{watchCount}</p>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.1fr_1fr_1fr_1fr_1fr]">
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Periodo
+            </span>
+            <select
+              value={periodPresetId}
+              onChange={(event) => handlePeriodPresetChange(event.target.value)}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+            >
+              {periodPresets.map((preset) => (
+                <option key={preset.id} value={preset.id}>{preset.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Desde
+            </span>
+            <input
+              type="date"
+              value={periodFrom}
+              onChange={(event) => {
+                setPeriodPresetId('custom');
+                setPeriodFrom(event.target.value);
+              }}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+            />
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Hasta
+            </span>
+            <input
+              type="date"
+              value={periodTo}
+              onChange={(event) => {
+                setPeriodPresetId('custom');
+                setPeriodTo(event.target.value);
+              }}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+            />
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Base
+            </span>
+            <select
+              value={calculationBasis}
+              onChange={(event) => setCalculationBasis(event.target.value)}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+            >
+              <option value="accrual">Devengado</option>
+              <option value="cash">Flujo de caja</option>
+              <option value="proforma">Proforma</option>
+            </select>
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Documento
+            </span>
+            <select
+              value={documentScope}
+              onChange={(event) => handleDocumentScopeChange(event.target.value)}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+            >
+              <option value="all">Todos</option>
+              {documentCategories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </label>
         </div>
-        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 shadow-sm dark:border-rose-900 dark:bg-rose-950/30">
-          <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-            Criticos
-          </p>
-          <p className="mt-2 text-2xl font-bold text-rose-900 dark:text-rose-100">{criticalCount}</p>
+
+        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+            {selectedPreset.label}: {periodFrom} a {periodTo}
+          </span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950">
+            Base: {calculationBasis === 'accrual' ? 'Devengado' : calculationBasis === 'cash' ? 'Flujo de caja' : 'Proforma'}
+          </span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950">
+            Documentos: {filteredStatements.length}
+          </span>
         </div>
       </section>
 
@@ -92,7 +252,7 @@ export default function InformesContables() {
             </div>
           </div>
           <div className="max-h-[720px] overflow-y-auto p-2">
-            {financialStatements.map((statement) => {
+            {filteredStatements.map((statement) => {
               const Icon = statement.icon;
               const isActive = statement.id === activeStatementId;
 
@@ -104,7 +264,7 @@ export default function InformesContables() {
                   className={cn(
                     'mb-2 flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
                     isActive
-                      ? 'border-emerald-700 bg-emerald-50 text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'
+                      ? 'border-blue-700 bg-blue-50 text-blue-950 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-100'
                       : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:hover:border-slate-800 dark:hover:bg-slate-950',
                   )}
                 >
@@ -112,7 +272,7 @@ export default function InformesContables() {
                     className={cn(
                       'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border',
                       isActive
-                        ? 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-200'
+                        ? 'border-blue-200 bg-white text-blue-700 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200'
                         : 'border-slate-200 bg-white text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400',
                     )}
                   >
@@ -121,12 +281,18 @@ export default function InformesContables() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{statement.title}</span>
                     <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                      {statement.category} - {statement.period}
+                      {statement.category} - {periodFrom} / {periodTo}
                     </span>
                   </span>
                 </button>
               );
             })}
+            {filteredStatements.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center dark:border-slate-700">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">No hay documentos en este filtro.</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Cambia el tipo de documento para ampliar el listado.</p>
+              </div>
+            ) : null}
           </div>
         </aside>
 
@@ -135,17 +301,17 @@ export default function InformesContables() {
             <div className="border-b border-slate-100 p-5 dark:border-slate-800">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex min-w-0 gap-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
                     <ActiveIcon className="h-6 w-6" />
                   </span>
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <StatusBadge status={activeStatement.status} />
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                        {activeStatement.period}
+                        {periodFrom} / {periodTo}
                       </span>
-                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
-                        Proforma
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+                        {calculationBasis === 'accrual' ? 'Devengado' : calculationBasis === 'cash' ? 'Caja' : 'Proforma'}
                       </span>
                     </div>
                     <h2 className="text-xl font-bold tracking-normal text-slate-950 dark:text-white">
@@ -171,12 +337,12 @@ export default function InformesContables() {
             </div>
 
             <div className="p-5">
-              <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
-                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+              <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+                <div className="flex items-center gap-2 text-sm font-semibold text-blue-800 dark:text-blue-200">
                   <ShieldCheck className="h-4 w-4" />
                   Lectura ejecutiva
                 </div>
-                <p className="mt-2 text-sm leading-6 text-emerald-900 dark:text-emerald-100">
+                <p className="mt-2 text-sm leading-6 text-blue-950 dark:text-blue-100">
                   {activeStatement.insight}
                 </p>
               </div>
@@ -240,47 +406,6 @@ export default function InformesContables() {
               ) : null}
             </div>
           </article>
-
-          <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="border-b border-slate-100 p-5 dark:border-slate-800">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                <PackageOpen className="h-4 w-4" />
-                Paquetes de reporte
-              </div>
-            </div>
-            <div className="grid gap-3 p-5 lg:grid-cols-3">
-              {reportPackages.map((report) => {
-                const Icon = report.icon;
-                const packageStatements = report.statements
-                  .map((statementId) => financialStatements.find((statement) => statement.id === statementId)?.title)
-                  .filter(Boolean);
-
-                return (
-                  <article
-                    key={report.title}
-                    className="rounded-lg border border-slate-200 p-4 dark:border-slate-800"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', report.status === 'ready' ? statusClasses.healthy : statusClasses.watch)}>
-                        {report.status === 'ready' ? 'Listo' : 'Borrador'}
-                      </span>
-                    </div>
-                    <h3 className="mt-4 font-bold text-slate-950 dark:text-white">{report.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{report.description}</p>
-                    <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      Incluye
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
-                      {packageStatements.join(', ')}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
         </div>
       </section>
     </div>

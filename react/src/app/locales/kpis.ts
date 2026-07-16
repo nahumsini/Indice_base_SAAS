@@ -1,12 +1,12 @@
 const esMx = {
-  title: 'Centro ejecutivo de KPIs',
-  subtitle: 'Indicadores compuestos, estados financieros proforma e informes automatizados.',
+  title: 'Indice KPIs',
+  subtitle: 'Centro operativo para crear indicadores compuestos, leer estados financieros y automatizar reportes.',
   back: 'Regresar',
   loadingTitle: 'Cargando modulo KPIs',
   loadingDescription: 'Abriendo el espacio ejecutivo seleccionado.',
   badges: {
-    proforma: 'Modelo proforma',
-    executive: 'Lectura ejecutiva',
+    proforma: 'Analitica operativa',
+    executive: 'Modulo Indice',
   },
   tabs: {
     kpis: 'Panel ejecutivo',
@@ -48,14 +48,14 @@ const esMx = {
 };
 
 const enUs: typeof esMx = {
-  title: 'Executive KPI Center',
-  subtitle: 'Composite indicators, proforma financial statements, and automated reports.',
+  title: 'Indice KPIs',
+  subtitle: 'Operational center to build composite indicators, read financial statements, and automate reports.',
   back: 'Back',
   loadingTitle: 'Loading KPI module',
   loadingDescription: 'Opening the selected executive workspace.',
   badges: {
-    proforma: 'Proforma model',
-    executive: 'Executive reading',
+    proforma: 'Operational analytics',
+    executive: 'Indice module',
   },
   tabs: {
     kpis: 'Executive panel',
