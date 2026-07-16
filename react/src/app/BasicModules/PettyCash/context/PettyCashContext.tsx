@@ -2,10 +2,6 @@ import { createContext, useContext, useEffect, useMemo, useState, type Dispatch,
 import {
   mockCashFunds,
   mockPettyCashExpenses,
-  mockPettyCashFunds,
-  mockPettyCashMovements,
-  mockPettyCashSettlementLines,
-  mockPettyCashStatements,
 } from '../data/pettyCash.mock';
 import { pettyCashService } from '../services';
 import type {
@@ -37,10 +33,10 @@ const PettyCashContext = createContext<PettyCashContextValue | null>(null);
 export function PettyCashProvider({ children }: { children: ReactNode }) {
   const [cashFunds, setCashFunds] = useState<CashFund[]>(mockCashFunds);
   const [pettyCashExpenses, setPettyCashExpenses] = useState<PettyCashExpense[]>(mockPettyCashExpenses);
-  const [pettyCashFunds, setPettyCashFunds] = useState<PettyCashFund[]>(mockPettyCashFunds);
-  const [pettyCashMovements, setPettyCashMovements] = useState<PettyCashMovement[]>(mockPettyCashMovements);
-  const [pettyCashSettlementLines, setPettyCashSettlementLines] = useState<PettyCashSettlementLine[]>(mockPettyCashSettlementLines);
-  const [pettyCashStatements, setPettyCashStatements] = useState<PettyCashStatement[]>(mockPettyCashStatements);
+  const [pettyCashFunds, setPettyCashFunds] = useState<PettyCashFund[]>([]);
+  const [pettyCashMovements, setPettyCashMovements] = useState<PettyCashMovement[]>([]);
+  const [pettyCashSettlementLines, setPettyCashSettlementLines] = useState<PettyCashSettlementLine[]>([]);
+  const [pettyCashStatements, setPettyCashStatements] = useState<PettyCashStatement[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +50,11 @@ export function PettyCashProvider({ children }: { children: ReactNode }) {
         setPettyCashStatements(workspace.statements);
       })
       .catch(() => {
-        // Keep local data available while the backend session/API is unavailable.
+        if (cancelled) return;
+        setPettyCashFunds([]);
+        setPettyCashMovements([]);
+        setPettyCashSettlementLines([]);
+        setPettyCashStatements([]);
       });
 
     return () => {

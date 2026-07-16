@@ -148,6 +148,26 @@ class PettyCashRepository {
         return rows.stream().findFirst();
     }
 
+    void markPriorOpenStatementsCutPending(FinanceContext context, long fundId, String currentPeriodKey) {
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_statements
+            SET status = 'CUT_PENDING',
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND petty_cash_fund_id = ?
+              AND period_key < ?
+              AND status = 'OPEN'
+              AND deleted_at IS NULL
+            """,
+            context.userId(),
+            context.companyId(),
+            fundId,
+            currentPeriodKey
+        );
+    }
+
     List<PettyCashMovementRecord> findMovements(FinanceContext context) {
         var params = scopedParams(context);
         return jdbcTemplate.query(
@@ -431,6 +451,174 @@ class PettyCashRepository {
         return findSettlementLineById(context, lineId).orElseThrow();
     }
 
+    boolean softDeleteSettlementLine(FinanceContext context, PettyCashSettlementLineRecord line) {
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_settlement_lines
+            SET deleted_at = CURRENT_TIMESTAMP,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            context.userId(),
+            context.companyId(),
+            line.id()
+        );
+        if (updated > 0) {
+            jdbcTemplate.update(
+                """
+                UPDATE finance_petty_cash_settlement_line_attachments
+                SET deleted_at = CURRENT_TIMESTAMP
+                WHERE company_id = ?
+                  AND settlement_line_id = ?
+                  AND deleted_at IS NULL
+                """,
+                context.companyId(),
+                line.id()
+            );
+        }
+        return updated > 0;
+    }
+
+    boolean rejectSettlementLine(FinanceContext context, long settlementLineId) {
+        return jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_settlement_lines
+            SET status = ?,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND expense_id IS NULL
+              AND status IN (?, ?, ?)
+              AND deleted_at IS NULL
+            """,
+            PettyCashSettlementLineStatus.REJECTED.name(),
+            context.userId(),
+            context.companyId(),
+            settlementLineId,
+            PettyCashSettlementLineStatus.DRAFT.name(),
+            PettyCashSettlementLineStatus.RECEIPT_ATTACHED.name(),
+            PettyCashSettlementLineStatus.VALIDATED.name()
+        ) > 0;
+    }
+
+    boolean clearPendingSettlementLineExpenseLink(FinanceContext context, long settlementLineId) {
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_settlement_lines
+            SET expense_id = NULL,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND expense_id IS NOT NULL
+              AND status IN (?, ?, ?)
+              AND deleted_at IS NULL
+            """,
+            context.userId(),
+            context.companyId(),
+            settlementLineId,
+            PettyCashSettlementLineStatus.DRAFT.name(),
+            PettyCashSettlementLineStatus.RECEIPT_ATTACHED.name(),
+            PettyCashSettlementLineStatus.VALIDATED.name()
+        );
+        if (updated > 0) {
+            jdbcTemplate.update(
+                """
+                UPDATE finance_petty_cash_settlement_line_attachments
+                SET expense_id = NULL
+                WHERE company_id = ?
+                  AND settlement_line_id = ?
+                  AND deleted_at IS NULL
+                """,
+                context.companyId(),
+                settlementLineId
+            );
+        }
+        return updated > 0;
+    }
+
+    boolean softDeleteGeneratedExpense(FinanceContext context, Long expenseId, long settlementLineId) {
+        if (expenseId == null) {
+            return false;
+        }
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_expenses
+            SET deleted_at = CURRENT_TIMESTAMP,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+              AND audit_status = 'PETTY_CASH'
+            """,
+            context.userId(),
+            context.companyId(),
+            expenseId
+        );
+        if (updated > 0) {
+            jdbcTemplate.update(
+                """
+                UPDATE finance_expense_attachments
+                SET deleted_at = CURRENT_TIMESTAMP
+                WHERE company_id = ?
+                  AND expense_id = ?
+                  AND deleted_at IS NULL
+                """,
+                context.companyId(),
+                expenseId
+            );
+            jdbcTemplate.update(
+                """
+                UPDATE finance_petty_cash_settlement_line_attachments
+                SET expense_id = NULL
+                WHERE company_id = ?
+                  AND settlement_line_id = ?
+                  AND expense_id = ?
+                  AND deleted_at IS NULL
+                """,
+                context.companyId(),
+                settlementLineId,
+                expenseId
+            );
+        }
+        return updated > 0;
+    }
+
+    void revertSettlementLineFromStatement(FinanceContext context, PettyCashSettlementLineRecord line) {
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_statements
+            SET estimated_usage_amount = GREATEST(0, estimated_usage_amount - ?),
+                declared_closing_balance_amount = declared_closing_balance_amount + ?,
+                attachment_count = GREATEST(0, attachment_count - ?),
+                status = CASE
+                  WHEN GREATEST(0, estimated_usage_amount - ?) = 0 THEN 'OPEN'
+                  WHEN verified_expense_amount >= GREATEST(0, estimated_usage_amount - ?) THEN 'SETTLED'
+                  WHEN verified_expense_amount > 0 THEN 'PARTIALLY_SETTLED'
+                  ELSE 'CUT_PENDING'
+                END,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            line.totalAmount(),
+            line.totalAmount(),
+            line.attachmentCount(),
+            line.totalAmount(),
+            line.totalAmount(),
+            context.userId(),
+            context.companyId(),
+            line.pettyCashStatementId()
+        );
+    }
+
     Long insertExpenseFromSettlementLine(
             FinanceContext context,
             PettyCashFundRecord fund,
@@ -518,15 +706,59 @@ class PettyCashRepository {
             context.companyId(),
             lineId
         );
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_settlement_line_attachments
+            SET expense_id = ?
+            WHERE company_id = ?
+              AND settlement_line_id = ?
+              AND deleted_at IS NULL
+            """,
+            expenseId,
+            context.companyId(),
+            lineId
+        );
+        jdbcTemplate.update(
+            """
+            INSERT INTO finance_expense_attachments
+            (company_id, expense_id, original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id,
+             custom_fields_json, metadata_json)
+            SELECT attachment.company_id,
+                   ?,
+                   attachment.original_filename,
+                   attachment.mime_type,
+                   attachment.size_bytes,
+                   attachment.object_key,
+                   attachment.uploaded_by_user_id,
+                   NULL,
+                   JSON_OBJECT('source', 'PETTY_CASH', 'settlementLineId', attachment.settlement_line_id)
+            FROM finance_petty_cash_settlement_line_attachments attachment
+            WHERE attachment.company_id = ?
+              AND attachment.settlement_line_id = ?
+              AND attachment.deleted_at IS NULL
+              AND NOT EXISTS (
+                SELECT 1
+                FROM finance_expense_attachments existing
+                WHERE existing.company_id = attachment.company_id
+                  AND existing.expense_id = ?
+                  AND existing.object_key = attachment.object_key
+                  AND existing.deleted_at IS NULL
+              )
+            """,
+            expenseId,
+            context.companyId(),
+            lineId,
+            expenseId
+        );
     }
 
     void adjustFundBalance(FinanceContext context, long fundId, BigDecimal delta) {
         jdbcTemplate.update(
             """
             UPDATE finance_petty_cash_funds
-            SET current_balance_amount = GREATEST(0, current_balance_amount + ?),
+            SET current_balance_amount = current_balance_amount + ?,
                 status = CASE
-                  WHEN limit_amount > 0 AND GREATEST(0, current_balance_amount + ?) <= (limit_amount * 0.15) THEN 'LOW_BALANCE'
+                  WHEN current_balance_amount + ? <= (limit_amount * 0.15) THEN 'LOW_BALANCE'
                   ELSE 'OPEN'
                 END,
                 updated_by_user_id = ?,
@@ -581,7 +813,7 @@ class PettyCashRepository {
                 additional_deposit_amount = additional_deposit_amount + ?,
                 returned_amount = returned_amount + ?,
                 carry_forward_amount = carry_forward_amount + ?,
-                declared_closing_balance_amount = GREATEST(0, declared_closing_balance_amount + ?),
+                declared_closing_balance_amount = declared_closing_balance_amount + ?,
                 updated_by_user_id = ?,
                 version = version + 1
             WHERE company_id = ?
@@ -627,7 +859,7 @@ class PettyCashRepository {
             """
             UPDATE finance_petty_cash_statements
             SET estimated_usage_amount = estimated_usage_amount + ?,
-                declared_closing_balance_amount = GREATEST(0, declared_closing_balance_amount - ?),
+                declared_closing_balance_amount = declared_closing_balance_amount - ?,
                 attachment_count = attachment_count + ?,
                 status = CASE WHEN status = 'SETTLED' THEN 'PARTIALLY_SETTLED' ELSE 'CUT_PENDING' END,
                 updated_by_user_id = ?,
@@ -672,11 +904,39 @@ class PettyCashRepository {
         );
     }
 
+    void revertSettlementLineExpenseFromStatement(
+            FinanceContext context,
+            long statementId,
+            BigDecimal totalAmount) {
+        jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_statements
+            SET verified_expense_amount = GREATEST(0, verified_expense_amount - ?),
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            totalAmount,
+            context.userId(),
+            context.companyId(),
+            statementId
+        );
+    }
+
     void applySettlementLineToBudgetLine(FinanceContext context, Long budgetLineId, BigDecimal totalAmount) {
         if (budgetLineId == null || totalAmount == null || totalAmount.signum() == 0) {
             return;
         }
         adjustBudgetLinePettyCash(context, budgetLineId, BigDecimal.ZERO, totalAmount, totalAmount);
+    }
+
+    void revertSettlementLineFromBudgetLine(FinanceContext context, Long budgetLineId, BigDecimal totalAmount) {
+        if (budgetLineId == null || totalAmount == null || totalAmount.signum() == 0) {
+            return;
+        }
+        adjustBudgetLinePettyCash(context, budgetLineId, BigDecimal.ZERO, totalAmount.negate(), totalAmount.negate());
     }
 
     boolean existsByName(FinanceContext context, String name, Long excludedFundId) {

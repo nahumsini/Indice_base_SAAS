@@ -96,6 +96,7 @@ public class PettyCashPublicKioskService {
         body.put("identification_token", identificationToken);
         body.put("expires_at", Instant.ofEpochSecond(expiresAtEpochSeconds).toString());
         body.put("recent_receipts", recentReceipts(fund));
+        body.putAll(publicHistory(fund));
         return body;
     }
 
@@ -157,6 +158,7 @@ public class PettyCashPublicKioskService {
         body.put("statement", mutation.statement());
         body.put("settlement_line", mutation.settlementLine());
         body.put("recent_receipts", recentReceipts(refreshedFund));
+        body.putAll(publicHistory(refreshedFund));
         return body;
     }
 
@@ -347,6 +349,122 @@ public class PettyCashPublicKioskService {
                 row.put("expense_date", rs.getObject("expense_date", LocalDate.class));
                 row.put("attachment_count", rs.getInt("attachment_count"));
                 row.put("status", rs.getString("status"));
+                return row;
+            },
+            fund.companyId(),
+            fund.id()
+        );
+        return new ArrayList<>(items);
+    }
+
+    private Map<String, Object> publicHistory(PettyCashFundRecord fund) {
+        var history = new LinkedHashMap<String, Object>();
+        history.put("periods", publicPeriods(fund));
+        history.put("expenses", publicExpenses(fund));
+        history.put("income_movements", publicIncomeMovements(fund));
+        return history;
+    }
+
+    private List<Map<String, Object>> publicPeriods(PettyCashFundRecord fund) {
+        var items = jdbcTemplate.query(
+            """
+                SELECT id, period_key, period_start, period_end, status, currency_code
+                FROM finance_petty_cash_statements
+                WHERE company_id = ?
+                  AND petty_cash_fund_id = ?
+                  AND deleted_at IS NULL
+                ORDER BY period_start DESC, id DESC
+                LIMIT 24
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("period_key", rs.getString("period_key"));
+                row.put("period_start", rs.getObject("period_start", LocalDate.class));
+                row.put("period_end", rs.getObject("period_end", LocalDate.class));
+                row.put("status", rs.getString("status"));
+                row.put("currency_code", rs.getString("currency_code"));
+                return row;
+            },
+            fund.companyId(),
+            fund.id()
+        );
+        return new ArrayList<>(items);
+    }
+
+    private List<Map<String, Object>> publicExpenses(PettyCashFundRecord fund) {
+        var items = jdbcTemplate.query(
+            """
+                SELECT settlement_line.id,
+                       settlement_line.petty_cash_statement_id,
+                       statement.period_key,
+                       settlement_line.description,
+                       settlement_line.receipt_reference,
+                       settlement_line.total_amount,
+                       settlement_line.currency_code,
+                       settlement_line.expense_date,
+                       settlement_line.attachment_count,
+                       settlement_line.status
+                FROM finance_petty_cash_settlement_lines settlement_line
+                JOIN finance_petty_cash_statements statement
+                  ON statement.id = settlement_line.petty_cash_statement_id
+                 AND statement.deleted_at IS NULL
+                WHERE settlement_line.company_id = ?
+                  AND settlement_line.petty_cash_fund_id = ?
+                  AND settlement_line.deleted_at IS NULL
+                ORDER BY settlement_line.expense_date DESC, settlement_line.id DESC
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("statement_id", rs.getLong("petty_cash_statement_id"));
+                row.put("period_key", rs.getString("period_key"));
+                row.put("description", rs.getString("description"));
+                row.put("receipt_reference", rs.getString("receipt_reference"));
+                row.put("total_amount", rs.getBigDecimal("total_amount"));
+                row.put("currency_code", rs.getString("currency_code"));
+                row.put("expense_date", rs.getObject("expense_date", LocalDate.class));
+                row.put("attachment_count", rs.getInt("attachment_count"));
+                row.put("status", rs.getString("status"));
+                return row;
+            },
+            fund.companyId(),
+            fund.id()
+        );
+        return new ArrayList<>(items);
+    }
+
+    private List<Map<String, Object>> publicIncomeMovements(PettyCashFundRecord fund) {
+        var items = jdbcTemplate.query(
+            """
+                SELECT movement.id,
+                       movement.petty_cash_statement_id,
+                       COALESCE(statement.period_key, DATE_FORMAT(movement.movement_date, '%Y-%m')) AS period_key,
+                       movement.type,
+                       movement.amount,
+                       movement.currency_code,
+                       movement.movement_date,
+                       movement.reference
+                FROM finance_petty_cash_movements movement
+                LEFT JOIN finance_petty_cash_statements statement
+                  ON statement.id = movement.petty_cash_statement_id
+                 AND statement.deleted_at IS NULL
+                WHERE movement.company_id = ?
+                  AND movement.petty_cash_fund_id = ?
+                  AND movement.deleted_at IS NULL
+                  AND movement.type IN ('INITIAL_FUNDING', 'ADDITIONAL_DEPOSIT', 'CARRY_FORWARD')
+                ORDER BY movement.movement_date DESC, movement.id DESC
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("statement_id", rs.getObject("petty_cash_statement_id", Long.class));
+                row.put("period_key", rs.getString("period_key"));
+                row.put("type", rs.getString("type"));
+                row.put("amount", rs.getBigDecimal("amount"));
+                row.put("currency_code", rs.getString("currency_code"));
+                row.put("movement_date", rs.getObject("movement_date", LocalDate.class));
+                row.put("reference", rs.getString("reference"));
                 return row;
             },
             fund.companyId(),

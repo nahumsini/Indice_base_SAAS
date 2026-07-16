@@ -13,6 +13,11 @@ import type {
   PettyCashStatement,
   PettyCashStatementStatus,
 } from '../types/pettyCash.types';
+import {
+  convertBusinessCurrencyAmount,
+  formatBusinessCurrencyBreakdown,
+  type BusinessExchangeRatesPerUsd,
+} from '../../shared/businessCurrency';
 
 export function formatPettyCashCurrency(amount: number, currency = 'CAD') {
   return new Intl.NumberFormat('es-MX', {
@@ -117,9 +122,9 @@ export const pettyCashMovementTypeLabels: Record<PettyCashMovementType, string> 
 };
 
 export const pettyCashSettlementLineStatusLabels: Record<PettyCashSettlementLineStatus, string> = {
-  DRAFT: 'Draft',
-  RECEIPT_ATTACHED: 'Receipt attached',
-  VALIDATED: 'Validated',
+  DRAFT: 'Captured',
+  RECEIPT_ATTACHED: 'With support',
+  VALIDATED: 'Approved',
   EXPENSE_CREATED: 'Expense created',
   REJECTED: 'Rejected',
 };
@@ -183,12 +188,35 @@ export function getCashFundSummary(funds: CashFund[]) {
   };
 }
 
-export function getOperationalPettyCashSummary(statements: PettyCashStatement[], funds: PettyCashFund[]) {
-  const assignedAmount = statements.reduce((sum, statement) => sum + statement.assignedAmount + statement.additionalDepositAmount, 0);
-  const estimatedUsageAmount = statements.reduce((sum, statement) => sum + statement.estimatedUsageAmount, 0);
-  const verifiedExpenseAmount = statements.reduce((sum, statement) => sum + statement.verifiedExpenseAmount, 0);
-  const shortageAmount = statements.reduce((sum, statement) => sum + statement.shortageAmount, 0);
-  const currentBalanceAmount = funds.reduce((sum, fund) => sum + fund.currentBalanceAmount, 0);
+export function getOperationalPettyCashSummary(
+  statements: PettyCashStatement[],
+  funds: PettyCashFund[],
+  preferredCurrency = 'MXN',
+  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
+) {
+  const convertStatementAmount = (amount: number, statement: PettyCashStatement) => (
+    convertBusinessCurrencyAmount(amount, statement.currencyCode, preferredCurrency, exchangeRatesPerUsd)
+  );
+  const assignedAmount = statements.reduce((sum, statement) => (
+    sum + convertStatementAmount(statement.assignedAmount + statement.additionalDepositAmount, statement)
+  ), 0);
+  const estimatedUsageAmount = statements.reduce((sum, statement) => (
+    sum + convertStatementAmount(statement.estimatedUsageAmount, statement)
+  ), 0);
+  const verifiedExpenseAmount = statements.reduce((sum, statement) => (
+    sum + convertStatementAmount(statement.verifiedExpenseAmount, statement)
+  ), 0);
+  const shortageAmount = statements.reduce((sum, statement) => (
+    sum + convertStatementAmount(statement.shortageAmount, statement)
+  ), 0);
+  const currentBalanceAmount = funds.reduce((sum, fund) => (
+    sum + convertBusinessCurrencyAmount(
+      fund.currentBalanceAmount,
+      fund.currencyCode,
+      preferredCurrency,
+      exchangeRatesPerUsd,
+    )
+  ), 0);
   const pendingReconciliationAmount = Math.max(0, estimatedUsageAmount - verifiedExpenseAmount - shortageAmount);
   const settledCount = statements.filter(statement => statement.status === 'SETTLED' || statement.status === 'CLOSED').length;
   const riskCount = statements.filter(statement => (
@@ -207,6 +235,14 @@ export function getOperationalPettyCashSummary(statements: PettyCashStatement[],
     shortageAmount,
     verifiedExpenseAmount,
   };
+}
+
+export function formatPettyCashNativeBreakdown<TItem>(
+  items: TItem[],
+  getAmount: (item: TItem) => number,
+  getCurrency: (item: TItem) => string | null | undefined,
+) {
+  return formatBusinessCurrencyBreakdown(items, getAmount, getCurrency);
 }
 
 export function getStatementSettlementBalance(statement: PettyCashStatement) {

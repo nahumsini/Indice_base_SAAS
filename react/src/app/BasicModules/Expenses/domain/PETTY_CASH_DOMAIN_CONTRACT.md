@@ -1,8 +1,6 @@
 # Petty Cash Operational Fund Contract
 
-Phase 5B defines Petty Cash as an operational fund model before backend implementation.
-
-This contract does not create backend endpoints, database migrations, approval workflows, permissions, or navigation changes.
+This contract defines the implemented operational model shared by Petty Cash and Expenses.
 
 ## Decision
 
@@ -10,7 +8,7 @@ Petty Cash is a controlled operational fund assigned to a responsible user.
 
 Petty Cash is not an Expense.
 
-Petty Cash becomes a source of Expenses only through reconciliation lines backed by receipts, invoices, tickets, or supporting documents.
+Petty Cash becomes a source of Expenses only when an administrator authorizes a settlement line backed by evidence.
 
 Funding, deposits, returns, shortages, and carry-forward movements are fund movements. They must not be counted as Expenses.
 
@@ -38,7 +36,7 @@ It consumes the same Finance references used by Expenses:
 - Funding source accounts come from Finance Payment Accounts.
 - Spending/payment methods are constrained by the fund configuration and payment account capabilities.
 - Receipt accounting classification comes from active Finance Accounting Accounts.
-- The fund limit is a Finance budget allocation, not an isolated petty cash-only number.
+- The optional budget relationship is a spending ceiling. It is never interpreted as money already deposited in the fund.
 
 The frontend may show the fund limit as "presupuesto del fondo", but the backend model should persist it through a `Budget` / `BudgetLine` relationship so Expenses and Financial Overview can see the same amount.
 
@@ -62,16 +60,16 @@ The fund owns:
 - payment account with type `PETTY_CASH`
 - unit and business scope
 - currency
-- budget limit / fund limit
+- optional budget control relationship / spending ceiling
 - current balance
 - status
 - cut-off policy
 
-The fund does not own actual business spend.
+The fund does not own actual business spend. Its balance can be positive, zero, or negative; a negative value means the fund spent before receiving enough funding and must not be silently clamped to zero.
 
 ### PettyCashStatement
 
-The statement is the period cut-off and accountability document.
+The statement is the monthly cut-off and accountability document. On the first access in a new month, the previous open period becomes pending cut and the current month is opened with the fund's carried balance.
 
 Examples:
 
@@ -93,6 +91,7 @@ The statement owns:
 - period end
 - cut-off date
 - settlement status
+- traceable prior statement as the source of the opening balance
 
 ### PettyCashMovement
 
@@ -120,7 +119,25 @@ Rule:
 1 receipt = 1 settlement line = 0 or 1 Expense
 ```
 
-A settlement line may create an Expense only when it has the required amount, date, company scope, and supporting document.
+A settlement line may create an Expense only when it has the required amount, date, company scope, and at least one supporting document. Authorization creates a paid Expense and preserves the petty-cash fund, statement, and settlement-line relationship.
+
+The Expense payment account is always the payment account assigned to the originating fund. The user cannot substitute another payment account during authorization.
+
+## Monthly lifecycle
+
+```text
+previous closing balance
+  -> current opening balance
+  + funding movements
+  - captured purchases
+  = current fund balance (may be negative)
+```
+
+- A fund is permanent; a statement is monthly.
+- A statement is opened for every active fund, including funds without a budget.
+- A purchase reduces the fund and its payment account when captured.
+- Authorization does not subtract cash a second time; it converts the supported settlement line into an Expense.
+- The `Cortes` tab is the auditable history for opening balance, funding, captured purchases, authorized expenses, closing balance, and prior-cut origin.
 
 ## Core Entities
 

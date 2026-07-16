@@ -17,7 +17,10 @@ import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
+import java.util.Locale;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PettyCashService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final ZoneId OPERATIONAL_ZONE = ZoneId.of("America/Cancun");
+    private static final Set<String> ADMIN_ROLES = Set.of("root", "superadmin", "admin", "owner", "dueno", "dueño");
 
     private final PettyCashRepository repository;
     private final PettyCashMapper mapper;
@@ -37,9 +42,17 @@ public class PettyCashService {
         this.validator = validator;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PettyCashWorkspaceResponse workspace(FinanceContext context) {
-        var funds = repository.findFunds(context).stream().map(mapper::toResponse).toList();
+        var fundRecords = repository.findFunds(context);
+        var currentPeriod = YearMonth.now(OPERATIONAL_ZONE);
+        for (var fund : fundRecords) {
+            if (fund.status() != PettyCashFundStatus.CLOSED) {
+                repository.markPriorOpenStatementsCutPending(context, fund.id(), currentPeriod.toString());
+                ensureStatement(context, fund, null, currentPeriod.atDay(1));
+            }
+        }
+        var funds = fundRecords.stream().map(mapper::toResponse).toList();
         var statements = repository.findStatements(context).stream().map(mapper::toResponse).toList();
         var movements = repository.findMovements(context).stream().map(mapper::toResponse).toList();
         var settlementLines = repository.findSettlementLines(context).stream().map(mapper::toResponse).toList();
@@ -62,7 +75,9 @@ public class PettyCashService {
         );
         var command = mapper.toCreateCommand(context, request, assignment, kioskPublicToken);
         requireUniqueName(context, command.name(), null);
-        return mapper.toResponse(repository.insertFund(context, command));
+        var fund = repository.insertFund(context, command);
+        ensureStatement(context, fund, null, LocalDate.now(OPERATIONAL_ZONE));
+        return mapper.toResponse(fund);
     }
 
     @Transactional
@@ -144,11 +159,14 @@ public class PettyCashService {
         requireCurrencyMatch(fund, request.currencyCode());
         var statement = ensureStatement(context, fund, request.pettyCashStatementId(), request.expenseDate());
         var command = mapper.toCommand(context, request);
+        var captureStatus = command.attachmentCount() > 0
+            ? PettyCashSettlementLineStatus.RECEIPT_ATTACHED
+            : PettyCashSettlementLineStatus.DRAFT;
         command = new PettyCashSettlementLineCommand(
-            statement.id(), command.expenseId(), command.providerId(), command.accountingAccountId(),
+            statement.id(), null, command.providerId(), command.accountingAccountId(),
             command.description(), command.receiptReference(), command.subtotalAmount(), command.taxAmount(),
             command.totalAmount(), command.currencyCode(), command.expenseDate(), command.attachmentCount(),
-            command.status(), command.createdByUserId(), command.customFieldsJson(), command.metadataJson()
+            captureStatus, command.createdByUserId(), command.customFieldsJson(), command.metadataJson()
         );
         var line = repository.insertSettlementLine(context, fund.id(), command);
         repository.adjustFundBalance(context, fund.id(), command.totalAmount().negate());
@@ -171,11 +189,19 @@ public class PettyCashService {
         if (!line.pettyCashFundId().equals(fund.id())) {
             throw FinanceApiException.badRequest("settlementLineId does not belong to this fund.");
         }
-        if (line.expenseId() != null || line.status() == PettyCashSettlementLineStatus.EXPENSE_CREATED) {
+        if (line.status() == PettyCashSettlementLineStatus.EXPENSE_CREATED) {
             throw FinanceApiException.conflict("Petty cash settlement line already has an expense.");
         }
         if (!canCreateExpenseFromSettlementLine(line.status())) {
-            throw FinanceApiException.badRequest("Petty cash settlement line must be receipt attached or validated before creating an expense.");
+            throw FinanceApiException.badRequest("Petty cash settlement line cannot be authorized from its current status.");
+        }
+        line = clearStalePendingExpenseLink(context, line);
+        var authorizingWithoutSupport = line.status() == PettyCashSettlementLineStatus.DRAFT;
+        if (authorizingWithoutSupport && !isAdministrativeRole(context.role())) {
+            throw FinanceApiException.forbidden("Only an administrator can authorize a petty cash expense without support.");
+        }
+        if (!authorizingWithoutSupport && line.attachmentCount() <= 0) {
+            throw FinanceApiException.badRequest("Petty cash settlement line requires evidence before authorization.");
         }
         var statement = requireStatement(context, line.pettyCashStatementId());
         var expenseId = repository.insertExpenseFromSettlementLine(context, fund, statement, line);
@@ -187,6 +213,63 @@ public class PettyCashService {
             mapper.toResponse(requireStatement(context, statement.id())),
             mapper.toResponse(repository.findSettlementLineById(context, line.id()).orElse(line))
         );
+    }
+
+    @Transactional
+    public PettyCashSettlementLineMutationResponse rejectSettlementLine(
+            FinanceContext context,
+            long fundId,
+            long settlementLineId) {
+        var fund = requireFund(context, fundId);
+        var line = requireSettlementLine(context, settlementLineId);
+        if (!line.pettyCashFundId().equals(fund.id())) {
+            throw FinanceApiException.badRequest("settlementLineId does not belong to this fund.");
+        }
+        if (line.status() == PettyCashSettlementLineStatus.EXPENSE_CREATED) {
+            throw FinanceApiException.conflict("An expense that was already created cannot be rejected.");
+        }
+        if (line.status() == PettyCashSettlementLineStatus.REJECTED) {
+            throw FinanceApiException.conflict("Petty cash settlement line is already rejected.");
+        }
+        if (!canCreateExpenseFromSettlementLine(line.status())) {
+            throw FinanceApiException.conflict("Petty cash settlement line could not be rejected from its current status.");
+        }
+        line = clearStalePendingExpenseLink(context, line);
+        if (!repository.rejectSettlementLine(context, line.id())) {
+            throw FinanceApiException.conflict("Petty cash settlement line could not be rejected from its current status.");
+        }
+        var statement = requireStatement(context, line.pettyCashStatementId());
+        return new PettyCashSettlementLineMutationResponse(
+            mapper.toResponse(requireFund(context, fund.id())),
+            mapper.toResponse(statement),
+            mapper.toResponse(requireSettlementLine(context, line.id()))
+        );
+    }
+
+    @Transactional
+    public void deleteSettlementLine(FinanceContext context, long fundId, long settlementLineId) {
+        var fund = requireFund(context, fundId);
+        var line = requireSettlementLine(context, settlementLineId);
+        if (!line.pettyCashFundId().equals(fund.id())) {
+            throw FinanceApiException.badRequest("settlementLineId does not belong to this fund.");
+        }
+        var hasGeneratedExpense = line.status() == PettyCashSettlementLineStatus.EXPENSE_CREATED;
+        if (hasGeneratedExpense && line.expenseId() == null) {
+            throw FinanceApiException.conflict("Petty cash settlement line is marked as expense created but has no linked expense.");
+        }
+        if (hasGeneratedExpense && !repository.softDeleteGeneratedExpense(context, line.expenseId(), line.id())) {
+            throw FinanceApiException.conflict("The linked petty cash expense could not be deleted.");
+        }
+        if (!repository.softDeleteSettlementLine(context, line)) {
+            throw new NoSuchElementException("Petty cash settlement line not found.");
+        }
+        repository.adjustFundBalance(context, fund.id(), line.totalAmount());
+        repository.adjustPaymentAccountBalance(context, fund.paymentAccountId(), line.totalAmount());
+        if (hasGeneratedExpense) {
+            repository.revertSettlementLineExpenseFromStatement(context, line.pettyCashStatementId(), line.totalAmount());
+            repository.revertSettlementLineFromBudgetLine(context, fund.budgetLineId(), line.totalAmount());
+        }
+        repository.revertSettlementLineFromStatement(context, line);
     }
 
     @Transactional
@@ -307,7 +390,7 @@ public class PettyCashService {
         return repository.findOpenStatementForFund(context, fund.id(), periodKey)
             .orElseGet(() -> {
                 var periodStart = period.atDay(1);
-                var periodEnd = period.atDay(Math.min(fund.cutOffDay(), period.lengthOfMonth()));
+                var periodEnd = period.atEndOfMonth();
                 var folio = "PC-ST-" + periodKey + "-" + fund.id();
                 return repository.insertStatement(context, fund, folio, periodKey, periodStart, periodEnd);
             });
@@ -322,7 +405,7 @@ public class PettyCashService {
         return repository.findOpenStatementForFund(context, fund.id(), periodKey)
             .orElseGet(() -> {
                 var periodStart = nextPeriod.atDay(1);
-                var periodEnd = nextPeriod.atDay(Math.min(fund.cutOffDay(), nextPeriod.lengthOfMonth()));
+                var periodEnd = nextPeriod.atEndOfMonth();
                 var folio = "PC-ST-" + periodKey + "-" + fund.id();
                 return repository.insertStatement(context, fund, folio, periodKey, periodStart, periodEnd);
             });
@@ -337,8 +420,29 @@ public class PettyCashService {
     }
 
     private boolean canCreateExpenseFromSettlementLine(PettyCashSettlementLineStatus status) {
-        return status == PettyCashSettlementLineStatus.RECEIPT_ATTACHED
+        return status == PettyCashSettlementLineStatus.DRAFT
+            || status == PettyCashSettlementLineStatus.RECEIPT_ATTACHED
             || status == PettyCashSettlementLineStatus.VALIDATED;
+    }
+
+    private PettyCashSettlementLineRecord clearStalePendingExpenseLink(
+            FinanceContext context,
+            PettyCashSettlementLineRecord line) {
+        if (line.expenseId() == null) {
+            return line;
+        }
+        if (!repository.clearPendingSettlementLineExpenseLink(context, line.id())) {
+            throw FinanceApiException.conflict("Petty cash settlement line has an inconsistent expense link.");
+        }
+        return requireSettlementLine(context, line.id());
+    }
+
+    private boolean isAdministrativeRole(String role) {
+        var normalizedRole = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
+        if ("super admin".equals(normalizedRole)) {
+            normalizedRole = "superadmin";
+        }
+        return ADMIN_ROLES.contains(normalizedRole);
     }
 
     private void applyPaymentAccountImpact(

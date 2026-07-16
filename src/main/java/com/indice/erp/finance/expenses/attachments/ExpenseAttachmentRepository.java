@@ -138,6 +138,21 @@ class ExpenseAttachmentRepository {
                 attachmentId) > 0;
     }
 
+    boolean objectKeyIsReferencedByPettyCash(long companyId, String objectKey) {
+        var count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM finance_petty_cash_settlement_line_attachments
+                WHERE company_id = ?
+                  AND object_key = ?
+                  AND deleted_at IS NULL
+                """,
+                Long.class,
+                companyId,
+                objectKey);
+        return count != null && count > 0;
+    }
+
     void refreshExpenseAttachmentCount(FinanceContext context, long expenseId) {
         var count = jdbcTemplate.queryForObject(
                 """

@@ -269,7 +269,7 @@ public class PettyCashMapper {
             request.accountingAccountId(), trim(request.description()), trimToNull(request.receiptReference()),
             subtotalAmount, taxAmount, request.totalAmount(), normalizeCurrency(request.currencyCode()),
             request.expenseDate(), request.attachmentCount() == null ? 0 : request.attachmentCount(),
-            request.status() == null ? PettyCashSettlementLineStatus.RECEIPT_ATTACHED : request.status(),
+            request.status() == null ? PettyCashSettlementLineStatus.DRAFT : request.status(),
             context.userId(), FinanceJsonSupport.toJson(request.customFields()), FinanceJsonSupport.toJson(request.metadata())
         );
     }

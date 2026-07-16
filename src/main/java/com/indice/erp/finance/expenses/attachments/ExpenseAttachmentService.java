@@ -93,7 +93,9 @@ public class ExpenseAttachmentService {
         if (!repository.softDelete(context, expenseId, attachmentId)) {
             throw new NoSuchElementException("Attachment not found.");
         }
-        deleteObjectQuietly(row.objectKey());
+        if (!repository.objectKeyIsReferencedByPettyCash(context.companyId(), row.objectKey())) {
+            deleteObjectQuietly(row.objectKey());
+        }
         repository.refreshExpenseAttachmentCount(context, expenseId);
     }
 

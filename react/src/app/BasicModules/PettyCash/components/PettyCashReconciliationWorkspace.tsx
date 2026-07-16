@@ -1,5 +1,7 @@
-import { Banknote, Building2, CheckCircle2, Download, ExternalLink, FileText, FolderOpen, Landmark, Loader2, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
+import { Ban, Banknote, Building2, CheckCircle2, Coins, Copy, Download, ExternalLink, FolderOpen, Info, Loader2, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { isAdminAccessRole } from '../../../access/accessRules';
+import { authApi } from '../../../api/auth';
 import { mockAccounts } from '../../Expenses/AccountingAccounts/accountingAccounts.mock';
 import type { AccountingAccount } from '../../Expenses/AccountingAccounts/types';
 import { mockProviderRecords } from '../../Expenses/data/providerRecords.mock';
@@ -9,15 +11,22 @@ import { ProviderCreateModal } from '../../Expenses/Providers/components/Provide
 import type { ProviderFormValues, ProviderRecord } from '../../Expenses/Providers/useProveedoresLogic';
 import { accountingAccountsService, paymentAccountsService, providersService, toFinanceApiErrorMessage } from '../../Expenses/services';
 import type { FinanceReferenceOption } from '../../Expenses/types/finance-reference.types';
+import {
+  getDefaultBudgetTaxProfile,
+  inferTaxCountryFromCurrency,
+  taxRateToPercentInput,
+} from '../../Expenses/Budgets/budgetTaxCatalog';
+import { BudgetTaxControls, type TaxControlDraft } from '../../Expenses/components/modals/BudgetTaxControls';
 import { hasPettyCashBackendId, pettyCashService, type PettyCashStatementCloseAction } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import type {
   PettyCashAttachment,
   PettyCashFund,
   PettyCashMovement,
   PettyCashSettlementLine,
+  PettyCashSettlementLineStatus,
   PettyCashStatement,
-  PettyCashStatementStatus,
 } from '../types/pettyCash.types';
 import {
   formatPettyCashCurrency,
@@ -29,20 +38,23 @@ import {
 import { downloadPettyCashStatementPdf } from '../utils/pettyCashStatementPdf';
 import { getPettyCashMethodLabel, PETTY_CASH_METHOD_KEYS } from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
+import { convertBusinessCurrencyAmount } from '../../shared/businessCurrency';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { OperationalKpiArea } from '../../shared/operational';
 import {
   PettyCashEmptyState,
   PettyCashField,
-  PettyCashFilterShell,
   PettyCashHeaderBanner,
-  PettyCashMetric,
   PettyCashPagination,
+  PettyCashSortableHeader,
   pettyCashInputClass,
   PettyCashStatusPill,
-  PettyCashTableShell,
+  usePettyCashTableSort,
 } from './PettyCashShared';
 
 type PettyCashReconciliationWorkspaceProps = {
   funds: PettyCashFund[];
+  initialFundId?: string;
   movements: PettyCashMovement[];
   onFundsChange: Dispatch<SetStateAction<PettyCashFund[]>>;
   onMovementsChange: Dispatch<SetStateAction<PettyCashMovement[]>>;
@@ -60,15 +72,13 @@ type DepositDraft = {
   sourcePaymentAccountId: string;
 };
 
-type ReceiptDraft = {
+type ReceiptDraft = TaxControlDraft & {
   accountingAccountId: string;
-  amount: string;
   attachments: File[];
   description: string;
   expenseDate: string;
   providerId: string;
   receiptReference: string;
-  taxAmount: string;
 };
 
 type CloseStatementDraft = {
@@ -77,6 +87,8 @@ type CloseStatementDraft = {
   reference: string;
   shortageAmount: string;
 };
+
+type OperationView = 'expenses' | 'income';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -116,19 +128,62 @@ const createDepositDraft = (fund?: PettyCashFund, paymentAccounts: PaymentAccoun
     : paymentAccounts.find(account => account.isActive)?.id ?? '',
 });
 
+const createReceiptTaxDraft = (currencyCode = 'MXN'): TaxControlDraft => {
+  const country = inferTaxCountryFromCurrency(currencyCode);
+  const defaultProfile = getDefaultBudgetTaxProfile(country);
+
+  return {
+    amount: '',
+    budgetCurrencyCode: currencyCode,
+    taxes: '',
+    taxCountry: country,
+    taxEnabled: false,
+    taxIncluded: false,
+    taxMode: 'none',
+    taxProfileId: defaultProfile?.id ?? '',
+    taxRate: defaultProfile ? taxRateToPercentInput(defaultProfile.rate) : '',
+    taxSpecialAmount: '',
+  };
+};
+
 const createReceiptDraft = (
   providers: ProviderRecord[] = mockProviderRecords,
   accountingAccounts: AccountingAccount[] = activeAccountingAccountMocks,
+  currencyCode = 'MXN',
 ): ReceiptDraft => ({
+  ...createReceiptTaxDraft(currencyCode),
   accountingAccountId: accountingAccounts.find(account => account.isActive)?.id ?? '',
-  amount: '',
   attachments: [],
   description: '',
   expenseDate: todayIso(),
   providerId: providers.find(provider => provider.status === 'active')?.id ?? '',
   receiptReference: '',
-  taxAmount: '0',
 });
+
+const toPettyCashMoneyNumber = (value: string | number | null | undefined) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const parsedValue = Number(String(value ?? '').replace(/,/g, '').trim());
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
+const roundPettyCashMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+const getReceiptTaxBreakdown = (draft: Pick<ReceiptDraft, 'amount' | 'taxes' | 'taxEnabled' | 'taxIncluded'>) => {
+  const enteredAmount = Math.max(0, toPettyCashMoneyNumber(draft.amount));
+  const taxAmount = draft.taxEnabled ? Math.max(0, toPettyCashMoneyNumber(draft.taxes)) : 0;
+  const subtotalAmount = draft.taxEnabled && draft.taxIncluded
+    ? Math.max(0, enteredAmount - taxAmount)
+    : enteredAmount;
+  const totalAmount = draft.taxEnabled && !draft.taxIncluded
+    ? enteredAmount + taxAmount
+    : enteredAmount;
+
+  return {
+    subtotalAmount: roundPettyCashMoney(subtotalAmount),
+    taxAmount: roundPettyCashMoney(taxAmount),
+    totalAmount: roundPettyCashMoney(totalAmount),
+  };
+};
 
 const inferAttachmentContentType = (fileName: string) => {
   const extension = fileName.split('.').pop()?.toLowerCase();
@@ -257,12 +312,53 @@ const buildStatementForFund = (fund: PettyCashFund): PettyCashStatement => {
   };
 };
 
-const canCreateExpenseFromLine = (line: PettyCashSettlementLine) => (
-  line.status === 'RECEIPT_ATTACHED' || line.status === 'VALIDATED'
+const canAuthorizeExpenseFromLine = (line: PettyCashSettlementLine) => (
+  line.status === 'DRAFT' || line.status === 'RECEIPT_ATTACHED' || line.status === 'VALIDATED'
 );
+
+const canRejectSettlementLine = (line: PettyCashSettlementLine) => canAuthorizeExpenseFromLine(line);
+
+type SettlementLineActionTone = 'amber' | 'blue' | 'green' | 'red' | 'slate' | 'violet';
+
+const settlementLineActionToneClass: Record<SettlementLineActionTone, string> = {
+  amber: 'border-amber-100 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300',
+  blue: 'border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300',
+  green: 'border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300',
+  red: 'border-red-100 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-300',
+  slate: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300',
+  violet: 'border-violet-100 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-300',
+};
+
+function SettlementLineActionButton({
+  children,
+  disabled = false,
+  label,
+  onClick,
+  tone = 'slate',
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  label: string;
+  onClick?: () => void;
+  tone?: SettlementLineActionTone;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-black transition disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60 dark:disabled:border-slate-700 dark:disabled:bg-slate-800 ${settlementLineActionToneClass[tone]}`}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function PettyCashReconciliationWorkspace({
   funds,
+  initialFundId,
   movements,
   onFundsChange,
   onMovementsChange,
@@ -272,10 +368,14 @@ export function PettyCashReconciliationWorkspace({
   statements,
 }: PettyCashReconciliationWorkspaceProps) {
   const copy = usePettyCashTranslations();
-  const [selectedFundId, setSelectedFundId] = useState(funds[0]?.id ?? '');
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const [selectedFundId, setSelectedFundId] = useState(initialFundId || funds[0]?.id || '');
   const [selectedStatementId, setSelectedStatementId] = useState('');
+  const [operationView, setOperationView] = useState<OperationView>('expenses');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PettyCashStatementStatus | 'all'>('all');
+  const [receiptStatusFilter, setReceiptStatusFilter] = useState<PettyCashSettlementLineStatus | 'all'>('all');
+  const [providerFilter, setProviderFilter] = useState('all');
+  const [evidenceFilter, setEvidenceFilter] = useState<'all' | 'with' | 'without'>('all');
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [attachmentLine, setAttachmentLine] = useState<PettyCashSettlementLine | null>(null);
   const [closingStatement, setClosingStatement] = useState<PettyCashStatement | null>(null);
@@ -285,7 +385,12 @@ export function PettyCashReconciliationWorkspace({
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>(activePaymentAccountMocks);
   const [accountingAccounts, setAccountingAccounts] = useState<AccountingAccount[]>(activeAccountingAccountMocks);
   const [referenceError, setReferenceError] = useState('');
+  const [canAuthorizeWithoutSupport, setCanAuthorizeWithoutSupport] = useState(false);
   const [expenseCreationLineId, setExpenseCreationLineId] = useState<string | null>(null);
+  const [rejectingLineId, setRejectingLineId] = useState<string | null>(null);
+  const [copyingLineId, setCopyingLineId] = useState<string | null>(null);
+  const [deletingLine, setDeletingLine] = useState<PettyCashSettlementLine | null>(null);
+  const [deletingLineId, setDeletingLineId] = useState<string | null>(null);
   const [statementCloseId, setStatementCloseId] = useState<string | null>(null);
 
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
@@ -294,7 +399,27 @@ export function PettyCashReconciliationWorkspace({
   ), [selectedFundId, statements]);
   const selectedStatement = fundStatements.find(statement => statement.id === selectedStatementId) ?? fundStatements[0];
   const selectedLines = selectedStatement ? getStatementLines(selectedStatement.id, settlementLines) : [];
-  const selectedMovements = movements.filter(movement => movement.pettyCashFundId === selectedFundId);
+  const selectedMovements = movements.filter(movement => (
+    movement.pettyCashFundId === selectedFundId
+    && (!selectedStatement || movement.pettyCashStatementId === selectedStatement.id)
+  ));
+  const incomeMovements = selectedMovements.filter(movement => (
+    movement.type === 'INITIAL_FUNDING'
+    || movement.type === 'ADDITIONAL_DEPOSIT'
+    || movement.type === 'CARRY_FORWARD'
+  ));
+  const depositedAmount = incomeMovements.reduce((sum, movement) => sum + movement.amount, 0);
+  const capturedAmount = selectedLines.reduce((sum, line) => sum + line.totalAmount, 0);
+  const authorizedAmount = selectedLines
+    .filter(line => line.status === 'EXPENSE_CREATED')
+    .reduce((sum, line) => sum + line.totalAmount, 0);
+  const sourceCurrency = selectedFund?.currencyCode ?? 'MXN';
+  const toPreferredCurrency = (amount: number) => convertBusinessCurrencyAmount(
+    amount,
+    sourceCurrency,
+    preferredCurrency,
+    exchangeRatesPerUsd,
+  );
 
   const filteredLines = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -303,43 +428,53 @@ export function PettyCashReconciliationWorkspace({
         || line.description.toLowerCase().includes(search)
         || line.providerName?.toLowerCase().includes(search)
         || line.receiptReference?.toLowerCase().includes(search);
-      return matchesSearch;
+      const matchesStatus = receiptStatusFilter === 'all' || line.status === receiptStatusFilter;
+      const matchesProvider = providerFilter === 'all' || line.providerId === providerFilter;
+      const matchesEvidence = evidenceFilter === 'all'
+        || (evidenceFilter === 'with' ? line.attachmentCount > 0 : line.attachmentCount === 0);
+      return matchesSearch && matchesStatus && matchesProvider && matchesEvidence;
     });
-  }, [searchTerm, selectedLines]);
-
-  const filteredStatements = useMemo(() => (
-    fundStatements.filter(statement => statusFilter === 'all' || statement.status === statusFilter)
-  ), [fundStatements, statusFilter]);
-  const movementPaginationResetKey = useMemo(
-    () => `${selectedFundId}:${selectedMovements.map(movement => movement.id).join('|')}`,
-    [selectedFundId, selectedMovements],
-  );
-  const movementPagination = useTablePagination({
-    resetKey: movementPaginationResetKey,
-    rows: selectedMovements,
-  });
+  }, [evidenceFilter, providerFilter, receiptStatusFilter, searchTerm, selectedLines]);
+  const lineSortAccessors = useMemo(() => ({
+    attachments: (line: PettyCashSettlementLine) => line.attachmentCount,
+    date: (line: PettyCashSettlementLine) => line.expenseDate,
+    provider: (line: PettyCashSettlementLine) => line.providerName ?? '',
+    receipt: (line: PettyCashSettlementLine) => line.description,
+    status: (line: PettyCashSettlementLine) => line.status,
+    total: (line: PettyCashSettlementLine) => line.totalAmount,
+  }), []);
+  const lineSort = usePettyCashTableSort(filteredLines, lineSortAccessors, 'date', 'desc');
   const linePaginationResetKey = useMemo(
-    () => `${searchTerm}:${filteredLines.map(line => line.id).join('|')}`,
-    [filteredLines, searchTerm],
+    () => `${searchTerm}:${lineSort.sortKey}:${lineSort.sortDirection}:${filteredLines.map(line => line.id).join('|')}`,
+    [filteredLines, lineSort.sortDirection, lineSort.sortKey, searchTerm],
   );
   const linePagination = useTablePagination({
     resetKey: linePaginationResetKey,
-    rows: filteredLines,
+    rows: lineSort.sortedRows,
   });
-  const statementPaginationResetKey = useMemo(
-    () => `${statusFilter}:${filteredStatements.map(statement => statement.id).join('|')}`,
-    [filteredStatements, statusFilter],
-  );
-  const statementPagination = useTablePagination({
-    resetKey: statementPaginationResetKey,
-    rows: filteredStatements,
+  const filteredIncomeMovements = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+    if (!search) return incomeMovements;
+    return incomeMovements.filter(movement => (
+      movement.reference.toLowerCase().includes(search)
+      || movement.fromPaymentAccountName?.toLowerCase().includes(search)
+      || movement.toPaymentAccountName?.toLowerCase().includes(search)
+      || copy.status.movement[movement.type].toLowerCase().includes(search)
+    ));
+  }, [copy.status.movement, incomeMovements, searchTerm]);
+  const movementSortAccessors = useMemo(() => ({
+    amount: (movement: PettyCashMovement) => movement.amount,
+    date: (movement: PettyCashMovement) => movement.movementDate,
+    destination: (movement: PettyCashMovement) => movement.toPaymentAccountName ?? '',
+    reference: (movement: PettyCashMovement) => movement.reference,
+    source: (movement: PettyCashMovement) => movement.fromPaymentAccountName ?? '',
+    type: (movement: PettyCashMovement) => movement.type,
+  }), []);
+  const movementSort = usePettyCashTableSort(filteredIncomeMovements, movementSortAccessors, 'date', 'desc');
+  const movementPagination = useTablePagination({
+    resetKey: `${searchTerm}:${movementSort.sortKey}:${movementSort.sortDirection}:${filteredIncomeMovements.map(movement => movement.id).join('|')}`,
+    rows: movementSort.sortedRows,
   });
-
-  const totalDeposits = selectedMovements
-    .filter(movement => movement.type === 'INITIAL_FUNDING' || movement.type === 'ADDITIONAL_DEPOSIT')
-    .reduce((sum, movement) => sum + movement.amount, 0);
-  const totalReceipts = selectedLines.reduce((sum, line) => sum + line.totalAmount, 0);
-  const pendingSettlement = selectedStatement ? getStatementSettlementBalance(selectedStatement) : 0;
 
   const ensureStatement = (fund: PettyCashFund) => selectedStatement ?? buildStatementForFund(fund);
 
@@ -409,19 +544,44 @@ export function PettyCashReconciliationWorkspace({
   const userOptions = useMemo(() => buildUserOptions(funds), [funds]);
 
   useEffect(() => {
+    let active = true;
+    authApi.getSessionOrNull()
+      .then(session => {
+        if (active) setCanAuthorizeWithoutSupport(isAdminAccessRole(session?.user.role));
+      })
+      .catch(() => {
+        if (active) setCanAuthorizeWithoutSupport(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (funds.length === 0) {
       setSelectedFundId('');
       setSelectedStatementId('');
       return;
     }
 
+    const requestedFundId = initialFundId && funds.some(fund => fund.id === initialFundId)
+      ? initialFundId
+      : undefined;
+
+    if (requestedFundId && requestedFundId !== selectedFundId) {
+      const nextStatement = statements.find(statement => statement.pettyCashFundId === requestedFundId);
+      setSelectedFundId(requestedFundId);
+      setSelectedStatementId(nextStatement?.id ?? '');
+      return;
+    }
+
     if (!funds.some(fund => fund.id === selectedFundId)) {
-      const nextFundId = funds[0].id;
+      const nextFundId = requestedFundId ?? funds[0].id;
       const nextStatement = statements.find(statement => statement.pettyCashFundId === nextFundId);
       setSelectedFundId(nextFundId);
       setSelectedStatementId(nextStatement?.id ?? '');
     }
-  }, [funds, selectedFundId, statements]);
+  }, [funds, initialFundId, selectedFundId, statements]);
 
   useEffect(() => {
     if (fundStatements.length === 0) {
@@ -563,10 +723,8 @@ export function PettyCashReconciliationWorkspace({
 
   const handleAddReceipt = async (draft: ReceiptDraft) => {
     if (!selectedFund) return;
-    const amount = Number(draft.amount);
-    if (!amount || amount <= 0) return;
-    const taxAmount = Math.max(0, Number(draft.taxAmount) || 0);
-    const subtotalAmount = Math.max(0, amount - taxAmount);
+    const { subtotalAmount, taxAmount, totalAmount } = getReceiptTaxBreakdown(draft);
+    if (!totalAmount || totalAmount <= 0) return;
     const statement = ensureStatement(selectedFund);
     const provider = activeProviders.find(item => item.id === draft.providerId);
     const accountingAccount = activeAccountingAccounts.find(account => account.id === draft.accountingAccountId);
@@ -584,10 +742,10 @@ export function PettyCashReconciliationWorkspace({
       providerId: provider?.id,
       providerName: provider?.name,
       receiptReference: draft.receiptReference.trim() || undefined,
-      status: 'RECEIPT_ATTACHED',
+      status: draft.attachments.length > 0 ? 'RECEIPT_ATTACHED' : 'DRAFT',
       subtotalAmount,
       taxAmount,
-      totalAmount: amount,
+      totalAmount,
     };
 
     if (hasPettyCashBackendId(selectedFund.id)) {
@@ -595,6 +753,7 @@ export function PettyCashReconciliationWorkspace({
         const saved = await pettyCashService.createSettlementLine(selectedFund.id, {
           ...localLine,
           attachmentCount: 0,
+          status: 'DRAFT',
         });
         let savedLine = saved.settlementLine;
         let savedStatement = saved.statement;
@@ -602,7 +761,11 @@ export function PettyCashReconciliationWorkspace({
         if (draft.attachments.length > 0) {
           try {
             const attachments = await uploadReceiptAttachments(selectedFund.id, saved.settlementLine.id, draft.attachments);
-            savedLine = { ...saved.settlementLine, attachmentCount: attachments.length };
+            savedLine = {
+              ...saved.settlementLine,
+              attachmentCount: attachments.length,
+              status: attachments.length > 0 ? 'RECEIPT_ATTACHED' : 'DRAFT',
+            };
             savedStatement = { ...saved.statement, attachmentCount: saved.statement.attachmentCount + attachments.length };
           } catch (uploadError) {
             setReferenceError(toFinanceApiErrorMessage(uploadError, copy.reconciliation.errors.receiptUploadPartial));
@@ -636,7 +799,7 @@ export function PettyCashReconciliationWorkspace({
     ]));
     onFundsChange(current => current.map((fund) => {
       if (fund.id !== selectedFund.id) return fund;
-      const nextBalance = Math.max(0, fund.currentBalanceAmount - amount);
+      const nextBalance = fund.currentBalanceAmount - totalAmount;
       const nextStatus = nextBalance <= fund.limitAmount * 0.15 ? 'LOW_BALANCE' : fund.status;
       return {
         ...fund,
@@ -651,8 +814,8 @@ export function PettyCashReconciliationWorkspace({
           {
             ...statement,
             attachmentCount: localLine.attachmentCount,
-            declaredClosingBalanceAmount: Math.max(0, selectedFund.currentBalanceAmount - amount),
-            estimatedUsageAmount: amount,
+            declaredClosingBalanceAmount: selectedFund.currentBalanceAmount - totalAmount,
+            estimatedUsageAmount: totalAmount,
             status: 'CUT_PENDING',
           },
           ...current,
@@ -663,8 +826,8 @@ export function PettyCashReconciliationWorkspace({
           ? {
             ...currentStatement,
             attachmentCount: currentStatement.attachmentCount + localLine.attachmentCount,
-            declaredClosingBalanceAmount: Math.max(0, currentStatement.declaredClosingBalanceAmount - amount),
-            estimatedUsageAmount: currentStatement.estimatedUsageAmount + amount,
+            declaredClosingBalanceAmount: currentStatement.declaredClosingBalanceAmount - totalAmount,
+            estimatedUsageAmount: currentStatement.estimatedUsageAmount + totalAmount,
             status: currentStatement.status === 'SETTLED' ? 'PARTIALLY_SETTLED' : 'CUT_PENDING',
           }
           : currentStatement
@@ -676,8 +839,12 @@ export function PettyCashReconciliationWorkspace({
 
   const handleCreateExpenseFromLine = async (line: PettyCashSettlementLine) => {
     if (!selectedFund || line.status === 'EXPENSE_CREATED') return;
-    if (!canCreateExpenseFromLine(line)) {
+    if (!canAuthorizeExpenseFromLine(line)) {
       setReferenceError(copy.reconciliation.errors.expenseNeedsReceipt);
+      return;
+    }
+    if (line.status === 'DRAFT' && !canAuthorizeWithoutSupport) {
+      setReferenceError(copy.reconciliation.errors.expenseNeedsAdmin);
       return;
     }
     if (!hasPettyCashBackendId(selectedFund.id) || !hasPettyCashBackendId(line.id)) {
@@ -700,6 +867,114 @@ export function PettyCashReconciliationWorkspace({
       setReferenceError(toFinanceApiErrorMessage(error, copy.reconciliation.errors.expenseCreate));
     } finally {
       setExpenseCreationLineId(null);
+    }
+  };
+
+  const handleRejectSettlementLine = async (line: PettyCashSettlementLine) => {
+    if (!selectedFund || !canRejectSettlementLine(line)) return;
+    setRejectingLineId(line.id);
+    try {
+      if (hasPettyCashBackendId(selectedFund.id) && hasPettyCashBackendId(line.id)) {
+        const saved = await pettyCashService.rejectSettlementLine(selectedFund.id, line.id);
+        onSettlementLinesChange(current => current.map(currentLine => (
+          currentLine.id === saved.settlementLine.id ? saved.settlementLine : currentLine
+        )));
+        onFundsChange(current => current.map(fund => (fund.id === saved.fund.id ? saved.fund : fund)));
+        onStatementsChange(current => current.map(statement => (
+          statement.id === saved.statement.id ? saved.statement : statement
+        )));
+      } else {
+        onSettlementLinesChange(current => current.map(currentLine => (
+          currentLine.id === line.id ? { ...currentLine, status: 'REJECTED' } : currentLine
+        )));
+      }
+      setReferenceError('');
+    } catch (error) {
+      setReferenceError(toFinanceApiErrorMessage(error, copy.reconciliation.errors.receiptReject));
+    } finally {
+      setRejectingLineId(null);
+    }
+  };
+
+  const handleCopySettlementLine = async (line: PettyCashSettlementLine) => {
+    if (!selectedFund || !selectedStatement) return;
+    const copyLine: PettyCashSettlementLine = {
+      ...line,
+      id: `settlement-${Date.now()}`,
+      attachmentCount: 0,
+      expenseId: undefined,
+      receiptReference: line.receiptReference ? `${line.receiptReference} · ${copy.common.copied}` : undefined,
+      status: 'DRAFT',
+    };
+
+    setCopyingLineId(line.id);
+    try {
+      if (hasPettyCashBackendId(selectedFund.id) && hasPettyCashBackendId(selectedStatement.id)) {
+        const saved = await pettyCashService.createSettlementLine(selectedFund.id, copyLine);
+        onSettlementLinesChange(current => [saved.settlementLine, ...current]);
+        onFundsChange(current => current.map(fund => fund.id === saved.fund.id ? saved.fund : fund));
+        onStatementsChange(current => current.map(statement => statement.id === saved.statement.id ? saved.statement : statement));
+      } else {
+        onSettlementLinesChange(current => [copyLine, ...current]);
+        onFundsChange(current => current.map(fund => fund.id === selectedFund.id
+          ? { ...fund, currentBalanceAmount: fund.currentBalanceAmount - copyLine.totalAmount }
+          : fund));
+        onStatementsChange(current => current.map(statement => statement.id === selectedStatement.id
+          ? {
+            ...statement,
+            declaredClosingBalanceAmount: statement.declaredClosingBalanceAmount - copyLine.totalAmount,
+            estimatedUsageAmount: statement.estimatedUsageAmount + copyLine.totalAmount,
+            status: statement.status === 'SETTLED' ? 'PARTIALLY_SETTLED' : 'CUT_PENDING',
+          }
+          : statement));
+      }
+      setReferenceError('');
+    } catch (error) {
+      setReferenceError(toFinanceApiErrorMessage(error, copy.reconciliation.errors.receiptSave));
+    } finally {
+      setCopyingLineId(null);
+    }
+  };
+
+  const handleDeleteSettlementLine = async () => {
+    if (!selectedFund || !deletingLine) return;
+    const line = deletingLine;
+    const wasExpenseCreated = line.status === 'EXPENSE_CREATED';
+    setDeletingLineId(line.id);
+    try {
+      if (hasPettyCashBackendId(selectedFund.id) && hasPettyCashBackendId(line.id)) {
+        await pettyCashService.deleteSettlementLine(selectedFund.id, line.id);
+      }
+      onSettlementLinesChange(current => current.filter(item => item.id !== line.id));
+      onFundsChange(current => current.map(fund => fund.id === selectedFund.id
+        ? {
+          ...fund,
+          currentBalanceAmount: fund.currentBalanceAmount + line.totalAmount,
+          status: fund.status === 'LOW_BALANCE' && fund.currentBalanceAmount + line.totalAmount > fund.limitAmount * 0.15 ? 'OPEN' : fund.status,
+        }
+        : fund));
+      onStatementsChange(current => current.map(statement => statement.id === line.pettyCashStatementId
+        ? {
+          ...statement,
+          attachmentCount: Math.max(0, statement.attachmentCount - line.attachmentCount),
+          declaredClosingBalanceAmount: statement.declaredClosingBalanceAmount + line.totalAmount,
+          estimatedUsageAmount: Math.max(0, statement.estimatedUsageAmount - line.totalAmount),
+          verifiedExpenseAmount: wasExpenseCreated
+            ? Math.max(0, statement.verifiedExpenseAmount - line.totalAmount)
+            : statement.verifiedExpenseAmount,
+          status: Math.max(0, statement.estimatedUsageAmount - line.totalAmount) === 0
+            ? 'OPEN'
+            : wasExpenseCreated && Math.max(0, statement.verifiedExpenseAmount - line.totalAmount) > 0
+              ? 'PARTIALLY_SETTLED'
+              : statement.status,
+        }
+        : statement));
+      setDeletingLine(null);
+      setReferenceError('');
+    } catch (error) {
+      setReferenceError(toFinanceApiErrorMessage(error, copy.reconciliation.errors.receiptDelete));
+    } finally {
+      setDeletingLineId(null);
     }
   };
 
@@ -770,7 +1045,7 @@ export function PettyCashReconciliationWorkspace({
       <PettyCashHeaderBanner
         actionLabel={copy.reconciliation.header.uploadReceipt}
         description={copy.reconciliation.header.description}
-        icon={ReceiptText}
+        emoji="🧾"
         onAction={() => setIsReceiptModalOpen(true)}
         onSecondaryAction={() => setIsDepositModalOpen(true)}
         onTertiaryAction={() => setIsProviderModalOpen(true)}
@@ -787,324 +1062,186 @@ export function PettyCashReconciliationWorkspace({
         </div>
       ) : null}
 
-      <PettyCashFilterShell
-        resultLabel={copy.reconciliation.filters.result(filteredLines.length)}
-        subtitle={copy.reconciliation.filters.subtitle}
-      >
-        <PettyCashField label={copy.reconciliation.filters.fund}>
-          <select className={pettyCashInputClass} onChange={(event) => handleSelectFund(event.target.value)} value={selectedFundId}>
-            {funds.map(fund => (
-              <option key={fund.id} value={fund.id}>{fund.name} - {fund.responsibleName}</option>
-            ))}
-          </select>
-        </PettyCashField>
-        <PettyCashField label={copy.reconciliation.filters.statement}>
-          <select
-            className={pettyCashInputClass}
-            onChange={(event) => setSelectedStatementId(event.target.value)}
-            value={selectedStatement?.id ?? ''}
-          >
-            {fundStatements.length > 0 ? fundStatements.map(statement => (
-              <option key={statement.id} value={statement.id}>{statement.folio} - {statement.periodKey}</option>
-            )) : (
-              <option value="">{copy.common.automaticCurrentStatement}</option>
-            )}
-          </select>
-        </PettyCashField>
-        <PettyCashField label={copy.reconciliation.filters.status}>
-          <select
-            className={pettyCashInputClass}
-            onChange={(event) => setStatusFilter(event.target.value as PettyCashStatementStatus | 'all')}
-            value={statusFilter}
-          >
-            <option value="all">{copy.common.all}</option>
-            <option value="OPEN">{copy.status.statement.OPEN}</option>
-            <option value="CUT_PENDING">{copy.status.statement.CUT_PENDING}</option>
-            <option value="PARTIALLY_SETTLED">{copy.status.statement.PARTIALLY_SETTLED}</option>
-            <option value="SETTLED">{copy.status.statement.SETTLED}</option>
-            <option value="SHORTAGE">{copy.status.statement.SHORTAGE}</option>
-          </select>
-        </PettyCashField>
-        <PettyCashField label={copy.reconciliation.filters.searchReceipt}>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              className={`${pettyCashInputClass} pl-9`}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={copy.reconciliation.filters.searchPlaceholder}
-              value={searchTerm}
-            />
+      <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
+          <div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-white">{copy.common.filters}</h3>
+            <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+              {operationView === 'expenses' ? copy.reconciliation.filters.result(filteredLines.length) : copy.reconciliation.movements.result(filteredIncomeMovements.length)}
+            </p>
           </div>
-        </PettyCashField>
-      </PettyCashFilterShell>
+          <div className="inline-flex h-10 max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+            <button type="button" aria-pressed={operationView === 'expenses'} onClick={() => { setOperationView('expenses'); setSearchTerm(''); }} className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors ${operationView === 'expenses' ? 'bg-[#147514] text-white shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800'}`}><ReceiptText className="h-4 w-4" />{copy.reconciliation.views.expenses}</button>
+            <button type="button" aria-pressed={operationView === 'income'} onClick={() => { setOperationView('income'); setSearchTerm(''); }} className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors ${operationView === 'income' ? 'bg-[#147514] text-white shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800'}`}><Banknote className="h-4 w-4" />{copy.reconciliation.views.income}</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:gap-4 xl:grid-cols-12">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-3">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{operationView === 'expenses' ? copy.reconciliation.filters.searchReceipt : copy.reconciliation.filters.searchIncome}</label>
+            <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input type="search" className={`${pettyCashInputClass} pl-9`} onChange={event => setSearchTerm(event.target.value)} placeholder={operationView === 'expenses' ? copy.reconciliation.filters.searchPlaceholder : copy.reconciliation.filters.incomeSearchPlaceholder} value={searchTerm} /></div>
+          </div>
+          <div className="space-y-2 lg:col-span-2 xl:col-span-3">
+            <PettyCashField label={copy.reconciliation.filters.fund}><select className={pettyCashInputClass} onChange={(event) => handleSelectFund(event.target.value)} value={selectedFundId}>{funds.map(fund => <option key={fund.id} value={fund.id}>{fund.name} · {fund.responsibleName}</option>)}</select></PettyCashField>
+          </div>
+          <div className="space-y-2 lg:col-span-2 xl:col-span-2">
+            <PettyCashField label={copy.reconciliation.filters.statement}><select className={pettyCashInputClass} onChange={(event) => setSelectedStatementId(event.target.value)} value={selectedStatement?.id ?? ''}>{fundStatements.length > 0 ? fundStatements.map(statement => <option key={statement.id} value={statement.id}>{statement.periodKey} · {statement.folio}</option>) : <option value="">{copy.common.automaticCurrentStatement}</option>}</select></PettyCashField>
+          </div>
+          {operationView === 'expenses' ? <>
+            <div className="space-y-2 lg:col-span-2 xl:col-span-2"><PettyCashField label={copy.reconciliation.receipts.columns.provider}><select className={pettyCashInputClass} onChange={event => setProviderFilter(event.target.value)} value={providerFilter}><option value="all">{copy.common.all}</option>{activeProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></PettyCashField></div>
+            <div className="space-y-2 lg:col-span-2 xl:col-span-2"><PettyCashField label={copy.reconciliation.filters.status}><select className={pettyCashInputClass} onChange={event => setReceiptStatusFilter(event.target.value as PettyCashSettlementLineStatus | 'all')} value={receiptStatusFilter}><option value="all">{copy.common.all}</option>{(['DRAFT', 'RECEIPT_ATTACHED', 'VALIDATED', 'EXPENSE_CREATED', 'REJECTED'] as PettyCashSettlementLineStatus[]).map(value => <option key={value} value={value}>{copy.status.line[value]}</option>)}</select></PettyCashField></div>
+            <div className="space-y-2 lg:col-span-2 xl:col-span-2"><PettyCashField label={copy.reconciliation.filters.evidence}><select className={pettyCashInputClass} onChange={event => setEvidenceFilter(event.target.value as 'all' | 'with' | 'without')} value={evidenceFilter}><option value="all">{copy.common.all}</option><option value="with">{copy.reconciliation.filters.withEvidence}</option><option value="without">{copy.reconciliation.filters.withoutEvidence}</option></select></PettyCashField></div>
+          </> : null}
+        </div>
+      </section>
 
-      {selectedFund ? (
-        <section className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex flex-wrap items-center gap-5">
-            <PettyCashMetric icon={WalletCards} label={copy.reconciliation.metrics.fundBalance} tone="success" value={formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode)} />
-            <PettyCashMetric icon={Landmark} label={copy.reconciliation.metrics.deposited} value={formatPettyCashCurrency(totalDeposits, selectedFund.currencyCode)} />
-            <PettyCashMetric icon={ReceiptText} label={copy.reconciliation.metrics.receipts} tone="warning" value={formatPettyCashCurrency(totalReceipts, selectedFund.currencyCode)} />
-            <PettyCashMetric icon={FileText} label={copy.reconciliation.metrics.pendingSettlement} tone={pendingSettlement > 0 ? 'warning' : 'success'} value={formatPettyCashCurrency(pendingSettlement, selectedFund.currencyCode)} />
+      {selectedFund ? <>
+        <div className="flex flex-col gap-3 rounded-xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3 dark:border-emerald-400/20 dark:bg-emerald-400/10 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <span><strong>{selectedFund.name}</strong> · {selectedFund.responsibleName}</span>
+            <span>{copy.reconciliation.operation.currentBalance}: <strong className={selectedFund.currentBalanceAmount < 0 ? 'text-red-600' : 'text-[#147514]'}>{formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode)}</strong></span>
+            {selectedStatement ? <PettyCashStatusPill kind="statement" status={selectedStatement.status} /> : null}
           </div>
-          <div className="mt-4 grid gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300 lg:grid-cols-4">
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
-              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.responsible}</span>
-              {selectedFund.responsibleName}
-            </div>
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
-              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.source}</span>
-              {selectedFund.fundingSourceName}
-            </div>
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
-              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.receivesBy}</span>
-              {selectedFund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}
-            </div>
-            <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/70">
-              <span className="block text-xs uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.metrics.spendsBy}</span>
-              {selectedFund.spendingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}
-            </div>
-          </div>
-        </section>
-      ) : (
-        <PettyCashEmptyState label={copy.reconciliation.statements.emptyFund} />
-      )}
+        </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.2fr]">
-        <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-            <div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">{copy.reconciliation.movements.title}</h3>
-              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.movements.subtitle}</p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{selectedMovements.length}</span>
-          </div>
-          {selectedMovements.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px]">
-                  <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
-                    <tr>
-                      {[
-                        copy.reconciliation.movements.columns.date,
-                        copy.reconciliation.movements.columns.type,
-                        copy.reconciliation.movements.columns.source,
-                        copy.reconciliation.movements.columns.amount,
-                        copy.reconciliation.movements.columns.reference,
-                      ].map(column => (
-                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {movementPagination.paginatedRows.map(movement => (
-                      <tr key={movement.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{formatPettyCashIsoDate(movement.movementDate)}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{copy.status.movement[movement.type]}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</td>
-                        <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{getPettyCashMethodLabel(copy.funds.methodLabels, movement.reference)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <PettyCashPagination
-                currentPage={movementPagination.currentPage}
-                itemLabel={copy.reconciliation.movements.itemLabel}
-                onPageChange={movementPagination.onPageChange}
-                onPageSizeChange={movementPagination.onPageSizeChange}
-                pageEnd={movementPagination.pageEnd}
-                pageSize={movementPagination.pageSize}
-                pageSizeOptions={movementPagination.pageSizeOptions}
-                pageStart={movementPagination.pageStart}
-                totalCount={movementPagination.totalCount}
-                totalPages={movementPagination.totalPages}
-              />
-            </>
-          ) : (
-            <div className="p-5">
-              <PettyCashEmptyState label={copy.reconciliation.movements.empty} />
-            </div>
+        <OperationalKpiArea
+          alertChips={[
+            { id: 'preferred-currency', icon: <Coins className="h-3.5 w-3.5" />, label: copy.common.preferredCurrency(preferredCurrency), tone: 'info' },
+            { id: 'native-balance', icon: <WalletCards className="h-3.5 w-3.5" />, label: copy.common.nativeBreakdown(formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode)), tone: 'neutral' },
+          ]}
+          distributionSegments={[
+            { id: 'authorized', label: copy.reconciliation.operation.authorized, count: authorizedAmount, className: 'bg-[#147514]' },
+            { id: 'pending', label: copy.financial.progress.pending, count: Math.max(0, capturedAmount - authorizedAmount), className: 'bg-amber-400' },
+            { id: 'available', label: copy.financial.progress.available, count: Math.max(0, selectedFund.currentBalanceAmount), className: 'bg-sky-400' },
+          ]}
+          insight={copy.reconciliation.operation.signal(
+            selectedLines.filter(line => line.status !== 'EXPENSE_CREATED' && line.status !== 'REJECTED').length,
+            selectedLines.filter(line => line.status === 'VALIDATED' || line.status === 'RECEIPT_ATTACHED').length,
+            formatPettyCashCurrency(toPreferredCurrency(Math.max(0, capturedAmount - authorizedAmount)), preferredCurrency),
           )}
-        </section>
+          insightIcon={<Info className="h-4 w-4" />}
+          metrics={[
+            { id: 'opening', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.openingBalance, value: formatPettyCashCurrency(toPreferredCurrency(selectedStatement?.openingBalanceAmount ?? 0), preferredCurrency) },
+            { id: 'deposited', icon: <Banknote className="h-4 w-4" />, label: copy.reconciliation.metrics.deposited, value: formatPettyCashCurrency(toPreferredCurrency(depositedAmount), preferredCurrency), valueClassName: 'text-sky-600' },
+            { id: 'captured', icon: <ReceiptText className="h-4 w-4" />, label: copy.reconciliation.operation.captured, value: formatPettyCashCurrency(toPreferredCurrency(capturedAmount), preferredCurrency), valueClassName: 'text-amber-600' },
+            { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.reconciliation.operation.authorized, value: formatPettyCashCurrency(toPreferredCurrency(authorizedAmount), preferredCurrency), valueClassName: 'text-[#147514]' },
+            { id: 'balance', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.currentBalance, value: formatPettyCashCurrency(toPreferredCurrency(selectedFund.currentBalanceAmount), preferredCurrency), valueClassName: selectedFund.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
+          ]}
+        />
 
-        <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-            <div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">{copy.reconciliation.receipts.title}</h3>
-              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.receipts.subtitle}</p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{filteredLines.length}</span>
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
+            <div><h3 className="text-xl font-black text-slate-900 dark:text-white">{operationView === 'expenses' ? copy.reconciliation.receipts.title : copy.reconciliation.movements.title}</h3><p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{operationView === 'expenses' ? copy.reconciliation.receipts.subtitle : copy.reconciliation.movements.subtitle}</p></div>
           </div>
-          {filteredLines.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px]">
-                  <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
-                    <tr>
-                      {[
-                        copy.reconciliation.receipts.columns.receipt,
-                        copy.reconciliation.receipts.columns.provider,
-                        copy.reconciliation.receipts.columns.accountingAccount,
-                        copy.reconciliation.receipts.columns.date,
-                        copy.reconciliation.receipts.columns.total,
-                        copy.reconciliation.receipts.columns.attachments,
-                        copy.reconciliation.receipts.columns.status,
-                        copy.reconciliation.receipts.columns.actions,
-                      ].map(column => (
-                        <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {linePagination.paginatedRows.map(line => {
-                      const canCreateExpense = canCreateExpenseFromLine(line);
-                      return (
-                      <tr key={line.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                        <td className="px-5 py-4">
-                          <p className="text-sm font-black text-slate-900 dark:text-white">{line.description}</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{line.receiptReference ?? copy.reconciliation.receipts.noReference}</p>
-                        </td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{line.providerName ?? copy.common.notAvailable}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{line.accountingAccountName ?? copy.common.notAvailable}</td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{formatPettyCashIsoDate(line.expenseDate)}</td>
-                        <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(line.totalAmount, line.currencyCode)}</td>
-                        <td className="px-5 py-4">
-                          <button
-                            type="button"
-                            onClick={() => setAttachmentLine(line)}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                          >
-                            <Paperclip className="h-4 w-4 text-[#147514]" />
-                            {line.attachmentCount}
-                          </button>
-                        </td>
-                        <td className="px-5 py-4"><PettyCashStatusPill kind="line" status={line.status} /></td>
-                        <td className="px-5 py-4">
-                          <button
-                            type="button"
-                            disabled={!canCreateExpense || line.status === 'EXPENSE_CREATED' || expenseCreationLineId === line.id}
-                            onClick={() => handleCreateExpenseFromLine(line)}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#147514]/20 bg-[#147514] px-3 text-sm font-black text-white transition hover:bg-[#0f5f0f] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:border-slate-700 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
-                            title={canCreateExpense ? copy.reconciliation.receipts.createExpenseTitle : copy.reconciliation.receipts.createExpenseDisabledTitle}
-                          >
-                            {expenseCreationLineId === line.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="h-4 w-4" />
-                            )}
-                            {copy.reconciliation.receipts.createExpense}
-                          </button>
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <PettyCashPagination
-                currentPage={linePagination.currentPage}
-                itemLabel={copy.reconciliation.receipts.itemLabel}
-                onPageChange={linePagination.onPageChange}
-                onPageSizeChange={linePagination.onPageSizeChange}
-                pageEnd={linePagination.pageEnd}
-                pageSize={linePagination.pageSize}
-                pageSizeOptions={linePagination.pageSizeOptions}
-                pageStart={linePagination.pageStart}
-                totalCount={linePagination.totalCount}
-                totalPages={linePagination.totalPages}
-              />
-            </>
-          ) : (
-            <div className="p-5">
-              <PettyCashEmptyState label={copy.reconciliation.receipts.empty} />
-            </div>
-          )}
-        </section>
-      </div>
 
-      {filteredStatements.length > 0 ? (
-        <PettyCashTableShell
-          footer={(
-            <PettyCashPagination
-              currentPage={statementPagination.currentPage}
-              itemLabel={copy.reconciliation.statements.itemLabel}
-              onPageChange={statementPagination.onPageChange}
-              onPageSizeChange={statementPagination.onPageSizeChange}
-              pageEnd={statementPagination.pageEnd}
-              pageSize={statementPagination.pageSize}
-              pageSizeOptions={statementPagination.pageSizeOptions}
-              pageStart={statementPagination.pageStart}
-              totalCount={statementPagination.totalCount}
-              totalPages={statementPagination.totalPages}
-            />
-          )}
-        >
-          <table className="w-full min-w-[1120px]">
-            <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
-              <tr>
-                {[
-                  copy.reconciliation.statements.columns.statement,
-                  copy.reconciliation.statements.columns.period,
-                  copy.reconciliation.statements.columns.responsible,
-                  copy.reconciliation.statements.columns.assigned,
-                  copy.reconciliation.statements.columns.declaredBalance,
-                  copy.reconciliation.statements.columns.estimated,
-                  copy.reconciliation.statements.columns.pending,
-                  copy.reconciliation.statements.columns.status,
-                  copy.reconciliation.statements.columns.actions,
-                ].map(column => (
-                  <th key={column} className="px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {statementPagination.paginatedRows.map((statement) => {
-                const fund = getFundById(funds, statement.pettyCashFundId);
-                return (
-                  <tr key={statement.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                    <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{statement.folio}</td>
-                    <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{statement.periodKey}</td>
-                    <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund?.responsibleName ?? statement.responsibleName}</td>
-                    <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(statement.assignedAmount + statement.additionalDepositAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-5 text-sm font-black text-[#147514]">{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-5 text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-5 text-sm font-black text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</td>
-                    <td className="px-5 py-5"><PettyCashStatusPill kind="statement" status={statement.status} /></td>
-                    <td className="px-5 py-5">
-                      <div className="flex flex-wrap gap-2">
+          {operationView === 'expenses' ? (filteredLines.length > 0 ? <>
+            <div className="overflow-x-auto"><table className="w-full min-w-[900px]"><thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"><tr>
+              <PettyCashSortableHeader columnKey="receipt" label={copy.reconciliation.receipts.columns.receipt} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
+              <PettyCashSortableHeader columnKey="provider" label={copy.reconciliation.receipts.columns.provider} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
+              <PettyCashSortableHeader columnKey="date" label={copy.reconciliation.receipts.columns.date} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
+              <PettyCashSortableHeader columnKey="total" label={copy.reconciliation.receipts.columns.total} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
+              <PettyCashSortableHeader columnKey="attachments" label={copy.reconciliation.receipts.columns.attachments} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
+              <PettyCashSortableHeader columnKey="status" label={copy.reconciliation.receipts.columns.status} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
+              <PettyCashSortableHeader align="right" label={copy.reconciliation.receipts.columns.actions} />
+            </tr></thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                {linePagination.paginatedRows.map(line => {
+                  const isCaptured = line.status === 'DRAFT';
+                  const canAuthorizeExpense = canAuthorizeExpenseFromLine(line)
+                    && (!isCaptured || canAuthorizeWithoutSupport);
+                  const canRejectLine = canRejectSettlementLine(line);
+                  const isLineActionBusy = copyingLineId === line.id
+                    || deletingLineId === line.id
+                    || expenseCreationLineId === line.id
+                    || rejectingLineId === line.id;
+                  const canDeleteLine = deletingLineId !== line.id;
+                  const authorizeLabel = isCaptured
+                    ? copy.reconciliation.receipts.authorizeWithoutSupport
+                    : copy.reconciliation.receipts.authorize;
+
+                  return (
+                    <tr key={line.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{line.description}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">{line.receiptReference ?? copy.reconciliation.receipts.noReference}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{line.providerName ?? copy.common.notAvailable}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">{line.accountingAccountName ?? copy.common.notAvailable}</p>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">{formatPettyCashIsoDate(line.expenseDate)}</td>
+                      <td className="px-5 py-4 text-sm font-black text-[#147514]">{formatPettyCashCurrency(line.totalAmount, line.currencyCode)}</td>
+                      <td className="px-5 py-4">
                         <button
                           type="button"
-                          onClick={() => handleDownloadStatementPdf(statement)}
-                          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                          onClick={() => setAttachmentLine(line)}
+                          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                         >
-                          <Download className="h-4 w-4 text-[#2563EB]" />
-                          PDF
+                          <Paperclip className="h-4 w-4 text-[#147514]" />
+                          {line.attachmentCount}
                         </button>
-                        <button
-                          type="button"
-                          disabled={
-                            statement.status === 'CLOSED'
-                            || statement.status === 'TRANSFERRED_TO_NEXT_CUT'
-                            || statement.status === 'FORGIVEN_SHORTAGE'
-                            || statement.status === 'CHARGED_TO_EMPLOYEE'
-                            || statementCloseId === statement.id
-                          }
-                          onClick={() => setClosingStatement(statement)}
-                          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
-                        >
-                          {statementCloseId === statement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-[#147514]" />}
-                          {statementCloseId === statement.id ? copy.reconciliation.statements.closing : copy.reconciliation.statements.close}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </PettyCashTableShell>
-      ) : null}
+                      </td>
+                      <td className="px-5 py-4"><PettyCashStatusPill kind="line" status={line.status} /></td>
+                      <td className="px-5 py-4">
+                        <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                          <SettlementLineActionButton
+                            label={`${copy.reconciliation.receipts.copy}: ${line.description}`}
+                            disabled={isLineActionBusy}
+                            onClick={() => void handleCopySettlementLine(line)}
+                            tone="blue"
+                          >
+                            {copyingLineId === line.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                          </SettlementLineActionButton>
+
+                          <SettlementLineActionButton
+                            label={`${copy.reconciliation.receipts.delete}: ${line.description}`}
+                            disabled={!canDeleteLine || isLineActionBusy}
+                            onClick={() => setDeletingLine(line)}
+                            tone="red"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </SettlementLineActionButton>
+
+                          {canAuthorizeExpense ? (
+                            <SettlementLineActionButton
+                              label={`${authorizeLabel}: ${line.description}`}
+                              disabled={isLineActionBusy}
+                              onClick={() => void handleCreateExpenseFromLine(line)}
+                              tone="green"
+                            >
+                              {expenseCreationLineId === line.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                            </SettlementLineActionButton>
+                          ) : null}
+
+                          {canRejectLine ? (
+                            <SettlementLineActionButton
+                              label={`${copy.reconciliation.receipts.reject}: ${line.description}`}
+                              disabled={isLineActionBusy}
+                              onClick={() => void handleRejectSettlementLine(line)}
+                              tone="amber"
+                            >
+                              {rejectingLineId === line.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                            </SettlementLineActionButton>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody></table></div>
+            <PettyCashPagination currentPage={linePagination.currentPage} itemLabel={copy.reconciliation.receipts.itemLabel} onPageChange={linePagination.onPageChange} onPageSizeChange={linePagination.onPageSizeChange} pageEnd={linePagination.pageEnd} pageSize={linePagination.pageSize} pageSizeOptions={linePagination.pageSizeOptions} pageStart={linePagination.pageStart} totalCount={linePagination.totalCount} totalPages={linePagination.totalPages} />
+          </> : <div className="p-5"><PettyCashEmptyState label={copy.reconciliation.receipts.empty} /></div>) : (filteredIncomeMovements.length > 0 ? <>
+            <div className="overflow-x-auto"><table className="w-full min-w-[760px]"><thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"><tr>
+              <PettyCashSortableHeader columnKey="date" label={copy.reconciliation.movements.columns.date} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
+              <PettyCashSortableHeader columnKey="type" label={copy.reconciliation.movements.columns.type} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
+              <PettyCashSortableHeader columnKey="source" label={copy.reconciliation.movements.columns.source} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
+              <PettyCashSortableHeader columnKey="destination" label={copy.reconciliation.movements.columns.destination} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
+              <PettyCashSortableHeader columnKey="reference" label={copy.reconciliation.movements.columns.reference} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
+              <PettyCashSortableHeader columnKey="amount" label={copy.reconciliation.movements.columns.amount} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
+            </tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-700">{movementPagination.paginatedRows.map(movement => <tr key={movement.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50"><td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-200">{formatPettyCashIsoDate(movement.movementDate)}</td><td className="px-5 py-4"><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{copy.status.movement[movement.type]}</span></td><td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-200">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</td><td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-200">{movement.toPaymentAccountName ?? selectedFund.name}</td><td className="px-5 py-4 text-sm font-semibold text-slate-500">{movement.reference || copy.common.noReference}</td><td className="px-5 py-4 text-sm font-extrabold tabular-nums text-[#147514]">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td></tr>)}</tbody></table></div>
+            <PettyCashPagination currentPage={movementPagination.currentPage} itemLabel={copy.reconciliation.movements.itemLabel} onPageChange={movementPagination.onPageChange} onPageSizeChange={movementPagination.onPageSizeChange} pageEnd={movementPagination.pageEnd} pageSize={movementPagination.pageSize} pageSizeOptions={movementPagination.pageSizeOptions} pageStart={movementPagination.pageStart} totalCount={movementPagination.totalCount} totalPages={movementPagination.totalPages} />
+          </> : <div className="p-5"><PettyCashEmptyState label={copy.reconciliation.movements.empty} /></div>)}
+        </section>
+      </> : <PettyCashEmptyState label={copy.reconciliation.statements.emptyFund} />}
 
       {isDepositModalOpen && selectedFund ? (
         <DepositModal
@@ -1157,6 +1294,18 @@ export function PettyCashReconciliationWorkspace({
           userOptions={userOptions}
         />
       ) : null}
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(deletingLine)}
+        title={copy.reconciliation.receipts.deleteTitle}
+        itemName={deletingLine?.description}
+        description={copy.reconciliation.receipts.deleteDescription}
+        confirmLabel={copy.reconciliation.receipts.deleteConfirm}
+        cancelLabel={copy.common.cancel}
+        confirmDisabled={Boolean(deletingLineId)}
+        onCancel={() => setDeletingLine(null)}
+        onConfirm={handleDeleteSettlementLine}
+      />
     </div>
   );
 }
@@ -1378,8 +1527,9 @@ function ReceiptModal({
   onSave: (draft: ReceiptDraft) => void;
 }) {
   const copy = usePettyCashTranslations();
-  const [draft, setDraft] = useState<ReceiptDraft>(() => createReceiptDraft(providers, accountingAccounts));
-  const canSave = draft.description.trim().length > 0 && Number(draft.amount) > 0;
+  const [draft, setDraft] = useState<ReceiptDraft>(() => createReceiptDraft(providers, accountingAccounts, fund.currencyCode));
+  const taxBreakdown = getReceiptTaxBreakdown(draft);
+  const canSave = draft.description.trim().length > 0 && taxBreakdown.totalAmount > 0;
 
   return (
     <PettyCashOperationModal
@@ -1410,6 +1560,30 @@ function ReceiptModal({
             value={draft.amount}
           />
         </PettyCashField>
+        <div className="md:col-span-2">
+          <BudgetTaxControls
+            compact
+            draft={draft}
+            onDraftChange={(updates) => setDraft(current => ({ ...current, ...updates }))}
+          />
+        </div>
+        <div className="md:col-span-2 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <PettyCashAmountSummaryTile
+              label="Subtotal"
+              value={formatPettyCashCurrency(taxBreakdown.subtotalAmount, fund.currencyCode)}
+            />
+            <PettyCashAmountSummaryTile
+              label="Impuestos"
+              value={formatPettyCashCurrency(taxBreakdown.taxAmount, fund.currencyCode)}
+            />
+            <PettyCashAmountSummaryTile
+              highlight
+              label="Total"
+              value={formatPettyCashCurrency(taxBreakdown.totalAmount, fund.currencyCode)}
+            />
+          </div>
+        </div>
         <PettyCashField label={copy.reconciliation.receiptModal.provider}>
           <select
             className={pettyCashInputClass}
@@ -1441,16 +1615,6 @@ function ReceiptModal({
             value={draft.expenseDate}
           />
         </PettyCashField>
-        <PettyCashField label={copy.reconciliation.receiptModal.tax}>
-          <input
-            className={pettyCashInputClass}
-            min="0"
-            onChange={(event) => setDraft(current => ({ ...current, taxAmount: event.target.value }))}
-            placeholder="0.00"
-            type="number"
-            value={draft.taxAmount}
-          />
-        </PettyCashField>
         <PettyCashField label={copy.reconciliation.receiptModal.receiptReference}>
           <input
             className={pettyCashInputClass}
@@ -1476,6 +1640,25 @@ function ReceiptModal({
         </PettyCashField>
       </div>
     </PettyCashOperationModal>
+  );
+}
+
+function PettyCashAmountSummaryTile({
+  highlight = false,
+  label,
+  value,
+}: {
+  highlight?: boolean;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`mt-1 text-lg font-black ${highlight ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -1587,8 +1770,8 @@ function PettyCashAttachmentsModal({
   const totalSize = attachments.reduce((sum, attachment) => sum + attachment.sizeBytes, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
         <header className="bg-[#147514] px-7 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -1600,7 +1783,7 @@ function PettyCashAttachmentsModal({
                 <p className="mt-1 text-sm font-semibold text-white/80">{line.description}</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg bg-white/15 p-2 transition hover:bg-white/25">
+            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -1753,38 +1936,38 @@ function PettyCashOperationModal({
   const copy = usePettyCashTranslations();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
-        <header className="bg-[#147514] px-7 py-5 text-white">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
+      <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
+        <header className="bg-[#147514] px-5 py-5 text-white sm:px-7">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
                 {icon}
               </span>
               <div>
-                <h3 className="text-2xl font-black">{title}</h3>
+                <h3 className="text-2xl font-black leading-tight">{title}</h3>
                 <p className="mt-1 text-sm font-semibold text-white/80">{subtitle}</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg bg-white/15 p-2 transition hover:bg-white/25">
+            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
               <X className="h-5 w-5" />
             </button>
           </div>
         </header>
-        <div className="overflow-y-auto px-7 py-6">
-          <section className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/70">
+        <div className="overflow-y-auto bg-slate-50 px-4 py-5 sm:px-7 sm:py-6 dark:bg-slate-950/35">
+          <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-900">
             {children}
           </section>
         </div>
-        <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
-          <button type="button" onClick={onClose} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+        <footer className="flex items-center justify-between gap-3 bg-[#147514] px-5 py-4 sm:px-7">
+          <button type="button" onClick={onClose} className="min-h-11 rounded-2xl border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
             {copy.common.cancel}
           </button>
           <button
             type="button"
             disabled={!canSave}
             onClick={onSave}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
             {actionLabel}

@@ -22,7 +22,7 @@ public record CreatePettyCashFundRequest(
     @NotBlank @Size(max = 180) String name,
     @NotBlank @Size(min = 3, max = 3) String currencyCode,
     @NotNull @DecimalMin("0.00") BigDecimal limitAmount,
-    @DecimalMin("0.00") BigDecimal currentBalanceAmount,
+    BigDecimal currentBalanceAmount,
     @Min(1) @Max(31) Integer cutOffDay,
     @Size(max = 180) String fundingSourceName,
     List<@Size(max = 80) String> fundingMethods,

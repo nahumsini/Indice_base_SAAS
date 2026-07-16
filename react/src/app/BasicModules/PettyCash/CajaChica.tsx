@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { BarChart3, ClipboardCheck, Home, WalletCards } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Home } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -7,6 +7,7 @@ import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { PettyCashFinancialViewWorkspace } from './components/PettyCashFinancialViewWorkspace';
 import { PettyCashFundsWorkspace } from './components/PettyCashFundsWorkspace';
 import { PettyCashReconciliationWorkspace } from './components/PettyCashReconciliationWorkspace';
+import { PettyCashStatementsWorkspace } from './components/PettyCashStatementsWorkspace';
 import { usePettyCash } from './context/PettyCashContext';
 import { usePettyCashTranslations } from './hooks/usePettyCashTranslations';
 
@@ -17,6 +18,7 @@ interface CajaChicaProps {
 const pettyCashTabIds = [
   'cash',
   'control',
+  'statements',
   'kpis',
 ] as const;
 
@@ -28,6 +30,7 @@ const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
 
 export default function CajaChica({ onNavigate }: CajaChicaProps) {
   const copy = usePettyCashTranslations();
+  const [focusedFundId, setFocusedFundId] = useState('');
   const {
     pettyCashFunds,
     pettyCashMovements,
@@ -45,9 +48,10 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
   );
 
   const tabs: Array<{ id: PettyCashTabId; label: string; icon: ReactNode }> = [
-    { id: 'cash', label: copy.shell.tabs.cash, icon: <WalletCards className="h-4 w-4" /> },
-    { id: 'control', label: copy.shell.tabs.control, icon: <ClipboardCheck className="h-4 w-4" /> },
-    { id: 'kpis', label: copy.shell.tabs.kpis, icon: <BarChart3 className="h-4 w-4" /> },
+    { id: 'cash', label: copy.shell.tabs.cash, icon: <span aria-hidden="true">🗃️</span> },
+    { id: 'control', label: copy.shell.tabs.control, icon: <span aria-hidden="true">🧾</span> },
+    { id: 'statements', label: copy.shell.tabs.statements, icon: <span aria-hidden="true">📋</span> },
+    { id: 'kpis', label: copy.shell.tabs.kpis, icon: <span aria-hidden="true">📊</span> },
   ];
 
   const renderActiveTab = () => {
@@ -56,6 +60,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
         return (
           <PettyCashReconciliationWorkspace
             funds={pettyCashFunds}
+            initialFundId={focusedFundId}
             movements={pettyCashMovements}
             onFundsChange={setPettyCashFunds}
             onMovementsChange={setPettyCashMovements}
@@ -74,12 +79,25 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
             statements={pettyCashStatements}
           />
         );
+      case 'statements':
+        return (
+          <PettyCashStatementsWorkspace
+            funds={pettyCashFunds}
+            movements={pettyCashMovements}
+            settlementLines={pettyCashSettlementLines}
+            statements={pettyCashStatements}
+          />
+        );
       case 'cash':
       default:
         return (
           <PettyCashFundsWorkspace
             funds={pettyCashFunds}
             onFundsChange={setPettyCashFunds}
+            onViewReceipts={(fundId) => {
+              setFocusedFundId(fundId);
+              setActiveTab('control');
+            }}
             statements={pettyCashStatements}
           />
         );
@@ -122,15 +140,15 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
             </Button>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
+          <div className="-mx-4 mt-4 flex snap-x items-center gap-2 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex h-10 items-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-bold transition-all duration-200 ${
+                className={`flex snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'bg-[#147514] text-white shadow-md'
-                    : 'border border-slate-200 bg-white text-slate-600 hover:border-[#147514]/25 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-emerald-300'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
                 }`}
               >
                 <span>{tab.icon}</span>

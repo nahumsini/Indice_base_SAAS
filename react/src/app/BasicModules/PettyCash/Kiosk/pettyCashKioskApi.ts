@@ -12,12 +12,41 @@ export interface PublicPettyCashFund {
 
 export interface PublicPettyCashReceipt {
   id: number;
+  statement_id?: number;
+  period_key?: string;
   description: string;
+  receipt_reference?: string | null;
   total_amount: number;
   currency_code: string;
   expense_date: string;
   attachment_count: number;
   status: string;
+}
+
+export interface PublicPettyCashPeriod {
+  id: number;
+  period_key: string;
+  period_start: string;
+  period_end: string;
+  status: string;
+  currency_code: string;
+}
+
+export interface PublicPettyCashIncomeMovement {
+  id: number;
+  statement_id?: number | null;
+  period_key: string;
+  type: 'INITIAL_FUNDING' | 'ADDITIONAL_DEPOSIT' | 'CARRY_FORWARD';
+  amount: number;
+  currency_code: string;
+  movement_date: string;
+  reference?: string | null;
+}
+
+export interface PublicPettyCashHistory {
+  periods: PublicPettyCashPeriod[];
+  expenses: PublicPettyCashReceipt[];
+  income_movements: PublicPettyCashIncomeMovement[];
 }
 
 export interface PublicPettyCashBootstrapResponse {
@@ -27,7 +56,7 @@ export interface PublicPettyCashBootstrapResponse {
   inactivity_timeout_seconds: number;
 }
 
-export interface PublicPettyCashIdentifyResponse {
+export interface PublicPettyCashIdentifyResponse extends PublicPettyCashHistory {
   auth_method: 'pin';
   fund: PublicPettyCashFund;
   user: {
@@ -46,6 +75,8 @@ export interface PublicPettyCashIdentifyResponse {
 export interface PublicPettyCashReceiptPayload {
   identification_token: string;
   description: string;
+  subtotal_amount?: number;
+  tax_amount?: number;
   total_amount: number;
   currency_code: string;
   receipt_reference?: string | null;
@@ -53,7 +84,7 @@ export interface PublicPettyCashReceiptPayload {
   attachment_count?: number;
 }
 
-export interface PublicPettyCashReceiptResponse {
+export interface PublicPettyCashReceiptResponse extends PublicPettyCashHistory {
   fund: PublicPettyCashFund;
   statement: Record<string, unknown>;
   settlement_line: {

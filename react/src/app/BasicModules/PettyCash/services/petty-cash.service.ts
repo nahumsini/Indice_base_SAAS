@@ -322,7 +322,7 @@ const toFund = (dto: PettyCashFundApiDto): PettyCashFund => ({
   fundingSourcePaymentAccountId: idString(dto.fundingSourcePaymentAccountId),
   kioskAccessUrl: dto.kioskAccessUrl
     ?? customString(dto.customFields, 'kioskAccessUrl')
-    ?? (dto.kioskPublicToken ? `/petty-cash/kiosk/${dto.kioskPublicToken}` : `/petty-cash/kiosk/${dto.id}`),
+    ?? (dto.kioskPublicToken ? `/petty-cash/kiosk/${dto.kioskPublicToken}` : undefined),
   kioskEnabled: Boolean(dto.kioskEnabled),
   kioskPublicToken: dto.kioskPublicToken ?? customString(dto.customFields, 'kioskPublicToken'),
   kioskUsesUniversalPin: dto.kioskUsesUniversalPin ?? true,
@@ -408,7 +408,7 @@ const toSettlementLine = (dto: PettyCashSettlementLineApiDto): PettyCashSettleme
   providerId: idString(dto.providerId),
   providerName: customString(dto.customFields, 'providerName') ?? optionalLabelWithId('Provider', dto.providerId),
   receiptReference: dto.receiptReference ?? undefined,
-  status: dto.status ?? 'RECEIPT_ATTACHED',
+  status: dto.status ?? 'DRAFT',
   subtotalAmount: asNumber(dto.subtotalAmount),
   taxAmount: asNumber(dto.taxAmount),
   totalAmount: asNumber(dto.totalAmount),
@@ -605,6 +605,27 @@ export const pettyCashService = {
       settlementLine: toSettlementLine(response.settlementLine),
       statement: toStatement(response.statement, fundsById),
     };
+  },
+
+  async rejectSettlementLine(fundId: string, settlementLineId: string): Promise<PettyCashSettlementLineMutation> {
+    const response = await apiClient<PettyCashSettlementLineMutationApiResponse>(
+      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/settlement-lines/${requireBackendId(settlementLineId, 'Petty cash settlement line')}/reject`,
+      jsonMutation('POST', {}),
+    );
+    const fund = toFund(response.fund);
+    const fundsById = new Map([[fund.id, fund]]);
+    return {
+      fund,
+      settlementLine: toSettlementLine(response.settlementLine),
+      statement: toStatement(response.statement, fundsById),
+    };
+  },
+
+  async deleteSettlementLine(fundId: string, settlementLineId: string): Promise<void> {
+    await apiClient(
+      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/settlement-lines/${requireBackendId(settlementLineId, 'Petty cash settlement line')}`,
+      { method: 'DELETE' },
+    );
   },
 
   async closeStatement(

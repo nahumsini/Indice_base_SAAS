@@ -147,6 +147,33 @@ public class FinancePettyCashController {
             .body(service.createExpenseFromSettlementLine(access.context(), fundId, settlementLineId));
     }
 
+    @PostMapping("/funds/{fundId}/settlement-lines/{settlementLineId}/reject")
+    public ResponseEntity<?> rejectSettlementLine(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId,
+            @PathVariable long settlementLineId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(service.rejectSettlementLine(access.context(), fundId, settlementLineId));
+    }
+
+    @DeleteMapping("/funds/{fundId}/settlement-lines/{settlementLineId}")
+    public ResponseEntity<?> deleteSettlementLine(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId,
+            @PathVariable long settlementLineId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        service.deleteSettlementLine(access.context(), fundId, settlementLineId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/funds/{fundId}/statements/{statementId}/close")
     public ResponseEntity<?> closeStatement(
             HttpSession session,

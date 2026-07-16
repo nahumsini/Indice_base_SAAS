@@ -27,7 +27,6 @@ class PettyCashValidator {
         requireName(request.name());
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requireNonNegative(request.limitAmount(), "limitAmount");
-        requireNonNegative(request.currentBalanceAmount() == null ? BigDecimal.ZERO : request.currentBalanceAmount(), "currentBalanceAmount");
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
         referenceValidator.validateFundReferences(context, assignment, request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(), request.currencyCode());

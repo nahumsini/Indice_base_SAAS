@@ -158,6 +158,32 @@ class PettyCashServiceTest {
     }
 
     @Test
+    void createSettlementLineNeverTrustsClientExpenseLinkOrFinalStatus() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var request = new CreatePettyCashSettlementLineRequest(
+            statement.id(), 701L, 30L, 40L, "Copied office supplies", "R-101",
+            new BigDecimal("100.00"), BigDecimal.ZERO, new BigDecimal("100.00"),
+            "MXN", LocalDate.of(2026, 6, 13), 0, PettyCashSettlementLineStatus.EXPENSE_CREATED,
+            null, null
+        );
+        var line = settlementLineRecord(302L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.DRAFT, 0);
+        var command = ArgumentCaptor.forClass(PettyCashSettlementLineCommand.class);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.insertSettlementLine(eq(context), eq(fund.id()), command.capture())).thenReturn(line);
+        when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
+
+        service.createSettlementLine(context, fund.id(), request);
+
+        assertEquals(null, command.getValue().expenseId());
+        assertEquals(PettyCashSettlementLineStatus.DRAFT, command.getValue().status());
+    }
+
+    @Test
     void createExpenseFromSettlementLineLinksExpenseAndAppliesBudgetImpact() {
         var service = service();
         var context = context();
@@ -181,13 +207,181 @@ class PettyCashServiceTest {
     }
 
     @Test
-    void createExpenseFromSettlementLineRejectsDraftLine() {
-        assertExpenseCreationRejectedForStatus(PettyCashSettlementLineStatus.DRAFT);
+    void createExpenseFromDraftLineAllowsAdministratorWithoutSupport() {
+        var service = service();
+        var context = adminContext();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var pendingLine = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.DRAFT, 0);
+        var expenseLine = settlementLineRecord(301L, fund.id(), statement.id(), 701L, PettyCashSettlementLineStatus.EXPENSE_CREATED, 0);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findSettlementLineById(context, pendingLine.id())).thenReturn(Optional.of(pendingLine), Optional.of(expenseLine));
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.insertExpenseFromSettlementLine(context, fund, statement, pendingLine)).thenReturn(701L);
+
+        var response = service.createExpenseFromSettlementLine(context, fund.id(), pendingLine.id());
+
+        assertEquals(PettyCashSettlementLineStatus.EXPENSE_CREATED, response.settlementLine().status());
+        verify(repository).linkSettlementLineExpense(context, pendingLine.id(), 701L);
+    }
+
+    @Test
+    void createExpenseFromDraftLineRejectsNonAdministrator() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var line = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.DRAFT, 0);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
+
+        var error = assertThrows(
+            FinanceApiException.class,
+            () -> service.createExpenseFromSettlementLine(context, fund.id(), line.id())
+        );
+
+        assertEquals("Only an administrator can authorize a petty cash expense without support.", error.getMessage());
+        verify(repository, never()).insertExpenseFromSettlementLine(any(), any(), any(), any());
+    }
+
+    @Test
+    void createExpenseClearsStaleExpenseLinkFromPendingLine() {
+        var service = service();
+        var context = adminContext();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var staleLine = settlementLineRecord(301L, fund.id(), statement.id(), 700L, PettyCashSettlementLineStatus.DRAFT, 0);
+        var pendingLine = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.DRAFT, 0);
+        var expenseLine = settlementLineRecord(301L, fund.id(), statement.id(), 701L, PettyCashSettlementLineStatus.EXPENSE_CREATED, 0);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findSettlementLineById(context, staleLine.id()))
+            .thenReturn(Optional.of(staleLine), Optional.of(pendingLine), Optional.of(expenseLine));
+        when(repository.clearPendingSettlementLineExpenseLink(context, staleLine.id())).thenReturn(true);
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.insertExpenseFromSettlementLine(context, fund, statement, pendingLine)).thenReturn(701L);
+
+        var response = service.createExpenseFromSettlementLine(context, fund.id(), staleLine.id());
+
+        assertEquals(PettyCashSettlementLineStatus.EXPENSE_CREATED, response.settlementLine().status());
+        assertEquals(701L, response.settlementLine().expenseId());
+        verify(repository).clearPendingSettlementLineExpenseLink(context, staleLine.id());
+        verify(repository).insertExpenseFromSettlementLine(context, fund, statement, pendingLine);
     }
 
     @Test
     void createExpenseFromSettlementLineRejectsRejectedLine() {
         assertExpenseCreationRejectedForStatus(PettyCashSettlementLineStatus.REJECTED);
+    }
+
+    @Test
+    void rejectSettlementLineMovesCapturedLineToRejected() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var capturedLine = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.DRAFT, 0);
+        var rejectedLine = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.REJECTED, 0);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund), Optional.of(fund));
+        when(repository.findSettlementLineById(context, capturedLine.id())).thenReturn(Optional.of(capturedLine), Optional.of(rejectedLine));
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.rejectSettlementLine(context, capturedLine.id())).thenReturn(true);
+
+        var response = service.rejectSettlementLine(context, fund.id(), capturedLine.id());
+
+        assertEquals(PettyCashSettlementLineStatus.REJECTED, response.settlementLine().status());
+        verify(repository).rejectSettlementLine(context, capturedLine.id());
+        verify(repository, never()).adjustFundBalance(any(), anyLong(), any());
+    }
+
+    @Test
+    void rejectSettlementLineClearsStaleExpenseLink() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var staleLine = settlementLineRecord(301L, fund.id(), statement.id(), 700L, PettyCashSettlementLineStatus.RECEIPT_ATTACHED);
+        var pendingLine = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.RECEIPT_ATTACHED);
+        var rejectedLine = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.REJECTED);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund), Optional.of(fund));
+        when(repository.findSettlementLineById(context, staleLine.id()))
+            .thenReturn(Optional.of(staleLine), Optional.of(pendingLine), Optional.of(rejectedLine));
+        when(repository.clearPendingSettlementLineExpenseLink(context, staleLine.id())).thenReturn(true);
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.rejectSettlementLine(context, staleLine.id())).thenReturn(true);
+
+        var response = service.rejectSettlementLine(context, fund.id(), staleLine.id());
+
+        assertEquals(PettyCashSettlementLineStatus.REJECTED, response.settlementLine().status());
+        verify(repository).clearPendingSettlementLineExpenseLink(context, staleLine.id());
+        verify(repository).rejectSettlementLine(context, staleLine.id());
+    }
+
+    @Test
+    void deleteSettlementLineRestoresFundAndPaymentAccountBalances() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var line = settlementLineRecord(301L, fund.id(), statement.id(), null, PettyCashSettlementLineStatus.RECEIPT_ATTACHED);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
+        when(repository.softDeleteSettlementLine(context, line)).thenReturn(true);
+
+        service.deleteSettlementLine(context, fund.id(), line.id());
+
+        verify(repository).adjustFundBalance(context, fund.id(), line.totalAmount());
+        verify(repository).adjustPaymentAccountBalance(context, fund.paymentAccountId(), line.totalAmount());
+        verify(repository).revertSettlementLineFromStatement(context, line);
+    }
+
+    @Test
+    void deleteSettlementLineWithGeneratedExpenseRevertsExpenseAndBudget() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var line = settlementLineRecord(301L, fund.id(), statement.id(), 701L, PettyCashSettlementLineStatus.EXPENSE_CREATED);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
+        when(repository.softDeleteGeneratedExpense(context, line.expenseId(), line.id())).thenReturn(true);
+        when(repository.softDeleteSettlementLine(context, line)).thenReturn(true);
+
+        service.deleteSettlementLine(context, fund.id(), line.id());
+
+        verify(repository).softDeleteGeneratedExpense(context, line.expenseId(), line.id());
+        verify(repository).softDeleteSettlementLine(context, line);
+        verify(repository).adjustFundBalance(context, fund.id(), line.totalAmount());
+        verify(repository).adjustPaymentAccountBalance(context, fund.paymentAccountId(), line.totalAmount());
+        verify(repository).revertSettlementLineExpenseFromStatement(context, statement.id(), line.totalAmount());
+        verify(repository).revertSettlementLineFromBudgetLine(context, fund.budgetLineId(), line.totalAmount());
+        verify(repository).revertSettlementLineFromStatement(context, line);
+    }
+
+    @Test
+    void deletePendingSettlementLineDoesNotDeleteStaleLinkedExpense() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        var line = settlementLineRecord(301L, fund.id(), statement.id(), 701L, PettyCashSettlementLineStatus.DRAFT, 0);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findSettlementLineById(context, line.id())).thenReturn(Optional.of(line));
+        when(repository.softDeleteSettlementLine(context, line)).thenReturn(true);
+
+        service.deleteSettlementLine(context, fund.id(), line.id());
+
+        verify(repository, never()).softDeleteGeneratedExpense(any(), anyLong(), anyLong());
+        verify(repository, never()).revertSettlementLineExpenseFromStatement(any(), anyLong(), any());
+        verify(repository, never()).revertSettlementLineFromBudgetLine(any(), any(), any());
+        verify(repository).softDeleteSettlementLine(context, line);
     }
 
     @Test
@@ -334,7 +528,7 @@ class PettyCashServiceTest {
             () -> service.createExpenseFromSettlementLine(context, fund.id(), line.id())
         );
 
-        assertEquals("Petty cash settlement line must be receipt attached or validated before creating an expense.", error.getMessage());
+        assertEquals("Petty cash settlement line cannot be authorized from its current status.", error.getMessage());
         verify(repository, never()).findStatementById(context, statement.id());
         verify(repository, never()).insertExpenseFromSettlementLine(any(), any(), any(), any());
         verify(repository, never()).linkSettlementLineExpense(any(), anyLong(), anyLong());
@@ -342,6 +536,10 @@ class PettyCashServiceTest {
 
     private FinanceContext context() {
         return new FinanceContext(1L, 7L, "Finance User", "user", true, FinanceScope.corporateOffice());
+    }
+
+    private FinanceContext adminContext() {
+        return new FinanceContext(1L, 7L, "Finance Admin", "admin", true, FinanceScope.corporateOffice());
     }
 
     private CreatePettyCashFundRequest createRequest(boolean kioskEnabled, String kioskPublicToken) {
@@ -424,10 +622,20 @@ class PettyCashServiceTest {
             long statementId,
             Long expenseId,
             PettyCashSettlementLineStatus status) {
+        return settlementLineRecord(id, fundId, statementId, expenseId, status, 1);
+    }
+
+    private PettyCashSettlementLineRecord settlementLineRecord(
+            long id,
+            long fundId,
+            long statementId,
+            Long expenseId,
+            PettyCashSettlementLineStatus status,
+            int attachmentCount) {
         return new PettyCashSettlementLineRecord(
             id, 7L, fundId, statementId, expenseId, 30L, 40L, "Office supplies", "R-100",
             new BigDecimal("86.20"), new BigDecimal("13.80"), new BigDecimal("100.00"),
-            "MXN", LocalDate.of(2026, 6, 13), 1, status, 1L, null,
+            "MXN", LocalDate.of(2026, 6, 13), attachmentCount, status, 1L, null,
             Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, null, null
         );
     }

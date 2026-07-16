@@ -205,19 +205,27 @@ public class PettyCashAttachmentService {
     private void refreshAttachmentCounts(FinanceContext context, PettyCashSettlementLineRecord line) {
         var lineCount = countLineAttachments(context.companyId(), line.pettyCashFundId(), line.id());
         jdbcTemplate.update(
-                """
-                UPDATE finance_petty_cash_settlement_lines
-                SET attachment_count = ?,
-                    updated_by_user_id = ?,
-                    version = version + 1
-                WHERE company_id = ?
-                  AND id = ?
-                  AND deleted_at IS NULL
-                """,
-                lineCount,
-                context.userId(),
-                context.companyId(),
-                line.id());
+            """
+            UPDATE finance_petty_cash_settlement_lines
+            SET attachment_count = ?,
+                status = CASE
+                  WHEN status = 'EXPENSE_CREATED' THEN status
+                  WHEN status = 'VALIDATED' AND ? > 0 THEN status
+                  WHEN ? > 0 THEN 'RECEIPT_ATTACHED'
+                  ELSE 'DRAFT'
+                END,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ?
+              AND id = ?
+              AND deleted_at IS NULL
+            """,
+            lineCount,
+            lineCount,
+            lineCount,
+            context.userId(),
+            context.companyId(),
+            line.id());
 
         var statementCount = countStatementAttachments(context.companyId(), line.pettyCashStatementId());
         jdbcTemplate.update(

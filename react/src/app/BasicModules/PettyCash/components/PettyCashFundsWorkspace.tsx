@@ -1,4 +1,4 @@
-import { Banknote, Copy, ExternalLink, KeyRound, Landmark, Link2, RotateCw, Search, ShieldCheck, UserRound, WalletCards, X } from 'lucide-react';
+import { Archive, Banknote, Coins, Copy, ExternalLink, Eye, Info, KeyRound, Landmark, Pencil, ReceiptText, RotateCw, Search, ShieldCheck, Trash2, UserRound, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { getCategoryById } from '../../Expenses/data/categories.data';
 import { useFinanceReferenceData } from '../../Expenses/hooks/useFinanceReferenceData';
@@ -10,11 +10,15 @@ import type { FinanceReferenceOption } from '../../Expenses/types/finance-refere
 import type { PettyCashCurrency, PettyCashFund, PettyCashFundStatus, PettyCashStatement } from '../types/pettyCash.types';
 import { hasPettyCashBackendId, pettyCashService } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import {
+  formatPettyCashNativeBreakdown,
   formatPettyCashCurrency,
   getOperationalPettyCashSummary,
   getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { OperationalKpiArea } from '../../shared/operational';
 import {
   getPettyCashMethodLabel,
   normalizePettyCashMethods,
@@ -27,16 +31,18 @@ import {
   PettyCashField,
   PettyCashFilterShell,
   PettyCashHeaderBanner,
-  PettyCashMetric,
   PettyCashPagination,
+  PettyCashSortableHeader,
   pettyCashInputClass,
   PettyCashStatusPill,
   PettyCashTableShell,
+  usePettyCashTableSort,
 } from './PettyCashShared';
 
 type PettyCashFundsWorkspaceProps = {
   funds: PettyCashFund[];
   onFundsChange: Dispatch<SetStateAction<PettyCashFund[]>>;
+  onViewReceipts: (fundId: string) => void;
   statements: PettyCashStatement[];
 };
 
@@ -198,6 +204,23 @@ const createFallbackFundDraft = (financialAccountFallback: string): FundDraft =>
   unitId: '',
 });
 
+const createFundDraftFromFund = (fund: PettyCashFund): FundDraft => ({
+  budgetLineId: fund.budgetLineId ?? '',
+  businessId: fund.businessId,
+  createdByUserId: fund.createdByUserId,
+  currencyCode: fund.currencyCode,
+  cutOffDay: String(fund.cutOffDay),
+  fundingMethods: [...fund.fundingMethods],
+  fundingSourceName: fund.fundingSourceName,
+  fundingSourcePaymentAccountId: fund.fundingSourcePaymentAccountId ?? '',
+  limitAmount: String(fund.limitAmount),
+  name: fund.name,
+  paymentAccountId: fund.paymentAccountId,
+  responsibleUserId: fund.responsibleUserId,
+  spendingMethods: [...fund.spendingMethods],
+  unitId: fund.unitId,
+});
+
 const toSlug = (value: string) => (
   value
     .trim()
@@ -226,11 +249,32 @@ function toggleValue(values: string[], value: string) {
   return [...values, value];
 }
 
-export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: PettyCashFundsWorkspaceProps) {
+const isFallbackKioskPath = (fund: PettyCashFund, path?: string) => (
+  Boolean(path && (
+    path === `/petty-cash/kiosk/${fund.id}`
+    || path.includes('/petty-cash/kiosk/fund-')
+  ))
+);
+
+const getUsableKioskPath = (fund?: PettyCashFund) => {
+  if (!fund) return '';
+  if (fund.kioskPublicToken) return `/petty-cash/kiosk/${fund.kioskPublicToken}`;
+  if (fund.kioskAccessUrl && !isFallbackKioskPath(fund, fund.kioskAccessUrl)) return fund.kioskAccessUrl;
+  return '';
+};
+
+export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, statements }: PettyCashFundsWorkspaceProps) {
   const copy = usePettyCashTranslations();
+  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
   const [searchTerm, setSearchTerm] = useState('');
+  const [unitFilter, setUnitFilter] = useState('all');
+  const [businessFilter, setBusinessFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<PettyCashFundStatus | 'all'>('all');
   const [isCreateFundOpen, setIsCreateFundOpen] = useState(false);
+  const [editingFund, setEditingFund] = useState<PettyCashFund | null>(null);
+  const [deletingFund, setDeletingFund] = useState<PettyCashFund | null>(null);
+  const [deletingFundId, setDeletingFundId] = useState<string | null>(null);
+  const [statusFundId, setStatusFundId] = useState<string | null>(null);
   const [isKioskOpen, setIsKioskOpen] = useState(false);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>(fallbackPaymentAccounts);
   const [budgetLines, setBudgetLines] = useState<FinanceBudgetLine[]>([]);
@@ -242,11 +286,24 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
     unitOptions,
     userOptions,
   } = useFinanceReferenceData(setServiceNotice);
-  const summary = useMemo(() => getOperationalPettyCashSummary(statements, funds), [funds, statements]);
   const activePaymentAccounts = useMemo(() => paymentAccounts.filter(account => account.isActive), [paymentAccounts]);
   const activeBudgetLines = useMemo(() => (
     budgetLines.filter(line => line.status === 'ACTIVE')
   ), [budgetLines]);
+  const fundUnitOptions = useMemo(() => (
+    [...new Map(funds.map(fund => [fund.unitId, { id: fund.unitId, name: fund.unitName }])).values()]
+      .filter(option => option.id)
+      .sort((left, right) => left.name.localeCompare(right.name))
+  ), [funds]);
+  const fundBusinessOptions = useMemo(() => (
+    [...new Map(
+      funds
+        .filter(fund => unitFilter === 'all' || fund.unitId === unitFilter)
+        .map(fund => [fund.businessId, { id: fund.businessId, name: fund.businessName }]),
+    ).values()]
+      .filter(option => option.id)
+      .sort((left, right) => left.name.localeCompare(right.name))
+  ), [funds, unitFilter]);
   const filteredFunds = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
     return funds.filter((fund) => {
@@ -258,16 +315,49 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
         || fund.unitName.toLowerCase().includes(search)
         || fund.businessName.toLowerCase().includes(search);
       const matchesStatus = statusFilter === 'all' || fund.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesUnit = unitFilter === 'all' || fund.unitId === unitFilter;
+      const matchesBusiness = businessFilter === 'all' || fund.businessId === businessFilter;
+      return matchesSearch && matchesUnit && matchesBusiness && matchesStatus;
     });
-  }, [funds, searchTerm, statusFilter]);
+  }, [businessFilter, funds, searchTerm, statusFilter, unitFilter]);
+  const filteredFundIds = useMemo(() => new Set(filteredFunds.map(fund => fund.id)), [filteredFunds]);
+  const summary = useMemo(() => getOperationalPettyCashSummary(
+    statements.filter(statement => filteredFundIds.has(statement.pettyCashFundId)),
+    filteredFunds,
+    preferredCurrency,
+    exchangeRatesPerUsd,
+  ), [exchangeRatesPerUsd, filteredFundIds, filteredFunds, preferredCurrency, statements]);
+  const currencyCount = useMemo(
+    () => new Set(filteredFunds.map(fund => fund.currencyCode)).size,
+    [filteredFunds],
+  );
+  const nativeBalance = useMemo(() => formatPettyCashNativeBreakdown(
+    filteredFunds,
+    fund => fund.currentBalanceAmount,
+    fund => fund.currencyCode,
+  ), [filteredFunds]);
+  const fundSortAccessors = useMemo(() => ({
+    balance: (fund: PettyCashFund) => fund.currentBalanceAmount,
+    budget: (fund: PettyCashFund) => fund.limitAmount,
+    business: (fund: PettyCashFund) => fund.businessName,
+    fund: (fund: PettyCashFund) => fund.name,
+    kiosk: (fund: PettyCashFund) => fund.kioskEnabled ? 1 : 0,
+    pending: (fund: PettyCashFund) => statements
+      .filter(statement => statement.pettyCashFundId === fund.id)
+      .reduce((sum, statement) => sum + getStatementSettlementBalance(statement), 0),
+    responsible: (fund: PettyCashFund) => fund.responsibleName,
+    source: (fund: PettyCashFund) => fund.fundingSourceName,
+    status: (fund: PettyCashFund) => fund.status,
+    unit: (fund: PettyCashFund) => fund.unitName,
+  }), [statements]);
+  const fundSort = usePettyCashTableSort(filteredFunds, fundSortAccessors, 'fund');
   const fundsPaginationResetKey = useMemo(
-    () => `${searchTerm}:${statusFilter}:${filteredFunds.map(fund => fund.id).join('|')}`,
-    [filteredFunds, searchTerm, statusFilter],
+    () => `${searchTerm}:${unitFilter}:${businessFilter}:${statusFilter}:${fundSort.sortKey}:${fundSort.sortDirection}:${filteredFunds.map(fund => fund.id).join('|')}`,
+    [businessFilter, filteredFunds, fundSort.sortDirection, fundSort.sortKey, searchTerm, statusFilter, unitFilter],
   );
   const fundsPagination = useTablePagination({
     resetKey: fundsPaginationResetKey,
-    rows: filteredFunds,
+    rows: fundSort.sortedRows,
   });
 
   const handleCreateFund = async (draft: FundDraft) => {
@@ -296,7 +386,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
       fundingMethods: normalizePettyCashMethods(draft.fundingMethods),
       fundingSourceName: fundingAccountName,
       fundingSourcePaymentAccountId: draft.fundingSourcePaymentAccountId,
-      kioskAccessUrl: `/petty-cash/kiosk/${id}`,
+      kioskAccessUrl: undefined,
       kioskEnabled: false,
       kioskPublicToken: undefined,
       kioskUsesUniversalPin: true,
@@ -335,6 +425,96 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
     setIsCreateFundOpen(false);
   };
 
+  const handleUpdateFund = async (draft: FundDraft) => {
+    if (!editingFund) return;
+    const selectedBudgetLine = activeBudgetLines.find(line => line.id === draft.budgetLineId);
+    const businessChoices = filterBusinessesByUnit(businessOptions, draft.unitId);
+    const updatedFund: PettyCashFund = {
+      ...editingFund,
+      budgetId: selectedBudgetLine?.budgetId,
+      budgetLineId: selectedBudgetLine?.id,
+      budgetLineName: selectedBudgetLine?.name,
+      businessId: draft.businessId,
+      businessName: getOptionLabel(businessChoices, draft.businessId, editingFund.businessName),
+      createdByName: getOptionLabel(userOptions, draft.createdByUserId, editingFund.createdByName),
+      createdByUserId: draft.createdByUserId,
+      currencyCode: draft.currencyCode,
+      cutOffDay: Number(draft.cutOffDay) || editingFund.cutOffDay,
+      fundingMethods: normalizePettyCashMethods(draft.fundingMethods),
+      fundingSourceName: getPaymentAccountName(activePaymentAccounts, draft.fundingSourcePaymentAccountId, draft.fundingSourceName),
+      fundingSourcePaymentAccountId: draft.fundingSourcePaymentAccountId,
+      limitAmount: Number(draft.limitAmount) || editingFund.limitAmount,
+      name: draft.name.trim(),
+      paymentAccountId: draft.paymentAccountId,
+      responsibleName: getOptionLabel(userOptions, draft.responsibleUserId, editingFund.responsibleName),
+      responsibleUserId: draft.responsibleUserId,
+      spendingMethods: normalizePettyCashMethods(draft.spendingMethods),
+      unitId: draft.unitId,
+      unitName: getOptionLabel(unitOptions, draft.unitId, editingFund.unitName),
+    };
+    try {
+      const saved = hasPettyCashBackendId(editingFund.id) ? await pettyCashService.updateFund(updatedFund) : updatedFund;
+      onFundsChange(current => current.map(fund => fund.id === editingFund.id ? {
+        ...updatedFund,
+        ...saved,
+        budgetLineName: updatedFund.budgetLineName,
+        businessName: updatedFund.businessName,
+        createdByName: updatedFund.createdByName,
+        fundingSourceName: updatedFund.fundingSourceName,
+        responsibleName: updatedFund.responsibleName,
+        unitName: updatedFund.unitName,
+      } : fund));
+      setEditingFund(null);
+      setServiceNotice('');
+    } catch (error) {
+      setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.updateFailed));
+    }
+  };
+
+  const handleToggleFundStatus = async (fund: PettyCashFund) => {
+    const nextStatus: PettyCashFundStatus = fund.status === 'CLOSED' ? 'OPEN' : 'CLOSED';
+    const updatedFund: PettyCashFund = {
+      ...fund,
+      kioskEnabled: nextStatus === 'CLOSED' ? false : fund.kioskEnabled,
+      status: nextStatus,
+    };
+
+    setStatusFundId(fund.id);
+    try {
+      const saved = hasPettyCashBackendId(fund.id) ? await pettyCashService.updateFund(updatedFund) : updatedFund;
+      onFundsChange(current => current.map(currentFund => currentFund.id === fund.id ? {
+        ...updatedFund,
+        ...saved,
+        budgetLineName: updatedFund.budgetLineName,
+        businessName: updatedFund.businessName,
+        createdByName: updatedFund.createdByName,
+        fundingSourceName: updatedFund.fundingSourceName,
+        responsibleName: updatedFund.responsibleName,
+        unitName: updatedFund.unitName,
+      } : currentFund));
+      setServiceNotice('');
+    } catch (error) {
+      setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.updateFailed));
+    } finally {
+      setStatusFundId(null);
+    }
+  };
+
+  const handleDeleteFund = async () => {
+    if (!deletingFund) return;
+    setDeletingFundId(deletingFund.id);
+    try {
+      if (hasPettyCashBackendId(deletingFund.id)) await pettyCashService.deleteFund(deletingFund.id);
+      onFundsChange(current => current.filter(fund => fund.id !== deletingFund.id));
+      setDeletingFund(null);
+      setServiceNotice('');
+    } catch (error) {
+      setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.deleteFailed));
+    } finally {
+      setDeletingFundId(null);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -367,13 +547,12 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
 
   const handleSaveKiosk = async (fundId: string, values: KioskDraft) => {
     const currentFund = funds.find(fund => fund.id === fundId);
-    if (!currentFund) return;
+    if (!currentFund) return undefined;
     const businessChoices = filterBusinessesByUnit(businessOptions, values.unitId);
     const unitName = getOptionLabel(unitOptions, values.unitId, currentFund.unitName);
     const businessName = getOptionLabel(businessChoices, values.businessId, currentFund.businessName);
 
-    const kioskAccessUrl = currentFund.kioskAccessUrl
-      ?? (currentFund.kioskPublicToken ? `/petty-cash/kiosk/${currentFund.kioskPublicToken}` : `/petty-cash/kiosk/${currentFund.id}`);
+    const kioskAccessUrl = getUsableKioskPath(currentFund) || undefined;
 
     const updatedFund: PettyCashFund = {
       ...currentFund,
@@ -392,23 +571,29 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
 
     if (hasPettyCashBackendId(fundId)) {
       try {
-        const savedFund = await pettyCashService.updateFund(updatedFund);
+        let savedFund = await pettyCashService.updateFund(updatedFund);
+        if (values.kioskEnabled && !getUsableKioskPath(savedFund) && hasPettyCashBackendId(savedFund.id)) {
+          savedFund = await pettyCashService.rotateFundKioskToken(savedFund.id);
+        }
+        const hydratedSavedFund = {
+          ...savedFund,
+          businessName,
+          unitName,
+        };
         onFundsChange(currentFunds => currentFunds.map(fund => (
           fund.id === fundId
-            ? {
-              ...savedFund,
-              businessName,
-              unitName,
-            }
+            ? hydratedSavedFund
             : fund
         )));
         setServiceNotice('');
+        return hydratedSavedFund;
       } catch (error) {
         setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
+        return undefined;
       }
     }
 
-    setIsKioskOpen(false);
+    return updatedFund;
   };
 
   const handleRotateKioskToken = async (fundId: string) => {
@@ -435,12 +620,45 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
     }
   };
 
+  const handleDeleteKiosk = async (fundId: string) => {
+    const currentFund = funds.find(fund => fund.id === fundId);
+    if (!currentFund) return;
+    const updatedFund: PettyCashFund = {
+      ...currentFund,
+      kioskAccessUrl: undefined,
+      kioskEnabled: false,
+      kioskPin: undefined,
+      kioskPublicToken: undefined,
+      kioskUsesUniversalPin: true,
+    };
+
+    onFundsChange(currentFunds => currentFunds.map(fund => (fund.id === fundId ? updatedFund : fund)));
+
+    if (!hasPettyCashBackendId(fundId)) return;
+
+    try {
+      const savedFund = await pettyCashService.updateFund(updatedFund);
+      onFundsChange(currentFunds => currentFunds.map(fund => (
+        fund.id === fundId
+          ? {
+            ...savedFund,
+            businessName: currentFund.businessName,
+            unitName: currentFund.unitName,
+          }
+          : fund
+      )));
+      setServiceNotice('');
+    } catch (error) {
+      setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PettyCashHeaderBanner
         actionLabel={copy.funds.header.create}
         description={copy.funds.header.description}
-        icon={WalletCards}
+        emoji="🗃️"
         onAction={() => setIsCreateFundOpen(true)}
         onSecondaryAction={() => setIsKioskOpen(true)}
         secondaryActionIcon={KeyRound}
@@ -469,6 +687,29 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
             />
           </div>
         </PettyCashField>
+        <PettyCashField label={copy.funds.table.unit}>
+          <select
+            className={pettyCashInputClass}
+            onChange={(event) => {
+              setUnitFilter(event.target.value);
+              setBusinessFilter('all');
+            }}
+            value={unitFilter}
+          >
+            <option value="all">{copy.common.all}</option>
+            {fundUnitOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+          </select>
+        </PettyCashField>
+        <PettyCashField label={copy.funds.table.business}>
+          <select
+            className={pettyCashInputClass}
+            onChange={(event) => setBusinessFilter(event.target.value)}
+            value={businessFilter}
+          >
+            <option value="all">{copy.common.all}</option>
+            {fundBusinessOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+          </select>
+        </PettyCashField>
         <PettyCashField label={copy.funds.filters.status}>
           <select
             className={pettyCashInputClass}
@@ -484,20 +725,27 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
         </PettyCashField>
       </PettyCashFilterShell>
 
-      <section className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex flex-wrap items-center gap-5">
-          <PettyCashMetric icon={WalletCards} label={copy.funds.metrics.assignedAmount} value={formatPettyCashCurrency(summary.assignedAmount, 'MXN')} />
-          <PettyCashMetric icon={Landmark} label={copy.funds.metrics.currentBalance} tone="success" value={formatPettyCashCurrency(summary.currentBalanceAmount, 'MXN')} />
-          <PettyCashMetric icon={ShieldCheck} label={copy.funds.metrics.activeKiosks} tone="info" value={String(funds.filter(fund => fund.kioskEnabled).length)} />
-          <PettyCashMetric icon={UserRound} label={copy.funds.metrics.riskFunds} tone={summary.riskCount > 0 ? 'danger' : 'success'} value={String(summary.riskCount)} />
-        </div>
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-          <div
-            className="h-full rounded-full bg-[#147514]"
-            style={{ width: `${summary.assignedAmount > 0 ? Math.min(100, (summary.verifiedExpenseAmount / summary.assignedAmount) * 100) : 0}%` }}
-          />
-        </div>
-      </section>
+      <OperationalKpiArea
+        alertChips={[
+          { id: 'preferred-currency', icon: <Coins className="h-3.5 w-3.5" />, label: copy.common.preferredCurrency(preferredCurrency), tone: 'info' },
+          ...(currencyCount > 1 ? [{ id: 'currency-count', icon: <Coins className="h-3.5 w-3.5" />, label: copy.common.currenciesRepresented(currencyCount), tone: 'info' as const }] : []),
+          { id: 'native-balance', icon: <WalletCards className="h-3.5 w-3.5" />, label: copy.common.nativeBreakdown(nativeBalance), tone: 'neutral' },
+        ]}
+        distributionSegments={[
+          { id: 'verified', label: copy.financial.progress.verified, count: summary.verifiedExpenseAmount, className: 'bg-[#147514]' },
+          { id: 'pending', label: copy.financial.progress.pending, count: summary.pendingReconciliationAmount, className: 'bg-amber-400' },
+          { id: 'shortage', label: copy.financial.progress.shortage, count: summary.shortageAmount, className: 'bg-rose-500' },
+          { id: 'available', label: copy.financial.progress.available, count: Math.max(0, summary.assignedAmount - summary.estimatedUsageAmount), className: 'bg-sky-400' },
+        ]}
+        insight={copy.funds.insight(filteredFunds.length, summary.riskCount, formatPettyCashCurrency(summary.currentBalanceAmount, preferredCurrency))}
+        insightIcon={<Info className="h-4 w-4" />}
+        metrics={[
+          { id: 'assigned', icon: <WalletCards className="h-4 w-4" />, label: copy.funds.metrics.assignedAmount, value: formatPettyCashCurrency(summary.assignedAmount, preferredCurrency) },
+          { id: 'balance', icon: <Landmark className="h-4 w-4" />, label: copy.funds.metrics.currentBalance, value: formatPettyCashCurrency(summary.currentBalanceAmount, preferredCurrency), valueClassName: summary.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
+          { id: 'kiosks', icon: <ShieldCheck className="h-4 w-4" />, label: copy.funds.metrics.activeKiosks, value: filteredFunds.filter(fund => fund.kioskEnabled).length, valueClassName: 'text-sky-600' },
+          { id: 'risk', icon: <UserRound className="h-4 w-4" />, label: copy.funds.metrics.riskFunds, value: summary.riskCount, valueClassName: summary.riskCount > 0 ? 'text-rose-600' : 'text-[#147514]' },
+        ]}
+      />
 
       <PettyCashTableShell
         footer={(
@@ -515,29 +763,34 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
           />
         )}
       >
-        <table className="w-full min-w-[1520px] table-fixed">
-          <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70">
+        <table className="w-full min-w-[1320px] table-fixed">
+          <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
               {[
-                [copy.funds.table.fund, 'w-[180px]'],
-                [copy.funds.table.unit, 'w-[150px]'],
-                [copy.funds.table.business, 'w-[170px]'],
-                [copy.funds.table.responsible, 'w-[170px]'],
-                [copy.funds.table.creator, 'w-[160px]'],
-                [copy.funds.table.source, 'w-[190px]'],
-                [copy.funds.table.receivedBy, 'w-[190px]'],
-                [copy.funds.table.spentBy, 'w-[180px]'],
-                [copy.funds.table.budget, 'w-[150px]'],
-                [copy.funds.table.balance, 'w-[140px]'],
-                [copy.funds.table.pending, 'w-[140px]'],
-                [copy.funds.table.kiosk, 'w-[120px]'],
-                [copy.funds.table.status, 'w-[160px]'],
-              ].map(([column, widthClass]) => (
-                <th key={column} className={`${widthClass} px-5 py-4 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400`}>{column}</th>
+                { key: 'fund', label: copy.funds.table.fund, width: 'w-[190px]' },
+                { key: 'unit', label: copy.funds.table.unit, width: 'w-[140px]' },
+                { key: 'business', label: copy.funds.table.business, width: 'w-[150px]' },
+                { key: 'responsible', label: copy.funds.table.responsible, width: 'w-[160px]' },
+                { key: 'source', label: copy.funds.table.source, width: 'w-[180px]' },
+                { key: 'budget', label: copy.funds.table.budget, width: 'w-[150px]' },
+                { key: 'balance', label: copy.funds.table.balance, width: 'w-[140px]' },
+                { key: 'pending', label: copy.funds.table.pending, width: 'w-[140px]' },
+                { key: 'kiosk', label: copy.funds.table.kiosk, width: 'w-[120px]' },
+                { key: 'status', label: copy.funds.table.status, width: 'w-[150px]' },
+              ].map(column => (
+                <PettyCashSortableHeader key={column.key} columnKey={column.key} label={column.label} onSort={fundSort.onSort} sortDirection={fundSort.sortDirection} sortKey={fundSort.sortKey} widthClass={column.width} />
               ))}
+              <PettyCashSortableHeader align="right" label={copy.common.actions} widthClass="w-[220px]" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+            {fundsPagination.paginatedRows.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  {copy.funds.filters.result(0)}
+                </td>
+              </tr>
+            ) : null}
             {fundsPagination.paginatedRows.map((fund) => {
               const fundStatements = statements.filter(statement => statement.pettyCashFundId === fund.id);
               const pendingSettlement = fundStatements.reduce((sum, statement) => sum + getStatementSettlementBalance(statement), 0);
@@ -545,34 +798,89 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
                 ?? activeBudgetLines.find(line => line.id === fund.budgetLineId)?.name
                 ?? copy.funds.defaults.noBudget;
               const fundAccountName = getPaymentAccountName(activePaymentAccounts, fund.paymentAccountId, copy.funds.defaults.financialAccount);
+              const isFundActionBusy = statusFundId === fund.id || deletingFundId === fund.id;
 
               return (
                 <tr key={fund.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/70">
-                  <td className="px-5 py-5">
+                  <td className="px-5 py-4">
                     <p className="font-extrabold text-slate-900 dark:text-white">{fund.name}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{fundAccountName}</p>
                   </td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund.unitName}</td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund.businessName}</td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund.responsibleName}</td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund.createdByName}</td>
-                  <td className="px-5 py-5">
+                  <td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{fund.unitName}</td>
+                  <td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{fund.businessName}</td>
+                  <td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{fund.responsibleName}</td>
+                  <td className="px-5 py-4">
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{fund.fundingSourceName}</p>
+                    <p className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</p>
                   </td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</td>
-                  <td className="px-5 py-5 text-sm font-bold text-slate-700 dark:text-slate-300">{fund.spendingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</td>
-                  <td className="px-5 py-5">
+                  <td className="px-5 py-4">
                     <p className="text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(fund.limitAmount, fund.currencyCode)}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{budgetLineName}</p>
                   </td>
-                  <td className="px-5 py-5 text-sm font-black text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</td>
-                  <td className="px-5 py-5 text-sm font-black text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>
-                  <td className="px-5 py-5">
+                  <td className={`px-5 py-4 text-sm font-extrabold tabular-nums ${fund.currentBalanceAmount < 0 ? 'text-red-600 dark:text-red-300' : 'text-[#147514] dark:text-emerald-300'}`}>{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</td>
+                  <td className="px-5 py-4 text-sm font-extrabold tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>
+                  <td className="px-5 py-4">
                     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${fund.kioskEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
                       {fund.kioskEnabled ? copy.common.enabled : copy.common.disabled}
                     </span>
                   </td>
-                  <td className="px-5 py-5"><PettyCashStatusPill kind="fund" status={fund.status} /></td>
+                  <td className="px-5 py-4"><PettyCashStatusPill kind="fund" status={fund.status} /></td>
+                  <td className="px-5 py-4 text-right">
+                    <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                      <button
+                        type="button"
+                        disabled={isFundActionBusy}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onViewReceipts(fund.id);
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-[#147514] transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300"
+                        title={copy.funds.table.viewDetail}
+                        aria-label={`${copy.funds.table.viewDetail}: ${fund.name}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isFundActionBusy}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setEditingFund(fund);
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-amber-100 bg-amber-50 text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
+                        title={copy.funds.table.edit}
+                        aria-label={`${copy.funds.table.edit}: ${fund.name}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleToggleFundStatus(fund);
+                        }}
+                        disabled={isFundActionBusy}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition disabled:cursor-not-allowed disabled:opacity-50 ${fund.status === 'CLOSED' ? 'border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300' : 'border-orange-100 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-400/10 dark:text-orange-300'}`}
+                        title={fund.status === 'CLOSED' ? `Reactivar fondo: ${fund.name}` : `Desactivar fondo: ${fund.name}`}
+                        aria-label={fund.status === 'CLOSED' ? `Reactivar fondo: ${fund.name}` : `Desactivar fondo: ${fund.name}`}
+                      >
+                        {statusFundId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isFundActionBusy}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeletingFund(fund);
+                        }}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-300"
+                        title={copy.funds.table.delete}
+                        aria-label={`${copy.funds.table.delete}: ${fund.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               );
             })}
@@ -588,7 +896,22 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
           currentUserId={currentUser?.id}
           isLoadingReferenceData={isLoadingReferenceData}
           onClose={() => setIsCreateFundOpen(false)}
-          onCreate={handleCreateFund}
+          onSave={handleCreateFund}
+          unitOptions={unitOptions}
+          userOptions={userOptions}
+        />
+      ) : null}
+
+      {editingFund ? (
+        <CreateFundModal
+          paymentAccounts={activePaymentAccounts}
+          budgetLines={activeBudgetLines}
+          businessOptions={businessOptions}
+          currentUserId={currentUser?.id}
+          initialFund={editingFund}
+          isLoadingReferenceData={isLoadingReferenceData}
+          onClose={() => setEditingFund(null)}
+          onSave={handleUpdateFund}
           unitOptions={unitOptions}
           userOptions={userOptions}
         />
@@ -599,11 +922,24 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, statements }: Pe
           funds={funds}
           businessOptions={businessOptions}
           onClose={() => setIsKioskOpen(false)}
+          onDelete={handleDeleteKiosk}
           onRotate={handleRotateKioskToken}
           onSave={handleSaveKiosk}
           unitOptions={unitOptions}
         />
       ) : null}
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(deletingFund)}
+        title={copy.funds.modal.deleteTitle}
+        itemName={deletingFund?.name}
+        description={copy.funds.modal.deleteDescription}
+        confirmLabel={copy.funds.modal.deleteConfirm}
+        cancelLabel={copy.common.cancel}
+        confirmDisabled={Boolean(deletingFundId)}
+        onCancel={() => setDeletingFund(null)}
+        onConfirm={handleDeleteFund}
+      />
     </div>
   );
 }
@@ -614,7 +950,8 @@ function CreateFundModal({
   currentUserId,
   isLoadingReferenceData,
   onClose,
-  onCreate,
+  initialFund,
+  onSave,
   paymentAccounts,
   unitOptions,
   userOptions,
@@ -623,14 +960,16 @@ function CreateFundModal({
   businessOptions: FinanceReferenceOption[];
   currentUserId?: string;
   isLoadingReferenceData: boolean;
+  initialFund?: PettyCashFund;
   onClose: () => void;
-  onCreate: (draft: FundDraft) => void;
+  onSave: (draft: FundDraft) => void;
   paymentAccounts: PaymentAccount[];
   unitOptions: FinanceReferenceOption[];
   userOptions: FinanceReferenceOption[];
 }) {
   const copy = usePettyCashTranslations();
   const [draft, setDraft] = useState<FundDraft>(() => {
+    if (initialFund) return createFundDraftFromFund(initialFund);
     if (paymentAccounts.length === 0 && unitOptions.length === 0 && userOptions.length === 0) {
       return createFallbackFundDraft(copy.funds.defaults.financialAccount);
     }
@@ -645,6 +984,7 @@ function CreateFundModal({
     });
   });
   useEffect(() => {
+    if (initialFund) return;
     setDraft((current) => {
       const nextDefaults = createEmptyFundDraft({
         businessOptions,
@@ -676,11 +1016,10 @@ function CreateFundModal({
         unitId: nextUnitId,
       };
     });
-  }, [budgetLines, businessOptions, currentUserId, paymentAccounts, unitOptions, userOptions]);
+  }, [budgetLines, businessOptions, currentUserId, initialFund, paymentAccounts, unitOptions, userOptions]);
   const selectedBudgetLine = budgetLines.find(line => line.id === draft.budgetLineId);
   const selectedBudgetLimit = getBudgetLineLimit(selectedBudgetLine);
   const filteredBusinessOptions = filterBusinessesByUnit(businessOptions, draft.unitId);
-  const canUseManualLimit = budgetLines.length === 0;
   const selectedFundAccount = paymentAccounts.find(account => account.id === draft.paymentAccountId);
   const selectedFundingSourceAccount = paymentAccounts.find(account => account.id === draft.fundingSourcePaymentAccountId);
   const fundingSourceOptions = getFundingSourceOptions(paymentAccounts, draft.paymentAccountId, draft.currencyCode);
@@ -697,7 +1036,6 @@ function CreateFundModal({
   );
   const canCreate = draft.name.trim().length > 0
     && Number(draft.limitAmount) > 0
-    && (canUseManualLimit || draft.budgetLineId.length > 0)
     && draft.paymentAccountId.length > 0
     && hasDistinctFundingAccounts
     && fundAccountCurrencyMatches
@@ -710,8 +1048,8 @@ function CreateFundModal({
     && draft.spendingMethods.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <header className="bg-[#147514] px-7 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -719,11 +1057,11 @@ function CreateFundModal({
                 <Banknote className="h-5 w-5" />
               </span>
               <div>
-                <h3 className="text-2xl font-black">{copy.funds.modal.title}</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">{copy.funds.modal.subtitle}</p>
+                <h3 className="text-2xl font-black">{initialFund ? copy.funds.modal.editTitle : copy.funds.modal.title}</h3>
+                <p className="mt-1 text-sm font-semibold text-white/80">{initialFund ? copy.funds.modal.editSubtitle : copy.funds.modal.subtitle}</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg bg-white/15 p-2 transition hover:bg-white/25">
+            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -744,7 +1082,6 @@ function CreateFundModal({
               <PettyCashField label={copy.funds.modal.budgetLine}>
                 <select
                   className={pettyCashInputClass}
-                  disabled={budgetLines.length === 0}
                   onChange={(event) => {
                     const line = budgetLines.find(item => item.id === event.target.value);
                     setDraft(current => ({
@@ -756,9 +1093,7 @@ function CreateFundModal({
                   }}
                   value={draft.budgetLineId}
                 >
-                  {budgetLines.length === 0 ? (
-                    <option value="">{copy.funds.modal.noBudgets}</option>
-                  ) : null}
+                  <option value="">{copy.funds.defaults.noBudget}</option>
                   {budgetLines.map(line => (
                     <option key={line.id} value={line.id}>{getBudgetLineLabel(line, copy.funds.defaults.budgetLine, copy.funds.budgetLineOption)}</option>
                   ))}
@@ -973,10 +1308,10 @@ function CreateFundModal({
           <button
             type="button"
             disabled={!canCreate}
-            onClick={() => onCreate(draft)}
+            onClick={() => onSave(draft)}
             className="rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {copy.funds.modal.submit}
+            {initialFund ? copy.funds.modal.update : copy.funds.modal.submit}
           </button>
         </footer>
       </div>
@@ -988,6 +1323,7 @@ function KioskModal({
   businessOptions,
   funds,
   onClose,
+  onDelete,
   onRotate,
   onSave,
   unitOptions,
@@ -995,21 +1331,27 @@ function KioskModal({
   businessOptions: FinanceReferenceOption[];
   funds: PettyCashFund[];
   onClose: () => void;
+  onDelete: (fundId: string) => Promise<void> | void;
   onRotate: (fundId: string) => Promise<void>;
-  onSave: (fundId: string, values: KioskDraft) => void;
+  onSave: (fundId: string, values: KioskDraft) => PettyCashFund | undefined | void | Promise<PettyCashFund | undefined | void>;
   unitOptions: FinanceReferenceOption[];
 }) {
   const copy = usePettyCashTranslations();
-  const [selectedFundId, setSelectedFundId] = useState(funds[0]?.id ?? '');
+  const buildDraft = (fund?: PettyCashFund): KioskDraft => ({
+    businessId: fund?.businessId ?? '',
+    kioskEnabled: fund?.kioskEnabled ?? true,
+    name: fund?.name ?? '',
+    unitId: fund?.unitId ?? '',
+  });
+  const [selectedFundId, setSelectedFundId] = useState('');
+  const [editorFundId, setEditorFundId] = useState('');
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
-  const [draft, setDraft] = useState<KioskDraft>(() => ({
-    businessId: selectedFund?.businessId ?? '',
-    kioskEnabled: selectedFund?.kioskEnabled ?? false,
-    name: selectedFund?.name ?? '',
-    unitId: selectedFund?.unitId ?? '',
-  }));
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [isRotatingLink, setIsRotatingLink] = useState(false);
+  const [draft, setDraft] = useState<KioskDraft>(() => buildDraft());
+  const [copiedFundId, setCopiedFundId] = useState('');
+  const [deletingKioskId, setDeletingKioskId] = useState('');
+  const [rotatingFundId, setRotatingFundId] = useState('');
+  const activeKiosks = funds.filter(fund => fund.kioskEnabled).length;
+  const nextFundToConfigure = funds.find(fund => !fund.kioskEnabled) ?? funds[0];
   const unitChoices = useMemo(() => {
     if (!selectedFund || unitOptions.some(option => option.value === selectedFund.unitId)) {
       return unitOptions;
@@ -1024,55 +1366,105 @@ function KioskModal({
     return [{ label: selectedFund.businessName, unitId: selectedFund.unitId, value: selectedFund.businessId }, ...filtered];
   }, [businessOptions, draft.unitId, selectedFund]);
 
-  const handleSelectFund = (fundId: string) => {
+  const getKioskPath = (fund?: PettyCashFund) => getUsableKioskPath(fund);
+  const getKioskUrl = (fund?: PettyCashFund) => {
+    const path = getKioskPath(fund);
+    return path ? (path.startsWith('http') ? path : `${window.location.origin}${path}`) : '';
+  };
+
+  const openEditor = (fundId: string) => {
     const nextFund = funds.find(fund => fund.id === fundId);
     setSelectedFundId(fundId);
-    setDraft({
-      businessId: nextFund?.businessId ?? '',
-      kioskEnabled: nextFund?.kioskEnabled ?? false,
-      name: nextFund?.name ?? '',
-      unitId: nextFund?.unitId ?? '',
-    });
-    setCopiedLink(false);
-    setIsRotatingLink(false);
+    setEditorFundId(fundId);
+    setDraft(buildDraft(nextFund));
+    setCopiedFundId('');
+    setRotatingFundId('');
+  };
+  const closeEditor = () => {
+    setEditorFundId('');
+    setSelectedFundId('');
+    setDraft(buildDraft());
   };
 
   const canSave = selectedFundId.length > 0
     && draft.name.trim().length > 0
     && draft.unitId.length > 0
     && draft.businessId.length > 0;
-  const kioskPath = selectedFund
-    ? selectedFund.kioskAccessUrl
-      ?? (selectedFund.kioskPublicToken ? `/petty-cash/kiosk/${selectedFund.kioskPublicToken}` : `/petty-cash/kiosk/${selectedFund.id}`)
-    : '';
-  const kioskUrl = kioskPath
-    ? (kioskPath.startsWith('http') ? kioskPath : `${window.location.origin}${kioskPath}`)
-    : '';
-  const canUseKioskLink = Boolean(kioskUrl && selectedFund?.kioskEnabled);
-  const handleCopyLink = async () => {
-    if (!kioskUrl) return;
-    await navigator.clipboard.writeText(kioskUrl);
-    setCopiedLink(true);
-    window.setTimeout(() => setCopiedLink(false), 1800);
+  const kioskActionButtonClass = (tone: 'blue' | 'emerald' | 'neutral' | 'red' | 'yellow') => {
+    const tones = {
+      blue: 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20',
+      emerald: 'border-emerald-200 bg-emerald-50 text-[#147514] hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20',
+      neutral: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800',
+      red: 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20',
+      yellow: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20',
+    };
+    return `inline-flex h-11 w-11 items-center justify-center rounded-xl border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${tones[tone]}`;
   };
-  const handleOpenLink = () => {
-    if (!kioskUrl) return;
-    window.open(kioskUrl, '_blank', 'noopener,noreferrer');
+
+  const handleCopyLink = async (fund: PettyCashFund) => {
+    const fundKioskUrl = getKioskUrl(fund);
+    if (!fundKioskUrl) return;
+    await navigator.clipboard.writeText(fundKioskUrl);
+    setCopiedFundId(fund.id);
+    window.setTimeout(() => setCopiedFundId(''), 1800);
   };
-  const handleRotateLink = async () => {
-    if (!selectedFundId || !hasPettyCashBackendId(selectedFundId)) return;
-    setIsRotatingLink(true);
-    setCopiedLink(false);
-    try {
-      await onRotate(selectedFundId);
-    } finally {
-      setIsRotatingLink(false);
+  const handleOpenOrActivateLink = async (fund: PettyCashFund) => {
+    const currentUrl = getKioskUrl(fund);
+    if (fund.kioskEnabled && currentUrl) {
+      window.open(currentUrl, '_blank', 'noopener,noreferrer');
+      return;
     }
+    if (!hasPettyCashBackendId(fund.id)) return;
+    const pendingWindow = window.open('', '_blank', 'noopener,noreferrer');
+    setRotatingFundId(fund.id);
+    try {
+      const savedFund = await Promise.resolve(onSave(fund.id, {
+        businessId: fund.businessId,
+        kioskEnabled: true,
+        name: fund.name,
+        unitId: fund.unitId,
+      }));
+      const savedUrl = getKioskUrl(savedFund as PettyCashFund | undefined);
+      if (savedUrl) {
+        if (pendingWindow) {
+          pendingWindow.location.href = savedUrl;
+        } else {
+          window.open(savedUrl, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        pendingWindow?.close();
+      }
+    } finally {
+      setRotatingFundId('');
+    }
+  };
+  const handleRotateLink = async (fundId = selectedFundId) => {
+    if (!fundId || !hasPettyCashBackendId(fundId)) return;
+    setRotatingFundId(fundId);
+    setCopiedFundId('');
+    try {
+      await onRotate(fundId);
+    } finally {
+      setRotatingFundId('');
+    }
+  };
+  const handleDeleteKioskAccess = async (fundId: string) => {
+    setDeletingKioskId(fundId);
+    try {
+      await Promise.resolve(onDelete(fundId));
+    } finally {
+      setDeletingKioskId('');
+    }
+  };
+  const handleSaveEditor = async () => {
+    if (!canSave) return;
+    await Promise.resolve(onSave(selectedFundId, { ...draft, kioskEnabled: true }));
+    closeEditor();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <header className="bg-[#147514] px-7 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -1080,152 +1472,286 @@ function KioskModal({
                 <KeyRound className="h-5 w-5" />
               </span>
               <div>
-                <h3 className="text-2xl font-black">{copy.funds.kiosk.title}</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">{copy.funds.kiosk.subtitle}</p>
+                <h3 className="text-2xl font-black">Kioskos de fondos</h3>
+                <p className="mt-1 text-sm font-semibold text-white/80">Administra portales móviles para ingresar dinero y subir comprobantes por fondo.</p>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-lg bg-white/15 p-2 transition hover:bg-white/25">
+            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
               <X className="h-5 w-5" />
             </button>
           </div>
         </header>
 
-        <div className="overflow-y-auto px-7 py-6">
-          <section className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <div className="grid gap-4">
-              <PettyCashField label={copy.funds.kiosk.assignedFund}>
-                <select className={pettyCashInputClass} onChange={(event) => handleSelectFund(event.target.value)} value={selectedFundId}>
-                  {funds.map(fund => (
-                    <option key={fund.id} value={fund.id}>{fund.name} - {fund.responsibleName}</option>
-                  ))}
-                </select>
-              </PettyCashField>
-
-              <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-                <span>
-                  <span className="block text-sm font-black text-slate-900 dark:text-white">{copy.funds.kiosk.enableTitle}</span>
-                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.funds.kiosk.enableDescription}</span>
-                </span>
-                <input
-                  checked={draft.kioskEnabled}
-                  onChange={(event) => setDraft(current => ({ ...current, kioskEnabled: event.target.checked }))}
-                  type="checkbox"
-                />
-              </label>
-
-              <PettyCashField label={copy.funds.kiosk.boxName}>
-                <input
-                  className={pettyCashInputClass}
-                  onChange={(event) => setDraft(current => ({ ...current, name: event.target.value }))}
-                  value={draft.name}
-                />
-              </PettyCashField>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <PettyCashField label={copy.funds.kiosk.assignedUnit}>
-                  <select
-                    className={pettyCashInputClass}
-                    onChange={(event) => {
-                      const nextUnitId = event.target.value;
-                      const nextBusinesses = filterBusinessesByUnit(businessOptions, nextUnitId);
-                      setDraft(current => ({
-                        ...current,
-                        businessId: nextBusinesses.some(option => option.value === current.businessId)
-                          ? current.businessId
-                          : firstOptionValue(nextBusinesses),
-                        unitId: nextUnitId,
-                      }));
-                    }}
-                    value={draft.unitId}
-                  >
-                    {unitChoices.length === 0 ? <option value="">{copy.funds.modal.noUnits}</option> : null}
-                    {unitChoices.map(unit => (
-                      <option key={unit.value} value={unit.value}>{unit.label}</option>
-                    ))}
-                  </select>
-                </PettyCashField>
-                <PettyCashField label={copy.funds.kiosk.assignedBusiness}>
-                  <select
-                    className={pettyCashInputClass}
-                    onChange={(event) => setDraft(current => ({ ...current, businessId: event.target.value }))}
-                    value={draft.businessId}
-                  >
-                    {businessChoices.length === 0 ? <option value="">{copy.funds.modal.noBusinesses}</option> : null}
-                    {businessChoices.map(business => (
-                      <option key={business.value} value={business.value}>{business.label}</option>
-                    ))}
-                  </select>
-                </PettyCashField>
+        <div className="overflow-y-auto bg-slate-50 px-7 py-6 dark:bg-slate-950">
+          <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[0.72rem] font-black uppercase tracking-[0.32em] text-slate-500">Accesos configurados</p>
+                <p className="mt-1 text-sm font-black text-slate-600 dark:text-slate-300">{activeKiosks} activos de {funds.length}</p>
               </div>
-
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                <p className="text-sm font-black text-emerald-800 dark:text-emerald-200">{copy.funds.kiosk.universalPinTitle}</p>
-                <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                  {copy.funds.kiosk.universalPinDescription(selectedFund?.responsibleName ?? copy.funds.modal.responsible)}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                <div className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white">
-                  <Link2 className="h-4 w-4 text-[#147514]" />
-                  {copy.funds.kiosk.linkTitle}
-                </div>
-                <p className="mt-2 break-all rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {kioskUrl || copy.common.selectFund}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={!kioskUrl}
-                    onClick={() => void handleCopyLink()}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                  >
-                    <Copy className="h-4 w-4 text-[#147514]" />
-                    {copiedLink ? copy.common.copied : copy.common.copyLink}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canUseKioskLink}
-                    onClick={handleOpenLink}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                  >
-                    <ExternalLink className="h-4 w-4 text-[#147514]" />
-                    {copy.funds.kiosk.open}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!selectedFundId || !hasPettyCashBackendId(selectedFundId) || isRotatingLink}
-                    onClick={() => void handleRotateLink()}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                  >
-                    <RotateCw className={`h-4 w-4 text-[#147514] ${isRotatingLink ? 'animate-spin' : ''}`} />
-                    {isRotatingLink ? copy.funds.kiosk.regenerating : copy.funds.kiosk.regenerate}
-                  </button>
-                </div>
-                {!selectedFund?.kioskEnabled ? (
-                  <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                    {copy.funds.kiosk.enabledWarning}
-                  </p>
-                ) : null}
-              </div>
+              <button
+                type="button"
+                disabled={!nextFundToConfigure}
+                onClick={() => nextFundToConfigure ? openEditor(nextFundToConfigure.id) : undefined}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#0f5f10] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="text-lg leading-none">+</span>
+                Nuevo acceso
+              </button>
             </div>
           </section>
+
+          <div className="mt-4 space-y-3">
+            {funds.length === 0 ? (
+              <div className="rounded-[22px] border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                Crea un fondo para habilitar su kiosko móvil.
+              </div>
+            ) : null}
+            {funds.map(fund => {
+              const fundKioskUrl = getKioskUrl(fund);
+              const canOpenFundKiosk = Boolean(fundKioskUrl && fund.kioskEnabled);
+              const canActivateAndOpen = !canOpenFundKiosk && hasPettyCashBackendId(fund.id);
+              const canGenerateKioskLink = fund.kioskEnabled && !fundKioskUrl && hasPettyCashBackendId(fund.id);
+              const hasKioskConfig = Boolean(fund.kioskEnabled || fundKioskUrl || fund.kioskPublicToken || fund.kioskAccessUrl);
+              const actionLabel = fund.kioskEnabled
+                ? (fundKioskUrl ? 'Desactivar' : (canGenerateKioskLink ? 'Generar link' : 'Guarda el fondo'))
+                : 'Activar';
+              const openButtonLabel = canOpenFundKiosk ? 'Abrir' : (canActivateAndOpen ? 'Activar y abrir' : 'Guarda primero');
+              const fundBusinessChoices = filterBusinessesByUnit(businessOptions, fund.unitId);
+              const fundBusinessLabel = getOptionLabel(fundBusinessChoices, fund.businessId, fund.businessName);
+              const fundUnitLabel = getOptionLabel(unitOptions, fund.unitId, fund.unitName);
+
+              return (
+                <article key={fund.id} className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-[#147514] dark:bg-emerald-500/10">
+                          <WalletCards className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="truncate text-lg font-black text-slate-950 dark:text-white">{fund.name}</h4>
+                            <span className={`rounded-full px-3 py-1 text-[0.68rem] font-black uppercase tracking-wide ${fund.kioskEnabled ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                              {fund.kioskEnabled ? 'Activo' : 'Apagado'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Portal móvil de caja chica</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
+                        <p className="flex items-center gap-2 text-[0.68rem] font-black uppercase tracking-[0.28em] text-slate-500">
+                          <Landmark className="h-4 w-4 text-[#147514]" />
+                          Alcance
+                        </p>
+                        <p className="mt-2 text-sm font-black text-slate-900 dark:text-white">{fundUnitLabel} · {fundBusinessLabel}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
+                        <p className="flex items-center gap-2 text-[0.68rem] font-black uppercase tracking-[0.28em] text-slate-500">
+                          <ShieldCheck className="h-4 w-4 text-[#147514]" />
+                          Configuración
+                        </p>
+                        <p className="mt-2 text-sm font-black text-slate-900 dark:text-white">{fund.currencyCode} · PIN universal</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {canOpenFundKiosk ? 'Acceso listo' : (fund.kioskEnabled ? 'Sin link generado' : 'Pendiente de activar')}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {fund.responsibleName}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {fund.currencyCode}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-2 text-xs font-black text-slate-500 dark:text-slate-400">
+                      <ShieldCheck className={`h-4 w-4 ${canOpenFundKiosk ? 'text-[#147514]' : 'text-slate-400'}`} />
+                      <span>{canOpenFundKiosk ? 'Link privado listo para compartir' : (fund.kioskEnabled ? 'Pendiente de generar acceso' : 'Kiosko desactivado')}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEditor(fund.id)}
+                        className={kioskActionButtonClass('yellow')}
+                        title="Editar kiosko"
+                        aria-label="Editar kiosko"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!fundKioskUrl}
+                        onClick={() => void handleCopyLink(fund)}
+                        className={kioskActionButtonClass('blue')}
+                        title={copiedFundId === fund.id ? copy.common.copied : copy.common.copyLink}
+                        aria-label={copiedFundId === fund.id ? copy.common.copied : copy.common.copyLink}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canOpenFundKiosk && !canActivateAndOpen}
+                        onClick={() => void handleOpenOrActivateLink(fund)}
+                        className={kioskActionButtonClass('emerald')}
+                        title={openButtonLabel}
+                        aria-label={openButtonLabel}
+                      >
+                        {rotatingFundId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={fund.kioskEnabled && !fundKioskUrl && !canGenerateKioskLink}
+                        onClick={() => {
+                          if (canGenerateKioskLink) {
+                            void handleRotateLink(fund.id);
+                            return;
+                          }
+                          void onSave(fund.id, { businessId: fund.businessId, kioskEnabled: !fund.kioskEnabled, name: fund.name, unitId: fund.unitId });
+                        }}
+                        className={kioskActionButtonClass(fund.kioskEnabled && fundKioskUrl ? 'red' : 'emerald')}
+                        title={actionLabel}
+                        aria-label={actionLabel}
+                      >
+                        {rotatingFundId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : (
+                          fund.kioskEnabled && fundKioskUrl ? <X className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!hasKioskConfig || deletingKioskId === fund.id}
+                        onClick={() => void handleDeleteKioskAccess(fund.id)}
+                        className={kioskActionButtonClass('red')}
+                        title="Eliminar kiosko"
+                        aria-label="Eliminar kiosko"
+                      >
+                        {deletingKioskId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
 
         <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
           <button type="button" onClick={onClose} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
             {copy.common.cancel}
           </button>
-          <button
-            type="button"
-            disabled={!canSave}
-            onClick={() => onSave(selectedFundId, draft)}
-            className="rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {copy.funds.kiosk.save}
-          </button>
         </footer>
       </div>
+
+      {editorFundId ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-[2px]">
+          <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <header className="bg-[#147514] px-7 py-5 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h3 className="text-2xl font-black">{selectedFund?.kioskEnabled ? 'Editar kiosko' : 'Crear acceso de kiosko'}</h3>
+                    <p className="mt-1 text-sm font-semibold text-white/80">Configura el portal móvil del fondo seleccionado.</p>
+                  </div>
+                </div>
+                <button type="button" onClick={closeEditor} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </header>
+
+            <div className="overflow-y-auto px-7 py-6">
+              <section className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
+                <div className="grid gap-4">
+                  <PettyCashField label={copy.funds.kiosk.assignedFund}>
+                    <select className={pettyCashInputClass} onChange={(event) => openEditor(event.target.value)} value={selectedFundId}>
+                      {funds.map(fund => (
+                        <option key={fund.id} value={fund.id}>{fund.name} - {fund.responsibleName}</option>
+                      ))}
+                    </select>
+                  </PettyCashField>
+
+                  <PettyCashField label={copy.funds.kiosk.boxName}>
+                    <input
+                      className={pettyCashInputClass}
+                      onChange={(event) => setDraft(current => ({ ...current, name: event.target.value }))}
+                      value={draft.name}
+                    />
+                  </PettyCashField>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <PettyCashField label={copy.funds.kiosk.assignedUnit}>
+                      <select
+                        className={pettyCashInputClass}
+                        onChange={(event) => {
+                          const nextUnitId = event.target.value;
+                          const nextBusinesses = filterBusinessesByUnit(businessOptions, nextUnitId);
+                          setDraft(current => ({
+                            ...current,
+                            businessId: nextBusinesses.some(option => option.value === current.businessId)
+                              ? current.businessId
+                              : firstOptionValue(nextBusinesses),
+                            unitId: nextUnitId,
+                          }));
+                        }}
+                        value={draft.unitId}
+                      >
+                        {unitChoices.length === 0 ? <option value="">{copy.funds.modal.noUnits}</option> : null}
+                        {unitChoices.map(unit => (
+                          <option key={unit.value} value={unit.value}>{unit.label}</option>
+                        ))}
+                      </select>
+                    </PettyCashField>
+                    <PettyCashField label={copy.funds.kiosk.assignedBusiness}>
+                      <select
+                        className={pettyCashInputClass}
+                        onChange={(event) => setDraft(current => ({ ...current, businessId: event.target.value }))}
+                        value={draft.businessId}
+                      >
+                        {businessChoices.length === 0 ? <option value="">{copy.funds.modal.noBusinesses}</option> : null}
+                        {businessChoices.map(business => (
+                          <option key={business.value} value={business.value}>{business.label}</option>
+                        ))}
+                      </select>
+                    </PettyCashField>
+                  </div>
+
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                    <p className="text-sm font-black text-emerald-800 dark:text-emerald-200">{copy.funds.kiosk.universalPinTitle}</p>
+                    <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                      {copy.funds.kiosk.universalPinDescription(selectedFund?.responsibleName ?? copy.funds.modal.responsible)}
+                    </p>
+                  </div>
+
+                </div>
+              </section>
+            </div>
+
+            <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
+              <button type="button" onClick={closeEditor} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+                {copy.common.cancel}
+              </button>
+              <button
+                type="button"
+                disabled={!canSave}
+                onClick={() => void handleSaveEditor()}
+                className="rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {copy.funds.kiosk.save}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
