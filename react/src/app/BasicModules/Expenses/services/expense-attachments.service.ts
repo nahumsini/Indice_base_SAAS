@@ -46,54 +46,68 @@ type PresignUploadResponse = {
   upload_headers?: Record<string, string>;
 };
 
-const basePath = (expenseId: string) => `/api/v1/finance/expenses/${expenseId}/attachments`;
-
-export const expenseAttachmentsService = {
-  async list(expenseId: string): Promise<ExpenseAttachment[]> {
-    const response = await apiClient<ExpenseAttachmentListResponse>(basePath(expenseId));
-    return response.items.map(toExpenseAttachment);
-  },
-
-  async upload(expenseId: string, file: File): Promise<ExpenseAttachment> {
-    const presign = await apiClient<PresignUploadResponse>(`${basePath(expenseId)}/presign-upload`, {
-      method: 'POST',
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType: normalizeContentType(file),
-        sizeBytes: file.size,
-      }),
-    });
-    const uploadUrl = presign.uploadUrl ?? presign.upload_url;
-    const objectKey = presign.objectKey ?? presign.object_key;
-    if (!uploadUrl || !objectKey) {
-      throw new Error('Upload URL was not returned.');
-    }
-
-    const uploadResponse = await fetch(resolveExpenseStorageUrl(uploadUrl), {
-      method: 'PUT',
-      body: file,
-      headers: presign.uploadHeaders ?? presign.upload_headers ?? {},
-    });
-    if (!uploadResponse.ok) {
-      throw new Error(uploadResponse.statusText || 'Attachment upload failed.');
-    }
-
-    const registered = await apiClient<ExpenseAttachmentApiDto>(basePath(expenseId), {
-      method: 'POST',
-      body: JSON.stringify({
-        objectKey,
-        originalFilename: file.name,
-        mimeType: normalizeContentType(file),
-        sizeBytes: file.size,
-      }),
-    });
-    return toExpenseAttachment(registered);
-  },
-
-  async remove(expenseId: string, attachmentId: string): Promise<void> {
-    await apiClient(`${basePath(expenseId)}/${attachmentId}`, { method: 'DELETE' });
-  },
+export type AttachmentService = {
+  list(ownerId: string): Promise<ExpenseAttachment[]>;
+  upload(ownerId: string, file: File): Promise<ExpenseAttachment>;
+  remove(ownerId: string, attachmentId: string): Promise<void>;
 };
+
+function createAttachmentService(basePath: (ownerId: string) => string): AttachmentService {
+  return {
+    async list(ownerId: string): Promise<ExpenseAttachment[]> {
+      const response = await apiClient<ExpenseAttachmentListResponse>(basePath(ownerId));
+      return response.items.map(toExpenseAttachment);
+    },
+
+    async upload(ownerId: string, file: File): Promise<ExpenseAttachment> {
+      const presign = await apiClient<PresignUploadResponse>(`${basePath(ownerId)}/presign-upload`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: normalizeContentType(file),
+          sizeBytes: file.size,
+        }),
+      });
+      const uploadUrl = presign.uploadUrl ?? presign.upload_url;
+      const objectKey = presign.objectKey ?? presign.object_key;
+      if (!uploadUrl || !objectKey) {
+        throw new Error('Upload URL was not returned.');
+      }
+
+      const uploadResponse = await fetch(resolveExpenseStorageUrl(uploadUrl), {
+        method: 'PUT',
+        body: file,
+        headers: presign.uploadHeaders ?? presign.upload_headers ?? {},
+      });
+      if (!uploadResponse.ok) {
+        throw new Error(uploadResponse.statusText || 'Attachment upload failed.');
+      }
+
+      const registered = await apiClient<ExpenseAttachmentApiDto>(basePath(ownerId), {
+        method: 'POST',
+        body: JSON.stringify({
+          objectKey,
+          originalFilename: file.name,
+          mimeType: normalizeContentType(file),
+          sizeBytes: file.size,
+        }),
+      });
+      return toExpenseAttachment(registered);
+    },
+
+    async remove(ownerId: string, attachmentId: string): Promise<void> {
+      await apiClient(`${basePath(ownerId)}/${attachmentId}`, { method: 'DELETE' });
+    },
+  };
+}
+
+export const expenseAttachmentsService = createAttachmentService(
+  expenseId => `/api/v1/finance/expenses/${expenseId}/attachments`,
+);
+
+export const budgetLineAttachmentsService = createAttachmentService(
+  budgetLineId => `/api/v1/finance/budget-lines/${budgetLineId}/attachments`,
+);
 
 function toExpenseAttachment(dto: ExpenseAttachmentApiDto): ExpenseAttachment {
   return {

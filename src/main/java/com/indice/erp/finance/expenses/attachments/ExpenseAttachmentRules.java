@@ -65,13 +65,50 @@ final class ExpenseAttachmentRules {
     }
 
     static String normalizeObjectKey(long companyId, long expenseId, String objectKey) {
+        return normalizeObjectKey("expenses", companyId, expenseId, objectKey, "expense");
+    }
+
+    static String buildBudgetLineObjectKey(long companyId, long budgetLineId, String fileName, String mimeType) {
+        return buildObjectKey("budget-lines", companyId, budgetLineId, fileName, mimeType);
+    }
+
+    static String normalizeBudgetLineObjectKey(long companyId, long budgetLineId, String objectKey) {
+        return normalizeObjectKey("budget-lines", companyId, budgetLineId, objectKey, "budget line");
+    }
+
+    private static String buildObjectKey(
+            String ownerPath,
+            long companyId,
+            long ownerId,
+            String fileName,
+            String mimeType) {
+        return "finance/"
+                + ownerPath
+                + "/"
+                + companyId
+                + "/"
+                + ownerId
+                + "/attachments/"
+                + UUID.randomUUID().toString().replace("-", "")
+                + "-"
+                + sanitizeFileNameStem(fileName)
+                + extensionFor(mimeType);
+    }
+
+    private static String normalizeObjectKey(
+            String ownerPath,
+            long companyId,
+            long ownerId,
+            String objectKey,
+            String ownerLabel) {
         if (objectKey == null || objectKey.isBlank()) {
             throw FinanceApiException.badRequest("objectKey is required.");
         }
         var normalized = objectKey.trim();
-        var expectedPrefix = "finance/expenses/" + companyId + "/" + expenseId + "/attachments/";
+        var expectedPrefix = "finance/" + ownerPath + "/" + companyId + "/" + ownerId + "/attachments/";
         if (!normalized.startsWith(expectedPrefix)) {
-            throw FinanceApiException.badRequest("objectKey does not match the expected expense attachment prefix.");
+            throw FinanceApiException.badRequest(
+                    "objectKey does not match the expected " + ownerLabel + " attachment prefix.");
         }
         return normalized;
     }

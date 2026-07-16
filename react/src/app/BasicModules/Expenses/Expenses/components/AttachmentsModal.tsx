@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, ExternalLink, File, Image as ImageIcon, Paperclip, Trash2, Upload, X } from 'lucide-react';
-import { expenseAttachmentsService, type ExpenseAttachment } from '../../services/expense-attachments.service';
+import {
+  budgetLineAttachmentsService,
+  expenseAttachmentsService,
+  type AttachmentService,
+  type ExpenseAttachment,
+} from '../../services/expense-attachments.service';
 import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 
@@ -49,7 +54,8 @@ export function AttachmentsModal({
   const [errorMessage, setErrorMessage] = useState('');
   const [storedFiles, setStoredFiles] = useState<ExpenseAttachment[]>([]);
   const [localFiles, setLocalFiles] = useState<LocalAttachment[]>([]);
-  const usesBackend = Boolean(expenseId && /^\d+$/.test(expenseId));
+  const attachmentOwner = useMemo(() => resolveAttachmentOwner(expenseId), [expenseId]);
+  const usesBackend = Boolean(attachmentOwner);
 
   useEffect(() => {
     onChangedRef.current = onChanged;
@@ -62,10 +68,10 @@ export function AttachmentsModal({
   }, [attachments, isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !usesBackend || !expenseId) return;
+    if (!isOpen || !attachmentOwner) return;
     let isMounted = true;
     setIsLoading(true);
-    expenseAttachmentsService.list(expenseId)
+    attachmentOwner.service.list(attachmentOwner.id)
       .then(files => {
         if (!isMounted) return;
         setStoredFiles(files);
@@ -80,7 +86,7 @@ export function AttachmentsModal({
     return () => {
       isMounted = false;
     };
-  }, [expenseId, isOpen, usesBackend]);
+  }, [attachmentOwner, isOpen]);
 
   useEffect(() => () => revokeLocalUrls(objectUrlsRef.current), []);
 
@@ -88,12 +94,12 @@ export function AttachmentsModal({
 
   const addFiles = async (newFiles: File[]) => {
     setErrorMessage('');
-    if (usesBackend && expenseId) {
+    if (attachmentOwner) {
       setIsUploading(true);
       try {
         const uploadedFiles = [];
         for (const file of newFiles) {
-          uploadedFiles.push(await expenseAttachmentsService.upload(expenseId, file));
+          uploadedFiles.push(await attachmentOwner.service.upload(attachmentOwner.id, file));
         }
         const nextFiles = [...storedFiles, ...uploadedFiles];
         setStoredFiles(nextFiles);
@@ -113,10 +119,10 @@ export function AttachmentsModal({
   };
 
   const removeBackendFile = async (file: ExpenseAttachment) => {
-    if (!expenseId) return;
+    if (!attachmentOwner) return;
     setErrorMessage('');
     try {
-      await expenseAttachmentsService.remove(expenseId, file.id);
+      await attachmentOwner.service.remove(attachmentOwner.id, file.id);
       const nextFiles = storedFiles.filter(item => item.id !== file.id);
       setStoredFiles(nextFiles);
       onChanged?.(nextFiles.map(item => item.originalFilename));
@@ -198,12 +204,29 @@ export function AttachmentsModal({
         <div className="flex flex-shrink-0 items-center justify-between gap-3 px-6 py-4 text-white" style={{ backgroundColor: accent }}>
           <p className="text-xs text-white/80">{usesBackend ? t.expenses.attachments.storedHint : t.expenses.attachments.saveHint}</p>
           <button onClick={onClose} type="button" className="rounded-xl bg-white px-5 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50" style={{ color: accentText }}>
-            {t.common.cancel}
+            {usesBackend ? t.columnModal.close : t.common.cancel}
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+type AttachmentOwner = {
+  id: string;
+  service: AttachmentService;
+};
+
+function resolveAttachmentOwner(expenseId?: string): AttachmentOwner | undefined {
+  if (!expenseId) return undefined;
+  if (/^\d+$/.test(expenseId)) {
+    return { id: expenseId, service: expenseAttachmentsService };
+  }
+  const budgetLineMatch = /^budget-line-(\d+)$/.exec(expenseId);
+  if (budgetLineMatch) {
+    return { id: budgetLineMatch[1], service: budgetLineAttachmentsService };
+  }
+  return undefined;
 }
 
 function UploadDropzone({
