@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CalendarDays, FileSpreadsheet, Printer, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Download, FileSpreadsheet, Printer, RotateCcw, Search, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import {
@@ -19,12 +19,36 @@ type PeriodPreset = {
   to: string;
 };
 
+function isoDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
+}
+
+const today = new Date();
+const currentMonthStart = startOfMonth(today);
+const previousMonthStart = startOfMonth(addMonths(today, -1));
+const currentQuarterStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
+const currentSemesterStart = new Date(today.getFullYear(), today.getMonth() < 6 ? 0 : 6, 1);
+
 const periodPresets: PeriodPreset[] = [
-  { id: 'current-month', label: 'Mes actual', from: '2026-07-01', to: '2026-07-31' },
-  { id: 'previous-month', label: 'Mes anterior', from: '2026-06-01', to: '2026-06-30' },
-  { id: 'quarter', label: 'Trimestre actual', from: '2026-07-01', to: '2026-09-30' },
-  { id: 'year', label: 'Anio actual', from: '2026-01-01', to: '2026-12-31' },
-  { id: 'custom', label: 'Personalizado', from: '2026-07-01', to: '2026-07-31' },
+  { id: 'current-month', label: 'Mensual', from: isoDate(currentMonthStart), to: isoDate(endOfMonth(today)) },
+  { id: 'previous-month', label: 'Mes anterior', from: isoDate(previousMonthStart), to: isoDate(endOfMonth(previousMonthStart)) },
+  { id: 'bimonthly', label: 'Bimestral', from: isoDate(currentMonthStart), to: isoDate(endOfMonth(addMonths(currentMonthStart, 1))) },
+  { id: 'quarter', label: 'Trimestral', from: isoDate(currentQuarterStart), to: isoDate(endOfMonth(addMonths(currentQuarterStart, 2))) },
+  { id: 'semester', label: 'Semestral', from: isoDate(currentSemesterStart), to: isoDate(endOfMonth(addMonths(currentSemesterStart, 5))) },
+  { id: 'year', label: 'Anual', from: isoDate(new Date(today.getFullYear(), 0, 1)), to: isoDate(new Date(today.getFullYear(), 11, 31)) },
+  { id: 'custom', label: 'Personalizado', from: isoDate(currentMonthStart), to: isoDate(endOfMonth(today)) },
 ];
 
 function StatusBadge({ status }: { status: FinancialStatement['status'] }) {
@@ -56,6 +80,13 @@ function amountClassName(value: number, kind?: StatementLine['kind']) {
   return 'text-slate-800 dark:text-slate-100';
 }
 
+function inputClassName(extra?: string) {
+  return cn(
+    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950',
+    extra,
+  );
+}
+
 export default function InformesContables() {
   const [activeStatementId, setActiveStatementId] = useState<StatementId>('income');
   const [periodPresetId, setPeriodPresetId] = useState('current-month');
@@ -63,16 +94,20 @@ export default function InformesContables() {
   const [periodTo, setPeriodTo] = useState(periodPresets[0].to);
   const [calculationBasis, setCalculationBasis] = useState('accrual');
   const [documentScope, setDocumentScope] = useState('all');
+  const [documentSearch, setDocumentSearch] = useState('');
   const activeStatement = useMemo(
     () => financialStatements.find((statement) => statement.id === activeStatementId) ?? financialStatements[0],
     [activeStatementId],
   );
 
-  const filteredStatements = useMemo(() => (
-    documentScope === 'all'
-      ? financialStatements
-      : financialStatements.filter((statement) => statement.category === documentScope)
-  ), [documentScope]);
+  const filteredStatements = useMemo(() => {
+    const search = documentSearch.trim().toLowerCase();
+    return financialStatements.filter((statement) => {
+      const matchesScope = documentScope === 'all' || statement.category === documentScope;
+      const matchesSearch = !search || `${statement.title} ${statement.category} ${statement.description}`.toLowerCase().includes(search);
+      return matchesScope && matchesSearch;
+    });
+  }, [documentScope, documentSearch]);
   const documentCategories = useMemo(
     () => Array.from(new Set(financialStatements.map((statement) => statement.category))),
     [],
@@ -95,6 +130,7 @@ export default function InformesContables() {
     setPeriodTo(periodPresets[0].to);
     setCalculationBasis('accrual');
     setDocumentScope('all');
+    setDocumentSearch('');
   };
 
   const handleDocumentScopeChange = (scope: string) => {
@@ -109,32 +145,63 @@ export default function InformesContables() {
     }
   };
 
+  const exportActiveStatement = () => {
+    exportStatementCsv(activeStatement, {
+      basis: calculationBasis,
+      from: periodFrom,
+      preset: selectedPreset.label,
+      to: periodTo,
+    });
+  };
+
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border border-blue-200 bg-blue-50/80 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
-        <div className="flex min-w-0 gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-700 shadow-sm dark:border-blue-900 dark:bg-slate-950 dark:text-blue-200">
-            <FileSpreadsheet className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
-              Estados financieros
-            </p>
-            <h2 className="mt-1 text-xl font-bold tracking-normal text-slate-950 dark:text-white">
-              Documentos proforma por periodo
-            </h2>
-            <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-700 dark:text-slate-200">
-              Calcula y revisa documentos contables con filtros de periodo, base y tipo de reporte.
-            </p>
+      <section className="rounded-xl border border-blue-200 bg-blue-50/80 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 shadow-sm dark:border-blue-900 dark:bg-slate-950 dark:text-blue-200">
+              <FileSpreadsheet className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                Estados financieros
+              </p>
+              <h2 className="mt-1 text-xl font-bold tracking-normal text-slate-950 dark:text-white">
+                Documentos proforma por periodo
+              </h2>
+              <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-700 dark:text-slate-200">
+                Calcula y revisa documentos contables con filtros de periodo, base y tipo de reporte.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={exportActiveStatement}
+              className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.print()}
+              className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir
+            </Button>
           </div>
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-              <CalendarDays className="h-4 w-4 text-blue-700 dark:text-blue-300" />
+              <SlidersHorizontal className="h-4 w-4 text-blue-700 dark:text-blue-300" />
               Periodo de calculo
             </div>
             <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -145,7 +212,7 @@ export default function InformesContables() {
             type="button"
             variant="outline"
             onClick={resetPeriodFilters}
-            className="h-10 w-fit rounded-lg border-slate-300 text-sm font-semibold dark:border-slate-700"
+            className="h-10 w-fit rounded-xl border-slate-300 text-sm font-semibold dark:border-slate-700"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             Limpiar filtros
@@ -160,7 +227,7 @@ export default function InformesContables() {
             <select
               value={periodPresetId}
               onChange={(event) => handlePeriodPresetChange(event.target.value)}
-              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+              className={inputClassName()}
             >
               {periodPresets.map((preset) => (
                 <option key={preset.id} value={preset.id}>{preset.label}</option>
@@ -179,7 +246,7 @@ export default function InformesContables() {
                 setPeriodPresetId('custom');
                 setPeriodFrom(event.target.value);
               }}
-              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+              className={inputClassName()}
             />
           </label>
 
@@ -194,7 +261,7 @@ export default function InformesContables() {
                 setPeriodPresetId('custom');
                 setPeriodTo(event.target.value);
               }}
-              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+              className={inputClassName()}
             />
           </label>
 
@@ -205,7 +272,7 @@ export default function InformesContables() {
             <select
               value={calculationBasis}
               onChange={(event) => setCalculationBasis(event.target.value)}
-              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+              className={inputClassName()}
             >
               <option value="accrual">Devengado</option>
               <option value="cash">Flujo de caja</option>
@@ -220,7 +287,7 @@ export default function InformesContables() {
             <select
               value={documentScope}
               onChange={(event) => handleDocumentScopeChange(event.target.value)}
-              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950"
+              className={inputClassName()}
             >
               <option value="all">Todos</option>
               {documentCategories.map((category) => (
@@ -244,11 +311,20 @@ export default function InformesContables() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[380px_1fr]">
-        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <aside className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="border-b border-slate-100 p-4 dark:border-slate-800">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
               <FileSpreadsheet className="h-4 w-4" />
               Estados financieros proforma
+            </div>
+            <div className="relative mt-3">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={documentSearch}
+                onChange={(event) => setDocumentSearch(event.target.value)}
+                placeholder="Buscar documento"
+                className={inputClassName('pl-9')}
+              />
             </div>
           </div>
           <div className="max-h-[720px] overflow-y-auto p-2">
@@ -262,7 +338,7 @@ export default function InformesContables() {
                   type="button"
                   onClick={() => setActiveStatementId(statement.id)}
                   className={cn(
-                    'mb-2 flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
+                    'mb-2 flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors',
                     isActive
                       ? 'border-blue-700 bg-blue-50 text-blue-950 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-100'
                       : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:hover:border-slate-800 dark:hover:bg-slate-950',
@@ -270,7 +346,7 @@ export default function InformesContables() {
                 >
                   <span
                     className={cn(
-                      'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border',
+                      'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border',
                       isActive
                         ? 'border-blue-200 bg-white text-blue-700 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200'
                         : 'border-slate-200 bg-white text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400',
@@ -288,7 +364,7 @@ export default function InformesContables() {
               );
             })}
             {filteredStatements.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center dark:border-slate-700">
+              <div className="rounded-xl border border-dashed border-slate-300 p-5 text-center dark:border-slate-700">
                 <p className="text-sm font-semibold text-slate-900 dark:text-white">No hay documentos en este filtro.</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Cambia el tipo de documento para ampliar el listado.</p>
               </div>
@@ -297,11 +373,11 @@ export default function InformesContables() {
         </aside>
 
         <div className="space-y-5">
-          <article className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <article className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="border-b border-slate-100 p-5 dark:border-slate-800">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex min-w-0 gap-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
                     <ActiveIcon className="h-6 w-6" />
                   </span>
                   <div className="min-w-0">
@@ -327,7 +403,7 @@ export default function InformesContables() {
                     type="button"
                     variant="outline"
                     onClick={() => window.print()}
-                    className="h-9 rounded-lg border-slate-300 text-sm font-semibold dark:border-slate-700"
+                    className="h-9 rounded-xl border-slate-300 text-sm font-semibold dark:border-slate-700"
                   >
                     <Printer className="mr-2 h-4 w-4" />
                     Imprimir
@@ -337,7 +413,7 @@ export default function InformesContables() {
             </div>
 
             <div className="p-5">
-              <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+              <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
                 <div className="flex items-center gap-2 text-sm font-semibold text-blue-800 dark:text-blue-200">
                   <ShieldCheck className="h-4 w-4" />
                   Lectura ejecutiva
@@ -348,8 +424,8 @@ export default function InformesContables() {
               </div>
 
               {activeStatement.lines ? (
-                <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-                  <table className="min-w-full text-left text-sm">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="min-w-[640px] text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-semibold">Concepto</th>
@@ -371,8 +447,8 @@ export default function InformesContables() {
               ) : null}
 
               {activeStatement.rows && activeStatement.columns ? (
-                <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-                  <table className="min-w-full text-left text-sm">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                  <table className="min-w-[760px] text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
                       <tr>
                         <th className="px-4 py-3 font-semibold">Concepto</th>
@@ -410,4 +486,55 @@ export default function InformesContables() {
       </section>
     </div>
   );
+}
+
+function exportStatementCsv(
+  statement: FinancialStatement,
+  context: { basis: string; from: string; preset: string; to: string },
+) {
+  const rows: Array<Array<string | number>> = [
+    [statement.title],
+    ['Categoria', statement.category],
+    ['Periodo', context.preset],
+    ['Desde', context.from],
+    ['Hasta', context.to],
+    ['Base', context.basis],
+    ['Estado', statusLabels[statement.status]],
+    [],
+    ['Lectura ejecutiva'],
+    [statement.insight],
+    [],
+  ];
+
+  if (statement.lines) {
+    rows.push(['Concepto', 'Importe']);
+    statement.lines.forEach((line) => rows.push([line.label, line.value]));
+  }
+
+  if (statement.rows && statement.columns) {
+    rows.push(['Concepto', ...statement.columns, 'Estado']);
+    statement.rows.forEach((row) => {
+      rows.push([
+        row.label,
+        ...row.columns,
+        row.status ? statusLabels[row.status] : '',
+      ]);
+    });
+  }
+
+  const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${statement.id}-${context.from}-${context.to}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value: string | number) {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
 }
