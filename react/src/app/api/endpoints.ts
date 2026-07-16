@@ -98,4 +98,7 @@ export const endpoints = {
     context: '/api/v1/sales/context',
     kpis: '/api/v1/sales/kpis',
   },
+  kpis: {
+    executivePanel: '/api/v1/kpis/executive-panel',
+  },
 } as const;
