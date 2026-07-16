@@ -296,12 +296,13 @@ export const koCA = {
   },
   publicKiosk: {
     errors: { bootstrap: '소액 현금 키오스크를 열지 못했습니다.', identify: 'PIN을 검증하지 못했습니다.', oversizedFiles: '일부 파일이 10MB를 초과하여 추가되지 않았습니다.', receipt: '영수증을 등록하지 못했습니다.' },
-    success: { receipt: '영수증이 성공적으로 등록되었습니다.' },
+    success: { receipt: '영수증이 성공적으로 등록되었습니다.', deleted: '비용이 삭제되고 금액이 자금에 반환되었습니다.' },
     loading: { title: '소액 현금 여는 중', description: '자금 키오스크 준비 중입니다.' },
-    header: { eyebrow: '소액 현금', defaultFund: '자금 키오스크', defaultScope: '운영 자금', currentBalance: '현재 잔액', secureAccess: '보안 접속', secureDescription: '자금을 사용하려면 로그인하세요.' },
+    header: { eyebrow: '소액 현금', language: '키오스크 언어', defaultFund: '자금 키오스크', defaultScope: '운영 자금', currentBalance: '현재 잔액', secureAccess: '보안 접속', secureDescription: '자금을 사용하려면 로그인하세요.' },
     identify: { title: 'PIN 입력', description: '배정된 자금의 이동을 등록하려면 직원 공용 PIN을 사용하세요.', pin: '공용 PIN', capture: 'PIN 입력', placeholder: 'PIN을 입력하세요', privacy: '개인정보 보호를 위해 PIN 확인 후에만 자금, 잔액 및 영수증을 표시합니다.', submit: '자금 입장' },
     tabs: { label: '키오스크 섹션', upload: '비용 등록', expenses: '비용', income: '입금' },
-    history: { period: '월간 기간', noPeriods: '사용 가능한 기간 없음', periodHint: (period: string) => `${period} 활동을 표시합니다.`, expensesTitle: '기간 비용', expensesDescription: '최신 비용부터 이전 비용 순으로 넘겨보세요.', incomeTitle: '기간 입금', incomeDescription: '선택한 월의 자금 및 입금 내역입니다.', emptyExpenses: '이 기간에 등록된 비용이 없습니다.', emptyIncome: '이 기간에 등록된 입금이 없습니다.', newestFirst: '최신순', reference: '참조', status: '상태' },
+    metrics: { currentBalance: '현재 잔액', fundLimit: '자금 한도', periodIncome: '기간 입금', periodExpenses: '기간 비용' },
+    history: { period: '월간 기간', noPeriods: '사용 가능한 기간 없음', periodHint: (period: string) => `${period} 활동을 표시합니다.`, expensesTitle: '기간 비용', expensesDescription: '최신 비용부터 이전 비용 순으로 확인하세요.', incomeTitle: '기간 입금', incomeDescription: '선택한 월의 자금 및 입금 내역입니다.', emptyExpenses: '이 기간에 등록된 비용이 없습니다.', emptyIncome: '이 기간에 등록된 입금이 없습니다.', newestFirst: '최신순', reference: '참조', status: '상태' },
     receipt: {
       title: '영수증 등록',
       description: '실제 자금 비용을 기록합니다. 회계 세부 정보는 나중에 Finance에서 완료됩니다.',
@@ -324,6 +325,7 @@ export const koCA = {
       attachments: (count: number) => `${count}개 첨부`,
       trace: '각 영수증은 소액 현금 명세 라인을 만들고 Finance에서 검증된 비용을 생성할 수 있도록 추적됩니다.',
     },
+    attachments: { title: '첨부 파일', empty: '이 비용에는 첨부 파일이 없습니다.', openFile: '열기', uploadedBy: '업로드한 사람' },
     date: { empty: '날짜 없음', locale: 'ko-CA' },
   },
 } satisfies PettyCashTranslations;

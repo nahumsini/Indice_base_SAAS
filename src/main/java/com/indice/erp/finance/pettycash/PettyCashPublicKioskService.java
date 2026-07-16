@@ -1,6 +1,7 @@
 package com.indice.erp.finance.pettycash;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
@@ -96,7 +97,7 @@ public class PettyCashPublicKioskService {
         body.put("identification_token", identificationToken);
         body.put("expires_at", Instant.ofEpochSecond(expiresAtEpochSeconds).toString());
         body.put("recent_receipts", recentReceipts(fund));
-        body.putAll(publicHistory(fund));
+        body.putAll(publicHistory(fund, employee));
         return body;
     }
 
@@ -158,7 +159,7 @@ public class PettyCashPublicKioskService {
         body.put("statement", mutation.statement());
         body.put("settlement_line", mutation.settlementLine());
         body.put("recent_receipts", recentReceipts(refreshedFund));
-        body.putAll(publicHistory(refreshedFund));
+        body.putAll(publicHistory(refreshedFund, context.employee()));
         return body;
     }
 
@@ -186,6 +187,103 @@ public class PettyCashPublicKioskService {
             settlementLineId,
             payload == null ? Map.of() : payload
         );
+    }
+
+    public Map<String, Object> publicListAttachments(
+            String fundToken,
+            long settlementLineId,
+            Map<String, Object> payload) {
+        var context = requirePublicContext(fundToken, payload);
+        return attachmentService.listAttachments(
+            context.financeContext(),
+            context.fund().id(),
+            settlementLineId
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> publicDeleteReceipt(
+            String fundToken,
+            long settlementLineId,
+            Map<String, Object> payload) {
+        var context = requirePublicContext(fundToken, payload);
+        requireEmployeeOwnedKioskReceipt(context, settlementLineId);
+        pettyCashService.deleteSettlementLine(
+            context.financeContext(),
+            context.fund().id(),
+            settlementLineId
+        );
+
+        var refreshedFund = getActiveKioskFund(fundToken);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("fund", publicFundMap(refreshedFund));
+        body.put("recent_receipts", recentReceipts(refreshedFund));
+        body.putAll(publicHistory(refreshedFund, context.employee()));
+        return body;
+    }
+
+    private void requireEmployeeOwnedKioskReceipt(
+            PublicPettyCashKioskContext context,
+            long settlementLineId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT created_by_user_id, status, metadata_json
+                FROM finance_petty_cash_settlement_lines
+                WHERE company_id = ?
+                  AND petty_cash_fund_id = ?
+                  AND id = ?
+                  AND deleted_at IS NULL
+                """,
+            (rs, rowNum) -> new PublicReceiptOwnership(
+                rs.getLong("created_by_user_id"),
+                rs.getString("status"),
+                rs.getString("metadata_json")
+            ),
+            context.fund().companyId(),
+            context.fund().id(),
+            settlementLineId
+        );
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Petty cash receipt not found.");
+        }
+
+        var receipt = rows.getFirst();
+        if (!isEmployeeOwnedKioskReceipt(
+                context.employee(),
+                receipt.createdByUserId(),
+                receipt.metadataJson())) {
+            throw FinanceApiException.forbidden("Only receipts created by the identified employee can be deleted.");
+        }
+        if (!isKioskDeletableStatus(receipt.status())) {
+            throw FinanceApiException.conflict("This receipt can no longer be deleted from the kiosk.");
+        }
+    }
+
+    private boolean isEmployeeOwnedKioskReceipt(
+            PublicPettyCashEmployee employee,
+            long createdByUserId,
+            String metadataJson) {
+        try {
+            var metadata = readMetadata(metadataJson);
+            return createdByUserId == employee.userId()
+                && "petty_cash_kiosk".equals(metadata.path("source").asText())
+                && metadata.path("identifiedUserCompanyId").asLong(-1L) == employee.userCompanyId();
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    private boolean isKioskDeletableStatus(String status) {
+        return "DRAFT".equals(status) || "RECEIPT_ATTACHED".equals(status);
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode readMetadata(String metadataJson) {
+        try {
+            return objectMapper.readTree(metadataJson == null || metadataJson.isBlank() ? "{}" : metadataJson);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Petty cash receipt metadata is invalid.");
+        }
     }
 
     private PublicPettyCashKioskContext requirePublicContext(String fundToken, Map<String, Object> payload) {
@@ -357,10 +455,12 @@ public class PettyCashPublicKioskService {
         return new ArrayList<>(items);
     }
 
-    private Map<String, Object> publicHistory(PettyCashFundRecord fund) {
+    private Map<String, Object> publicHistory(
+            PettyCashFundRecord fund,
+            PublicPettyCashEmployee employee) {
         var history = new LinkedHashMap<String, Object>();
         history.put("periods", publicPeriods(fund));
-        history.put("expenses", publicExpenses(fund));
+        history.put("expenses", publicExpenses(fund, employee));
         history.put("income_movements", publicIncomeMovements(fund));
         return history;
     }
@@ -392,7 +492,9 @@ public class PettyCashPublicKioskService {
         return new ArrayList<>(items);
     }
 
-    private List<Map<String, Object>> publicExpenses(PettyCashFundRecord fund) {
+    private List<Map<String, Object>> publicExpenses(
+            PettyCashFundRecord fund,
+            PublicPettyCashEmployee employee) {
         var items = jdbcTemplate.query(
             """
                 SELECT settlement_line.id,
@@ -404,7 +506,9 @@ public class PettyCashPublicKioskService {
                        settlement_line.currency_code,
                        settlement_line.expense_date,
                        settlement_line.attachment_count,
-                       settlement_line.status
+                       settlement_line.status,
+                       settlement_line.created_by_user_id,
+                       settlement_line.metadata_json
                 FROM finance_petty_cash_settlement_lines settlement_line
                 JOIN finance_petty_cash_statements statement
                   ON statement.id = settlement_line.petty_cash_statement_id
@@ -426,6 +530,12 @@ public class PettyCashPublicKioskService {
                 row.put("expense_date", rs.getObject("expense_date", LocalDate.class));
                 row.put("attachment_count", rs.getInt("attachment_count"));
                 row.put("status", rs.getString("status"));
+                row.put("can_delete", isKioskDeletableStatus(rs.getString("status"))
+                    && isEmployeeOwnedKioskReceipt(
+                        employee,
+                        rs.getLong("created_by_user_id"),
+                        rs.getString("metadata_json")
+                    ));
                 return row;
             },
             fund.companyId(),
@@ -653,6 +763,13 @@ public class PettyCashPublicKioskService {
         PettyCashFundRecord fund,
         PublicPettyCashEmployee employee,
         FinanceContext financeContext
+    ) {
+    }
+
+    private record PublicReceiptOwnership(
+        long createdByUserId,
+        String status,
+        String metadataJson
     ) {
     }
 

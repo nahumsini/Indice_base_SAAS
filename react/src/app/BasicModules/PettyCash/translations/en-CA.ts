@@ -498,6 +498,7 @@ export const enCA = {
     },
     success: {
       receipt: 'Receipt registered successfully.',
+      deleted: 'Expense deleted and the amount returned to the fund.',
     },
     loading: {
       title: 'Opening petty cash',
@@ -505,6 +506,7 @@ export const enCA = {
     },
     header: {
       eyebrow: 'Petty cash',
+      language: 'Kiosk language',
       defaultFund: 'Fund kiosk',
       defaultScope: 'Operating fund',
       currentBalance: 'Current balance',
@@ -521,12 +523,13 @@ export const enCA = {
       submit: 'Enter fund',
     },
     tabs: { label: 'Kiosk sections', upload: 'Upload expense', expenses: 'Expenses', income: 'Income' },
+    metrics: { currentBalance: 'Current balance', fundLimit: 'Fund limit', periodIncome: 'Period income', periodExpenses: 'Period expenses' },
     history: {
       period: 'Monthly period',
       noPeriods: 'No periods available',
       periodHint: (period: string) => `Showing activity for ${period}.`,
       expensesTitle: 'Period expenses',
-      expensesDescription: 'Swipe from the newest expense to the oldest one.',
+      expensesDescription: 'Review expenses from newest to oldest.',
       incomeTitle: 'Period income',
       incomeDescription: 'Funding and deposits recorded for the selected month.',
       emptyExpenses: 'No expenses were recorded in this period.',
@@ -556,6 +559,12 @@ export const enCA = {
       emptyReceipts: 'No receipts have been captured from this kiosk yet.',
       attachments: (count: number) => `${count} attachment${count === 1 ? '' : 's'}`,
       trace: 'Each receipt creates a petty cash statement line and remains traceable to generate a verified expense in Finance.',
+    },
+    attachments: {
+      title: 'Attached files',
+      empty: 'This expense does not have attached files.',
+      openFile: 'Open',
+      uploadedBy: 'Uploaded by',
     },
     date: {
       empty: 'No date',

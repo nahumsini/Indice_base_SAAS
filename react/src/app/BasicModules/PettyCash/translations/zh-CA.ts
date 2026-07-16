@@ -296,12 +296,13 @@ export const zhCA = {
   },
   publicKiosk: {
     errors: { bootstrap: '无法打开备用金自助入口。', identify: '无法验证 PIN。', oversizedFiles: '部分文件大于 10 MB，未添加。', receipt: '无法登记收据。' },
-    success: { receipt: '收据登记成功。' },
+    success: { receipt: '收据登记成功。', deleted: '费用已删除，金额已退回资金。' },
     loading: { title: '正在打开备用金', description: '正在准备资金自助入口。' },
-    header: { eyebrow: '备用金', defaultFund: '资金自助入口', defaultScope: '运营资金', currentBalance: '当前余额', secureAccess: '安全访问', secureDescription: '登录后操作资金。' },
+    header: { eyebrow: '备用金', language: '自助入口语言', defaultFund: '资金自助入口', defaultScope: '运营资金', currentBalance: '当前余额', secureAccess: '安全访问', secureDescription: '登录后操作资金。' },
     identify: { title: '输入 PIN', description: '使用员工通用 PIN 为所分配资金登记流动。', pin: '通用 PIN', capture: '输入 PIN', placeholder: '请输入 PIN', privacy: '为保护隐私，只有验证 PIN 后才会显示资金、余额和收据。', submit: '进入资金' },
     tabs: { label: '自助入口分区', upload: '上传费用', expenses: '费用', income: '收入' },
-    history: { period: '月度期间', noPeriods: '没有可用期间', periodHint: (period: string) => `显示 ${period} 的活动。`, expensesTitle: '本期费用', expensesDescription: '从最新费用滑动到最早费用。', incomeTitle: '本期收入', incomeDescription: '所选月份的拨款和存入记录。', emptyExpenses: '本期没有费用记录。', emptyIncome: '本期没有收入记录。', newestFirst: '从新到旧', reference: '参考', status: '状态' },
+    metrics: { currentBalance: '当前余额', fundLimit: '资金限额', periodIncome: '本期收入', periodExpenses: '本期费用' },
+    history: { period: '月度期间', noPeriods: '没有可用期间', periodHint: (period: string) => `显示 ${period} 的活动。`, expensesTitle: '本期费用', expensesDescription: '按从新到旧的顺序查看费用。', incomeTitle: '本期收入', incomeDescription: '所选月份的拨款和存入记录。', emptyExpenses: '本期没有费用记录。', emptyIncome: '本期没有收入记录。', newestFirst: '从新到旧', reference: '参考', status: '状态' },
     receipt: {
       title: '登记收据',
       description: '记录真实资金支出。会计细节稍后在 Finance 完成。',
@@ -324,6 +325,7 @@ export const zhCA = {
       attachments: (count: number) => `${count} 个附件`,
       trace: '每张收据都会创建备用金结算行，并可追踪以便在 Finance 生成已验证费用。',
     },
+    attachments: { title: '附件', empty: '此费用没有附件。', openFile: '打开', uploadedBy: '上传者' },
     date: { empty: '无日期', locale: 'zh-CA' },
   },
 } satisfies PettyCashTranslations;

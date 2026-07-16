@@ -1,4 +1,4 @@
-import { Banknote, CalendarRange, CheckCircle2, Coins, Eye, Info, ReceiptText, Search, WalletCards, X } from 'lucide-react';
+import { Banknote, CheckCircle2, Coins, Eye, Info, ReceiptText, Search, WalletCards } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import type { PettyCashFund, PettyCashMovement, PettyCashSettlementLine, PettyCashStatement } from '../types/pettyCash.types';
@@ -19,6 +19,7 @@ import {
   pettyCashInputClass,
   usePettyCashTableSort,
 } from './PettyCashShared';
+import { PettyCashStatementDetailModal } from './statements/PettyCashStatementDetailModal';
 
 type Props = {
   funds: PettyCashFund[];
@@ -235,32 +236,16 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
         </PettyCashTableShell>
       ) : <PettyCashEmptyState label={copy.statementsHistory.table.empty} />}
 
-      {selectedStatement ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl dark:bg-slate-900">
-            <header className="flex items-start justify-between gap-4 bg-[#147514] px-6 py-5 text-white">
-              <div className="flex gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15"><CalendarRange className="h-6 w-6" /></span><div><h3 className="text-2xl font-black">{copy.statementsHistory.detail.title}</h3><p className="mt-1 text-sm font-semibold text-white/75">{selectedStatement.folio} · {copy.statementsHistory.detail.description}</p></div></div>
-              <button type="button" onClick={() => setSelectedStatement(null)} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 hover:bg-white/20" aria-label={copy.common.close}><X className="h-5 w-5" /></button>
-            </header>
-            <div className="overflow-y-auto p-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  [copy.statementsHistory.metrics.opening, selectedStatement.openingBalanceAmount],
-                  [copy.statementsHistory.metrics.funded, selectedStatement.assignedAmount + selectedStatement.additionalDepositAmount],
-                  [copy.statementsHistory.metrics.captured, selectedStatement.estimatedUsageAmount],
-                  [copy.statementsHistory.metrics.approved, selectedStatement.verifiedExpenseAmount],
-                ].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"><p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">{label}</p><p className="mt-2 text-xl font-black">{formatPettyCashCurrency(Number(value), selectedStatement.currencyCode)}</p></div>)}
-              </div>
-              <section className="mt-5 rounded-xl border border-[#147514]/20 bg-[#147514]/5 p-4"><p className="text-xs font-black uppercase tracking-[0.08em] text-[#147514]">{copy.statementsHistory.detail.origin}</p><p className="mt-2 font-bold text-slate-800 dark:text-slate-200">{previousStatement(selectedStatement) ? copy.statementsHistory.table.previous(previousStatement(selectedStatement)!.folio) : copy.statementsHistory.detail.noPrevious}</p></section>
-              <div className="mt-6 grid gap-5 lg:grid-cols-2">
-                <section><h4 className="mb-3 text-lg font-black">{copy.statementsHistory.detail.movements} ({selectedMovements.length})</h4><div className="space-y-2">{selectedMovements.map(item => <div key={item.id} className="flex justify-between rounded-lg border border-slate-200 p-3 dark:border-slate-700"><span className="text-sm font-bold">{copy.status.movement[item.type]}<small className="block text-slate-500">{formatPettyCashIsoDate(item.movementDate)}</small></span><strong>{formatPettyCashCurrency(item.amount, item.currencyCode)}</strong></div>)}{!selectedMovements.length ? <PettyCashEmptyState label={copy.statementsHistory.detail.movements} /> : null}</div></section>
-                <section><h4 className="mb-3 text-lg font-black">{copy.statementsHistory.detail.receipts} ({selectedReceipts.length})</h4><div className="space-y-2">{selectedReceipts.map(item => <div key={item.id} className="flex justify-between gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700"><span className="min-w-0 truncate text-sm font-bold">{item.description}<small className="block text-slate-500">{item.status === 'EXPENSE_CREATED' ? copy.statementsHistory.detail.approved : copy.statementsHistory.detail.pending}</small></span><strong>{formatPettyCashCurrency(item.totalAmount, item.currencyCode)}</strong></div>)}{!selectedReceipts.length ? <PettyCashEmptyState label={copy.statementsHistory.detail.receipts} /> : null}</div></section>
-              </div>
-            </div>
-            <footer className="flex justify-end bg-[#147514] px-6 py-4"><button type="button" onClick={() => setSelectedStatement(null)} className="h-11 rounded-lg bg-white px-5 font-bold text-[#147514]">{copy.statementsHistory.detail.close}</button></footer>
-          </div>
-        </div>
-      ) : null}
+      <PettyCashStatementDetailModal
+        copy={copy}
+        movements={selectedMovements}
+        onClose={() => setSelectedStatement(null)}
+        originText={selectedStatement && previousStatement(selectedStatement)
+          ? copy.statementsHistory.table.previous(previousStatement(selectedStatement)!.folio)
+          : copy.statementsHistory.detail.noPrevious}
+        receipts={selectedReceipts}
+        statement={selectedStatement}
+      />
     </div>
   );
 }

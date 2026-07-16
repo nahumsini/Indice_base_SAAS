@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useLanguage } from '../../../shared/context';
+import { useCallback, useMemo } from 'react';
+import { languages, useLanguage } from '../../../shared/context';
 import {
   getPettyCashTranslations,
   resolvePettyCashLocale,
@@ -23,4 +23,29 @@ export function usePettyCashResolvedLocale(): PettyCashLocale {
     () => resolvePettyCashLocale(currentLanguage.code),
     [currentLanguage.code],
   );
+}
+
+export function usePettyCashLocaleControls() {
+  const { currentLanguage, setCurrentLanguage } = useLanguage();
+  const selectedLocale = resolvePettyCashLocale(currentLanguage.code);
+
+  const localeOptions = useMemo(
+    () => languages.map((language) => ({
+      code: language.code as PettyCashLocale,
+      label: `${language.flag} ${language.code}`,
+      name: language.name,
+    })),
+    [],
+  );
+
+  const setPettyCashLocale = useCallback((locale: PettyCashLocale) => {
+    const nextLanguage = languages.find((language) => language.code === locale);
+    if (nextLanguage) setCurrentLanguage(nextLanguage);
+  }, [setCurrentLanguage]);
+
+  return {
+    localeOptions,
+    selectedLocale,
+    setPettyCashLocale,
+  };
 }

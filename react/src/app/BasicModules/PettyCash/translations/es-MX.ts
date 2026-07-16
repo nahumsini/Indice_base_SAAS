@@ -351,6 +351,7 @@ export const esMX = {
     },
     success: {
       receipt: 'Comprobante registrado correctamente.',
+      deleted: 'Gasto eliminado y monto reintegrado al fondo.',
     },
     loading: {
       title: 'Abriendo caja chica',
@@ -358,6 +359,7 @@ export const esMX = {
     },
     header: {
       eyebrow: 'Caja chica',
+      language: 'Idioma del kiosko',
       defaultFund: 'Kiosko de fondo',
       defaultScope: 'Fondo operativo',
       currentBalance: 'Saldo actual',
@@ -374,12 +376,13 @@ export const esMX = {
       submit: 'Entrar al fondo',
     },
     tabs: { label: 'Secciones del kiosko', upload: 'Subir gasto', expenses: 'Gastos', income: 'Ingresos' },
+    metrics: { currentBalance: 'Saldo actual', fundLimit: 'Limite del fondo', periodIncome: 'Ingresos del periodo', periodExpenses: 'Gastos del periodo' },
     history: {
       period: 'Periodo mensual',
       noPeriods: 'Sin periodos disponibles',
       periodHint: (period: string) => `Mostrando los movimientos de ${period}.`,
       expensesTitle: 'Gastos del periodo',
-      expensesDescription: 'Desliza del gasto mas reciente al mas antiguo.',
+      expensesDescription: 'Consulta los gastos del mas reciente al mas antiguo.',
       incomeTitle: 'Ingresos del periodo',
       incomeDescription: 'Fondeos e ingresos registrados durante el mes seleccionado.',
       emptyExpenses: 'No hay gastos registrados en este periodo.',
@@ -409,6 +412,12 @@ export const esMX = {
       emptyReceipts: 'Aun no hay comprobantes capturados desde este kiosko.',
       attachments: (count: number) => `${count} adjuntos`,
       trace: 'Cada comprobante crea una linea de corte de caja chica y queda trazado para generar gasto verificado en Finance.',
+    },
+    attachments: {
+      title: 'Archivos adjuntos',
+      empty: 'Este gasto no tiene archivos adjuntos.',
+      openFile: 'Abrir',
+      uploadedBy: 'Subido por',
     },
     date: {
       empty: 'Sin fecha',

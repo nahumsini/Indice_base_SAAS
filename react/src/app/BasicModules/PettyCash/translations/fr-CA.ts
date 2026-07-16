@@ -296,12 +296,13 @@ export const frCA = {
   },
   publicKiosk: {
     errors: { bootstrap: 'Le kiosque petite caisse ne peut pas etre ouvert.', identify: 'Le NIP ne peut pas etre valide.', oversizedFiles: 'Certains fichiers depassaient 10 Mo et ne sont pas ajoutes.', receipt: 'Le recu ne peut pas etre enregistre.' },
-    success: { receipt: 'Recu enregistre avec succes.' },
+    success: { receipt: 'Recu enregistre avec succes.', deleted: 'Depense supprimee et montant retourne au fonds.' },
     loading: { title: 'Ouverture petite caisse', description: 'Preparation du kiosque du fonds.' },
-    header: { eyebrow: 'Petite caisse', defaultFund: 'Kiosque du fonds', defaultScope: 'Fonds operationnel', currentBalance: 'Solde actuel', secureAccess: 'Acces securise', secureDescription: 'Connectez-vous pour utiliser le fonds.' },
+    header: { eyebrow: 'Petite caisse', language: 'Langue du kiosque', defaultFund: 'Kiosque du fonds', defaultScope: 'Fonds operationnel', currentBalance: 'Solde actuel', secureAccess: 'Acces securise', secureDescription: 'Connectez-vous pour utiliser le fonds.' },
     identify: { title: 'Entrez votre NIP', description: 'Utilisez votre NIP universel employe pour enregistrer des mouvements du fonds assigne.', pin: 'NIP universel', capture: 'Saisie du NIP', placeholder: 'Entrez le NIP', privacy: 'Pour proteger la confidentialite, le fonds, les soldes et les recus ne sont affiches qu apres validation du NIP.', submit: 'Entrer au fonds' },
     tabs: { label: 'Sections du kiosque', upload: 'Ajouter depense', expenses: 'Depenses', income: 'Entrees' },
-    history: { period: 'Periode mensuelle', noPeriods: 'Aucune periode disponible', periodHint: (period: string) => `Activite affichee pour ${period}.`, expensesTitle: 'Depenses de la periode', expensesDescription: 'Faites glisser de la depense la plus recente a la plus ancienne.', incomeTitle: 'Entrees de la periode', incomeDescription: 'Dotations et depots du mois selectionne.', emptyExpenses: 'Aucune depense enregistree pour cette periode.', emptyIncome: 'Aucune entree enregistree pour cette periode.', newestFirst: 'Plus recent au plus ancien', reference: 'Reference', status: 'Statut' },
+    metrics: { currentBalance: 'Solde actuel', fundLimit: 'Limite du fonds', periodIncome: 'Entrees de la periode', periodExpenses: 'Depenses de la periode' },
+    history: { period: 'Periode mensuelle', noPeriods: 'Aucune periode disponible', periodHint: (period: string) => `Activite affichee pour ${period}.`, expensesTitle: 'Depenses de la periode', expensesDescription: 'Consultez les depenses de la plus recente a la plus ancienne.', incomeTitle: 'Entrees de la periode', incomeDescription: 'Dotations et depots du mois selectionne.', emptyExpenses: 'Aucune depense enregistree pour cette periode.', emptyIncome: 'Aucune entree enregistree pour cette periode.', newestFirst: 'Plus recent au plus ancien', reference: 'Reference', status: 'Statut' },
     receipt: {
       title: 'Enregistrer recu',
       description: 'Capturez la depense reelle du fonds. Les details comptables sont completes plus tard dans Finance.',
@@ -324,6 +325,7 @@ export const frCA = {
       attachments: (count: number) => `${count} piece${count === 1 ? '' : 's'} jointe${count === 1 ? '' : 's'}`,
       trace: 'Chaque recu cree une ligne de releve de petite caisse et reste tracable pour generer une depense verifiee dans Finance.',
     },
+    attachments: { title: 'Fichiers joints', empty: 'Cette depense ne contient aucun fichier joint.', openFile: 'Ouvrir', uploadedBy: 'Televerse par' },
     date: { empty: 'Aucune date', locale: 'fr-CA' },
   },
 } satisfies PettyCashTranslations;

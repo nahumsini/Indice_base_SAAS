@@ -21,6 +21,17 @@ export interface PublicPettyCashReceipt {
   expense_date: string;
   attachment_count: number;
   status: string;
+  can_delete?: boolean;
+}
+
+export interface PublicPettyCashAttachment {
+  id: number;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_by_name?: string | null;
+  download_url?: string | null;
+  created_at?: string | null;
 }
 
 export interface PublicPettyCashPeriod {
@@ -162,6 +173,26 @@ export const pettyCashKioskApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  listPublicAttachments(fundToken: string, settlementLineId: number, identificationToken: string) {
+    return apiClient<{ items: PublicPettyCashAttachment[]; count: number }>(
+      `${publicBasePath}/${fundToken}/settlement-lines/${settlementLineId}/attachments/query`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ identification_token: identificationToken }),
+      },
+    );
+  },
+
+  deletePublicReceipt(fundToken: string, settlementLineId: number, identificationToken: string) {
+    return apiClient<PublicPettyCashHistory & { fund: PublicPettyCashFund; recent_receipts: PublicPettyCashReceipt[] }>(
+      `${publicBasePath}/${fundToken}/receipts/${settlementLineId}`,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ identification_token: identificationToken }),
+      },
+    );
   },
 };
 

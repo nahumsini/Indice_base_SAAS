@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -121,6 +122,46 @@ public class PublicPettyCashKioskController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/settlement-lines/{settlementLineId}/attachments/query")
+    public ResponseEntity<?> listAttachments(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable String fundToken,
+            @PathVariable long settlementLineId,
+            @RequestBody Map<String, Object> payload) {
+        var csrfError = publicCsrf.require(session, csrfToken);
+        if (csrfError != null) {
+            return csrfError;
+        }
+        try {
+            return ResponseEntity.ok(kioskService.publicListAttachments(fundToken, settlementLineId, payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/receipts/{settlementLineId}")
+    public ResponseEntity<?> deleteReceipt(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable String fundToken,
+            @PathVariable long settlementLineId,
+            @RequestBody Map<String, Object> payload) {
+        var csrfError = publicCsrf.require(session, csrfToken);
+        if (csrfError != null) {
+            return csrfError;
+        }
+        try {
+            return ResponseEntity.ok(kioskService.publicDeleteReceipt(fundToken, settlementLineId, payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
