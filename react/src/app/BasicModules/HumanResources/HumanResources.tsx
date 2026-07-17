@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -10,6 +10,10 @@ import {
   canAccessHumanResourcesTab,
   type HumanResourcesTabId,
 } from '../../access/accessRules';
+import {
+  OperationalModuleGuide,
+  useHumanResourcesGuidanceTranslations,
+} from './operationalGuidance';
 
 const Employees = lazy(() => import('./Employees'));
 const Attendance = lazy(() => import('./Attendance/Attendance'));
@@ -23,6 +27,7 @@ const Incentives = lazy(() => import('./Incentives'));
 const KPIs = lazy(() => import('./KPIs'));
 
 interface HumanResourcesProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -129,8 +134,10 @@ class TabContentErrorBoundary extends Component<TabContentErrorBoundaryProps, Ta
   }
 }
 
-export default function HumanResources({ onNavigate }: HumanResourcesProps) {
+export default function HumanResources({ learningModeActive = false, onNavigate }: HumanResourcesProps) {
   const t = useHumanResourcesTranslations();
+  const guidanceCopy = useHumanResourcesGuidanceTranslations();
+  const mainContentRef = useRef<HTMLDivElement | null>(null);
   const [sessionAccess, setSessionAccess] = useState<{
     role: string | null;
     tabPermissionKeys: string[];
@@ -234,6 +241,13 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
     setActiveTab(tabId);
   };
 
+  const handleGuidePrimaryAction = () => {
+    mainContentRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Header del módulo */}
@@ -266,6 +280,16 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
             </Button>
           </div>
 
+          {learningModeActive ? (
+            <div className="mt-5">
+              <OperationalModuleGuide
+                copy={guidanceCopy}
+                activeTabId={activeTab}
+                onPrimaryAction={handleGuidePrimaryAction}
+              />
+            </div>
+          ) : null}
+
           {/* Pestañas */}
           <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 scrollbar-hide sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
             <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
@@ -289,7 +313,7 @@ export default function HumanResources({ onNavigate }: HumanResourcesProps) {
       </div>
 
       {/* Contenido del tab activo */}
-      <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <div ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <TabContentErrorBoundary key={activeTab} copy={t.tabError}>
           <Suspense
             fallback={(

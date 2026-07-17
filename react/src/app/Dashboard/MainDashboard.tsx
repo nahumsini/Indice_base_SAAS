@@ -1,29 +1,36 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 import {
   sortBasicModulesForOperationalLauncher,
   type DashboardModuleCard,
-} from '../config/moduleCatalog';
-import type { PageId } from '../config/navigation';
-import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
-import { useLocalStorageState } from '../hooks/useLocalStorageState';
-import { useFavorites, useLanguage } from '../shared/context';
-import { FavoritesSection } from './components/FavoritesSection';
-import { KpiSection } from './components/KpiSection';
-import { ModuleSection } from './components/ModuleSection';
-import { OperationalJourney } from './components/OperationalJourney';
-import { OperationalModulesSection } from './components/OperationalModulesSection';
-import { OperationalTipsSection } from './components/OperationalTipsSection';
-import { buildDashboardAvailableKpis, defaultDashboardKpiIds } from './dashboardData';
-import { useDashboardLiveKpis } from './hooks/useDashboardLiveKpis';
-import { useMainDashboardTranslations } from './hooks/useMainDashboardTranslations';
+} from "../config/moduleCatalog";
+import type { PageId } from "../config/navigation";
+import { useAccessibleModuleCatalog } from "../hooks/useAccessibleModuleCatalog";
+import { useLocalStorageState } from "../hooks/useLocalStorageState";
+import { useFavorites, useLanguage } from "../shared/context";
+import { FavoritesSection } from "./components/FavoritesSection";
+import { KpiSection } from "./components/KpiSection";
+import { LearningCharacterSection } from "./components/LearningCharacterSection";
+import { ModuleSection } from "./components/ModuleSection";
+import { OperationalJourney } from "./components/OperationalJourney";
+import { OperationalModulesSection } from "./components/OperationalModulesSection";
+import {
+  buildDashboardAvailableKpis,
+  defaultDashboardKpiIds,
+} from "./dashboardData";
+import { useDashboardLiveKpis } from "./hooks/useDashboardLiveKpis";
+import { useMainDashboardTranslations } from "./hooks/useMainDashboardTranslations";
 import {
   buildOperationalJourneyView,
   buildOperationalModuleGroups,
   clampOperationalJourneyStep,
   operationalJourneyStages,
   type OperationalJourneyStageId,
-} from './operationalJourney';
-import { buildOperationalTipsForStage } from './operationalTips';
+} from "./operationalJourney";
+import {
+  learningCharacterIds,
+  learningCharacterStorageKey,
+  type LearningCharacterId,
+} from "./learningCharacters";
 
 export interface MainDashboardProps {
   learningModeActive: boolean;
@@ -47,9 +54,13 @@ export function MainDashboard({
   const { favorites, toggleFavorite, getFavoriteModules } = useFavorites();
   const [isKPIConfigOpen, setIsKPIConfigOpen] = useState(false);
   const availableModules = useAccessibleModuleCatalog(t);
-  const [guidanceStageId, setGuidanceStageId] = useState<OperationalJourneyStageId | undefined>();
+  const [selectedLearningCharacter, setSelectedLearningCharacter] =
+    useLocalStorageState<LearningCharacterId | null>(
+      learningCharacterStorageKey,
+      null,
+    );
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>(
-    'indice.dashboard.selectedKpis',
+    "indice.dashboard.selectedKpis",
     [...defaultDashboardKpiIds],
   );
 
@@ -63,30 +74,32 @@ export function MainDashboard({
 
   const liveKpiDataMap = useDashboardLiveKpis(copy, currentLanguage.code);
   const kpiData = useMemo(
-    () => selectedKPIIds.flatMap((id) => {
-      const kpi = liveKpiDataMap[id];
-      return kpi ? [{ ...kpi, id }] : [];
-    }),
+    () =>
+      selectedKPIIds.flatMap((id) => {
+        const kpi = liveKpiDataMap[id];
+        return kpi ? [{ ...kpi, id }] : [];
+      }),
     [liveKpiDataMap, selectedKPIIds],
   );
   const availableKPIs = useMemo(
-    () => buildDashboardAvailableKpis(copy, {
-      expenses: t.modules.gastos,
-      pettyCash: t.modules.cajaChica,
-      sales: t.modules.ventas,
-      pointOfSale: t.modules.puntoVenta,
-      humanResources: t.modules.recursosHumanos,
-      processesTasks: t.modules.procesosTareas,
-      inventory: t.modules.inventarios,
-      maintenance: t.modules.mantenimiento,
-      invoicing: t.modules.facturacion,
-      workClimate: t.modules.climaLaboral,
-    }),
+    () =>
+      buildDashboardAvailableKpis(copy, {
+        expenses: t.modules.gastos,
+        pettyCash: t.modules.cajaChica,
+        sales: t.modules.ventas,
+        pointOfSale: t.modules.puntoVenta,
+        humanResources: t.modules.recursosHumanos,
+        processesTasks: t.modules.procesosTareas,
+        inventory: t.modules.inventarios,
+        maintenance: t.modules.mantenimiento,
+        invoicing: t.modules.facturacion,
+        workClimate: t.modules.climaLaboral,
+      }),
     [copy, t],
   );
 
   const mainModules = useMemo(
-    () => availableModules.filter((module) => module.category === 'basic'),
+    () => availableModules.filter((module) => module.category === "basic"),
     [availableModules],
   );
   const operationalLauncherModules = useMemo(
@@ -95,11 +108,12 @@ export function MainDashboard({
   );
   const standardBasicModules = operationalLauncherModules;
   const complementaryModules = useMemo(
-    () => availableModules.filter((module) => module.category === 'complementary'),
+    () =>
+      availableModules.filter((module) => module.category === "complementary"),
     [availableModules],
   );
   const aiModules = useMemo(
-    () => availableModules.filter((module) => module.category === 'ai'),
+    () => availableModules.filter((module) => module.category === "ai"),
     [availableModules],
   );
 
@@ -115,30 +129,32 @@ export function MainDashboard({
     [mainModules],
   );
   const operationalJourneyModules = useMemo(
-    () => operationalModuleGroups.reduce<Partial<Record<OperationalJourneyStageId, DashboardModuleCard[]>>>(
-      (groupsByStage, group) => ({
-        ...groupsByStage,
-        [group.stage.id]: group.modules,
-      }),
-      {},
-    ),
+    () =>
+      operationalModuleGroups.reduce<
+        Partial<Record<OperationalJourneyStageId, DashboardModuleCard[]>>
+      >(
+        (groupsByStage, group) => ({
+          ...groupsByStage,
+          [group.stage.id]: group.modules,
+        }),
+        {},
+      ),
     [operationalModuleGroups],
   );
   const activeOperationalStageId = isOperationalJourneyVisible
     ? operationalJourneyStages[safeLearningStep]?.id
     : undefined;
-  const guidanceOperationalStageId = isOperationalJourneyVisible
-    ? guidanceStageId ?? activeOperationalStageId
-    : undefined;
-  const operationalTips = useMemo(
-    () => buildOperationalTipsForStage(guidanceOperationalStageId),
-    [guidanceOperationalStageId],
-  );
+  const safeSelectedLearningCharacter =
+    selectedLearningCharacter &&
+    learningCharacterIds.includes(selectedLearningCharacter)
+      ? selectedLearningCharacter
+      : null;
 
   const handleOperationalStageSelect = (stageId: OperationalJourneyStageId) => {
-    const stageIndex = operationalJourneyStages.findIndex((stage) => stage.id === stageId);
+    const stageIndex = operationalJourneyStages.findIndex(
+      (stage) => stage.id === stageId,
+    );
     if (stageIndex >= 0) {
-      setGuidanceStageId(stageId);
       setLearningStep(stageIndex);
     }
   };
@@ -152,7 +168,6 @@ export function MainDashboard({
           stageModules={operationalJourneyModules}
           activeStageId={activeOperationalStageId}
           onStageSelect={handleOperationalStageSelect}
-          onStagePreview={setGuidanceStageId}
           onModuleClick={handleModuleClick}
           onDismiss={() => setLearningModeVisible(false)}
         />
@@ -208,9 +223,10 @@ export function MainDashboard({
       )}
 
       {isOperationalJourneyVisible && (
-        <OperationalTipsSection
-          copy={copy.operationalJourney.tips}
-          tips={operationalTips}
+        <LearningCharacterSection
+          copy={copy.operationalJourney.characters}
+          selectedCharacterId={safeSelectedLearningCharacter}
+          onCharacterSelect={setSelectedLearningCharacter}
         />
       )}
 

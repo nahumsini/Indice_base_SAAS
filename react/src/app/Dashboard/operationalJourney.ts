@@ -1,15 +1,16 @@
-import type { DashboardModuleCard } from '../config/moduleCatalog';
-import type { PageId } from '../config/navigation';
+import type { DashboardModuleCard } from "../config/moduleCatalog";
+import type { PageId } from "../config/navigation";
 
 export type OperationalJourneyStageId =
-  | 'company_setup'
-  | 'human_resources'
-  | 'operations'
-  | 'finance'
-  | 'commercial'
-  | 'analytics';
+  | "company_setup"
+  | "human_resources"
+  | "operations"
+  | "finance"
+  | "commercial"
+  | "analytics";
 
-export type OperationalJourneyStageStatus = 'completed' | 'active' | 'pending' | 'locked';
+export type OperationalJourneyStageStatus =
+  "completed" | "active" | "pending" | "locked";
 
 export interface OperationalJourneyStageDefinition {
   id: OperationalJourneyStageId;
@@ -28,34 +29,34 @@ export interface OperationalModuleGroup {
 
 export const operationalJourneyStages: OperationalJourneyStageDefinition[] = [
   {
-    id: 'company_setup',
-    primaryRoute: 'home-panel',
-    moduleRoutes: ['home-panel'],
+    id: "company_setup",
+    primaryRoute: "home-panel",
+    moduleRoutes: ["home-panel"],
   },
   {
-    id: 'human_resources',
-    primaryRoute: 'human-resources',
-    moduleRoutes: ['human-resources'],
+    id: "human_resources",
+    primaryRoute: "human-resources",
+    moduleRoutes: ["human-resources"],
   },
   {
-    id: 'operations',
-    primaryRoute: 'processes-tasks',
-    moduleRoutes: ['processes-tasks'],
+    id: "operations",
+    primaryRoute: "processes-tasks",
+    moduleRoutes: ["processes-tasks"],
   },
   {
-    id: 'finance',
-    primaryRoute: 'expenses',
-    moduleRoutes: ['expenses', 'petty-cash'],
+    id: "finance",
+    primaryRoute: "expenses",
+    moduleRoutes: ["expenses", "petty-cash", "receivables"],
   },
   {
-    id: 'commercial',
-    primaryRoute: 'point-of-sale',
-    moduleRoutes: ['point-of-sale', 'sales', 'inventory', 'receivables'],
+    id: "commercial",
+    primaryRoute: "point-of-sale",
+    moduleRoutes: ["point-of-sale", "sales", "inventory"],
   },
   {
-    id: 'analytics',
-    primaryRoute: 'kpis',
-    moduleRoutes: ['kpis'],
+    id: "analytics",
+    primaryRoute: "kpis",
+    moduleRoutes: ["kpis"],
   },
 ];
 
@@ -68,17 +69,19 @@ export function resolveOperationalJourneyStatus(
   currentStep: number,
 ): OperationalJourneyStageStatus {
   if (stageIndex < currentStep) {
-    return 'completed';
+    return "completed";
   }
 
   if (stageIndex === currentStep) {
-    return 'active';
+    return "active";
   }
 
-  return 'pending';
+  return "pending";
 }
 
-export function buildOperationalJourneyView(currentStep: number): OperationalJourneyStageView[] {
+export function buildOperationalJourneyView(
+  currentStep: number,
+): OperationalJourneyStageView[] {
   const safeStep = clampOperationalJourneyStep(currentStep);
 
   return operationalJourneyStages.map((stage, index) => ({
@@ -87,7 +90,9 @@ export function buildOperationalJourneyView(currentStep: number): OperationalJou
   }));
 }
 
-export function buildOperationalModuleGroups(modules: DashboardModuleCard[]): OperationalModuleGroup[] {
+export function buildOperationalModuleGroups(
+  modules: DashboardModuleCard[],
+): OperationalModuleGroup[] {
   const modulesByRoute = new Map<PageId, DashboardModuleCard>(
     modules.map((module) => [module.route, module]),
   );
