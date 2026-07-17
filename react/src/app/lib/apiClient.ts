@@ -33,6 +33,10 @@ export const buildApiUrl = (path: string) => {
 
 const normalizeMethod = (method?: string) => (method ?? 'GET').toUpperCase();
 
+const defaultRequestCache = (method: string): RequestCache | undefined => (
+  method === 'GET' || method === 'HEAD' ? 'no-store' : undefined
+);
+
 const buildHeaders = (
   method: string,
   initHeaders?: HeadersInit,
@@ -101,6 +105,7 @@ const isInvalidCsrfError = (status: number, payload: unknown) => (
 
 const refreshAuthSession = async () => {
   const response = await fetch(buildApiUrl(AUTH_ME_PATH), {
+    cache: 'no-store',
     credentials: 'include',
     headers: { Accept: 'application/json' },
   });
@@ -125,6 +130,7 @@ export async function apiClient<T = unknown>(
   const method = normalizeMethod(init.method);
   const execute = () => fetch(buildApiUrl(path), {
     credentials: 'include',
+    cache: defaultRequestCache(method),
     ...init,
     headers: buildHeaders(method, init.headers, init.body),
   });
@@ -158,6 +164,7 @@ export async function requestText(path: string, init: RequestInit = {}) {
   const method = normalizeMethod(init.method);
   const response = await fetch(buildApiUrl(path), {
     credentials: 'include',
+    cache: defaultRequestCache(method),
     ...init,
     headers: buildHeaders(method, init.headers, init.body),
   });

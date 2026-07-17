@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { TaskFormValues } from '../../Tasks/components/TaskFormDialog';
 import { createProcessTask, updateProcessTask } from '../../Tasks/tasksApi';
 import type { ProcessCollaboratorOption } from '../../Processes/types';
-import type { AgendaTaskItem } from '../agendaApi';
+import { normalizeAgendaTask, type AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
 import { defaultTaskScopeForActor } from '../../shared/assignmentScope';
 import { getErrorMessage } from '../utils/agendaTaskStatus';
@@ -16,6 +16,7 @@ type UseAgendaTaskFormDialogOptions = {
   agendaCopy: AgendaTranslations;
   currentUserCollaborator: ProcessCollaboratorOption | null;
   loadAgenda: () => Promise<void>;
+  onTaskCreated: (task: AgendaTaskItem) => void;
   quickTaskContext?: Partial<Pick<
     TaskFormValues,
     'assignedName' | 'assignedUserCompanyId' | 'businessId' | 'projectId' | 'unitId'
@@ -30,6 +31,7 @@ export function useAgendaTaskFormDialog({
   agendaCopy,
   currentUserCollaborator,
   loadAgenda,
+  onTaskCreated,
   quickTaskContext,
   quickTaskDate,
   selectedScheduleDate,
@@ -110,7 +112,8 @@ export function useAgendaTaskFormDialog({
         if (taskDialogMode === 'edit' && editingTaskId != null) {
           await updateProcessTask(editingTaskId, payload);
         } else {
-          await createProcessTask(payload);
+          const createdTask = await createProcessTask(payload);
+          onTaskCreated(normalizeAgendaTask(createdTask));
         }
 
         setIsTaskDialogOpen(false);
@@ -125,7 +128,7 @@ export function useAgendaTaskFormDialog({
         setIsSubmittingTask(false);
       }
     },
-    [agendaCopy, editingTaskId, loadAgenda, resetTaskForm, setAgendaError, taskDialogMode, taskForm],
+    [agendaCopy, editingTaskId, loadAgenda, onTaskCreated, resetTaskForm, setAgendaError, taskDialogMode, taskForm],
   );
 
   const handleSubmitQuickTask = useCallback(
@@ -142,7 +145,7 @@ export function useAgendaTaskFormDialog({
       setAgendaError(null);
 
       try {
-        await createProcessTask(
+        const createdTask = await createProcessTask(
           buildTaskPayload(
             {
               ...createDefaultTaskFormForCurrentUser(),
@@ -157,6 +160,7 @@ export function useAgendaTaskFormDialog({
             agendaCopy,
           ),
         );
+        onTaskCreated(normalizeAgendaTask(createdTask));
 
         setQuickTaskTitle('');
         setIsQuickTaskDialogOpen(false);
@@ -171,6 +175,7 @@ export function useAgendaTaskFormDialog({
       agendaCopy,
       createDefaultTaskFormForCurrentUser,
       loadAgenda,
+      onTaskCreated,
       quickTaskContext,
       quickTaskDate,
       quickTaskTitle,

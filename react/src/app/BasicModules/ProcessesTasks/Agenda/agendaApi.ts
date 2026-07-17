@@ -75,7 +75,7 @@ type AgendaListResponse = {
   to: string;
 };
 
-function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTaskItem {
+export function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTaskItem {
   const taskType = (record.taskType ?? record.type ?? 'task') as TaskType;
   const completionPercent = Number(record.completionPercent ?? record.completion ?? 0);
   const auditStatus =

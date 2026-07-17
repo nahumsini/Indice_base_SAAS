@@ -35,7 +35,23 @@ export function useEmployeesData(copy: EmployeesTranslations) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const hydratedEmployeeIdsRef = useRef(new Set<number>());
+  const pendingCreatedEmployeesRef = useRef(new Map<number, EmployeeViewModel>());
   const attendanceLocationsRequestRef = useRef<Promise<AttendanceControlLocation[]> | null>(null);
+
+  const mergePendingCreatedEmployees = useCallback((serverEmployees: EmployeeViewModel[]) => {
+    const serverEmployeeIds = new Set(serverEmployees.map((employee) => employee.id));
+    const pendingEmployees: EmployeeViewModel[] = [];
+
+    pendingCreatedEmployeesRef.current.forEach((employee, employeeId) => {
+      if (serverEmployeeIds.has(employeeId)) {
+        pendingCreatedEmployeesRef.current.delete(employeeId);
+        return;
+      }
+      pendingEmployees.push(employee);
+    });
+
+    return [...pendingEmployees, ...serverEmployees];
+  }, []);
 
   const hydrateEmployeeDetails = useCallback(async (
     employeeIds: number[],
@@ -91,7 +107,7 @@ export function useEmployeesData(copy: EmployeesTranslations) {
       const mappedEmployees = employeesResponse.items.map((employee) =>
         mapEmployee(employee, copy.unitFallback, copy.businessFallback),
       );
-      setEmployees(mappedEmployees);
+      setEmployees(mergePendingCreatedEmployees(mappedEmployees));
       setSummary(employeesResponse.summary);
       setUnitOptions([
         { value: allFilterValue, label: copy.filters.all },
@@ -117,6 +133,7 @@ export function useEmployeesData(copy: EmployeesTranslations) {
     copy.filters.all,
     copy.unitFallback,
     hydrateEmployeeDetails,
+    mergePendingCreatedEmployees,
   ]);
 
   const refreshEmployees = useCallback(async () => {
@@ -125,8 +142,17 @@ export function useEmployeesData(copy: EmployeesTranslations) {
     const mappedEmployees = response.items.map((employee) =>
       mapEmployee(employee, copy.unitFallback, copy.businessFallback),
     );
-    setEmployees(mappedEmployees);
+    setEmployees(mergePendingCreatedEmployees(mappedEmployees));
     setSummary(response.summary);
+  }, [copy.businessFallback, copy.unitFallback, mergePendingCreatedEmployees]);
+
+  const rememberCreatedEmployee = useCallback((employee: BackendHrUser) => {
+    const mappedEmployee = mapEmployee(employee, copy.unitFallback, copy.businessFallback);
+    pendingCreatedEmployeesRef.current.set(mappedEmployee.id, mappedEmployee);
+    setEmployees((currentEmployees) => [
+      mappedEmployee,
+      ...currentEmployees.filter((currentEmployee) => currentEmployee.id !== mappedEmployee.id),
+    ]);
   }, [copy.businessFallback, copy.unitFallback]);
 
   const ensureAttendanceLocations = useCallback(async () => {
@@ -179,6 +205,7 @@ export function useEmployeesData(copy: EmployeesTranslations) {
     loadEmployees,
     loadError,
     refreshEmployees,
+    rememberCreatedEmployee,
     replaceEmployee,
     summary,
     unitOptions,

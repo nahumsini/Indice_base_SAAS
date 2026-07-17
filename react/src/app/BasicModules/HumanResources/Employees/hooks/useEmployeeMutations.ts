@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { humanResourcesApi } from '../../../../api/humanResources';
+import type { BackendHrUser } from '../../../../api/humanResources';
 import { runWithMinimumDuration } from '../../../../components/LoadingBarOverlay';
 import type { ContractTerminationFormData } from '../../../../components/TerminarContratoModal';
 import type { EmployeeFormData } from '../components/CreateEmployeeModal';
@@ -16,6 +17,7 @@ interface EmployeeMutationsParams {
   copy: EmployeesTranslations;
   editingEmployee: EmployeeViewModel | null;
   refreshEmployees: () => Promise<void>;
+  rememberCreatedEmployee: (employee: BackendHrUser) => void;
   replaceEditingEmployeeId: (employeeId: number) => void;
   resetEmployeeModal: () => void;
   setFailureToastMessage: (message: string) => void;
@@ -34,6 +36,7 @@ export function useEmployeeMutations({
   copy,
   editingEmployee,
   refreshEmployees,
+  rememberCreatedEmployee,
   replaceEditingEmployeeId,
   resetEmployeeModal,
   setFailureToastMessage,
@@ -82,6 +85,10 @@ export function useEmployeeMutations({
             ? await humanResourcesApi.updateHrUser(editingEmployee.id, payload)
             : await humanResourcesApi.createHrUser(payload);
 
+          if (!editingEmployee) {
+            rememberCreatedEmployee(savedEmployee);
+          }
+
           documentErrors = await syncEmployeeDocuments({
             copy,
             data,
@@ -129,6 +136,7 @@ export function useEmployeeMutations({
     copy,
     editingEmployee,
     refreshEmployees,
+    rememberCreatedEmployee,
     replaceEditingEmployeeId,
     resetEmployeeModal,
     runMutation,

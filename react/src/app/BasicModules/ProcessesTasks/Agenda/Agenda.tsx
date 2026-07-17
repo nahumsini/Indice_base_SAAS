@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -324,6 +325,7 @@ export default function Agenda() {
     setTasks,
     tasks,
   } = useAgendaTaskState();
+  const pendingCreatedTasksRef = useRef(new Map<number, AgendaTaskItem>());
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -381,7 +383,18 @@ export default function Agenda() {
         rangeOverride,
       );
       const response = await listAgendaTasks(requestedRange.from, requestedRange.to);
-      setTasks(response.items);
+      const serverTaskIds = new Set(response.items.map((task) => task.taskId));
+      const pendingTasks: AgendaTaskItem[] = [];
+
+      pendingCreatedTasksRef.current.forEach((task, taskId) => {
+        if (serverTaskIds.has(taskId)) {
+          pendingCreatedTasksRef.current.delete(taskId);
+          return;
+        }
+        pendingTasks.push(task);
+      });
+
+      setTasks([...pendingTasks, ...response.items]);
     } catch (error) {
       setTasks([]);
       setAgendaError(getErrorMessage(error, agendaCopy.messages.loadTasks));
@@ -389,6 +402,14 @@ export default function Agenda() {
       setIsLoadingTasks(false);
     }
   }, [activeRange.from, activeRange.to, agendaCopy.messages.loadTasks]);
+
+  const rememberCreatedTask = useCallback((task: AgendaTaskItem) => {
+    pendingCreatedTasksRef.current.set(task.taskId, task);
+    setTasks((currentTasks) => [
+      task,
+      ...currentTasks.filter((currentTask) => currentTask.taskId !== task.taskId),
+    ]);
+  }, [setTasks]);
 
   const {
     agendaSchedulePlacements,
@@ -676,6 +697,7 @@ export default function Agenda() {
     agendaCopy,
     currentUserCollaborator,
     loadAgenda: loadVisibleAgenda,
+    onTaskCreated: rememberCreatedTask,
     quickTaskContext,
     quickTaskDate,
     selectedScheduleDate,
