@@ -27,7 +27,7 @@ public class BudgetLineMapper {
             rs.getBigDecimal("petty_cash_issued_amount"), rs.getBigDecimal("petty_cash_settled_amount"),
             rs.getBigDecimal("available_amount"), BudgetHealthStatus.valueOf(rs.getString("health_status")),
             rs.getString("currency_code"), BudgetStatus.valueOf(rs.getString("status")),
-            rs.getString("description"), nullableLong(rs, "created_by_user_id"),
+            rs.getString("description"), rs.getInt("attachment_count"), nullableLong(rs, "created_by_user_id"),
             nullableLong(rs, "updated_by_user_id"), instant(rs, "created_at"), instant(rs, "updated_at"),
             instant(rs, "deleted_at"), rs.getLong("version"), rs.getString("custom_fields_json"),
             rs.getString("metadata_json")
@@ -40,7 +40,7 @@ public class BudgetLineMapper {
             record.name(), record.categoryKey(), record.plannedAmount(), record.committedAmount(),
             record.actualExpenseAmount(), record.pettyCashIssuedAmount(), record.pettyCashSettledAmount(),
             record.availableAmount(), record.healthStatus(), record.currencyCode(), record.status(),
-            record.description(), record.createdByUserId(), record.updatedByUserId(), record.createdAt(),
+            record.description(), record.attachmentCount(), record.createdByUserId(), record.updatedByUserId(), record.createdAt(),
             record.updatedAt(), record.deletedAt(), record.version(),
             FinanceJsonSupport.toJsonNode(record.customFieldsJson()), FinanceJsonSupport.toJsonNode(record.metadataJson())
         );

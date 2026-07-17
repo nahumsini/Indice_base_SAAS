@@ -479,7 +479,7 @@ export function ExpenseTable({
                   key={expense.id}
                   actionVisibility={actionVisibility}
                   expense={expense}
-                  attachmentsCount={getAttachments(expense).length}
+                  attachmentsCount={expense.attachmentCount ?? getAttachments(expense).length}
                   columnWidths={columnWidths}
                   isEditing={editingRowId === expense.id}
                   isColumnVisible={isColumnVisible}

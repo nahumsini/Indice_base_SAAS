@@ -49,6 +49,7 @@ class BudgetLineServiceTest {
         assertEquals(99L, response.id());
         assertEquals(7L, response.companyId());
         assertEquals("Software", response.name());
+        assertEquals(0, response.attachmentCount());
     }
 
     @Test

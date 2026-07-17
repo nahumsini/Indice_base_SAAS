@@ -41,7 +41,7 @@ final class BudgetLineTestData {
         return new BudgetLineRecord(
             id, 7L, null, null, 20L, name, "SOFTWARE", plannedAmount, committed, actual, issued, settled,
             available, BudgetLineAmounts.healthStatus(plannedAmount, available), "MXN", BudgetStatus.ACTIVE,
-            "Software budget line", 1L, null, Instant.parse("2026-06-08T23:00:00Z"),
+            "Software budget line", 0, 1L, null, Instant.parse("2026-06-08T23:00:00Z"),
             null, null, 0L, null, null);
     }
 
@@ -49,7 +49,7 @@ final class BudgetLineTestData {
         return new BudgetLineResponse(
             id, 7L, null, null, 20L, "Software", "SOFTWARE", new BigDecimal("1000.0000"),
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("1000.0000"),
-            BudgetHealthStatus.ON_TRACK, "MXN", BudgetStatus.ACTIVE, "Software budget line", 1L, null,
+            BudgetHealthStatus.ON_TRACK, "MXN", BudgetStatus.ACTIVE, "Software budget line", 0, 1L, null,
             Instant.parse("2026-06-08T23:00:00Z"), null, null, 0L, null, null);
     }
 }

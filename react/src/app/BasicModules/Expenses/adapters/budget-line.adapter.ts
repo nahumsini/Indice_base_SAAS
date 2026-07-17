@@ -80,6 +80,7 @@ export const toFinanceBudgetLine = (budgetLine: BudgetLineApiDto): FinanceBudget
 
 export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
   const customFields = asObject(budgetLine.customFields);
+  const attachmentCount = Math.max(0, asNumber(budgetLine.attachmentCount));
   const scheduledDate = toLocalBudgetDate(asString(customFields.dueDate, customFields.startDate as string | undefined), getDefaultBudgetDate());
   const plannedAmount = asNumber(budgetLine.plannedAmount);
   const amountPaid = Math.min(plannedAmount, asNumber(customFields.amountPaid, asNumber(budgetLine.actualExpenseAmount)));
@@ -129,7 +130,8 @@ export const toBudgetExpense = (budgetLine: BudgetLineApiDto): Expense => {
     paymentMethod: 'transfer',
     accountingAccount: asString(customFields.accountingAccount, 'Gastos Operativos'),
     status,
-    attachments: [],
+    attachments: Array.from({ length: attachmentCount }, (_, index) => `Archivo ${index + 1}`),
+    attachmentCount,
     costCenter: undefined,
     type: 'budget',
     frequency: asString(customFields.frequency, 'once') as Expense['frequency'],

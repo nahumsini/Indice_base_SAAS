@@ -244,6 +244,7 @@ export interface BudgetLineApiDto {
   currencyCode: string;
   status?: BackendBudgetStatus | null;
   description?: string | null;
+  attachmentCount?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   customFields?: FinanceJson;

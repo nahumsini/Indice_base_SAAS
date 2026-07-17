@@ -77,6 +77,9 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
   }, [refreshKey]);
 
   const paymentAccounts = useMemo<PaymentAccount[]>(() => {
+    const pettyCashPaymentAccountIds = new Set(
+      pettyCashFunds.map(fund => fund.paymentAccountId).filter(Boolean),
+    );
     const pettyCashAccounts: PaymentAccount[] = pettyCashFunds.map(fund => ({
       id: `petty-cash-${fund.id}`,
       name: fund.name,
@@ -93,7 +96,7 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
 
     return [
       ...accounts
-        .filter(account => account.id !== '3')
+        .filter(account => !pettyCashPaymentAccountIds.has(account.id))
         .map(account => ({ ...account, source: 'expenses' as const })),
       ...pettyCashAccounts,
     ];
@@ -146,8 +149,9 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
   };
 
   const handleSaveAccount = async (account: PaymentAccount) => {
+    const isEditing = isBackendId(account.id);
     try {
-      const savedAccount = isBackendId(account.id)
+      const savedAccount = isEditing
         ? await paymentAccountsService.updatePaymentAccount(account)
         : await paymentAccountsService.createPaymentAccount(account);
       setAccounts(currentAccounts => {
@@ -156,7 +160,12 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
           ? currentAccounts.map(item => (item.id === account.id ? savedAccount : item))
           : [savedAccount, ...currentAccounts];
       });
-      setSuccessToastMessage(isBackendId(account.id) ? t.paymentAccounts.messages.updated : t.paymentAccounts.messages.created);
+      if (!isEditing) {
+        setSearchTerm('');
+        setTypeFilter('all');
+        setStatusFilter('all');
+      }
+      setSuccessToastMessage(isEditing ? t.paymentAccounts.messages.updated : t.paymentAccounts.messages.created);
     } catch (error) {
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.saveFailed));
     } finally {

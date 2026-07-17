@@ -20,6 +20,13 @@ final class BudgetLineSql {
             line.currency_code,
             line.status,
             line.description,
+            (
+                SELECT COUNT(*)
+                FROM finance_budget_line_attachments attachment
+                WHERE attachment.company_id = line.company_id
+                  AND attachment.budget_line_id = line.id
+                  AND attachment.deleted_at IS NULL
+            ) AS attachment_count,
             line.created_by_user_id,
             line.updated_by_user_id,
             line.created_at,

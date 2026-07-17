@@ -23,6 +23,7 @@ record BudgetLineRecord(
     String currencyCode,
     BudgetStatus status,
     String description,
+    Integer attachmentCount,
     Long createdByUserId,
     Long updatedByUserId,
     Instant createdAt,

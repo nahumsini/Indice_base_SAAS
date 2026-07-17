@@ -65,7 +65,7 @@ export function ExpenseMobileCards({
         <ExpenseMobileCard
           key={expense.id}
           actionVisibility={actionVisibility}
-          attachmentsCount={getAttachments(expense).length}
+          attachmentsCount={expense.attachmentCount ?? getAttachments(expense).length}
           expense={expense}
           isColumnVisible={isColumnVisible}
           isDeletePending={deletingExpenseIds.has(expense.id)}
