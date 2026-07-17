@@ -161,6 +161,7 @@ export const koCA = {
     savingDayStatus: '날짜 상태 저장 중',
     savingDayStatusDescription: '수동 수정을 저장하고 출석 보기를 새로고침합니다.',
     futureAttendanceLocked: '미래 날짜에는 출석을 표시할 수 없습니다.',
+    futureRestOnly: '미래 날짜에는 휴무일만 예약하거나 취소할 수 있습니다.',
     manualPunch: '수동 출퇴근',
     manualPunchDescription: 'HR 사용자가 출퇴근 등록을 잊었을 때 사용합니다. 실제 출석 이벤트를 생성합니다.',
     manualCheckInDate: '출근 날짜',

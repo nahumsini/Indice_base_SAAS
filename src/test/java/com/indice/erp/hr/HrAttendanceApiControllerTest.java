@@ -641,6 +641,42 @@ class HrAttendanceApiControllerTest {
     }
 
     @Test
+    void bulkRestPlanReturnsScheduledFutureRestDays() throws Exception {
+        var currentUser = new AuthSessionUser(7L, 1L, "Attendance Admin", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrAttendanceService.bulkAssignRestDays(eq(currentUser), anyMap())).willReturn(Map.of(
+            "items", List.of(
+                Map.of(
+                    "user_company_id", 12,
+                    "date", "2026-08-03",
+                    "effective_status", "rest",
+                    "corrected_status", "rest"
+                )
+            ),
+            "updated_count", 1,
+            "employee_count", 1
+        ));
+
+        mockMvc.perform(
+            put("/api/v1/hr/attendance/daily-records/rest-plan")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "assignments": [
+                        {
+                          "user_company_id": 12,
+                          "dates": ["2026-08-03"]
+                        }
+                      ]
+                    }
+                    """)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.updated_count").value(1))
+            .andExpect(jsonPath("$.items[0].effective_status").value("rest"));
+    }
+
+    @Test
     void myDailyRecordUpdateReturnsForbiddenForUserWithoutControlAccess() throws Exception {
         var currentUser = new AuthSessionUser(7L, 1L, "Attendance User", "user");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));

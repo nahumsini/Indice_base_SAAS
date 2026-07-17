@@ -258,7 +258,7 @@ export function useControlController(): ControlControllerResult {
     assignments: AttendanceRestPlanAssignment[],
   ) => {
     if (assignments.length === 0 || isSaving) {
-      return;
+      return false;
     }
     setIsSaving(true);
     clearControlMessages();
@@ -268,9 +268,22 @@ export function useControlController(): ControlControllerResult {
         notes: copy.labels.restPlannerDefaultNotes,
       });
       await loadControl(controlDate);
+      if (selectedEmployeeId) {
+        try {
+          const calendarResponse = await humanResourcesApi.getAttendanceCalendar(
+            selectedEmployeeId,
+            calendarMonth,
+          );
+          setAttendanceCalendarDays(calendarResponse.items);
+        } catch {
+          // The save already succeeded; the regular success-triggered refresh retries the calendar.
+        }
+      }
       showSuccessToast(copy.labels.restPlannerSaved(response.updated_count));
+      return true;
     } catch (error) {
       showFailureToast(error instanceof Error ? error.message : copy.genericError);
+      return false;
     } finally {
       setIsSaving(false);
     }

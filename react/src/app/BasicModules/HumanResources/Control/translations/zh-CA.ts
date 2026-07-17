@@ -161,6 +161,7 @@ export const zhCA = {
     savingDayStatus: '正在保存当天状态',
     savingDayStatusDescription: '正在保存手动更正并刷新考勤视图。',
     futureAttendanceLocked: '不能为未来日期标记考勤。',
+    futureRestOnly: '未来日期只能安排或取消休息日。',
     manualPunch: '手动签到/签退',
     manualPunchDescription: '当 HR 用户忘记打卡时使用。它会创建真实的考勤事件。',
     manualCheckInDate: '签到日期',

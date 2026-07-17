@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.resolveEffectiveStatus;
 import static com.indice.erp.hr.attendance.AttendanceSchedulePolicy.resolveSystemStatus;
+import static com.indice.erp.hr.attendance.policy.AttendanceEditPolicy.requireCorrectionEditable;
 import static com.indice.erp.hr.attendance.support.AttendanceInput.normalizeAttendanceStatus;
 import static com.indice.erp.hr.attendance.support.AttendanceLocationPresentation.toLocationMap;
 import static com.indice.erp.hr.attendance.support.AttendancePresentation.toIsoString;
@@ -29,9 +30,17 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
     public Map<String, Object> updateDailyRecord(long companyId, long userId, long userCompanyId, LocalDate date, Map<String, Object> payload) {
         payload = normalizePayload(payload);
         var user = attendanceUserLookupService.loadAttendanceUser(companyId, userCompanyId);
-        ensureAttendanceDateEditable(user, date);
         var targetStatusRaw = stringValue(payload, "status", "corrected_status");
         var correctedStatus = targetStatusRaw.isBlank() ? null : normalizeAttendanceStatus(targetStatusRaw);
+        var currentCorrectedStatus = date.isAfter(LocalDate.now()) && correctedStatus == null
+            ? nullableCurrentCorrectedStatus(companyId, userCompanyId, date)
+            : null;
+        requireCorrectionEditable(
+            user.hireDate(),
+            date,
+            correctedStatus,
+            currentCorrectedStatus
+        );
         var scheduleRule = loadScheduleRule(companyId, userCompanyId, date);
         var notes = nullable(stringValue(payload, "notes"));
         var correctionMetadata = new LinkedHashMap<String, Object>();
@@ -72,6 +81,11 @@ public abstract class HrAttendanceAdminDailyRecordUseCases extends HrAttendanceA
         body.put("effective_status", resolveEffectiveStatus(refreshed, scheduleRule, date));
         body.put("notes", refreshed != null ? refreshed.notes() : null);
         return body;
+    }
+
+    private String nullableCurrentCorrectedStatus(long companyId, long userCompanyId, LocalDate date) {
+        var currentRecord = attendanceDailyRecordRepository.loadDailyRecord(companyId, userCompanyId, date);
+        return currentRecord == null ? null : currentRecord.correctedStatus();
     }
 
     @Transactional

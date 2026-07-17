@@ -68,18 +68,23 @@ export function AttendanceQuickActions({
   const [manualCheckOutTime, setManualCheckOutTime] = useState('');
   const canClearScheduleForDay = Boolean(day?.schedule_rule || day?.active_work_site);
   const isFutureAttendanceDate = Boolean(day && day.date > todayInputValue());
-  const manualStatusDisabled = day?.attendance_editable === false || isFutureAttendanceDate;
+  const manualPunchDisabled = day?.attendance_editable === false || isFutureAttendanceDate;
+  const statusCorrectionDisabled = day?.attendance_editable === false && !isFutureAttendanceDate;
+  const canSaveFutureRest = pendingStatus === 'rest'
+    || (pendingStatus === '' && day?.corrected_status === 'rest');
+  const statusSaveDisabled = statusCorrectionDisabled
+    || (isFutureAttendanceDate && !canSaveFutureRest);
   const manualStatusDisabledReason = isFutureAttendanceDate
-    ? copy.labels.futureAttendanceLocked
+    ? copy.labels.futureRestOnly
     : day?.edit_lock_reason || copy.labels.notModifiable;
   const manualCheckInExists = Boolean(day?.first_check_in_at);
   const manualCheckOutExists = Boolean(day?.last_check_out_at);
   const canSaveManualCheckIn = Boolean(day && manualCheckInDate && manualCheckInTime)
-    && !manualStatusDisabled
+    && !manualPunchDisabled
     && !manualCheckInExists
     && !isSaving;
   const canSaveManualCheckOut = Boolean(day && manualCheckOutDate && manualCheckOutTime)
-    && !manualStatusDisabled
+    && !manualPunchDisabled
     && manualCheckInExists
     && !manualCheckOutExists
     && !isSaving;
@@ -114,7 +119,7 @@ export function AttendanceQuickActions({
 
   return (
     <div className="space-y-4 rounded-lg border border-[#59C3A5]/10 bg-[#fbfdff] p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/30" title={employeeName}>
-      {manualStatusDisabled ? (
+      {manualPunchDisabled ? (
         <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           {manualStatusDisabledReason}
         </div>
@@ -139,7 +144,7 @@ export function AttendanceQuickActions({
                   type="date"
                   value={manualCheckInDate}
                   max={todayInputValue()}
-                  disabled={isSaving || manualStatusDisabled || manualCheckInExists}
+                  disabled={isSaving || manualPunchDisabled || manualCheckInExists}
                   onChange={(event) => setManualCheckInDate(event.target.value)}
                   className={inputClassName}
                 />
@@ -151,7 +156,7 @@ export function AttendanceQuickActions({
                 <input
                   type="time"
                   value={manualCheckInTime}
-                  disabled={isSaving || manualStatusDisabled || manualCheckInExists}
+                  disabled={isSaving || manualPunchDisabled || manualCheckInExists}
                   onChange={(event) => setManualCheckInTime(event.target.value)}
                   className={inputClassName}
                 />
@@ -183,7 +188,7 @@ export function AttendanceQuickActions({
                   value={manualCheckOutDate}
                   min={day.date}
                   max={todayInputValue()}
-                  disabled={isSaving || manualStatusDisabled || !manualCheckInExists || manualCheckOutExists}
+                  disabled={isSaving || manualPunchDisabled || !manualCheckInExists || manualCheckOutExists}
                   onChange={(event) => setManualCheckOutDate(event.target.value)}
                   className={inputClassName}
                 />
@@ -195,7 +200,7 @@ export function AttendanceQuickActions({
                 <input
                   type="time"
                   value={manualCheckOutTime}
-                  disabled={isSaving || manualStatusDisabled || !manualCheckInExists || manualCheckOutExists}
+                  disabled={isSaving || manualPunchDisabled || !manualCheckInExists || manualCheckOutExists}
                   onChange={(event) => setManualCheckOutTime(event.target.value)}
                   className={inputClassName}
                 />
@@ -226,20 +231,22 @@ export function AttendanceQuickActions({
             <span className="mb-1 block text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.manuallyModifyStatus}</span>
             <select
               value={pendingStatus}
-              disabled={isSaving || manualStatusDisabled}
+              disabled={isSaving || statusCorrectionDisabled}
               onChange={(event) => onPendingStatusChange(event.target.value as AttendanceCorrectionStatus | '')}
               className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-[#59C3A5] focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             >
-              <option value="">{copy.labels.clearManualCorrection}</option>
-              <option value="on_time">{copy.labels.markAsAttendance}</option>
-              <option value="absence">{copy.labels.markAsAbsent}</option>
-              <option value="late">{copy.labels.markAsDelay}</option>
+              <option value="" disabled={isFutureAttendanceDate && day.corrected_status !== 'rest'}>
+                {copy.labels.clearManualCorrection}
+              </option>
+              <option value="on_time" disabled={isFutureAttendanceDate}>{copy.labels.markAsAttendance}</option>
+              <option value="absence" disabled={isFutureAttendanceDate}>{copy.labels.markAsAbsent}</option>
+              <option value="late" disabled={isFutureAttendanceDate}>{copy.labels.markAsDelay}</option>
               <option value="rest">{copy.labels.markAsRest}</option>
             </select>
           </label>
           <Button
             type="button"
-            disabled={isSaving || manualStatusDisabled}
+            disabled={isSaving || statusSaveDisabled}
             className="h-10 bg-[#59C3A5] px-5 text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:bg-[#3AAE90] disabled:bg-[#59C3A5]/40"
             onClick={() => void onSave(day.date, pendingStatus)}
           >

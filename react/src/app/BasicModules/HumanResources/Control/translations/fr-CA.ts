@@ -161,6 +161,7 @@ export const frCA = {
     savingDayStatus: 'Enregistrement du statut du jour',
     savingDayStatusDescription: 'Nous enregistrons la correction manuelle et actualisons la vue de présence.',
     futureAttendanceLocked: 'La présence ne peut pas être marquée pour une date future.',
+    futureRestOnly: 'Les dates futures permettent uniquement de planifier ou d’annuler des jours de repos.',
     manualPunch: 'Entrée/sortie manuelle',
     manualPunchDescription: 'Utilisez ceci lorsqu’un employé a oublié de pointer. Un véritable événement de présence sera créé.',
     manualCheckInDate: 'Date d’entrée',

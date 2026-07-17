@@ -158,6 +158,7 @@ export const esMX = {
       savingDayStatus: 'Guardando estatus del dia',
       savingDayStatusDescription: 'Estamos guardando la correccion manual y refrescando la vista de asistencia.',
       futureAttendanceLocked: 'No se puede marcar asistencia para una fecha futura.',
+      futureRestOnly: 'En fechas futuras solo puedes programar o cancelar descansos.',
       manualPunch: 'Entrada/salida manual',
       manualPunchDescription: 'Usalo cuando el colaborador olvido registrar. Crea un evento real de asistencia.',
       manualCheckInDate: 'Fecha de entrada',

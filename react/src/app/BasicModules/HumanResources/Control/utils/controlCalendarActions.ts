@@ -66,13 +66,18 @@ const findTargetDay = (
 const isCalendarDateLocked = (
   date: string,
   targetDay: AttendanceCalendarDay | undefined | null,
+  status: AttendanceCorrectionStatus | '',
   copy: ControlTranslations,
 ) => {
-  if (date > todayIsoDate()) {
+  const isFutureDate = date > todayIsoDate();
+  const schedulesFutureRest = isFutureDate && status === 'rest';
+  const clearsFutureRest = isFutureDate && status === '' && targetDay?.corrected_status === 'rest';
+
+  if (isFutureDate && !schedulesFutureRest && !clearsFutureRest) {
     return copy.labels.futureAttendanceLocked;
   }
 
-  if (targetDay?.attendance_editable === false) {
+  if (targetDay?.attendance_editable === false && !schedulesFutureRest && !clearsFutureRest) {
     return targetDay.edit_lock_reason || copy.labels.notModifiable;
   }
 
@@ -156,7 +161,7 @@ export const updateCalendarStatus = async (
   }
 
   const targetDay = findTargetDay(context.attendanceCalendarDays, context.selectedCalendarDay, date);
-  const lockedMessage = isCalendarDateLocked(date, targetDay, context.copy);
+  const lockedMessage = isCalendarDateLocked(date, targetDay, status, context.copy);
   if (lockedMessage) {
     context.showFailureToast(lockedMessage);
     return false;
@@ -191,7 +196,14 @@ export const bulkUpdateCalendarStatus = async (context: CalendarActionContext) =
   }
 
   const dates = [...context.selectedCalendarDates].sort();
-  const futureDate = dates.find((date) => date > todayIsoDate());
+  const futureDate = dates.find((date) => {
+    if (date <= todayIsoDate()) {
+      return false;
+    }
+    const day = context.attendanceCalendarDays.find((candidate) => candidate.date === date);
+    return context.bulkCalendarStatus !== 'rest'
+      && !(context.bulkCalendarStatus === '' && day?.corrected_status === 'rest');
+  });
   if (futureDate) {
     context.showFailureToast(context.copy.labels.futureAttendanceLocked);
     return;
@@ -199,7 +211,17 @@ export const bulkUpdateCalendarStatus = async (context: CalendarActionContext) =
 
   const lockedDay = dates
     .map((date) => context.attendanceCalendarDays.find((day) => day.date === date))
-    .find((day) => day?.attendance_editable === false);
+    .find((day) => {
+      if (day?.attendance_editable !== false) {
+        return false;
+      }
+      const isFutureDate = day.date > todayIsoDate();
+      const schedulesFutureRest = isFutureDate && context.bulkCalendarStatus === 'rest';
+      const clearsFutureRest = isFutureDate
+        && context.bulkCalendarStatus === ''
+        && day.corrected_status === 'rest';
+      return !schedulesFutureRest && !clearsFutureRest;
+    });
   if (lockedDay?.attendance_editable === false) {
     context.showFailureToast(lockedDay.edit_lock_reason || context.copy.labels.notModifiable);
     return;
@@ -258,7 +280,7 @@ export const recordManualCalendarPunch = async (
   }
 
   const targetDay = findTargetDay(context.attendanceCalendarDays, context.selectedCalendarDay, date);
-  const lockedMessage = isCalendarDateLocked(date, targetDay, context.copy);
+  const lockedMessage = isCalendarDateLocked(date, targetDay, '', context.copy);
   if (lockedMessage) {
     context.showFailureToast(lockedMessage);
     return false;

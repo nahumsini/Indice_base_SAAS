@@ -161,6 +161,7 @@ export const ptBR = {
     savingDayStatus: 'Salvando status do dia',
     savingDayStatusDescription: 'Estamos salvando a correção manual e atualizando a visualização de presença.',
     futureAttendanceLocked: 'Não é possível marcar presença para uma data futura.',
+    futureRestOnly: 'Em datas futuras, só é possível programar ou cancelar descansos.',
     manualPunch: 'Entrada/saída manual',
     manualPunchDescription: 'Use quando o colaborador esquecer de registrar. Isso cria um evento real de presença.',
     manualCheckInDate: 'Data de entrada',

@@ -96,7 +96,7 @@ interface AttendanceControlDialogsProps {
   onCloseRestPlanner: () => void;
   onSaveRestPlan: (
     assignments: AttendanceRestPlanAssignment[],
-  ) => Promise<void> | void;
+  ) => Promise<boolean> | boolean;
   isKioskDialogOpen: boolean;
   editingKioskName: string | null;
   kioskForm: AttendanceKioskDevicePayload;

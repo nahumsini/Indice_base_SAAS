@@ -156,6 +156,7 @@ export const enCA = {
       savingDayStatus: 'Saving day status',
       savingDayStatusDescription: 'We are storing the manual correction and refreshing the attendance view.',
       futureAttendanceLocked: 'Attendance cannot be marked for a future date.',
+      futureRestOnly: 'Future dates only allow scheduling or cancelling rest days.',
       manualPunch: 'Manual check-in/out',
       manualPunchDescription: 'Use this when the HR user forgot to punch. It creates a real attendance event.',
       manualCheckInDate: 'Check-in date',

@@ -83,7 +83,7 @@ export function RestDayPlannerModal({
   assignments: AttendanceControlAssignment[];
   calendarMonth: string;
   onClose: () => void;
-  onSave: (assignments: AttendanceRestPlanAssignment[]) => Promise<void> | void;
+  onSave: (assignments: AttendanceRestPlanAssignment[]) => Promise<boolean> | boolean;
 }) {
   const [plannerMonth, setPlannerMonth] = useState(
     calendarMonth || toMonthKey(new Date()),
@@ -174,7 +174,10 @@ export function RestDayPlannerModal({
     if (payload.length === 0 || isSaving) {
       return;
     }
-    await onSave(payload);
+    const wasSaved = await onSave(payload);
+    if (!wasSaved) {
+      return;
+    }
     setPlannedAssignments({});
     onClose();
   };
