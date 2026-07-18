@@ -19,7 +19,7 @@ export type CustomerDisplayPayment = {
   amount: number;
 };
 
-export type CustomerDisplayPairingCodeResponse = {
+type CustomerDisplayPairingCodeWireResponse = {
   deviceId: number;
   cashRegisterId: number;
   cashRegisterCode: string;
@@ -31,12 +31,48 @@ export type CustomerDisplayPairingCodeResponse = {
   pairingUrl: string;
 };
 
-export type CustomerDisplayPairResponse = {
+export type CustomerDisplayPairingCodeResponse = Omit<CustomerDisplayPairingCodeWireResponse, 'deviceToken'>;
+
+type CustomerDisplayPairWireResponse = {
   deviceToken: string;
   displayUrl: string;
   cashRegisterId: number;
   cashRegisterCode: string;
   cashRegisterName: string;
+};
+
+export type CustomerDisplayPairResponse = Omit<CustomerDisplayPairWireResponse, 'deviceToken'>;
+
+export type CustomerDisplayPairingBootstrap = {
+  csrfToken: string;
+  status: 'READY';
+  onlineOnly: boolean;
+  pairingCodeLength: number;
+};
+
+export type CustomerDisplayAdminItem = {
+  id: number;
+  deviceId: number;
+  kioskType: 'customer_display';
+  name: string;
+  code: string;
+  status: 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'REVOKED';
+  accessLevel: 'PUBLIC';
+  unitId?: number | null;
+  businessId?: number | null;
+  cashRegisterId: number;
+  cashRegisterCode: string;
+  cashRegisterName: string;
+  publicTokenHint: string;
+  pairedAt?: string | null;
+  lastSeenAt?: string | null;
+  connected: boolean;
+  configurationVersion: number;
+};
+
+type KioskV2Response<T> = {
+  data: T;
+  meta: { requestId: string };
 };
 
 export type CustomerDisplaySnapshotPayload = {
@@ -58,7 +94,11 @@ export type CustomerDisplaySnapshotPayload = {
 };
 
 export type CustomerDisplayStateResponse = {
-  deviceToken: string;
+  kioskName: string;
+  companyName: string;
+  unitName: string;
+  businessName: string;
+  warehouseName: string;
   cashRegisterId: number;
   cashRegisterCode: string;
   cashRegisterName: string;
@@ -81,11 +121,23 @@ export type CustomerDisplayStateResponse = {
 };
 
 export const customerDisplayApi = {
-  createPairingCode(payload: { cashRegisterId: number; deviceName?: string }) {
-    return apiClient<CustomerDisplayPairingCodeResponse>(`${basePath}/pairing-code`, {
+  async createPairingCode(
+    payload: { cashRegisterId: number; deviceName?: string },
+  ): Promise<CustomerDisplayPairingCodeResponse> {
+    const response = await apiClient<CustomerDisplayPairingCodeWireResponse>(`${basePath}/pairing-code`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return {
+      deviceId: response.deviceId,
+      cashRegisterId: response.cashRegisterId,
+      cashRegisterCode: response.cashRegisterCode,
+      cashRegisterName: response.cashRegisterName,
+      pairingCode: response.pairingCode,
+      pairingCodeExpiresAt: response.pairingCodeExpiresAt,
+      displayUrl: response.displayUrl,
+      pairingUrl: response.pairingUrl,
+    };
   },
   publishState(payload: CustomerDisplaySnapshotPayload) {
     return apiClient<CustomerDisplayStateResponse>(`${basePath}/state`, {
@@ -93,13 +145,55 @@ export const customerDisplayApi = {
       body: JSON.stringify(payload),
     });
   },
-  pair(payload: { pairingCode: string; deviceName?: string }) {
-    return apiClient<CustomerDisplayPairResponse>(`${basePath}/public/pair`, {
+  pairingBootstrap() {
+    return apiClient<CustomerDisplayPairingBootstrap>(`${basePath}/public/pairing-bootstrap`);
+  },
+  async pair(
+    payload: { pairingCode: string; deviceName?: string },
+    idempotencyKey: string,
+  ): Promise<CustomerDisplayPairResponse> {
+    const response = await apiClient<CustomerDisplayPairWireResponse>(`${basePath}/public/pair`, {
       method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify(payload),
     });
+    return {
+      displayUrl: response.displayUrl,
+      cashRegisterId: response.cashRegisterId,
+      cashRegisterCode: response.cashRegisterCode,
+      cashRegisterName: response.cashRegisterName,
+    };
   },
-  getState(deviceToken: string) {
-    return apiClient<CustomerDisplayStateResponse>(`${basePath}/public/${encodeURIComponent(deviceToken)}/state`);
+  getState(deviceToken: string, signal?: AbortSignal) {
+    return apiClient<CustomerDisplayStateResponse>(
+      `${basePath}/public/${encodeURIComponent(deviceToken)}/state`,
+      { signal },
+    );
+  },
+  async listAdmin() {
+    const response = await apiClient<KioskV2Response<{ items: CustomerDisplayAdminItem[] }>>(
+      '/api/v2/point-of-sale/kiosks?type=customer_display',
+    );
+    return response.data.items;
+  },
+  async updateAdmin(kioskId: number, payload: { name: string }) {
+    const response = await apiClient<KioskV2Response<CustomerDisplayAdminItem>>(
+      `/api/v2/point-of-sale/kiosks/${kioskId}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    );
+    return response.data;
+  },
+  async transitionAdmin(kioskId: number, action: 'disable' | 'enable' | 'revoke', reason?: string) {
+    const response = await apiClient<KioskV2Response<CustomerDisplayAdminItem>>(
+      `/api/v2/point-of-sale/kiosks/${kioskId}/${action}`,
+      { method: 'POST', body: JSON.stringify({ reason: reason ?? '' }) },
+    );
+    return response.data;
+  },
+  async deleteAdmin(kioskId: number, reason?: string) {
+    await apiClient<KioskV2Response<{ deleted: boolean }>>(
+      `/api/v2/point-of-sale/kiosks/${kioskId}`,
+      { method: 'DELETE', body: JSON.stringify({ reason: reason ?? '' }) },
+    );
   },
 };

@@ -16,5 +16,6 @@ export const esMX = {
     facturacion: 'Facturación',
     descuentos: 'Descuentos',
     kpis: 'KPIs',
+    kiosks: 'Kioscos',
   },
 } as const;

@@ -8,6 +8,7 @@ import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest
 import com.indice.erp.finance.pettycash.dto.UpdatePettyCashFundRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
+import com.indice.erp.kiosk.engine.KioskRegistryService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -38,6 +39,9 @@ class PettyCashServiceTest {
 
     @Mock
     private PettyCashValidator validator;
+
+    @Mock
+    private KioskRegistryService kioskRegistry;
 
     @Test
     void createFundGeneratesPublicKioskTokenWhenKioskIsEnabled() {
@@ -78,6 +82,25 @@ class PettyCashServiceTest {
         assertEquals("existing-token-123", command.getValue().kioskPublicToken());
         assertEquals("/petty-cash/kiosk/existing-token-123", command.getValue().kioskAccessUrl());
         assertEquals("existing-token-123", response.kioskPublicToken());
+    }
+
+    @Test
+    void deleteKioskAccessPhysicallyDeletesTheDefinitionAndClearsTheLegacyLink() {
+        var service = service();
+        var context = context();
+        var existing = record(15L, "existing-token-123");
+        var cleared = record(15L, (String) null);
+        when(repository.findFundById(context, 15L))
+            .thenReturn(Optional.of(existing), Optional.of(cleared));
+        when(repository.clearKioskAccess(context, 15L)).thenReturn(true);
+
+        var response = service.deleteKioskAccess(context, 15L);
+
+        assertEquals(null, response.kioskPublicToken());
+        verify(kioskRegistry).deleteDefinition(
+            context.companyId(), PettyCashKioskCapabilities.OWNER_MODULE, 15L,
+            context.userId(), "Petty cash kiosk access deleted");
+        verify(repository).clearKioskAccess(context, 15L);
     }
 
     @Test
@@ -510,7 +533,7 @@ class PettyCashServiceTest {
     }
 
     private PettyCashService service() {
-        return new PettyCashService(repository, new PettyCashMapper(), validator);
+        return new PettyCashService(repository, new PettyCashMapper(), validator, kioskRegistry);
     }
 
     private void assertExpenseCreationRejectedForStatus(PettyCashSettlementLineStatus status) {

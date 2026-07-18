@@ -8,6 +8,7 @@
     "calibrate:business-diagnosis": "node scripts/business-diagnosis-engine-calibration.mjs",
     "calibrate:personal-performance": "node scripts/personal-performance-engine-calibration.mjs",
     "dev": "vite",
+    "test:kiosks": "node --test tests/kiosk-frontend-regression.test.mjs",
     "test:phone-validation": "node scripts/phone-validation-regression.mjs",
     "typecheck": "tsc --noEmit"
   },

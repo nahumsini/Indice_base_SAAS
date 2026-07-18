@@ -23,6 +23,7 @@ import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
 import com.indice.erp.hr.attendance.users.AttendanceUserLookupService;
 import com.indice.erp.hr.attendance.util.AttendanceDateParser;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
+import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -355,12 +356,7 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
     public Map<String, Object> listKioskDevices(AuthSessionUser currentUser) {
         var companyId = currentUser.companyId();
         var scope = hrAttendanceScopeAccess.resolve(currentUser);
-        return Map.of(
-            "items",
-            attendanceKioskDeviceRepository.list(companyId, scope).stream()
-                .map(attendanceKioskDeviceMapper::toMap)
-                .toList()
-        );
+        return attendanceKioskDeviceService.listDevices(companyId, scope);
     }
 
     public Map<String, Object> saveKioskDevice(AuthSessionUser currentUser, Long kioskDeviceId, Map<String, Object> payload) {
@@ -378,14 +374,26 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
         var companyId = currentUser.companyId();
         var scope = hrAttendanceScopeAccess.resolve(currentUser);
         hrAttendanceScopeAccess.requireKioskDeviceInScope(companyId, scope, kioskDeviceId);
-        deleteKioskDevice(companyId, kioskDeviceId);
+        deleteKioskDevice(companyId, currentUser.userId(), kioskDeviceId);
     }
 
     public Map<String, Object> rotateKioskPublicAccessToken(AuthSessionUser currentUser, long kioskDeviceId) {
         var companyId = currentUser.companyId();
         var scope = hrAttendanceScopeAccess.resolve(currentUser);
         hrAttendanceScopeAccess.requireKioskDeviceInScope(companyId, scope, kioskDeviceId);
-        return rotateKioskPublicAccessToken(companyId, kioskDeviceId);
+        return rotateKioskPublicAccessToken(companyId, currentUser.userId(), kioskDeviceId);
+    }
+
+    public Map<String, Object> transitionKioskDevice(
+            AuthSessionUser currentUser,
+            long kioskDeviceId,
+            KioskDefinitionStatus status,
+            String reason) {
+        var companyId = currentUser.companyId();
+        var scope = hrAttendanceScopeAccess.resolve(currentUser);
+        hrAttendanceScopeAccess.requireKioskDeviceInScope(companyId, scope, kioskDeviceId);
+        return transitionKioskDevice(
+            companyId, currentUser.userId(), kioskDeviceId, status, reason);
     }
 
     public Map<String, Object> listAccessProfiles(AuthSessionUser currentUser) {

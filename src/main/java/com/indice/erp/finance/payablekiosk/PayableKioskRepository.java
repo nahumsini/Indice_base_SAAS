@@ -132,6 +132,32 @@ class PayableKioskRepository {
                 kioskId);
     }
 
+    void updateStatus(long companyId, long userId, long kioskId, String status) {
+        jdbcTemplate.update(
+                """
+                UPDATE finance_payable_kiosks
+                SET status = ?, updated_by_user_id = ?, version = version + 1
+                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                """,
+                status,
+                userId,
+                companyId,
+                kioskId);
+    }
+
+    void updatePublicToken(long companyId, long userId, long kioskId, String token) {
+        jdbcTemplate.update(
+                """
+                UPDATE finance_payable_kiosks
+                SET public_access_token = ?, updated_by_user_id = ?, version = version + 1
+                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                """,
+                token,
+                userId,
+                companyId,
+                kioskId);
+    }
+
     void softDelete(long companyId, long userId, long kioskId) {
         jdbcTemplate.update(
                 """

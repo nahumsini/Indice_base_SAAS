@@ -16,5 +16,6 @@ export const enCA = {
     facturacion: 'Billing',
     descuentos: 'Discounts',
     kpis: 'KPIs',
+    kiosks: 'Kiosks',
   },
 } as const;

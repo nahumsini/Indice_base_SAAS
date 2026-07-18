@@ -16,5 +16,6 @@ export const ptBR = {
     facturacion: 'Faturamento',
     descuentos: 'Descontos',
     kpis: 'KPIs',
+    kiosks: 'Quiosques',
   },
 } as const;

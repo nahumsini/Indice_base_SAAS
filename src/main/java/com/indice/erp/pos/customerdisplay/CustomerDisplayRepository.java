@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -33,34 +34,62 @@ public class CustomerDisplayRepository {
             """, this::mapDevice, companyId, deviceId).stream().findFirst();
     }
 
-    public Optional<CustomerDisplayDeviceRecord> findActiveDeviceByToken(String deviceToken) {
+    public Optional<CustomerDisplayDeviceRecord> findActiveDeviceByTokenHash(String deviceTokenHash) {
         return jdbcTemplate.query(deviceSelect() + """
-            WHERE device.device_token = ? AND device.deleted_at IS NULL AND device.status = 'ACTIVE'
-            """, this::mapDevice, deviceToken).stream().findFirst();
+            WHERE device.device_token_hash = ? AND device.deleted_at IS NULL AND device.status = 'ACTIVE'
+            """, this::mapDevice, deviceTokenHash).stream().findFirst();
     }
 
-    public Optional<CustomerDisplayDeviceRecord> findPairableDeviceByCode(String pairingCode) {
+    public Optional<CustomerDisplayDeviceRecord> findPairableDeviceByCodeHashes(
+            String pairingCodeHash,
+            String legacyPairingCodeHash) {
         return jdbcTemplate.query(deviceSelect() + """
-            WHERE device.pairing_code = ? AND device.deleted_at IS NULL
+            WHERE ((device.pairing_hash_version = 2 AND device.pairing_code_hash = ?)
+                   OR (device.pairing_hash_version = 1 AND device.pairing_code_hash = ?))
+              AND device.deleted_at IS NULL
               AND device.status IN ('PENDING', 'ACTIVE')
               AND device.pairing_code_expires_at > CURRENT_TIMESTAMP
             ORDER BY device.id DESC LIMIT 1
-            """, this::mapDevice, pairingCode).stream().findFirst();
+            """, this::mapDevice, pairingCodeHash, legacyPairingCodeHash).stream().findFirst();
     }
 
-    public boolean existsActivePairingCode(String pairingCode) {
+    public Optional<CustomerDisplayDeviceRecord> findDeviceByCurrentOrConsumedPairingCodeHashes(
+            String pairingCodeHash,
+            String legacyPairingCodeHash) {
+        return jdbcTemplate.query(deviceSelect() + """
+            WHERE device.deleted_at IS NULL AND device.status = 'ACTIVE'
+              AND (
+                    (((device.pairing_hash_version = 2 AND device.pairing_code_hash = ?)
+                      OR (device.pairing_hash_version = 1 AND device.pairing_code_hash = ?))
+                     AND device.pairing_code_expires_at > CURRENT_TIMESTAMP)
+                    OR
+                    (((device.pairing_hash_version = 2 AND device.consumed_pairing_code_hash = ?)
+                      OR (device.pairing_hash_version = 1 AND device.consumed_pairing_code_hash = ?))
+                     AND device.consumed_pairing_code_expires_at > CURRENT_TIMESTAMP)
+                  )
+            ORDER BY device.id DESC LIMIT 1
+            """, this::mapDevice,
+            pairingCodeHash, legacyPairingCodeHash,
+            pairingCodeHash, legacyPairingCodeHash).stream().findFirst();
+    }
+
+    public boolean existsActivePairingCodeHashes(
+            String pairingCodeHash,
+            String legacyPairingCodeHash) {
         var count = jdbcTemplate.queryForObject("""
             SELECT COUNT(*) FROM pos_customer_display_devices
-            WHERE pairing_code = ? AND deleted_at IS NULL
+            WHERE ((pairing_hash_version = 2 AND pairing_code_hash = ?)
+                   OR (pairing_hash_version = 1 AND pairing_code_hash = ?))
+              AND deleted_at IS NULL
               AND pairing_code_expires_at > CURRENT_TIMESTAMP
-            """, Long.class, pairingCode);
+            """, Long.class, pairingCodeHash, legacyPairingCodeHash);
         return count != null && count > 0;
     }
 
-    public boolean existsDeviceToken(String deviceToken) {
+    public boolean existsDeviceTokenHash(String deviceTokenHash) {
         var count = jdbcTemplate.queryForObject("""
-            SELECT COUNT(*) FROM pos_customer_display_devices WHERE device_token = ?
-            """, Long.class, deviceToken);
+            SELECT COUNT(*) FROM pos_customer_display_devices WHERE device_token_hash = ?
+            """, Long.class, deviceTokenHash);
         return count != null && count > 0;
     }
 
@@ -70,8 +99,11 @@ public class CustomerDisplayRepository {
             Long businessId,
             long warehouseId,
             long cashRegisterId,
-            String deviceToken,
-            String pairingCode,
+            String protectedDeviceToken,
+            String deviceTokenHash,
+            String deviceTokenHint,
+            String protectedPairingCode,
+            String pairingCodeHash,
             Instant pairingCodeExpiresAt,
             String name,
             long userId) {
@@ -79,20 +111,25 @@ public class CustomerDisplayRepository {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                 INSERT INTO pos_customer_display_devices
-                (company_id, unit_id, business_id, warehouse_id, cash_register_id, device_token,
-                 pairing_code, pairing_code_expires_at, name, status, created_by_user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+                (company_id, unit_id, business_id, warehouse_id, cash_register_id,
+                 device_token, device_token_hash, device_token_hint,
+                 pairing_code, pairing_code_hash, pairing_hash_version, pairing_code_expires_at,
+                 name, status, created_by_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, 'ACTIVE', ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, companyId);
             statement.setObject(2, unitId);
             statement.setObject(3, businessId);
             statement.setLong(4, warehouseId);
             statement.setLong(5, cashRegisterId);
-            statement.setString(6, deviceToken);
-            statement.setString(7, pairingCode);
-            statement.setTimestamp(8, Timestamp.from(pairingCodeExpiresAt));
-            statement.setString(9, name);
-            statement.setLong(10, userId);
+            statement.setString(6, protectedDeviceToken);
+            statement.setString(7, deviceTokenHash);
+            statement.setString(8, deviceTokenHint);
+            statement.setString(9, protectedPairingCode);
+            statement.setString(10, pairingCodeHash);
+            statement.setTimestamp(11, Timestamp.from(pairingCodeExpiresAt));
+            statement.setString(12, name);
+            statement.setLong(13, userId);
             return statement;
         }, keyHolder);
         return findDeviceById(companyId, keyHolder.getKey().longValue()).orElseThrow();
@@ -101,16 +138,21 @@ public class CustomerDisplayRepository {
     public CustomerDisplayDeviceRecord updatePairingCode(
             long companyId,
             long deviceId,
-            String pairingCode,
+            String protectedPairingCode,
+            String pairingCodeHash,
             Instant pairingCodeExpiresAt,
             String name,
             long userId) {
         jdbcTemplate.update("""
             UPDATE pos_customer_display_devices
-            SET pairing_code = ?, pairing_code_expires_at = ?, name = ?, status = 'ACTIVE',
+            SET pairing_code = ?, pairing_code_hash = ?, pairing_code_expires_at = ?,
+                pairing_hash_version = 2,
+                consumed_pairing_code_hash = NULL, consumed_pairing_code_expires_at = NULL,
+                name = ?, status = 'ACTIVE',
                 updated_by_user_id = ?, version = version + 1
             WHERE company_id = ? AND id = ? AND deleted_at IS NULL
-            """, pairingCode, Timestamp.from(pairingCodeExpiresAt), name, userId, companyId, deviceId);
+            """, protectedPairingCode, pairingCodeHash, Timestamp.from(pairingCodeExpiresAt),
+            name, userId, companyId, deviceId);
         return findDeviceById(companyId, deviceId).orElseThrow();
     }
 
@@ -118,19 +160,105 @@ public class CustomerDisplayRepository {
         jdbcTemplate.update("""
             UPDATE pos_customer_display_devices
             SET name = ?, status = 'ACTIVE', paired_at = COALESCE(paired_at, CURRENT_TIMESTAMP),
-                last_seen_at = CURRENT_TIMESTAMP, pairing_code = NULL, pairing_code_expires_at = NULL,
+                last_seen_at = CURRENT_TIMESTAMP,
+                consumed_pairing_code_hash = pairing_code_hash,
+                consumed_pairing_code_expires_at = pairing_code_expires_at,
+                pairing_code = NULL, pairing_code_expires_at = NULL, pairing_code_hash = NULL,
                 version = version + 1
             WHERE id = ? AND deleted_at IS NULL
             """, name, device.id());
-        return findActiveDeviceByToken(device.deviceToken()).orElseThrow();
+        return findDeviceById(device.companyId(), device.id()).orElseThrow();
     }
 
-    public void touchDevice(long deviceId) {
-        jdbcTemplate.update("""
+    public boolean touchDeviceIfStale(long deviceId) {
+        return jdbcTemplate.update("""
             UPDATE pos_customer_display_devices
             SET last_seen_at = CURRENT_TIMESTAMP
             WHERE id = ? AND deleted_at IS NULL
-            """, deviceId);
+              AND (last_seen_at IS NULL OR last_seen_at < CURRENT_TIMESTAMP - INTERVAL 30 SECOND)
+            """, deviceId) > 0;
+    }
+
+    public boolean claimConnectionAudit(long deviceId) {
+        return jdbcTemplate.update("""
+            UPDATE pos_customer_display_devices
+            SET last_connection_audit_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND deleted_at IS NULL
+              AND (last_connection_audit_at IS NULL
+                   OR last_connection_audit_at < CURRENT_TIMESTAMP - INTERVAL 5 MINUTE)
+            """, deviceId) > 0;
+    }
+
+    public List<CustomerDisplayDeviceRecord> listDevices(
+            long companyId,
+            Long unitId,
+            Long businessId) {
+        return jdbcTemplate.query(deviceSelect() + """
+            WHERE device.company_id = ? AND device.deleted_at IS NULL
+              AND (? IS NULL OR device.unit_id = ?)
+              AND (? IS NULL OR device.business_id = ?)
+            ORDER BY device.updated_at DESC, device.id DESC
+            """, this::mapDevice, companyId, unitId, unitId, businessId, businessId);
+    }
+
+    public void updateStatus(long companyId, long deviceId, String status, long userId) {
+        jdbcTemplate.update("""
+            UPDATE pos_customer_display_devices
+            SET status = ?, pairing_code = NULL, pairing_code_hash = NULL,
+                pairing_code_expires_at = NULL, consumed_pairing_code_hash = NULL,
+                consumed_pairing_code_expires_at = NULL,
+                updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """, status, userId, companyId, deviceId);
+    }
+
+    public void updateName(long companyId, long deviceId, String name, long userId) {
+        jdbcTemplate.update("""
+            UPDATE pos_customer_display_devices
+            SET name = ?, updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """, name, userId, companyId, deviceId);
+    }
+
+    public void delete(long companyId, long deviceId) {
+        jdbcTemplate.update("""
+            DELETE FROM pos_customer_display_devices
+            WHERE company_id = ? AND id = ?
+            """, companyId, deviceId);
+    }
+
+    public List<CustomerDisplayDeviceRecord> findUnprotectedSecrets(int limit) {
+        return jdbcTemplate.query(deviceSelect() + """
+            WHERE device.deleted_at IS NULL
+              AND (device.device_token NOT LIKE 'enc.v1.%'
+                   OR (device.pairing_code IS NOT NULL AND device.pairing_code NOT LIKE 'enc.v1.%')
+                   OR (device.pairing_code IS NOT NULL AND device.pairing_hash_version < 2))
+            ORDER BY device.id ASC LIMIT ?
+            """, this::mapDevice, limit);
+    }
+
+    public void protectSecrets(
+            long deviceId,
+            String expectedDeviceToken,
+            String protectedDeviceToken,
+            String expectedPairingCode,
+            String protectedPairingCode,
+            String pairingCodeHash) {
+        jdbcTemplate.update("""
+            UPDATE pos_customer_display_devices
+            SET device_token = ?,
+                pairing_code_hash = CASE
+                    WHEN ? IS NOT NULL AND pairing_code = ? THEN ? ELSE pairing_code_hash END,
+                pairing_hash_version = CASE
+                    WHEN ? IS NOT NULL AND pairing_code = ? THEN 2 ELSE pairing_hash_version END,
+                pairing_code = CASE
+                    WHEN pairing_code <=> ? THEN ? ELSE pairing_code END
+            WHERE id = ? AND device_token = ? AND deleted_at IS NULL
+            """, protectedDeviceToken,
+            expectedPairingCode, expectedPairingCode, pairingCodeHash,
+            expectedPairingCode, expectedPairingCode,
+            expectedPairingCode, protectedPairingCode,
+            deviceId, expectedDeviceToken);
     }
 
     public Optional<CustomerDisplaySnapshotRecord> findLatestSnapshot(long companyId, long cashRegisterId) {
@@ -201,8 +329,18 @@ public class CustomerDisplayRepository {
 
     private String deviceSelect() {
         return """
-            SELECT device.*, register.code AS cash_register_code, register.name AS cash_register_name
+            SELECT device.*, company.name AS company_name,
+                   unit.name AS unit_name, business.name AS business_name,
+                   warehouse.name AS warehouse_name,
+                   register.code AS cash_register_code, register.name AS cash_register_name
             FROM pos_customer_display_devices device
+            JOIN companies company ON company.id = device.company_id
+            LEFT JOIN units unit ON unit.id = device.unit_id
+              AND (unit.company_id = device.company_id OR unit.company_id IS NULL)
+            LEFT JOIN businesses business ON business.id = device.business_id
+              AND business.unit_id = device.unit_id
+              AND (business.company_id = device.company_id OR business.company_id IS NULL)
+            JOIN sales_inventory_warehouses warehouse ON warehouse.id = device.warehouse_id
             JOIN pos_cash_registers register ON register.id = device.cash_register_id
             """;
     }
@@ -211,19 +349,29 @@ public class CustomerDisplayRepository {
         return new CustomerDisplayDeviceRecord(
             rs.getLong("id"),
             rs.getLong("company_id"),
+            rs.getString("company_name"),
             PosSqlSupport.nullableLong(rs, "unit_id"),
+            rs.getString("unit_name"),
             PosSqlSupport.nullableLong(rs, "business_id"),
+            rs.getString("business_name"),
             rs.getLong("warehouse_id"),
+            rs.getString("warehouse_name"),
             rs.getLong("cash_register_id"),
             rs.getString("cash_register_code"),
             rs.getString("cash_register_name"),
             rs.getString("device_token"),
+            rs.getString("device_token_hash"),
+            rs.getString("device_token_hint"),
             rs.getString("pairing_code"),
+            rs.getString("pairing_code_hash"),
+            rs.getString("consumed_pairing_code_hash"),
             PosSqlSupport.instant(rs, "pairing_code_expires_at"),
+            PosSqlSupport.instant(rs, "consumed_pairing_code_expires_at"),
             rs.getString("name"),
             rs.getString("status"),
             PosSqlSupport.instant(rs, "paired_at"),
             PosSqlSupport.instant(rs, "last_seen_at"),
+            PosSqlSupport.instant(rs, "last_connection_audit_at"),
             rs.getLong("created_by_user_id"),
             PosSqlSupport.nullableLong(rs, "updated_by_user_id"),
             PosSqlSupport.instant(rs, "created_at"),

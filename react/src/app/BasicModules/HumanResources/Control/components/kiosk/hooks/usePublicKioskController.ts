@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { runWithMinimumDuration } from '../../../../../../components/LoadingBarOverlay';
+import { useKioskSessionBoundary } from '../../../../../../components/kiosk-engine/useKioskSessionBoundary';
 import { useAttendancePhotoUpload } from '../../../../../../hooks/useAttendancePhotoUpload';
 import {
   humanResourcesApi,
@@ -81,6 +82,19 @@ export function usePublicKioskController() {
       setErrorMessage(options.reason);
     }
   };
+  const resetFlowRef = useRef(resetFlow);
+  const timeoutCopyRef = useRef(copy.timeout);
+  resetFlowRef.current = resetFlow;
+  timeoutCopyRef.current = copy.timeout;
+  const expireSession = useCallback(() => {
+    resetFlowRef.current({ reason: timeoutCopyRef.current, keepError: true });
+  }, []);
+  const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
+    active: Boolean(identificationToken),
+    expiresAt,
+    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 60,
+    onExpire: expireSession,
+  });
 
   const clearResetTimer = () => {
     if (resetTimeoutRef.current !== null) {
@@ -198,6 +212,7 @@ export function usePublicKioskController() {
     copy,
     deviceToken,
     identificationToken,
+    isOnline,
     setBusyState,
     setErrorMessage,
     setFaceErrorMessage,
@@ -215,6 +230,7 @@ export function usePublicKioskController() {
     fallbackPhotoUpload,
     hasIdentityEvidence,
     identificationToken,
+    isOnline,
     locationState,
     resetFlow,
     setBusyState,
@@ -280,6 +296,12 @@ export function usePublicKioskController() {
 
   const handleIdentify = async () => {
     if (!deviceToken || !bootstrap) {
+      return;
+    }
+    if (!isOnline) {
+      showFailureToast(selectedLocale.startsWith('es')
+        ? 'Se requiere conexión para usar este kiosko.'
+        : 'An internet connection is required to use this kiosk.');
       return;
     }
     if (!bootstrap.auth_methods.includes('pin')) {
@@ -354,6 +376,8 @@ export function usePublicKioskController() {
     identificationToken,
     identifiedHrUser,
     isLoading,
+    isOnline,
+    isSessionExpiring,
     kioskGreeting,
     kioskLocationLabel,
     kioskMessage,

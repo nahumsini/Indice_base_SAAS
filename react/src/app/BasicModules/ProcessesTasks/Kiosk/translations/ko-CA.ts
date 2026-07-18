@@ -11,6 +11,11 @@ export const koCA = {
     title: '작업 접근을 불러오는 중',
     description: '작업 키오스크를 준비하고 있습니다.',
   },
+  session: {
+    offline: '네트워크 연결이 없습니다. 이 키오스크는 온라인에서만 작동합니다.',
+    expiring: '세션이 곧 만료됩니다. 계속하거나 다시 인증해 주세요.',
+    expired: '비활성으로 세션이 만료되었습니다. 계속하려면 PIN을 다시 입력하세요.',
+  },
   header: {
     badge: '작업 키오스크',
     title: '작업을 완료하세요',
@@ -148,6 +153,7 @@ export const koCA = {
     fileTooLarge: (fileName: string) => `${fileName} 파일은 10 MB 제한을 초과합니다.`,
     unsupportedEvidence: (fileName: string) => `${fileName} 파일은 지원되는 증빙 형식이 아닙니다.`,
     uploadFailure: '작업 증빙 업로드에 실패했습니다.',
+    partialUploadFailure: '일부 증빙만 업로드되었습니다. 다시 시도하기 전에 작업을 확인하세요.',
     completeFailure: '이 작업을 완료할 수 없습니다.',
     createTitleRequired: '작업 제목은 필수입니다.',
     createFailure: '이 작업을 만들 수 없습니다.',

@@ -16,7 +16,7 @@ export function PublicCatalogGrid({
   if (items.length === 0) {
     return (
       <section className="mx-auto max-w-7xl px-5 md:px-8">
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-sm font-semibold text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
           {t.publicCatalog.emptyCatalog}
         </div>
       </section>

@@ -10,14 +10,24 @@ import { PublicCatalogVisibilitySettings } from './PublicCatalogVisibilitySettin
 export function PublicCatalogEditor({
   catalog,
   products,
+  units,
+  businesses,
   t,
   onChange,
 }: {
   catalog: PublicCatalogConfig | null;
   products: SalesCatalogItem[];
+  units: Array<{ id: number; name: string }>;
+  businesses: Array<{ id: number; unitId: number; name: string }>;
   t: ProductsTranslations;
   onChange: (patch: Partial<PublicCatalogConfig>) => void;
 }) {
+  const now = new Date();
+  const minimumExpiration = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const availableBusinesses = catalog?.unitId
+    ? businesses.filter((business) => business.unitId === catalog.unitId)
+    : [];
+
   if (!catalog) {
     return (
       <section className="flex min-h-full items-center justify-center bg-white p-8">
@@ -35,6 +45,31 @@ export function PublicCatalogEditor({
         <section className="rounded-lg border border-slate-200 bg-white p-4">
           <h3 className="text-lg font-bold text-slate-950">{t.publicCatalog.identity}</h3>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1.5">
+              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.unitLabel}</span>
+              <Select
+                value={catalog.unitId ? String(catalog.unitId) : undefined}
+                onValueChange={(value) => onChange({ unitId: Number(value), businessId: undefined })}
+              >
+                <SelectTrigger><SelectValue placeholder={t.publicCatalog.selectUnit} /></SelectTrigger>
+                <SelectContent>
+                  {units.map((unit) => <SelectItem key={unit.id} value={String(unit.id)}>{unit.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.businessLabel}</span>
+              <Select
+                disabled={!catalog.unitId}
+                value={catalog.businessId ? String(catalog.businessId) : undefined}
+                onValueChange={(value) => onChange({ businessId: Number(value) })}
+              >
+                <SelectTrigger><SelectValue placeholder={t.publicCatalog.selectBusiness} /></SelectTrigger>
+                <SelectContent>
+                  {availableBusinesses.map((business) => <SelectItem key={business.id} value={String(business.id)}>{business.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </label>
             <label className="grid gap-1.5">
               <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.catalogTitle}</span>
               <Input value={catalog.title} onChange={(event) => onChange({ title: event.target.value })} placeholder={t.publicCatalog.catalogTitle} />
@@ -62,6 +97,16 @@ export function PublicCatalogEditor({
             <label className="grid gap-1.5">
               <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.contactValuePlaceholder}</span>
               <Input value={catalog.contactValue} onChange={(event) => onChange({ contactValue: event.target.value })} placeholder={t.publicCatalog.contactValuePlaceholder} />
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.linkExpiration}</span>
+              <Input
+                type="datetime-local"
+                min={minimumExpiration}
+                value={catalog.expiresAt ?? ''}
+                onChange={(event) => onChange({ expiresAt: event.target.value || undefined })}
+              />
+              <span className="text-xs font-medium text-slate-400">{t.publicCatalog.linkExpirationHelp}</span>
             </label>
             <label className="grid gap-1.5 md:col-span-2">
               <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.catalogDescription}</span>

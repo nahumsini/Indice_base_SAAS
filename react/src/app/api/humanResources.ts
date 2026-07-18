@@ -47,6 +47,18 @@ function normalizeStorageUrl(storageUrl: string) {
   }
 }
 
+const kioskIdempotencyKey = () => {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.randomUUID === "function") {
+    return webCrypto.randomUUID();
+  }
+  if (typeof webCrypto?.getRandomValues === "function") {
+    const bytes = webCrypto.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  }
+  throw new Error("Secure randomness is required for kiosk idempotency keys.");
+};
+
 export type PayrollTreatment = 'fiscal_payroll' | 'operational_payroll' | 'accounts_payable' | 'no_payroll';
 export type PayrollPaymentRoute = 'payroll' | 'expenses' | 'none';
 
@@ -516,6 +528,10 @@ export interface AttendanceKioskDevice {
   status: "active" | "inactive";
   public_access_token?: string;
   metadata?: Record<string, unknown>;
+  kiosk_definition_id?: number;
+  engine_status?: "ACTIVE" | "DISABLED" | "REVOKED" | "EXPIRED" | "DELETED";
+  configuration_version?: number;
+  public_token_hint?: string;
 }
 
 export interface AttendanceAccessMethod {
@@ -1175,6 +1191,9 @@ export interface PublicKioskBootstrapResponse {
   scope_label?: string | null;
   auth_methods: Array<"pin">;
   inactivity_timeout_seconds: number;
+  csrfToken?: string;
+  accessLevel?: "CONTROLLED";
+  configurationVersion?: number;
 }
 
 export interface PublicKioskIdentifyRequest {
@@ -1207,6 +1226,8 @@ export interface PublicKioskIdentifyResponse {
     department?: string;
   };
   identification_token: string;
+  kiosk_session_id?: string;
+  kiosk_session_token?: string;
   expires_at: string;
   today_activity?: PublicKioskDayActivity;
 }
@@ -1954,6 +1975,7 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/punch`,
       {
         method: "POST",
+        headers: { "Idempotency-Key": kioskIdempotencyKey() },
         body: JSON.stringify(payload),
       },
     );
@@ -1969,6 +1991,7 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/media/presign-upload`,
       {
         method: "POST",
+        headers: { "Idempotency-Key": kioskIdempotencyKey() },
         body: JSON.stringify(payload),
       },
     );
@@ -1982,6 +2005,7 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions`,
       {
         method: "POST",
+        headers: { "Idempotency-Key": kioskIdempotencyKey() },
         body: JSON.stringify({ identification_token: identificationToken }),
       },
     );
@@ -1998,6 +2022,7 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/captures/presign-upload`,
       {
         method: "POST",
+        headers: { "Idempotency-Key": kioskIdempotencyKey() },
         body: JSON.stringify({
           identification_token: identificationToken,
           step,
@@ -2016,6 +2041,7 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/complete`,
       {
         method: "POST",
+        headers: { "Idempotency-Key": kioskIdempotencyKey() },
         body: JSON.stringify({ identification_token: identificationToken }),
       },
     );

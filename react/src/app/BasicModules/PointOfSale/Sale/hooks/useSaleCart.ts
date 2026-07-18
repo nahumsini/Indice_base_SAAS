@@ -19,6 +19,11 @@ interface CartProductRequest {
   quantity: number;
 }
 
+export interface CartBatchResult {
+  addedCount: number;
+  insufficientStock: string[];
+}
+
 export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -89,10 +94,22 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
     setCartNotice('');
   }, [blockSalesWithoutStock, cart, taxOverride, updateQuantity]);
 
-  const addProductsToCart = useCallback((requests: CartProductRequest[]) => {
+  const addProductsToCart = useCallback((requests: CartProductRequest[]): CartBatchResult => {
     if (requests.length === 0) {
-      return;
+      return { addedCount: 0, insufficientStock: [] };
     }
+
+    const invalidRequest = requests.some(({ quantity }) => !Number.isFinite(quantity) || quantity <= 0);
+    if (invalidRequest) {
+      return { addedCount: 0, insufficientStock: [] };
+    }
+
+    const insufficientStock = requests.flatMap(({ product, quantity }) => {
+      const currentInCart = cart.find((item) => item.productId === product.id)?.quantity || 0;
+      return product.useInventory && currentInCart + quantity > product.currentStock
+        ? [product.name]
+        : [];
+    });
 
     setCart((currentCart) => {
       let nextCart = [...currentCart];
@@ -100,12 +117,6 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
 
       requests.forEach(({ product, quantity }) => {
         const existingItem = nextCart.find((item) => item.productId === product.id);
-        const currentInCart = existingItem?.quantity || 0;
-
-        if (product.useInventory && currentInCart + quantity > product.currentStock) {
-          setCartNotice(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}.`);
-          return;
-        }
 
         if (existingItem) {
           nextCart = nextCart.map((item) => (
@@ -128,7 +139,11 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
 
       return nextCart;
     });
-  }, [taxOverride]);
+    if (insufficientStock.length > 0) {
+      setCartNotice(`Revisa existencia antes de cobrar: ${insufficientStock.join(', ')}.`);
+    }
+    return { addedCount: requests.length, insufficientStock };
+  }, [cart, taxOverride]);
 
   const applyDiscount = useCallback((itemId: string, discount: number, type: SaleItem['discountType']) => {
     setCart((currentCart) => currentCart.map((item) => {

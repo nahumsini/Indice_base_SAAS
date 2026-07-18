@@ -47,6 +47,7 @@ const basicModuleOperationalOrderIndex = new Map<PageId, number>(
 export const FRONTEND_OWNED_BASIC_MODULE_ROUTES: readonly PageId[] = [
   'inventory',
   'receivables',
+  'kiosk-center',
 ];
 
 const moduleMetaBySlug: Record<

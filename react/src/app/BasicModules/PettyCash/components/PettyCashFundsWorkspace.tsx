@@ -636,7 +636,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
     }
 
     try {
-      const savedFund = await pettyCashService.updateFund(updatedFund);
+      const savedFund = await pettyCashService.deleteFundKiosk(fundId);
       onFundsChange(currentFunds => currentFunds.map(fund => (
         fund.id === fundId
           ? {

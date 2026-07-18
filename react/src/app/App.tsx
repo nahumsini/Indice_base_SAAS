@@ -65,6 +65,7 @@ const AgenteVentas = lazy(() => import('./AIModules/SalesAgent'));
 const Analitica = lazy(() => import('./AIModules/Analytics'));
 const Capacitacion = lazy(() => import('./AIModules/Training'));
 const Coach = lazy(() => import('./AIModules/Coach'));
+const KioskCenter = lazy(() => import('./KioskCenter'));
 
 type StandaloneModuleComponent = ComponentType | LazyExoticComponent<ComponentType>;
 
@@ -587,6 +588,7 @@ export default function App() {
   };
 
   const standaloneModulePages: Partial<Record<PageId, StandaloneModuleComponent>> = {
+    'kiosk-center': KioskCenter,
     maintenance: Mantenimiento,
     inventory: Inventarios,
     'minutes-control': ControlMinutas,

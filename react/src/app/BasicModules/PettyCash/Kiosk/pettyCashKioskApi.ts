@@ -1,4 +1,8 @@
 import { apiClient } from '../../../lib/apiClient';
+import {
+  completeKioskIdempotentOperation,
+  kioskIdempotencyKeyFor,
+} from '../../../components/kiosk-engine/kioskIdempotency';
 
 export interface PublicPettyCashFund {
   id: number;
@@ -130,11 +134,13 @@ export const pettyCashKioskApi = {
     });
   },
 
-  createPublicReceipt(fundToken: string, payload: PublicPettyCashReceiptPayload) {
-    return apiClient<PublicPettyCashReceiptResponse>(`${publicBasePath}/${fundToken}/receipts`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  async createPublicReceipt(fundToken: string, payload: PublicPettyCashReceiptPayload) {
+    return kioskMutation<PublicPettyCashReceiptResponse>(
+      `petty-cash:${fundToken}:receipt:create`,
+      `${publicBasePath}/${fundToken}/receipts`,
+      'POST',
+      payload,
+    );
   },
 
   presignPublicAttachmentUpload(
@@ -147,18 +153,20 @@ export const pettyCashKioskApi = {
       size_bytes: number;
     },
   ) {
-    return apiClient<{
+    return kioskMutation<{
       object_key: string;
       upload_url: string;
       expires_at: string;
       upload_headers?: Record<string, string>;
-    }>(`${publicBasePath}/${fundToken}/settlement-lines/${settlementLineId}/attachments/presign-upload`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    }>(
+      `petty-cash:${fundToken}:receipt:${settlementLineId}:attachment:presign:${payload.file_name}`,
+      `${publicBasePath}/${fundToken}/settlement-lines/${settlementLineId}/attachments/presign-upload`,
+      'POST',
+      payload,
+    );
   },
 
-  registerPublicAttachment(
+  async registerPublicAttachment(
     fundToken: string,
     settlementLineId: number,
     payload: {
@@ -169,10 +177,12 @@ export const pettyCashKioskApi = {
       size_bytes: number;
     },
   ) {
-    return apiClient<Record<string, unknown>>(`${publicBasePath}/${fundToken}/settlement-lines/${settlementLineId}/attachments`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return kioskMutation<Record<string, unknown>>(
+      `petty-cash:${fundToken}:receipt:${settlementLineId}:attachment:${payload.original_filename}`,
+      `${publicBasePath}/${fundToken}/settlement-lines/${settlementLineId}/attachments`,
+      'POST',
+      payload,
+    );
   },
 
   listPublicAttachments(fundToken: string, settlementLineId: number, identificationToken: string) {
@@ -185,16 +195,31 @@ export const pettyCashKioskApi = {
     );
   },
 
-  deletePublicReceipt(fundToken: string, settlementLineId: number, identificationToken: string) {
-    return apiClient<PublicPettyCashHistory & { fund: PublicPettyCashFund; recent_receipts: PublicPettyCashReceipt[] }>(
+  async deletePublicReceipt(fundToken: string, settlementLineId: number, identificationToken: string) {
+    return kioskMutation<PublicPettyCashHistory & { fund: PublicPettyCashFund; recent_receipts: PublicPettyCashReceipt[] }>(
+      `petty-cash:${fundToken}:receipt:${settlementLineId}:delete`,
       `${publicBasePath}/${fundToken}/receipts/${settlementLineId}`,
-      {
-        method: 'DELETE',
-        body: JSON.stringify({ identification_token: identificationToken }),
-      },
+      'DELETE',
+      { identification_token: identificationToken },
     );
   },
 };
+
+async function kioskMutation<T>(
+  operation: string,
+  path: string,
+  method: 'POST' | 'DELETE',
+  payload: unknown,
+) {
+  const idempotencyKey = kioskIdempotencyKeyFor(operation, payload);
+  const result = await apiClient<T>(path, {
+    method,
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(payload),
+  });
+  completeKioskIdempotentOperation(operation);
+  return result;
+}
 
 export async function uploadPublicPettyCashAttachment(
   uploadUrl: string,

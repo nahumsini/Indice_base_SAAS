@@ -26,6 +26,26 @@ public class DisabledObjectStorageService implements ObjectStorageService {
     }
 
     @Override
+    public StoredObjectMetadata objectMetadata(String bucketName, String objectKey) {
+        throw new ObjectStorageDisabledException("Object storage is not enabled.");
+    }
+
+    @Override
+    public byte[] readObjectPrefix(String bucketName, String objectKey, int maxBytes) {
+        throw new ObjectStorageDisabledException("Object storage is not enabled.");
+    }
+
+    @Override
+    public void copyObject(String bucketName, String sourceObjectKey, String targetObjectKey) {
+        throw new ObjectStorageDisabledException("Object storage is not enabled.");
+    }
+
+    @Override
+    public void moveObject(String bucketName, String sourceObjectKey, String targetObjectKey) {
+        throw new ObjectStorageDisabledException("Object storage is not enabled.");
+    }
+
+    @Override
     public String presignDownload(String bucketName, String objectKey, int expirySeconds) {
         throw new ObjectStorageDisabledException("Object storage is not enabled.");
     }

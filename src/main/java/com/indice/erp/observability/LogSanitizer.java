@@ -11,7 +11,12 @@ final class LogSanitizer {
     private static final Pattern CONTROL_CHARS = Pattern.compile("[\\r\\n\\t]+");
     private static final Pattern URL_USER_INFO = Pattern.compile("(?i)([a-z][a-z0-9+.-]*://)([^/@\\s]+)@");
     private static final Pattern SENSITIVE_ASSIGNMENT = Pattern.compile(
-        "(?i)(password|passwd|pwd|secret|token|csrf|authorization|cookie|set-cookie|session|api[-_]?key|access[-_]?key|secret[-_]?key|credential)(\\s*[:=]\\s*)([^\\s,;&]+)"
+        "(?i)(password|passwd|pwd|pin|secret|token|csrf|authorization|cookie|set-cookie|session|api[-_]?key|access[-_]?key|secret[-_]?key|credential(?:[-_][a-z0-9]+)*|(?:upload|download|presigned|signed)[-_]?url|biometric(?:[-_][a-z0-9]+)*|face[-_]?(?:image|template)|latitude|longitude)(\\s*[:=]\\s*)([^\\s,;&]+)"
+    );
+    private static final Pattern KIOSK_ACCESS_PATH_SEGMENT = Pattern.compile(
+        "(?i)(/(?:public-kiosk|public-payable-kiosks|kiosk|kiosks/public|"
+            + "public-catalog|pos-self-service|pos-display|customer-displays/public|"
+            + "(?:pos/public/)?supplier-portal)/)([^/?#\\s]+)"
     );
     private static final Pattern VALID_REQUEST_ID = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
     private static final Pattern SAFE_CLIENT_IP = Pattern.compile("[^0-9a-fA-F:., ]");
@@ -49,6 +54,7 @@ final class LogSanitizer {
         if (queryStart >= 0) {
             sanitized = sanitized.substring(0, queryStart);
         }
+        sanitized = KIOSK_ACCESS_PATH_SEGMENT.matcher(sanitized).replaceAll("$1[redacted]");
         return truncate(sanitized, MAX_PATH_LENGTH);
     }
 

@@ -176,6 +176,15 @@ public class PettyCashPublicKioskService {
         );
     }
 
+    public Map<String, Object> publicMovements(String fundToken, Map<String, Object> payload) {
+        var context = requirePublicContext(fundToken, payload);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("fund", publicFundMap(context.fund()));
+        body.put("recent_receipts", recentReceipts(context.fund()));
+        body.putAll(publicHistory(context.fund(), context.employee()));
+        return body;
+    }
+
     public Map<String, Object> publicRegisterAttachment(
             String fundToken,
             long settlementLineId,

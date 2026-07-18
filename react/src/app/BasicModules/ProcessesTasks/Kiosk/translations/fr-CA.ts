@@ -11,6 +11,11 @@ export const frCA = {
     title: 'Chargement de l’accès aux tâches',
     description: 'Préparation du kiosque opérationnel.',
   },
+  session: {
+    offline: 'Aucune connexion réseau. Ce kiosque fonctionne uniquement en ligne.',
+    expiring: 'Votre session expirera bientôt. Continuez ou identifiez-vous de nouveau.',
+    expired: 'Votre session a expiré pour cause d’inactivité. Entrez de nouveau votre NIP.',
+  },
   header: {
     badge: 'Kiosque de tâches',
     title: 'Terminez vos tâches',
@@ -148,6 +153,7 @@ export const frCA = {
     fileTooLarge: (fileName: string) => `${fileName} dépasse la limite de 10 Mo.`,
     unsupportedEvidence: (fileName: string) => `${fileName} n’est pas un fichier de preuve accepté.`,
     uploadFailure: 'Le téléversement de la preuve a échoué.',
+    partialUploadFailure: 'Certaines preuves ont été téléversées, mais des fichiers ont échoué. Vérifiez la tâche avant de réessayer.',
     completeFailure: 'Impossible de terminer cette tâche.',
     createTitleRequired: 'Le titre de la tâche est obligatoire.',
     createFailure: 'Impossible de créer cette tâche.',

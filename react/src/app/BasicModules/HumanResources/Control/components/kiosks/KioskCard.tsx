@@ -92,6 +92,8 @@ export function KioskCard({
             <span className="inline-flex items-center gap-2 rounded-full bg-[#59C3A5]/10 px-3 py-1.5 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
               <ShieldCheck className="h-3.5 w-3.5" />
               {copy.kiosk.card.attendancePointLabel}
+              {device.engine_status ? ` · Engine ${device.engine_status}` : ''}
+              {device.configuration_version ? ` · v${device.configuration_version}` : ''}
             </span>
           </div>
         </div>

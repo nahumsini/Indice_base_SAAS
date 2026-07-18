@@ -13,6 +13,9 @@ import com.indice.erp.finance.pettycash.dto.PettyCashSettlementLineMutationRespo
 import com.indice.erp.finance.pettycash.dto.PettyCashWorkspaceResponse;
 import com.indice.erp.finance.pettycash.dto.UpdatePettyCashFundRequest;
 import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.kiosk.engine.KioskAccessLevel;
+import com.indice.erp.kiosk.engine.KioskRegistryService;
+import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDate;
@@ -35,11 +38,17 @@ public class PettyCashService {
     private final PettyCashRepository repository;
     private final PettyCashMapper mapper;
     private final PettyCashValidator validator;
+    private final KioskRegistryService kioskRegistry;
 
-    public PettyCashService(PettyCashRepository repository, PettyCashMapper mapper, PettyCashValidator validator) {
+    public PettyCashService(
+            PettyCashRepository repository,
+            PettyCashMapper mapper,
+            PettyCashValidator validator,
+            KioskRegistryService kioskRegistry) {
         this.repository = repository;
         this.mapper = mapper;
         this.validator = validator;
+        this.kioskRegistry = kioskRegistry;
     }
 
     @Transactional
@@ -77,6 +86,7 @@ public class PettyCashService {
         requireUniqueName(context, command.name(), null);
         var fund = repository.insertFund(context, command);
         ensureStatement(context, fund, null, LocalDate.now(OPERATIONAL_ZONE));
+        synchronizeKioskDefinition(fund, context.userId());
         return mapper.toResponse(fund);
     }
 
@@ -95,12 +105,19 @@ public class PettyCashService {
         if (!repository.updateFund(context, fundId, command)) {
             throw new NoSuchElementException("Petty cash fund not found.");
         }
-        return getFund(context, fundId);
+        var saved = requireFund(context, fundId);
+        synchronizeKioskDefinition(saved, context.userId());
+        return mapper.toResponse(saved);
     }
 
     @Transactional
     public DeletePettyCashFundResponse deleteFund(FinanceContext context, long fundId) {
-        requireFund(context, fundId);
+        var fund = requireFund(context, fundId);
+        if (fund.kioskPublicToken() != null && !fund.kioskPublicToken().isBlank()) {
+            kioskRegistry.deleteDefinition(
+                context.companyId(), PettyCashKioskCapabilities.OWNER_MODULE, fundId,
+                context.userId(), "Deleted with petty cash fund");
+        }
         if (!repository.softDeleteFund(context, fundId)) {
             throw new NoSuchElementException("Petty cash fund not found.");
         }
@@ -109,10 +126,49 @@ public class PettyCashService {
 
     @Transactional
     public PettyCashFundResponse rotateKioskPublicToken(FinanceContext context, long fundId) {
-        requireFund(context, fundId);
+        var fund = requireFund(context, fundId);
+        synchronizeKioskDefinition(fund, context.userId());
         var kioskPublicToken = generateUniqueKioskPublicToken();
         var kioskAccessUrl = "/petty-cash/kiosk/" + kioskPublicToken;
         if (!repository.rotateKioskPublicToken(context, fundId, kioskPublicToken, kioskAccessUrl)) {
+            throw new NoSuchElementException("Petty cash fund not found.");
+        }
+        kioskRegistry.replacePublicToken(
+            context.companyId(), PettyCashKioskCapabilities.OWNER_MODULE,
+            fundId, kioskPublicToken, context.userId());
+        return getFund(context, fundId);
+    }
+
+    @Transactional
+    public PettyCashFundResponse transitionKiosk(
+            FinanceContext context,
+            long fundId,
+            KioskDefinitionStatus target,
+            String reason) {
+        var fund = requireFund(context, fundId);
+        if (fund.kioskPublicToken() == null || fund.kioskPublicToken().isBlank()) {
+            throw FinanceApiException.badRequest("The petty cash fund does not have a kiosk link.");
+        }
+        synchronizeKioskDefinition(fund, context.userId());
+        kioskRegistry.transition(
+            context.companyId(), PettyCashKioskCapabilities.OWNER_MODULE, fundId,
+            target, context.userId(), reason);
+        if (!repository.updateKioskEnabled(
+                context, fundId, target == KioskDefinitionStatus.ACTIVE)) {
+            throw new NoSuchElementException("Petty cash fund not found.");
+        }
+        return getFund(context, fundId);
+    }
+
+    @Transactional
+    public PettyCashFundResponse deleteKioskAccess(FinanceContext context, long fundId) {
+        var fund = requireFund(context, fundId);
+        if (fund.kioskPublicToken() != null && !fund.kioskPublicToken().isBlank()) {
+            kioskRegistry.deleteDefinition(
+                context.companyId(), PettyCashKioskCapabilities.OWNER_MODULE, fundId,
+                context.userId(), "Petty cash kiosk access deleted");
+        }
+        if (!repository.clearKioskAccess(context, fundId)) {
             throw new NoSuchElementException("Petty cash fund not found.");
         }
         return getFund(context, fundId);
@@ -577,6 +633,22 @@ public class PettyCashService {
             throw FinanceApiException.badRequest("kioskPublicToken must be URL-safe and between 8 and 96 characters.");
         }
         return trimmed;
+    }
+
+    private void synchronizeKioskDefinition(PettyCashFundRecord fund, long actorId) {
+        if (fund.kioskPublicToken() == null || fund.kioskPublicToken().isBlank()) {
+            return;
+        }
+        var legacyStatus = Boolean.TRUE.equals(fund.kioskEnabled())
+            && fund.deletedAt() == null && fund.status() != PettyCashFundStatus.CLOSED
+            ? "ACTIVE" : "INACTIVE";
+        var definition = kioskRegistry.registerLegacyDefinition(
+            fund.companyId(), PettyCashKioskCapabilities.OWNER_MODULE,
+            PettyCashKioskCapabilities.KIOSK_TYPE,
+            fund.id(), "petty-cash-fund-" + fund.id(), fund.name(), legacyStatus,
+            fund.unitId(), fund.businessId(), null, fund.kioskPublicToken(), true,
+            KioskAccessLevel.CONTROLLED, "petty-cash", "es-MX", actorId);
+        kioskRegistry.synchronizeCapabilities(definition, PettyCashKioskCapabilities.descriptors());
     }
 
     private PettyCashFundRecord requireFund(FinanceContext context, long fundId) {

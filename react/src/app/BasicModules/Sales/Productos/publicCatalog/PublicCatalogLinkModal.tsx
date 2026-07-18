@@ -17,6 +17,8 @@ export function PublicCatalogLinkModal({
   onPreview,
   onGenerateQr,
   onDownloadQr,
+  busy = false,
+  error = '',
 }: {
   catalog: PublicCatalogConfig | null;
   t: ProductsTranslations;
@@ -26,6 +28,8 @@ export function PublicCatalogLinkModal({
   onPreview: () => void;
   onGenerateQr: () => void;
   onDownloadQr: () => void;
+  busy?: boolean;
+  error?: string;
 }) {
   return (
     <SalesModalFrame
@@ -58,6 +62,8 @@ export function PublicCatalogLinkModal({
               onPreview={onPreview}
               onGenerateQr={onGenerateQr}
               onDownloadQr={onDownloadQr}
+              busy={busy}
+              error={error}
             />
           </div>
         ) : null}

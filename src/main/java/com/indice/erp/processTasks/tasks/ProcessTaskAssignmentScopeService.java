@@ -186,6 +186,32 @@ public class ProcessTaskAssignmentScopeService {
         }
     }
 
+    public void requireKioskScopeAccess(
+            long companyId,
+            long actorUserId,
+            Long kioskUnitId,
+            Long kioskBusinessId) {
+        var actorScope = actorScope(companyId, actorUserId);
+        var kioskScope = targetScope(companyId, kioskUnitId, kioskBusinessId);
+        if (!canAccessKioskScope(actorScope, kioskScope)) {
+            throw new IllegalArgumentException("Current user cannot access this kiosk scope.");
+        }
+    }
+
+    public boolean canAccessKioskScope(
+            long companyId,
+            long actorUserId,
+            Long kioskUnitId,
+            Long kioskBusinessId) {
+        try {
+            var actorScope = actorScope(companyId, actorUserId);
+            var kioskScope = targetScope(companyId, kioskUnitId, kioskBusinessId);
+            return canAccessKioskScope(actorScope, kioskScope);
+        } catch (IllegalArgumentException | NoSuchElementException failure) {
+            return false;
+        }
+    }
+
     public TaskVisibilityFilter taskVisibilityFilter(
             long companyId,
             long actorUserId,
@@ -242,6 +268,19 @@ public class ProcessTaskAssignmentScopeService {
         }
 
         return receiverScope.businessId() != null && receiverScope.businessId().equals(targetScope.businessId());
+    }
+
+    boolean canAccessKioskScope(AssignmentScope actorScope, TaskTargetScope kioskScope) {
+        if (actorScope == null || actorScope.level() == ScopeLevel.CORPORATE || kioskScope.isCompanyWide()) {
+            return true;
+        }
+        if (kioskScope.businessId() != null) {
+            if (actorScope.level() == ScopeLevel.BUSINESS) {
+                return kioskScope.businessId().equals(actorScope.businessId());
+            }
+            return kioskScope.unitId() != null && kioskScope.unitId().equals(actorScope.unitId());
+        }
+        return kioskScope.unitId() != null && kioskScope.unitId().equals(actorScope.unitId());
     }
 
     private AssignmentScope resolveScope(

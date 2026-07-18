@@ -4,6 +4,7 @@ import com.indice.erp.hr.attendance.usecases.control.HrAttendanceControlOverview
 import com.indice.erp.hr.attendance.usecases.support.AttendanceDependencies;
 import java.time.LocalDate;
 import java.util.Map;
+import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import org.springframework.transaction.annotation.Transactional;
 
 
@@ -47,6 +48,11 @@ public abstract class HrAttendanceKioskDeviceAccessUseCases extends HrAttendance
     }
 
     @Transactional
+    public void deleteKioskDevice(long companyId, long actorId, long kioskDeviceId) {
+        attendanceKioskDeviceService.deleteDevice(companyId, actorId, kioskDeviceId);
+    }
+
+    @Transactional
     public Map<String, Object> saveKioskDevice(long companyId, long userId, Long kioskDeviceId, Map<String, Object> payload) {
         return attendanceKioskDeviceService.saveDevice(companyId, userId, kioskDeviceId, payload);
     }
@@ -54,6 +60,22 @@ public abstract class HrAttendanceKioskDeviceAccessUseCases extends HrAttendance
     @Transactional
     public Map<String, Object> rotateKioskPublicAccessToken(long companyId, long kioskDeviceId) {
         return attendanceKioskDeviceService.rotatePublicAccessToken(companyId, kioskDeviceId);
+    }
+
+    @Transactional
+    public Map<String, Object> rotateKioskPublicAccessToken(long companyId, long actorId, long kioskDeviceId) {
+        return attendanceKioskDeviceService.rotatePublicAccessToken(companyId, actorId, kioskDeviceId);
+    }
+
+    @Transactional
+    public Map<String, Object> transitionKioskDevice(
+            long companyId,
+            long actorId,
+            long kioskDeviceId,
+            KioskDefinitionStatus status,
+            String reason) {
+        return attendanceKioskDeviceService.transitionDevice(
+            companyId, actorId, kioskDeviceId, status, reason);
     }
 
     public Map<String, Object> listAccessProfiles(long companyId) {

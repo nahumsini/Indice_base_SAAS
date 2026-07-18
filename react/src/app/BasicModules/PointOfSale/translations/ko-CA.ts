@@ -10,6 +10,7 @@ export const koCA = {
     fallbackDescription: '선택한 POS 섹션만 불러오고 있습니다.',
   },
   tabs: {
+    kiosks: '키오스크',
     sale: '판매',
     cortes: '현금 마감',
     clientes: '고객',

@@ -561,6 +561,14 @@ export const pettyCashService = {
     return toFund(response);
   },
 
+  async deleteFundKiosk(fundId: string): Promise<PettyCashFund> {
+    const response = await apiClient<PettyCashFundApiDto>(
+      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/kiosk`,
+      { method: 'DELETE' },
+    );
+    return toFund(response);
+  },
+
   async deleteFund(fundId: string): Promise<void> {
     await apiClient(`${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}`, { method: 'DELETE' });
   },

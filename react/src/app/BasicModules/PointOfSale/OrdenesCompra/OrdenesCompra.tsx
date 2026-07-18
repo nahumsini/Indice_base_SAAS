@@ -35,6 +35,7 @@ export default function OrdenesCompra() {
     changeSupplierPortalAccessPin,
     createOrder,
     createSupplierPortalAccess,
+    deleteSupplierPortalKiosk,
     error,
     filteredOrders,
     filteredSupplierSubmissions,
@@ -55,6 +56,7 @@ export default function OrdenesCompra() {
     warehouses,
     convertSupplierSubmission,
     updateSupplierPortalAccessStatus,
+    updateSupplierPortalKiosk,
   } = usePurchaseOrderWorkspace();
 
   const [workspaceMode, setWorkspaceMode] = useState<PurchaseOrderWorkspaceMode>('orders');
@@ -220,8 +222,10 @@ export default function OrdenesCompra() {
           saving={saving}
           onChangePin={changeSupplierPortalAccessPin}
           onClose={() => setShowSupplierPortal(false)}
+          onDelete={deleteSupplierPortalKiosk}
           onStatusChange={updateSupplierPortalAccessStatus}
           onSubmit={handleCreateSupplierPortalAccess}
+          onUpdateConfiguration={updateSupplierPortalKiosk}
         />
       ) : null}
 

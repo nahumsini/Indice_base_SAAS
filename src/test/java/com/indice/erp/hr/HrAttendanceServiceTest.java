@@ -90,7 +90,8 @@ class HrAttendanceServiceTest {
             jdbcTemplate,
             mock(HrAttendanceScopeAccess.class),
             attendanceAssignmentService,
-            new AttendanceKioskTokenService(objectMapper, "test-kiosk-secret", 120),
+            new AttendanceKioskTokenService(
+                objectMapper, "hr-attendance-kiosk-test-secret-123456", 120),
             attendanceKioskPinThrottleService,
             attendanceKioskDeviceRepository,
             mock(AttendanceKioskDeviceService.class),

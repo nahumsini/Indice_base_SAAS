@@ -1,5 +1,6 @@
 package com.indice.erp.processTasks.kiosk;
 
+import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.processTasks.ProcessTasksRequestGuard;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -69,7 +70,7 @@ public class ProcessTaskKioskApiController {
         try {
             return ResponseEntity.ok(kioskService.saveKiosk(
                     access.user().companyId(), access.user().userId(), kioskId, payload));
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException | IllegalStateException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -86,7 +87,7 @@ public class ProcessTaskKioskApiController {
             return access.error();
         }
         try {
-            kioskService.deleteKiosk(access.user().companyId(), kioskId);
+            kioskService.deleteKiosk(access.user().companyId(), access.user().userId(), kioskId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -103,9 +104,60 @@ public class ProcessTaskKioskApiController {
             return access.error();
         }
         try {
-            return ResponseEntity.ok(kioskService.rotatePublicAccessToken(access.user().companyId(), kioskId));
+            return ResponseEntity.ok(kioskService.rotatePublicAccessToken(
+                access.user().companyId(), access.user().userId(), kioskId));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{kioskId}/disable")
+    public ResponseEntity<?> disable(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long kioskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        return transition(session, csrfToken, kioskId, payload, KioskDefinitionStatus.DISABLED);
+    }
+
+    @PostMapping("/{kioskId}/enable")
+    public ResponseEntity<?> enable(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long kioskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        return transition(session, csrfToken, kioskId, payload, KioskDefinitionStatus.ACTIVE);
+    }
+
+    @PostMapping("/{kioskId}/revoke")
+    public ResponseEntity<?> revoke(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long kioskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        return transition(session, csrfToken, kioskId, payload, KioskDefinitionStatus.REVOKED);
+    }
+
+    private ResponseEntity<?> transition(
+            HttpSession session,
+            String csrfToken,
+            long kioskId,
+            Map<String, Object> payload,
+            KioskDefinitionStatus target) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            var reason = payload == null ? null : String.valueOf(payload.getOrDefault("reason", ""));
+            return ResponseEntity.ok(kioskService.transitionKiosk(
+                access.user().companyId(), access.user().userId(), kioskId, target, reason));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 }

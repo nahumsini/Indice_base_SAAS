@@ -1,5 +1,9 @@
 import { apiClient } from '../../../lib/apiClient';
 import { uploadToPresignedStorage } from '../shared/storageUpload';
+import {
+  completeKioskIdempotentOperation,
+  kioskIdempotencyKeyFor,
+} from './kioskIdempotency';
 
 export interface ProcessTaskKiosk {
   id: number;
@@ -11,7 +15,12 @@ export interface ProcessTaskKiosk {
   code: string;
   name: string;
   status: 'active' | 'inactive';
+  engine_status: 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'REVOKED' | 'DELETED';
+  expires_at: string | null;
   public_access_token: string;
+  issued_public_token?: string;
+  public_token_hint: string;
+  token_display_once: boolean;
   metadata: Record<string, unknown>;
   scope_label: string;
   created_at: string | null;
@@ -22,9 +31,39 @@ export interface ProcessTaskKioskPayload {
   name: string;
   code: string;
   status: 'active' | 'inactive';
+  expires_at?: string | null;
   unit_id?: number | null;
   business_id?: number | null;
   metadata?: Record<string, unknown>;
+}
+
+export interface ProcessTaskKioskGrant {
+  id: number;
+  identity_type: 'USER' | 'EMPLOYEE' | 'PROVIDER' | 'CUSTOMER' | 'EXTERNAL_VERIFIED' | 'PUBLIC';
+  identity_id: number;
+  capability_key: string;
+  status: 'ACTIVE' | 'REVOKED';
+  source: 'ADMIN' | 'AUTO_SCOPE' | 'INTERNAL_POLICY' | string;
+  created_at: string;
+}
+
+export interface ProcessTaskKioskAuditEvent {
+  event_id: string;
+  request_id?: string;
+  action_id?: string;
+  session_id?: string;
+  event_type: string;
+  outcome: string;
+  actor_type?: string;
+  actor_id?: number;
+  capability?: string;
+  module_reference?: string;
+  created_at: string;
+}
+
+interface KioskV2Envelope<T> {
+  data: T;
+  meta: { requestId: string };
 }
 
 export interface PublicTaskKioskBootstrapResponse {
@@ -33,6 +72,7 @@ export interface PublicTaskKioskBootstrapResponse {
     code: string;
     name: string;
     status: 'active' | 'inactive';
+    expires_at: string | null;
   };
   scope_label: string;
   auth_methods: Array<'pin'>;
@@ -138,6 +178,7 @@ export interface PublicTaskKioskIdentifyResponse {
 }
 
 const basePath = '/api/v1/process-tasks/kiosks';
+const adminV2BasePath = '/api/v2/process-tasks/kiosks';
 const publicBasePath = '/api/v1/process-tasks/public-kiosk';
 
 export const processTaskKioskApi = {
@@ -172,6 +213,49 @@ export const processTaskKioskApi = {
     });
   },
 
+  transitionKiosk(kioskId: number, transition: 'disable' | 'enable' | 'revoke', reason?: string) {
+    return apiClient<{ kiosk: ProcessTaskKiosk }>(`${basePath}/${kioskId}/${transition}`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason ?? '' }),
+    });
+  },
+
+  async listGrants(kioskId: number) {
+    const response = await apiClient<KioskV2Envelope<{ items: ProcessTaskKioskGrant[] }>>(
+      `${adminV2BasePath}/${kioskId}/grants`,
+    );
+    return response.data.items;
+  },
+
+  async grantEmployee(kioskId: number, identityId: number) {
+    const response = await apiClient<KioskV2Envelope<ProcessTaskKioskGrant>>(
+      `${adminV2BasePath}/${kioskId}/grants`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          identity_type: 'EMPLOYEE',
+          identity_id: identityId,
+          capability_key: '*',
+        }),
+      },
+    );
+    return response.data;
+  },
+
+  async revokeGrant(kioskId: number, grantId: number) {
+    await apiClient<KioskV2Envelope<{ revoked: boolean }>>(
+      `${adminV2BasePath}/${kioskId}/grants/${grantId}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async listAudit(kioskId: number) {
+    const response = await apiClient<KioskV2Envelope<{ items: ProcessTaskKioskAuditEvent[] }>>(
+      `${adminV2BasePath}/${kioskId}/audit`,
+    );
+    return response.data.items;
+  },
+
   getPublicBootstrap(deviceToken: string) {
     return apiClient<PublicTaskKioskBootstrapResponse>(`${publicBasePath}/${deviceToken}/bootstrap`);
   },
@@ -195,11 +279,16 @@ export const processTaskKioskApi = {
     });
   },
 
-  createPublicTask(deviceToken: string, payload: PublicTaskKioskCreateTaskPayload) {
+  createPublicTask(
+    deviceToken: string,
+    payload: PublicTaskKioskCreateTaskPayload,
+    idempotencyKey: string,
+  ) {
     return apiClient<{ task: PublicTaskKioskTask; items: PublicTaskKioskTask[] }>(
       `${publicBasePath}/${deviceToken}/tasks/create`,
       {
         method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload),
       },
     );
@@ -209,12 +298,14 @@ export const processTaskKioskApi = {
     deviceToken: string,
     taskId: number,
     payload: PublicTaskKioskAssignResponsiblePayload,
+    idempotencyKey: string,
     init: Pick<RequestInit, 'signal'> = {},
   ) {
     return apiClient<{ task: PublicTaskKioskTask; items: PublicTaskKioskTask[] }>(
       `${publicBasePath}/${deviceToken}/tasks/${taskId}/responsible`,
       {
         method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload),
         signal: init.signal,
       },
@@ -229,17 +320,19 @@ export const processTaskKioskApi = {
       completion_notes?: string;
       completion_percent?: number;
     },
+    idempotencyKey: string,
   ) {
     return apiClient<{ task: PublicTaskKioskTask; items: PublicTaskKioskTask[] }>(
       `${publicBasePath}/${deviceToken}/tasks/${taskId}/complete`,
       {
         method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload),
       },
     );
   },
 
-  presignPublicTaskAttachmentUpload(
+  async presignPublicTaskAttachmentUpload(
     deviceToken: string,
     taskId: number,
     payload: {
@@ -249,15 +342,19 @@ export const processTaskKioskApi = {
       size_bytes: number;
     },
   ) {
-    return apiClient<{
+    const operation = `process-tasks:${deviceToken}:task:${taskId}:attachment:presign:${payload.file_name}`;
+    const result = await apiClient<{
       object_key: string;
       upload_url: string;
       expires_at: string;
       upload_headers?: Record<string, string>;
     }>(`${publicBasePath}/${deviceToken}/tasks/${taskId}/attachments/presign-upload`, {
       method: 'POST',
+      headers: { 'Idempotency-Key': kioskIdempotencyKeyFor(operation, payload) },
       body: JSON.stringify(payload),
     });
+    completeKioskIdempotentOperation(operation);
+    return result;
   },
 
   registerPublicTaskAttachment(
@@ -269,10 +366,13 @@ export const processTaskKioskApi = {
       original_filename: string;
       mime_type: string;
       size_bytes: number;
+      logical_file_id: string;
     },
+    idempotencyKey: string,
   ) {
     return apiClient<Record<string, unknown>>(`${publicBasePath}/${deviceToken}/tasks/${taskId}/attachments`, {
       method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify(payload),
     });
   },

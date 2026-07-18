@@ -14,6 +14,7 @@ interface UsePublicKioskFaceVerificationInput {
   copy: KioskTranslations;
   deviceToken?: string;
   identificationToken: string;
+  isOnline: boolean;
   setBusyState: Dispatch<SetStateAction<PublicKioskBusyState>>;
   setErrorMessage: Dispatch<SetStateAction<string>>;
   setFaceErrorMessage: Dispatch<SetStateAction<string>>;
@@ -28,6 +29,7 @@ export function usePublicKioskFaceVerification({
   copy,
   deviceToken,
   identificationToken,
+  isOnline,
   setBusyState,
   setErrorMessage,
   setFaceErrorMessage,
@@ -49,6 +51,10 @@ export function usePublicKioskFaceVerification({
 
   const handleFaceVerification = useCallback(async (captures: LiveFaceChallengeCapture[]) => {
     if (!deviceToken || !identificationToken) {
+      showFailureToast(copy.timeout);
+      throw new Error(copy.timeout);
+    }
+    if (!isOnline) {
       showFailureToast(copy.timeout);
       throw new Error(copy.timeout);
     }
@@ -113,6 +119,7 @@ export function usePublicKioskFaceVerification({
     copy.timeout,
     deviceToken,
     identificationToken,
+    isOnline,
     setBusyState,
     setErrorMessage,
     setFaceErrorMessage,

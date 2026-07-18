@@ -55,6 +55,7 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     APP_WEB_ALLOWED_ORIGINS
     APP_WEB_PUBLIC_URL
     APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET
+    APP_KIOSK_TOKEN_PROTECTION_SECRET
   )
 
   for key in "${required_keys[@]}"; do
@@ -68,6 +69,7 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     "MINIO_ROOT_PASSWORD:minioadmin"
     "APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET:indice-kiosk-identification-secret"
     "APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET:change-this-to-a-long-random-production-secret"
+    "APP_KIOSK_TOKEN_PROTECTION_SECRET:change-this-to-a-different-long-random-production-secret"
   )
 
   for entry in "${unsafe_values[@]}"; do
@@ -78,6 +80,21 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
       exit 1
     fi
   done
+
+  hr_kiosk_secret="$(read_env_value APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)"
+  kiosk_protection_secret="$(read_env_value APP_KIOSK_TOKEN_PROTECTION_SECRET)"
+  if (( ${#hr_kiosk_secret} < 32 )); then
+    echo "APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET must contain at least 32 characters." >&2
+    exit 1
+  fi
+  if (( ${#kiosk_protection_secret} < 32 )); then
+    echo "APP_KIOSK_TOKEN_PROTECTION_SECRET must contain at least 32 characters." >&2
+    exit 1
+  fi
+  if [[ "${hr_kiosk_secret}" == "${kiosk_protection_secret}" ]]; then
+    echo "Kiosk identification and token-protection secrets must be different." >&2
+    exit 1
+  fi
 
   public_url="$(read_env_value WEB_PUBLIC_URL)"
   if [[ "${public_url}" == https://* && "$(read_env_value APP_SESSION_COOKIE_SECURE)" != "true" ]]; then

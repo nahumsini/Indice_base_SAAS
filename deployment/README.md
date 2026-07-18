@@ -37,6 +37,7 @@ cp deployment/env/.env.example deployment/env/.env
 - `MINIO_CORS_ALLOWED_ORIGINS`
 - `APP_SESSION_COOKIE_SECURE`
 - `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
+- `APP_KIOSK_TOKEN_PROTECTION_SECRET` (obligatoria; distinta de los demás secretos)
 - `MYSQL_*`
 - `MINIO_*`
 
@@ -72,6 +73,26 @@ las credenciales. Para comprobar solamente el repositorio con la plantilla:
 
 `--example` permite los valores inseguros documentales de `.env.example`; nunca
 debe usarse como autorización para desplegar esos valores en producción.
+
+Antes de una instalación que incluya las migraciones V134/V135, comprueba que no
+existan kioskos nuevos con alcance organizacional incompleto. Las consultas son
+de solo lectura y deben devolver `0`:
+
+```sql
+SELECT COUNT(*) AS sales_catalogs_without_scope
+FROM sales_public_catalogs
+WHERE unit_id IS NULL OR business_id IS NULL;
+
+SELECT COUNT(*) AS self_service_kiosks_without_resolvable_scope
+FROM pos_self_service_kiosks kiosk
+JOIN pos_cash_registers cash_register ON cash_register.id = kiosk.cash_register_id
+WHERE COALESCE(kiosk.unit_id, cash_register.unit_id) IS NULL
+   OR COALESCE(kiosk.business_id, cash_register.business_id) IS NULL;
+```
+
+No inventes un Unit/Business para hacer pasar la migración. Reasigna o elimina
+el kiosko incompleto desde el módulo antes del despliegue; V134/V135 se detienen
+de forma deliberada si no pueden preservar una frontera de autorización real.
 
 ## Endpoints
 

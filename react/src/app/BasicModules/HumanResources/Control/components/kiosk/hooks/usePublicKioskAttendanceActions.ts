@@ -26,6 +26,7 @@ interface UsePublicKioskAttendanceActionsInput {
   fallbackPhotoUpload: FallbackPhotoUploadState;
   hasIdentityEvidence: boolean;
   identificationToken: string;
+  isOnline: boolean;
   locationState: KioskLocationState | null;
   resetFlow: (options?: { reason?: string; keepError?: boolean }) => void;
   setBusyState: Dispatch<SetStateAction<PublicKioskBusyState>>;
@@ -44,6 +45,7 @@ export function usePublicKioskAttendanceActions({
   fallbackPhotoUpload,
   hasIdentityEvidence,
   identificationToken,
+  isOnline,
   locationState,
   resetFlow,
   setBusyState,
@@ -91,6 +93,10 @@ export function usePublicKioskAttendanceActions({
 
   const handlePunch = useCallback(async (eventType: 'check_in' | 'check_out') => {
     if (!deviceToken || !identificationToken) {
+      return;
+    }
+    if (!isOnline) {
+      showFailureToast(copy.timeout);
       return;
     }
     if (!hasIdentityEvidence) {
@@ -184,6 +190,7 @@ export function usePublicKioskAttendanceActions({
     faceVerificationSessionId,
     hasIdentityEvidence,
     identificationToken,
+    isOnline,
     locationState,
     resetFlow,
     setBusyState,

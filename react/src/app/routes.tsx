@@ -3,7 +3,6 @@ import { createBrowserRouter, redirect, useRouteError } from 'react-router';
 import { InviteAcceptPage, LoginPage, ResetPasswordPage } from './Auth';
 import { authApi } from './api/auth';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
-import { SalesCrmProvider } from './BasicModules/Sales/salesCrmContext';
 
 const App = lazy(() => import('./App'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
@@ -13,6 +12,7 @@ const PettyCashKiosk = lazy(() => import('./BasicModules/PettyCash/Kiosk/PublicP
 const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage'));
 const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDisplay'));
 const SupplierPortal = lazy(() => import('./BasicModules/PointOfSale/SupplierPortal'));
+const SelfServiceKiosk = lazy(() => import('./BasicModules/PointOfSale/SelfServiceKiosk'));
 
 const chunkReloadStorageKey = 'indice:route-chunk-reload-attempted';
 const renderChunkReloadStorageKey = 'indice:render-chunk-reload-attempted';
@@ -203,10 +203,16 @@ function ExpensesPayablesKioskRoute() {
 
 function PublicCatalogRoute() {
   return (
-    <Suspense fallback={null}>
-      <SalesCrmProvider>
-        <PublicCatalogPage />
-      </SalesCrmProvider>
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Cargando catálogo público"
+          description="Preparando productos y opciones de contacto."
+        />
+      )}
+    >
+      <PublicCatalogPage />
     </Suspense>
   );
 }
@@ -239,6 +245,22 @@ function SupplierPortalRoute() {
       )}
     >
       <SupplierPortal />
+    </Suspense>
+  );
+}
+
+function SelfServiceKioskRoute() {
+  return (
+    <Suspense
+      fallback={(
+        <LoadingBarOverlay
+          isVisible
+          title="Cargando kiosco de autoservicio"
+          description="Preparando el catálogo y la caja asignada."
+        />
+      )}
+    >
+      <SelfServiceKiosk />
     </Suspense>
   );
 }
@@ -344,6 +366,10 @@ export const router = createBrowserRouter([
   {
     path: '/supplier-portal/:portalCode',
     element: <SupplierPortalRoute />,
+  },
+  {
+    path: '/pos-self-service/:publicAccessToken',
+    element: <SelfServiceKioskRoute />,
   },
   {
     path: '/:pageId/*',

@@ -93,6 +93,5 @@ export function createDefaultPublicCatalogConfig(products: SalesCatalogItem[], c
     showOnlinePaymentComingSoon: true,
     selectedCategoryIds: categories,
     selectedProductIds: readyProducts.map((product) => product.id),
-    publicAccessToken: 'demo-token',
   };
 }

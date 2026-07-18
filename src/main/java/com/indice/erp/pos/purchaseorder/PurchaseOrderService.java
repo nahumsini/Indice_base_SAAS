@@ -30,6 +30,7 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessSt
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalContextResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadResponse;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentRegisterRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalInvoiceRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalLoginRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalSubmissionRequest;
@@ -45,9 +46,11 @@ import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.SecureRandom;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -61,6 +64,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PurchaseOrderService {
 
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int PUBLIC_LINK_ENTROPY_BYTES = 24;
     private static final long MAX_SUPPLIER_DOCUMENT_SIZE_BYTES = 15L * 1024L * 1024L;
     private static final Set<String> SUPPLIER_DOCUMENT_CONTENT_TYPES = Set.of(
         "application/pdf",
@@ -206,7 +211,9 @@ public class PurchaseOrderService {
 
     @Transactional(readOnly = true)
     public SupplierPortalAccessListResponse listSupplierPortalAccess(PosContext context) {
-        var items = repository.listSupplierPortalAccess(context);
+        var items = repository.listSupplierPortalAccess(context).stream()
+            .map(this::effectiveSupplierPortalAccess)
+            .toList();
         return new SupplierPortalAccessListResponse(items, items.size());
     }
 
@@ -215,11 +222,14 @@ public class PurchaseOrderService {
             PosContext context,
             SupplierPortalAccessRequest request) {
         requireProvider(context, request.providerId());
-        var portalCode = portalCodeOrGenerate(context, request.portalCode(), request.providerId());
+        if (request.expiresAt() != null && !request.expiresAt().isAfter(Instant.now())) {
+            throw PosApiException.badRequest("Supplier portal expiration must be in the future.");
+        }
+        var portalCode = portalCodeOrGenerate(context, request.portalCode());
         var status = request.status() == null || request.status().isBlank()
             ? "ACTIVE"
             : request.status().trim().toUpperCase(Locale.ROOT);
-        if (!List.of("ACTIVE", "PAUSED", "EXPIRED", "REVOKED").contains(status)) {
+        if (!"ACTIVE".equals(status)) {
             throw PosApiException.badRequest("Supplier portal status is invalid.");
         }
         var normalized = new SupplierPortalAccessRequest(
@@ -227,7 +237,7 @@ public class PurchaseOrderService {
             portalCode,
             request.pin(),
             status,
-            null
+            request.expiresAt()
         );
         var id = repository.insertSupplierPortalAccess(
             context,
@@ -235,6 +245,29 @@ public class PurchaseOrderService {
             portalCode,
             passwordEncoder.encode(request.pin().trim())
         );
+        return effectiveSupplierPortalAccess(repository.findSupplierPortalAccess(context, id).orElseThrow());
+    }
+
+    /**
+     * Rollback-mode creation keeps the legacy response/lifecycle semantics, but new
+     * public links must retain the same high-entropy, identifier-free security
+     * boundary as Engine mode.
+     */
+    @Transactional
+    public SupplierPortalAccessResponse createSupplierPortalAccessLegacy(
+            PosContext context,
+            SupplierPortalAccessRequest request) {
+        requireProvider(context, request.providerId());
+        var portalCode = portalCodeOrGenerate(context, null);
+        var status = request.status() == null || request.status().isBlank()
+            ? "ACTIVE" : request.status().trim().toUpperCase(Locale.ROOT);
+        if (!List.of("ACTIVE", "PAUSED", "EXPIRED", "REVOKED").contains(status)) {
+            throw PosApiException.badRequest("Supplier portal status is invalid.");
+        }
+        var normalized = new SupplierPortalAccessRequest(
+            request.providerId(), portalCode, request.pin(), status, null);
+        var id = repository.insertSupplierPortalAccess(
+            context, normalized, portalCode, passwordEncoder.encode(request.pin().trim()));
         return repository.findSupplierPortalAccess(context, id).orElseThrow();
     }
 
@@ -247,7 +280,7 @@ public class PurchaseOrderService {
         if (!repository.updateSupplierPortalAccessStatus(context, accessId, status)) {
             throw PosApiException.notFound("Supplier portal access not found.");
         }
-        return repository.findSupplierPortalAccess(context, accessId).orElseThrow();
+        return effectiveSupplierPortalAccess(repository.findSupplierPortalAccess(context, accessId).orElseThrow());
     }
 
     @Transactional
@@ -261,7 +294,7 @@ public class PurchaseOrderService {
                 passwordEncoder.encode(request.pin().trim()))) {
             throw PosApiException.notFound("Supplier portal access not found.");
         }
-        return repository.findSupplierPortalAccess(context, accessId).orElseThrow();
+        return effectiveSupplierPortalAccess(repository.findSupplierPortalAccess(context, accessId).orElseThrow());
     }
 
     @Transactional(readOnly = true)
@@ -273,10 +306,25 @@ public class PurchaseOrderService {
     }
 
     @Transactional(readOnly = true)
+    public SupplierPortalContextResponse supplierPortalContext(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access) {
+        requireOperationalPortalAccess(access);
+        return supplierPortalView(access);
+    }
+
+    @Transactional(readOnly = true)
     public SupplierPortalDocumentUploadResponse createPublicSupplierInvoiceUpload(
             String portalCode,
             SupplierPortalDocumentUploadRequest request) {
         var access = requireActivePortalAccess(portalCode, request.pin());
+        return createPublicSupplierInvoiceUpload(access, request);
+    }
+
+    @Transactional(readOnly = true)
+    public SupplierPortalDocumentUploadResponse createPublicSupplierInvoiceUpload(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            SupplierPortalDocumentUploadRequest request) {
+        requireOperationalPortalAccess(access);
         requireSupplierDocumentStorage();
         var fileName = requireSupplierDocumentFileName(request.fileName());
         var contentType = requireSupplierDocumentContentType(request.contentType(), fileName);
@@ -286,6 +334,7 @@ public class PurchaseOrderService {
             supplierDocumentsBucket(),
             objectKey,
             contentType,
+            sizeBytes,
             storageProperties.getMinio().getPresignExpirySeconds()
         );
         return new SupplierPortalDocumentUploadResponse(
@@ -303,11 +352,48 @@ public class PurchaseOrderService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> registerPublicSupplierInvoiceUpload(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            SupplierPortalDocumentRegisterRequest request) {
+        requireOperationalPortalAccess(access);
+        var fileName = requireSupplierDocumentFileName(request.fileName());
+        var contentType = requireSupplierDocumentContentType(request.contentType(), fileName);
+        var sizeBytes = requireSupplierDocumentSize(request.sizeBytes());
+        var objectKey = requirePublicSupplierDocumentReference(access, request.objectKey());
+        var result = new java.util.LinkedHashMap<String, Object>();
+        result.put("object_key", objectKey);
+        result.put("objectKey", objectKey);
+        result.put("file_name", fileName);
+        result.put("content_type", contentType);
+        result.put("size_bytes", sizeBytes);
+        result.put("registered", true);
+        return result;
+    }
+
     @Transactional
     public SupplierSubmissionResponse createPublicSupplierSubmission(
             String portalCode,
             SupplierPortalSubmissionRequest request) {
         var access = requireActivePortalAccess(portalCode, request.pin());
+        return createPublicSupplierSubmission(access, request);
+    }
+
+    @Transactional
+    public SupplierSubmissionResponse createPublicSupplierSubmission(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            SupplierPortalSubmissionRequest request) {
+        requireOperationalPortalAccess(access);
+        for (var item : request.items()) {
+            if (trimToNull(item.imageUrl()) != null) {
+                throw PosApiException.badRequest(
+                    "External image URLs are not accepted by the supplier portal.");
+            }
+            if (item.productId() != null && !repository.supplierPortalProductAllowed(
+                    access.companyId(), access.providerId(), item.productId())) {
+                throw PosApiException.badRequest("productId is not available for this supplier portal.");
+            }
+        }
         var context = supplierPortalPosContext(access);
         var submission = new SupplierSubmissionCreateRequest(
             access.providerId(),
@@ -326,8 +412,17 @@ public class PurchaseOrderService {
             String portalCode,
             SupplierPortalInvoiceRequest request) {
         var access = requireActivePortalAccess(portalCode, request.pin());
+        return createPublicSupplierInvoice(access, request);
+    }
+
+    @Transactional
+    public SupplierInvoiceResponse createPublicSupplierInvoice(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            SupplierPortalInvoiceRequest request) {
+        requireOperationalPortalAccess(access);
         var context = supplierPortalPosContext(access);
-        var documentReference = validatedSupplierDocumentReference(access, request.documentUrl());
+        var documentReference = request.documentUrl() == null
+            ? null : requirePublicSupplierDocumentReference(access, request.documentUrl());
         var invoice = new SupplierInvoiceRequest(
             access.providerId(),
             null,
@@ -343,6 +438,13 @@ public class PurchaseOrderService {
             request.submittedByName()
         );
         return submitSupplierInvoice(context, invoice);
+    }
+
+    @Transactional
+    public void deleteSupplierPortalAccess(PosContext context, long accessId) {
+        if (!repository.deleteSupplierPortalAccess(context, accessId)) {
+            throw PosApiException.notFound("Supplier portal access not found.");
+        }
     }
 
     @Transactional
@@ -749,9 +851,7 @@ public class PurchaseOrderService {
             String pin) {
         var access = repository.findSupplierPortalAccessByCode(portalCode)
             .orElseThrow(() -> PosApiException.notFound("Supplier portal not found."));
-        if (!"ACTIVE".equalsIgnoreCase(access.status())) {
-            throw PosApiException.forbidden("Supplier portal is not active.");
-        }
+        requireOperationalPortalAccess(access);
         if (access.pinHash() == null || access.pinHash().isBlank()
                 || pin == null || !passwordEncoder.matches(pin.trim(), access.pinHash())) {
             throw PosApiException.forbidden("Supplier portal PIN is invalid.");
@@ -774,14 +874,30 @@ public class PurchaseOrderService {
     }
 
     private PosContext supplierPortalPosContext(PurchaseOrderRepository.SupplierPortalAccessRecord access) {
+        var scope = access.businessId() != null
+            ? PosScope.businessOffice(access.unitId(), access.businessId())
+            : access.unitId() != null
+                ? PosScope.unitHeadquarters(access.unitId())
+                : PosScope.corporateOffice();
         return new PosContext(
             0L,
             access.companyId(),
             access.providerName() == null ? "Supplier Portal" : access.providerName(),
             "supplier_portal",
             true,
-            PosScope.corporateOffice()
+            scope
         );
+    }
+
+    private void requireOperationalPortalAccess(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access) {
+        if (access.expiresAt() != null && !access.expiresAt().isAfter(Instant.now())) {
+            repository.markSupplierPortalExpired(access.id());
+            throw PosApiException.forbidden("Supplier portal is not active.");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(access.status())) {
+            throw PosApiException.forbidden("Supplier portal is not active.");
+        }
     }
 
     private PurchaseOrderResponse requireOrder(PosContext context, long orderId) {
@@ -838,29 +954,44 @@ public class PurchaseOrderService {
         return value == null || value.isBlank() ? "MXN" : value.trim().toUpperCase();
     }
 
+    private SupplierPortalAccessResponse effectiveSupplierPortalAccess(
+            SupplierPortalAccessResponse access) {
+        var status = access.status();
+        if ("PAUSED".equalsIgnoreCase(status)) {
+            status = "DISABLED";
+        } else if ("ACTIVE".equalsIgnoreCase(status)
+                && access.expiresAt() != null
+                && !access.expiresAt().isAfter(Instant.now())) {
+            status = "EXPIRED";
+        }
+        return new SupplierPortalAccessResponse(
+            access.id(), access.providerId(), access.providerName(), access.providerEmail(),
+            access.portalCode(), access.portalUrl(), status, access.expiresAt(),
+            access.createdAt(), access.updatedAt(), access.personalPinCreated()
+        );
+    }
+
     private String normalizeSupplierPortalManualStatus(String value) {
         var status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("ACTIVE", "PAUSED").contains(status)) {
+        if ("DISABLED".equals(status)) {
+            return "PAUSED";
+        }
+        if (!List.of("ACTIVE", "PAUSED", "REVOKED").contains(status)) {
             throw PosApiException.badRequest("Supplier portal status is invalid.");
         }
         return status;
     }
 
-    private String portalCodeOrGenerate(PosContext context, String requestedCode, Long providerId) {
-        var base = requestedCode == null || requestedCode.isBlank()
-            ? "PROV-" + providerId + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8)
-            : requestedCode;
-        var normalized = base.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9_-]", "-");
-        if (normalized.length() < 6) {
-            normalized = normalized + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase(Locale.ROOT);
+    private String portalCodeOrGenerate(PosContext context, String requestedCode) {
+        for (var attempt = 0; attempt < 5; attempt++) {
+            var entropy = new byte[PUBLIC_LINK_ENTROPY_BYTES];
+            SECURE_RANDOM.nextBytes(entropy);
+            var token = HexFormat.of().withUpperCase().formatHex(entropy);
+            if (!repository.supplierPortalCodeExists(context.companyId(), token)) {
+                return token;
+            }
         }
-        if (normalized.length() > 120) {
-            normalized = normalized.substring(0, 120);
-        }
-        if (repository.supplierPortalCodeExists(context.companyId(), normalized)) {
-            throw PosApiException.conflict("Supplier portal code already exists.");
-        }
-        return normalized;
+        throw PosApiException.conflict("A unique supplier portal link could not be generated.");
     }
 
     private void requireSupplierDocumentStorage() {
@@ -874,17 +1005,14 @@ public class PurchaseOrderService {
         return storageProperties.getMinio().getBucketSalesDocuments();
     }
 
-    private String validatedSupplierDocumentReference(
+    private String requirePublicSupplierDocumentReference(
             PurchaseOrderRepository.SupplierPortalAccessRecord access,
             String documentUrl) {
         var reference = trimToNull(documentUrl);
-        if (reference == null) {
-            return null;
-        }
-        if (reference.startsWith("http://") || reference.startsWith("https://")) {
-            return reference;
-        }
-        if (!reference.startsWith(supplierInvoiceDocumentPrefix(access.companyId(), access.id()))) {
+        if (reference == null
+                || reference.startsWith("http://")
+                || reference.startsWith("https://")
+                || !reference.startsWith(supplierInvoiceDocumentPrefix(access.companyId(), access.id()))) {
             throw PosApiException.badRequest("Supplier invoice document reference is invalid for this portal.");
         }
         requireSupplierDocumentStorage();

@@ -112,6 +112,21 @@ class PayableKioskProviderAccessRepository {
                 accessId);
     }
 
+    void synchronizePersonalPin(long companyId, long providerId, long userId, String pinHash) {
+        jdbcTemplate.update(
+                """
+                UPDATE finance_payable_kiosk_provider_access
+                SET pin_hash = ?, failed_attempts = 0, locked_until = NULL,
+                    updated_by_user_id = CASE WHEN ? > 0 THEN ? ELSE updated_by_user_id END
+                WHERE company_id = ? AND provider_id = ? AND status = 'ACTIVE'
+                """,
+                pinHash,
+                userId,
+                userId,
+                companyId,
+                providerId);
+    }
+
     void revoke(long companyId, long userId, long accessId) {
         jdbcTemplate.update(
                 """
@@ -133,6 +148,15 @@ class PayableKioskProviderAccessRepository {
     boolean providerIsActive(long companyId, long providerId) {
         var count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM finance_providers WHERE company_id = ? AND id = ? AND status = 'ACTIVE' AND deleted_at IS NULL",
+                Integer.class,
+                companyId,
+                providerId);
+        return count != null && count > 0;
+    }
+
+    boolean hasActiveAccess(long companyId, long providerId) {
+        var count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM finance_payable_kiosk_provider_access WHERE company_id = ? AND provider_id = ? AND status = 'ACTIVE'",
                 Integer.class,
                 companyId,
                 providerId);

@@ -295,6 +295,11 @@ export const zhCA = {
     },
   },
   publicKiosk: {
+    session: {
+      offline: 'æ²¡æœ‰ç½‘ç»œè¿žæŽ¥ã€‚æ­¤è‡ªåŠ©ç»ˆç«¯ä»…åœ¨çº¿è¿è¡Œã€‚',
+      expiring: 'æ‚¨çš„ä¼šè¯å°†åœ¨ä¸€åˆ†é’Ÿå†…åˆ°æœŸã€‚',
+      expired: 'æ‚¨çš„ä¼šè¯å·²å› é—²ç½®è€Œåˆ°æœŸã€‚è¯·é‡æ–°è¾“å…¥ PINã€‚',
+    },
     errors: { bootstrap: '无法打开备用金自助入口。', identify: '无法验证 PIN。', oversizedFiles: '部分文件大于 10 MB，未添加。', receipt: '无法登记收据。' },
     success: { receipt: '收据登记成功。', deleted: '费用已删除，金额已退回资金。' },
     loading: { title: '正在打开备用金', description: '正在准备资金自助入口。' },

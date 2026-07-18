@@ -1,9 +1,11 @@
-import { Building2, Copy, ExternalLink, Link2, MonitorSmartphone, Pencil, Plus, Radio, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { Ban, Building2, Copy, ExternalLink, KeyRound, Link2, MonitorSmartphone, Pencil, Plus, Power, QrCode, Radio, RefreshCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/button';
 import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../components/indice-modal';
 import type { ProcessBusinessOption, ProcessUnitOption } from '../Processes/types';
 import type { ProcessTaskKiosk, ProcessTaskKioskPayload } from './processTaskKioskApi';
+import { useTaskKioskQrCode } from './hooks/useTaskKioskQrCode';
+import { TaskKioskSecurityPanel } from './components/TaskKioskSecurityPanel';
 
 interface TaskKioskManagementModalProps {
   isOpen: boolean;
@@ -16,13 +18,15 @@ interface TaskKioskManagementModalProps {
   onDelete: (kiosk: ProcessTaskKiosk) => Promise<void> | void;
   onCopy: (kiosk: ProcessTaskKiosk) => void;
   onOpen: (kiosk: ProcessTaskKiosk) => void;
+  onRotate: (kiosk: ProcessTaskKiosk) => Promise<void> | void;
+  onTransition: (kiosk: ProcessTaskKiosk, transition: 'disable' | 'enable' | 'revoke') => Promise<void> | void;
 }
 
 const inputClassName = 'mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-950 shadow-none outline-none transition focus:border-[#F4C84A] focus:ring-2 focus:ring-[#F4C84A]/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 const labelClassName = 'text-sm font-medium text-slate-700 dark:text-slate-200';
 
 function createDefaultForm(): ProcessTaskKioskPayload {
-  return { name: '', code: '', status: 'active', unit_id: null, business_id: null, metadata: { notes: '', kiosk_type: 'task_access' } };
+  return { name: '', code: '', status: 'active', expires_at: null, unit_id: null, business_id: null, metadata: { notes: '', kiosk_type: 'task_access' } };
 }
 
 function referenceFromName(value: string) {
@@ -34,6 +38,7 @@ function formFromKiosk(kiosk: ProcessTaskKiosk): ProcessTaskKioskPayload {
     name: kiosk.name,
     code: kiosk.code,
     status: kiosk.status,
+    expires_at: kiosk.expires_at,
     unit_id: kiosk.unit_id,
     business_id: kiosk.business_id,
     metadata: { ...(kiosk.metadata ?? {}), kiosk_type: 'task_access' },
@@ -49,14 +54,19 @@ function kioskSaveErrorMessage(error: unknown) {
 
 export function TaskKioskManagementModal({
   isOpen, isSaving, kiosks, unitOptions, businessOptions, onClose, onSave, onDelete, onCopy, onOpen,
+  onRotate, onTransition,
 }: TaskKioskManagementModalProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingKioskId, setEditingKioskId] = useState<number | undefined>();
   const [form, setForm] = useState<ProcessTaskKioskPayload>(() => createDefaultForm());
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [qrKioskId, setQrKioskId] = useState<number | null>(null);
+  const [securityKioskId, setSecurityKioskId] = useState<number | null>(null);
 
-  const activeCount = kiosks.filter((kiosk) => kiosk.status === 'active').length;
-  const readyCount = kiosks.filter((kiosk) => Boolean(kiosk.public_access_token)).length;
+  const activeCount = kiosks.filter((kiosk) => kiosk.engine_status === 'ACTIVE').length;
+  const readyCount = kiosks.filter((kiosk) => Boolean(kiosk.public_token_hint)).length;
+  const qrKiosk = kiosks.find((kiosk) => kiosk.id === qrKioskId) ?? null;
+  const qrDataUrl = useTaskKioskQrCode(qrKiosk?.public_access_token ?? '');
   const availableBusinesses = useMemo(
     () => businessOptions.filter((business) => !form.unit_id || business.unitId === form.unit_id),
     [businessOptions, form.unit_id],
@@ -70,7 +80,7 @@ export function TaskKioskManagementModal({
       const name = unitOptions.find((unit) => unit.id === form.unit_id)?.name ?? 'Unidad seleccionada';
       return `${name}. Cada colaborador seguirá viendo únicamente sus tareas abiertas asignadas.`;
     }
-    return 'Toda la empresa. Cada colaborador verá únicamente sus tareas abiertas asignadas.';
+    return 'Selecciona una unidad y un negocio para fijar el alcance obligatorio del kiosko.';
   }, [availableBusinesses, form.business_id, form.unit_id, unitOptions]);
 
   const closeEditor = () => {
@@ -102,12 +112,13 @@ export function TaskKioskManagementModal({
       ...form,
       name: form.name.trim(),
       code: form.code.trim(),
+      expires_at: form.expires_at || null,
       unit_id: form.unit_id ?? null,
       business_id: form.business_id ?? null,
       metadata: { ...(form.metadata ?? {}), kiosk_type: 'task_access' },
     };
-    if (!payload.name || !payload.code) {
-      setEditorError('El nombre y la referencia interna son obligatorios.');
+    if (!payload.name || !payload.code || !payload.unit_id || !payload.business_id) {
+      setEditorError('El nombre, la referencia, la unidad y el negocio son obligatorios.');
       return;
     }
     setEditorError(null);
@@ -120,9 +131,11 @@ export function TaskKioskManagementModal({
   };
   const handleClose = () => {
     closeEditor();
+    setQrKioskId(null);
+    setSecurityKioskId(null);
     onClose();
   };
-  const canSave = Boolean(form.name.trim() && form.code.trim()) && !isSaving;
+  const canSave = Boolean(form.name.trim() && form.code.trim() && form.unit_id && form.business_id) && !isSaving;
 
   return (
     <IndiceModalFrame
@@ -163,13 +176,13 @@ export function TaskKioskManagementModal({
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Unidad">
               <select value={form.unit_id ?? ''} className={inputClassName} disabled={isSaving} onChange={(event) => setForm((current) => ({ ...current, unit_id: event.target.value ? Number(event.target.value) : null, business_id: null }))}>
-                <option value="">Todas las unidades</option>
+                <option value="">Selecciona una unidad</option>
                 {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
               </select>
             </Field>
             <Field label="Negocio">
               <select value={form.business_id ?? ''} disabled={!form.unit_id || isSaving} className={inputClassName} onChange={(event) => setForm((current) => ({ ...current, business_id: event.target.value ? Number(event.target.value) : null }))}>
-                <option value="">Todos los negocios</option>
+                <option value="">Selecciona un negocio</option>
                 {availableBusinesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
               </select>
             </Field>
@@ -179,6 +192,15 @@ export function TaskKioskManagementModal({
               <option value="active">Activo</option>
               <option value="inactive">Inactivo</option>
             </select>
+          </Field>
+          <Field label="Expiración opcional">
+            <input
+              type="datetime-local"
+              value={form.expires_at?.slice(0, 16) ?? ''}
+              className={inputClassName}
+              disabled={isSaving}
+              onChange={(event) => setForm((current) => ({ ...current, expires_at: event.target.value || null }))}
+            />
           </Field>
           <IndiceModalValidation tone="info" title="Visibilidad segura" messages={[selectedContext]} />
         </div>
@@ -201,21 +223,34 @@ export function TaskKioskManagementModal({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-3">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/15 text-[#9A6B05]"><MonitorSmartphone className="h-5 w-5" /></span>
-                        <div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-950 dark:text-white">{kiosk.name}</h3><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">{kiosk.status === 'active' ? 'Activo' : 'Inactivo'}</span></div><p className="mt-1 text-sm text-slate-500">{kiosk.code}</p></div>
+                        <div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-950 dark:text-white">{kiosk.name}</h3><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">{kioskStateLabel(kiosk.engine_status)}</span>{kiosk.expires_at ? <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">Expira {new Date(kiosk.expires_at).toLocaleString('es-MX')}</span> : null}</div><p className="mt-1 text-sm text-slate-500">{kiosk.code}</p></div>
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <ContextCard icon={<Building2 className="h-4 w-4" />} label="Contexto" value={kiosk.scope_label} />
                         <ContextCard icon={<ShieldCheck className="h-4 w-4" />} label="Visibilidad" value="Tareas abiertas asignadas al colaborador identificado." />
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium"><span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5"><Link2 className="h-3.5 w-3.5" />{kiosk.public_access_token ? 'Enlace listo' : 'Enlace pendiente'}</span><span className="inline-flex items-center gap-2 rounded-full bg-[#F4C84A]/15 px-3 py-1.5 text-[#9A6B05]"><Radio className="h-3.5 w-3.5" />Acceso por PIN</span></div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium"><span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5"><Link2 className="h-3.5 w-3.5" />{kiosk.public_access_token ? 'Liga disponible ahora' : `Liga protegida · ${kiosk.public_token_hint || 'sin emitir'}`}</span><span className="inline-flex items-center gap-2 rounded-full bg-[#F4C84A]/15 px-3 py-1.5 text-[#9A6B05]"><Radio className="h-3.5 w-3.5" />Acceso por PIN</span></div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" className="bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={() => onOpen(kiosk)}><ExternalLink className="h-4 w-4" />Abrir</Button>
-                      <Button type="button" variant="outline" onClick={() => onCopy(kiosk)}><Copy className="h-4 w-4" />Copiar</Button>
-                      <Button type="button" variant="outline" onClick={() => handleStartEdit(kiosk)}><Pencil className="h-4 w-4" />Editar</Button>
+                      <Button type="button" disabled={!kiosk.public_access_token || kiosk.engine_status !== 'ACTIVE'} className="bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={() => onOpen(kiosk)}><ExternalLink className="h-4 w-4" />Abrir</Button>
+                      <Button type="button" variant="outline" disabled={!kiosk.public_access_token} onClick={() => onCopy(kiosk)}><Copy className="h-4 w-4" />Copiar</Button>
+                      <Button type="button" variant="outline" disabled={!kiosk.public_access_token} onClick={() => setQrKioskId((current) => current === kiosk.id ? null : kiosk.id)}><QrCode className="h-4 w-4" />QR</Button>
+                      <Button type="button" variant="outline" onClick={() => { setQrKioskId(null); setSecurityKioskId((current) => current === kiosk.id ? null : kiosk.id); }}><KeyRound className="h-4 w-4" />Seguridad</Button>
+                      <Button type="button" variant="outline" disabled={kiosk.engine_status === 'REVOKED'} onClick={() => void onRotate(kiosk)}><RefreshCw className="h-4 w-4" />Rotar liga</Button>
+                      {kiosk.engine_status === 'ACTIVE' ? <Button type="button" variant="outline" onClick={() => void onTransition(kiosk, 'disable')}><Power className="h-4 w-4" />Desactivar</Button> : null}
+                      {kiosk.engine_status === 'DISABLED' ? <Button type="button" variant="outline" onClick={() => void onTransition(kiosk, 'enable')}><Power className="h-4 w-4" />Activar</Button> : null}
+                      {kiosk.engine_status === 'ACTIVE' || kiosk.engine_status === 'DISABLED' ? <Button type="button" variant="outline" className="text-red-600" onClick={() => void onTransition(kiosk, 'revoke')}><Ban className="h-4 w-4" />Revocar</Button> : null}
+                      <Button type="button" variant="outline" disabled={kiosk.engine_status === 'REVOKED'} onClick={() => handleStartEdit(kiosk)}><Pencil className="h-4 w-4" />Editar</Button>
                       <Button type="button" variant="outline" className="text-red-600" disabled={isSaving} onClick={() => onDelete(kiosk)}><Trash2 className="h-4 w-4" />Eliminar</Button>
                     </div>
                   </div>
+                  {qrKioskId === kiosk.id ? (
+                    <div className="mt-4 flex flex-col items-center rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/8 p-4 text-center">
+                      {qrDataUrl ? <img src={qrDataUrl} alt={`Código QR del kiosko ${kiosk.name}`} className="h-52 w-52 rounded-xl bg-white p-2" /> : <p className="text-sm font-medium text-slate-600">Generando código QR seguro...</p>}
+                      <p className="mt-3 text-xs text-slate-500">Este QR contiene la liga emitida. No lo publiques fuera del alcance autorizado.</p>
+                    </div>
+                  ) : null}
+                  {securityKioskId === kiosk.id ? <TaskKioskSecurityPanel kiosk={kiosk} onClose={() => setSecurityKioskId(null)} /> : null}
                 </article>
               ))}
             </div>
@@ -234,4 +269,8 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
 
 function ContextCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-slate-800"><div className="flex items-center gap-2 text-xs font-medium text-slate-500">{icon}{label}</div><p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{value}</p></div>;
+}
+
+function kioskStateLabel(status: ProcessTaskKiosk['engine_status']) {
+  return ({ ACTIVE: 'Activo', DISABLED: 'Desactivado', EXPIRED: 'Expirado', REVOKED: 'Revocado', DELETED: 'Eliminado' })[status];
 }

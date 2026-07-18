@@ -1,4 +1,8 @@
 import { apiClient, buildApiUrl } from '../../../lib/apiClient';
+import {
+  completeKioskIdempotentOperation,
+  kioskIdempotencyKeyFor,
+} from '../../../components/kiosk-engine/kioskIdempotency';
 
 const adminPath = '/api/v1/finance/payable-kiosks';
 const publicPath = (token: string) => `/api/v1/finance/public-payable-kiosks/${token}`;
@@ -38,6 +42,8 @@ export type PayableKioskBootstrap = {
   kiosk: Omit<PayableKiosk, 'id' | 'pin' | 'publicAccessToken'>;
   provider?: PayableKioskPublicProvider;
   authorized?: boolean;
+  expires_at?: string;
+  identification_token?: string;
 };
 
 export type PayableKioskProviderAccess = {
@@ -72,6 +78,25 @@ export type PublicProviderRegistrationPayload = {
   taxId?: string;
 };
 
+export type PayableKioskFaceStatus = {
+  available: boolean;
+  consentVersion: string;
+  enrolled: boolean;
+  enrolledAt?: string | null;
+  enrollmentId?: string;
+  requiredSteps: string[];
+};
+
+export type PayableKioskFaceCapture = {
+  step: string;
+  photo: { contentType: string; file: Blob };
+};
+
+export type PayableKioskBiometricPolicy = {
+  enabled: boolean;
+  environmentAvailable: boolean;
+};
+
 type PresignUploadResponse = {
   objectKey?: string;
   object_key?: string;
@@ -82,6 +107,17 @@ type PresignUploadResponse = {
 };
 
 export const payableKiosksService = {
+  biometricPolicy() {
+    return apiClient<PayableKioskBiometricPolicy>(`${adminPath}/biometric-policy`);
+  },
+
+  updateBiometricPolicy(enabled: boolean) {
+    return apiClient<PayableKioskBiometricPolicy>(`${adminPath}/biometric-policy`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    });
+  },
+
   async list(): Promise<PayableKiosk[]> {
     const response = await apiClient<{ items: PayableKiosk[] }>(adminPath);
     return response.items;
@@ -105,6 +141,19 @@ export const payableKiosksService = {
 
   async delete(kioskId: number): Promise<void> {
     await apiClient(`${adminPath}/${kioskId}`, { method: 'DELETE' });
+  },
+
+  async rotatePublicAccessToken(kioskId: number): Promise<PayableKiosk> {
+    const response = await apiClient<{ kiosk: PayableKiosk }>(`${adminPath}/${kioskId}/rotate-public-access-token`, { method: 'POST' });
+    return response.kiosk;
+  },
+
+  async setEnabled(kioskId: number, enabled: boolean): Promise<PayableKiosk> {
+    const response = await apiClient<{ kiosk: PayableKiosk }>(`${adminPath}/${kioskId}/${enabled ? 'enable' : 'disable'}`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: enabled ? 'Enabled from Expenses administration' : 'Disabled from Expenses administration' }),
+    });
+    return response.kiosk;
   },
 
   async listProviderAccesses(): Promise<PayableKioskProviderAccess[]> {
@@ -143,30 +192,28 @@ export const publicPayableKioskService = {
   },
 
   registerProvider(token: string, payload: PublicProviderRegistrationPayload) {
-    return apiClient<{ providerId: number; status: string; message: string }>(`${publicPath(token)}/provider-registrations`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return kioskMutation<{ providerId: number; status: string; message: string }>(
+      `payables:${token}:provider-registration`, `${publicPath(token)}/provider-registrations`, payload);
   },
 
   createPayable(token: string, payload: PublicPayablePayload) {
-    return apiClient<{ expenseId: number; status: string }>(`${publicPath(token)}/payables`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return kioskMutation<{ expenseId: number; status: string }>(
+      `payables:${token}:submission`, `${publicPath(token)}/payables`, payload);
   },
 
   async uploadAttachment(token: string, expenseId: number, file: File) {
     const basePath = `${publicPath(token)}/payables/${expenseId}/attachments`;
     const contentType = normalizeContentType(file);
-    const presign = await apiClient<PresignUploadResponse>(`${basePath}/presign-upload`, {
-      method: 'POST',
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType,
-        sizeBytes: file.size,
-      }),
-    });
+    const presignPayload = {
+      fileName: file.name,
+      contentType,
+      sizeBytes: file.size,
+    };
+    const presign = await kioskMutation<PresignUploadResponse>(
+      `payables:${token}:expense:${expenseId}:attachment:presign:${file.name}`,
+      `${basePath}/presign-upload`,
+      presignPayload,
+    );
     const uploadUrl = presign.uploadUrl ?? presign.upload_url;
     const objectKey = presign.objectKey ?? presign.object_key;
     if (!uploadUrl || !objectKey) {
@@ -182,17 +229,99 @@ export const publicPayableKioskService = {
       throw new Error(uploadResponse.statusText || 'Attachment upload failed.');
     }
 
-    return apiClient(`${basePath}`, {
-      method: 'POST',
-      body: JSON.stringify({
+    const registrationPayload = {
         objectKey,
         originalFilename: file.name,
         mimeType: contentType,
         sizeBytes: file.size,
-      }),
-    });
+    };
+    return kioskMutation(
+      `payables:${token}:expense:${expenseId}:attachment:${file.name}`,
+      basePath,
+      registrationPayload,
+    );
+  },
+
+  faceStatus(token: string) {
+    return apiClient<PayableKioskFaceStatus>(`${publicPath(token)}/face`);
+  },
+
+  async enrollFace(token: string, captures: PayableKioskFaceCapture[]) {
+    const enrollment = await kioskMutation<{ enrollmentId: string }>(
+      `payables:${token}:face-enrollment-begin`,
+      `${publicPath(token)}/face/enrollments`,
+      { consent: true },
+    );
+    for (const capture of captures) {
+      const capturePayload = { step: capture.step, contentType: capture.photo.contentType };
+      const presigned = await kioskMutation<PresignUploadResponse>(
+        `payables:${token}:face-enrollment:${enrollment.enrollmentId}:presign:${capture.step}`,
+        `${publicPath(token)}/face/enrollments/${enrollment.enrollmentId}/captures/presign-upload`,
+        capturePayload,
+      );
+      await uploadBiometricCapture(presigned, capture.photo.file, capture.photo.contentType);
+    }
+    return kioskMutation<{ enrollmentId: string; enrolled: boolean; status: string }>(
+      `payables:${token}:face-enrollment:${enrollment.enrollmentId}:complete`,
+      `${publicPath(token)}/face/enrollments/${enrollment.enrollmentId}/complete`,
+      {},
+    );
+  },
+
+  async verifyFace(token: string, captures: PayableKioskFaceCapture[]) {
+    const verification = await kioskMutation<{ verificationId: string }>(
+      `payables:${token}:face-verification-begin`,
+      `${publicPath(token)}/face/verifications`,
+      {},
+    );
+    for (const capture of captures) {
+      const capturePayload = { step: capture.step, contentType: capture.photo.contentType };
+      const presigned = await kioskMutation<PresignUploadResponse>(
+        `payables:${token}:face-verification:${verification.verificationId}:presign:${capture.step}`,
+        `${publicPath(token)}/face/verifications/${verification.verificationId}/captures/presign-upload`,
+        capturePayload,
+      );
+      await uploadBiometricCapture(presigned, capture.photo.file, capture.photo.contentType);
+    }
+    return kioskMutation<{ livenessPassed: boolean; matched: boolean; status: string; verificationId: string }>(
+      `payables:${token}:face-verification:${verification.verificationId}:complete`,
+      `${publicPath(token)}/face/verifications/${verification.verificationId}/complete`,
+      {},
+    );
+  },
+
+  withdrawFaceConsent(token: string) {
+    return kioskMutation<{ enrolled: boolean; success: boolean }>(
+      `payables:${token}:face-consent-withdraw`,
+      `${publicPath(token)}/face/consent/withdraw`,
+      {},
+    );
   },
 };
+
+async function uploadBiometricCapture(
+  presigned: PresignUploadResponse,
+  file: Blob,
+  contentType: string,
+) {
+  const uploadUrl = presigned.uploadUrl ?? presigned.upload_url;
+  if (!uploadUrl) throw new Error('Biometric upload URL was not returned.');
+  const headers = new Headers(presigned.uploadHeaders ?? presigned.upload_headers ?? {});
+  if (!headers.has('Content-Type')) headers.set('Content-Type', contentType);
+  const response = await fetch(uploadUrl, { method: 'PUT', headers, body: file });
+  if (!response.ok) throw new Error(response.statusText || 'Biometric capture upload failed.');
+}
+
+async function kioskMutation<T>(operation: string, path: string, payload: unknown) {
+  const idempotencyKey = kioskIdempotencyKeyFor(operation, payload);
+  const response = await apiClient<T>(path, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(payload),
+  });
+  completeKioskIdempotentOperation(operation);
+  return response;
+}
 
 function normalizeContentType(file: File) {
   if (file.type) return file.type;

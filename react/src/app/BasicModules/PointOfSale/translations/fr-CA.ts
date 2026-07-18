@@ -16,5 +16,6 @@ export const frCA = {
     facturacion: 'Facturation',
     descuentos: 'Remises',
     kpis: 'ICP',
+    kiosks: 'Bornes',
   },
 } as const;

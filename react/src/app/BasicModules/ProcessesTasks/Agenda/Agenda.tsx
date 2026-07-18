@@ -64,6 +64,7 @@ import { useAgendaTaskState } from './hooks/useAgendaTaskState';
 import { TaskAttachmentsDialog } from './components/TaskAttachmentsDialog';
 import { useAgendaTranslations, type AgendaTranslations } from './translations';
 import { TaskKioskManagementModal } from '../Kiosk/TaskKioskManagementModal';
+import { TaskKioskConfirmationDialog } from '../Kiosk/components/TaskKioskConfirmationDialog';
 import { useRowSelection } from '../../shared/operational';
 import { LearningModeTitleBarBridge } from '../../../learningMode';
 import {
@@ -494,16 +495,21 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
 
   const {
     handleCancelDeleteTaskKiosk,
+    handleCancelTaskKioskTransition,
     handleConfirmDeleteTaskKiosk,
+    handleConfirmTaskKioskTransition,
     handleCopyTaskKiosk,
     handleDeleteTaskKiosk,
     handleOpenTaskKiosk,
+    handleRotateTaskKiosk,
     handleOpenTaskKiosks,
     handleSaveTaskKiosk,
+    handleTransitionTaskKiosk,
     isTaskKioskModalOpen,
     isTaskKioskSaving,
-    setIsTaskKioskModalOpen,
+    handleCloseTaskKiosks,
     taskKioskPendingDeletion,
+    taskKioskPendingTransition,
     taskKiosks,
   } = useAgendaTaskKiosks({ setAgendaError });
 
@@ -1090,24 +1096,53 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         kiosks={taskKiosks}
         unitOptions={catalogUnits}
         businessOptions={catalogBusinesses}
-        onClose={() => setIsTaskKioskModalOpen(false)}
+        onClose={handleCloseTaskKiosks}
         onSave={handleSaveTaskKiosk}
         onDelete={handleDeleteTaskKiosk}
         onCopy={handleCopyTaskKiosk}
         onOpen={handleOpenTaskKiosk}
+        onRotate={handleRotateTaskKiosk}
+        onTransition={handleTransitionTaskKiosk}
       />
 
-      <ConfirmDeleteDialog
-        isVisible={Boolean(taskKioskPendingDeletion)}
+      <TaskKioskConfirmationDialog
+        open={Boolean(taskKioskPendingDeletion)}
         title={`${agendaCopy.common.delete} ${agendaCopy.header.actions.kiosk}`}
         itemName={taskKioskPendingDeletion?.name}
+        description="La definición del kiosko se eliminará físicamente. Las tareas, evidencias y auditoría funcional permanecerán intactas."
+        error={agendaError}
         confirmLabel={agendaCopy.common.delete}
         cancelLabel={agendaCopy.common.cancel}
-        confirmDisabled={isTaskKioskSaving}
+        busy={isTaskKioskSaving}
         onCancel={handleCancelDeleteTaskKiosk}
         onConfirm={() => {
           void handleConfirmDeleteTaskKiosk();
         }}
+      />
+
+      <TaskKioskConfirmationDialog
+        open={Boolean(taskKioskPendingTransition)}
+        title={taskKioskPendingTransition?.transition === 'revoke'
+          ? 'Revocar kiosko'
+          : taskKioskPendingTransition?.transition === 'rotate'
+            ? 'Rotar liga del kiosko'
+            : 'Desactivar kiosko'}
+        itemName={taskKioskPendingTransition?.kiosk.name}
+        description={taskKioskPendingTransition?.transition === 'rotate'
+          ? 'La liga actual dejará de funcionar y la nueva liga solo se mostrará durante esta sesión administrativa.'
+          : taskKioskPendingTransition?.transition === 'revoke'
+            ? 'La revocación es definitiva. Para recuperar el acceso será necesario crear un kiosko nuevo.'
+            : 'El acceso quedará suspendido y las sesiones activas se cerrarán de inmediato.'}
+        error={agendaError}
+        confirmLabel={taskKioskPendingTransition?.transition === 'revoke'
+          ? 'Revocar definitivamente'
+          : taskKioskPendingTransition?.transition === 'rotate'
+            ? 'Rotar y emitir una sola vez'
+            : 'Desactivar'}
+        cancelLabel={agendaCopy.common.cancel}
+        busy={isTaskKioskSaving}
+        onCancel={handleCancelTaskKioskTransition}
+        onConfirm={() => { void handleConfirmTaskKioskTransition(); }}
       />
 
       <TaskFormDialog

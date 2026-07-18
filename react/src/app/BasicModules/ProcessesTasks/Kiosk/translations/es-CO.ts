@@ -11,6 +11,11 @@ export const esCO = {
     title: 'Cargando acceso a tareas',
     description: 'Preparando el kiosko operativo.',
   },
+  session: {
+    offline: 'Sin conexión de red. Este kiosko funciona únicamente en línea.',
+    expiring: 'Tu sesión está por vencer. Continúa trabajando o identifícate de nuevo.',
+    expired: 'Tu sesión venció por inactividad. Ingresa de nuevo tu PIN para continuar.',
+  },
   header: {
     badge: 'Kiosko de tareas',
     title: 'Completa tus tareas',
@@ -148,6 +153,7 @@ export const esCO = {
     fileTooLarge: (fileName: string) => `${fileName} supera el límite de 10 MB.`,
     unsupportedEvidence: (fileName: string) => `${fileName} no es un soporte permitido.`,
     uploadFailure: 'No se pudo subir el soporte de la tarea.',
+    partialUploadFailure: 'Se cargó parte del soporte, pero faltaron archivos. Revisa la tarea antes de reintentar.',
     completeFailure: 'No se pudo finalizar esta tarea.',
     createTitleRequired: 'El título de la tarea es obligatorio.',
     createFailure: 'No se pudo crear esta tarea.',

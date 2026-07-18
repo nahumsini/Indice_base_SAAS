@@ -110,6 +110,16 @@ class AttendanceKioskDeviceWriter {
         }
     }
 
+    void updateStatus(long companyId, long kioskDeviceId, String status) {
+        var updated = jdbcTemplate.update(
+            "UPDATE attendance_kiosk_devices SET status = ? WHERE id = ? AND company_id = ?",
+            status, kioskDeviceId, companyId
+        );
+        if (updated == 0) {
+            throw new NoSuchElementException("Kiosk device not found.");
+        }
+    }
+
     boolean publicAccessTokenExists(String publicAccessToken) {
         var count = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM attendance_kiosk_devices WHERE public_access_token = ?",

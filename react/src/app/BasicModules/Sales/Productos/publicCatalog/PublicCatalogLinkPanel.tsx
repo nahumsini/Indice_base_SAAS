@@ -11,6 +11,8 @@ export function PublicCatalogLinkPanel({
   onPreview,
   onGenerateQr,
   onDownloadQr,
+  busy = false,
+  error = '',
 }: {
   catalog: PublicCatalogConfig;
   t: ProductsTranslations;
@@ -19,6 +21,8 @@ export function PublicCatalogLinkPanel({
   onPreview: () => void;
   onGenerateQr: () => void;
   onDownloadQr: () => void;
+  busy?: boolean;
+  error?: string;
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -27,15 +31,21 @@ export function PublicCatalogLinkPanel({
         {t.publicCatalog.linkSection}
       </h3>
       <div className="mt-4 space-y-3">
-        <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onRegenerateLink}>
+        {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</div> : null}
+        {!catalog.publicUrl && catalog.publicTokenHint ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+            {t.publicCatalog.protectedLinkHint(catalog.publicTokenHint)}
+          </div>
+        ) : null}
+        <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onRegenerateLink} disabled={busy}>
           <RefreshCw className="h-4 w-4" />
           {t.publicCatalog.regenerateLink}
         </Button>
-        <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onCopyLink} disabled={!catalog.publicUrl}>
+        <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onCopyLink} disabled={busy || !catalog.publicUrl}>
           <Copy className="h-4 w-4" />
           {t.publicCatalog.copyLink}
         </Button>
-        <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onPreview}>
+        <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onPreview} disabled={busy}>
           <ExternalLink className="h-4 w-4" />
           {t.publicCatalog.openPreview}
         </Button>
@@ -55,11 +65,11 @@ export function PublicCatalogLinkPanel({
           )}
         </div>
         <div className="grid gap-2">
-          <Button type="button" variant="outline" className="w-full gap-2 rounded-lg" onClick={onGenerateQr} disabled={!catalog.publicUrl}>
+          <Button type="button" variant="outline" className="w-full gap-2 rounded-lg" onClick={onGenerateQr} disabled={busy || !catalog.publicUrl}>
             <QrCode className="h-4 w-4" />
             {t.publicCatalog.generateQrImage}
           </Button>
-          <Button type="button" variant="outline" className="w-full gap-2 rounded-lg" onClick={onDownloadQr} disabled={!catalog.qrImageDataUrl}>
+          <Button type="button" variant="outline" className="w-full gap-2 rounded-lg" onClick={onDownloadQr} disabled={busy || !catalog.qrImageDataUrl}>
             <Download className="h-4 w-4" />
             {t.publicCatalog.downloadQr}
           </Button>

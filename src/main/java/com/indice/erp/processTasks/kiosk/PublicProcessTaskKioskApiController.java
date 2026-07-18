@@ -1,6 +1,14 @@
 package com.indice.erp.processTasks.kiosk;
 
+import com.indice.erp.kiosk.engine.KioskActionRequest;
+import com.indice.erp.kiosk.engine.KioskActionDispatcher;
+import com.indice.erp.kiosk.engine.KioskClientNetworkSignal;
+import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
+import com.indice.erp.kiosk.engine.KioskRateLimitService;
+import com.indice.erp.kiosk.engine.KioskRateLimitType;
 import com.indice.erp.storage.ObjectStorageDisabledException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -18,20 +26,38 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/process-tasks/public-kiosk/{deviceToken}")
 public class PublicProcessTaskKioskApiController {
 
-    private final ProcessTaskKioskService kioskService;
+    private final ProcessTaskKioskAdapter kioskAdapter;
+    private final KioskActionDispatcher actionDispatcher;
     private final PublicProcessTaskKioskCsrf publicCsrf;
+    private final KioskRateLimitService rateLimitService;
+    private final KioskEngineFeatureFlags featureFlags;
 
     public PublicProcessTaskKioskApiController(
-            ProcessTaskKioskService kioskService,
-            PublicProcessTaskKioskCsrf publicCsrf) {
-        this.kioskService = kioskService;
+            ProcessTaskKioskAdapter kioskAdapter,
+            KioskActionDispatcher actionDispatcher,
+            PublicProcessTaskKioskCsrf publicCsrf,
+            KioskRateLimitService rateLimitService,
+            KioskEngineFeatureFlags featureFlags) {
+        this.kioskAdapter = kioskAdapter;
+        this.actionDispatcher = actionDispatcher;
         this.publicCsrf = publicCsrf;
+        this.rateLimitService = rateLimitService;
+        this.featureFlags = featureFlags;
     }
 
     @GetMapping("/bootstrap")
-    public ResponseEntity<?> bootstrap(HttpSession session, @PathVariable String deviceToken) {
+    public ResponseEntity<?> bootstrap(
+            HttpSession session,
+            HttpServletRequest servletRequest,
+            @PathVariable String deviceToken) {
         try {
-            return ResponseEntity.ok(publicCsrf.withToken(session, kioskService.publicBootstrap(deviceToken)));
+            if (!featureFlags.registryEnabled()
+                    || !featureFlags.adapterEnabled(ProcessTaskKioskCapabilities.OWNER_MODULE)) {
+                throw new NoSuchElementException("Kiosk not found.");
+            }
+            var context = context(deviceToken, servletRequest, session);
+            rateLimitService.requireAllowed(KioskRateLimitType.BOOTSTRAP, context, Map.of());
+            return ResponseEntity.ok(publicCsrf.withToken(session, kioskAdapter.bootstrap(context)));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -42,7 +68,9 @@ public class PublicProcessTaskKioskApiController {
     @PostMapping("/identify")
     public ResponseEntity<?> identify(
             HttpSession session,
+            HttpServletRequest servletRequest,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String deviceToken,
             @RequestBody Map<String, Object> payload) {
         var csrfError = publicCsrf.require(session, csrfToken);
@@ -50,7 +78,9 @@ public class PublicProcessTaskKioskApiController {
             return csrfError;
         }
         try {
-            return ResponseEntity.ok(kioskService.publicIdentify(deviceToken, payload));
+            return ResponseEntity.ok(execute(
+                context(deviceToken, servletRequest, session),
+                ProcessTaskKioskCapabilities.IDENTITY_VERIFY, payload, idempotencyKey));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -64,7 +94,9 @@ public class PublicProcessTaskKioskApiController {
     @PostMapping("/tasks")
     public ResponseEntity<?> tasks(
             HttpSession session,
+            HttpServletRequest servletRequest,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String deviceToken,
             @RequestBody Map<String, Object> payload) {
         var csrfError = publicCsrf.require(session, csrfToken);
@@ -72,7 +104,9 @@ public class PublicProcessTaskKioskApiController {
             return csrfError;
         }
         try {
-            return ResponseEntity.ok(kioskService.publicTasks(deviceToken, payload));
+            return ResponseEntity.ok(execute(
+                context(deviceToken, servletRequest, session),
+                ProcessTaskKioskCapabilities.TASKS_READ, payload, idempotencyKey));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -83,7 +117,9 @@ public class PublicProcessTaskKioskApiController {
     @PostMapping("/tasks/create")
     public ResponseEntity<?> createTask(
             HttpSession session,
+            HttpServletRequest servletRequest,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String deviceToken,
             @RequestBody Map<String, Object> payload) {
         var csrfError = publicCsrf.require(session, csrfToken);
@@ -91,7 +127,9 @@ public class PublicProcessTaskKioskApiController {
             return csrfError;
         }
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(kioskService.publicCreateTask(deviceToken, payload));
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                execute(context(deviceToken, servletRequest, session),
+                    ProcessTaskKioskCapabilities.TASK_CREATE, payload, idempotencyKey));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -102,7 +140,9 @@ public class PublicProcessTaskKioskApiController {
     @PostMapping("/tasks/{taskId}/complete")
     public ResponseEntity<?> complete(
             HttpSession session,
+            HttpServletRequest servletRequest,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String deviceToken,
             @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
@@ -111,7 +151,9 @@ public class PublicProcessTaskKioskApiController {
             return csrfError;
         }
         try {
-            return ResponseEntity.ok(kioskService.publicCompleteTask(deviceToken, taskId, payload));
+            return ResponseEntity.ok(execute(
+                context(deviceToken, servletRequest, session),
+                ProcessTaskKioskCapabilities.TASK_COMPLETE, taskId, payload, idempotencyKey));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -122,7 +164,9 @@ public class PublicProcessTaskKioskApiController {
     @PostMapping("/tasks/{taskId}/responsible")
     public ResponseEntity<?> assignResponsible(
             HttpSession session,
+            HttpServletRequest servletRequest,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String deviceToken,
             @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
@@ -131,7 +175,9 @@ public class PublicProcessTaskKioskApiController {
             return csrfError;
         }
         try {
-            return ResponseEntity.ok(kioskService.publicAssignTaskResponsible(deviceToken, taskId, payload));
+            return ResponseEntity.ok(execute(
+                context(deviceToken, servletRequest, session),
+                ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN, taskId, payload, idempotencyKey));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -142,7 +188,9 @@ public class PublicProcessTaskKioskApiController {
     @PostMapping("/tasks/{taskId}/attachments/presign-upload")
     public ResponseEntity<?> createAttachmentUpload(
             HttpSession session,
+            HttpServletRequest servletRequest,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String deviceToken,
             @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
@@ -151,7 +199,9 @@ public class PublicProcessTaskKioskApiController {
             return csrfError;
         }
         try {
-            return ResponseEntity.ok(kioskService.publicCreateAttachmentUpload(deviceToken, taskId, payload));
+            return ResponseEntity.ok(execute(
+                context(deviceToken, servletRequest, session),
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN, taskId, payload, idempotencyKey));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (ObjectStorageDisabledException ex) {
@@ -164,7 +214,9 @@ public class PublicProcessTaskKioskApiController {
     @PostMapping("/tasks/{taskId}/attachments")
     public ResponseEntity<?> registerAttachment(
             HttpSession session,
+            HttpServletRequest servletRequest,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String deviceToken,
             @PathVariable long taskId,
             @RequestBody Map<String, Object> payload) {
@@ -174,7 +226,13 @@ public class PublicProcessTaskKioskApiController {
         }
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                kioskService.publicRegisterAttachment(deviceToken, taskId, payload)
+                execute(
+                    context(deviceToken, servletRequest, session),
+                    ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER,
+                    taskId,
+                    payload,
+                    idempotencyKey
+                )
             );
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -183,5 +241,40 @@ public class PublicProcessTaskKioskApiController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    private KioskExecutionContext context(
+            String deviceToken,
+            HttpServletRequest request,
+            HttpSession session) {
+        var networkSignal = KioskClientNetworkSignal.from(request);
+        return KioskExecutionContext.publicLink(
+            ProcessTaskKioskCapabilities.OWNER_MODULE,
+            deviceToken,
+            networkSignal,
+            session.getId()
+        );
+    }
+
+    private Map<String, Object> execute(
+            KioskExecutionContext context,
+            String capability,
+            Map<String, Object> payload,
+            String idempotencyKey) {
+        return actionDispatcher.dispatch(
+            context, KioskActionRequest.of(capability, payload), idempotencyKey);
+    }
+
+    private Map<String, Object> execute(
+            KioskExecutionContext context,
+            String capability,
+            long resourceId,
+            Map<String, Object> payload,
+            String idempotencyKey) {
+        return actionDispatcher.dispatch(
+            context,
+            KioskActionRequest.forResource(capability, resourceId, payload),
+            idempotencyKey
+        );
     }
 }

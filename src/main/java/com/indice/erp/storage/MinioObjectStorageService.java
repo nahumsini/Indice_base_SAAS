@@ -1,7 +1,10 @@
 package com.indice.erp.storage;
 
 import io.minio.BucketExistsArgs;
+import io.minio.CopyObjectArgs;
+import io.minio.CopySource;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
@@ -50,13 +53,31 @@ public class MinioObjectStorageService implements ObjectStorageService {
 
     @Override
     public PresignedUpload presignUpload(String bucketName, String objectKey, String contentType, int expirySeconds) {
+        return presignUpload(bucketName, objectKey, contentType, -1L, expirySeconds);
+    }
+
+    @Override
+    public PresignedUpload presignUpload(
+            String bucketName,
+            String objectKey,
+            String contentType,
+            long expectedContentLength,
+            int expirySeconds) {
         try {
+            var signedHeaders = new java.util.LinkedHashMap<String, String>();
+            if (contentType != null && !contentType.isBlank()) {
+                signedHeaders.put("Content-Type", contentType);
+            }
+            if (expectedContentLength > 0) {
+                signedHeaders.put("Content-Length", String.valueOf(expectedContentLength));
+            }
             var uploadUrl = minioClient.getPresignedObjectUrl(
                 GetPresignedObjectUrlArgs.builder()
                     .method(Method.PUT)
                     .bucket(bucketName)
                     .object(objectKey)
                     .expiry(expirySeconds)
+                    .extraHeaders(signedHeaders)
                     .extraQueryParams(Map.of())
                     .build()
             );
@@ -90,6 +111,75 @@ public class MinioObjectStorageService implements ObjectStorageService {
             throw new ObjectStorageException("Unable to verify MinIO object existence.", ex);
         } catch (Exception ex) {
             throw new ObjectStorageException("Unable to verify MinIO object existence.", ex);
+        }
+    }
+
+    @Override
+    public StoredObjectMetadata objectMetadata(String bucketName, String objectKey) {
+        try {
+            var metadata = minioClient.statObject(
+                StatObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectKey)
+                    .build()
+            );
+            return new StoredObjectMetadata(metadata.size(), metadata.contentType());
+        } catch (Exception ex) {
+            throw new ObjectStorageException("Unable to inspect MinIO object metadata.", ex);
+        }
+    }
+
+    @Override
+    public byte[] readObjectPrefix(String bucketName, String objectKey, int maxBytes) {
+        if (maxBytes <= 0 || maxBytes > 64 * 1024) {
+            throw new IllegalArgumentException("Object prefix size is invalid.");
+        }
+        try (var stream = minioClient.getObject(
+                GetObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectKey)
+                    .offset(0L)
+                    .length((long) maxBytes)
+                    .build())) {
+            return stream.readNBytes(maxBytes);
+        } catch (Exception ex) {
+            throw new ObjectStorageException("Unable to inspect MinIO object content.", ex);
+        }
+    }
+
+    @Override
+    public void copyObject(String bucketName, String sourceObjectKey, String targetObjectKey) {
+        try {
+            minioClient.copyObject(
+                CopyObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(targetObjectKey)
+                    .source(CopySource.builder().bucket(bucketName).object(sourceObjectKey).build())
+                    .build()
+            );
+        } catch (Exception ex) {
+            throw new ObjectStorageException("Unable to copy uploaded object.", ex);
+        }
+    }
+
+    @Override
+    public void moveObject(String bucketName, String sourceObjectKey, String targetObjectKey) {
+        try {
+            copyObject(bucketName, sourceObjectKey, targetObjectKey);
+            try {
+                minioClient.removeObject(
+                    RemoveObjectArgs.builder().bucket(bucketName).object(sourceObjectKey).build());
+            } catch (Exception removalFailure) {
+                try {
+                    minioClient.removeObject(
+                        RemoveObjectArgs.builder().bucket(bucketName).object(targetObjectKey).build());
+                } catch (Exception ignored) {
+                    removalFailure.addSuppressed(ignored);
+                }
+                throw removalFailure;
+            }
+        } catch (Exception ex) {
+            throw new ObjectStorageException("Unable to seal uploaded object.", ex);
         }
     }
 

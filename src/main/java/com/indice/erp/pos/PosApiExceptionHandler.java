@@ -1,6 +1,7 @@
 package com.indice.erp.pos;
 
 import com.indice.erp.storage.ObjectStorageException;
+import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,6 +22,21 @@ public class PosApiExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<?> handleNotFound(NoSuchElementException ex) {
         return ResponseEntity.status(404).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(KioskUnavailableException.class)
+    public ResponseEntity<?> handleKioskUnavailable(KioskUnavailableException ex) {
+        return ResponseEntity.status(404).body(Map.of("message", "Supplier portal is not available."));
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<?> handleSecurity(SecurityException ex) {
+        return ResponseEntity.status(403).body(Map.of("message", "Supplier portal action is not available."));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<?> handleConflict(IllegalStateException ex) {
+        return ResponseEntity.status(409).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -45,6 +61,7 @@ public class PosApiExceptionHandler {
 
     @ExceptionHandler(ObjectStorageException.class)
     public ResponseEntity<?> handleObjectStorage(ObjectStorageException ex) {
-        return ResponseEntity.status(503).body(Map.of("message", ex.getMessage()));
+        return ResponseEntity.status(503).body(Map.of(
+            "message", "Object storage is temporarily unavailable."));
     }
 }

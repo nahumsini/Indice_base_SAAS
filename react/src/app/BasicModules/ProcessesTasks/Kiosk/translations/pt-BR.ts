@@ -11,6 +11,11 @@ export const ptBR = {
     title: 'Carregando acesso às tarefas',
     description: 'Preparando o quiosque operacional.',
   },
+  session: {
+    offline: 'Sem conexão de rede. Este quiosque funciona somente online.',
+    expiring: 'Sua sessão está prestes a expirar. Continue ou identifique-se novamente.',
+    expired: 'Sua sessão expirou por inatividade. Digite seu PIN novamente para continuar.',
+  },
   header: {
     badge: 'Quiosque de tarefas',
     title: 'Conclua suas tarefas',
@@ -148,6 +153,7 @@ export const ptBR = {
     fileTooLarge: (fileName: string) => `${fileName} excede o limite de 10 MB.`,
     unsupportedEvidence: (fileName: string) => `${fileName} não é um arquivo de evidência permitido.`,
     uploadFailure: 'Falha ao enviar a evidência da tarefa.',
+    partialUploadFailure: 'Parte da evidência foi enviada, mas alguns arquivos falharam. Revise a tarefa antes de tentar novamente.',
     completeFailure: 'Não foi possível concluir esta tarefa.',
     createTitleRequired: 'O título da tarefa é obrigatório.',
     createFailure: 'Não foi possível criar esta tarefa.',

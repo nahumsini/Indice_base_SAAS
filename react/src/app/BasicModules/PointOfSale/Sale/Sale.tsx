@@ -131,7 +131,13 @@ export default function Sale() {
   const {
     preTickets,
     pullPreTicket,
+    reloadPreTickets,
+    queueError: preTicketQueueError,
+    isRefreshing: isRefreshingPreTickets,
+    lastUpdatedAt: preTicketsLastUpdatedAt,
+    claimingPreTicketIds,
   } = usePendingPreTickets({
+    cashRegisterId: Number(registerContext.cashRegisterId) || undefined,
     products: saleProducts,
     addProductsToCart,
     pushActivity,
@@ -547,7 +553,12 @@ export default function Sale() {
               <PendingPreTicketsPanel
                 preTickets={preTickets}
                 onPullPreTicket={pullPreTicket}
+                onRetry={() => void reloadPreTickets()}
                 formatCurrency={formatSaleCurrency}
+                queueError={preTicketQueueError}
+                isRefreshing={isRefreshingPreTickets}
+                lastUpdatedAt={preTicketsLastUpdatedAt}
+                claimingPreTicketIds={claimingPreTicketIds}
               />
 
               <QuickProductsPanel
