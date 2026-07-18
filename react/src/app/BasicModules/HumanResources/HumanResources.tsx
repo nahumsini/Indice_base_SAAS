@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { LearningModeHeaderActionsProvider } from '../../learningMode';
 import { useHumanResourcesTranslations } from './hooks/useHumanResourcesTranslations';
 import type { HumanResourcesTranslations } from './translations';
 import { authApi } from '../../api/auth';
@@ -249,6 +250,7 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
   };
 
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Header del módulo */}
       <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
@@ -280,16 +282,6 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
             </Button>
           </div>
 
-          {learningModeActive ? (
-            <div className="mt-5">
-              <OperationalModuleGuide
-                copy={guidanceCopy}
-                activeTabId={activeTab}
-                onPrimaryAction={handleGuidePrimaryAction}
-              />
-            </div>
-          ) : null}
-
           {/* Pestañas */}
           <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 scrollbar-hide sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
             <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
@@ -309,6 +301,16 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
               ))}
             </div>
           </div>
+
+          {learningModeActive && activeTab !== 'collaborators' ? (
+            <div className="mt-4">
+              <OperationalModuleGuide
+                copy={guidanceCopy}
+                activeTabId={activeTab}
+                onPrimaryAction={handleGuidePrimaryAction}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -325,7 +327,11 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
             )}
           >
             {isAccessLoaded && ActiveComponent ? (
-              <ActiveComponent />
+              activeTab === 'collaborators' ? (
+                <Employees learningModeActive={learningModeActive} />
+              ) : (
+                <ActiveComponent />
+              )
             ) : isAccessLoaded ? (
               <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                 {t.access.empty}
@@ -341,5 +347,6 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
         </TabContentErrorBoundary>
       </div>
     </div>
+    </LearningModeHeaderActionsProvider>
   );
 }

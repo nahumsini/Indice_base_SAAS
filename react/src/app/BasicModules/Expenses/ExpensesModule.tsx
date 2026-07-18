@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { FailureToast } from '../../components/FailureToast';
 import { FavoritesBar } from '../../components/FavoritesBar';
@@ -11,6 +11,15 @@ import { useExpensesModuleTranslations } from './hooks/useExpensesModuleTranslat
 import type { Expense } from './types/expenses.types';
 import { generateProjectedBudgetEntries } from './Budgets/budgetUtils';
 import type { ProviderRecord } from './Providers/useProveedoresLogic';
+import {
+  LearningModeHeaderActionsProvider,
+  learningModeGuideThemes,
+  SimpleModuleLearningGuide,
+} from '../../learningMode';
+import {
+  expensesLearningControls,
+  expensesLearningLabels,
+} from './operationalGuidance/expensesLearningControls';
 
 const Expenses = lazy(() => import('./Expenses'));
 const Budgets = lazy(() => import('./Budgets'));
@@ -20,6 +29,7 @@ const AccountingAccounts = lazy(() => import('./AccountingAccounts'));
 const PaymentAccounts = lazy(() => import('./PaymentAccounts'));
 
 interface ExpensesModuleProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -80,8 +90,9 @@ const createInitialExpenseState = () => [
   }, mockExpenses.length + 4),
 ];
 
-export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
+export default function ExpensesModule({ learningModeActive = false, onNavigate }: ExpensesModuleProps) {
   const t = useExpensesModuleTranslations();
+  const mainContentRef = useRef<HTMLDivElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<TabId>(
     'expenses',
     expenseTabIds,
@@ -164,6 +175,10 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
     setFinanceRefreshKey(currentKey => currentKey + 1);
   }, []);
 
+  const handleGuidePrimaryAction = () => {
+    mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'budgets':
@@ -200,6 +215,7 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
   };
 
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
         isVisible={isTabLoading}
@@ -264,11 +280,25 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
               </button>
             ))}
           </div>
+
+          {learningModeActive ? (
+            <div className="mt-4">
+              <SimpleModuleLearningGuide
+                activeContextLabel={expensesLearningLabels[activeTab]}
+                controls={expensesLearningControls[activeTab]}
+                guideId="expenses-learning-guide"
+                moduleTitle="Guía para ordenar y controlar los gastos"
+                onPrimaryAction={handleGuidePrimaryAction}
+                scopeId={`expenses-${activeTab}`}
+                theme={learningModeGuideThemes.finance}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
       {/* Active Tab Content */}
-      <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      <div ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
@@ -282,5 +312,6 @@ export default function ExpensesModule({ onNavigate }: ExpensesModuleProps) {
         </Suspense>
       </div>
     </div>
+    </LearningModeHeaderActionsProvider>
   );
 }

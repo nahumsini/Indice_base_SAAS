@@ -26,7 +26,6 @@ import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
 import { ProspectosHeader } from './components/ProspectosHeader';
 import { ProspectosFilters } from './components/ProspectosFilters';
 import { ProspectosKpiStrip } from './components/ProspectosKpiStrip';
-import { ProspectosLearningGuide } from './components/ProspectosLearningGuide';
 import { ProspectosViewTabs } from './components/ProspectosViewTabs';
 import { useProspectosFilters } from './hooks/useProspectosFilters';
 import { useProspectosMetrics } from './hooks/useProspectosMetrics';
@@ -55,10 +54,7 @@ import {
 } from './utils/prospectosFormatters';
 import { filterOpportunitiesForPeriodView, sortOpportunities } from './utils/prospectosMetrics';
 import { initialOpportunityForm } from './utils/prospectosStatus';
-import {
-  useProspectosLearningTranslations,
-  useProspectosTranslations,
-} from './hooks/useProspectosTranslations';
+import { useProspectosTranslations } from './hooks/useProspectosTranslations';
 
 interface ProspectosProps {
   learningModeActive?: boolean;
@@ -69,7 +65,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const t = useProspectosTranslations();
   const quoteCopy = useQuotesTranslations();
   const salesCopy = useSalesTranslations();
-  const learningCopy = useProspectosLearningTranslations();
   const {
     contacts,
     opportunities,
@@ -498,8 +493,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onCreateOpportunity={handleOpenCreateOpportunity}
       />
 
-      {learningModeActive ? <ProspectosLearningGuide copy={learningCopy} /> : null}
-
       <ProspectosViewTabs labels={t.views} activeView={activeView} onViewChange={setActiveView} />
 
       <ProspectosFilters
@@ -523,7 +516,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onStatusFilterChange={setStatusFilter}
       />
 
-      <ProspectosKpiStrip
+      {!learningModeActive ? <ProspectosKpiStrip
         copy={t}
         visibleCount={metrics.visibleCount}
         openCount={metrics.openCount}
@@ -547,7 +540,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         showConvertedPipeline={showConvertedPipeline}
         pipelineExchangeRateDate={metrics.pipelineExchangeRateDate}
         stageCounts={metrics.stageCounts}
-      />
+      /> : null}
 
       {activeView === 'table' ? (
         <ProspectosTable

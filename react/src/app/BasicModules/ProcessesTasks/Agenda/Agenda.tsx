@@ -65,6 +65,7 @@ import { TaskAttachmentsDialog } from './components/TaskAttachmentsDialog';
 import { useAgendaTranslations, type AgendaTranslations } from './translations';
 import { TaskKioskManagementModal } from '../Kiosk/TaskKioskManagementModal';
 import { useRowSelection } from '../../shared/operational';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 import {
   collaboratorCanReceiveAssignment,
   filterBusinessesForActor,
@@ -250,7 +251,11 @@ function createAgendaKanbanColumns(copy: AgendaTranslations): AgendaKanbanColumn
   },
   ];
 }
-export default function Agenda() {
+interface AgendaProps {
+  learningModeActive?: boolean;
+}
+
+export default function Agenda({ learningModeActive = false }: AgendaProps) {
   const location = useLocation();
   const todayAgendaValue = useMemo(() => toDateInputValue(new Date()), []);
   const agendaCopy = useAgendaTranslations();
@@ -888,53 +893,59 @@ export default function Agenda() {
     />
   );
 
+  const headerActions = (
+    <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto"
+        onClick={() => setIsColumnsModalOpen(true)}
+      >
+        <Columns3 className="h-4 w-4" />
+        {headerCopy.actions.columns}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-800 dark:text-[#FEF3C7] sm:w-auto"
+        onClick={handleOpenTaskKiosks}
+      >
+        <MonitorSmartphone className="h-5 w-5" />
+        {headerCopy.actions.kiosk}
+      </Button>
+      <Button
+        type="button"
+        className={cn('h-10 w-full gap-2 rounded-xl px-4 text-sm font-semibold sm:w-auto', accentButtonClass)}
+        onClick={handleCreateTaskClick}
+      >
+        <Plus className="h-4 w-4" />
+        {headerCopy.actions.create}
+      </Button>
+    </div>
+  );
+
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-4 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/40 bg-white/70 text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">
-              {headerCopy.emoji}
-            </span>
-            <div className="min-w-0">
-              <h2 className="mb-1 text-xl font-semibold leading-tight text-slate-900 dark:text-white sm:text-2xl">
-                {headerCopy.title}
-              </h2>
-              <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
-                {headerCopy.subtitle}
-              </p>
+      <LearningModeTitleBarBridge actions={headerActions}>
+        <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-4 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/40 bg-white/70 text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">
+                {headerCopy.emoji}
+              </span>
+              <div className="min-w-0">
+                <h2 className="mb-1 text-xl font-semibold leading-tight text-slate-900 dark:text-white sm:text-2xl">
+                  {headerCopy.title}
+                </h2>
+                <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+                  {headerCopy.subtitle}
+                </p>
+              </div>
             </div>
+            {headerActions}
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto"
-              onClick={() => setIsColumnsModalOpen(true)}
-            >
-              <Columns3 className="h-4 w-4" />
-              {headerCopy.actions.columns}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-800 dark:text-[#FEF3C7] sm:w-auto"
-              onClick={handleOpenTaskKiosks}
-            >
-              <MonitorSmartphone className="h-5 w-5" />
-              {headerCopy.actions.kiosk}
-            </Button>
-            <Button
-              type="button"
-              className={cn('h-10 w-full gap-2 rounded-xl px-4 text-sm font-semibold sm:w-auto', accentButtonClass)}
-              onClick={handleCreateTaskClick}
-            >
-              <Plus className="h-4 w-4" />
-              {headerCopy.actions.create}
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      </LearningModeTitleBarBridge>
 
       {agendaError ? (
         <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
@@ -1002,7 +1013,9 @@ export default function Agenda() {
         viewMode={viewMode}
       />
 
-      <AgendaKpiStrip copy={agendaCopy.kpiStrip} isLoading={isAgendaViewLoading} metrics={agendaKpiMetrics} />
+      {!learningModeActive ? (
+        <AgendaKpiStrip copy={agendaCopy.kpiStrip} isLoading={isAgendaViewLoading} metrics={agendaKpiMetrics} />
+      ) : null}
 
       {viewMode === 'table' && rowSelection.selectedCount > 0 ? (
         <AgendaBulkActionsBar

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Home } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
@@ -10,8 +10,18 @@ import { PettyCashReconciliationWorkspace } from './components/PettyCashReconcil
 import { PettyCashStatementsWorkspace } from './components/PettyCashStatementsWorkspace';
 import { usePettyCash } from './context/PettyCashContext';
 import { usePettyCashTranslations } from './hooks/usePettyCashTranslations';
+import {
+  LearningModeHeaderActionsProvider,
+  learningModeGuideThemes,
+  SimpleModuleLearningGuide,
+} from '../../learningMode';
+import {
+  pettyCashLearningControls,
+  pettyCashLearningLabels,
+} from './operationalGuidance/pettyCashLearningControls';
 
 interface CajaChicaProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -28,8 +38,9 @@ const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
   caja: 'cash',
 };
 
-export default function CajaChica({ onNavigate }: CajaChicaProps) {
+export default function CajaChica({ learningModeActive = false, onNavigate }: CajaChicaProps) {
   const copy = usePettyCashTranslations();
+  const mainContentRef = useRef<HTMLDivElement>(null);
   const [focusedFundId, setFocusedFundId] = useState('');
   const {
     pettyCashFunds,
@@ -105,6 +116,7 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
   };
 
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <LoadingBarOverlay
         isVisible={isTabLoading}
@@ -156,12 +168,27 @@ export default function CajaChica({ onNavigate }: CajaChicaProps) {
               </button>
             ))}
           </div>
+
+          {learningModeActive ? (
+            <div className="mt-4">
+              <SimpleModuleLearningGuide
+                activeContextLabel={pettyCashLearningLabels[activeTab]}
+                controls={pettyCashLearningControls[activeTab]}
+                guideId="petty-cash-learning-guide"
+                moduleTitle="Guía para administrar la caja chica"
+                onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                scopeId={`petty-cash-${activeTab}`}
+                theme={learningModeGuideThemes.finance}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-8">
+      <div ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-6 sm:px-8">
         {renderActiveTab()}
       </div>
     </div>
+    </LearningModeHeaderActionsProvider>
   );
 }

@@ -56,6 +56,7 @@ import {
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 import {
   accentButtonClass,
   cloneRecurrenceConfig,
@@ -623,7 +624,11 @@ function getStoredProcessFilters(): StoredProcessFilters | null {
   }
 }
 
-export default function Processes() {
+interface ProcessesProps {
+  learningModeActive?: boolean;
+}
+
+export default function Processes({ learningModeActive = false }: ProcessesProps) {
   const { currentLanguage } = useLanguage();
   const locale = currentLanguage.code;
   const processCopy = useProcessesTranslations();
@@ -1878,44 +1883,50 @@ export default function Processes() {
     );
   };
 
+  const headerActions = (
+    <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 sm:w-auto sm:px-4 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        onClick={() => setIsColumnsDialogOpen(true)}
+        disabled={isLoadingProcesses}
+      >
+        <Columns3 className="h-4 w-4" />
+        {headerCopy.actions.columns}
+      </Button>
+      <Button
+        type="button"
+        className={cn('h-10 w-full gap-2 rounded-xl px-3 text-sm font-semibold sm:w-auto sm:px-4', accentButtonClass)}
+        onClick={openCreateDialog}
+        disabled={isLoadingProcesses}
+      >
+        <Plus className="h-4 w-4" />
+        {headerCopy.actions.create}
+      </Button>
+    </div>
+  );
+
   return (
     <>
-      <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-[#FFF8DF] text-2xl shadow-sm dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15" aria-hidden="true">
-              {headerCopy.emoji}
-            </span>
-            <div className="min-w-0">
-              <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">{headerCopy.title}</h2>
-              <p className="max-w-3xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
-                {headerCopy.subtitle}
-              </p>
+      <LearningModeTitleBarBridge actions={headerActions}>
+        <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-[#FFF8DF] text-2xl shadow-sm dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15" aria-hidden="true">
+                {headerCopy.emoji}
+              </span>
+              <div className="min-w-0">
+                <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">{headerCopy.title}</h2>
+                <p className="max-w-3xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
+                  {headerCopy.subtitle}
+                </p>
+              </div>
             </div>
+            {headerActions}
           </div>
-          <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 sm:w-auto sm:px-4 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              onClick={() => setIsColumnsDialogOpen(true)}
-              disabled={isLoadingProcesses}
-            >
-              <Columns3 className="h-4 w-4" />
-              {headerCopy.actions.columns}
-            </Button>
-            <Button
-              type="button"
-              className={cn('h-10 w-full gap-2 rounded-xl px-3 text-sm font-semibold sm:w-auto sm:px-4', accentButtonClass)}
-              onClick={openCreateDialog}
-              disabled={isLoadingProcesses}
-            >
-              <Plus className="h-4 w-4" />
-              {headerCopy.actions.create}
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      </LearningModeTitleBarBridge>
 
       {processesError ? (
         <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
@@ -2020,7 +2031,9 @@ export default function Processes() {
         </div>
       </section>
 
-      <ProcessKpiStrip copy={processCopy.kpis} isLoading={isLoadingProcesses} metrics={processKpiMetrics} />
+      {!learningModeActive ? (
+        <ProcessKpiStrip copy={processCopy.kpis} isLoading={isLoadingProcesses} metrics={processKpiMetrics} />
+      ) : null}
 
       {rowSelection.selectedCount > 0 ? (
         <section className="mb-4 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 py-3 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">

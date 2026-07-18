@@ -27,6 +27,7 @@ import {
   sortCortesRows,
 } from './utils/cortesUtils';
 import { buildCortesPrintReportHtml } from './utils/cortesPrintReport';
+import { useLearningModeHeaderActions } from '../../../learningMode';
 
 const todayRange = getCortesPeriodRange('today');
 
@@ -74,6 +75,7 @@ const initialFilters: CortesFilters = {
 };
 
 export default function Cortes() {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const [filters, setFilters] = useState<CortesFilters>(initialFilters);
   const [viewMode, setViewMode] = useState<CortesViewMode>('table');
   const [sortKey, setSortKey] = useState<CortesSortKey>('closedAt');
@@ -431,7 +433,7 @@ export default function Cortes() {
         warehouses={warehouseOptions}
         onChange={updateFilter}
       />
-      <CortesKpiArea analytics={analytics} />
+      {!learningModeActive ? <CortesKpiArea analytics={analytics} /> : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">

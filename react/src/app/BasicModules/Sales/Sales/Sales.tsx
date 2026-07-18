@@ -77,7 +77,11 @@ function SaleCancelDialog({
   );
 }
 
-export default function Sales() {
+interface SalesProps {
+  learningModeActive?: boolean;
+}
+
+export default function Sales({ learningModeActive = false }: SalesProps) {
   const t = useSalesTranslations();
   const navigate = useNavigate();
   const {
@@ -196,6 +200,7 @@ export default function Sales() {
 
       {activeView === 'sales' ? (
         <SalesView
+          learningModeActive={learningModeActive}
           records={records}
           filteredRecords={filteredRecords}
           metrics={metrics}
@@ -217,7 +222,12 @@ export default function Sales() {
           onCancelSale={handleCancelSale}
         />
       ) : (
-        <CommissionsView sales={records} rules={commissionRules} t={t} />
+        <CommissionsView
+          learningModeActive={learningModeActive}
+          sales={records}
+          rules={commissionRules}
+          t={t}
+        />
       )}
 
       <SalesColumnsModal

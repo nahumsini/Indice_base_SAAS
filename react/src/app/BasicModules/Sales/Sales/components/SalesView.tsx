@@ -6,6 +6,7 @@ import { SalesTable } from './SalesTable';
 import type { SalesMetrics } from '../types/salesTypes';
 
 export function SalesView({
+  learningModeActive = false,
   records,
   filteredRecords,
   metrics,
@@ -26,6 +27,7 @@ export function SalesView({
   onSendToCredit,
   onCancelSale,
 }: {
+  learningModeActive?: boolean;
   records: SaleRecord[];
   filteredRecords: SaleRecord[];
   metrics: SalesMetrics;
@@ -58,12 +60,12 @@ export function SalesView({
         onFiltersChange={onFiltersChange}
       />
 
-      <SalesKpiStrip
+      {!learningModeActive ? <SalesKpiStrip
         metrics={metrics}
         visibleCount={filteredRecords.length}
         totalCount={records.length}
         t={t}
-      />
+      /> : null}
 
       <SalesTable
         records={filteredRecords}

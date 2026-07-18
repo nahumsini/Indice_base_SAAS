@@ -5,6 +5,7 @@ import { cn } from '../../../../components/ui/utils';
 import { productTypeProgressStyles } from '../utils/productStyles';
 import type { ProductTypeCount } from '../types/productosTypes';
 import { formatProductCurrency } from '../utils/productFormatters';
+import { useLearningModeHeaderActions } from '../../../../learningMode';
 
 function CatalogMetric({
   icon,
@@ -77,6 +78,12 @@ export function ProductsKpiStrip({
   };
   typeLabels: Record<SalesCatalogItem['type'], string>;
 }) {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
+
+  if (learningModeActive) {
+    return null;
+  }
+
   return (
     <section className="space-y-4">
       <CatalogMetricGroup>

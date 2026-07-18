@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { cn } from '../../../components/ui/utils';
 import { FavoritesBar } from '../../../components/FavoritesBar';
 import {
@@ -11,6 +12,7 @@ interface ReceivablesModuleHeaderProps {
   copy: ReceivablesTranslations;
   onNavigate: (page: string) => void;
   onTabChange: (tab: ReceivablesTabId) => void;
+  children?: ReactNode;
 }
 
 export function ReceivablesModuleHeader({
@@ -18,6 +20,7 @@ export function ReceivablesModuleHeader({
   copy,
   onNavigate,
   onTabChange,
+  children,
 }: ReceivablesModuleHeaderProps) {
   return (
     <header className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
@@ -62,6 +65,8 @@ export function ReceivablesModuleHeader({
             })}
           </div>
         </nav>
+
+        {children ? <div className="mt-4">{children}</div> : null}
       </div>
     </header>
   );

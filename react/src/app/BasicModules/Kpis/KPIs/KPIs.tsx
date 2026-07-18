@@ -37,6 +37,7 @@ import type {
   ExecutivePersonSignal,
   ExecutiveUnitRow,
 } from './types';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 
 const periodOptions: Array<{ label: string; value: ExecutivePanelPeriod }> = [
   { label: 'Mensual', value: 'monthly' },
@@ -265,7 +266,19 @@ function TitleBar({
   onExport: () => void;
   onRefresh: () => void;
 }) {
+  const actionLayout = (
+    <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
+      <Button type="button" variant="outline" className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50" disabled={!canExport || loading} onClick={onExport}>
+        <Download className="mr-2 h-4 w-4" />Exportar
+      </Button>
+      <Button type="button" onClick={onRefresh} disabled={loading} className="h-11 rounded-xl bg-blue-700 text-white hover:bg-blue-800">
+        <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />Actualizar
+      </Button>
+    </div>
+  );
+
   return (
+    <LearningModeTitleBarBridge actions={actionLayout}>
     <section className="rounded-xl border border-blue-200 bg-blue-50/80 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/25">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
@@ -279,29 +292,10 @@ function TitleBar({
             </p>
           </div>
         </div>
-        <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-            disabled={!canExport || loading}
-            onClick={onExport}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Exportar
-          </Button>
-          <Button
-            type="button"
-            onClick={onRefresh}
-            disabled={loading}
-            className="h-11 rounded-xl bg-blue-700 text-white hover:bg-blue-800"
-          >
-            <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
-            Actualizar
-          </Button>
-        </div>
+        {actionLayout}
       </div>
     </section>
+    </LearningModeTitleBarBridge>
   );
 }
 

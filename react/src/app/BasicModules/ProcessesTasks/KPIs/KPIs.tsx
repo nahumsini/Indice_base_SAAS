@@ -40,6 +40,7 @@ import {
   SelectItem,
 } from '../../../components/ui/select';
 import { cn } from '../../../components/ui/utils';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 import {
   listProcessTaskKpis,
   type ProcessTaskKpiCard,
@@ -765,7 +766,11 @@ function RankingPanel({
   );
 }
 
-export default function KPIs() {
+interface KpisProps {
+  learningModeActive?: boolean;
+}
+
+export default function KPIs({ learningModeActive: _learningModeActive = false }: KpisProps) {
   const navigate = useNavigate();
   const { pageId } = useParams();
   const copy = useKpisTranslations();
@@ -1117,44 +1122,50 @@ export default function KPIs() {
     }
   };
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button
+        type="button"
+        variant="outline"
+        disabled={isLoading}
+        onClick={() => setRefreshKey((current) => current + 1)}
+        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
+      >
+        <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+        {standardCopy.refresh}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!dashboard || isPrintingPdf}
+        title={copy.pdf.print}
+        onClick={handlePrintPdf}
+        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+      >
+        <Printer className="h-4 w-4" />
+        {copy.pdf.print}
+      </Button>
+    </div>
+  );
+
   return (
     <>
-      <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-white/80 text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">
-              {headerCopy.emoji}
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{standardCopy.title}</h2>
-              <p className="mt-1 max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{standardCopy.subtitle}</p>
+      <LearningModeTitleBarBridge actions={headerActions}>
+        <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-white/80 text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">
+                {headerCopy.emoji}
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{standardCopy.title}</h2>
+                <p className="mt-1 max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{standardCopy.subtitle}</p>
+              </div>
             </div>
+            {headerActions}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isLoading}
-              onClick={() => setRefreshKey((current) => current + 1)}
-              className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
-            >
-              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-              {standardCopy.refresh}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!dashboard || isPrintingPdf}
-              title={copy.pdf.print}
-              onClick={handlePrintPdf}
-              className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
-            >
-              <Printer className="h-4 w-4" />
-              {copy.pdf.print}
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      </LearningModeTitleBarBridge>
 
       <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">

@@ -10,6 +10,7 @@ import type {
 } from '../types/inventoryTypes';
 import type { InventoryTranslations } from '../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../utils/inventoryFormatters';
+import { useLearningModeHeaderActions } from '../../../../learningMode';
 
 function InventoryMetricCard({
   icon,
@@ -61,6 +62,12 @@ export function InventoryKpiStrip({
   metrics: InventoryKpiMetrics | InventoryWarehouseMetrics | InventoryMovementMetrics | InventoryMetrics;
   t: InventoryTranslations;
 }) {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
+
+  if (learningModeActive) {
+    return null;
+  }
+
   if (!activeView && 'trackedItems' in metrics) {
     return (
       <InventoryMetricGroup>

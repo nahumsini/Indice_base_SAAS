@@ -30,6 +30,7 @@ import {
 } from '../shared/components/PointOfSaleTitleBar';
 import { DiscountKpiCard } from './components/DiscountKpiCard';
 import { DiscountRuleModal } from './components/DiscountRuleModal';
+import { useLearningModeHeaderActions } from '../../../learningMode';
 
 const statusLabels: Record<DiscountRuleStatus, string> = {
   active: 'Activa',
@@ -59,6 +60,7 @@ const formatCurrency = (amount: number, currency = 'MXN') => new Intl.NumberForm
 }).format(amount);
 
 export default function Descuentos() {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const { products, saleCurrency } = usePointOfSaleCatalogProducts();
   const [rules, setRules] = useState<DiscountRule[]>(() => readStoredDiscountRules());
   const [search, setSearch] = useState('');
@@ -167,17 +169,20 @@ export default function Descuentos() {
         )}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <DiscountKpiCard icon={SlidersHorizontal} label="Reglas" value={String(kpis.total)} />
-        <DiscountKpiCard icon={CheckCircle} label="Activas" value={String(kpis.active)} tone="green" />
-        <DiscountKpiCard icon={CalendarClock} label="Programadas" value={String(kpis.scheduled)} tone="blue" />
-        <DiscountKpiCard icon={ShieldCheck} label="Con autorizacion" value={String(kpis.authorized)} tone="orange" />
-        <DiscountKpiCard icon={Tag} label="Impacto preview" value={formatCurrency(kpis.previewImpact, saleCurrency)} tone="orange" />
-      </div>
-
-      <div className="rounded-[20px] border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
-        {activeEligibleRules.length} reglas aplican al ticket ejemplo de {formatCurrency(previewAmount, saleCurrency)}.
-      </div>
+      {!learningModeActive ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <DiscountKpiCard icon={SlidersHorizontal} label="Reglas" value={String(kpis.total)} />
+            <DiscountKpiCard icon={CheckCircle} label="Activas" value={String(kpis.active)} tone="green" />
+            <DiscountKpiCard icon={CalendarClock} label="Programadas" value={String(kpis.scheduled)} tone="blue" />
+            <DiscountKpiCard icon={ShieldCheck} label="Con autorizacion" value={String(kpis.authorized)} tone="orange" />
+            <DiscountKpiCard icon={Tag} label="Impacto preview" value={formatCurrency(kpis.previewImpact, saleCurrency)} tone="orange" />
+          </div>
+          <div className="rounded-[20px] border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
+            {activeEligibleRules.length} reglas aplican al ticket ejemplo de {formatCurrency(previewAmount, saleCurrency)}.
+          </div>
+        </>
+      ) : null}
 
       {notice && (
         <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">

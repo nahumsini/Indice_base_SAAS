@@ -2,14 +2,20 @@ import { BookOpenCheck, CheckCircle2, CircleSlash } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
 import type { AccountingAccount } from '../types';
+import { useLearningModeHeaderActions } from '../../../../learningMode';
 
 export function AccountingAccountsSummary({ accounts }: { accounts: AccountingAccount[] }) {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const t = useAccountingAccountsTranslations();
   const totalCount = accounts.length;
   const activeCount = accounts.filter(account => account.isActive).length;
   const inactiveCount = accounts.filter(account => !account.isActive).length;
   const activeWidth = totalCount > 0 ? `${(activeCount / totalCount) * 100}%` : '0%';
   const inactiveWidth = totalCount > 0 ? `${(inactiveCount / totalCount) * 100}%` : '0%';
+
+  if (learningModeActive) {
+    return null;
+  }
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">

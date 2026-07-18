@@ -79,7 +79,6 @@ import type {
 } from '../../shared/operational';
 import { OperationalKpiArea } from '../../shared/operational';
 import { QuoteExpirationBadge } from './components/QuoteExpirationBadge';
-import { QuoteLearningGuide } from './components/QuoteLearningGuide';
 import { QuoteMarginBadge } from './components/QuoteMarginBadge';
 import { QuotePreviewModal } from './components/QuotePreviewModal';
 import { QuoteReadinessBadge } from './components/QuoteReadinessBadge';
@@ -825,8 +824,6 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         )}
       />
 
-      {learningModeActive ? <QuoteLearningGuide copy={t.learningMode} /> : null}
-
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]">
@@ -848,13 +845,13 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         </div>
       </section>
 
-      <OperationalKpiArea
+      {!learningModeActive ? <OperationalKpiArea
         alertChips={quoteAlertChips}
         distributionSegments={quoteDistributionSegments}
         insight={quoteInsight}
         insightIcon={<AlertTriangle className="h-4 w-4" />}
         metrics={quoteMetrics}
-      />
+      /> : null}
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">

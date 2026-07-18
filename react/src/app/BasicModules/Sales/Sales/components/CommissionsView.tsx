@@ -10,10 +10,12 @@ import { CommissionKpiStrip } from './CommissionKpiStrip';
 import { CommissionTable } from './CommissionTable';
 
 export function CommissionsView({
+  learningModeActive = false,
   sales,
   rules,
   t,
 }: {
+  learningModeActive?: boolean;
   sales: SaleRecord[];
   rules: CommissionRule[];
   t: SalesRecordsTranslations;
@@ -54,7 +56,7 @@ export function CommissionsView({
         onFiltersChange={setFilters}
       />
 
-      <CommissionKpiStrip kpis={kpis} records={filteredRecords} t={t} />
+      {!learningModeActive ? <CommissionKpiStrip kpis={kpis} records={filteredRecords} t={t} /> : null}
 
       <CommissionTable records={filteredRecords} t={t} onViewRecord={setSelectedRecord} />
 

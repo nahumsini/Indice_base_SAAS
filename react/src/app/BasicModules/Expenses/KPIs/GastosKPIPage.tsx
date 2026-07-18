@@ -43,6 +43,7 @@ import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { useKpisResolvedLocale, useKpisTranslations } from './hooks/useKpisTranslations';
 import { downloadFinancialOverviewPdf } from './financialOverviewPdf';
 import { useFinancialOverview } from './useFinancialOverview';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
 
 interface GastosKPIPageProps {
@@ -393,8 +394,15 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     return <div className="space-y-5"><div className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" /><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-64 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />)}</div></div>;
   }
 
+  const titleAction = (
+    <button type="button" onClick={() => downloadFinancialOverviewPdf({ copy: t, locale, overview, periodLabel })} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#147514]/20 bg-white px-4 text-sm font-bold text-[#147514] transition hover:bg-[#147514]/5 dark:bg-slate-900 dark:text-emerald-300">
+      <Printer className="h-4 w-4" /> Imprimir reporte
+    </button>
+  );
+
   return (
     <div className="space-y-6">
+      <LearningModeTitleBarBridge actions={titleAction}>
       <section className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -404,11 +412,10 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
               <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">Visión integral del gasto, presupuesto y desempeño financiero.</p>
             </div>
           </div>
-          <button type="button" onClick={() => downloadFinancialOverviewPdf({ copy: t, locale, overview, periodLabel })} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#147514]/20 bg-white px-4 text-sm font-bold text-[#147514] transition hover:bg-[#147514]/5 dark:bg-slate-900 dark:text-emerald-300">
-            <Printer className="h-4 w-4" /> Imprimir reporte
-          </button>
+          {titleAction}
         </div>
       </section>
+      </LearningModeTitleBarBridge>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

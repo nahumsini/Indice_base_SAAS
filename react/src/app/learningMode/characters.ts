@@ -38,3 +38,7 @@ export const learningCharacters: LearningCharacterDefinition[] = [
 ];
 
 export const learningCharacterStorageKey = "indice.learningMode.character";
+
+export function isLearningCharacterId(value: unknown): value is LearningCharacterId {
+  return typeof value === "string" && learningCharacterIds.some((id) => id === value);
+}

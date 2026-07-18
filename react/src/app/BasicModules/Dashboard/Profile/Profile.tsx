@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router';
 import { configCenterApi, type ConfigCenterCurrentUser, type ConfigCenterPhoneNumber } from '../../../api/configCenter';
 import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { languages, useLanguage } from '../../../shared/context';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 import {
   DEFAULT_PROFILE_COUNTRY,
   getProfileCountryLabel,
@@ -710,9 +711,21 @@ export default function Profile() {
     user,
   ]);
 
+  const titleBarActions = (
+    <button
+      type="button"
+      onClick={handleViewPlans}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-700/40 dark:bg-gray-800 dark:text-blue-200 dark:hover:bg-blue-900/20 sm:w-auto"
+    >
+      <CreditCard className="h-4 w-4" />
+      {t.panelInicial.tabs.plan}
+    </button>
+  );
+
   return (
     <>
       <div>
+        <LearningModeTitleBarBridge actions={titleBarActions}>
         <div className="bg-blue-50 dark:bg-blue-900/10 mb-6 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -727,16 +740,10 @@ export default function Profile() {
                 {profileCopy.helper}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleViewPlans}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-700/40 dark:bg-gray-800 dark:text-blue-200 dark:hover:bg-blue-900/20 sm:w-auto"
-            >
-              <CreditCard className="h-4 w-4" />
-              {t.panelInicial.tabs.plan}
-            </button>
+            {titleBarActions}
           </div>
         </div>
+        </LearningModeTitleBarBridge>
 
         {isLoading ? (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">

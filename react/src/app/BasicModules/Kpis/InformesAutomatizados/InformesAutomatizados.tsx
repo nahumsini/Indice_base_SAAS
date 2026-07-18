@@ -27,6 +27,7 @@ import {
   reportPackages,
   type AutomationRule,
 } from '../kpisExecutiveData';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 
 const statusIcons: Record<AutomationRule['status'], LucideIcon> = {
   draft: Clock3,
@@ -115,9 +116,16 @@ export default function InformesAutomatizados() {
     setCadenceFilter('Todas');
     setSearch('');
   };
+  const titleActions = (
+    <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+      <Button type="button" variant="outline" onClick={() => exportAutomationCsv(filteredRules)} className="h-10 rounded-xl border-blue-300 bg-white text-sm font-semibold text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950/40"><Download className="mr-2 h-4 w-4" />Exportar</Button>
+      <Button type="button" className="h-10 rounded-xl bg-blue-700 text-sm font-semibold text-white hover:bg-blue-800"><Settings2 className="mr-2 h-4 w-4" />Nueva regla</Button>
+    </div>
+  );
 
   return (
     <div className="space-y-5">
+      <LearningModeTitleBarBridge actions={titleActions}>
       <section className="rounded-xl border border-blue-200 bg-blue-50/80 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 gap-3">
@@ -136,26 +144,10 @@ export default function InformesAutomatizados() {
               </p>
             </div>
           </div>
-          <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => exportAutomationCsv(filteredRules)}
-              className="h-10 rounded-xl border-blue-300 bg-white text-sm font-semibold text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950/40"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Exportar
-            </Button>
-            <Button
-              type="button"
-              className="h-10 rounded-xl bg-blue-700 text-sm font-semibold text-white hover:bg-blue-800"
-            >
-              <Settings2 className="mr-2 h-4 w-4" />
-              Nueva regla
-            </Button>
-          </div>
+          {titleActions}
         </div>
       </section>
+      </LearningModeTitleBarBridge>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
