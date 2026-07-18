@@ -5,6 +5,8 @@ import { Transaction } from '../types/transaction.types';
 import { mockTransactions } from '../data/transactions.mock';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { buildDocumentFileName } from '../../../shared/print/documentFileName';
+import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from '../../../shared/print/documentPdfEngine';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -74,9 +76,13 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
   }, [transactions]);
 
   const generatePDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ format: 'a4', orientation: 'portrait', unit: 'mm' });
     const pageWidth = doc.internal.pageSize.getWidth();
     let yPos = 20;
+    applyStandardPdfMetadata(doc, {
+      subject: 'Estado de cuenta de cliente',
+      title: `Estado de cuenta - ${customer.name}`,
+    });
 
     doc.setFillColor(59, 130, 246);
     doc.rect(0, 0, pageWidth, 35, 'F');
@@ -230,7 +236,11 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
       },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    let finalY = ((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? yPos) + 10;
+    if (finalY + 38 > doc.internal.pageSize.getHeight() - 18) {
+      doc.addPage();
+      finalY = 18;
+    }
 
     doc.setFillColor(249, 250, 251);
     doc.rect(0, finalY, pageWidth, 25, 'F');
@@ -268,24 +278,26 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
     doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(customer.currentBalance), totalsStartX + 92, totalsY + 8, { align: 'left' });
 
+    addStandardPdfFooters(doc, {
+      confidentiality: 'Confidencial',
+      folio: customer.id,
+      locale: 'es-MX',
+    });
+
     return doc;
   };
 
   const handlePrint = () => {
-    const doc = generatePDF();
-    const blob = doc.output('blob');
-    const url = URL.createObjectURL(blob);
-    const printWindow = window.open(url, '_blank');
-    if (printWindow) {
-      printWindow.onload = () => {
-        printWindow.print();
-      };
-    }
+    openStandardPdfForPrint(generatePDF());
   };
 
   const handleDownload = () => {
     const doc = generatePDF();
-    doc.save(`Estado_Cuenta_${customer.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(buildDocumentFileName({
+      documentType: 'account-statement',
+      identifier: customer.id,
+      period: new Date().toISOString().slice(0, 10),
+    }));
   };
 
   return (

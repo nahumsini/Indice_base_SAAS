@@ -1,13 +1,7 @@
 import type { RecordsTranslations } from '../translations';
 import type { EmployeeRecord } from '../types/records.types';
-
-const sanitizeFileName = (value: string) => (
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'record'
-);
+import { buildDocumentFileName } from '../../../shared/print/documentFileName';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../../shared/print/documentPdfEngine';
 
 const getRecordPdfCopy = (locale: string) => {
   if (locale.startsWith('es')) {
@@ -94,7 +88,7 @@ const addSection = (
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(label.toUpperCase(), left, y);
+    doc.text(label, left, y);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
@@ -127,15 +121,22 @@ export async function downloadRecordPdf(
     minute: '2-digit',
   }).format(new Date());
   const recordNumber = record.recordNumber || copy.pdf.recordNumber(record.id);
+  applyStandardPdfMetadata(doc, {
+    subject: pdfCopy.title,
+    title: `${pdfCopy.title} ${recordNumber}`,
+  });
 
-  doc.setFillColor(89, 195, 165);
-  doc.rect(0, 0, pageWidth, 31, 'F');
+  doc.setDrawColor(89, 143, 127);
+  doc.setLineWidth(1.2);
+  doc.line(left, 14, pageWidth - left, 14);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(255, 255, 255);
-  doc.text(pdfCopy.title, left, 17);
-  doc.setFontSize(10);
-  doc.text(pdfCopy.brand, pageWidth - left, 17, { align: 'right' });
+  doc.setFontSize(18);
+  doc.setTextColor(32, 36, 41);
+  doc.text(pdfCopy.title, left, 27);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 107, 115);
+  doc.text(pdfCopy.brand, pageWidth - left, 27, { align: 'right' });
 
   let y = 43;
   doc.setFont('helvetica', 'bold');
@@ -204,11 +205,13 @@ export async function downloadRecordPdf(
     doc.text(pdfCopy.signature, signature.x, y + 19);
   });
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text(pdfCopy.footer, left, pageHeight - 14);
-  doc.text(recordNumber, pageWidth - left, pageHeight - 14, { align: 'right' });
-
-  doc.save(`${sanitizeFileName(recordNumber || record.title)}.pdf`);
+  addStandardPdfFooters(doc, {
+    confidentiality: 'Confidential',
+    folio: recordNumber,
+    locale,
+  });
+  doc.save(buildDocumentFileName({
+    documentType: 'hr-record',
+    identifier: recordNumber || record.title,
+  }));
 }

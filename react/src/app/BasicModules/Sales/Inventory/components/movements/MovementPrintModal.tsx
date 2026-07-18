@@ -6,6 +6,7 @@ import { getSalesModalActionClassNames } from '../../../salesModalStyles';
 import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
+import { printDocumentHtml } from '../../../../shared/print/documentHtmlPrintEngine';
 
 const printActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -26,24 +27,21 @@ export function MovementPrintModal({
   const lines = movementLines?.length ? movementLines : [movement];
   const movementValue = lines.reduce((total, line) => total + Math.abs(line.quantity) * (line.unitCost ?? 0), 0);
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank', 'width=900,height=1100');
-    if (!printWindow || !documentRef.current) return;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${movement.movementNumber ?? movement.id}</title>
-          <style>
-            body { margin: 0; background: #f1f5f9; font-family: Inter, Arial, sans-serif; }
-            article { margin: 24px auto; max-width: 820px; background: white; padding: 48px; box-shadow: 0 1px 8px rgba(15,23,42,.16); }
-            @media print { body { background: white; } article { margin: 0; box-shadow: none; max-width: none; } }
-          </style>
-        </head>
-        <body>${documentRef.current.outerHTML}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    if (!documentRef.current) return;
+    printDocumentHtml({
+      bodyHtml: documentRef.current.outerHTML,
+      contentStyles: `
+        body { padding: 12mm 14mm 10mm; }
+        article { margin: 0 auto !important; min-height: 0 !important; max-width: none !important; padding: 0 !important; box-shadow: none !important; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; page-break-inside: avoid; }
+        footer { break-inside: avoid; }
+      `,
+      documentTitle: `inventory_movement_${movement.movementNumber ?? movement.id}`,
+      includeApplicationStyles: true,
+      locale: 'es-MX',
+      pageSize: 'a4',
+    });
   };
 
   return (

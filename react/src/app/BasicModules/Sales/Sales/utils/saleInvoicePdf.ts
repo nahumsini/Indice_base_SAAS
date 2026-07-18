@@ -4,6 +4,8 @@ import type { SalesQuote } from '../../types';
 import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLine, SaleRecord, SaleRecordDraft, SalesOperationalContext } from '../types/salesTypes';
+import { buildDocumentFileName } from '../../../shared/print/documentFileName';
+import { addStandardPdfFooters, openStandardPdfForPrint } from '../../../shared/print/documentPdfEngine';
 
 const brand = {
   coral: [255, 107, 94] as const,
@@ -123,23 +125,6 @@ function getTaxJurisdictionNote(context: SalesOperationalContext, copy: SalesRec
   const registryLabel = context.companyRegistryNumber ? ` · ${copy.invoice.registry}: ${context.companyRegistryNumber}` : '';
 
   return `${jurisdiction} · ${taxLabel}${registryLabel}`;
-}
-
-function addFooter(doc: jsPDF, copy: SalesRecordsTranslations) {
-  const pageCount = doc.getNumberOfPages();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  for (let page = 1; page <= pageCount; page += 1) {
-    doc.setPage(page);
-    setDraw(doc, brand.border);
-    doc.line(16, pageHeight - 15, pageWidth - 16, pageHeight - 15);
-    setText(doc, brand.slate);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text(copy.invoice.documentTitle, 16, pageHeight - 9);
-    doc.text(copy.invoice.pageLabel(page, pageCount), pageWidth - 16, pageHeight - 9, { align: 'right' });
-  }
 }
 
 export function buildSaleInvoicePdf({
@@ -391,13 +376,17 @@ export function buildSaleInvoicePdf({
   doc.setFontSize(8);
   doc.text(copy.invoice.disclaimerBody, left + 5, y + 16, { maxWidth: contentWidth - 10 });
 
-  addFooter(doc, copy);
+  addStandardPdfFooters(doc, {
+    folio: invoiceNumber,
+    locale,
+    updatedAt: generatedAt,
+  });
   return doc;
 }
 
 export function getSaleInvoicePdfFileName(sale: SaleRecord | SaleRecordDraft) {
   const reference = sale.saleNumber || sale.saleDocumentReference || sale.quoteReference || 'invoice';
-  return `${reference.replace(/[^a-z0-9-]+/gi, '-')}.pdf`;
+  return buildDocumentFileName({ documentType: 'sale-summary', identifier: reference });
 }
 
 export function getSaleInvoicePdfBlob(context: SaleInvoicePdfContext) {
@@ -415,19 +404,5 @@ export function downloadSaleInvoicePdf(context: SaleInvoicePdfContext) {
 }
 
 export function printSaleInvoicePdf(context: SaleInvoicePdfContext) {
-  const blob = getSaleInvoicePdfBlob(context);
-  const url = URL.createObjectURL(blob);
-  const printWindow = window.open(url, '_blank');
-
-  if (!printWindow) {
-    URL.revokeObjectURL(url);
-    return false;
-  }
-
-  printWindow.onload = () => {
-    printWindow.focus();
-    printWindow.print();
-  };
-  window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-  return true;
+  return openStandardPdfForPrint(buildSaleInvoicePdf(context));
 }

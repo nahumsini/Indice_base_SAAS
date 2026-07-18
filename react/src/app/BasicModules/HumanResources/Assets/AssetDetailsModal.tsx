@@ -21,6 +21,8 @@ import { useAssetsTranslations } from './hooks/useAssetsTranslations';
 import type { AssetsTranslations } from './translations';
 import { useAssetsPortalTheme } from './useAssetsPortalTheme';
 import { getAssetTypeLabel } from './utils/assets.utils';
+import { buildDocumentFileName } from '../../shared/print/documentFileName';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../shared/print/documentPdfEngine';
 
 interface AssetDetailsModalProps {
   isOpen: boolean;
@@ -87,14 +89,6 @@ const formatValue = (value: number | null, currency: string | null | undefined) 
     maximumFractionDigits: 0,
   });
 };
-
-const sanitizeFileName = (value: string) => (
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'activo'
-);
 
 const getAssignmentActCopy = (locale: string) => {
   if (locale.startsWith('es')) {
@@ -197,7 +191,7 @@ const addPdfSection = (
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(label.toUpperCase(), left, y);
+    doc.text(label, left, y);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
@@ -219,7 +213,6 @@ const downloadAssetAssignmentActPdf = async (
   const doc = new jsPDF({ unit: 'mm', format: 'letter' });
   const actCopy = getAssignmentActCopy(locale);
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const left = 18;
   const contentWidth = pageWidth - left * 2;
   const issuedAt = new Intl.DateTimeFormat(locale, {
@@ -229,15 +222,22 @@ const downloadAssetAssignmentActPdf = async (
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date());
+  applyStandardPdfMetadata(doc, {
+    subject: actCopy.title,
+    title: `${actCopy.title} ${asset.asset_code}`,
+  });
 
-  doc.setFillColor(89, 195, 165);
-  doc.rect(0, 0, pageWidth, 31, 'F');
+  doc.setDrawColor(89, 143, 127);
+  doc.setLineWidth(1.2);
+  doc.line(left, 14, pageWidth - left, 14);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(255, 255, 255);
-  doc.text(actCopy.title, left, 17);
-  doc.setFontSize(10);
-  doc.text(actCopy.brand, pageWidth - left, 17, { align: 'right' });
+  doc.setFontSize(18);
+  doc.setTextColor(32, 36, 41);
+  doc.text(actCopy.title, left, 27);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 107, 115);
+  doc.text(actCopy.brand, pageWidth - left, 27, { align: 'right' });
 
   let y = 43;
   doc.setFont('helvetica', 'normal');
@@ -312,13 +312,15 @@ const downloadAssetAssignmentActPdf = async (
     doc.text(actCopy.signature, signature.x, y + 19);
   });
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text(actCopy.footer, left, pageHeight - 14);
-  doc.text(asset.asset_code, pageWidth - left, pageHeight - 14, { align: 'right' });
-
-  doc.save(`acta-responsiva-${sanitizeFileName(asset.asset_code || asset.name)}.pdf`);
+  addStandardPdfFooters(doc, {
+    confidentiality: 'Internal',
+    folio: asset.asset_code,
+    locale,
+  });
+  doc.save(buildDocumentFileName({
+    documentType: 'asset-assignment',
+    identifier: asset.asset_code || asset.name,
+  }));
 };
 
 function SummaryStat({
