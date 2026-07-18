@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, FileCheck2, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
-import type { PettyCashExpense } from '../../types/pettyCash.types';
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, FileCheck2, Printer, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
+import type { CashFund, PettyCashExpense } from '../../types/pettyCash.types';
 import {
   formatPettyCashCurrency,
   formatPettyCashDate,
@@ -11,6 +11,7 @@ import {
 } from '../../utils/pettyCash.utils';
 import { PettyCashPagination } from '../../components/PettyCashShared';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
+import { printPettyCashExpenseVoucher } from '../../utils/pettyCashExpensePrintDocument';
 
 export interface PettyCashColumnConfig {
   key: string;
@@ -25,6 +26,7 @@ type SortDirection = 'asc' | 'desc' | null;
 interface PettyCashExpenseTableProps {
   columns: PettyCashColumnConfig[];
   expenses: PettyCashExpense[];
+  funds?: CashFund[];
   onAuditExpense: (expenseId: string) => void;
   onDeleteExpense: (expenseId: string) => void;
   onRegisterReceipt: (expenseId: string) => void;
@@ -49,6 +51,7 @@ const compareValues = (leftValue: unknown, rightValue: unknown, direction: Exclu
 export function PettyCashExpenseTable({
   columns,
   expenses,
+  funds = [],
   onAuditExpense,
   onDeleteExpense,
   onRegisterReceipt,
@@ -168,6 +171,14 @@ export function PettyCashExpenseTable({
       case 'actions':
         return (
           <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => printPettyCashExpenseVoucher(expense, funds.find((fund) => fund.id === expense.cashFundId))}
+              className="rounded-lg p-2 text-[#147514] transition hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+              title="Imprimir comprobante / Print voucher"
+            >
+              <Printer className="h-4 w-4" />
+            </button>
             <button
               type="button"
               onClick={() => onAuditExpense(expense.id)}

@@ -322,12 +322,55 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
   return doc;
 };
 
-export const printStandardDocumentPdf = (definition: StandardDocumentDefinition) => (
-  openStandardPdfForPrint(buildStandardDocumentPdf(definition))
-);
+const generationErrorMessage = (locale: string, popupBlocked = false) => {
+  const language = locale.toLowerCase().split('-')[0];
+  if (language === 'es') {
+    return popupBlocked
+      ? 'El navegador bloqueó la vista de impresión. Habilita las ventanas emergentes e inténtalo de nuevo.'
+      : 'No se pudo generar el documento. Revisa los datos e inténtalo de nuevo.';
+  }
+  if (language === 'fr') {
+    return popupBlocked
+      ? "Le navigateur a bloqué l’aperçu. Autorisez les fenêtres contextuelles et réessayez."
+      : 'Le document n’a pas pu être généré. Vérifiez les données et réessayez.';
+  }
+  if (language === 'pt') {
+    return popupBlocked
+      ? 'O navegador bloqueou a visualização. Permita pop-ups e tente novamente.'
+      : 'Não foi possível gerar o documento. Verifique os dados e tente novamente.';
+  }
+  return popupBlocked
+    ? 'The browser blocked the print preview. Allow pop-ups and try again.'
+    : 'The document could not be generated. Check the data and try again.';
+};
+
+export const printStandardDocumentPdf = (definition: StandardDocumentDefinition) => {
+  const locale = definition.locale ?? 'es-MX';
+  try {
+    const opened = openStandardPdfForPrint(buildStandardDocumentPdf(definition));
+    if (!opened && typeof window !== 'undefined') {
+      window.alert(generationErrorMessage(locale, true));
+    }
+    return opened;
+  } catch (error) {
+    console.error('Unable to generate standard print document.', error);
+    if (typeof window !== 'undefined') {
+      window.alert(generationErrorMessage(locale));
+    }
+    return false;
+  }
+};
 
 export const downloadStandardDocumentPdf = (definition: StandardDocumentDefinition) => {
-  const fileName = buildDocumentFileName({ ...definition.fileName, extension: 'pdf' });
-  buildStandardDocumentPdf(definition).save(fileName);
-  return fileName;
+  try {
+    const fileName = buildDocumentFileName({ ...definition.fileName, extension: 'pdf' });
+    buildStandardDocumentPdf(definition).save(fileName);
+    return fileName;
+  } catch (error) {
+    console.error('Unable to download standard print document.', error);
+    if (typeof window !== 'undefined') {
+      window.alert(generationErrorMessage(definition.locale ?? 'es-MX'));
+    }
+    return null;
+  }
 };

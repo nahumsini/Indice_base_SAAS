@@ -26,6 +26,10 @@ export function MovementPrintModal({
 
   const lines = movementLines?.length ? movementLines : [movement];
   const movementValue = lines.reduce((total, line) => total + Math.abs(line.quantity) * (line.unitCost ?? 0), 0);
+  const isControlAct = movement.movementType === 'adjustment' || movement.movementType === 'transfer';
+  const documentTitle = isControlAct
+    ? `${t.operational.movementTypes[movement.movementType]} · ${t.operational.modals.movementDocumentTitle}`
+    : t.operational.modals.movementDocumentTitle;
   const handlePrint = () => {
     if (!documentRef.current) return;
     printDocumentHtml({
@@ -72,7 +76,7 @@ export function MovementPrintModal({
               <div className="flex items-start justify-between gap-6">
                 <div>
                   <p className="text-xs font-semibold text-[#B63B32]">Índice Sales OS</p>
-                  <h1 className="mt-3 text-4xl font-semibold tracking-normal text-slate-950">{t.operational.modals.movementDocumentTitle}</h1>
+                  <h1 className="mt-3 text-4xl font-semibold tracking-normal text-slate-950">{documentTitle}</h1>
                   <p className="mt-2 text-sm font-semibold text-slate-500">{t.operational.movementTypes[movement.movementType]}</p>
                 </div>
                 <div className="text-right">
@@ -134,6 +138,18 @@ export function MovementPrintModal({
                 </div>
               </div>
             </section>
+            <footer className="mt-8 border-t border-slate-200 pt-10">
+              <p className="mb-10 text-xs leading-5 text-slate-500">
+                {isControlAct
+                  ? 'Acta operativa de control de inventario. Las firmas confirman revisión del movimiento; no sustituyen autorizaciones requeridas por la política interna.'
+                  : 'Documento operativo de trazabilidad de inventario.'}
+              </p>
+              <div className="grid grid-cols-3 gap-8 text-center text-xs text-slate-600">
+                <div><div className="border-t border-slate-400 pt-2">{movement.responsibleName}</div></div>
+                <div><div className="border-t border-slate-400 pt-2">Entrega / origen</div></div>
+                <div><div className="border-t border-slate-400 pt-2">Recibe / autoriza</div></div>
+              </div>
+            </footer>
           </article>
     </SalesModalFrame>
   );
