@@ -8,15 +8,8 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
+import { IndiceModalFrame } from '../../../components/indice-modal';
 import { cn } from '../../../components/ui/utils';
 import { useLanguage } from '../../../shared/context';
 import { type HrAsset } from '../../../api/HumanResources/assets';
@@ -358,7 +351,7 @@ function SummaryStat({
         <div className="min-w-0">
           <div
             className={cn(
-              'text-[11px] font-semibold uppercase tracking-[0.14em]',
+              'text-xs font-medium',
               isDarkMode ? 'text-slate-400' : 'text-slate-500',
             )}
           >
@@ -432,7 +425,7 @@ function SectionCard({
                 <th
                   scope="row"
                   className={cn(
-                    'w-[34%] px-4 py-3 text-left align-top text-[11px] font-semibold uppercase tracking-[0.16em] sm:w-[220px]',
+                    'w-[34%] px-4 py-3 text-left align-top text-xs font-medium sm:w-[220px]',
                     isDarkMode ? 'text-slate-400' : 'text-slate-500',
                   )}
                 >
@@ -525,39 +518,25 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
   ];
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : undefined)}>
-      <DialogContent
-        className={cn(
-          'w-[min(1120px,calc(100vw-2rem))] max-w-[min(1120px,calc(100vw-2rem))] gap-0 overflow-hidden p-0 sm:max-w-[min(1120px,calc(100vw-3rem))] sm:rounded-[26px]',
-          isDarkMode
-            ? 'border border-[#2A6356] bg-[#0d1f1b] text-white shadow-[0_36px_90px_rgba(2,8,23,0.72)]'
-            : 'border border-[#C9EDE3] bg-[#f7fbfa] text-slate-900 shadow-[0_30px_80px_rgba(15,23,42,0.24)]',
-        )}
-      >
-        <DialogClose className="hidden" />
-        <DialogHeader
-          className={cn(
-            'relative border-b px-7 py-6 text-left',
-            isDarkMode ? 'border-[#59C3A5]/35 bg-[#2E9D84]' : 'border-[#59C3A5]/35 bg-[#59C3A5]',
-          )}
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <DialogTitle className="flex items-center gap-3 text-left text-white">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-white/18 text-white shadow-sm">
-                <Package2 className="size-6" />
-              </span>
-              <div>
-                <div className="text-[30px] font-semibold leading-tight">{copy.title}</div>
-                <div className="mt-1 text-sm font-normal text-white/80">{asset.asset_code}</div>
-              </div>
-            </DialogTitle>
-            <div className="inline-flex w-fit rounded-full border border-white/25 bg-white/14 px-3 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-sm">
-              {getAssetTypeLabel(asset.asset_type, t)}
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="max-h-[82vh] overflow-y-auto px-7 py-6 lg:px-8">
+    <IndiceModalFrame
+      closeLabel={copy.close}
+      contentClassName="sm:w-[min(96vw,1120px)] sm:max-w-[1120px]"
+      description={asset.asset_code}
+      eyebrow={getAssetTypeLabel(asset.asset_type, t)}
+      footer={<Button type="button" onClick={onClose}>{copy.close}</Button>}
+      footerLeading={(
+        <Button type="button" variant="outline" onClick={handlePrintAssignmentAct}>
+          <Printer className="size-4" />
+          {assignmentActCopy.printButton}
+        </Button>
+      )}
+      icon={<Package2 className="size-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => (!open ? onClose() : undefined)}
+      open={isOpen}
+      title={copy.title}
+      tone="aqua"
+    >
           <div className="space-y-5">
             <section
               className={cn(
@@ -592,7 +571,7 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
                     isDarkMode ? 'border-white/10 bg-[#0b1c18] text-slate-200' : 'border-[#DCEFEA] bg-[#F7FCFA] text-slate-700',
                   )}
                 >
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  <div className="text-xs font-medium text-slate-500">
                     {copy.fields.code}
                   </div>
                   <div className={cn('mt-2 text-lg font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
@@ -640,42 +619,6 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
               isDarkMode={isDarkMode}
             />
           </div>
-        </div>
-
-        <DialogFooter
-          className={cn(
-            'border-t px-7 py-4 sm:justify-end',
-            isDarkMode ? 'border-[#59C3A5]/25 bg-[#10231f]' : 'border-[#59C3A5]/25 bg-[#59C3A5]',
-          )}
-        >
-          <Button
-            type="button"
-            onClick={handlePrintAssignmentAct}
-            className={cn(
-              'mr-auto min-w-[168px] rounded-xl px-5 font-semibold',
-              isDarkMode
-                ? 'bg-white text-[#1F8A70] hover:bg-white/90'
-                : 'bg-white text-[#1F8A70] hover:bg-white/90',
-            )}
-          >
-            <Printer className="size-4" />
-            {assignmentActCopy.printButton}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className={cn(
-              'min-w-[132px] rounded-xl px-5',
-              isDarkMode
-                ? 'border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white'
-                : 'border-white/35 bg-white/15 text-white hover:bg-white/25 hover:text-white',
-            )}
-          >
-            {copy.close}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }

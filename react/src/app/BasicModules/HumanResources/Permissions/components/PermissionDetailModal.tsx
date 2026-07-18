@@ -1,6 +1,7 @@
-import { BadgeDollarSign, Calendar, CheckCircle, Clock, Download, FileText, ShieldCheck, Trash2, User, X, XCircle } from 'lucide-react';
+import { BadgeDollarSign, Calendar, CheckCircle, Clock, Download, FileText, ShieldCheck, Trash2, User, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import { Textarea } from '../../../../components/ui/textarea';
 import type { PermissionItem } from '../types/permissions.types';
 import type { PermissionsTranslations } from '../translations';
@@ -94,10 +95,12 @@ export function PermissionDetailModal({
 }: PermissionDetailModalProps) {
   const [localActionError, setLocalActionError] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     setLocalActionError('');
     setReviewNotes('');
+    setIsDeleteConfirmOpen(false);
   }, [isOpen, permission?.id]);
 
   if (!isOpen || !permission) {
@@ -152,6 +155,7 @@ export function PermissionDetailModal({
 
     try {
       await onDelete(permission.id);
+      setIsDeleteConfirmOpen(false);
       onClose();
     } catch (error) {
       setLocalActionError(error instanceof Error ? error.message : '');
@@ -159,41 +163,61 @@ export function PermissionDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-[#59C3A5]/25 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="sticky top-0 z-10 border-b border-[#59C3A5]/20 bg-[#59C3A5] px-6 py-5 text-white">
-          <div className="mb-3 flex items-start justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${typeInfo.bgColor} ${typeInfo.color}`}>
-                {typeLabel}
-              </span>
-              <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${statusInfo.bgColor} ${statusInfo.color}`}>
-                {statusLabel}
-              </span>
-              <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-semibold ${payrollTreatmentInfo.bgColor} ${payrollTreatmentInfo.color}`}>
-                {payrollTreatmentLabel}
-              </span>
-            </div>
-            <button
-              onClick={onClose}
-              className="rounded-full border border-white/25 bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-              aria-label={copy.actions.close}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="mb-1 text-2xl font-bold text-white">{copy.detail.title}</h2>
-              <p className="text-sm font-medium text-white/80">{copy.detail.folio(permission.folio)}</p>
-            </div>
-          </div>
+    <IndiceModalFrame
+      busy={isReviewing}
+      closeLabel={copy.actions.close}
+      contentClassName="sm:max-w-4xl"
+      description={isDeleteConfirmOpen ? copy.actions.delete : copy.detail.folio(permission.folio)}
+      footer={isDeleteConfirmOpen ? (
+        <>
+          <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)} disabled={isReviewing}>{copy.actions.close}</Button>
+          <Button onClick={() => { void handleDelete(); }} disabled={isReviewing}>
+            <Trash2 className="h-4 w-4" />
+            {copy.actions.delete}
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isReviewing}>{copy.actions.close}</Button>
+          {isManager && permission.status === 'pending' && onApprove && onReject ? (
+            <>
+              <Button variant="outline" onClick={() => { void handleReject(); }} disabled={isReviewing}>
+                <XCircle className="h-4 w-4" />
+                {copy.actions.reject}
+              </Button>
+              <Button onClick={() => { void handleApprove(); }} disabled={isReviewing}>
+                <CheckCircle className="h-4 w-4" />
+                {isReviewing ? copy.actions.submitting : copy.actions.approve}
+              </Button>
+            </>
+          ) : null}
+          {!isManager && permission.status === 'pending' && onDelete ? (
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(true)} disabled={isReviewing}>
+              <Trash2 className="h-4 w-4" />
+              {copy.actions.delete}
+            </Button>
+          ) : null}
+        </>
+      )}
+      footerSummary={localActionError || undefined}
+      icon={isDeleteConfirmOpen ? <Trash2 className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
+      modalType={isDeleteConfirmOpen ? 'confirmation' : 'standard-form'}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={isDeleteConfirmOpen ? copy.actions.delete : copy.detail.title}
+      tone="aqua"
+    >
+      {isDeleteConfirmOpen ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm leading-6 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+          {copy.actions.delete}: {typeLabel} · {permission.employee.name}
         </div>
-
-        <div className="space-y-6 p-6">
+      ) : (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-medium ${typeInfo.bgColor} ${typeInfo.color}`}>{typeLabel}</span>
+            <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-medium ${statusInfo.bgColor} ${statusInfo.color}`}>{statusLabel}</span>
+            <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-medium ${payrollTreatmentInfo.bgColor} ${payrollTreatmentInfo.color}`}>{payrollTreatmentLabel}</span>
+          </div>
           <div className="rounded-2xl border border-[#59C3A5]/25 bg-[#59C3A5]/5 p-6 dark:bg-[#59C3A5]/10">
             <div className="flex items-start gap-4">
               <div className="rounded-xl bg-[#59C3A5] p-3 shadow-sm">
@@ -216,21 +240,21 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.startDate}</span>
+                <span className="text-sm font-medium">{copy.detail.startDate}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">{formatDate(permission.startDate, locale)}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.endDate}</span>
+                <span className="text-sm font-medium">{copy.detail.endDate}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">{formatDate(permission.endDate, locale)}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Clock className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.duration}</span>
+                <span className="text-sm font-medium">{copy.detail.duration}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">
                 {permission.days} {permission.days === 1 ? copy.detail.day : copy.detail.days}
@@ -239,14 +263,14 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <FileText className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.type}</span>
+                <span className="text-sm font-medium">{copy.detail.type}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">{typeLabel}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-600 dark:bg-gray-700/50">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <BadgeDollarSign className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.payrollTreatment}</span>
+                <span className="text-sm font-medium">{copy.detail.payrollTreatment}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">{payrollTreatmentLabel}</p>
             </div>
@@ -362,55 +386,7 @@ export function PermissionDetailModal({
             </div>
           </div>
         </div>
-
-        <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[#59C3A5]/20 bg-[#59C3A5] px-6 py-4">
-          <div className="min-h-[20px] text-sm font-medium text-white/90">
-            {localActionError}
-          </div>
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button
-              onClick={onClose}
-              variant="outline"
-              disabled={isReviewing}
-              className="rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-            >
-              {copy.actions.close}
-            </Button>
-            {isManager && permission.status === 'pending' && onApprove && onReject ? (
-              <>
-                <Button
-                  onClick={() => { void handleReject(); }}
-                  variant="outline"
-                  className="gap-2 rounded-xl border-white/30 bg-white/10 font-semibold text-white hover:bg-white/20 hover:text-white"
-                  disabled={isReviewing}
-                >
-                  <XCircle className="h-4 w-4" />
-                  {copy.actions.reject}
-                </Button>
-                <Button
-                  onClick={() => { void handleApprove(); }}
-                  className="gap-2 rounded-xl bg-white font-semibold text-[#159A7D] shadow-sm hover:bg-slate-50"
-                  disabled={isReviewing}
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  {isReviewing ? copy.actions.submitting : copy.actions.approve}
-                </Button>
-              </>
-            ) : null}
-            {!isManager && permission.status === 'pending' && onDelete ? (
-              <Button
-                onClick={() => { void handleDelete(); }}
-                variant="outline"
-                className="gap-2 rounded-xl border-white/30 bg-white/10 font-semibold text-white hover:bg-white/20 hover:text-white"
-                disabled={isReviewing}
-              >
-                <Trash2 className="h-4 w-4" />
-                {copy.actions.delete}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </div>
+      )}
+    </IndiceModalFrame>
   );
 }

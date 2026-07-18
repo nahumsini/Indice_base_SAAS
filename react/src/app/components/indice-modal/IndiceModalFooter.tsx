@@ -9,13 +9,19 @@ export type IndiceModalFooterProps = {
   tone?: IndiceModalFooterTone;
 };
 
-export type IndiceModalFooterTone = 'aqua' | 'coral' | 'green' | 'yellow';
+export type IndiceModalFooterTone = 'aqua' | 'blue' | 'coral' | 'green' | 'yellow';
 
 const actionToneStyles: Record<IndiceModalFooterTone, string> = {
   aqua: [
     '[&>button]:!border-white [&>button]:!bg-white [&>button]:!text-slate-600 [&>button]:shadow-sm',
     '[&>button:hover]:!bg-white/90',
     '[&>button:last-child]:!border-white [&>button:last-child]:!bg-white [&>button:last-child]:!text-[#177D66]',
+    '[&>button:last-child:hover]:!bg-white/90',
+  ].join(' '),
+  blue: [
+    '[&>button]:!border-white [&>button]:!bg-white [&>button]:!text-slate-600 [&>button]:shadow-sm',
+    '[&>button:hover]:!bg-white/90',
+    '[&>button:last-child]:!border-white [&>button:last-child]:!bg-white [&>button:last-child]:!text-[#1D4ED8]',
     '[&>button:last-child:hover]:!bg-white/90',
   ].join(' '),
   coral: [
@@ -40,6 +46,7 @@ const actionToneStyles: Record<IndiceModalFooterTone, string> = {
 
 const summaryToneStyles: Record<IndiceModalFooterTone, string> = {
   aqua: 'text-white/85',
+  blue: 'text-white/85',
   coral: 'text-white/85',
   green: 'text-white/85',
   yellow: 'text-[#222831]/75',
@@ -66,7 +73,7 @@ export function IndiceModalFooter({
       ) : null}
       {actions ? (
         <div className={cn(
-          'flex w-full flex-col-reverse gap-2 [&>button]:h-11 [&>button]:w-full [&>button]:rounded-xl [&>button]:px-5 [&>button]:text-sm [&>button]:font-semibold sm:ml-auto sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:[&>button]:w-auto',
+          'flex w-full flex-col-reverse gap-2 [&>button]:h-11 [&>button]:w-full [&>button]:rounded-xl [&>button]:px-5 [&>button]:text-sm [&>button]:font-semibold [&>button[data-modal-destructive=true]]:!border-red-600 [&>button[data-modal-destructive=true]]:!bg-red-600 [&>button[data-modal-destructive=true]]:!text-white [&>button[data-modal-destructive=true]:hover]:!bg-red-700 sm:ml-auto sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:[&>button]:w-auto',
           actionToneStyles[tone],
         )}>
           {actions}

@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Calendar, Megaphone, Search, X } from 'lucide-react';
+import { Calendar, Megaphone, Search } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import type {
   AnnouncementDepartmentOption,
   AnnouncementEmployeeOption,
@@ -178,32 +179,43 @@ export function CreateAnnouncementModal({
     (formData.publishMode === 'now' || Boolean(formData.scheduledDate && formData.scheduledTime));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" aria-busy={isSubmitting}>
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white text-gray-900 shadow-2xl dark:border-[#59C3A5]/25 dark:bg-gray-950 dark:text-gray-100">
-        <div className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
-              <Megaphone className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-xl font-semibold leading-7 text-white">{copy.title}</h2>
-              <p className="mt-1 text-sm leading-5 text-blue-100">
-                {copy.subtitle}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={resetAndClose}
-            disabled={isSubmitting}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-            aria-label={copy.close}
+    <IndiceModalFrame
+      bodyClassName="bg-white dark:bg-gray-950"
+      busy={isSubmitting}
+      closeLabel={copy.close}
+      contentClassName="sm:max-w-4xl"
+      description={copy.subtitle}
+      footer={(
+        <>
+          <Button
+            variant="outline"
+            disabled={isSubmitting || !canSaveDraft}
+            onClick={() => void submitAnnouncement('draft')}
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto bg-white px-6 py-5 dark:bg-gray-950">
+            {copy.buttons.saveDraft}
+          </Button>
+          <Button
+            disabled={isSubmitting || !canPublish}
+            onClick={() => void submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
+          >
+            {isEdit ? copy.buttons.saveChanges : formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
+          </Button>
+        </>
+      )}
+      footerLeading={(
+        <Button variant="outline" onClick={resetAndClose} disabled={isSubmitting}>
+          {copy.buttons.cancel}
+        </Button>
+      )}
+      icon={<Megaphone className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) resetAndClose();
+      }}
+      open={isOpen}
+      title={copy.title}
+      tone="aqua"
+    >
           <div className="space-y-5">
             <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
@@ -401,38 +413,7 @@ export function CreateAnnouncementModal({
               ) : null}
             </section>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-white/10 bg-[#59C3A5] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <Button
-            variant="outline"
-            className="rounded-lg border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
-            onClick={resetAndClose}
-            disabled={isSubmitting}
-          >
-            {copy.buttons.cancel}
-          </Button>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button
-              variant="outline"
-              disabled={isSubmitting || !canSaveDraft}
-              className="rounded-lg border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white disabled:border-white/15 disabled:text-white/50"
-              onClick={() => void submitAnnouncement('draft')}
-            >
-              {copy.buttons.saveDraft}
-            </Button>
-            <Button
-              disabled={isSubmitting || !canPublish}
-              onClick={() => void submitAnnouncement(formData.publishMode === 'now' ? 'published' : 'scheduled')}
-              className="rounded-lg bg-white text-[#59C3A5] hover:bg-blue-50 disabled:bg-white/50 disabled:text-[#59C3A5]/60"
-            >
-              {isEdit ? copy.buttons.saveChanges : formData.publishMode === 'now' ? copy.buttons.publishNow : copy.buttons.schedulePublication}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }
 

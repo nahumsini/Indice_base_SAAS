@@ -1,6 +1,8 @@
 import { type KeyboardEvent, useState } from 'react';
-import { ExternalLink, ImageIcon, MapPin, X } from 'lucide-react';
+import { ExternalLink, ImageIcon, MapPin } from 'lucide-react';
 import type { AttendanceControlOverviewResponse } from '../../../../../../api/humanResources';
+import { Button } from '../../../../../../components/ui/button';
+import { IndiceModalFrame } from '../../../../../../components/indice-modal';
 import {
   type AttendanceControlCopy,
   attendanceRowBorderClass,
@@ -123,39 +125,24 @@ function AttendanceEvidencePreviewDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm"
-      onClick={onClose}
+    <IndiceModalFrame
+      bodyClassName="bg-gray-950 p-3 dark:bg-gray-950"
+      closeLabel={copy.labels.closeEvidence}
+      description={photo.label}
+      footer={<Button type="button" onClick={onClose}>{copy.labels.closeEvidence}</Button>}
+      icon={<ImageIcon className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open
+      title={copy.labels.viewEvidence}
+      tone="aqua"
     >
-      <div
-        className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg border border-white/10 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-950"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#59C3A5] dark:text-blue-200">
-              {copy.labels.viewEvidence}
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{photo.label}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition hover:border-[#59C3A5]/30 hover:text-[#59C3A5] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-            aria-label={copy.labels.closeEvidence}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="bg-gray-950 p-3">
           <img
             src={photo.photoUrl}
             alt={copy.labels.attendanceEvidenceAlt(photo.label)}
             className="mx-auto max-h-[76vh] w-auto max-w-full rounded-lg object-contain"
           />
-        </div>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }
 

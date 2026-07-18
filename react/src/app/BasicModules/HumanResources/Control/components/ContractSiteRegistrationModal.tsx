@@ -220,6 +220,7 @@ export function ContractSiteRegistrationModal({
 
   return (
     <>
+      {!selectedContractSite ? (
       <ContractSiteRegistrationFrame
         copy={copy}
         errorMessage={errorMessage}
@@ -331,6 +332,7 @@ export function ContractSiteRegistrationModal({
           </p>
         </div>
       </ContractSiteRegistrationFrame>
+      ) : null}
       {selectedContractSite ? (
         <ContractSiteDetailModal
           activity={selectedContractSiteActivity}

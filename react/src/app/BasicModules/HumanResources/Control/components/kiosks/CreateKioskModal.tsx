@@ -1,24 +1,10 @@
-import { CheckCircle2, Lock, Save, Unlock, X, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Lock, MonitorSmartphone, Save, Unlock, type LucideIcon } from 'lucide-react';
 import { type AttendanceKioskDevicePayload } from '../../../../../api/humanResources';
 import { Button } from '../../../../../components/ui/button';
 import type { ControlTranslations } from '../../translations';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../../components/indice-modal';
 import { KioskFormSection } from './KioskFormSection';
 import type { KioskType } from './KioskTypeSelector';
-import {
-  hrModalBodyClassName,
-  hrModalCloseButtonClassName,
-  hrModalFooterClassName,
-  hrModalHeaderClassName,
-  hrModalShellClassName,
-} from '../../../shared/hrModalStyles';
 
 export interface KioskOption {
   id: number;
@@ -93,36 +79,29 @@ export function CreateKioskModal({
   const canUseClosedAttendance = allowedKioskTypes.includes('business_unit');
 
   return (
-    <Dialog
+    <IndiceModalFrame
+      busy={isSaving}
+      closeLabel={copy.kiosk.form.closeAria}
+      description={modalDescription}
+      footer={(
+        <Button type="button" disabled={!canSave} onClick={onSave}>
+          <Save className="h-4 w-4" />
+          {isSaving
+            ? copy.kiosk.form.saving
+            : isEditing
+              ? copy.kiosk.form.saveAttendancePoint
+              : copy.kiosk.form.createAttendancePoint}
+        </Button>
+      )}
+      footerLeading={<Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>{copy.labels.cancel}</Button>}
+      footerSummary={`${selectedScopeLabel} · ${selectedRadiusLabel}`}
+      icon={<MonitorSmartphone className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}
       open={isOpen}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          onClose();
-        }
-      }}
+      title={modalTitle}
+      tone="aqua"
     >
-      <DialogContent
-        hideCloseButton
-        className={`max-h-[90vh] sm:max-w-3xl ${hrModalShellClassName}`}
-      >
-        <div className={hrModalHeaderClassName}>
-          <div className="flex items-start justify-between gap-4">
-            <DialogHeader className="gap-1 text-left">
-              <DialogTitle className="text-xl font-semibold text-white">{modalTitle}</DialogTitle>
-              <DialogDescription className="text-sm text-white/80">{modalDescription}</DialogDescription>
-            </DialogHeader>
-            <button
-              type="button"
-              className={hrModalCloseButtonClassName}
-              aria-label={copy.kiosk.form.closeAria}
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className={hrModalBodyClassName}>
           <div className="grid gap-4">
             <KioskFormSection
               title={copy.kiosk.form.typeSectionTitle}
@@ -275,33 +254,7 @@ export function CreateKioskModal({
               </KioskFormSection>
             ) : null}
           </div>
-        </div>
-
-        <DialogFooter className={hrModalFooterClassName}>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-lg border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
-            onClick={onClose}
-          >
-            {copy.labels.cancel}
-          </Button>
-          <Button
-            type="button"
-            className="rounded-lg bg-white text-[#59C3A5] hover:bg-white/90"
-            disabled={!canSave}
-            onClick={onSave}
-          >
-            <Save className="h-4 w-4" />
-            {isSaving
-              ? copy.kiosk.form.saving
-              : isEditing
-                ? copy.kiosk.form.saveAttendancePoint
-                : copy.kiosk.form.createAttendancePoint}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { CheckCircle2, X } from 'lucide-react';
+import { Building2, CheckCircle2, Landmark } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { IndiceModalFrame } from '../../../components/indice-modal';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLanguage } from '../../../shared/context';
@@ -1641,35 +1642,44 @@ export default function BusinessStructure() {
       )}
 
       {showUnidadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between gap-4 bg-blue-600 p-4 dark:bg-blue-700 sm:p-6">
-              <div>
-                <h3 className="text-xl font-semibold text-white">
-                  {editingUnidad
-                    ? structure.modal.editUnit
-                    : structure.modal.newUnit}
-                </h3>
-                <p className="text-sm text-blue-100 mt-1">
-                  {editingUnidad
-                    ? structure.modal.editUnitDescription
-                    : structure.modal.newUnitDescription}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeUnidadModal}
-                className="p-2 hover:bg-blue-700 dark:hover:bg-blue-800 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={handleSaveUnidad}
-              className="overflow-y-auto max-h-[calc(90vh-160px)]"
+        <IndiceModalFrame
+          busy={loadingOverlay.isVisible}
+          description={editingUnidad ? structure.modal.editUnitDescription : structure.modal.newUnitDescription}
+          footer={(
+            <Button
+              type="submit"
+              form="dashboard-business-unit-form"
+              disabled={!isUnidadModalDirty || unidadFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
             >
-              <div className="space-y-5 p-4 sm:p-6">
+              {structure.modal.save}
+            </Button>
+          )}
+          footerLeading={(
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeUnidadModal}
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+            >
+              {structure.modal.cancel}
+            </Button>
+          )}
+          footerSummary={unidadFormValues.name.trim() || structure.modal.newUnit}
+          icon={<Building2 className="h-5 w-5" />}
+          modalType="standard-form"
+          onOpenChange={(open) => {
+            if (!open) closeUnidadModal();
+          }}
+          open
+          title={editingUnidad ? structure.modal.editUnit : structure.modal.newUnit}
+          tone="blue"
+        >
+            <form
+              id="dashboard-business-unit-form"
+              onSubmit={handleSaveUnidad}
+              className="space-y-5"
+            >
+              <div className="space-y-5">
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                     {structure.fields.basicInfo}
@@ -1876,57 +1886,49 @@ export default function BusinessStructure() {
                 </div>
               </div>
 
-              <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50 sm:flex-row sm:items-center sm:justify-end sm:p-6">
-                <Button
-                  type="button"
-                  onClick={closeUnidadModal}
-                  className="w-full bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 sm:w-auto"
-                >
-                  {structure.modal.cancel}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={!isUnidadModalDirty || unidadFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
-                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                >
-                  {structure.modal.save}
-                </Button>
-              </div>
             </form>
-          </div>
-        </div>
+        </IndiceModalFrame>
       )}
 
       {showNegocioModal && editingNegocio && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between gap-4 bg-blue-600 p-4 dark:bg-blue-700 sm:p-6">
-              <div>
-                <h3 className="text-xl font-semibold text-white">
-                  {editingNegocio.id
-                    ? structure.modal.editBusiness
-                    : structure.modal.newBusiness}
-                </h3>
-                <p className="text-sm text-blue-100 mt-1">
-                  {editingNegocio.id
-                    ? structure.modal.editBusinessDescription
-                    : structure.modal.newBusinessDescription}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeNegocioModal}
-                className="p-2 hover:bg-blue-700 dark:hover:bg-blue-800 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={handleSaveNegocio}
-              className="overflow-y-auto max-h-[calc(90vh-160px)]"
+        <IndiceModalFrame
+          busy={loadingOverlay.isVisible}
+          description={editingNegocio.id ? structure.modal.editBusinessDescription : structure.modal.newBusinessDescription}
+          footer={(
+            <Button
+              type="submit"
+              form="dashboard-business-form"
+              disabled={!isNegocioModalDirty || negocioFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
             >
-              <div className="space-y-5 p-4 sm:p-6">
+              {editingNegocio.id ? structure.modal.save : structure.modal.createBusiness}
+            </Button>
+          )}
+          footerLeading={(
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeNegocioModal}
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+            >
+              {structure.modal.cancel}
+            </Button>
+          )}
+          footerSummary={negocioFormValues.name.trim() || structure.modal.newBusiness}
+          icon={<Landmark className="h-5 w-5" />}
+          modalType="standard-form"
+          onOpenChange={(open) => {
+            if (!open) closeNegocioModal();
+          }}
+          open
+          title={editingNegocio.id ? structure.modal.editBusiness : structure.modal.newBusiness}
+          tone="blue"
+        >
+            <form
+              id="dashboard-business-form"
+              onSubmit={handleSaveNegocio}
+              className="space-y-5"
+            >
+              <div className="space-y-5">
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
                     {structure.fields.basicInfo}
@@ -2170,27 +2172,8 @@ export default function BusinessStructure() {
                 </div>
               </div>
 
-              <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50 sm:flex-row sm:items-center sm:justify-end sm:p-6">
-                <Button
-                  type="button"
-                  onClick={closeNegocioModal}
-                  className="w-full bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 sm:w-auto"
-                >
-                  {structure.modal.cancel}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={!isNegocioModalDirty || negocioFormValues.name.trim().length === 0 || loadingOverlay.isVisible}
-                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                >
-                  {editingNegocio.id
-                    ? structure.modal.save
-                    : structure.modal.createBusiness}
-                </Button>
-              </div>
             </form>
-          </div>
-        </div>
+        </IndiceModalFrame>
       )}
 
       <LoadingBarOverlay

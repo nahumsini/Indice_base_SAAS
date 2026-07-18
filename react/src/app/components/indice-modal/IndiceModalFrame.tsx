@@ -44,8 +44,15 @@ const toneStyles: Record<IndiceModalTone, {
     close: 'border-white/30 bg-white/10 text-white hover:bg-white/20',
     description: 'text-white/85',
     footer: 'bg-[#269C82] dark:bg-[#176a59]',
-    header: 'bg-[#59C3A5] text-slate-950 dark:bg-[#269C82] dark:text-white',
-    title: 'text-slate-950 dark:text-white',
+    header: 'bg-[#59C3A5] text-white dark:bg-[#269C82]',
+    title: 'text-white',
+  },
+  blue: {
+    close: 'border-white/30 bg-white/10 text-white hover:bg-white/20',
+    description: 'text-white/85',
+    footer: 'bg-[#1D4ED8] dark:bg-[#1E3A8A]',
+    header: 'bg-[#2563EB] text-white dark:bg-[#1D4ED8]',
+    title: 'text-white',
   },
   coral: {
     close: 'border-white/35 bg-white/15 text-white hover:bg-white/25',
@@ -62,11 +69,11 @@ const toneStyles: Record<IndiceModalTone, {
     title: 'text-white',
   },
   yellow: {
-    close: 'border-slate-900/15 bg-white/30 text-slate-900 hover:bg-white/50',
-    description: 'text-slate-800/80',
+    close: 'border-white/35 bg-white/15 text-white hover:bg-white/25',
+    description: 'text-white/90',
     footer: 'bg-[#F8C842] dark:bg-[#9c7110]',
-    header: 'bg-[#F8C842] text-slate-950 dark:bg-[#9c7110] dark:text-white',
-    title: 'text-slate-950 dark:text-white',
+    header: 'bg-[#F8C842] text-white dark:bg-[#9c7110]',
+    title: 'text-white',
   },
 };
 

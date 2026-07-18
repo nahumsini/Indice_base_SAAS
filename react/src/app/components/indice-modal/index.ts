@@ -1,4 +1,8 @@
 export {
+  IndiceConfirmationDialog,
+  type IndiceConfirmationDialogProps,
+} from './IndiceConfirmationDialog';
+export {
   IndiceModalFooter,
   type IndiceModalFooterProps,
   type IndiceModalFooterTone,

@@ -1,4 +1,4 @@
-import { Paperclip, X } from 'lucide-react';
+import { Megaphone, Paperclip, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type { AnnouncementView } from '../announcementTypes';
 import type { AnnouncementDetailCopy } from '../translations';
@@ -29,25 +29,30 @@ export function AnnouncementDetailPanel({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30">
-      <aside className="h-full w-full max-w-xl overflow-y-auto bg-white p-6 shadow-2xl dark:bg-slate-900">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-300">
-              {copy.eyebrow}
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{announcement.title}</h3>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{announcement.audienceSummary}</p>
+    <div className="fixed inset-0 z-40 flex justify-end bg-slate-950/55 backdrop-blur-[2px]">
+      <aside className="flex h-full w-full max-w-xl flex-col overflow-hidden border-l border-[#59C3A5]/25 bg-white shadow-2xl dark:bg-slate-900">
+        <header className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-white dark:bg-[#269C82]">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-current/10 bg-white/15">
+              <Megaphone className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-current/75">{copy.eyebrow}</p>
+              <h3 className="mt-0.5 text-xl font-semibold leading-7">{announcement.title}</h3>
+              <p className="mt-0.5 text-sm text-current/75">{announcement.audienceSummary}</p>
+            </div>
           </div>
           <button
             type="button"
             aria-label={copy.close}
             onClick={onClose}
-            className="rounded-full p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20"
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <Info label={copy.status} value={announcement.status} />
@@ -105,6 +110,13 @@ export function AnnouncementDetailPanel({
             ))}
           </div>
         </div>
+        </div>
+
+        <footer className="flex shrink-0 justify-end bg-[#269C82] px-6 py-3">
+          <Button type="button" variant="outline" onClick={onClose}>
+            {copy.close}
+          </Button>
+        </footer>
       </aside>
     </div>
   );

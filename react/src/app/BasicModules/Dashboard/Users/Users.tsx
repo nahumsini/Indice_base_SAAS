@@ -5,15 +5,21 @@ import {
   ChevronDown,
   Copy,
   Filter,
+  Layers3,
   Mail,
   Search,
   Settings,
   Trash2,
   UserPlus,
-  X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import {
+  IndiceModalFrame,
+  IndiceModalSummary,
+  IndiceModalValidation,
+  IndiceModalWizardStepper,
+} from '../../../components/indice-modal';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
@@ -109,6 +115,7 @@ type SortState = {
   column: SortColumn;
   direction: SortDirection;
 } | null;
+type InviteWizardStep = 'identity' | 'organization' | 'access';
 
 const inputClassName =
   'w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent';
@@ -155,6 +162,8 @@ export default function Users() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedUserForModules, setSelectedUserForModules] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteWizardStep, setInviteWizardStep] = useState<InviteWizardStep>('identity');
+  const [inviteValidationMessage, setInviteValidationMessage] = useState('');
   const [showResendModal, setShowResendModal] = useState(false);
   const [selectedUserForResend, setSelectedUserForResend] = useState<string | null>(null);
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<string | null>(null);
@@ -486,6 +495,44 @@ export default function Users() {
     complementary: t.sections.complementaryModules,
     ai: t.sections.aiModules,
   };
+  const inviteWizardCopy = getInviteWizardCopy(currentLanguage.code);
+  const inviteWizardSteps = [
+    { id: 'identity', label: inviteWizardCopy.identity },
+    { id: 'organization', label: inviteWizardCopy.organization },
+    { id: 'access', label: inviteWizardCopy.access },
+  ] as const;
+  const activeInviteStepIndex = inviteWizardSteps.findIndex((step) => step.id === inviteWizardStep);
+  const inviteIdentityIsValid = Boolean(
+    inviteForm.name.trim()
+    && inviteForm.email.trim()
+    && validateEmail(inviteForm.email.trim()).ok,
+  );
+  const inviteOrganizationIsValid = Boolean(inviteForm.businessUnitId && inviteForm.businessId);
+  const inviteAccessIsValid = inviteModuleIds.length > 0;
+
+  const continueInviteWizard = () => {
+    setInviteValidationMessage('');
+    if (inviteWizardStep === 'identity') {
+      if (!inviteIdentityIsValid) {
+        setInviteValidationMessage(inviteWizardCopy.identityError);
+        return;
+      }
+      setInviteWizardStep('organization');
+      return;
+    }
+    if (inviteWizardStep === 'organization') {
+      if (!inviteOrganizationIsValid) {
+        setInviteValidationMessage(inviteWizardCopy.organizationError);
+        return;
+      }
+      setInviteWizardStep('access');
+    }
+  };
+
+  const goBackInviteWizard = () => {
+    setInviteValidationMessage('');
+    setInviteWizardStep(inviteWizardStep === 'access' ? 'organization' : 'identity');
+  };
 
   const totalUsers = users.length;
   const activeUsers = users.filter((user) => user.status === 'active').length;
@@ -687,6 +734,8 @@ export default function Users() {
     setInviteLink('');
     setInviteEmailStatus(null);
     setCopiedLink(false);
+    setInviteWizardStep('identity');
+    setInviteValidationMessage('');
   };
 
   const closeResendModal = () => {
@@ -813,17 +862,19 @@ export default function Users() {
     const trimmedEmail = inviteForm.email.trim();
 
     if (!trimmedName || !trimmedEmail || !inviteForm.businessUnitId || !inviteForm.businessId || inviteModuleIds.length === 0) {
+      setInviteValidationMessage(getInviteWizardCopy(currentLanguage.code).accessError);
       return;
     }
 
     const emailValidation = validateEmail(trimmedEmail);
     if (!emailValidation.ok) {
-      setLoadError(t.loginPage.emailError);
+      setInviteValidationMessage(t.loginPage.emailError);
       return;
     }
 
     try {
       setLoadError('');
+      setInviteValidationMessage('');
       await runUserFeedbackTask({
         title: 'Sending invitation...',
         description: 'Creating the user invitation and preparing email delivery.',
@@ -1254,6 +1305,8 @@ export default function Users() {
         setInviteLink('');
         setInviteEmailStatus(null);
         setCopiedLink(false);
+        setInviteWizardStep('identity');
+        setInviteValidationMessage('');
         setShowInviteModal(true);
       }}
     >
@@ -1597,25 +1650,38 @@ export default function Users() {
       </div>
 
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl dark:bg-slate-900">
-            <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-blue-700 to-sky-600 px-6 py-6 text-white sm:px-8">
-              <div>
-                <h3 className="text-2xl font-semibold">
-                  {t.panelInicial.users.modal.modules}
-                </h3>
-                <p className="mt-2 text-sm font-medium text-blue-100">{selectedUser.name}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedUserForModules(null)}
-                className="rounded-xl p-2 text-white/90 transition-colors hover:bg-white/15 hover:text-white"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto bg-slate-50 p-5 dark:bg-slate-950 sm:p-8">
+        <IndiceModalFrame
+          bodyClassName="px-5 py-5 sm:px-7"
+          contentClassName="max-h-[88dvh] sm:max-w-5xl"
+          description={selectedUser.name}
+          footer={(
+            <Button
+              onClick={handleSaveSelectedModules}
+              disabled={selectedModulesDraft.length === 0}
+            >
+              {t.panelInicial.users.modal.save}
+            </Button>
+          )}
+          footerLeading={(
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSelectedUserForModules(null)}
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+            >
+              {t.panelInicial.users.modal.cancel}
+            </Button>
+          )}
+          footerSummary={formatSelectedModulesCount(selectedModulesDraft.length)}
+          icon={<Layers3 className="h-5 w-5" />}
+          modalType="operational-workspace"
+          onOpenChange={(open) => {
+            if (!open) setSelectedUserForModules(null);
+          }}
+          open
+          title={t.panelInicial.users.modal.modules}
+          tone="blue"
+        >
               <div className="space-y-8">
                 {categoryMeta.map((section) => (
                   <div key={section.category}>
@@ -1688,412 +1754,344 @@ export default function Users() {
                       }
 	                />
 	              </div>
-	            </div>
-
-            <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                {formatSelectedModulesCount(selectedModulesDraft.length)}
-              </div>
-	              <Button
-	                onClick={handleSaveSelectedModules}
-	                disabled={selectedModulesDraft.length === 0}
-	                className="w-full rounded-xl bg-blue-600 px-6 text-white shadow-sm hover:bg-blue-700 sm:w-auto"
-	              >
-                {t.panelInicial.users.modal.save}
-              </Button>
-            </div>
-          </div>
-        </div>
+        </IndiceModalFrame>
       )}
 
       {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-h-[90vh] w-full max-w-3xl overflow-hidden">
-            <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {t.panelInicial.users.modal.newUser}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {t.panelInicial.users.subtitle}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeInviteModal}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+        <IndiceModalFrame
+          busy={loadingOverlay.isVisible}
+          closeLabel={t.panelInicial.users.modal.cancel}
+          contentClassName="max-h-[min(92dvh,820px)]"
+          description={t.panelInicial.users.subtitle}
+          eyebrow={!inviteLink ? inviteWizardCopy.progress(activeInviteStepIndex + 1, inviteWizardSteps.length) : inviteWizardCopy.completed}
+          footer={inviteLink ? (
+            <Button type="button" onClick={closeInviteModal}>{closeLabel}</Button>
+          ) : (
+            <>
+              {inviteWizardStep !== 'identity' ? (
+                <Button type="button" variant="outline" onClick={goBackInviteWizard}>
+                  {inviteWizardCopy.back}
+                </Button>
+              ) : null}
+              {inviteWizardStep === 'access' ? (
+                <Button
+                  type="submit"
+                  form="dashboard-user-invite-form"
+                  disabled={loadingOverlay.isVisible || !inviteAccessIsValid}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  {t.panelInicial.users.modal.send}
+                </Button>
+              ) : (
+                <Button type="button" onClick={continueInviteWizard}>
+                  {inviteWizardCopy.next}
+                </Button>
+              )}
+            </>
+          )}
+          footerLeading={(
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeInviteModal}
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+            >
+              {t.panelInicial.users.modal.cancel}
+            </Button>
+          )}
+          footerSummary={inviteLink
+            ? (inviteEmailStatus?.sent ? summaryLabels.inviteSuccess : summaryLabels.inviteCreated)
+            : inviteWizardSteps[activeInviteStepIndex]?.label}
+          icon={<UserPlus className="h-5 w-5" />}
+          modalType="wizard"
+          onOpenChange={(open) => {
+            if (!open) closeInviteModal();
+          }}
+          open
+          title={t.panelInicial.users.modal.newUser}
+          tone="blue"
+        >
+          <form id="dashboard-user-invite-form" onSubmit={handleSendInvite} className="space-y-5">
+            {!inviteLink ? (
+              <>
+                <IndiceModalWizardStepper
+                  accent="blue"
+                  activeStepId={inviteWizardStep}
+                  progressLabel={inviteWizardCopy.progress(activeInviteStepIndex + 1, inviteWizardSteps.length)}
+                  steps={inviteWizardSteps}
+                  onStepSelect={(stepId) => {
+                    const requestedIndex = inviteWizardSteps.findIndex((step) => step.id === stepId);
+                    if (requestedIndex <= activeInviteStepIndex) {
+                      setInviteValidationMessage('');
+                      setInviteWizardStep(stepId);
+                    }
+                  }}
+                />
 
-            <form onSubmit={handleSendInvite} className="max-h-[calc(90vh-96px)] overflow-y-auto">
-              <div className="space-y-4 p-4 sm:p-6">
-                {!inviteLink ? (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t.panelInicial.users.modal.name}
-                      </label>
+                <IndiceModalValidation
+                  messages={inviteValidationMessage ? [inviteValidationMessage] : []}
+                  title={inviteWizardCopy.reviewFields}
+                />
+
+                {inviteWizardStep === 'identity' ? (
+                  <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.name}</span>
                       <input
                         type="text"
                         value={inviteForm.name}
                         onChange={(event) => updateInviteForm('name', event.target.value)}
-                        className={`px-4 py-2 ${inputClassName}`}
+                        className={`h-11 px-4 ${inputClassName}`}
                         placeholder={t.panelInicial.users.modal.name}
                         required
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t.panelInicial.users.modal.email}
-                      </label>
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.email}</span>
                       <input
                         type="email"
                         value={inviteForm.email}
                         onChange={(event) => updateInviteForm('email', event.target.value)}
-                        className={`px-4 py-2 ${inputClassName}`}
+                        className={`h-11 px-4 ${inputClassName}`}
                         placeholder="email@company.com"
                         required
                       />
-                    </div>
-
-	                    <div>
-	                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-	                        {t.panelInicial.users.modal.role}
-                      </label>
-                      <div className="relative">
+                    </label>
+                    <label className="space-y-2 sm:col-span-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.role}</span>
+                      <span className="relative block">
                         <select
                           value={inviteForm.role}
-                          onChange={(event) =>
-                            updateInviteForm('role', event.target.value as User['role'])
-                          }
-                          className={`appearance-none cursor-pointer px-4 py-2 pr-10 ${inputClassName}`}
+                          onChange={(event) => updateInviteForm('role', event.target.value as User['role'])}
+                          className={`h-11 appearance-none cursor-pointer px-4 pr-10 ${inputClassName}`}
                         >
-	                          {canAssignSuperAdmin ? (
-	                            <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
-	                          ) : null}
-	                          <option value="Admin">{t.panelInicial.users.roles.admin}</option>
+                          {canAssignSuperAdmin ? <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option> : null}
+                          <option value="Admin">{t.panelInicial.users.roles.admin}</option>
                           <option value="User">{t.panelInicial.users.roles.user}</option>
                         </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-	                      </div>
-	                    </div>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      </span>
+                    </label>
+                  </section>
+                ) : null}
 
-	                    <div className="grid gap-4 sm:grid-cols-2">
-	                      <div>
-	                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-	                          {usersBusinessCopy.businessUnit}
-	                        </label>
-	                        <div className="relative">
-	                          <select
-	                            value={inviteForm.businessUnitId}
-	                            onChange={(event) => updateInviteForm('businessUnitId', event.target.value)}
-	                            required
-	                            className={`appearance-none cursor-pointer px-4 py-2 pr-10 ${inputClassName}`}
-	                          >
-	                            <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
-		                            {assignableBusinessUnitOptions.map((option) => (
-	                              <option key={option.value} value={option.value}>
-	                                {option.label}
-	                              </option>
-	                            ))}
-	                          </select>
-	                          <ChevronDown className="absolute right-3 top-1/2 w-4 h-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
-	                        </div>
-	                      </div>
-
-	                      <div>
-	                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-	                          {usersBusinessCopy.business}
-	                        </label>
-	                        <div className="relative">
-	                          <select
-	                            value={inviteForm.businessId}
-	                            onChange={(event) => updateInviteForm('businessId', event.target.value)}
-	                            required
-	                            className={`appearance-none cursor-pointer px-4 py-2 pr-10 ${inputClassName}`}
-	                          >
-	                            <option value="">{usersBusinessCopy.selectBusiness}</option>
-	                            {inviteBusinessOptions.map((business) => (
-	                              <option key={business.id} value={business.id}>
-	                                {business.name}
-	                              </option>
-	                            ))}
-	                          </select>
-	                          <ChevronDown className="absolute right-3 top-1/2 w-4 h-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
-	                        </div>
-	                      </div>
-	                    </div>
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {t.panelInicial.users.modal.modules}
-                        </label>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          {formatSelectedModulesCount(inviteModuleIds.length)}
-                        </span>
-                      </div>
-                      <div className="grid max-h-44 gap-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900/30 sm:grid-cols-2">
-	                        {assignableModules.map((module) => {
-                          const isSelected = inviteModuleIds.includes(module.id);
-
-                          return (
-                            <button
-                              key={module.id}
-                              type="button"
-                              onClick={() => toggleInviteModule(module.id)}
-                              className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                                isSelected
-                                  ? 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200'
-                                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-200 hover:bg-blue-50/60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-700 dark:hover:bg-blue-900/20'
-                              }`}
-                            >
-                              <span className="min-w-0 truncate">
-                                <span className="mr-2">{module.emoji}</span>
-                                {module.name}
-                              </span>
-                              {isSelected ? (
-                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                              ) : null}
-                            </button>
-                          );
-                        })}
-	                      </div>
-	                      <div className="mt-4">
-	                        <UsersTabPermissionPicker
-		                          catalogTabs={inviteCatalogTabs}
-		                          modules={assignableTabPermissionModules}
-	                          selectedModuleIds={inviteModuleIds}
-	                          selectedPermissionKeys={inviteTabPermissionKeys}
-	                          onChange={(permissionKeys) =>
-                              setInviteTabPermissionKeys(pruneTabPermissionKeysForRole(inviteForm.role, permissionKeys))
-                            }
-	                        />
-	                      </div>
-	                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                      <div className="flex items-center gap-2 text-green-800 dark:text-green-400 mb-2">
-                        <CheckCircle2 className="w-5 h-5" />
-                        <span className="font-medium">
-                          {inviteEmailStatus?.sent ? summaryLabels.inviteSuccess : summaryLabels.inviteCreated}
-                        </span>
-                      </div>
-                      <p className="text-sm text-green-700 dark:text-green-400">{inviteForm.email}</p>
+                {inviteWizardStep === 'organization' ? (
+                  <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersBusinessCopy.businessUnit}</span>
+                      <select
+                        value={inviteForm.businessUnitId}
+                        onChange={(event) => updateInviteForm('businessUnitId', event.target.value)}
+                        className={`h-11 appearance-none cursor-pointer px-4 ${inputClassName}`}
+                        required
+                      >
+                        <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
+                        {assignableBusinessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersBusinessCopy.business}</span>
+                      <select
+                        value={inviteForm.businessId}
+                        onChange={(event) => updateInviteForm('businessId', event.target.value)}
+                        className={`h-11 appearance-none cursor-pointer px-4 ${inputClassName}`}
+                        required
+                      >
+                        <option value="">{usersBusinessCopy.selectBusiness}</option>
+                        {inviteBusinessOptions.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+                      </select>
+                    </label>
+                    <div className="sm:col-span-2">
+                      <IndiceModalSummary
+                        columns={2}
+                        items={[
+                          { label: t.panelInicial.users.modal.name, value: inviteForm.name || '—' },
+                          { label: t.panelInicial.users.modal.role, value: inviteForm.role },
+                        ]}
+                        title={inviteWizardCopy.inheritedProfile}
+                        variant="muted"
+                      />
                     </div>
+                  </section>
+                ) : null}
 
-                    {renderInviteEmailStatus()}
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t.panelInicial.users.modal.inviteLink}
-                      </label>
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <input
-                          type="text"
-                          value={inviteLink}
-                          readOnly
-                          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(inviteLink)}
-                          className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto"
-                        >
-                          {copiedLink ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              {t.panelInicial.users.modal.copied}
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4" />
-                              {t.panelInicial.users.modal.copyLink}
-                            </>
-                          )}
-                        </button>
+                {inviteWizardStep === 'access' ? (
+                  <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-950 dark:text-white">{t.panelInicial.users.modal.modules}</h3>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{formatSelectedModulesCount(inviteModuleIds.length)}</p>
                       </div>
+                      <Layers3 className="h-5 w-5 text-blue-600" />
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50 sm:flex-row sm:items-center sm:justify-end sm:p-6">
-                {!inviteLink ? (
-                  <>
-                    <Button
-                      type="button"
-                      onClick={closeInviteModal}
-                      className="w-full bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 sm:w-auto"
-                    >
-                      {t.panelInicial.users.modal.cancel}
+                    <div className="grid max-h-48 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-950/50 sm:grid-cols-2">
+                      {assignableModules.map((module) => {
+                        const isSelected = inviteModuleIds.includes(module.id);
+                        return (
+                          <button
+                            key={module.id}
+                            type="button"
+                            onClick={() => toggleInviteModule(module.id)}
+                            className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${isSelected
+                              ? 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'}`}
+                          >
+                            <span className="min-w-0 truncate"><span className="mr-2">{module.emoji}</span>{module.name}</span>
+                            {isSelected ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <UsersTabPermissionPicker
+                      catalogTabs={inviteCatalogTabs}
+                      modules={assignableTabPermissionModules}
+                      selectedModuleIds={inviteModuleIds}
+                      selectedPermissionKeys={inviteTabPermissionKeys}
+                      onChange={(permissionKeys) => setInviteTabPermissionKeys(pruneTabPermissionKeysForRole(inviteForm.role, permissionKeys))}
+                    />
+                    <IndiceModalSummary
+                      columns={3}
+                      items={[
+                        { label: t.panelInicial.users.modal.name, value: inviteForm.name || '—' },
+                        { label: usersBusinessCopy.businessUnit, value: assignableBusinessUnitOptions.find((option) => option.value === inviteForm.businessUnitId)?.label || '—' },
+                        { label: t.panelInicial.users.modal.modules, value: formatSelectedModulesCount(inviteModuleIds.length), emphasized: true },
+                      ]}
+                      title={inviteWizardCopy.finalReview}
+                      variant="plain"
+                    />
+                  </section>
+                ) : null}
+              </>
+            ) : (
+              <div className="space-y-4">
+                <IndiceModalSummary
+                  columns={2}
+                  icon={<CheckCircle2 className="h-5 w-5" />}
+                  items={[
+                    { label: t.panelInicial.users.modal.email, value: inviteForm.email, emphasized: true },
+                    { label: t.panelInicial.users.modal.role, value: inviteForm.role },
+                  ]}
+                  title={inviteEmailStatus?.sent ? summaryLabels.inviteSuccess : summaryLabels.inviteCreated}
+                  variant="success"
+                />
+                {renderInviteEmailStatus()}
+                <label className="space-y-2">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.inviteLink}</span>
+                  <span className="flex flex-col gap-2 sm:flex-row">
+                    <input type="text" value={inviteLink} readOnly className={`h-11 flex-1 px-4 ${inputClassName}`} />
+                    <Button type="button" onClick={() => copyToClipboard(inviteLink)} className="h-11 gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                      {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copiedLink ? t.panelInicial.users.modal.copied : t.panelInicial.users.modal.copyLink}
                     </Button>
-	                    <Button
-	                      type="submit"
-	                      disabled={
-	                        loadingOverlay.isVisible
-	                        || !inviteForm.businessUnitId
-	                        || !inviteForm.businessId
-	                        || inviteModuleIds.length === 0
-	                      }
-	                      className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-	                    >
-                      <UserPlus className="w-4 h-4" />
-                      {t.panelInicial.users.modal.send}
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={closeInviteModal}
-                    className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                  >
-                    {closeLabel}
-                  </Button>
-                )}
+                  </span>
+                </label>
               </div>
-            </form>
-          </div>
-        </div>
+            )}
+          </form>
+        </IndiceModalFrame>
       )}
 
       {showResendModal && resendUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4 dark:border-gray-700 sm:p-6">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {t.panelInicial.users.actions.resend}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{resendUser.name}</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeResendModal}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="space-y-4 p-4 sm:p-6">
+        <IndiceModalFrame
+          busy={loadingOverlay.isVisible}
+          contentClassName="sm:max-w-xl"
+          description={resendUser.name}
+          footer={inviteLink ? (
+            <Button type="button" onClick={closeResendModal}>{closeLabel}</Button>
+          ) : (
+            <Button type="button" onClick={handleResendInvite} disabled={loadingOverlay.isVisible}>
+              <Mail className="h-4 w-4" />
+              {t.panelInicial.users.actions.resend}
+            </Button>
+          )}
+          footerLeading={(
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeResendModal}
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+            >
+              {t.panelInicial.users.modal.cancel}
+            </Button>
+          )}
+          footerSummary={newEmail.trim() || resendUser.email}
+          icon={<Mail className="h-5 w-5" />}
+          modalType="standard-form"
+          onOpenChange={(open) => {
+            if (!open) closeResendModal();
+          }}
+          open
+          title={t.panelInicial.users.actions.resend}
+          tone="blue"
+        >
+            <div className="space-y-4">
               {!inviteLink ? (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block space-y-2">
+                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       {t.panelInicial.users.modal.email}
-                    </label>
+                    </span>
                     <input
                       type="text"
                       value={resendUser.email}
                       disabled
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
                     />
-                  </div>
+                  </label>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block space-y-2">
+                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       {resendEmailLabel}
-                    </label>
+                    </span>
                     <input
                       type="email"
                       value={newEmail}
                       onChange={(event) => setNewEmail(event.target.value)}
-                      className={`px-4 py-2 ${inputClassName}`}
+                      className={`h-11 px-4 ${inputClassName}`}
                       placeholder={t.panelInicial.users.modal.email}
                     />
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
                       {resendEmailHint}
                     </p>
-                  </div>
+                  </label>
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                    <div className="flex items-center gap-2 text-green-800 dark:text-green-400 mb-2">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span className="font-medium">
-                        {inviteEmailStatus?.sent ? summaryLabels.resendSuccess : summaryLabels.resendCreated}
-                      </span>
-                    </div>
-                    <p className="text-sm text-green-700 dark:text-green-400">
-                      {newEmail.trim() || resendUser.email}
-                    </p>
-                  </div>
+                  <IndiceModalSummary
+                    columns={2}
+                    icon={<CheckCircle2 className="h-5 w-5" />}
+                    items={[{ label: t.panelInicial.users.modal.email, value: newEmail.trim() || resendUser.email, emphasized: true }]}
+                    title={inviteEmailStatus?.sent ? summaryLabels.resendSuccess : summaryLabels.resendCreated}
+                    variant="success"
+                  />
 
                   {renderInviteEmailStatus()}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block space-y-2">
+                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                       {t.panelInicial.users.modal.inviteLink}
-                    </label>
-                    <div className="flex flex-col gap-2 sm:flex-row">
+                    </span>
+                    <span className="flex flex-col gap-2 sm:flex-row">
                       <input
                         type="text"
                         value={inviteLink}
                         readOnly
-                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className={`h-11 flex-1 px-4 ${inputClassName}`}
                       />
-                      <button
+                      <Button
                         type="button"
                         onClick={() => copyToClipboard(inviteLink)}
-                        className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto"
+                        className="h-11 gap-2 bg-blue-600 text-white hover:bg-blue-700"
                       >
-                        {copiedLink ? (
-                          <>
-                            <Check className="w-4 h-4" />
-                            {t.panelInicial.users.modal.copied}
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4" />
-                            {t.panelInicial.users.modal.copyLink}
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                        {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copiedLink ? t.panelInicial.users.modal.copied : t.panelInicial.users.modal.copyLink}
+                      </Button>
+                    </span>
+                  </label>
                 </div>
               )}
             </div>
-
-            <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50 sm:flex-row sm:items-center sm:justify-end sm:p-6">
-              {!inviteLink ? (
-                <>
-                  <Button
-                    type="button"
-                    onClick={closeResendModal}
-                    className="w-full bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 sm:w-auto"
-                  >
-                    {t.panelInicial.users.modal.cancel}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleResendInvite}
-                    disabled={loadingOverlay.isVisible}
-                    className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                  >
-                    <Mail className="w-4 h-4" />
-                    {t.panelInicial.users.actions.resend}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={closeResendModal}
-                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                >
-                  {closeLabel}
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+        </IndiceModalFrame>
       )}
 
       <LoadingBarOverlay
@@ -2115,6 +2113,61 @@ export default function Users() {
       />
     </div>
   );
+}
+
+function getInviteWizardCopy(languageCode: string) {
+  if (languageCode === 'en-US' || languageCode === 'en-CA') {
+    return {
+      access: 'Access', accessError: 'Select at least one module before sending the invitation.', back: 'Back',
+      completed: 'Invitation ready', finalReview: 'Final review', identity: 'Profile',
+      identityError: 'Enter a valid name and email address to continue.', inheritedProfile: 'Profile to invite',
+      next: 'Continue', organization: 'Organization', organizationError: 'Select a business unit and business to continue.',
+      progress: (step: number, total: number) => `Step ${step} of ${total}`, reviewFields: 'Review the required fields',
+    };
+  }
+  if (languageCode === 'fr-CA') {
+    return {
+      access: 'Accès', accessError: 'Sélectionnez au moins un module avant d’envoyer l’invitation.', back: 'Retour',
+      completed: 'Invitation prête', finalReview: 'Révision finale', identity: 'Profil',
+      identityError: 'Saisissez un nom et une adresse courriel valides pour continuer.', inheritedProfile: 'Profil à inviter',
+      next: 'Continuer', organization: 'Organisation', organizationError: 'Sélectionnez une unité et une entreprise pour continuer.',
+      progress: (step: number, total: number) => `Étape ${step} sur ${total}`, reviewFields: 'Vérifiez les champs requis',
+    };
+  }
+  if (languageCode === 'pt-BR') {
+    return {
+      access: 'Acesso', accessError: 'Selecione pelo menos um módulo antes de enviar o convite.', back: 'Voltar',
+      completed: 'Convite pronto', finalReview: 'Revisão final', identity: 'Perfil',
+      identityError: 'Informe um nome e um email válidos para continuar.', inheritedProfile: 'Perfil a convidar',
+      next: 'Continuar', organization: 'Organização', organizationError: 'Selecione uma unidade e um negócio para continuar.',
+      progress: (step: number, total: number) => `Etapa ${step} de ${total}`, reviewFields: 'Revise os campos obrigatórios',
+    };
+  }
+  if (languageCode === 'ko-CA') {
+    return {
+      access: '접근 권한', accessError: '초대하기 전에 하나 이상의 모듈을 선택하세요.', back: '뒤로',
+      completed: '초대 준비 완료', finalReview: '최종 검토', identity: '프로필',
+      identityError: '계속하려면 유효한 이름과 이메일을 입력하세요.', inheritedProfile: '초대할 프로필',
+      next: '계속', organization: '조직', organizationError: '계속하려면 조직 단위와 사업체를 선택하세요.',
+      progress: (step: number, total: number) => `${total}단계 중 ${step}단계`, reviewFields: '필수 항목을 확인하세요',
+    };
+  }
+  if (languageCode === 'zh-CA') {
+    return {
+      access: '访问权限', accessError: '发送邀请前请至少选择一个模块。', back: '返回',
+      completed: '邀请已准备好', finalReview: '最终检查', identity: '个人资料',
+      identityError: '请输入有效的姓名和电子邮箱。', inheritedProfile: '待邀请资料',
+      next: '继续', organization: '组织', organizationError: '请选择业务单位和业务。',
+      progress: (step: number, total: number) => `第 ${step} 步，共 ${total} 步`, reviewFields: '请检查必填字段',
+    };
+  }
+  return {
+    access: 'Accesos', accessError: 'Selecciona al menos un módulo antes de enviar la invitación.', back: 'Atrás',
+    completed: 'Invitación lista', finalReview: 'Revisión final', identity: 'Perfil',
+    identityError: 'Ingresa un nombre y un correo válidos para continuar.', inheritedProfile: 'Perfil por invitar',
+    next: 'Continuar', organization: 'Organización', organizationError: 'Selecciona una unidad y un negocio para continuar.',
+    progress: (step: number, total: number) => `Paso ${step} de ${total}`, reviewFields: 'Revisa los campos necesarios',
+  };
 }
 
 function buildAvailableModules(t: any): AvailableModule[] {

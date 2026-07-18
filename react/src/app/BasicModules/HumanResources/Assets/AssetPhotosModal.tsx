@@ -1,14 +1,7 @@
-import { ExternalLink, ImageIcon, X } from 'lucide-react';
+import { ExternalLink, ImageIcon } from 'lucide-react';
 import type { HrAssetPhoto } from '../../../api/HumanResources/assets';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../components/indice-modal';
 import { cn } from '../../../components/ui/utils';
 import type { AssetRow } from './types/assets.types';
 import { useAssetsTranslations } from './hooks/useAssetsTranslations';
@@ -34,41 +27,18 @@ export function AssetPhotosModal({
   const isDarkMode = useAssetsPortalTheme();
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : undefined)}>
-      <DialogContent
-        hideCloseButton
-        className={cn(
-          'max-h-[88vh] max-w-4xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-[26px] p-0 sm:max-w-4xl',
-          isDarkMode
-            ? 'border border-slate-700 bg-slate-950 text-white shadow-[0_28px_60px_rgba(4,10,30,0.5)]'
-            : 'border border-gray-200 bg-white text-gray-900 shadow-[0_28px_60px_rgba(15,23,42,0.18)]',
-        )}
-      >
-        <DialogHeader className="flex-row items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-left text-white">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
-              <ImageIcon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <DialogTitle className="text-2xl font-semibold text-white">
-                {copy.title}
-              </DialogTitle>
-              <DialogDescription className="mt-1 text-sm font-medium text-white/75">
-                {asset?.name ?? copy.title} · {copy.count(photos.length)}
-              </DialogDescription>
-            </div>
-          </div>
-          <button
-            type="button"
-            aria-label={copy.close}
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </DialogHeader>
-
-        <div className="min-h-0 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
+    <IndiceModalFrame
+      closeLabel={copy.close}
+      contentClassName="sm:max-w-4xl"
+      description={`${asset?.name ?? copy.title} · ${copy.count(photos.length)}`}
+      footer={<Button type="button" onClick={onClose}>{copy.close}</Button>}
+      icon={<ImageIcon className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => (!open ? onClose() : undefined)}
+      open={isOpen}
+      title={copy.title}
+      tone="aqua"
+    >
           <p className={cn('mb-5 text-sm leading-6', isDarkMode ? 'text-slate-300' : 'text-slate-600')}>
             {copy.subtitle}
           </p>
@@ -128,18 +98,6 @@ export function AssetPhotosModal({
               {copy.empty}
             </div>
           )}
-        </div>
-
-        <DialogFooter className="bg-[#59C3A5] px-6 py-4 text-white sm:justify-end">
-          <Button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90"
-          >
-            {copy.close}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }

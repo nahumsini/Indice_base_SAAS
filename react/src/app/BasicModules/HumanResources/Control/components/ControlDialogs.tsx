@@ -1,12 +1,6 @@
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { CalendarClock, MapPin, MapPinned, UsersRound } from 'lucide-react';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import {
   type AttendanceControlAssignment,
   type AttendanceControlAssignmentPayload,
@@ -119,13 +113,19 @@ export function ControlContractSiteDialog({
   onSave: () => void;
 }) {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{copy.sections.locationsHint}</DialogDescription>
-        </DialogHeader>
-
+    <IndiceModalFrame
+      busy={isSaving}
+      contentClassName="sm:max-w-4xl"
+      description={copy.sections.locationsHint}
+      footer={<Button onClick={onSave} disabled={isSaving}>{copy.labels.save}</Button>}
+      footerLeading={<Button variant="outline" onClick={onClose} disabled={isSaving}>{copy.labels.cancel}</Button>}
+      icon={<MapPinned className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={title}
+      tone="aqua"
+    >
         <div className="grid gap-5 lg:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.locationName}</label>
@@ -237,13 +237,7 @@ export function ControlContractSiteDialog({
 	            </div>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button onClick={onSave} disabled={isSaving}>{copy.labels.save}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -269,13 +263,19 @@ export function ControlTemplateDialog({
   onSave: () => void;
 }) {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{copy.sections.templatesHint}</DialogDescription>
-        </DialogHeader>
-
+    <IndiceModalFrame
+      busy={isSaving}
+      contentClassName="sm:max-w-4xl"
+      description={copy.sections.templatesHint}
+      footer={<Button onClick={onSave} disabled={isSaving}>{copy.labels.save}</Button>}
+      footerLeading={<Button variant="outline" onClick={onClose} disabled={isSaving}>{copy.labels.cancel}</Button>}
+      icon={<CalendarClock className="h-5 w-5" />}
+      modalType="operational-workspace"
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={title}
+      tone="aqua"
+    >
         <div className="grid gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -382,13 +382,7 @@ export function ControlTemplateDialog({
             ))}
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button onClick={onSave} disabled={isSaving}>{copy.labels.save}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -428,15 +422,31 @@ export function ControlAssignmentDialog({
         : hasInvalidDateRange
           ? copy.labels.endDateBeforeStart
           : '';
+  const cannotSaveAssignment =
+    isSaving ||
+    form.user_company_ids.length === 0 ||
+    form.template_id <= 0 ||
+    Boolean(dateValidationMessage) ||
+    form.user_company_ids.some((employeeId) => {
+      const assignment = assignments.find((item) => item.user_company_id === employeeId);
+      return assignment ? Boolean(getAssignmentBusyReason(assignment)) : false;
+    });
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{copy.labels.bulkAssign}</DialogTitle>
-          <DialogDescription>{copy.labels.assignmentHint}</DialogDescription>
-        </DialogHeader>
-
+    <IndiceModalFrame
+      busy={isSaving}
+      contentClassName="sm:max-w-4xl"
+      description={copy.labels.assignmentHint}
+      footer={<Button onClick={onSave} disabled={cannotSaveAssignment}>{copy.labels.save}</Button>}
+      footerLeading={<Button variant="outline" onClick={onClose} disabled={isSaving}>{copy.labels.cancel}</Button>}
+      footerSummary={`${form.user_company_ids.length} ${copy.labels.employeesToAssign}`}
+      icon={<UsersRound className="h-5 w-5" />}
+      modalType="operational-workspace"
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={copy.labels.bulkAssign}
+      tone="aqua"
+    >
         <div className="grid gap-4">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.chooseTemplate}</label>
@@ -529,27 +539,7 @@ export function ControlAssignmentDialog({
             ) : null}
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button
-            onClick={onSave}
-            disabled={
-              isSaving ||
-              form.user_company_ids.length === 0 ||
-              form.template_id <= 0 ||
-              Boolean(dateValidationMessage) ||
-              form.user_company_ids.some((employeeId) => {
-                const assignment = assignments.find((item) => item.user_company_id === employeeId);
-                return assignment ? Boolean(getAssignmentBusyReason(assignment)) : false;
-              })
-            }
-          >
-            {copy.labels.save}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -601,17 +591,27 @@ export function ControlWorkSiteDialog({
               selectedLocation?.contract_end_date ?? copy.labels.lastConfiguredDay,
             )
           : '';
+  const cannotSaveWorkSite = isSaving
+    || form.location_id <= 0
+    || !form.effective_start_date
+    || Boolean(dateValidationMessage)
+    || !form.start_time
+    || !form.end_time
+    || invalidTimeRange;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{copy.labels.assignContractSiteTitle(employeeName)}</DialogTitle>
-          <DialogDescription>
-            {copy.labels.assignContractSiteDescription}
-          </DialogDescription>
-        </DialogHeader>
-
+    <IndiceModalFrame
+      busy={isSaving}
+      description={copy.labels.assignContractSiteDescription}
+      footer={<Button onClick={onSave} disabled={cannotSaveWorkSite}>{copy.labels.save}</Button>}
+      footerLeading={<Button variant="outline" onClick={onClose} disabled={isSaving}>{copy.labels.cancel}</Button>}
+      icon={<MapPin className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={copy.labels.assignContractSiteTitle(employeeName)}
+      tone="aqua"
+    >
         <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/60 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.contractSiteLabel}</p>
@@ -727,18 +727,7 @@ export function ControlWorkSiteDialog({
             </div>
           ) : null}
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{copy.labels.cancel}</Button>
-          <Button
-            onClick={onSave}
-            disabled={isSaving || form.location_id <= 0 || !form.effective_start_date || Boolean(dateValidationMessage) || !form.start_time || !form.end_time || invalidTimeRange}
-          >
-            {copy.labels.save}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 

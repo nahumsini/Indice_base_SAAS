@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Calendar, ShieldCheck, Upload } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import {
@@ -141,24 +141,34 @@ export function CreatePermissionModal({ copy, isOpen, onClose, onSubmit }: Creat
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-hidden rounded-[28px] border border-[#59C3A5]/25 bg-white p-0 text-slate-900 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
-        <DialogHeader className="bg-[#59C3A5] px-7 py-5 text-white">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <DialogTitle className="text-2xl font-semibold text-white">{copy.modal.title}</DialogTitle>
-              <DialogDescription className="mt-1 text-sm font-medium text-white/85">
-                {copy.modal.subtitle}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="flex max-h-[calc(90vh-116px)] flex-col">
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-slate-50/70 px-7 py-6 dark:bg-slate-900/60">
+    <IndiceModalFrame
+      bodyClassName="p-0"
+      busy={isSubmitting}
+      description={copy.modal.subtitle}
+      footer={(
+        <Button
+          type="submit"
+          form="hr-permission-form"
+          disabled={isSubmitting || !formData.type || !formData.startDate || !formData.endDate || !formData.reason.trim() || totalDays <= 0}
+        >
+          {isSubmitting ? copy.modal.submitting : copy.modal.submit}
+        </Button>
+      )}
+      footerLeading={(
+        <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+          {copy.modal.cancel}
+        </Button>
+      )}
+      footerSummary={totalDays > 0 ? `${copy.modal.totalDays}: ${totalDays}` : undefined}
+      icon={<ShieldCheck className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => { if (!open) handleClose(); }}
+      open={isOpen}
+      title={copy.modal.title}
+      tone="aqua"
+    >
+        <form id="hr-permission-form" onSubmit={handleSubmit}>
+          <div className="space-y-6 px-7 py-6">
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -308,28 +318,8 @@ export function CreatePermissionModal({ copy, isOpen, onClose, onSubmit }: Creat
               </div>
             ) : null}
           </div>
-
-          <div className="flex justify-end gap-3 border-t border-[#59C3A5]/20 bg-[#59C3A5] px-7 py-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              className="h-11 rounded-xl border-white/30 bg-white/10 px-5 font-semibold text-white hover:bg-white/20 hover:text-white"
-            >
-              {copy.modal.cancel}
-            </Button>
-            <Button
-              type="submit"
-              className="h-11 rounded-xl bg-white px-5 font-semibold text-[#159A7D] shadow-sm hover:bg-slate-50"
-              disabled={isSubmitting || !formData.type || !formData.startDate || !formData.endDate || !formData.reason.trim() || totalDays <= 0}
-            >
-              {isSubmitting ? copy.modal.submitting : copy.modal.submit}
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 

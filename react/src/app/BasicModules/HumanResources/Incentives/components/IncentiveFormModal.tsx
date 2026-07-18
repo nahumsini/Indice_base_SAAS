@@ -1,8 +1,10 @@
-import { CalendarDays, Gift, HandCoins, Search, Users, X } from 'lucide-react';
+import { CalendarDays, Gift, HandCoins, Search, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import type { BackendHrUser } from '../../../../api/humanResources';
 import type { CreateHrIncentivePayload } from '../../../../api/HumanResources/incentives';
+import { Button } from '../../../../components/ui/button';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 
 interface IncentiveFormModalProps {
   defaultCurrency?: string;
@@ -103,31 +105,32 @@ export function IncentiveFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white shadow-2xl dark:border-[#59C3A5]/25 dark:bg-slate-900">
-        <header className="flex items-center justify-between bg-[#59C3A5] px-7 py-5 text-white">
-          <div className="flex items-center gap-4">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-              <Gift className="h-6 w-6" />
-            </span>
-            <div>
-              <h2 className="text-2xl font-bold">Agregar incentivo</h2>
-              <p className="text-sm font-medium text-white/85">Registra una percepción que se aplicará a la siguiente corrida.</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 text-white transition hover:bg-white/10"
-            aria-label="Cerrar modal"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </header>
-
-        <div className="flex-1 space-y-5 overflow-y-auto p-7">
+    <IndiceModalFrame
+      busy={isSaving}
+      description="Registra una percepción que se aplicará a la siguiente corrida."
+      footer={(
+        <Button type="button" onClick={handleSave} disabled={!canSave || isSaving}>
+          {isSaving ? 'Guardando...' : 'Guardar incentivo'}
+        </Button>
+      )}
+      footerLeading={(
+        <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+          Cancelar
+        </Button>
+      )}
+      footerSummary={scopeAll ? 'Se aplicará a todo el personal activo.' : `${selectedEmployeeIds.length} colaboradores seleccionados.`}
+      icon={<Gift className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+      open={isOpen}
+      title="Agregar incentivo"
+      tone="aqua"
+    >
+        <div className="space-y-5">
           <section className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
-            <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-slate-500">
+            <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-600">
               <HandCoins className="h-4 w-4 text-[#59C3A5]" />
               Incentivo
             </h3>
@@ -201,7 +204,7 @@ export function IncentiveFormModal({
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-slate-500">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-slate-600">
                 <Users className="h-4 w-4 text-[#59C3A5]" />
                 Colaboradores
               </h3>
@@ -247,33 +250,14 @@ export function IncentiveFormModal({
             ) : null}
           </section>
         </div>
-
-        <footer className="flex justify-end gap-3 bg-[#59C3A5] px-7 py-5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-white/30 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!canSave || isSaving}
-            className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#168D73] shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-white/55 disabled:text-[#168D73]/45"
-          >
-            {isSaving ? 'Guardando...' : 'Guardar incentivo'}
-          </button>
-        </footer>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }
 
 function Field({ children, label, required = false }: { children: ReactNode; label: string; required?: boolean }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-bold text-slate-600">
+      <span className="mb-2 block text-sm font-medium text-slate-600">
         {label}
         {required ? <span className="text-rose-500"> *</span> : null}
       </span>

@@ -1,25 +1,12 @@
-import { MonitorSmartphone, Plus, X } from 'lucide-react';
+import { MonitorSmartphone, Plus } from 'lucide-react';
 import {
   type AttendanceControlLocation,
   type AttendanceKioskDevice,
 } from '../../../../../api/humanResources';
 import { Button } from '../../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../../components/indice-modal';
 import { type AttendanceControlCopy, statusClasses } from '../ControlAttendanceWidgets';
 import { KioskCard } from './KioskCard';
-import {
-  hrModalCloseButtonClassName,
-  hrModalFooterClassName,
-  hrModalHeaderClassName,
-  hrModalShellClassName,
-} from '../../../shared/hrModalStyles';
 
 type KioskType = 'business_unit' | 'contract_site' | 'head_office' | 'open_attendance';
 
@@ -197,43 +184,20 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
     onDelete,
   } = props;
   return (
-    <Dialog
+    <IndiceModalFrame
+      busy={isSaving}
+      closeLabel={copy.kiosk.management.closeAria}
+      contentClassName="sm:max-w-5xl"
+      description={copy.kiosk.management.description}
+      footer={<Button type="button" onClick={onClose}>{copy.kiosk.management.closeButton}</Button>}
+      footerSummary={copy.kiosk.management.centerDescription}
+      icon={<MonitorSmartphone className="h-5 w-5" />}
+      modalType="operational-workspace"
+      onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}
       open={isOpen}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          onClose();
-        }
-      }}
+      title={copy.kiosk.management.title}
+      tone="aqua"
     >
-      <DialogContent
-        hideCloseButton
-        className={`max-h-[88vh] sm:max-w-5xl ${hrModalShellClassName}`}
-      >
-        <div className={hrModalHeaderClassName}>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15">
-                <MonitorSmartphone className="h-5 w-5" />
-              </span>
-              <DialogHeader className="gap-1 text-left">
-                <DialogTitle className="text-xl font-semibold text-white">{copy.kiosk.management.title}</DialogTitle>
-                <DialogDescription className="text-sm text-white/80">
-                  {copy.kiosk.management.description}
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-            <button
-              type="button"
-              className={hrModalCloseButtonClassName}
-              aria-label={copy.kiosk.management.closeAria}
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.kiosk.management.centerTitle}</p>
@@ -298,19 +262,6 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               </Button>
             </div>
           )}
-        </div>
-
-        <DialogFooter className={hrModalFooterClassName}>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-lg border-white/30 bg-white text-[#59C3A5] hover:bg-white/90 hover:text-[#59C3A5]"
-            onClick={onClose}
-          >
-            {copy.kiosk.management.closeButton}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }

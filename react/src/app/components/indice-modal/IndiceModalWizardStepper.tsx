@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 import { cn } from '../ui/utils';
 
-export type IndiceModalAccent = 'aqua' | 'coral' | 'green' | 'yellow';
+export type IndiceModalAccent = 'aqua' | 'blue' | 'coral' | 'green' | 'yellow';
 
 export type IndiceModalWizardStep<StepId extends string> = {
   id: StepId;
@@ -21,6 +21,10 @@ const accentStyles: Record<IndiceModalAccent, { active: string; progress: string
   aqua: {
     active: 'border-[#59C3A5] bg-[#59C3A5] text-white',
     progress: 'bg-[#59C3A5]',
+  },
+  blue: {
+    active: 'border-[#2563EB] bg-[#2563EB] text-white',
+    progress: 'bg-[#2563EB]',
   },
   coral: {
     active: 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831]',

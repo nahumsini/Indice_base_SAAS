@@ -12,10 +12,9 @@ import {
   Trash2,
   User,
   Users,
-  X,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import type { EmployeeRecord, RecordSeverity, RecordStatus, RecordType } from '../types/records.types';
 import type { RecordDetailCopy } from '../translations';
 
@@ -119,42 +118,79 @@ export function RecordDetailModal({
   const typeInfo = typeConfig[record.type];
   const statusInfo = statusConfig[record.status];
   const severityInfo = record.severity ? severityConfig[record.severity] : null;
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(record.id);
+      setIsDeleteConfirmOpen(false);
+      onClose();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-[#C9EDE3] bg-[#F7FBFA] text-slate-950 shadow-2xl dark:border-[#2A6356] dark:bg-[#0D1F1B] dark:text-white">
-        <div className="sticky top-0 z-10 border-b border-[#59C3A5]/35 bg-[#59C3A5] px-6 py-5 text-white dark:bg-[#2E9D84]">
-          <div className="mb-3 flex items-start justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white shadow-sm">
-                {typeInfo.icon}
-                {copy.types[record.type]}
-              </span>
-              <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white shadow-sm">
-                {copy.status[record.status]}
-              </span>
-              {severityInfo ? (
-                <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-semibold ${severityInfo.bgColor} ${severityInfo.color}`}>
-                  {copy.severity[record.severity!]}
-                </span>
-              ) : null}
-            </div>
-            <button
-              onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-              aria-label={copy.actions.close}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <h2 className="mb-1 text-2xl font-bold text-white">{record.title}</h2>
-          <p className="text-sm font-medium text-white/75">
-            {record.recordNumber || copy.detail.recordNumber(record.id)}
-          </p>
+    <IndiceModalFrame
+      busy={isDeleting}
+      closeLabel={copy.actions.close}
+      contentClassName="sm:max-w-4xl"
+      description={isDeleteConfirmOpen ? copy.detail.deleteConfirm : record.recordNumber || copy.detail.recordNumber(record.id)}
+      footer={isDeleteConfirmOpen ? (
+        <>
+          <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)} disabled={isDeleting}>{copy.actions.close}</Button>
+          <Button onClick={() => { void handleDelete(); }} disabled={isDeleting}>
+            <Trash2 className="h-4 w-4" />
+            {isDeleting ? copy.actions.deleting : copy.actions.delete}
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button variant="outline" onClick={() => { void onDownload(record); }}>
+            <Download className="h-4 w-4" />
+            {copy.actions.downloadPdf}
+          </Button>
+          {canManage ? (
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              {copy.actions.delete}
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={onClose}>{copy.actions.close}</Button>
+          {canManage ? (
+            <Button onClick={() => onEdit(record)}>
+              <Pencil className="h-4 w-4" />
+              {copy.actions.editRecord}
+            </Button>
+          ) : null}
+        </>
+      )}
+      icon={isDeleteConfirmOpen ? <Trash2 className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+      modalType={isDeleteConfirmOpen ? 'confirmation' : 'standard-form'}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={isDeleteConfirmOpen ? copy.actions.delete : record.title}
+      tone="aqua"
+    >
+      {isDeleteConfirmOpen ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm leading-6 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+          {copy.detail.deleteConfirm}
         </div>
-
-        <div className="space-y-6 bg-[#F7FBFA] p-6 dark:bg-[#0D1F1B]">
+      ) : (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium ${typeInfo.bgColor} ${typeInfo.color}`}>
+              {typeInfo.icon}
+              {copy.types[record.type]}
+            </span>
+            <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium ${statusInfo.bgColor} ${statusInfo.color}`}>
+              {copy.status[record.status]}
+            </span>
+            {severityInfo ? (
+              <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium ${severityInfo.bgColor} ${severityInfo.color}`}>
+                {copy.severity[record.severity!]}
+              </span>
+            ) : null}
+          </div>
           <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
             <div className="flex items-start gap-4">
               <div className="rounded-xl bg-[#59C3A5] p-3 shadow-sm">
@@ -173,14 +209,14 @@ export function RecordDetailModal({
             <div className="rounded-2xl border border-[#DCEFEA] bg-white p-5 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.eventDate}</span>
+                <span className="text-sm font-medium">{copy.detail.eventDate}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">{formatDate(record.eventDate, locale)}</p>
             </div>
             <div className="rounded-2xl border border-[#DCEFEA] bg-white p-5 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <FileText className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">{copy.detail.reportedBy}</span>
+                <span className="text-sm font-medium">{copy.detail.reportedBy}</span>
               </div>
               <p className="font-medium text-gray-900 dark:text-white">{record.reportedBy.name}</p>
             </div>
@@ -273,70 +309,7 @@ export function RecordDetailModal({
             </div>
           </div>
         </div>
-
-        <div className="sticky bottom-0 flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              className="gap-2 rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90"
-              onClick={() => {
-                void onDownload(record);
-              }}
-            >
-              <Download className="h-4 w-4" />
-              {copy.actions.downloadPdf}
-            </Button>
-            {canManage ? (
-              <Button
-                className="gap-2 rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
-                onClick={() => setIsDeleteConfirmOpen(true)}
-                disabled={isDeleting}
-              >
-                <Trash2 className="h-4 w-4" />
-                {isDeleting ? copy.actions.deleting : copy.actions.delete}
-              </Button>
-            ) : null}
-          </div>
-          <div className="flex gap-3">
-            <Button className="rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.actions.close}</Button>
-            {canManage ? (
-              <Button
-                className="gap-2 rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90"
-                onClick={() => onEdit(record)}
-              >
-                <Pencil className="h-4 w-4" />
-                {copy.actions.editRecord}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      </div>
-      {canManage ? (
-        <ConfirmDeleteDialog
-          isVisible={isDeleteConfirmOpen}
-          title={copy.actions.delete}
-          itemName={record.title}
-          description={copy.detail.deleteConfirm}
-          confirmLabel={isDeleting ? copy.actions.deleting : copy.actions.delete}
-          cancelLabel={copy.actions.close}
-          confirmDisabled={isDeleting}
-          onCancel={() => {
-            if (!isDeleting) {
-              setIsDeleteConfirmOpen(false);
-            }
-          }}
-          onConfirm={async () => {
-            setIsDeleting(true);
-            try {
-              await onDelete(record.id);
-              setIsDeleteConfirmOpen(false);
-              onClose();
-            } finally {
-              setIsDeleting(false);
-            }
-          }}
-        />
-      ) : null}
-    </>
+      )}
+    </IndiceModalFrame>
   );
 }

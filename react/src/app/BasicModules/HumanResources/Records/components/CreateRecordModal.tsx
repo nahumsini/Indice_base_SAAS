@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import type {
   CreateRecordData,
   EmployeeRecord,
@@ -220,28 +221,30 @@ export function CreateRecordModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white text-slate-950 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-white">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
-              <UserPlus className="h-5 w-5" />
-            </span>
-            <h2 className="min-w-0 truncate text-2xl font-semibold text-white">
-              {editingRecord ? copy.modal.editTitle : copy.modal.newTitle}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-            aria-label={copy.modal.close}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-6 bg-slate-50/70 p-6 dark:bg-slate-950/40">
+    <IndiceModalFrame
+      busy={isSaving}
+      closeLabel={copy.modal.close}
+      description={copy.modal.noticeDescription}
+      footer={(
+        <Button type="button" onClick={handleSave} disabled={!isFullyValid || isSaving}>
+          {isSaving ? copy.modal.saving : editingRecord ? copy.modal.saveChanges : copy.modal.createRecord}
+        </Button>
+      )}
+      footerLeading={(
+        <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+          {copy.modal.cancel}
+        </Button>
+      )}
+      icon={<UserPlus className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+      open={isOpen}
+      title={editingRecord ? copy.modal.editTitle : copy.modal.newTitle}
+      tone="aqua"
+    >
+        <div className="space-y-6">
           <div className="flex gap-3 rounded-2xl border border-[#C9EDE3] bg-[#EAF8F4] p-4 dark:border-[#59C3A5]/25 dark:bg-[#10231F]">
             <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#1F8A70] dark:text-[#9BE4D0]" />
             <div className="text-sm text-[#145F51] dark:text-[#C6F4E8]">
@@ -608,26 +611,6 @@ export function CreateRecordModal({
             ) : null}
           </div>
         </div>
-
-        <div className="sticky bottom-0 flex items-center justify-end gap-3 bg-[#59C3A5] px-6 py-4 text-white">
-          <Button
-            type="button"
-            onClick={onClose}
-            disabled={isSaving}
-            className="rounded-xl border border-white/35 bg-white/10 text-white hover:bg-white/20"
-          >
-            {copy.modal.cancel}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={!isFullyValid || isSaving}
-            className="rounded-xl bg-white font-semibold text-[#137F68] hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#137F68]/60"
-          >
-            {isSaving ? copy.modal.saving : editingRecord ? copy.modal.saveChanges : copy.modal.createRecord}
-          </Button>
-        </div>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }

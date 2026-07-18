@@ -8,16 +8,9 @@ import {
   LogOut,
   Printer,
   UserX,
-  X,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import { useControlTranslations } from '../hooks/useControlTranslations';
 import type {
   DailyAttendanceMetric,
@@ -331,46 +324,32 @@ export function TimeTableModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
-      <DialogContent
-        className="flex max-h-[94vh] flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white p-0 text-gray-900 shadow-2xl dark:border-[#59C3A5]/25 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[1180px]"
-        overlayClassName="bg-slate-950/55 backdrop-blur-sm"
-        hideCloseButton
-      >
-        <DialogHeader className="sr-only">
-          <DialogTitle>{copy.labels.timeTable}</DialogTitle>
-          <DialogDescription>{copy.timeTable.modalDescription}</DialogDescription>
-        </DialogHeader>
-
-        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#59C3A5] px-6 py-4 text-white dark:bg-[#59C3A5]">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">
-              <CalendarDays className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-xl font-semibold tracking-tight text-white">
-                {copy.labels.timeTable}
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">
-                {copy.timeTable.headerDescription}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-            aria-label={copy.labels.closeModal}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-950/40">
+    <IndiceModalFrame
+      closeLabel={copy.labels.closeModal}
+      contentClassName="sm:max-w-[1180px]"
+      description={copy.timeTable.headerDescription}
+      footer={(
+        <Button type="button" onClick={handlePrintDailyAttendance}>
+          <Printer className="h-4 w-4" />
+          {copy.timeTable.printButton}
+        </Button>
+      )}
+      footerLeading={(
+        <Button type="button" variant="outline" onClick={onClose}>
+          {copy.labels.closeModal}
+        </Button>
+      )}
+      footerSummary={dateLabel}
+      icon={<CalendarDays className="h-5 w-5" />}
+      modalType="operational-workspace"
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      open={isOpen}
+      title={copy.labels.timeTable}
+      tone="aqua"
+    >
+        <div className="space-y-5">
           <TimeTableFilters
             businessFilter={businessFilter}
             businessOptions={businessOptions}
@@ -411,26 +390,6 @@ export function TimeTableModal({
             onSortChange={handleSortChange}
           />
         </div>
-
-        <div className="flex shrink-0 justify-end gap-3 bg-[#59C3A5] px-6 py-3 dark:bg-[#59C3A5]">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="border-white/25 bg-transparent text-white shadow-sm hover:bg-white/10 hover:text-white"
-          >
-            {copy.labels.closeModal}
-          </Button>
-          <Button
-            type="button"
-            onClick={handlePrintDailyAttendance}
-            className="gap-2 border-white bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
-          >
-            <Printer className="h-4 w-4" />
-            {copy.timeTable.printButton}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }

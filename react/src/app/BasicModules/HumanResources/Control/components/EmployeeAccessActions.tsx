@@ -1,15 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, KeyRound, RotateCcw, ScanFace, X } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, RotateCcw, ScanFace } from 'lucide-react';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../../components/LoadingBarOverlay';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import { ApiClientError } from '../../../../lib/apiClient';
 import {
   type AttendanceAccessMethod,
@@ -503,31 +496,50 @@ function AccessProfileDialog({
       : copy.labels.pinStatusLegacy;
 
   return (
-    <>
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        hideCloseButton
-        className="max-h-[90vh] gap-0 overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white p-0 text-gray-900 shadow-2xl dark:border-[#59C3A5]/25 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[720px]"
-        overlayClassName="bg-black/55"
-      >
-        <DialogHeader className="flex-row items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-left">
-          <div className="min-w-0">
-            <DialogTitle className="text-xl font-semibold leading-7 text-white">{title}</DialogTitle>
-            <DialogDescription className="mt-1 max-w-2xl text-sm leading-5 text-blue-100">
-              {copy.labels.metadataHint}
-            </DialogDescription>
+    <IndiceModalFrame
+      busy={isSaving || isResettingPin}
+      closeLabel={copy.labels.closeModal}
+      description={isResetPinDialogOpen ? copy.labels.resetPinSubtitle : copy.labels.metadataHint}
+      footer={isResetPinDialogOpen ? (
+        <Button
+          onClick={() => void handleResetPinConfirm()}
+          disabled={isResettingPin || !canOpenResetPin}
+        >
+          <RotateCcw className="h-4 w-4" />
+          {isResettingPin ? copy.loading : copy.labels.resetPinConfirm}
+        </Button>
+      ) : (
+        <Button onClick={onSave} disabled={isSaving || !form.user_company_id}>
+          {copy.labels.save}
+        </Button>
+      )}
+      footerLeading={(
+        <Button
+          variant="outline"
+          onClick={isResetPinDialogOpen ? () => setIsResetPinDialogOpen(false) : onClose}
+          disabled={isSaving || isResettingPin}
+        >
+          {copy.labels.cancel}
+        </Button>
+      )}
+      icon={isResetPinDialogOpen ? <RotateCcw className="h-5 w-5" /> : <KeyRound className="h-5 w-5" />}
+      modalType={isResetPinDialogOpen ? 'confirmation' : 'standard-form'}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={isResetPinDialogOpen ? copy.labels.resetPinTitle : title}
+      tone="aqua"
+    >
+      {isResetPinDialogOpen ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
+            <p className="font-medium">{copy.labels.resetPinWarningTitle}</p>
+            <p className="mt-1 leading-5">{copy.labels.resetPinWarningDescription}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-            aria-label={copy.labels.closeModal}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </DialogHeader>
-
-        <div className="max-h-[calc(90vh-152px)] overflow-y-auto px-6 py-5">
+          <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
+            {copy.labels.resetPinDescription}
+          </p>
+        </div>
+      ) : (
           <div className="grid gap-4">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.labels.selectedEmployee}</label>
@@ -623,81 +635,7 @@ function AccessProfileDialog({
             ) : null}
           </div>
           </div>
-        </div>
-
-        <DialogFooter className="border-t border-white/10 bg-[#59C3A5] px-6 py-4">
-          <Button
-            variant="outline"
-            className="rounded-md border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
-            onClick={onClose}
-          >
-            {copy.labels.cancel}
-          </Button>
-          <Button
-            className="rounded-md bg-white text-[#59C3A5] hover:bg-blue-50"
-            onClick={onSave}
-            disabled={isSaving || !form.user_company_id}
-          >
-            {copy.labels.save}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog open={isResetPinDialogOpen} onOpenChange={setIsResetPinDialogOpen}>
-      <DialogContent
-        hideCloseButton
-        className="gap-0 overflow-hidden rounded-lg border border-[#59C3A5]/20 bg-white p-0 text-gray-900 shadow-lg dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 sm:max-w-[480px]"
-        overlayClassName="bg-black/55"
-      >
-        <DialogHeader className="flex-row items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-left">
-          <div className="min-w-0">
-            <DialogTitle className="text-lg font-semibold leading-7 text-white">{copy.labels.resetPinTitle}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm leading-5 text-blue-100">
-              {copy.labels.resetPinSubtitle}
-            </DialogDescription>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsResetPinDialogOpen(false)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/85 transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-            aria-label={copy.labels.closeModal}
-            disabled={isResettingPin}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </DialogHeader>
-
-        <div className="px-6 py-5">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
-            <p className="font-semibold">{copy.labels.resetPinWarningTitle}</p>
-            <p className="mt-1 leading-5">{copy.labels.resetPinWarningDescription}</p>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-gray-600 dark:text-gray-300">
-            {copy.labels.resetPinDescription}
-          </p>
-        </div>
-
-        <DialogFooter className="border-t border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-            onClick={() => setIsResetPinDialogOpen(false)}
-            disabled={isResettingPin}
-          >
-            {copy.labels.cancel}
-          </Button>
-          <Button
-            className="rounded-md bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
-            onClick={() => void handleResetPinConfirm()}
-            disabled={isResettingPin || !canOpenResetPin}
-          >
-            <RotateCcw className="h-4 w-4" />
-            {isResettingPin ? copy.loading : copy.labels.resetPinConfirm}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-    </>
+      )}
+    </IndiceModalFrame>
   );
 }

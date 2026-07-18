@@ -192,7 +192,6 @@ export function CreateEmployeeModal({
   }
 
   const currentStepValid = currentStepFields.every((field) => !validationErrors[field]);
-  const progressPercentage = `${(currentStep / modalSteps.length) * 100}%`;
   const primaryButtonLabel = currentStep === 1
     ? copy.buttons.continue
     : currentStep === modalSteps.length
@@ -209,7 +208,6 @@ export function CreateEmployeeModal({
       formRef={formRef}
       mode={mode}
       primaryButtonLabel={primaryButtonLabel}
-      progressPercentage={progressPercentage}
       statusFeedback={statusFeedback}
       steps={modalSteps}
       onBack={() => setCurrentStep((step) => Math.max(1, step - 1))}

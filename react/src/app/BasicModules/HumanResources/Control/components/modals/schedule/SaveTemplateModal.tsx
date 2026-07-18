@@ -1,5 +1,6 @@
-import { Save, X } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { Button } from '../../../../../../components/ui/button';
+import { IndiceModalFrame } from '../../../../../../components/indice-modal';
 import type { ControlTranslations } from '../../../translations';
 
 interface SaveTemplateModalProps {
@@ -28,27 +29,27 @@ export function SaveTemplateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-950">
-        <div className="flex items-center justify-between gap-3 bg-[#59C3A5] px-5 py-4 text-white">
-          <div className="min-w-0">
-            <h3 className="text-base font-semibold text-white">{copy.schedule.saveTemplate.title}</h3>
-            <p className="mt-1 text-sm text-white/75">{copy.schedule.saveTemplate.description}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSaving}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label={copy.schedule.saveTemplate.closeAria}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="space-y-3 p-5">
+    <IndiceModalFrame
+      busy={isSaving}
+      closeLabel={copy.schedule.saveTemplate.closeAria}
+      description={copy.schedule.saveTemplate.description}
+      footer={(
+        <Button type="button" onClick={onSave} disabled={isSaving || !templateName.trim()}>
+          <Save className="h-4 w-4" />
+          {isSaving ? copy.schedule.saveTemplate.saving : copy.schedule.saveTemplate.save}
+        </Button>
+      )}
+      footerLeading={<Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>{copy.schedule.cancel}</Button>}
+      icon={<Save className="h-5 w-5" />}
+      modalType="confirmation"
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      open={isOpen}
+      title={copy.schedule.saveTemplate.title}
+      tone="aqua"
+    >
+        <div className="space-y-3">
           <label>
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            <span className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-300">
               {copy.schedule.saveTemplate.nameLabel}
             </span>
             <input
@@ -76,28 +77,6 @@ export function SaveTemplateModal({
             </p>
           )}
         </div>
-
-        <div className="flex justify-end gap-3 bg-[#59C3A5] px-5 py-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isSaving}
-            className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
-          >
-            {copy.schedule.cancel}
-          </Button>
-          <Button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className="gap-2 bg-white text-[#59C3A5] shadow-sm hover:bg-white/90 hover:text-[#59C3A5]"
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? copy.schedule.saveTemplate.saving : copy.schedule.saveTemplate.save}
-          </Button>
-        </div>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }

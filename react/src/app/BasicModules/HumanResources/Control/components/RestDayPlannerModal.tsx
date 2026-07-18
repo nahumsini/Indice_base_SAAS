@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   GripVertical,
@@ -14,6 +13,7 @@ import type {
   AttendanceRestPlanAssignment,
 } from "../../../../api/humanResources";
 import { Button } from "../../../../components/ui/button";
+import { IndiceModalFrame } from "../../../../components/indice-modal";
 import type { AttendanceControlCopy } from "./ControlAttendanceWidgets";
 
 type PlannedRestAssignments = Record<number, Set<string>>;
@@ -183,42 +183,43 @@ export function RestDayPlannerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-white/30 dark:bg-slate-950">
-        <header className="bg-[#59C3A5] px-6 py-5 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/18">
-                <Moon className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/80">
-                  {copy.labels.restPlannerEyebrow}
-                </p>
-                <h2 className="mt-1 text-2xl font-bold">
-                  {copy.labels.restPlannerTitle}
-                </h2>
-                <p className="mt-1 text-sm font-medium text-white/85">
-                  {copy.labels.restPlannerDescription}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/15 text-white transition hover:bg-white/25"
-              onClick={onClose}
-              aria-label={copy.labels.cancel}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </header>
-
+    <IndiceModalFrame
+      bodyClassName="overflow-hidden px-0 py-0"
+      busy={isSaving}
+      closeLabel={copy.labels.cancel}
+      contentClassName="h-[92dvh] sm:max-w-6xl"
+      description={copy.labels.restPlannerDescription}
+      eyebrow={copy.labels.restPlannerEyebrow}
+      footer={(
+        <Button type="button" disabled={isSaving || operationCount === 0} onClick={() => void savePlan()}>
+          {copy.labels.restPlannerSave}
+        </Button>
+      )}
+      footerLeading={(
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+          onClick={onClose}
+        >
+          {copy.labels.cancel}
+        </Button>
+      )}
+      footerSummary={copy.labels.restPlannerSummary(employeeCount, operationCount)}
+      icon={<Moon className="h-5 w-5" />}
+      modalType="operational-workspace"
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      open
+      title={copy.labels.restPlannerTitle}
+      tone="aqua"
+    >
         <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[1.6fr_0.9fr]">
           <section className="min-h-0 overflow-y-auto p-5">
             <div className="mb-4 flex flex-col gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#F4FCF9] p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-bold text-slate-950 dark:text-white">
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">
                   {copy.labels.restPlannerCalendarTitle}
                 </p>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -234,7 +235,7 @@ export function RestDayPlannerModal({
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="min-w-[180px] text-center text-sm font-bold capitalize text-slate-950 dark:text-white">
+                <span className="min-w-[180px] text-center text-sm font-semibold capitalize text-slate-950 dark:text-white">
                   {monthLabel(plannerMonth, locale)}
                 </span>
                 <Button
@@ -252,7 +253,7 @@ export function RestDayPlannerModal({
               {weekdays.map((weekday) => (
                 <div
                   key={weekday}
-                  className="text-center text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500"
+                  className="text-center text-xs font-medium text-slate-500"
                 >
                   {weekday}
                 </div>
@@ -289,7 +290,7 @@ export function RestDayPlannerModal({
                       }
                     }}
                   >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-900 dark:bg-slate-800 dark:text-white">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-900 dark:bg-slate-800 dark:text-white">
                       {day}
                     </span>
                     <div className="mt-2 space-y-1">
@@ -298,7 +299,7 @@ export function RestDayPlannerModal({
                         return (
                           <span
                             key={userCompanyId}
-                            className="flex items-center justify-between gap-1 rounded-lg bg-[#59C3A5]/12 px-2 py-1 text-[11px] font-bold text-[#237c67]"
+                            className="flex items-center justify-between gap-1 rounded-lg bg-[#59C3A5]/12 px-2 py-1 text-[11px] font-medium text-[#237c67]"
                           >
                             <span className="truncate">
                               {employee?.user_name ?? userCompanyId}
@@ -318,7 +319,7 @@ export function RestDayPlannerModal({
                         );
                       })}
                       {assignedEmployeeIds.length > 3 ? (
-                        <span className="block text-[11px] font-bold text-slate-500">
+                        <span className="block text-[11px] font-medium text-slate-500">
                           +{assignedEmployeeIds.length - 3}
                         </span>
                       ) : null}
@@ -335,7 +336,7 @@ export function RestDayPlannerModal({
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-[#59C3A5]" />
                   <div>
-                    <p className="text-sm font-bold text-slate-950 dark:text-white">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-white">
                       {copy.labels.restPlannerEmployeesTitle}
                     </p>
                     <p className="text-xs font-medium text-slate-500">
@@ -381,7 +382,7 @@ export function RestDayPlannerModal({
                       {employeeInitials(assignment.user_name)}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold text-slate-950 dark:text-white">
+                      <span className="block truncate text-sm font-semibold text-slate-950 dark:text-white">
                         {assignment.user_name}
                       </span>
                       <span className="block truncate text-xs font-medium text-slate-500">
@@ -399,31 +400,6 @@ export function RestDayPlannerModal({
           </aside>
         </div>
 
-        <footer className="flex flex-col gap-3 bg-[#59C3A5] px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm font-bold">
-            <CalendarDays className="mr-2 inline h-4 w-4" />
-            {copy.labels.restPlannerSummary(employeeCount, operationCount)}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white"
-              onClick={onClose}
-            >
-              {copy.labels.cancel}
-            </Button>
-            <Button
-              type="button"
-              className="bg-white font-bold text-[#237c67] hover:bg-white/90"
-              disabled={isSaving || operationCount === 0}
-              onClick={() => void savePlan()}
-            >
-              {copy.labels.restPlannerSave}
-            </Button>
-          </div>
-        </footer>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }
