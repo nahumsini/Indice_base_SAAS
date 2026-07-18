@@ -2,8 +2,10 @@ import { Banknote, CheckCircle2, CircleSlash, CreditCard } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 import type { PaymentAccount } from '../types';
+import { useLearningModeHeaderActions } from '../../../../learningMode';
 
 export function PaymentAccountsSummary({ accounts }: { accounts: PaymentAccount[] }) {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const t = usePaymentAccountsTranslations();
   const totalCount = accounts.length;
   const activeCount = accounts.filter(account => account.isActive).length;
@@ -11,6 +13,10 @@ export function PaymentAccountsSummary({ accounts }: { accounts: PaymentAccount[
   const internalCashCount = accounts.filter(account => account.source === 'petty_cash').length;
   const activeWidth = totalCount > 0 ? `${(activeCount / totalCount) * 100}%` : '0%';
   const inactiveWidth = totalCount > 0 ? `${(inactiveCount / totalCount) * 100}%` : '0%';
+
+  if (learningModeActive) {
+    return null;
+  }
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">

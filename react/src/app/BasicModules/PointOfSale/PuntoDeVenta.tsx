@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useRef } from 'react';
 import { Navigate, useParams } from 'react-router';
 import {
   BadgePercent,
@@ -15,6 +15,15 @@ import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { SalesCrmProvider } from '../Sales/salesCrmContext';
 import { usePointOfSaleTranslations } from './hooks/usePointOfSaleTranslations';
+import {
+  LearningModeHeaderActionsProvider,
+  learningModeGuideThemes,
+  SimpleModuleLearningGuide,
+} from '../../learningMode';
+import {
+  pointOfSaleLearningControls,
+  pointOfSaleLearningLabels,
+} from './operationalGuidance/pointOfSaleLearningControls';
 
 const Sale = lazy(() => import('./Sale/Sale'));
 const Cortes = lazy(() => import('./Cortes'));
@@ -24,6 +33,7 @@ const Descuentos = lazy(() => import('./Descuentos'));
 const KPIs = lazy(() => import('./KPIs'));
 
 interface PuntoDeVentaProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -82,7 +92,7 @@ function useExternalTabRedirect() {
   return requestedTab ? externalTabRedirects[requestedTab] ?? null : null;
 }
 
-export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
+export default function PuntoDeVenta({ learningModeActive = false, onNavigate }: PuntoDeVentaProps) {
   const redirectTo = useExternalTabRedirect();
 
   if (redirectTo) {
@@ -90,14 +100,17 @@ export default function PuntoDeVenta({ onNavigate }: PuntoDeVentaProps) {
   }
 
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <SalesCrmProvider>
-      <PuntoDeVentaContent onNavigate={onNavigate} />
+      <PuntoDeVentaContent learningModeActive={learningModeActive} onNavigate={onNavigate} />
     </SalesCrmProvider>
+    </LearningModeHeaderActionsProvider>
   );
 }
 
-function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
+function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDeVentaProps) {
   const t = usePointOfSaleTranslations();
+  const mainContentRef = useRef<HTMLElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
     'sale',
     pointOfSaleTabIds,
@@ -176,10 +189,24 @@ function PuntoDeVentaContent({ onNavigate }: PuntoDeVentaProps) {
               })}
             </div>
           </nav>
+
+          {learningModeActive ? (
+            <div className="mt-4">
+              <SimpleModuleLearningGuide
+                activeContextLabel={pointOfSaleLearningLabels[activeTab]}
+                controls={pointOfSaleLearningControls[activeTab]}
+                guideId="point-of-sale-learning-guide"
+                moduleTitle="Guía para operar el punto de venta"
+                onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                scopeId={`point-of-sale-${activeTab}`}
+                theme={learningModeGuideThemes.commercial}
+              />
+            </div>
+          ) : null}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <main ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay

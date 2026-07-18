@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, useRef, type ComponentType } from 'react';
 import { ArrowLeft, BarChart3, BellRing, FileSpreadsheet, LayoutDashboard, type LucideIcon } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { cn } from '../../components/ui/utils';
@@ -7,12 +7,22 @@ import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useKpisTranslations } from '../../hooks/useKpisTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { KPI_ACCENT } from './kpisExecutiveData';
+import {
+  LearningModeHeaderActionsProvider,
+  learningModeGuideThemes,
+  SimpleModuleLearningGuide,
+} from '../../learningMode';
+import {
+  kpisLearningControls,
+  kpisLearningLabels,
+} from './operationalGuidance/kpisLearningControls';
 
 const KPIs = lazy(() => import('./KPIs/KPIs'));
 const InformesContables = lazy(() => import('./InformesContables'));
 const InformesAutomatizados = lazy(() => import('./InformesAutomatizados'));
 
 interface KpisProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -37,8 +47,9 @@ const legacyKpiTabAliases: Partial<Record<string, KpiTabId>> = {
   informesContables: 'accounting-reports',
 };
 
-export default function Kpis({ onNavigate }: KpisProps) {
+export default function Kpis({ learningModeActive = false, onNavigate }: KpisProps) {
   const t = useKpisTranslations();
+  const mainContentRef = useRef<HTMLElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<KpiTabId>(
     'kpis',
     kpiTabIds,
@@ -73,6 +84,7 @@ export default function Kpis({ onNavigate }: KpisProps) {
   const ActiveComponent = activeTabConfig.component;
 
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
       <LoadingBarOverlay
         isVisible={isTabLoading}
@@ -159,10 +171,22 @@ export default function Kpis({ onNavigate }: KpisProps) {
               );
             })}
           </nav>
+
+          {learningModeActive ? (
+            <SimpleModuleLearningGuide
+              activeContextLabel={kpisLearningLabels[activeTab]}
+              controls={kpisLearningControls[activeTab]}
+              guideId="kpis-learning-guide"
+              moduleTitle="Guía para convertir información en decisiones"
+              onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              scopeId={`kpis-${activeTab}`}
+              theme={learningModeGuideThemes.analytics}
+            />
+          ) : null}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] px-6 py-6">
+      <main ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-6 py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay
@@ -176,5 +200,6 @@ export default function Kpis({ onNavigate }: KpisProps) {
         </Suspense>
       </main>
     </div>
+    </LearningModeHeaderActionsProvider>
   );
 }

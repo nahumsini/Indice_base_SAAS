@@ -17,6 +17,7 @@ import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   configCenterApi,
@@ -1243,6 +1244,24 @@ export default function Users() {
     );
   };
 
+  const titleBarActions = canManageUsers ? (
+    <Button
+      className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+      onClick={() => {
+        setInviteForm(emptyInviteForm);
+        setInviteModuleIds([]);
+        setInviteTabPermissionKeys([]);
+        setInviteLink('');
+        setInviteEmailStatus(null);
+        setCopiedLink(false);
+        setShowInviteModal(true);
+      }}
+    >
+      <UserPlus className="w-4 h-4" />
+      {t.panelInicial.users.invite}
+    </Button>
+  ) : null;
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
@@ -1261,6 +1280,7 @@ export default function Users() {
         </div>
       ) : null}
 
+      <LearningModeTitleBarBridge actions={titleBarActions ?? undefined}>
       <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1272,25 +1292,10 @@ export default function Users() {
               {t.panelInicial.users.subtitle}
             </p>
           </div>
-	          {canManageUsers ? (
-	            <Button
-	              className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-	              onClick={() => {
-		                setInviteForm(emptyInviteForm);
-		                setInviteModuleIds([]);
-		                setInviteTabPermissionKeys([]);
-		                setInviteLink('');
-	                setInviteEmailStatus(null);
-	                setCopiedLink(false);
-	                setShowInviteModal(true);
-	              }}
-	            >
-	              <UserPlus className="w-4 h-4" />
-	              {t.panelInicial.users.invite}
-	            </Button>
-	          ) : null}
+          {titleBarActions}
         </div>
       </div>
+      </LearningModeTitleBarBridge>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

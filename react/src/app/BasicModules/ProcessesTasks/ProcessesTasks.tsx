@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { LearningModeHeaderActionsProvider } from '../../learningMode';
 import { useProcessesTasksTranslations } from './hooks/useProcessesTasksTranslations';
 import {
   OperationalModuleGuide,
@@ -66,47 +67,37 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <LoadingBarOverlay
-        isVisible={isTabLoading}
-        title={t.shell.loading.title}
-        description={t.shell.loading.description}
-      />
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <LoadingBarOverlay
+          isVisible={isTabLoading}
+          title={t.shell.loading.title}
+          description={t.shell.loading.description}
+        />
 
-      <div className="border-b border-gray-200 bg-white px-4 py-5 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8 lg:py-6">
-        <div className="mx-auto max-w-[1600px]">
-          <FavoritesBar
-            onNavigate={(page) => {
-              if (page === 'processes-tasks') return;
-              onNavigate(page);
-            }}
-            currentModule="processes-tasks"
-          />
+        <div className="border-b border-gray-200 bg-white px-4 py-5 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8 lg:py-6">
+          <div className="mx-auto max-w-[1600px]">
+            <FavoritesBar
+              onNavigate={(page) => {
+                if (page === 'processes-tasks') return;
+                onNavigate(page);
+              }}
+              currentModule="processes-tasks"
+            />
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="mb-2 text-2xl font-bold leading-tight text-gray-900 dark:text-white sm:text-3xl">{t.shell.title}</h1>
-              <p className="text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">{t.shell.subtitle}</p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="mb-2 text-2xl font-bold leading-tight text-gray-900 dark:text-white sm:text-3xl">{t.shell.title}</h1>
+                <p className="text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">{t.shell.subtitle}</p>
+              </div>
+              <Button variant="outline" onClick={() => onNavigate()} className="w-full gap-2 text-sm sm:w-auto">
+                <Home className="h-4 w-4" aria-hidden="true" />
+                {t.shell.back}
+              </Button>
             </div>
-            <Button variant="outline" onClick={() => onNavigate()} className="w-full gap-2 text-sm sm:w-auto">
-              <Home className="h-4 w-4" aria-hidden="true" />
-              {t.shell.back}
-            </Button>
-          </div>
 
-          {learningModeActive ? (
-            <div className="mt-5">
-              <OperationalModuleGuide
-                copy={guidanceCopy}
-                activeTabId={activeTab}
-                onPrimaryAction={handleGuidePrimaryAction}
-              />
-            </div>
-          ) : null}
-
-          <div className="mt-4 flex snap-x items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {tabs.map((tab) => {
-              return (
+            <div className="mt-4 flex snap-x items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as ProcessTaskTabId)}
@@ -119,25 +110,35 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
                   <span className="text-base leading-none" aria-hidden="true">{tab.emoji}</span>
                   <span>{tab.label}</span>
                 </button>
-              );
-            })}
+              ))}
+            </div>
+
+            {learningModeActive ? (
+              <div className="mt-4">
+                <OperationalModuleGuide
+                  copy={guidanceCopy}
+                  activeTabId={activeTab}
+                  onPrimaryAction={handleGuidePrimaryAction}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
-      </div>
 
-      <div ref={mainContentRef} className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        <Suspense
-          fallback={(
-            <LoadingBarOverlay
-              isVisible
-              title={t.shell.loading.fallbackTitle}
-              description={t.shell.loading.fallbackDescription}
-            />
-          )}
-        >
-          <ActiveComponent />
-        </Suspense>
+        <div ref={mainContentRef} className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+          <Suspense
+            fallback={(
+              <LoadingBarOverlay
+                isVisible
+                title={t.shell.loading.fallbackTitle}
+                description={t.shell.loading.fallbackDescription}
+              />
+            )}
+          >
+            <ActiveComponent learningModeActive={learningModeActive} />
+          </Suspense>
+        </div>
       </div>
-    </div>
+    </LearningModeHeaderActionsProvider>
   );
 }

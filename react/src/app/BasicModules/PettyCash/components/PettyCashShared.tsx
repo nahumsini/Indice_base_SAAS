@@ -10,6 +10,7 @@ import {
 } from '../utils/pettyCash.utils';
 import type { PettyCashFundStatus, PettyCashSettlementLineStatus, PettyCashStatementStatus } from '../types/pettyCash.types';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 
 type StatusKind = 'fund' | 'statement' | 'line';
 
@@ -58,7 +59,53 @@ export function PettyCashHeaderBanner({
   tertiaryActionLabel?: string;
   title: string;
 }) {
+  const actionLayout = (
+    <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
+      {secondaryActionLabel && onSecondaryAction ? (
+        <button
+          type="button"
+          onClick={onSecondaryAction}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+        >
+          {SecondaryActionIcon ? <SecondaryActionIcon className="h-4 w-4" /> : null}
+          {secondaryActionLabel}
+        </button>
+      ) : null}
+      {tertiaryActionLabel && onTertiaryAction ? (
+        <button
+          type="button"
+          onClick={onTertiaryAction}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+        >
+          {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
+          {tertiaryActionLabel}
+        </button>
+      ) : null}
+      {onColumns ? (
+        <button
+          type="button"
+          onClick={onColumns}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+        >
+          <Columns3 className="h-4 w-4" />
+          <HeaderColumnsLabel />
+        </button>
+      ) : null}
+      {actionLabel && onAction ? (
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#147514] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#105010] dark:bg-emerald-600 dark:hover:bg-emerald-500"
+        >
+          <Plus className="h-4 w-4" />
+          {actionLabel}
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
+    <LearningModeTitleBarBridge actions={actionLayout}>
     <section className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6 sm:py-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
@@ -71,50 +118,10 @@ export function PettyCashHeaderBanner({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
-          {secondaryActionLabel && onSecondaryAction ? (
-            <button
-              type="button"
-              onClick={onSecondaryAction}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
-            >
-              {SecondaryActionIcon ? <SecondaryActionIcon className="h-4 w-4" /> : null}
-              {secondaryActionLabel}
-            </button>
-          ) : null}
-          {tertiaryActionLabel && onTertiaryAction ? (
-            <button
-              type="button"
-              onClick={onTertiaryAction}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
-            >
-              {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
-              {tertiaryActionLabel}
-            </button>
-          ) : null}
-          {onColumns ? (
-            <button
-              type="button"
-              onClick={onColumns}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
-            >
-              <Columns3 className="h-4 w-4" />
-              <HeaderColumnsLabel />
-            </button>
-          ) : null}
-          {actionLabel && onAction ? (
-            <button
-              type="button"
-              onClick={onAction}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#147514] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#105010] dark:bg-emerald-600 dark:hover:bg-emerald-500"
-            >
-              <Plus className="h-4 w-4" />
-              {actionLabel}
-            </button>
-          ) : null}
-        </div>
+        {actionLayout}
       </div>
     </section>
+    </LearningModeTitleBarBridge>
   );
 }
 

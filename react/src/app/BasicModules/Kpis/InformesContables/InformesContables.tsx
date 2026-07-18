@@ -11,6 +11,7 @@ import {
   type StatementId,
   type StatementLine,
 } from '../kpisExecutiveData';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 
 type PeriodPreset = {
   id: string;
@@ -153,9 +154,16 @@ export default function InformesContables() {
       to: periodTo,
     });
   };
+  const titleActions = (
+    <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+      <Button type="button" variant="outline" onClick={exportActiveStatement} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Download className="mr-2 h-4 w-4" />Exportar</Button>
+      <Button type="button" variant="outline" onClick={() => window.print()} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Printer className="mr-2 h-4 w-4" />Imprimir</Button>
+    </div>
+  );
 
   return (
     <div className="space-y-5">
+      <LearningModeTitleBarBridge actions={titleActions}>
       <section className="rounded-xl border border-blue-200 bg-blue-50/80 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 gap-3">
@@ -174,28 +182,10 @@ export default function InformesContables() {
               </p>
             </div>
           </div>
-          <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={exportActiveStatement}
-              className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Exportar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => window.print()}
-              className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Imprimir
-            </Button>
-          </div>
+          {titleActions}
         </div>
       </section>
+      </LearningModeTitleBarBridge>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">

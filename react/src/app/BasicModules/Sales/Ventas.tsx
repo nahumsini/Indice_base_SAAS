@@ -16,6 +16,7 @@ import { SalesHeader } from './components/SalesHeader';
 import { SalesLoadingState } from './components/SalesLoadingState';
 import { SalesTabsNav } from './components/SalesTabsNav';
 import { useSalesTranslations } from './hooks/useSalesTranslations';
+import { LearningModeHeaderActionsProvider } from '../../learningMode';
 import {
   OperationalModuleGuide,
   useSalesGuidanceTranslations,
@@ -116,6 +117,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
   const ActiveComponent = salesTabComponents[activeTab] || Prospectos;
 
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-900 dark:text-white">
       <SalesLoadingState
         isVisible={isTabLoading}
@@ -153,5 +155,6 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         </SalesCrmProvider>
       </main>
     </div>
+    </LearningModeHeaderActionsProvider>
   );
 }

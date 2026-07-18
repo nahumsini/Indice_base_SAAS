@@ -1,9 +1,18 @@
-import { lazy, Suspense, useMemo, type ComponentType } from 'react';
+import { lazy, Suspense, useMemo, useRef, type ComponentType } from 'react';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { cn } from '../../components/ui/utils';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { SalesCrmProvider } from '../../BasicModules/Sales/salesCrmContext';
 import { useInventoryModuleTranslations } from './hooks/useInventoryModuleTranslations';
+import {
+  LearningModeHeaderActionsProvider,
+  learningModeGuideThemes,
+  SimpleModuleLearningGuide,
+} from '../../learningMode';
+import {
+  inventoryLearningControls,
+  inventoryLearningLabels,
+} from './operationalGuidance/inventoryLearningControls';
 
 const Productos = lazy(() => import('../../BasicModules/Sales/Productos'));
 const Inventario = lazy(() => import('../../BasicModules/Sales/Inventory'));
@@ -49,16 +58,19 @@ type InventoryTab = {
   component: ComponentType;
 };
 
-export default function Multiinventarios() {
+export default function Multiinventarios({ learningModeActive = false }: { learningModeActive?: boolean }) {
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <SalesCrmProvider>
-      <InventoryWorkspace />
+      <InventoryWorkspace learningModeActive={learningModeActive} />
     </SalesCrmProvider>
+    </LearningModeHeaderActionsProvider>
   );
 }
 
-function InventoryWorkspace() {
+function InventoryWorkspace({ learningModeActive }: { learningModeActive: boolean }) {
   const t = useInventoryModuleTranslations();
+  const mainContentRef = useRef<HTMLElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<InventoryTabId>(
     'products',
     inventoryTabIds,
@@ -120,10 +132,24 @@ function InventoryWorkspace() {
               })}
             </div>
           </nav>
+
+          {learningModeActive ? (
+            <div className="mt-4">
+              <SimpleModuleLearningGuide
+                activeContextLabel={inventoryLearningLabels[activeTab]}
+                controls={inventoryLearningControls[activeTab]}
+                guideId="inventory-learning-guide"
+                moduleTitle="Guía para conectar productos, compras e inventario"
+                onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                scopeId={`inventory-${activeTab}`}
+                theme={learningModeGuideThemes.commercial}
+              />
+            </div>
+          ) : null}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <main ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <Suspense
           fallback={(
             <LoadingBarOverlay

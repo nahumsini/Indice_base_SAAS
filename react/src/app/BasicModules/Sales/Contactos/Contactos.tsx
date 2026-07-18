@@ -60,7 +60,6 @@ import { ContactActionButton } from './components/ContactActionButton';
 import { ContactDeleteDialog } from './components/ContactDeleteDialog';
 import { ContactFiscalBadge } from './components/ContactFiscalBadge';
 import { ContactFormModal } from './components/ContactFormModal';
-import { ContactLearningGuide } from './components/ContactLearningGuide';
 import { ImportContactsModal } from './components/ImportContactsModal';
 import { ContactRelationshipSignal } from './components/ContactRelationshipSignal';
 import {
@@ -69,10 +68,7 @@ import {
   fiscalCountryOptions,
   initialContactForm,
 } from './constants/contactConstants';
-import {
-  useContactosLearningTranslations,
-  useContactosTranslations,
-} from './hooks/useContactosTranslations';
+import { useContactosTranslations } from './hooks/useContactosTranslations';
 import type {
   ContactColumnId,
   ContactFormState,
@@ -89,9 +85,8 @@ import {
   sortContacts,
 } from './utils/contactPageUtils';
 
-export default function Contactos({ learningModeActive = false }: ContactosProps) {
+export default function Contactos({ learningModeActive: _learningModeActive = false }: ContactosProps) {
   const t = useContactosTranslations();
-  const learningCopy = useContactosLearningTranslations();
   const { contacts, opportunities, quotes, addContact, updateContact, deleteContact } = useSalesCrm();
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -546,8 +541,6 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
           </>
         )}
       />
-
-      {learningModeActive ? <ContactLearningGuide copy={learningCopy} /> : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">

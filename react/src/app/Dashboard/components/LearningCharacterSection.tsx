@@ -6,7 +6,7 @@ import {
   learningCharacters,
   type LearningCharacterDefinition,
   type LearningCharacterId,
-} from "../learningCharacters";
+} from "../../learningMode/characters";
 import type { MainDashboardTranslations } from "../translations";
 
 const masterSheetPath =

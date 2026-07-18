@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import { EmployeesActionModals } from './components/EmployeesActionModals';
 import { EmployeeBulkAssignmentControls } from './components/EmployeeBulkAssignmentControls';
@@ -38,6 +38,10 @@ import { downloadEmployeesCsv } from './utils/employees.export';
 import { summarizeEmployeePayroll } from './utils/employees.payroll';
 import { normalizeErrorMessage } from './utils/employees.utils';
 import type { EmployeeViewModel } from './types/employees.types';
+import {
+  OperationalModuleGuide,
+  useHumanResourcesGuidanceTranslations,
+} from '../operationalGuidance';
 
 const toNullableNumber = (value: string) => {
   if (!value || value === allFilterValue) {
@@ -48,9 +52,15 @@ const toNullableNumber = (value: string) => {
   return Number.isFinite(parsedValue) ? parsedValue : null;
 };
 
-export default function Employees() {
+interface EmployeesProps {
+  learningModeActive?: boolean;
+}
+
+export default function Employees({ learningModeActive = false }: EmployeesProps) {
   const { currentLanguage } = useLanguage();
   const copy = useEmployeesTranslations();
+  const guidanceCopy = useHumanResourcesGuidanceTranslations();
+  const employeesContentRef = useRef<HTMLDivElement | null>(null);
   const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
 
   const {
@@ -336,6 +346,19 @@ export default function Employees() {
         successMessage={successToastMessage}
       />
 
+      {learningModeActive ? (
+        <div className="mb-4">
+          <OperationalModuleGuide
+            copy={guidanceCopy}
+            activeTabId="collaborators"
+            onPrimaryAction={() => {
+              employeesContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          />
+        </div>
+      ) : null}
+
+      <div ref={employeesContentRef} className="scroll-mt-24">
       <EmployeesHeaderActions
         addEmployeeLabel={copy.addEmployee}
         configureColumnsLabel={copy.configureColumns}
@@ -364,20 +387,22 @@ export default function Employees() {
         unitFilterOptions={unitFilterOptions}
       />
 
-      <EmployeeKpiStrip
-        isLoading={isLoading}
-        totalCount={summary.total_count}
-        activeCount={summary.active_count}
-        inactiveCount={summary.inactive_count}
-        terminatedCount={summary.terminated_count}
-        visibleCount={filteredEmployees.length}
-        missingDocumentsCount={missingDocumentsCount}
-        monthlyPayroll={payrollSummary.preferredTotalLabel}
-        nativePayroll={payrollSummary.nativeBreakdownLabel}
-        noScheduleCount={noScheduleCount}
-        payrollCurrencyCount={payrollSummary.currencyCount}
-        labels={copy.summary}
-      />
+      {!learningModeActive ? (
+        <EmployeeKpiStrip
+          isLoading={isLoading}
+          totalCount={summary.total_count}
+          activeCount={summary.active_count}
+          inactiveCount={summary.inactive_count}
+          terminatedCount={summary.terminated_count}
+          visibleCount={filteredEmployees.length}
+          missingDocumentsCount={missingDocumentsCount}
+          monthlyPayroll={payrollSummary.preferredTotalLabel}
+          nativePayroll={payrollSummary.nativeBreakdownLabel}
+          noScheduleCount={noScheduleCount}
+          payrollCurrencyCount={payrollSummary.currencyCount}
+          labels={copy.summary}
+        />
+      ) : null}
 
       {rowSelection.selectedCount > 0 ? (
         <OperationalBulkActionsBar
@@ -520,6 +545,7 @@ export default function Employees() {
         terminatingEmployeeName={terminatingEmployee?.fullName ?? ''}
         unitOptions={unitOptions}
       />
+      </div>
     </>
   );
 }

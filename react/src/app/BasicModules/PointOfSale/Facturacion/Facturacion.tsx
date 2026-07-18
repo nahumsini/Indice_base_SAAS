@@ -6,6 +6,7 @@ import { useSalesCrm } from '../../Sales/salesCrmContext';
 import type { SaleRecord } from '../../Sales/Sales/types/salesTypes';
 import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 import { PointOfSaleTitleBar } from '../shared/components/PointOfSaleTitleBar';
+import { useLearningModeHeaderActions } from '../../../learningMode';
 
 type FiscalStatusFilter = 'all' | 'pending' | 'ready' | 'issued';
 type PeriodFilter = 'today' | 'this_month' | 'all';
@@ -60,6 +61,7 @@ function isInPeriod(sale: SaleRecord, period: PeriodFilter) {
 }
 
 export default function Facturacion() {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const navigate = useNavigate();
   const { salesRecords } = useSalesCrm();
   const [search, setSearch] = useState('');
@@ -116,18 +118,21 @@ export default function Facturacion() {
         subtitle="Revisa tickets POS y prepara la emision fiscal cuando el cliente tenga datos completos."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Wallet} label="Venta filtrada" value={formatCurrency(kpis.total)} />
-        <Kpi icon={ReceiptText} label="Tickets" value={String(kpis.tickets)} tone="blue" />
-        <Kpi icon={FileText} label="Impuesto" value={formatCurrency(kpis.tax)} tone="green" />
-        <Kpi icon={AlertTriangle} label="Pendientes" value={String(kpis.pending)} tone={kpis.pending > 0 ? 'orange' : 'green'} />
-      </div>
-
-      <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
-        {kpis.pending > 0
-          ? `${kpis.pending} tickets necesitan cliente fiscal antes de emitir factura.`
-          : 'Los tickets filtrados tienen informacion suficiente para preparar facturacion.'}
-      </div>
+      {!learningModeActive ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Kpi icon={Wallet} label="Venta filtrada" value={formatCurrency(kpis.total)} />
+            <Kpi icon={ReceiptText} label="Tickets" value={String(kpis.tickets)} tone="blue" />
+            <Kpi icon={FileText} label="Impuesto" value={formatCurrency(kpis.tax)} tone="green" />
+            <Kpi icon={AlertTriangle} label="Pendientes" value={String(kpis.pending)} tone={kpis.pending > 0 ? 'orange' : 'green'} />
+          </div>
+          <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
+            {kpis.pending > 0
+              ? `${kpis.pending} tickets necesitan cliente fiscal antes de emitir factura.`
+              : 'Los tickets filtrados tienen informacion suficiente para preparar facturacion.'}
+          </div>
+        </>
+      ) : null}
 
       {notice && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">

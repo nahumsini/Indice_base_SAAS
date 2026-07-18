@@ -17,6 +17,7 @@ import {
 } from '../../../components/LoadingBarOverlay';
 import { Button } from '../../../components/ui/button';
 import { useLanguage } from '../../../shared/context';
+import { LearningModeTitleBarBridge } from '../../../learningMode';
 import {
   BusinessDiagnosisPrintPortal,
   type BusinessDiagnosisPdfDocumentProps,
@@ -750,9 +751,22 @@ export default function BusinessProfile() {
     return colorMap[color];
   };
 
+  const titleBarActions = (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handlePrintDiagnosis}
+      className="w-full gap-2 border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 sm:w-auto"
+    >
+      <Printer className="h-4 w-4" />
+      {diagnosisCopy.printDiagnosis}
+    </Button>
+  );
+
   return (
     <>
       <div className="space-y-6">
+        <LearningModeTitleBarBridge actions={titleBarActions}>
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-700/30 dark:bg-blue-900/10 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -764,17 +778,10 @@ export default function BusinessProfile() {
                 {diagnosisCopy.description}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrintDiagnosis}
-              className="w-full gap-2 border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 sm:w-auto"
-            >
-              <Printer className="h-4 w-4" />
-              {diagnosisCopy.printDiagnosis}
-            </Button>
+            {titleBarActions}
           </div>
         </div>
+        </LearningModeTitleBarBridge>
 
         {isLoading ? (
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">

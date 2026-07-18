@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../../../components/ui/utils';
+import { LearningModeTitleBarBridge } from '../../../../learningMode';
 
 export const pointOfSaleTitleBarPrimaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-5 text-sm font-semibold text-white shadow-sm shadow-[#FF6B5E]/25 transition hover:bg-[#E85C50] focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 sm:w-auto';
 
@@ -22,7 +23,18 @@ export function PointOfSaleTitleBar({
   subtitle: string;
   title: string;
 }) {
+  const actionLayout = actions ? (
+    <div className={cn(
+      rhIndent
+        ? 'flex w-full flex-wrap items-center gap-3 sm:w-auto lg:justify-end'
+        : 'grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-none sm:flex sm:flex-wrap sm:items-center sm:justify-end lg:justify-end',
+    )}>
+      {actions}
+    </div>
+  ) : undefined;
+
   return (
+    <LearningModeTitleBarBridge actions={actionLayout}>
     <section className={cn('rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-6 shadow-sm dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15', className)}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         {rhIndent ? (
@@ -63,16 +75,9 @@ export function PointOfSaleTitleBar({
           </div>
         )}
 
-        {actions ? (
-          <div className={cn(
-            rhIndent
-              ? 'flex w-full flex-wrap items-center gap-3 sm:w-auto lg:justify-end'
-              : 'grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-none sm:flex sm:flex-wrap sm:items-center sm:justify-end lg:justify-end',
-          )}>
-            {actions}
-          </div>
-        ) : null}
+        {actionLayout}
       </div>
     </section>
+    </LearningModeTitleBarBridge>
   );
 }

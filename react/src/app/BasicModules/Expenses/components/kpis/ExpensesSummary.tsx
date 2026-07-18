@@ -12,6 +12,7 @@ import {
   type BusinessExchangeRatesPerUsd,
 } from '../../../shared/businessCurrency';
 import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
+import { useLearningModeHeaderActions } from '../../../../learningMode';
 
 type ExpensesSummaryProps = {
   exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
@@ -45,6 +46,7 @@ export function ExpensesSummary({
   preferredCurrency = defaultBusinessCurrency,
   totals,
 }: ExpensesSummaryProps) {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const t = useExpensesTranslations();
   const normalizedPreferredCurrency = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
   const convertExpenseDisplayAmount = (amount: number, expense: Expense) => convertBusinessCurrencyAmount(
@@ -68,6 +70,10 @@ export function ExpensesSummary({
   const overdueAmountLabel = formatBusinessCurrencyAmount(totals.overdue, normalizedPreferredCurrency);
   const nativeCurrencies = new Set(expenses.map(expense => normalizeBusinessCurrencyCode(expense.currency)));
   const showNativeBreakdown = nativeCurrencies.size > 1 || (nativeCurrencies.size === 1 && !nativeCurrencies.has(normalizedPreferredCurrency));
+
+  if (learningModeActive) {
+    return null;
+  }
   const statusMetrics = statusConfig.map(config => {
     const statusExpenses = expenses.filter(expense => getEffectiveExpenseStatus(expense) === config.status);
     const amount = config.status === 'paid'

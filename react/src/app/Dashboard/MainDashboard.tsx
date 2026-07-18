@@ -30,7 +30,7 @@ import {
   learningCharacterIds,
   learningCharacterStorageKey,
   type LearningCharacterId,
-} from "./learningCharacters";
+} from "../learningMode/characters";
 
 export interface MainDashboardProps {
   learningModeActive: boolean;

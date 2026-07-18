@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { FailureToast } from '../../components/FailureToast';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -36,6 +36,15 @@ import { AccountsReceivableView } from './views/AccountsReceivableView';
 import { CreditCustomersView } from './views/CreditCustomersView';
 import { CreditSalesView } from './views/CreditSalesView';
 import { PaymentsView } from './views/PaymentsView';
+import {
+  LearningModeHeaderActionsProvider,
+  learningModeGuideThemes,
+  SimpleModuleLearningGuide,
+} from '../../learningMode';
+import {
+  receivablesLearningControls,
+  receivablesLearningLabels,
+} from './operationalGuidance/receivablesLearningControls';
 
 const shouldUseLocalFallback = (error: unknown) => !(error instanceof ApiClientError);
 
@@ -85,25 +94,32 @@ const mergePaymentReceiptIntoWorkspace = (
 };
 
 interface ReceivablesModuleProps {
+  learningModeActive?: boolean;
   onNavigate?: (page?: string) => void;
 }
 
 export default function ReceivablesModule({
+  learningModeActive = false,
   onNavigate = () => undefined,
 }: ReceivablesModuleProps) {
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <SalesCrmProvider>
-      <ReceivablesWorkspace onNavigate={onNavigate} />
+      <ReceivablesWorkspace learningModeActive={learningModeActive} onNavigate={onNavigate} />
     </SalesCrmProvider>
+    </LearningModeHeaderActionsProvider>
   );
 }
 
 function ReceivablesWorkspace({
+  learningModeActive,
   onNavigate,
 }: {
+  learningModeActive: boolean;
   onNavigate: (page?: string) => void;
 }) {
   const copy = useReceivablesTranslations();
+  const mainContentRef = useRef<HTMLElement>(null);
   const [state, setState] = useState<ReceivablesState>(initialReceivablesState);
   const [apiCandidateSales, setApiCandidateSales] = useState<CandidateSale[]>([]);
   const [isBackendReady, setIsBackendReady] = useState(false);
@@ -339,9 +355,21 @@ function ReceivablesWorkspace({
         copy={copy}
         onNavigate={(page) => onNavigate(page)}
         onTabChange={setActiveTab}
-      />
+      >
+        {learningModeActive ? (
+          <SimpleModuleLearningGuide
+            activeContextLabel={receivablesLearningLabels[activeTab]}
+            controls={receivablesLearningControls[activeTab]}
+            guideId="receivables-learning-guide"
+            moduleTitle="Guía para vender a crédito y cobrar con claridad"
+            onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            scopeId={`receivables-${activeTab}`}
+            theme={learningModeGuideThemes.finance}
+          />
+        ) : null}
+      </ReceivablesModuleHeader>
 
-      <main className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <main ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         {activeTab === 'credit-sales' ? (
           <CreditSalesView
             candidateSales={candidateSales}

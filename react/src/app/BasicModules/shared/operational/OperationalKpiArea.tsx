@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../../components/ui/utils';
+import { useLearningModeHeaderActions } from '../../../learningMode';
 
 export type OperationalKpiTone = 'danger' | 'warning' | 'info' | 'success' | 'neutral' | 'brand';
 
@@ -144,6 +145,12 @@ export function OperationalKpiArea({
   insightIcon: ReactNode;
   metrics: OperationalKpiMetric[];
 }) {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
+
+  if (learningModeActive) {
+    return null;
+  }
+
   return (
     <section className={cn('space-y-4', className)}>
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">

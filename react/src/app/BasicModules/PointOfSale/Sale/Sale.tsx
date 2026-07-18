@@ -40,6 +40,7 @@ import { useSaleSmartAlerts } from './hooks/useSaleSmartAlerts';
 import { usePendingPreTickets } from './hooks/usePendingPreTickets';
 import { useSuspendedSales } from './hooks/useSuspendedSales';
 import type { PaymentMethod, SaleItem } from './types/sale.types';
+import { useLearningModeHeaderActions } from '../../../learningMode';
 import { formatPosDisplayCurrency } from './utils/posCurrencyDisplay';
 import {
   createDefaultPosFiscalSettings,
@@ -49,6 +50,7 @@ import {
 } from './utils/posFiscalSettings';
 
 export default function Sale() {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const navigate = useNavigate();
   const { products: saleProducts, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts();
   const { reloadSalesRecords } = useSalesCrm();
@@ -513,13 +515,15 @@ export default function Sale() {
           />
 
           <div className={`mt-2 grid gap-2 ${smartAlerts.length > 0 ? '2xl:grid-cols-[minmax(0,1fr)_minmax(300px,400px)]' : ''}`}>
-            <IndiceSignalBar
-              salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
-              lowStockCount={stockSignals.lowStockProducts.length}
-              suspendedCount={suspendedSales.length}
-              activeAlertCount={smartAlerts.length}
-              isShiftActive={Boolean(currentShift)}
-            />
+            {!learningModeActive ? (
+              <IndiceSignalBar
+                salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
+                lowStockCount={stockSignals.lowStockProducts.length}
+                suspendedCount={suspendedSales.length}
+                activeAlertCount={smartAlerts.length}
+                isShiftActive={Boolean(currentShift)}
+              />
+            ) : null}
 
             {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
           </div>

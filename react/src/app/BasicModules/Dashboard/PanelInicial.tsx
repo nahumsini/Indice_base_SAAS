@@ -6,6 +6,7 @@ import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { authApi } from '../../api/auth';
 import { canAccessHomePanelTab, type HomePanelTabId } from '../../access/accessRules';
+import { LearningModeHeaderActionsProvider } from '../../learningMode';
 import {
   OperationalModuleGuide,
   usePanelInicialGuidanceTranslations,
@@ -142,6 +143,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
   };
 
   return (
+    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <LoadingBarOverlay
         isVisible={isTabLoading}
@@ -181,16 +183,6 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
             </Button>
           </div>
 
-          {learningModeActive && isGuidedTab ? (
-            <div className="mt-5">
-              <OperationalModuleGuide
-                copy={guidanceCopy}
-                activeTabId={activeSubTab}
-                onPrimaryAction={handleGuidePrimaryAction}
-              />
-            </div>
-          ) : null}
-
           {/* Sub-tabs */}
           <div className="-mx-3 mt-4 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
             <div className="flex min-w-max snap-x snap-mandatory items-center gap-2">
@@ -211,6 +203,16 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
               ))}
             </div>
           </div>
+
+          {learningModeActive && isGuidedTab ? (
+            <div className="mt-4">
+              <OperationalModuleGuide
+                copy={guidanceCopy}
+                activeTabId={activeSubTab}
+                onPrimaryAction={handleGuidePrimaryAction}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -234,5 +236,6 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
         </Suspense>
       </div>
     </div>
+    </LearningModeHeaderActionsProvider>
   );
 }

@@ -625,19 +625,23 @@ export default function App() {
     ) : currentPage === 'home-panel' ? (
       <PanelInicial learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'expenses' ? (
-      <Gastos onNavigate={handleModuleNavigation} />
+      <Gastos learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'petty-cash' ? (
-      <CajaChica onNavigate={handleModuleNavigation} />
+      <CajaChica learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'point-of-sale' ? (
-      <PuntoVenta onNavigate={handleModuleNavigation} />
+      <PuntoVenta learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales' ? (
       <Ventas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'receivables' ? (
-      <Cartera onNavigate={handleModuleNavigation} />
+      <Cartera learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
-      <Kpis onNavigate={handleModuleNavigation} />
+      <Kpis learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'affiliate-management' ? (
       <Afiliados onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'inventory' ? (
+      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
+        <Inventarios learningModeActive={learningModeActive} />
+      </StandaloneModuleShell>
     ) : StandaloneModuleComponent && currentPage ? (
       <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
         <StandaloneModuleComponent />
