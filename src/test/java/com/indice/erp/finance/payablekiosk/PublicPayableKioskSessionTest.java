@@ -17,11 +17,12 @@ class PublicPayableKioskSessionTest {
         var access = new PayableKioskProviderAccessRow(
                 7L, 2L, 11L, 19L, "Proveedor", "Kiosko", "token", "hash", "ACTIVE", null);
 
-        kioskSession.authorize(session, access);
+        kioskSession.authorize(session, access, "canonical-session-token");
 
         var authorization = kioskSession.require(session, 11L);
         assertEquals(7L, authorization.accessId());
         assertEquals(19L, authorization.providerId());
+        assertEquals("canonical-session-token", authorization.kioskSessionToken());
     }
 
     @Test
@@ -29,7 +30,7 @@ class PublicPayableKioskSessionTest {
         var session = new MockHttpSession();
         var access = new PayableKioskProviderAccessRow(
                 7L, 2L, 11L, 19L, "Proveedor", "Kiosko", "token", "hash", "ACTIVE", null);
-        kioskSession.authorize(session, access);
+        kioskSession.authorize(session, access, "canonical-session-token");
 
         assertThrows(FinanceApiException.class, () -> kioskSession.require(session, 12L));
     }

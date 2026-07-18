@@ -19,6 +19,7 @@ type PublicCatalogCardsPanelProps = {
   onCatalogLink: (catalog: PublicCatalogConfig) => void;
   onPreview: (catalog: PublicCatalogConfig) => void;
   onDelete: (catalogId: string) => void;
+  onToggleStatus: (catalog: PublicCatalogConfig) => void;
 };
 
 export function PublicCatalogCardsPanel({
@@ -29,12 +30,13 @@ export function PublicCatalogCardsPanel({
   onCatalogLink,
   onPreview,
   onDelete,
+  onToggleStatus,
 }: PublicCatalogCardsPanelProps) {
   const catalogSummaries = useMemo(() => catalogs.map((catalog) => ({
     catalog,
     summary: {
       productCount: catalog.selectedProductIds.length,
-      hasPublicLink: Boolean(catalog.publicUrl),
+      hasPublicLink: Boolean(catalog.publicUrl || catalog.publicTokenHint),
       hasQrImage: Boolean(catalog.qrImageDataUrl),
     },
   })), [catalogs]);
@@ -75,6 +77,7 @@ export function PublicCatalogCardsPanel({
                 onSelect={() => onEdit(catalog)}
                 onCatalogLink={() => onCatalogLink(catalog)}
                 onPreview={() => onPreview(catalog)}
+                onToggleStatus={() => onToggleStatus(catalog)}
                 onDelete={() => catalog.id && onDelete(catalog.id)}
               />
             ))}

@@ -9,6 +9,11 @@ export const enCA = {
     title: 'Loading task access',
     description: 'Preparing the task kiosk.',
   },
+  session: {
+    offline: 'No network connection. This kiosk only works online.',
+    expiring: 'Your session is about to expire. Continue working or sign in again.',
+    expired: 'Your session expired for inactivity. Enter your PIN again to continue.',
+  },
   header: {
     badge: 'Task kiosk',
     title: 'Complete your tasks',
@@ -146,6 +151,7 @@ export const enCA = {
     fileTooLarge: (fileName: string) => `${fileName} exceeds the 10 MB limit.`,
     unsupportedEvidence: (fileName: string) => `${fileName} is not a supported evidence file.`,
     uploadFailure: 'Task evidence upload failed.',
+    partialUploadFailure: 'Some evidence was uploaded, but the remaining files failed. Review the task before retrying.',
     completeFailure: 'Could not complete this task.',
     createTitleRequired: 'Task title is required.',
     createFailure: 'Could not create this task.',

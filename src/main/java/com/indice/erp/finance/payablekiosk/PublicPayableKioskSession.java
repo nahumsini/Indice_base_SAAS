@@ -14,7 +14,7 @@ class PublicPayableKioskSession {
     private static final int MAX_ATTEMPTS = 5;
     private static final long LOCK_SECONDS = 15 * 60;
 
-    record Authorization(long accessId, long kioskId, long providerId) {
+    record Authorization(long accessId, long kioskId, long providerId, String kioskSessionToken) {
     }
 
     Authorization require(HttpSession session, long kioskId) {
@@ -25,8 +25,9 @@ class PublicPayableKioskSession {
         return authorization;
     }
 
-    void authorize(HttpSession session, PayableKioskProviderAccessRow access) {
-        session.setAttribute(AUTHORIZED_ACCESS, new Authorization(access.id(), access.kioskId(), access.providerId()));
+    void authorize(HttpSession session, PayableKioskProviderAccessRow access, String kioskSessionToken) {
+        session.setAttribute(AUTHORIZED_ACCESS, new Authorization(
+            access.id(), access.kioskId(), access.providerId(), kioskSessionToken));
         session.removeAttribute(FAILED_ATTEMPTS);
         session.removeAttribute(LOCKED_UNTIL);
     }

@@ -17,6 +17,9 @@ export const endpoints = {
     units: '/api/v1/org/units',
     businesses: '/api/v1/org/businesses',
   },
+  kioskCenter: {
+    kiosks: '/api/v2/kiosk-center/kiosks',
+  },
   configCenter: {
     currentUser: '/api/v1/config-center/current-user',
     users: '/api/v1/config-center/users',

@@ -1,5 +1,8 @@
 package com.indice.erp.pos.purchaseorder;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
 import com.indice.erp.pos.PosRequestGuard;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderActionRequest;
@@ -9,6 +12,7 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessPi
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessStatusRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentUploadRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalDocumentRegisterRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalInvoiceRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalLoginRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalSubmissionRequest;
@@ -18,9 +22,15 @@ import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierInvoiceReviewR
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionConvertRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionCreateRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionReviewRequest;
+import com.indice.erp.pos.purchaseorder.kiosk.ProcurementSupplierPortalAdminService;
+import com.indice.erp.pos.purchaseorder.kiosk.ProcurementSupplierPortalCapabilities;
+import com.indice.erp.pos.purchaseorder.kiosk.ProcurementSupplierPortalPublicGateway;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.Map;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,12 +48,27 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/pos")
 public class PurchaseOrderController {
 
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private final PosRequestGuard guard;
     private final PurchaseOrderService service;
+    private final ProcurementSupplierPortalAdminService supplierPortalAdmin;
+    private final ProcurementSupplierPortalPublicGateway supplierPortalPublic;
+    private final ObjectMapper objectMapper;
+    private final KioskEngineFeatureFlags kioskFlags;
 
-    public PurchaseOrderController(PosRequestGuard guard, PurchaseOrderService service) {
+    public PurchaseOrderController(
+            PosRequestGuard guard,
+            PurchaseOrderService service,
+            ProcurementSupplierPortalAdminService supplierPortalAdmin,
+            ProcurementSupplierPortalPublicGateway supplierPortalPublic,
+            ObjectMapper objectMapper,
+            KioskEngineFeatureFlags kioskFlags) {
         this.guard = guard;
         this.service = service;
+        this.supplierPortalAdmin = supplierPortalAdmin;
+        this.supplierPortalPublic = supplierPortalPublic;
+        this.objectMapper = objectMapper;
+        this.kioskFlags = kioskFlags;
     }
 
     @GetMapping("/product-suppliers")
@@ -201,10 +226,11 @@ public class PurchaseOrderController {
 
     @GetMapping("/supplier-portal-access")
     public ResponseEntity<?> listSupplierPortalAccess(HttpSession session) {
-        var access = guard.requireReadAccess(session);
+        var access = supplierPortalEngineEnabled()
+            ? guard.requireAdminReadAccess(session) : guard.requireReadAccess(session);
         return access.denied()
             ? access.error()
-            : ResponseEntity.ok(service.listSupplierPortalAccess(access.context()));
+            : ResponseEntity.ok(supplierPortalAdmin.list(access.context()));
     }
 
     @PostMapping("/supplier-portal-access")
@@ -212,10 +238,12 @@ public class PurchaseOrderController {
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody SupplierPortalAccessRequest request) {
-        var access = guard.requireWriteAccess(session, csrfToken);
+        var access = supplierPortalEngineEnabled()
+            ? guard.requireAdminWriteAccess(session, csrfToken)
+            : guard.requireWriteAccess(session, csrfToken);
         return access.denied()
             ? access.error()
-            : ResponseEntity.status(HttpStatus.CREATED).body(service.createSupplierPortalAccess(access.context(), request));
+            : ResponseEntity.status(HttpStatus.CREATED).body(supplierPortalAdmin.create(access.context(), request));
     }
 
     @PostMapping("/supplier-portal-access/{accessId}/status")
@@ -224,10 +252,12 @@ public class PurchaseOrderController {
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long accessId,
             @Valid @RequestBody SupplierPortalAccessStatusRequest request) {
-        var access = guard.requireWriteAccess(session, csrfToken);
+        var access = supplierPortalEngineEnabled()
+            ? guard.requireAdminWriteAccess(session, csrfToken)
+            : guard.requireWriteAccess(session, csrfToken);
         return access.denied()
             ? access.error()
-            : ResponseEntity.ok(service.updateSupplierPortalAccessStatus(access.context(), accessId, request));
+            : ResponseEntity.ok(supplierPortalAdmin.transition(access.context(), accessId, request, null));
     }
 
     @PostMapping("/supplier-portal-access/{accessId}/pin")
@@ -236,41 +266,154 @@ public class PurchaseOrderController {
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long accessId,
             @Valid @RequestBody SupplierPortalAccessPinRequest request) {
-        var access = guard.requireWriteAccess(session, csrfToken);
+        var access = supplierPortalEngineEnabled()
+            ? guard.requireAdminWriteAccess(session, csrfToken)
+            : guard.requireWriteAccess(session, csrfToken);
         return access.denied()
             ? access.error()
-            : ResponseEntity.ok(service.changeSupplierPortalAccessPin(access.context(), accessId, request));
+            : ResponseEntity.ok(supplierPortalAdmin.rotatePin(access.context(), accessId, request));
+    }
+
+    @DeleteMapping("/supplier-portal-access/{accessId}")
+    public ResponseEntity<?> deleteSupplierPortalAccess(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        var reason = payload == null ? null : String.valueOf(payload.getOrDefault("reason", ""));
+        supplierPortalAdmin.delete(access.context(), accessId, reason);
+        return ResponseEntity.ok(Map.of("deleted", true));
+    }
+
+    @GetMapping("/public/supplier-portal/{portalCode}/bootstrap")
+    public ResponseEntity<?> bootstrapSupplierPortal(
+            @PathVariable String portalCode,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(supplierPortalPublic.bootstrap(portalCode, request, session));
     }
 
     @PostMapping("/public/supplier-portal/{portalCode}/authenticate")
     public ResponseEntity<?> authenticateSupplierPortal(
             @PathVariable String portalCode,
-            @Valid @RequestBody SupplierPortalLoginRequest request) {
-        return ResponseEntity.ok(service.authenticateSupplierPortal(portalCode, request));
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-CSRF", required = false) String kioskCsrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody SupplierPortalLoginRequest body,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(supplierPortalPublic.authenticate(
+            portalCode, first(csrfToken, kioskCsrfToken), idempotencyKey,
+            body.pin(), request, session));
     }
 
     @PostMapping("/public/supplier-portal/{portalCode}/submissions")
     public ResponseEntity<?> createPublicSupplierSubmission(
             @PathVariable String portalCode,
-            @Valid @RequestBody SupplierPortalSubmissionRequest request) {
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-CSRF", required = false) String kioskCsrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Kiosk-Session", required = false) String kioskSessionToken,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            @Valid @RequestBody SupplierPortalSubmissionRequest body,
+            HttpServletRequest request,
+            HttpSession session) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
-            service.createPublicSupplierSubmission(portalCode, request)
+            supplierPortalPublic.execute(
+                portalCode, first(csrfToken, kioskCsrfToken), idempotencyKey,
+                sessionToken(kioskSessionToken, authorization), body.pin(),
+                ProcurementSupplierPortalCapabilities.SUBMISSION_CREATE, null,
+                map(body), request, session)
         );
+    }
+
+    @PostMapping("/public/supplier-portal/{portalCode}/context")
+    public ResponseEntity<?> supplierPortalContext(
+            @PathVariable String portalCode,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-CSRF", required = false) String kioskCsrfToken,
+            @RequestHeader(name = "X-Kiosk-Session", required = false) String kioskSessionToken,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(supplierPortalPublic.execute(
+            portalCode, first(csrfToken, kioskCsrfToken), null,
+            sessionToken(kioskSessionToken, authorization), null,
+            ProcurementSupplierPortalCapabilities.CATALOG_READ, null,
+            Map.of(), request, session));
+    }
+
+    @PostMapping("/public/supplier-portal/{portalCode}/logout")
+    public ResponseEntity<?> logoutSupplierPortal(
+            @PathVariable String portalCode,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-CSRF", required = false) String kioskCsrfToken,
+            @RequestHeader(name = "X-Kiosk-Session", required = false) String kioskSessionToken,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(supplierPortalPublic.closeSession(
+            portalCode, first(csrfToken, kioskCsrfToken),
+            sessionToken(kioskSessionToken, authorization), request, session));
     }
 
     @PostMapping("/public/supplier-portal/{portalCode}/invoices/presign-upload")
     public ResponseEntity<?> createPublicSupplierInvoiceUpload(
             @PathVariable String portalCode,
-            @Valid @RequestBody SupplierPortalDocumentUploadRequest request) {
-        return ResponseEntity.ok(service.createPublicSupplierInvoiceUpload(portalCode, request));
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-CSRF", required = false) String kioskCsrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Kiosk-Session", required = false) String kioskSessionToken,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            @Valid @RequestBody SupplierPortalDocumentUploadRequest body,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(supplierPortalPublic.execute(
+            portalCode, first(csrfToken, kioskCsrfToken), idempotencyKey,
+            sessionToken(kioskSessionToken, authorization), body.pin(),
+            ProcurementSupplierPortalCapabilities.INVOICE_DOCUMENT_PRESIGN,
+            supplierPortalPublic.legacyReference(portalCode), map(body), request, session));
+    }
+
+    @PostMapping("/public/supplier-portal/{portalCode}/invoices/register-upload")
+    public ResponseEntity<?> registerPublicSupplierInvoiceUpload(
+            @PathVariable String portalCode,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-CSRF", required = false) String kioskCsrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Kiosk-Session", required = false) String kioskSessionToken,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            @Valid @RequestBody SupplierPortalDocumentRegisterRequest body,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(supplierPortalPublic.execute(
+            portalCode, first(csrfToken, kioskCsrfToken), idempotencyKey,
+            sessionToken(kioskSessionToken, authorization), null,
+            ProcurementSupplierPortalCapabilities.INVOICE_DOCUMENT_REGISTER,
+            supplierPortalPublic.legacyReference(portalCode), map(body), request, session));
     }
 
     @PostMapping("/public/supplier-portal/{portalCode}/invoices")
     public ResponseEntity<?> createPublicSupplierInvoice(
             @PathVariable String portalCode,
-            @Valid @RequestBody SupplierPortalInvoiceRequest request) {
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-CSRF", required = false) String kioskCsrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Kiosk-Session", required = false) String kioskSessionToken,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            @Valid @RequestBody SupplierPortalInvoiceRequest body,
+            HttpServletRequest request,
+            HttpSession session) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
-            service.createPublicSupplierInvoice(portalCode, request)
+            supplierPortalPublic.execute(
+                portalCode, first(csrfToken, kioskCsrfToken), idempotencyKey,
+                sessionToken(kioskSessionToken, authorization), body.pin(),
+                ProcurementSupplierPortalCapabilities.INVOICE_SUBMIT, null,
+                map(body), request, session)
         );
     }
 
@@ -347,5 +490,30 @@ public class PurchaseOrderController {
 
     private PurchaseOrderActionRequest emptyAction(PurchaseOrderActionRequest request) {
         return request == null ? new PurchaseOrderActionRequest(null) : request;
+    }
+
+    private Map<String, Object> map(Object value) {
+        return objectMapper.convertValue(value, MAP_TYPE);
+    }
+
+    private String first(String primary, String fallback) {
+        return primary != null && !primary.isBlank() ? primary.trim()
+            : fallback == null || fallback.isBlank() ? null : fallback.trim();
+    }
+
+    private String sessionToken(String kioskSessionToken, String authorization) {
+        if (kioskSessionToken != null && !kioskSessionToken.isBlank()) {
+            return kioskSessionToken.trim();
+        }
+        if (authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            var token = authorization.substring(7).trim();
+            return token.isBlank() ? null : token;
+        }
+        return null;
+    }
+
+    private boolean supplierPortalEngineEnabled() {
+        return kioskFlags.registryEnabled() && kioskFlags.sessionsEnabled() && kioskFlags.auditEnabled()
+            && kioskFlags.adapterEnabled(ProcurementSupplierPortalCapabilities.OWNER_MODULE);
     }
 }

@@ -4,6 +4,7 @@ import {
   BadgePercent,
   BarChart3,
   Home,
+  MonitorSmartphone,
   ReceiptText,
   Scissors,
   ShoppingCart,
@@ -31,6 +32,7 @@ const Clientes = lazy(() => import('../Sales/Contactos'));
 const Facturacion = lazy(() => import('./Facturacion'));
 const Descuentos = lazy(() => import('./Descuentos'));
 const KPIs = lazy(() => import('./KPIs'));
+const KiosksWorkspace = lazy(() => import('./Kiosks/KiosksWorkspace'));
 
 interface PuntoDeVentaProps {
   learningModeActive?: boolean;
@@ -44,6 +46,7 @@ const pointOfSaleTabIds = [
   'facturacion',
   'descuentos',
   'kpis',
+  'kiosks',
 ] as const;
 
 type PointOfSaleTabId = (typeof pointOfSaleTabIds)[number];
@@ -118,6 +121,7 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
   );
 
   const tabs = useMemo(() => [
+    { id: 'kiosks' as const, label: t.tabs.kiosks, emoji: '🖥️', icon: MonitorSmartphone, component: KiosksWorkspace },
     { id: 'sale' as const, label: t.tabs.sale, emoji: '🧾', icon: ShoppingCart, component: Sale },
     { id: 'cortes' as const, label: t.tabs.cortes, emoji: '💵', icon: Scissors, component: Cortes },
     { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👤', icon: UsersRound, component: Clientes },

@@ -4,6 +4,7 @@ import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosJsonSupport;
 import com.indice.erp.pos.PosScope;
 import com.indice.erp.pos.PosSqlSupport;
+import com.indice.erp.pos.customerdisplay.CustomerDisplaySecretCodec;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.ProductSupplierResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.PurchaseOrderItemRequest;
@@ -36,9 +37,13 @@ import org.springframework.stereotype.Repository;
 public class PurchaseOrderRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final CustomerDisplaySecretCodec secrets;
 
-    public PurchaseOrderRepository(JdbcTemplate jdbcTemplate) {
+    public PurchaseOrderRepository(
+            JdbcTemplate jdbcTemplate,
+            CustomerDisplaySecretCodec secrets) {
         this.jdbcTemplate = jdbcTemplate;
+        this.secrets = secrets;
     }
 
     public List<ProductSupplierResponse> listProductSuppliers(PosContext context) {
@@ -47,8 +52,12 @@ public class PurchaseOrderRepository {
             SELECT ps.*, product.name AS product_name, product.sku AS product_sku,
                    provider.name AS provider_name
             FROM pos_product_suppliers ps
-            JOIN sales_products product ON product.id = ps.product_id
-            JOIN finance_providers provider ON provider.id = ps.provider_id
+            JOIN sales_products product
+              ON product.id = ps.product_id
+             AND product.company_id = ps.company_id
+            JOIN finance_providers provider
+              ON provider.id = ps.provider_id
+             AND provider.company_id = ps.company_id
             WHERE ps.company_id = ? AND ps.deleted_at IS NULL
               AND product.deleted_at IS NULL AND provider.deleted_at IS NULL
               AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
@@ -469,30 +478,35 @@ public class PurchaseOrderRepository {
             BigDecimal tax,
             BigDecimal total,
             List<SupplierSubmissionLineCommand> items) {
+        var portalSnapshot = supplierPortalSubmissionSnapshot(
+            context, provider, request.portalAccessId());
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                 INSERT INTO pos_supplier_submissions
-                (company_id, provider_id, portal_access_id, submission_number, status, currency_code,
+                (company_id, provider_id, portal_access_id, historical_portal_access_id,
+                 portal_scope_snapshot_json, submission_number, status, currency_code,
                  subtotal_amount, tax_amount, total_amount, submitted_by_name, submitted_by_email,
                  submitted_at, notes, metadata_json)
-                VALUES (?, ?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, context.companyId());
             statement.setLong(2, provider.id());
             statement.setObject(3, request.portalAccessId());
-            statement.setString(4, submissionNumber);
-            statement.setString(5, normalizedCurrency(request.currencyCode()));
-            statement.setBigDecimal(6, subtotal);
-            statement.setBigDecimal(7, tax);
-            statement.setBigDecimal(8, total);
-            statement.setString(9, trimToNull(request.submittedByName()));
-            statement.setString(10, trimToNull(request.submittedByEmail()));
-            statement.setString(11, trimToNull(request.notes()));
+            statement.setObject(4, request.portalAccessId());
+            statement.setString(5, PosJsonSupport.toJson(portalSnapshot));
+            statement.setString(6, submissionNumber);
+            statement.setString(7, normalizedCurrency(request.currencyCode()));
+            statement.setBigDecimal(8, subtotal);
+            statement.setBigDecimal(9, tax);
+            statement.setBigDecimal(10, total);
+            statement.setString(11, trimToNull(request.submittedByName()));
+            statement.setString(12, trimToNull(request.submittedByEmail()));
+            statement.setString(13, trimToNull(request.notes()));
             var metadata = new LinkedHashMap<String, Object>();
             metadata.put("source", "SUPPLIER_SUBMISSION");
             metadata.put("providerId", provider.id());
-            statement.setString(12, PosJsonSupport.toJson(metadata));
+            statement.setString(14, PosJsonSupport.toJson(metadata));
             return statement;
         }, keyHolder);
 
@@ -501,6 +515,51 @@ public class PurchaseOrderRepository {
             insertSupplierSubmissionItem(context, submissionId, item);
         }
         return submissionId;
+    }
+
+    private Map<String, Object> supplierPortalSubmissionSnapshot(
+            PosContext context,
+            ProviderRef provider,
+            Long portalAccessId) {
+        var names = jdbcTemplate.query("""
+            SELECT company.name AS company_name,
+                   unit.name AS unit_name,
+                   business.name AS business_name,
+                   access.portal_code_hint,
+                   access.status AS portal_status
+            FROM companies company
+            LEFT JOIN units unit
+              ON unit.id = ?
+             AND (unit.company_id = company.id OR unit.company_id IS NULL)
+            LEFT JOIN businesses business
+              ON business.id = ?
+             AND (business.company_id = company.id OR business.company_id IS NULL)
+            LEFT JOIN pos_supplier_portal_access access
+              ON access.id = ? AND access.company_id = company.id
+            WHERE company.id = ?
+            """, (rs, rowNum) -> new SupplierPortalSnapshotNames(
+                rs.getString("company_name"),
+                rs.getString("unit_name"),
+                rs.getString("business_name"),
+                rs.getString("portal_code_hint"),
+                rs.getString("portal_status")),
+            context.scope().unitId(), context.scope().businessId(),
+            portalAccessId, context.companyId()).stream().findFirst()
+            .orElse(new SupplierPortalSnapshotNames(null, null, null, null, null));
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("company_id", context.companyId());
+        snapshot.put("company_name", names.companyName());
+        snapshot.put("provider_id", provider.id());
+        snapshot.put("provider_name", provider.name());
+        snapshot.put("provider_email", provider.email());
+        snapshot.put("unit_id", context.scope().unitId());
+        snapshot.put("unit_name", names.unitName());
+        snapshot.put("business_id", context.scope().businessId());
+        snapshot.put("business_name", names.businessName());
+        snapshot.put("portal_access_id", portalAccessId);
+        snapshot.put("portal_code_hint", names.portalCodeHint());
+        snapshot.put("portal_status", names.portalStatus());
+        return snapshot;
     }
 
     public boolean updateSupplierSubmissionStatus(
@@ -559,7 +618,9 @@ public class PurchaseOrderRepository {
         return jdbcTemplate.query("""
             SELECT access.*, provider.name AS provider_name, provider.email AS provider_email
             FROM pos_supplier_portal_access access
-            JOIN finance_providers provider ON provider.id = access.provider_id
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
             WHERE access.company_id = ? AND access.deleted_at IS NULL
               AND provider.deleted_at IS NULL
               AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
@@ -576,20 +637,30 @@ public class PurchaseOrderRepository {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                 INSERT INTO pos_supplier_portal_access
-                (company_id, provider_id, portal_code, pin_hash, status, allowed_capabilities_json,
+                (company_id, provider_id, portal_code, portal_code_hash, portal_code_hint,
+                 pin_hash, status, allowed_capabilities_json,
                  expires_at, created_by_user_id, updated_by_user_id, metadata_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, context.companyId());
             statement.setLong(2, request.providerId());
-            statement.setString(3, portalCode);
-            statement.setString(4, pinHash);
-            statement.setString(5, normalizePortalStatus(request.status()));
-            statement.setString(6, PosJsonSupport.toJson(List.of("SUPPLIER_SUBMISSION")));
-            statement.setObject(7, request.expiresAt() == null ? null : java.sql.Timestamp.from(request.expiresAt()));
-            statement.setLong(8, context.userId());
-            statement.setLong(9, context.userId());
-            statement.setString(10, PosJsonSupport.toJson(Map.of("source", "POS_SUPPLIER_PORTAL")));
+            var normalizedCode = normalizePortalCode(portalCode);
+            statement.setString(3, secrets.protect(normalizedCode));
+            statement.setString(4, secrets.hash(normalizedCode));
+            statement.setString(5, secrets.hint(normalizedCode));
+            statement.setString(6, pinHash);
+            statement.setString(7, normalizePortalStatus(request.status()));
+            statement.setString(8, PosJsonSupport.toJson(List.of(
+                "procurement.catalog.read",
+                "procurement.submission.create",
+                "procurement.invoice.document.presign",
+                "procurement.invoice.document.register",
+                "procurement.invoice.submit"
+            )));
+            statement.setObject(9, request.expiresAt() == null ? null : java.sql.Timestamp.from(request.expiresAt()));
+            statement.setLong(10, context.userId());
+            statement.setLong(11, context.userId());
+            statement.setString(12, PosJsonSupport.toJson(Map.of("source", "POS_SUPPLIER_PORTAL")));
             return statement;
         }, keyHolder);
         return keyHolder.getKey().longValue();
@@ -601,7 +672,9 @@ public class PurchaseOrderRepository {
         return jdbcTemplate.query("""
             SELECT access.*, provider.name AS provider_name, provider.email AS provider_email
             FROM pos_supplier_portal_access access
-            JOIN finance_providers provider ON provider.id = access.provider_id
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
             WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
               AND provider.deleted_at IS NULL
               AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
@@ -617,13 +690,27 @@ public class PurchaseOrderRepository {
         PosSqlSupport.appendScopeParams(params, context.scope());
         return jdbcTemplate.update("""
             UPDATE pos_supplier_portal_access access
-            JOIN finance_providers provider ON provider.id = access.provider_id
-            SET access.status = ?, access.expires_at = NULL, access.updated_by_user_id = ?,
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            SET access.status = ?, access.updated_by_user_id = ?,
                 access.updated_at = CURRENT_TIMESTAMP
             WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
               AND provider.deleted_at IS NULL
               AND """ + PosSqlSupport.scopePredicate("provider", context.scope()) + """
             """, params.toArray()) > 0;
+    }
+
+    public boolean updateSupplierPortalAccessStatusFromEngine(
+            long companyId,
+            long accessId,
+            String status,
+            long userId) {
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access
+            SET status = ?, updated_by_user_id = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """, normalizePortalStatus(status), userId, companyId, accessId) > 0;
     }
 
     public boolean updateSupplierPortalAccessPin(PosContext context, long accessId, String pinHash) {
@@ -635,8 +722,10 @@ public class PurchaseOrderRepository {
         PosSqlSupport.appendScopeParams(params, context.scope());
         return jdbcTemplate.update("""
             UPDATE pos_supplier_portal_access access
-            JOIN finance_providers provider ON provider.id = access.provider_id
-            SET access.pin_hash = ?, access.expires_at = NULL, access.updated_by_user_id = ?,
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            SET access.pin_hash = ?, access.updated_by_user_id = ?,
                 access.updated_at = CURRENT_TIMESTAMP
             WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
               AND provider.deleted_at IS NULL
@@ -644,33 +733,203 @@ public class PurchaseOrderRepository {
             """, params.toArray()) > 0;
     }
 
-    public Optional<SupplierPortalAccessRecord> findSupplierPortalAccessByCode(String portalCode) {
-        return jdbcTemplate.query("""
-            SELECT access.*, provider.name AS provider_name, provider.email AS provider_email
-            FROM pos_supplier_portal_access access
-            JOIN finance_providers provider ON provider.id = access.provider_id
-            WHERE access.portal_code = ? AND access.deleted_at IS NULL
+    /**
+     * Keeps the legacy per-link verifier aligned with the provider's authoritative
+     * personal credential. This is intentionally provider-wide: the PIN belongs to
+     * the provider identity, not to an individual kiosk link.
+     */
+    public int updateSupplierPortalPinsForProvider(
+            long companyId,
+            long providerId,
+            String pinHash,
+            long userId) {
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access
+            SET pin_hash = ?, updated_by_user_id = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE company_id = ? AND provider_id = ? AND deleted_at IS NULL
+            """, pinHash, userId, companyId, providerId);
+    }
+
+    public boolean updateSupplierPortalAccessExpiration(
+            PosContext context,
+            long accessId,
+            Instant expiresAt) {
+        var params = new ArrayList<Object>();
+        params.add(expiresAt == null ? null : java.sql.Timestamp.from(expiresAt));
+        params.add(context.userId());
+        params.add(context.companyId());
+        params.add(accessId);
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access access
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            SET access.expires_at = ?, access.updated_by_user_id = ?,
+                access.updated_at = CURRENT_TIMESTAMP
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
               AND provider.deleted_at IS NULL
-            """, (rs, rowNum) -> new SupplierPortalAccessRecord(
-            rs.getLong("id"),
-            rs.getLong("company_id"),
-            rs.getLong("provider_id"),
-            rs.getString("provider_name"),
-            rs.getString("provider_email"),
-            rs.getString("portal_code"),
-            rs.getString("pin_hash"),
-            rs.getString("status"),
-            instant(rs, "expires_at")
-        ), normalizePortalCode(portalCode)).stream().findFirst();
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()), params.toArray()) > 0;
+    }
+
+    public Optional<SupplierPortalAccessRecord> findSupplierPortalAccessByCode(String portalCode) {
+        var normalizedCode = normalizePortalCode(portalCode);
+        if (normalizedCode.isBlank()) {
+            return Optional.empty();
+        }
+        return jdbcTemplate.query("""
+            SELECT access.*, provider.name AS provider_name, provider.email AS provider_email,
+                   company.name AS company_name, unit.name AS provider_unit_name,
+                   business.name AS provider_business_name,
+                   provider.unit_id AS provider_unit_id,
+                   provider.business_id AS provider_business_id
+            FROM pos_supplier_portal_access access
+            JOIN finance_providers provider
+             ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            JOIN companies company ON company.id = access.company_id
+            LEFT JOIN units unit ON unit.id = provider.unit_id
+              AND (unit.company_id = access.company_id OR unit.company_id IS NULL)
+            LEFT JOIN businesses business ON business.id = provider.business_id
+              AND (business.company_id = access.company_id OR business.company_id IS NULL)
+            WHERE access.portal_code_hash = ?
+              AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND UPPER(COALESCE(provider.status, 'ACTIVE')) = 'ACTIVE'
+            """, (rs, rowNum) -> mapSupplierPortalAccessRecord(rs),
+            secrets.hash(normalizedCode)).stream().findFirst();
+    }
+
+    public Optional<SupplierPortalAccessRecord> findSupplierPortalAccessByLegacyReference(
+            long companyId,
+            long accessId) {
+        return jdbcTemplate.query("""
+            SELECT access.*, provider.name AS provider_name, provider.email AS provider_email,
+                   company.name AS company_name, unit.name AS provider_unit_name,
+                   business.name AS provider_business_name,
+                   provider.unit_id AS provider_unit_id,
+                   provider.business_id AS provider_business_id
+            FROM pos_supplier_portal_access access
+            JOIN finance_providers provider
+             ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            JOIN companies company ON company.id = access.company_id
+            LEFT JOIN units unit ON unit.id = provider.unit_id
+              AND (unit.company_id = access.company_id OR unit.company_id IS NULL)
+            LEFT JOIN businesses business ON business.id = provider.business_id
+              AND (business.company_id = access.company_id OR business.company_id IS NULL)
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND UPPER(COALESCE(provider.status, 'ACTIVE')) = 'ACTIVE'
+            """, (rs, rowNum) -> mapSupplierPortalAccessRecord(rs),
+            companyId, accessId).stream().findFirst();
+    }
+
+    public Optional<SupplierPortalAccessRecord> findSupplierPortalAccessForAdministration(
+            long companyId,
+            long accessId) {
+        return jdbcTemplate.query("""
+            SELECT access.*, provider.name AS provider_name, provider.email AS provider_email,
+                   company.name AS company_name, unit.name AS provider_unit_name,
+                   business.name AS provider_business_name,
+                   provider.unit_id AS provider_unit_id,
+                   provider.business_id AS provider_business_id
+            FROM pos_supplier_portal_access access
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            JOIN companies company ON company.id = access.company_id
+            LEFT JOIN units unit ON unit.id = provider.unit_id
+              AND (unit.company_id = access.company_id OR unit.company_id IS NULL)
+            LEFT JOIN businesses business ON business.id = provider.business_id
+              AND (business.company_id = access.company_id OR business.company_id IS NULL)
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
+            """, (rs, rowNum) -> mapSupplierPortalAccessRecord(rs),
+            companyId, accessId).stream().findFirst();
+    }
+
+    public boolean markSupplierPortalExpired(long accessId) {
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access
+            SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+              AND expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP
+            """, accessId) > 0;
+    }
+
+    public void pauseSupplierPortalForIncompleteScope(long companyId, long accessId) {
+        jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access
+            SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP
+            WHERE company_id = ? AND id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+            """, companyId, accessId);
+    }
+
+    public boolean deleteSupplierPortalAccess(PosContext context, long accessId) {
+        var params = new ArrayList<Object>();
+        params.add(context.companyId());
+        params.add(accessId);
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        return jdbcTemplate.update("""
+            DELETE access
+            FROM pos_supplier_portal_access access
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()), params.toArray()) > 0;
+    }
+
+    public void snapshotSupplierPortalSubmissions(
+            long companyId,
+            long accessId,
+            long providerId,
+            Long unitId,
+            Long businessId) {
+        jdbcTemplate.update("""
+            UPDATE pos_supplier_submissions
+            SET historical_portal_access_id = COALESCE(historical_portal_access_id, ?),
+                portal_scope_snapshot_json = COALESCE(
+                    portal_scope_snapshot_json,
+                    JSON_OBJECT(
+                        'company_id', ?, 'provider_id', ?,
+                        'unit_id', ?, 'business_id', ?))
+            WHERE company_id = ? AND portal_access_id = ?
+            """,
+            accessId, companyId, providerId,
+            unitId, businessId,
+            companyId, accessId);
     }
 
     public boolean supplierPortalCodeExists(long companyId, String portalCode) {
         var count = jdbcTemplate.queryForObject("""
             SELECT COUNT(*)
             FROM pos_supplier_portal_access
-            WHERE portal_code = ? AND deleted_at IS NULL
-            """, Long.class, normalizePortalCode(portalCode));
+            WHERE portal_code_hash = ?
+            """, Long.class, secrets.hash(normalizePortalCode(portalCode)));
         return count != null && count > 0;
+    }
+
+    public List<SupplierPortalSecretRecord> findUnprotectedSupplierPortalSecrets(int limit) {
+        return jdbcTemplate.query("""
+            SELECT id, portal_code
+            FROM pos_supplier_portal_access
+            WHERE portal_code NOT LIKE 'enc.v1.%'
+            ORDER BY id ASC
+            LIMIT ?
+            """, (rs, rowNum) -> new SupplierPortalSecretRecord(
+                rs.getLong("id"), rs.getString("portal_code")), limit);
+    }
+
+    public void protectSupplierPortalSecret(
+            long accessId,
+            String expectedPortalCode,
+            String protectedPortalCode) {
+        jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access
+            SET portal_code = ?
+            WHERE id = ? AND portal_code = ?
+            """, protectedPortalCode, accessId, expectedPortalCode);
     }
 
     public List<SupplierPortalCatalogProduct> listSupplierPortalCatalogProducts(long companyId, long providerId) {
@@ -679,7 +938,9 @@ public class PurchaseOrderRepository {
                    ps.provider_sku, ps.cost_amount, ps.currency_code,
                    ps.lead_time_days, ps.minimum_order_quantity
             FROM pos_product_suppliers ps
-            JOIN sales_products product ON product.id = ps.product_id
+            JOIN sales_products product
+              ON product.id = ps.product_id
+             AND product.company_id = ps.company_id
             WHERE ps.company_id = ? AND ps.provider_id = ?
               AND ps.deleted_at IS NULL AND ps.is_active = TRUE
               AND product.deleted_at IS NULL
@@ -694,6 +955,18 @@ public class PurchaseOrderRepository {
             nullableInteger(rs, "lead_time_days"),
             rs.getBigDecimal("minimum_order_quantity")
         ), companyId, providerId);
+    }
+
+    public boolean supplierPortalProductAllowed(long companyId, long providerId, long productId) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM pos_product_suppliers link
+            JOIN sales_products product ON product.id = link.product_id
+            WHERE link.company_id = ? AND link.provider_id = ? AND link.product_id = ?
+              AND link.deleted_at IS NULL AND link.is_active = TRUE
+              AND product.company_id = link.company_id AND product.deleted_at IS NULL
+            """, Integer.class, companyId, providerId, productId);
+        return count != null && count > 0;
     }
 
     public String nextSubmissionNumber(PosContext context) {
@@ -1052,7 +1325,7 @@ public class PurchaseOrderRepository {
 
     private SupplierPortalAccessResponse mapSupplierPortalAccess(java.sql.ResultSet rs, int rowNum)
             throws java.sql.SQLException {
-        var portalCode = rs.getString("portal_code");
+        var portalCode = secrets.reveal(rs.getString("portal_code"));
         return new SupplierPortalAccessResponse(
             rs.getLong("id"),
             rs.getLong("provider_id"),
@@ -1063,7 +1336,29 @@ public class PurchaseOrderRepository {
             rs.getString("status"),
             instant(rs, "expires_at"),
             instant(rs, "created_at"),
-            instant(rs, "updated_at")
+            instant(rs, "updated_at"),
+            false
+        );
+    }
+
+    private SupplierPortalAccessRecord mapSupplierPortalAccessRecord(java.sql.ResultSet rs)
+            throws java.sql.SQLException {
+        return new SupplierPortalAccessRecord(
+            rs.getLong("id"),
+            rs.getLong("company_id"),
+            rs.getString("company_name"),
+            rs.getLong("provider_id"),
+            rs.getString("provider_name"),
+            rs.getString("provider_email"),
+            secrets.reveal(rs.getString("portal_code")),
+            rs.getString("pin_hash"),
+            rs.getString("status"),
+            instant(rs, "expires_at"),
+            rs.getString("allowed_capabilities_json"),
+            PosSqlSupport.nullableLong(rs, "provider_unit_id"),
+            rs.getString("provider_unit_name"),
+            PosSqlSupport.nullableLong(rs, "provider_business_id"),
+            rs.getString("provider_business_name")
         );
     }
 
@@ -1120,8 +1415,12 @@ public class PurchaseOrderRepository {
             SELECT po.*, warehouse.name AS warehouse_name,
                    provider.name AS provider_name, provider.email AS provider_email
             FROM pos_purchase_orders po
-            JOIN sales_inventory_warehouses warehouse ON warehouse.id = po.warehouse_id
-            JOIN finance_providers provider ON provider.id = po.provider_id
+            JOIN sales_inventory_warehouses warehouse
+              ON warehouse.id = po.warehouse_id
+             AND warehouse.company_id = po.company_id
+            JOIN finance_providers provider
+              ON provider.id = po.provider_id
+             AND provider.company_id = po.company_id
             """;
     }
 
@@ -1129,7 +1428,9 @@ public class PurchaseOrderRepository {
         return """
             SELECT submission.*, provider.name AS provider_name, provider.email AS provider_email
             FROM pos_supplier_submissions submission
-            JOIN finance_providers provider ON provider.id = submission.provider_id
+            JOIN finance_providers provider
+              ON provider.id = submission.provider_id
+             AND provider.company_id = submission.company_id
             """;
     }
 
@@ -1137,8 +1438,12 @@ public class PurchaseOrderRepository {
         return """
             SELECT invoice.*, provider.name AS provider_name, po.folio AS purchase_order_folio
             FROM pos_supplier_invoices invoice
-            JOIN finance_providers provider ON provider.id = invoice.provider_id
-            LEFT JOIN pos_purchase_orders po ON po.id = invoice.purchase_order_id
+            JOIN finance_providers provider
+              ON provider.id = invoice.provider_id
+             AND provider.company_id = invoice.company_id
+            LEFT JOIN pos_purchase_orders po
+              ON po.id = invoice.purchase_order_id
+             AND po.company_id = invoice.company_id
             """;
     }
 
@@ -1229,13 +1534,31 @@ public class PurchaseOrderRepository {
     public record SupplierPortalAccessRecord(
         Long id,
         Long companyId,
+        String companyName,
         Long providerId,
         String providerName,
         String providerEmail,
         String portalCode,
         String pinHash,
         String status,
-        Instant expiresAt
+        Instant expiresAt,
+        String allowedCapabilitiesJson,
+        Long unitId,
+        String unitName,
+        Long businessId,
+        String businessName
+    ) {
+    }
+
+    public record SupplierPortalSecretRecord(Long id, String portalCode) {
+    }
+
+    private record SupplierPortalSnapshotNames(
+        String companyName,
+        String unitName,
+        String businessName,
+        String portalCodeHint,
+        String portalStatus
     ) {
     }
 

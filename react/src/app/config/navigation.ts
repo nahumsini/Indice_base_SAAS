@@ -1,5 +1,6 @@
 const canonicalPageIds = [
   'dashboard',
+  'kiosk-center',
   'home-panel',
   'human-resources',
   'processes-tasks',
@@ -31,6 +32,9 @@ const canonicalPageIds = [
 export type PageId = (typeof canonicalPageIds)[number];
 
 export const legacyPageAliases: Record<string, PageId> = {
+  kiosks: 'kiosk-center',
+  kioskos: 'kiosk-center',
+  kiosk_center: 'kiosk-center',
   'panel-inicial': 'home-panel',
   config_center: 'home-panel',
   'recursos-humanos': 'human-resources',

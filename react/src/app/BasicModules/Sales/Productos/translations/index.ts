@@ -41,4 +41,10 @@ export function useProductsTranslations() {
   return useMemo(() => getProductsTranslations(currentLanguage.code), [currentLanguage.code]);
 }
 
+export function useProductsResolvedLocale() {
+  const { currentLanguage } = useLanguage();
+
+  return useMemo(() => resolveProductsLocale(currentLanguage.code), [currentLanguage.code]);
+}
+
 export type { ProductsLocale, ProductsTranslations } from './types';

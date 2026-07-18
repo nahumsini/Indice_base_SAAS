@@ -1,4 +1,4 @@
-import { Check, Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings } from 'lucide-react';
+import { Check, Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings, MonitorCog } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -18,6 +18,8 @@ import { NotificationMenu } from './notifications/NotificationMenu';
 import { useNotifications } from './notifications/useNotifications';
 import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurrencyControl';
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
+import { isAdminAccessRole } from '../access/accessRules';
+import { getKioskCenterCopy } from '../KioskCenter/kioskCenterTranslations';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -50,6 +52,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const [currentUserName, setCurrentUserName] = useState('User');
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState('');
+  const [canAccessKioskCenter, setCanAccessKioskCenter] = useState(false);
   const notifications = useNotifications();
 
   useEffect(() => {
@@ -58,6 +61,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
       setCurrentUserName(getProfileDisplayName(user));
       setCurrentUserEmail(user.email || '');
       setCurrentUserAvatarUrl(user.avatar_url || '');
+      setCanAccessKioskCenter(isAdminAccessRole(user.role));
     };
 
     const handleProfileUpdate = (event: Event) => {
@@ -84,6 +88,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             }
             setCurrentUserName(session.user.name);
             setCurrentUserEmail('');
+            setCanAccessKioskCenter(isAdminAccessRole(session.user.role));
           })
           .catch(() => {
             // Keep the fallback header content if both profile calls fail.
@@ -355,6 +360,15 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.profile}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
+                  {canAccessKioskCenter ? (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                        <MonitorCog className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{getKioskCenterCopy(currentLanguage.code).title}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
+                    </>
+                  ) : null}
                   <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                     <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>

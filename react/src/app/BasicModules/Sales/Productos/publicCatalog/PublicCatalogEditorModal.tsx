@@ -14,7 +14,11 @@ type PublicCatalogEditorModalProps = {
   catalog: PublicCatalogConfig | null;
   mode: PublicCatalogEditorMode | null;
   products: SalesCatalogItem[];
+  units: Array<{ id: number; name: string }>;
+  businesses: Array<{ id: number; unitId: number; name: string }>;
   t: ProductsTranslations;
+  saving?: boolean;
+  error?: string;
   onOpenChange: (open: boolean) => void;
   onChange: (patch: Partial<PublicCatalogConfig>) => void;
   onSave: () => void;
@@ -24,7 +28,11 @@ export function PublicCatalogEditorModal({
   catalog,
   mode,
   products,
+  units,
+  businesses,
   t,
+  saving = false,
+  error = '',
   onOpenChange,
   onChange,
   onSave,
@@ -50,16 +58,24 @@ export function PublicCatalogEditorModal({
           <Button
             type="button"
             className={editorActionClassNames.primary}
-            disabled={!catalog}
+            disabled={!catalog || saving}
             onClick={onSave}
           >
-            {t.publicCatalog.saveCatalog}
+            {saving ? t.publicCatalog.saving : t.publicCatalog.saveCatalog}
           </Button>
         </>
       )}
     >
-        <div className="min-h-0 overflow-hidden bg-white">
-          <PublicCatalogEditor catalog={catalog} products={products} t={t} onChange={onChange} />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+          {error ? <div role="alert" className="m-4 mb-0 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div> : null}
+          <PublicCatalogEditor
+            catalog={catalog}
+            products={products}
+            units={units}
+            businesses={businesses}
+            t={t}
+            onChange={onChange}
+          />
         </div>
     </SalesModalFrame>
   );

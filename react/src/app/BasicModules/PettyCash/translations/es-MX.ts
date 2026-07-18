@@ -343,6 +343,11 @@ export const esMX = {
     },
   },
   publicKiosk: {
+    session: {
+      offline: 'Sin conexiÃ³n de red. Este kiosko funciona Ãºnicamente en lÃ­nea.',
+      expiring: 'Tu sesiÃ³n vencerÃ¡ en menos de un minuto.',
+      expired: 'Tu sesiÃ³n venciÃ³ por inactividad. Ingresa de nuevo tu PIN para continuar.',
+    },
     errors: {
       bootstrap: 'No se pudo abrir el kiosko de caja chica.',
       identify: 'No se pudo validar el PIN.',

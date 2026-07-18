@@ -7,6 +7,7 @@ import com.indice.erp.finance.pettycash.dto.CreatePettyCashMovementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest;
 import com.indice.erp.finance.pettycash.dto.UpdatePettyCashFundRequest;
 import com.indice.erp.storage.ObjectStorageDisabledException;
+import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.Map;
@@ -107,6 +108,43 @@ public class FinancePettyCashController {
         return ResponseEntity.ok(service.rotateKioskPublicToken(access.context(), fundId));
     }
 
+    @DeleteMapping("/funds/{fundId}/kiosk")
+    public ResponseEntity<?> deleteFundKiosk(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) return access.error();
+        return ResponseEntity.ok(service.deleteKioskAccess(access.context(), fundId));
+    }
+
+    @PostMapping("/funds/{fundId}/kiosk-disable")
+    public ResponseEntity<?> disableFundKiosk(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        return transitionKiosk(session, csrfToken, fundId, payload, KioskDefinitionStatus.DISABLED);
+    }
+
+    @PostMapping("/funds/{fundId}/kiosk-enable")
+    public ResponseEntity<?> enableFundKiosk(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        return transitionKiosk(session, csrfToken, fundId, payload, KioskDefinitionStatus.ACTIVE);
+    }
+
+    @PostMapping("/funds/{fundId}/kiosk-revoke")
+    public ResponseEntity<?> revokeFundKiosk(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long fundId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        return transitionKiosk(session, csrfToken, fundId, payload, KioskDefinitionStatus.REVOKED);
+    }
+
     @PostMapping("/funds/{fundId}/movements")
     public ResponseEntity<?> createMovement(
             HttpSession session,
@@ -118,6 +156,19 @@ public class FinancePettyCashController {
             return access.error();
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createMovement(access.context(), fundId, request));
+    }
+
+    private ResponseEntity<?> transitionKiosk(
+            HttpSession session,
+            String csrfToken,
+            long fundId,
+            Map<String, Object> payload,
+            KioskDefinitionStatus target) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        if (access.denied()) return access.error();
+        var reason = payload == null ? null : String.valueOf(payload.getOrDefault("reason", ""));
+        return ResponseEntity.ok(service.transitionKiosk(
+            access.context(), fundId, target, reason));
     }
 
     @PostMapping("/funds/{fundId}/settlement-lines")

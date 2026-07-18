@@ -192,6 +192,11 @@ export const ptBR = {
     movements: { title: 'Movimentos de fundos', subtitle: 'Abastecimentos e ajustes. Estes movimentos nao sao despesas.', result: (count: number) => `${count} movimentos`, itemLabel: 'movimentos', empty: 'Nao ha movimentos de fundos para o filtro selecionado.', noFund: 'Sem fundo', columns: { date: 'Data', fund: 'Fundo', type: 'Tipo', source: 'Origem', target: 'Destino', amount: 'Valor', reference: 'Referencia' } },
   },
   publicKiosk: {
+    session: {
+      offline: 'Sem conexÃ£o de rede. Este quiosque funciona somente online.',
+      expiring: 'Sua sessÃ£o expirarÃ¡ em menos de um minuto.',
+      expired: 'Sua sessÃ£o expirou por inatividade. Digite o PIN novamente.',
+    },
     errors: { bootstrap: 'Nao foi possivel abrir o quiosque da caixinha.', identify: 'Nao foi possivel validar o PIN.', oversizedFiles: 'Alguns arquivos tinham mais de 10 MB e nao foram adicionados.', receipt: 'Nao foi possivel registrar o comprovante.' },
     success: { receipt: 'Comprovante registrado corretamente.', deleted: 'Despesa excluida e valor devolvido ao fundo.' },
     loading: { title: 'Abrindo caixinha', description: 'Preparando o quiosque do fundo.' },

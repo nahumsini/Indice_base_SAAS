@@ -1,6 +1,7 @@
 import { FailureToast } from '../../../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../../../components/SuccessToast';
+import { KioskPublicShell } from '../../../../../components/kiosk-engine/KioskPublicShell';
 import { PublicKioskHeader } from './PublicKioskHeader';
 import { PublicKioskIdentityPanel } from './PublicKioskIdentityPanel';
 import { usePublicKioskController } from './hooks/usePublicKioskController';
@@ -42,6 +43,8 @@ export default function Kiosk() {
     identificationToken,
     identifiedHrUser,
     isLoading,
+    isOnline,
+    isSessionExpiring,
     kioskGreeting,
     kioskLocationLabel,
     kioskMessage,
@@ -86,10 +89,29 @@ export default function Kiosk() {
         durationMs={4200}
       />
 
-      <main className="min-h-dvh bg-slate-100 px-0 py-0 text-slate-900 dark:bg-slate-950 dark:text-slate-100 sm:px-4 sm:py-4">
-        <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col sm:min-h-0">
-          <section className="flex min-h-dvh flex-col overflow-hidden bg-white dark:bg-slate-950 sm:min-h-0 sm:rounded-lg sm:border sm:border-slate-200/80 sm:shadow-sm sm:dark:border-slate-700/80">
-            <PublicKioskHeader
+      <KioskPublicShell
+        maxWidthClassName="max-w-3xl"
+        loadingOverlay={null}
+        banners={(
+          <>
+            {!isOnline ? (
+              <div role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-center text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-200">
+                {selectedLocale.startsWith('es')
+                  ? 'Sin conexión. Las acciones del kiosko están pausadas.'
+                  : 'Offline. Kiosk actions are paused.'}
+              </div>
+            ) : null}
+            {isSessionExpiring ? (
+              <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm font-semibold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-100">
+                {selectedLocale.startsWith('es')
+                  ? 'Tu sesión está por vencer. Interactúa para continuar.'
+                  : 'Your session is about to expire. Interact to continue.'}
+              </div>
+            ) : null}
+          </>
+        )}
+        header={(
+          <PublicKioskHeader
               bootstrap={bootstrap}
               copy={copy}
               currentTime={currentTime}
@@ -99,17 +121,17 @@ export default function Kiosk() {
               localeOptions={localeOptions}
               selectedLocale={selectedLocale}
               onLocaleChange={setKioskLocale}
-            />
-
-            <div className="flex min-h-0 flex-1 bg-slate-50/80 px-3 py-3 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-slate-900/55 sm:px-5 sm:py-5">
-              <PublicKioskIdentityPanel
+          />
+        )}
+      >
+        <PublicKioskIdentityPanel
                 activeActivityLocation={activeActivityLocation}
                 activityStateLabel={activityStateLabel}
                 activeTodayActivity={activeTodayActivity}
                 busyState={busyState}
-                canCheckIn={canCheckIn}
-                canCheckOut={canCheckOut}
-                canIdentify={canIdentify}
+                canCheckIn={canCheckIn && isOnline}
+                canCheckOut={canCheckOut && isOnline}
+                canIdentify={canIdentify && isOnline}
                 copy={copy}
                 credentialPlaceholder={credentialPlaceholder}
                 credentialValue={credentialValue}
@@ -144,11 +166,8 @@ export default function Kiosk() {
                 onPunch={(eventType) => void handlePunch(eventType)}
                 onRequestLocation={() => void requestLocation()}
                 onReset={() => resetFlow()}
-              />
-            </div>
-          </section>
-        </div>
-      </main>
+        />
+      </KioskPublicShell>
     </>
   );
 }

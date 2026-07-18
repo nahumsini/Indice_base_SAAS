@@ -295,6 +295,11 @@ export const frCA = {
     },
   },
   publicKiosk: {
+    session: {
+      offline: 'Aucune connexion rÃ©seau. Ce kiosque fonctionne uniquement en ligne.',
+      expiring: 'Votre session expirera dans moins dâ€™une minute.',
+      expired: 'Votre session a expirÃ© pour inactivitÃ©. Entrez de nouveau votre NIP.',
+    },
     errors: { bootstrap: 'Le kiosque petite caisse ne peut pas etre ouvert.', identify: 'Le NIP ne peut pas etre valide.', oversizedFiles: 'Certains fichiers depassaient 10 Mo et ne sont pas ajoutes.', receipt: 'Le recu ne peut pas etre enregistre.' },
     success: { receipt: 'Recu enregistre avec succes.', deleted: 'Depense supprimee et montant retourne au fonds.' },
     loading: { title: 'Ouverture petite caisse', description: 'Preparation du kiosque du fonds.' },

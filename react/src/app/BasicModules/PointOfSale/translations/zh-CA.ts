@@ -10,6 +10,7 @@ export const zhCA = {
     fallbackDescription: '仅加载所选销售点区域。',
   },
   tabs: {
+    kiosks: '自助终端',
     sale: '销售',
     cortes: '收银结算',
     clientes: '客户',

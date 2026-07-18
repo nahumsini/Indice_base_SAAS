@@ -26,6 +26,8 @@ export type {
   PayableKiosk,
   PayableKioskAccessType,
   PayableKioskBootstrap,
+  PayableKioskBiometricPolicy,
+  PayableKioskFaceStatus,
   PayableKioskPayload,
   PayableKioskPublicProvider,
   PayableKioskProviderAccess,

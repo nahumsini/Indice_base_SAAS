@@ -4,6 +4,7 @@ import com.indice.erp.pos.PosRequestGuard;
 import com.indice.erp.pos.customerdisplay.dto.CustomerDisplayPairRequest;
 import com.indice.erp.pos.customerdisplay.dto.CustomerDisplayPairingCodeRequest;
 import com.indice.erp.pos.customerdisplay.dto.CustomerDisplaySnapshotRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -23,10 +24,15 @@ public class CustomerDisplayController {
 
     private final PosRequestGuard guard;
     private final CustomerDisplayService service;
+    private final CustomerDisplayKioskGateway kioskGateway;
 
-    public CustomerDisplayController(PosRequestGuard guard, CustomerDisplayService service) {
+    public CustomerDisplayController(
+            PosRequestGuard guard,
+            CustomerDisplayService service,
+            CustomerDisplayKioskGateway kioskGateway) {
         this.guard = guard;
         this.service = service;
+        this.kioskGateway = kioskGateway;
     }
 
     @PostMapping("/pairing-code")
@@ -53,13 +59,29 @@ public class CustomerDisplayController {
         return ResponseEntity.ok(service.publishSnapshot(access.context(), request));
     }
 
+    @GetMapping("/public/pairing-bootstrap")
+    public ResponseEntity<?> pairingBootstrap(
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(kioskGateway.pairingBootstrap(request, session));
+    }
+
     @PostMapping("/public/pair")
-    public ResponseEntity<?> pair(@Valid @RequestBody CustomerDisplayPairRequest request) {
-        return ResponseEntity.ok(service.pair(request));
+    public ResponseEntity<?> pair(
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody CustomerDisplayPairRequest requestBody,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(kioskGateway.pair(
+            requestBody, csrfToken, idempotencyKey, request, session));
     }
 
     @GetMapping("/public/{deviceToken}/state")
-    public ResponseEntity<?> publicState(@PathVariable String deviceToken) {
-        return ResponseEntity.ok(service.publicState(deviceToken));
+    public ResponseEntity<?> publicState(
+            @PathVariable String deviceToken,
+            HttpServletRequest request,
+            HttpSession session) {
+        return ResponseEntity.ok(kioskGateway.state(deviceToken, request, session));
     }
 }

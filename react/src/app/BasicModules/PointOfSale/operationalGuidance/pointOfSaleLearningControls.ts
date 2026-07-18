@@ -1,6 +1,6 @@
 import { createLearningModeControl, type LearningModeControl } from '../../../learningMode';
 
-export type PointOfSaleLearningTabId = 'sale' | 'cortes' | 'clientes' | 'facturacion' | 'descuentos' | 'kpis';
+export type PointOfSaleLearningTabId = 'sale' | 'cortes' | 'clientes' | 'facturacion' | 'descuentos' | 'kpis' | 'kiosks';
 
 const control = createLearningModeControl;
 
@@ -11,9 +11,25 @@ export const pointOfSaleLearningLabels: Record<PointOfSaleLearningTabId, string>
   facturacion: 'Facturación',
   descuentos: 'Descuentos',
   kpis: 'KPIs de punto de venta',
+  kiosks: 'Kioscos de punto de venta',
 };
 
 export const pointOfSaleLearningControls: Record<PointOfSaleLearningTabId, readonly LearningModeControl[]> = {
+  kiosks: [
+    control({
+      id: 'pos-kiosk-management', emoji: '🖥️', kind: 'Administración de extensiones', title: 'Configurar kioscos POS',
+      purpose: 'Vincula pantallas de cliente y autoservicio con una caja y alcance operativo concretos.',
+      behavior: 'Crea enlaces de una sola exhibición, permite rotarlos y controla activación o revocación con auditoría.',
+      whenToUse: 'Úsalo al instalar una pantalla, publicar autoservicio o retirar un dispositivo.',
+      result: 'Mantiene cada extensión vinculada a la caja correcta y evita enlaces permanentes fuera de control.',
+      focus: 'la operación segura de kioscos',
+      stories: {
+        emily: 'Emily asigna un kiosco por cafetería y rota el enlace cuando cambia la tableta del mostrador.',
+        juanito: 'Juanito publica un pre-ticket sin permitir que el kiosco cobre o descuente inventario por sí solo.',
+        camila: 'Camila desactiva una pantalla retirada y conserva la trazabilidad de la caja que atendía.',
+      },
+    }),
+  ],
   sale: [
     control({
       id: 'pos-open-shift', emoji: '🔓', kind: 'Inicio de operación', title: 'Abrir turno y elegir caja',

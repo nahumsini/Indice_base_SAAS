@@ -140,7 +140,7 @@ public final class PurchaseOrderDtos {
         @Size(max = 120) String providerSku,
         @NotBlank @Size(max = 240) String productName,
         @Size(max = 4000) String productDescription,
-        String imageUrl,
+        @Size(max = 700) String imageUrl,
         @NotNull @DecimalMin("0.0001") BigDecimal quantity,
         @NotNull @DecimalMin("0.00") BigDecimal unitCost,
         @DecimalMin("0.00") BigDecimal taxRate,
@@ -156,7 +156,7 @@ public final class PurchaseOrderDtos {
         @Size(max = 180) String submittedByName,
         @Size(max = 180) String submittedByEmail,
         @Size(max = 4000) String notes,
-        @Valid @NotEmpty List<SupplierSubmissionItemRequest> items
+        @Valid @NotEmpty @Size(max = 100) List<SupplierSubmissionItemRequest> items
     ) {
     }
 
@@ -241,6 +241,12 @@ public final class PurchaseOrderDtos {
     ) {
     }
 
+    public record SupplierPortalAccessConfigurationRequest(
+        @NotBlank @Size(max = 180) String name,
+        Instant expiresAt
+    ) {
+    }
+
     public record SupplierPortalAccessResponse(
         Long id,
         Long providerId,
@@ -251,7 +257,8 @@ public final class PurchaseOrderDtos {
         String status,
         Instant expiresAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        boolean personalPinCreated
     ) {
     }
 
@@ -287,17 +294,17 @@ public final class PurchaseOrderDtos {
     }
 
     public record SupplierPortalSubmissionRequest(
-        @NotBlank @Size(min = 4, max = 20) String pin,
+        @Size(min = 4, max = 20) String pin,
         @NotBlank @Size(min = 3, max = 3) String currencyCode,
         @Size(max = 180) String submittedByName,
         @Size(max = 180) String submittedByEmail,
         @Size(max = 4000) String notes,
-        @Valid @NotEmpty List<SupplierSubmissionItemRequest> items
+        @Valid @NotEmpty @Size(max = 100) List<SupplierSubmissionItemRequest> items
     ) {
     }
 
     public record SupplierPortalInvoiceRequest(
-        @NotBlank @Size(min = 4, max = 20) String pin,
+        @Size(min = 4, max = 20) String pin,
         @NotBlank @Size(max = 120) String invoiceNumber,
         LocalDate invoiceDate,
         LocalDate dueDate,
@@ -306,13 +313,21 @@ public final class PurchaseOrderDtos {
         @NotNull @DecimalMin("0.00") BigDecimal totalAmount,
         @NotBlank @Size(min = 3, max = 3) String currencyCode,
         @Size(max = 4000) String notes,
-        String documentUrl,
+        @Size(max = 700) String documentUrl,
         @Size(max = 180) String submittedByName
     ) {
     }
 
     public record SupplierPortalDocumentUploadRequest(
-        @NotBlank @Size(min = 4, max = 20) String pin,
+        @Size(min = 4, max = 20) String pin,
+        @NotBlank @Size(max = 240) String fileName,
+        @Size(max = 120) String contentType,
+        @NotNull @DecimalMin("1") Long sizeBytes
+    ) {
+    }
+
+    public record SupplierPortalDocumentRegisterRequest(
+        @NotBlank @Size(max = 700) String objectKey,
         @NotBlank @Size(max = 240) String fileName,
         @Size(max = 120) String contentType,
         @NotNull @DecimalMin("1") Long sizeBytes

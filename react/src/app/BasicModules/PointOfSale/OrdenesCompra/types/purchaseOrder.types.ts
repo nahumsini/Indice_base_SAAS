@@ -138,7 +138,7 @@ export type SupplierSubmissionListResponse = {
   count: number;
 };
 
-export type SupplierPortalAccessStatus = 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'REVOKED';
+export type SupplierPortalAccessStatus = 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'REVOKED';
 
 export type SupplierPortalAccess = {
   id: number;
@@ -151,6 +151,7 @@ export type SupplierPortalAccess = {
   expiresAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  personalPinCreated?: boolean;
 };
 
 export type SupplierPortalAccessListResponse = {
@@ -174,6 +175,63 @@ export type SupplierPortalAccessPinPayload = {
   pin: string;
 };
 
+export type SupplierPortalKioskDefinition = {
+  id: number;
+  companyId: number;
+  ownerModule: string;
+  kioskType: string;
+  legacyReferenceId: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  status: SupplierPortalAccessStatus;
+  accessLevel: string;
+  accessMethods: string[];
+  unitId?: number | null;
+  unitName?: string | null;
+  businessId?: number | null;
+  businessName?: string | null;
+  locationId?: number | null;
+  expiresAt?: string | null;
+  publicTokenHint?: string | null;
+  configurationVersion: number;
+  adapterVersion: number;
+  lastActivityAt?: string | null;
+  riskSignals: string[];
+};
+
+export type SupplierPortalKioskConfigurationPayload = {
+  name: string;
+  expiresAt: string | null;
+};
+
+export type SupplierPortalKioskGrant = {
+  id: number;
+  identityType: string;
+  identityId: number;
+  capabilityKey: string;
+  status: 'ACTIVE' | 'REVOKED';
+  source: string;
+  createdAt: string;
+};
+
+export type SupplierPortalKioskAuditEvent = {
+  eventId: string;
+  requestId?: string;
+  actionId?: string;
+  sessionId?: string;
+  eventType: string;
+  outcome: string;
+  actorType?: string;
+  actorId?: number;
+  capability?: string;
+  moduleReference?: string;
+  moduleRecordType?: string;
+  moduleRecordId?: number;
+  source?: string;
+  createdAt: string;
+};
+
 export type SupplierPortalCatalogProduct = {
   productId: number;
   productName: string;
@@ -186,13 +244,52 @@ export type SupplierPortalCatalogProduct = {
 };
 
 export type SupplierPortalContextResponse = {
-  portalAccessId: number;
-  portalCode: string;
-  providerId: number;
+  portalAccessId?: number;
+  portalCode?: string;
+  providerId?: number;
   providerName: string;
   providerEmail?: string | null;
+  kioskName?: string | null;
+  companyName?: string | null;
+  unitName?: string | null;
+  businessName?: string | null;
   status: SupplierPortalAccessStatus;
   catalogProducts: SupplierPortalCatalogProduct[];
+};
+
+export type SupplierPortalBootstrapResponse = {
+  csrfToken: string;
+  expiresAt?: string | null;
+  inactivityTimeoutSeconds?: number;
+  portalCode?: string;
+  status: SupplierPortalAccessStatus;
+};
+
+export type SupplierPortalSessionResponse = {
+  context: SupplierPortalContextResponse;
+  csrfToken: string;
+  expiresAt?: string | null;
+  sessionId: string;
+  sessionToken: string;
+};
+
+export type SupplierPortalSessionCredentials = Pick<
+  SupplierPortalSessionResponse,
+  'csrfToken' | 'sessionId' | 'sessionToken'
+>;
+
+/** Minimal receipt exposed by the public supplier portal after a proposal is accepted. */
+export type SupplierPortalSubmissionReceipt = {
+  submissionNumber: string;
+  status: SupplierSubmissionStatus;
+  submittedAt?: string | null;
+};
+
+/** Minimal receipt exposed by the public supplier portal after an invoice is accepted. */
+export type SupplierPortalInvoiceReceipt = {
+  invoiceNumber: string;
+  status: SupplierInvoiceStatus;
+  createdAt?: string | null;
 };
 
 export type ProductSupplier = {
@@ -321,12 +418,9 @@ export type SupplierSubmissionPayload = {
   }>;
 };
 
-export type SupplierPortalSubmissionPayload = Omit<SupplierSubmissionPayload, 'providerId' | 'portalAccessId'> & {
-  pin: string;
-};
+export type SupplierPortalSubmissionPayload = Omit<SupplierSubmissionPayload, 'providerId' | 'portalAccessId'>;
 
 export type SupplierPortalInvoicePayload = {
-  pin: string;
   invoiceNumber: string;
   invoiceDate?: string | null;
   dueDate?: string | null;
@@ -340,10 +434,25 @@ export type SupplierPortalInvoicePayload = {
 };
 
 export type SupplierPortalDocumentUploadPayload = {
-  pin: string;
   fileName: string;
   contentType?: string | null;
   sizeBytes: number;
+};
+
+export type SupplierPortalDocumentRegistrationPayload = {
+  contentType: string;
+  fileName: string;
+  objectKey: string;
+  sizeBytes: number;
+};
+
+export type SupplierPortalDocumentRegistrationResponse = {
+  content_type: string;
+  file_name: string;
+  objectKey: string;
+  object_key: string;
+  registered: boolean;
+  size_bytes: number;
 };
 
 export type SupplierInvoiceDocumentUploadPayload = {

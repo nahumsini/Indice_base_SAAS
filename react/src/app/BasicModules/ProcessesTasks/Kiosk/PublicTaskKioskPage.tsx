@@ -1,63 +1,49 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
-  ArrowRight,
-  CalendarCheck2,
-  Camera,
   CheckCircle2,
   ClipboardCheck,
-  Clock3,
   Eye,
-  FileUp,
-  Image as ImageIcon,
-  KeyRound,
   ListChecks,
-  Paperclip,
   Plus,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
-  Upload,
-  UserRound,
-  X,
 } from 'lucide-react';
 import { useParams } from 'react-router';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
+import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
 import { Button } from '../../../components/ui/button';
-import { Input } from '../../../components/ui/input';
-import { Textarea } from '../../../components/ui/textarea';
 import {
   processTaskKioskApi,
   uploadPublicTaskAttachment,
   type PublicTaskKioskBootstrapResponse,
   type PublicTaskKioskAssignmentOption,
+  type PublicTaskKioskCreateTaskPayload,
   type PublicTaskKioskTask,
   type PublicTaskKioskIdentifyResponse,
 } from './processTaskKioskApi';
-import { ProgressSlider } from '../shared/ProgressSlider';
-import { TaskKioskLanguageSelector, TaskPinKeypad } from './components/PublicTaskKioskControls';
+import { PublicTaskKioskDialogs } from './components/PublicTaskKioskDialogs';
+import {
+  PublicTaskKioskHeader,
+  PublicTaskKioskPinAccess,
+  PublicTaskKioskSessionBanners,
+} from './components/PublicTaskKioskWorkspaceSections';
 import { useTaskKioskLocaleControls, useTaskKioskTranslations } from './hooks/useTaskKioskTranslations';
 import type { TaskKioskLocale, TaskKioskTranslations } from './translations';
 import type { AgendaFocusFilter, PeriodFilter } from '../Agenda/types';
 import { filterKioskTasks } from './taskKioskFilterEngine';
+import {
+  normalizedTaskKioskEvidenceContentType,
+  taskKioskAcceptedEvidenceTypes,
+  taskKioskFilesFromInput,
+  taskKioskMaxEvidenceFiles,
+  taskKioskMaxEvidenceSizeBytes,
+} from './publicTaskKioskEvidence';
+import {
+  completeKioskIdempotentOperation,
+  kioskIdempotencyKeyFor,
+} from './kioskIdempotency';
+import { useKioskSessionBoundary } from './hooks/useKioskSessionBoundary';
 
-const maxEvidenceSizeBytes = 10 * 1024 * 1024;
-const maxEvidenceFiles = 5;
-const acceptedEvidenceTypes = new Set([
-  'application/pdf',
-  'image/png',
-  'image/jpeg',
-  'image/jpg',
-  'image/gif',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/csv',
-  'text/plain',
-]);
 const allFilterValue = 'all';
 const emptyFilterValue = 'empty';
 const openTaskStatuses = new Set<PublicTaskKioskTask['status']>(['pending', 'in_progress', 'paused']);
@@ -260,37 +246,6 @@ function taskTypeLabel(taskType: PublicTaskKioskTask['task_type'] | undefined, c
   }[taskType ?? 'task'];
 }
 
-function contentTypeFromName(fileName: string) {
-  const lowerName = fileName.toLowerCase();
-
-  if (lowerName.endsWith('.pdf')) return 'application/pdf';
-  if (lowerName.endsWith('.png')) return 'image/png';
-  if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.jfif')) return 'image/jpeg';
-  if (lowerName.endsWith('.gif')) return 'image/gif';
-  if (lowerName.endsWith('.webp')) return 'image/webp';
-  if (lowerName.endsWith('.heic')) return 'image/heic';
-  if (lowerName.endsWith('.heif')) return 'image/heif';
-  if (lowerName.endsWith('.doc')) return 'application/msword';
-  if (lowerName.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (lowerName.endsWith('.xls')) return 'application/vnd.ms-excel';
-  if (lowerName.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-  if (lowerName.endsWith('.csv')) return 'text/csv';
-  if (lowerName.endsWith('.txt')) return 'text/plain';
-
-  return '';
-}
-
-function normalizedFileContentType(file: File) {
-  const browserType = file.type.trim().toLowerCase();
-  const normalizedBrowserType = browserType === 'image/jpg' || browserType === 'image/pjpeg' ? 'image/jpeg' : browserType;
-
-  if (acceptedEvidenceTypes.has(normalizedBrowserType)) {
-    return normalizedBrowserType;
-  }
-
-  return contentTypeFromName(file.name);
-}
-
 export default function PublicTaskKioskPage() {
   const { deviceToken } = useParams();
   const copy = useTaskKioskTranslations();
@@ -326,6 +281,29 @@ export default function PublicTaskKioskPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
+  const [didSessionExpire, setDidSessionExpire] = useState(false);
+
+  const resetKioskSession = useCallback(() => {
+    setIdentity(null);
+    setTasks([]);
+    setPin('');
+    setSelectedTaskId(null);
+    setResponsibleTaskId(null);
+    setIsTaskModalOpen(false);
+    setIsCreateTaskModalOpen(false);
+    setCompletionNotes('');
+    setCompletionPercent('100');
+    setEvidenceFiles([]);
+    setCreateEvidenceFiles([]);
+    setResponsibleError(null);
+    setSuccessMessage(null);
+    setDidSessionExpire(false);
+  }, []);
+
+  const expireKioskSession = useCallback(() => {
+    resetKioskSession();
+    setDidSessionExpire(true);
+  }, [resetKioskSession]);
 
   useEffect(() => {
     let isMounted = true;
@@ -357,6 +335,13 @@ export default function PublicTaskKioskPage() {
       isMounted = false;
     };
   }, [copy.errors.loadFailure, copy.errors.missingLink, deviceToken]);
+
+  const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
+    active: Boolean(identity),
+    expiresAt: identity?.expires_at,
+    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 180,
+    onExpire: expireKioskSession,
+  });
 
   const selectedTask = useMemo(
     () => tasks.find((task) => task.id === selectedTaskId) ?? null,
@@ -479,6 +464,10 @@ export default function PublicTaskKioskPage() {
   }, [identity?.identification_token]);
 
   const handleIdentify = async () => {
+    if (!isOnline) {
+      setError(copy.session.offline);
+      return;
+    }
     if (!deviceToken || pin.length < 5) {
       return;
     }
@@ -496,6 +485,7 @@ export default function PublicTaskKioskPage() {
       setBusinessFilter(allFilterValue);
       setActiveTaskTab('open');
       setPin('');
+      setDidSessionExpire(false);
     } catch (identifyError) {
       setError(identifyError instanceof Error ? identifyError.message : copy.errors.identifyFailure);
     } finally {
@@ -504,6 +494,10 @@ export default function PublicTaskKioskPage() {
   };
 
   const handleCompleteTask = async () => {
+    if (!isOnline) {
+      setError(copy.session.offline);
+      return;
+    }
     if (!deviceToken || !identity?.identification_token || !selectedTask) {
       return;
     }
@@ -519,11 +513,19 @@ export default function PublicTaskKioskPage() {
     try {
       await uploadTaskEvidence(selectedTask.id, evidenceFiles);
 
-      const response = await processTaskKioskApi.completePublicTask(deviceToken, selectedTask.id, {
+      const completionPayload = {
         identification_token: identity.identification_token,
         completion_notes: completionNotes,
         completion_percent: parsedCompletion,
-      });
+      };
+      const operation = `process-tasks:complete:${selectedTask.id}`;
+      const response = await processTaskKioskApi.completePublicTask(
+        deviceToken,
+        selectedTask.id,
+        completionPayload,
+        kioskIdempotencyKeyFor(operation, completionPayload),
+      );
+      completeKioskIdempotentOperation(operation);
       setTasks(response.items);
       setSelectedTaskId(null);
       setIsTaskModalOpen(false);
@@ -532,7 +534,9 @@ export default function PublicTaskKioskPage() {
       setEvidenceFiles([]);
       setSuccessMessage(copy.success.completed(selectedTask.title));
     } catch (completeError) {
-      if (completeError instanceof Error && completeError.message === 'TASK_EVIDENCE_UPLOAD_FAILED') {
+      if (completeError instanceof Error && completeError.message === 'TASK_EVIDENCE_PARTIAL_FAILURE') {
+        setError(copy.errors.partialUploadFailure);
+      } else if (completeError instanceof Error && completeError.message === 'TASK_EVIDENCE_UPLOAD_FAILED') {
         setError(copy.errors.uploadFailure);
       } else {
         setError(completeError instanceof Error ? completeError.message : copy.errors.completeFailure);
@@ -544,6 +548,10 @@ export default function PublicTaskKioskPage() {
   };
 
   const handleCreateTask = async () => {
+    if (!isOnline) {
+      setError(copy.session.offline);
+      return;
+    }
     if (!deviceToken || !identity?.identification_token) {
       return;
     }
@@ -558,7 +566,7 @@ export default function PublicTaskKioskPage() {
     setError(null);
     setSuccessMessage(null);
     try {
-      const response = await processTaskKioskApi.createPublicTask(deviceToken, {
+      const createPayload: PublicTaskKioskCreateTaskPayload = {
         identification_token: identity.identification_token,
         title,
         description: null,
@@ -572,8 +580,15 @@ export default function PublicTaskKioskPage() {
           createCollaboratorOptions.find(
             (collaborator) => String(collaborator.user_company_id) === createTaskForm.assignedUserCompanyId,
           )?.full_name ?? identity.user.full_name,
-      });
+      };
+      const operation = 'process-tasks:create';
+      const response = await processTaskKioskApi.createPublicTask(
+        deviceToken,
+        createPayload,
+        kioskIdempotencyKeyFor(operation, createPayload),
+      );
       await uploadTaskEvidence(response.task.id, createEvidenceFiles);
+      completeKioskIdempotentOperation(operation);
       setTasks(response.items);
       setIsCreateTaskModalOpen(false);
       setActiveTaskTab('open');
@@ -586,7 +601,9 @@ export default function PublicTaskKioskPage() {
       setCreateEvidenceFiles([]);
       setSuccessMessage(copy.success.created(title));
     } catch (createError) {
-      if (createError instanceof Error && createError.message === 'TASK_EVIDENCE_UPLOAD_FAILED') {
+      if (createError instanceof Error && createError.message === 'TASK_EVIDENCE_PARTIAL_FAILURE') {
+        setError(copy.errors.partialUploadFailure);
+      } else if (createError instanceof Error && createError.message === 'TASK_EVIDENCE_UPLOAD_FAILED') {
         setError(copy.errors.uploadFailure);
       } else {
         setError(createError instanceof Error ? createError.message : copy.errors.createFailure);
@@ -598,6 +615,11 @@ export default function PublicTaskKioskPage() {
   };
 
   const handleAssignResponsible = async () => {
+    if (!isOnline) {
+      setResponsibleError(copy.session.offline);
+      setError(copy.session.offline);
+      return;
+    }
     if (!deviceToken || !identity?.identification_token || !responsibleTask) {
       return;
     }
@@ -619,17 +641,24 @@ export default function PublicTaskKioskPage() {
     setError(null);
     setSuccessMessage(null);
     try {
+      const responsiblePayload = {
+        identification_token: identity.identification_token,
+        assignedUserCompanyId,
+        assignedName: selectedCollaborator?.full_name ?? null,
+      };
+      const operation = `process-tasks:responsible:${responsibleTask.id}`;
       const response = await withRequestTimeout(
-        processTaskKioskApi.assignPublicTaskResponsible(deviceToken, responsibleTask.id, {
-          identification_token: identity.identification_token,
-          assignedUserCompanyId,
-          assignedName: selectedCollaborator?.full_name ?? null,
-        }, {
-          signal: controller.signal,
-        }),
+        processTaskKioskApi.assignPublicTaskResponsible(
+          deviceToken,
+          responsibleTask.id,
+          responsiblePayload,
+          kioskIdempotencyKeyFor(operation, responsiblePayload),
+          { signal: controller.signal },
+        ),
         responsibleRequestTimeoutMs,
         () => controller.abort(),
       );
+      completeKioskIdempotentOperation(operation);
       setTasks(response.items);
       setResponsibleTaskId(null);
       setResponsibleUserCompanyId('');
@@ -652,14 +681,16 @@ export default function PublicTaskKioskPage() {
     if (!deviceToken || !identity?.identification_token || files.length === 0) {
       return;
     }
-    for (const file of files.slice(0, maxEvidenceFiles)) {
-      if (file.size > maxEvidenceSizeBytes) {
+    let uploadedFiles = 0;
+    for (const file of files.slice(0, taskKioskMaxEvidenceFiles)) {
+      if (file.size > taskKioskMaxEvidenceSizeBytes) {
         throw new Error(copy.errors.fileTooLarge(file.name));
       }
-      const contentType = normalizedFileContentType(file);
-      if (!contentType || !acceptedEvidenceTypes.has(contentType)) {
+      const contentType = normalizedTaskKioskEvidenceContentType(file);
+      if (!contentType || !taskKioskAcceptedEvidenceTypes.has(contentType)) {
         throw new Error(copy.errors.unsupportedEvidence(file.name));
       }
+      try {
       const presigned = await processTaskKioskApi.presignPublicTaskAttachmentUpload(deviceToken, taskId, {
         identification_token: identity.identification_token,
         file_name: file.name,
@@ -672,26 +703,38 @@ export default function PublicTaskKioskPage() {
         contentType,
         presigned.upload_headers ?? {},
       );
-      await processTaskKioskApi.registerPublicTaskAttachment(deviceToken, taskId, {
+      const registerPayload = {
         identification_token: identity.identification_token,
         object_key: presigned.object_key,
         original_filename: file.name,
         mime_type: contentType,
         size_bytes: file.size,
-      });
+        logical_file_id: `${file.name}:${file.size}:${file.lastModified}`,
+      };
+      const operation = `process-tasks:attachment:${taskId}:${file.name}:${file.size}:${file.lastModified}`;
+      await processTaskKioskApi.registerPublicTaskAttachment(
+        deviceToken,
+        taskId,
+        registerPayload,
+        kioskIdempotencyKeyFor(operation, registerPayload),
+      );
+      completeKioskIdempotentOperation(operation);
+      uploadedFiles += 1;
+      } catch (uploadError) {
+        if (uploadedFiles > 0) {
+          throw new Error('TASK_EVIDENCE_PARTIAL_FAILURE');
+        }
+        throw new Error('TASK_EVIDENCE_UPLOAD_FAILED');
+      }
     }
   };
 
-  const filesFromInput = (event: ChangeEvent<HTMLInputElement>) => (
-    Array.from(event.target.files ?? []).slice(0, maxEvidenceFiles)
-  );
-
   const handleEvidenceFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setEvidenceFiles(filesFromInput(event));
+    setEvidenceFiles(taskKioskFilesFromInput(event.target.files));
   };
 
   const handleCreateEvidenceFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setCreateEvidenceFiles(filesFromInput(event));
+    setCreateEvidenceFiles(taskKioskFilesFromInput(event.target.files));
   };
 
   const handleUnitFilterChange = (value: string) => {
@@ -739,139 +782,37 @@ export default function PublicTaskKioskPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white sm:px-4 sm:py-4">
-      <LoadingBarOverlay
-        isVisible={isLoading}
-        title={copy.loading.title}
-        description={copy.loading.description}
-      />
-
-      <main className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col overflow-hidden bg-white dark:bg-slate-950 sm:min-h-[calc(100vh-2rem)] sm:rounded-lg sm:border sm:border-slate-200 sm:shadow-sm sm:dark:border-slate-800">
-        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950 sm:static sm:px-5 sm:py-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] lg:items-stretch">
-            <div className="rounded-lg border border-[#F4C84A]/30 bg-[linear-gradient(135deg,_#fff8dc_0%,_#ffffff_58%,_#fff4c2_100%)] p-3 shadow-sm dark:border-[#F4C84A]/25 dark:bg-[linear-gradient(135deg,_#3a2700_0%,_#020617_58%,_#0f172a_100%)] sm:p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A] text-slate-950 shadow-sm">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-2xl font-black leading-none text-slate-950 dark:text-white">Indice</p>
-                      <p className="mt-1 text-sm font-bold text-[#9A6B05] dark:text-[#FDE68A]">{copy.header.badge}</p>
-                    </div>
-                    <TaskKioskLanguageSelector
-                      copy={copy}
-                      detectedLocale={detectedLocale}
-                      locale={selectedLocale}
-                      localeOptions={localeOptions}
-                      onLocaleChange={setTaskKioskLocale}
-                    />
-                  </div>
-
-                  <div className="mt-3 rounded-lg border border-[#F4C84A]/25 bg-white/80 px-3 py-3 dark:border-[#F4C84A]/20 dark:bg-slate-950/60">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#9A6B05] dark:text-[#FDE68A]" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9A6B05] dark:text-[#FDE68A]">
-                          {identity ? copy.identity.eyebrow : copy.header.title}
-                        </p>
-                        <p className="mt-1 text-sm font-bold leading-5 text-slate-950 dark:text-white">
-                          {identity ? identity.user.full_name : copy.header.subtitle}
-                        </p>
-                        {identity ? (
-                          <p className="mt-0.5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                            {identity.user.position_title || identity.user.department || identity.user.user_code || copy.identity.fallbackStatus}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="min-w-0 rounded-lg border border-[#F4C84A]/25 bg-[#F4C84A]/8 px-4 py-3 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10">
-                <div className="flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                  <CalendarCheck2 className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{copy.header.point}</span>
-                </div>
-                <p className="mt-2 truncate text-base font-bold text-[#9A6B05] dark:text-[#FDE68A]">{pointLabel}</p>
-              </div>
-              <div className="min-w-0 rounded-lg border border-slate-200 bg-white/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/75">
-                <div className="flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                  <Clock3 className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{copy.header.time}</span>
-                </div>
-                <p className="mt-2 truncate text-base font-bold text-slate-950 dark:text-white">{currentTimeLabel}</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <section className="flex min-h-0 flex-1 bg-slate-50/80 px-3 py-3 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-slate-900/55 sm:px-5 sm:py-5">
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-none border-0 bg-transparent p-0 shadow-none dark:bg-transparent sm:rounded-lg sm:border sm:border-slate-200 sm:bg-white sm:p-5 sm:shadow-sm sm:dark:border-slate-800 sm:dark:bg-slate-950">
-            {error ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-                {error}
-              </div>
-            ) : null}
-
-            {successMessage ? (
-              <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
-                {successMessage}
-              </div>
-            ) : null}
-
-            {!identity ? (
-              <section className="mt-3 rounded-lg border border-[#F4C84A]/25 bg-[#F4C84A]/8 p-3 shadow-sm dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 sm:mt-0 sm:p-4">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9A6B05] dark:text-[#FDE68A]">{copy.steps.pin}</p>
-                    <h1 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{copy.pin.title}</h1>
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.pin.description}</p>
-                  </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#F4C84A] text-slate-950 shadow-sm">
-                    <KeyRound className="h-6 w-6" />
-                  </div>
-                </div>
-
-                <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">{copy.pin.placeholder}</label>
-                <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]">
-                  <Input
-                    value={pin}
-                    inputMode="numeric"
-                    maxLength={5}
-                    placeholder={copy.pin.placeholder}
-                    autoFocus
-                    autoComplete="off"
-                    enterKeyHint="done"
-                    className="h-16 rounded-lg border-[#F4C84A]/35 bg-white text-center text-2xl font-black tracking-[0.35em] text-slate-950 shadow-inner outline-none placeholder:tracking-normal dark:border-[#F4C84A]/30 dark:bg-slate-950 dark:text-white sm:h-24 sm:text-4xl sm:tracking-[0.42em]"
-                    disabled={isSubmitting}
-                    onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 5))}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        void handleIdentify();
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    className="h-14 rounded-lg bg-[#F4C84A] px-6 text-base font-black text-slate-950 shadow-sm hover:bg-[#E5B835] disabled:opacity-45 sm:h-24"
-                    disabled={pin.length < 5 || isSubmitting}
-                    onClick={() => void handleIdentify()}
-                  >
-                    <KeyRound className="h-5 w-5" />
-                    {copy.pin.continue}
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </div>
-                <div className="mt-4 max-w-none sm:max-w-xl">
-                  <TaskPinKeypad value={pin} disabled={isSubmitting} deleteLabel={copy.pin.deleteKey} onChange={setPin} />
-                </div>
-              </section>
+    <>
+      <KioskPublicShell
+        loadingOverlay={<LoadingBarOverlay isVisible={isLoading} title={copy.loading.title} description={copy.loading.description} />}
+        banners={<PublicTaskKioskSessionBanners
+          copy={copy}
+          isOnline={isOnline}
+          isSessionExpiring={isSessionExpiring}
+        />}
+        header={<PublicTaskKioskHeader
+          copy={copy}
+          currentTimeLabel={currentTimeLabel}
+          detectedLocale={detectedLocale}
+          identity={identity}
+          localeOptions={localeOptions}
+          onLocaleChange={setTaskKioskLocale}
+          pointLabel={pointLabel}
+          selectedLocale={selectedLocale}
+        />}
+        errorMessage={error}
+        successMessage={successMessage}
+        sessionExpiredMessage={didSessionExpire ? copy.session.expired : null}
+      >
+        {!identity ? (
+              <PublicTaskKioskPinAccess
+                copy={copy}
+                isOnline={isOnline}
+                isSubmitting={isSubmitting}
+                onIdentify={() => void handleIdentify()}
+                pin={pin}
+                setPin={setPin}
+              />
             ) : (
               <section className="mt-3 space-y-4 pb-28 sm:mt-0 sm:space-y-5 sm:pb-0">
                 <div className="overflow-hidden rounded-lg border border-[#F4C84A]/35 bg-white shadow-sm dark:border-[#F4C84A]/20 dark:bg-slate-950">
@@ -886,7 +827,7 @@ export default function PublicTaskKioskPage() {
                           <h1 className="truncate text-xl font-black">Kiosko de tareas</h1>
                         </div>
                       </div>
-                      <Button type="button" variant="outline" className="h-10 shrink-0 gap-2 rounded-lg border-white/45 bg-white/45 px-3 text-slate-950 hover:bg-white/70" onClick={() => setIdentity(null)}>
+                      <Button type="button" variant="outline" className="h-10 shrink-0 gap-2 rounded-lg border-white/45 bg-white/45 px-3 text-slate-950 hover:bg-white/70" onClick={resetKioskSession}>
                         <RefreshCw className="h-4 w-4" />
                         {copy.identity.reset}
                       </Button>
@@ -1148,459 +1089,52 @@ export default function PublicTaskKioskPage() {
                   </div>
                 )}
               </section>
-            )}
-          </div>
-        </section>
-      </main>
+        )}
+      </KioskPublicShell>
 
-      {identity && isCreateTaskModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="task-kiosk-create-title"
-        >
-          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200/80 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-xl sm:rounded-[28px]">
-            <div className="bg-[#F4C84A] px-5 py-4 text-slate-950">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/45">
-                    <Sparkles className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7A5204]">{copy.create.eyebrow}</p>
-                    <h2 id="task-kiosk-create-title" className="mt-1 text-2xl font-black">{copy.create.title}</h2>
-                    <p className="mt-1 text-sm font-semibold text-slate-800/80">{copy.create.description}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/45 text-slate-800 transition hover:bg-white/70"
-                  aria-label={copy.create.closeModal}
-                  onClick={() => {
-                    setCreateEvidenceFiles([]);
-                    setIsCreateTaskModalOpen(false);
-                  }}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="max-h-[calc(92vh-12rem)] overflow-y-auto bg-slate-50 px-5 py-5 dark:bg-slate-900/60">
-            <div className="grid gap-4">
-              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F4C84A]/20 text-[#9A6B05]">
-                    <ListChecks className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-black text-slate-950 dark:text-white">{copy.create.titleLabel}</p>
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.create.description}</p>
-                  </div>
-                </div>
-                <div className="grid gap-4">
-                  <label className="space-y-2">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.create.titleLabel}</span>
-                    <Input
-                      value={createTaskForm.title}
-                      disabled={isSubmitting}
-                      placeholder={copy.create.titlePlaceholder}
-                      className="h-12 rounded-lg"
-                      onChange={(event) => setCreateTaskForm((current) => ({ ...current, title: event.target.value }))}
-                    />
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.create.dueDateLabel}</span>
-                    <Input
-                      type="date"
-                      value={createTaskForm.dueDate}
-                      disabled={isSubmitting}
-                      className="h-12 rounded-lg"
-                      onChange={(event) => setCreateTaskForm((current) => ({ ...current, dueDate: event.target.value }))}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
-                    <UserRound className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-black text-slate-950 dark:text-white">{copy.header.scope}</p>
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{scopeLabel}</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-4">
-                  <label className="space-y-2">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.create.unitLabel}</span>
-                    <select
-                      value={createTaskForm.unitId}
-                      disabled={isSubmitting}
-                      className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      onChange={(event) =>
-                        setCreateTaskForm((current) => ({
-                          ...current,
-                          unitId: event.target.value,
-                          businessId: '',
-                          assignedUserCompanyId: identity.user.id.toString(),
-                        }))
-                      }
-                    >
-                      <option value="">{copy.create.selectUnit}</option>
-                      {assignmentOptions?.units.map((unit) => (
-                        <option key={unit.id} value={unit.id}>
-                          {unit.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.create.businessLabel}</span>
-                    <select
-                      value={createTaskForm.businessId}
-                      disabled={isSubmitting}
-                      className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      onChange={(event) =>
-                        setCreateTaskForm((current) => ({
-                          ...current,
-                          businessId: event.target.value,
-                          assignedUserCompanyId: identity.user.id.toString(),
-                        }))
-                      }
-                    >
-                      <option value="">{copy.create.selectBusiness}</option>
-                      {createBusinessOptions.map((business) => (
-                        <option key={business.id} value={business.id}>
-                          {business.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.create.responsibleLabel}</span>
-                    <select
-                      value={createTaskForm.assignedUserCompanyId || identity.user.id.toString()}
-                      disabled={isSubmitting}
-                      className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      onChange={(event) => setCreateTaskForm((current) => ({ ...current, assignedUserCompanyId: event.target.value }))}
-                    >
-                      {!createCollaboratorOptions.some((collaborator) => collaborator.user_company_id === identity.user.id) ? (
-                        <option value={identity.user.id}>{identity.user.full_name}</option>
-                      ) : null}
-                      {createCollaboratorOptions.map((collaborator) => (
-                        <option key={collaborator.user_company_id} value={collaborator.user_company_id}>
-                          {collaborator.full_name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-[#F4C84A]/35 bg-white p-4 shadow-sm dark:border-[#F4C84A]/25 dark:bg-slate-950">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#9A6B05] shadow-sm">
-                    <Camera className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-black text-slate-950 dark:text-white">{labels.createdEvidenceTitle}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">{labels.createdEvidenceBody}</p>
-                  </div>
-                </div>
-                <label className="mt-3 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#9A6B05]/35 bg-white px-4 py-4 text-center text-sm font-bold text-slate-700 transition hover:bg-[#F4C84A]/10 dark:bg-slate-950 dark:text-slate-200">
-                  <FileUp className="h-6 w-6 text-[#9A6B05]" />
-                  {labels.evidenceHint}
-                  <input
-                    type="file"
-                    className="sr-only"
-                    multiple
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-                    disabled={isSubmitting}
-                    onChange={handleCreateEvidenceFilesChange}
-                  />
-                </label>
-                {createEvidenceFiles.length > 0 ? (
-                  <div className="mt-3 grid gap-2">
-                    {createEvidenceFiles.map((file) => (
-                      <div
-                        key={`${file.name}-${file.size}-${file.lastModified}`}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
-                      >
-                        <Paperclip className="h-4 w-4 text-[#9A6B05]" />
-                        <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 bg-[#F4C84A] px-5 py-4 text-slate-950">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 rounded-lg border-white/45 bg-transparent px-4 text-sm font-black text-slate-950 hover:bg-white/20"
-                disabled={isSubmitting}
-                onClick={() => {
-                  setCreateEvidenceFiles([]);
-                  setIsCreateTaskModalOpen(false);
-                }}
-              >
-                {copy.create.closeModal}
-              </Button>
-              <Button
-                type="button"
-                className="h-11 rounded-lg bg-white px-5 text-sm font-black text-[#7A5204] hover:bg-white/90"
-                disabled={isSubmitting}
-                onClick={() => void handleCreateTask()}
-              >
-                <Plus className="mr-2 h-5 w-5" />
-                {isUploadingEvidence ? copy.selectedTask.uploadingEvidence : copy.create.submit}
-              </Button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {identity && responsibleTask ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="task-kiosk-responsible-title"
-        >
-          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200/80 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-md sm:rounded-[28px]">
-            <div className="bg-[#F4C84A] px-5 py-4 text-slate-950">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7A5204]">{copy.responsible.eyebrow}</p>
-                <h2 id="task-kiosk-responsible-title" className="mt-1 text-2xl font-black">{copy.responsible.title}</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-800/80">{copy.responsible.description}</p>
-              </div>
-              <button
-                type="button"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/45 text-slate-800 transition hover:bg-white/70"
-                aria-label={copy.responsible.closeModal}
-                onClick={closeResponsibleModal}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            </div>
-
-            <div className="px-5 py-5">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                {responsibleTask.unit_name || copy.filters.unassignedUnit} / {responsibleTask.business_name || copy.filters.unassignedBusiness}
-              </p>
-              <h3 className="mt-2 text-lg font-black text-slate-950 dark:text-white">{responsibleTask.title}</h3>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                {copy.task.due} {formatDate(responsibleTask.due_date, selectedLocale, copy.errors.noDate)}
-              </p>
-            </div>
-
-            <label className="mt-5 block space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.responsible.selectLabel}</span>
-              <select
-                value={responsibleUserCompanyId}
-                disabled={isAssigningResponsible || responsibleCollaboratorOptions.length === 0}
-                className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                onChange={(event) => setResponsibleUserCompanyId(event.target.value)}
-              >
-                {responsibleCollaboratorOptions.length === 0 ? (
-                  <option value="">{copy.responsible.empty}</option>
-                ) : null}
-                {responsibleCollaboratorOptions.map((collaborator) => (
-                  <option key={collaborator.user_company_id} value={collaborator.user_company_id}>
-                    {collaborator.full_name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {responsibleError ? (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-                {responsibleError}
-              </div>
-            ) : null}
-            </div>
-
-            <div className="flex items-center justify-between gap-3 bg-[#F4C84A] px-5 py-4 text-slate-950">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 rounded-lg border-white/45 bg-transparent px-4 text-sm font-black text-slate-950 hover:bg-white/20"
-                disabled={isAssigningResponsible}
-                onClick={closeResponsibleModal}
-              >
-                {copy.responsible.closeModal}
-              </Button>
-              <Button
-                type="button"
-                className="h-11 rounded-lg bg-white px-5 text-sm font-black text-[#7A5204] hover:bg-white/90"
-                disabled={isAssigningResponsible || responsibleCollaboratorOptions.length === 0}
-                onClick={() => void handleAssignResponsible()}
-              >
-                <UserRound className="mr-2 h-5 w-5" />
-                {isAssigningResponsible ? copy.responsible.updating : copy.responsible.submit}
-              </Button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {selectedTask && isTaskModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="task-kiosk-completion-title"
-        >
-          <section className="max-h-[92vh] w-full overflow-hidden rounded-t-[24px] border border-slate-200/80 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-xl sm:rounded-[28px]">
-            <div className="bg-[#F4C84A] px-5 py-4 text-slate-950">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/45 text-slate-950">
-                    <ClipboardCheck className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7A5204]">{copy.selectedTask.eyebrow}</p>
-                    <h2 id="task-kiosk-completion-title" className="mt-1 break-words text-2xl font-black">{selectedTask.title}</h2>
-                    <p className="mt-1 text-sm font-semibold text-slate-800/80">
-                      {taskTypeLabel(selectedTask.task_type, copy)} / {selectedTask.attachments} {labels.attachments}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/45 text-slate-800 transition hover:bg-white/70"
-                  aria-label={copy.selectedTask.closeModal}
-                  onClick={closeTaskCompletionModal}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="max-h-[calc(92vh-12rem)] overflow-y-auto bg-slate-50 px-5 py-5 dark:bg-slate-900/60">
-              {selectedTask.description ? (
-                <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">{selectedTask.description}</p>
-              ) : null}
-
-              <div className="mt-4 grid grid-cols-1 gap-2 text-xs font-semibold text-slate-500">
-                <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                  {copy.task.start} {formatDate(selectedTask.start_date, selectedLocale, copy.errors.noDate)}
-                </span>
-                <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                  {copy.task.due} {formatDate(selectedTask.due_date, selectedLocale, copy.errors.noDate)}
-                </span>
-                <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                  {copy.task.created} {formatDateTime(selectedTask.created_at, selectedLocale, copy.errors.noDate)}
-                </span>
-              </div>
-
-              {selectedTask.can_complete && openTaskStatuses.has(selectedTask.status) ? (
-                <>
-                  <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                    <ProgressSlider
-                      value={Number(completionPercent || 100)}
-                      label={copy.selectedTask.completion}
-                      disabled={isSubmitting}
-                      onChange={(value) => setCompletionPercent(String(value))}
-                    />
-                  </div>
-
-                  <div className="mt-5">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.selectedTask.evidence}</label>
-                    <label className="mt-2 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-4 text-center text-sm font-semibold text-slate-600 shadow-sm transition hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                      <Upload className="h-6 w-6 text-[#9A6B05]" />
-                      {copy.selectedTask.addEvidence}
-                      <span className="text-xs text-slate-500">{labels.evidenceHint}</span>
-                      <input
-                        type="file"
-                        className="sr-only"
-                        multiple
-                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-                        disabled={isSubmitting}
-                        onChange={handleEvidenceFilesChange}
-                      />
-                    </label>
-                    {evidenceFiles.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        {evidenceFiles.map((file) => (
-                          <div
-                            key={`${file.name}-${file.size}-${file.lastModified}`}
-                            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
-                          >
-                            <Paperclip className="h-4 w-4 text-[#9A6B05]" />
-                            <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-5">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.selectedTask.notes}</label>
-                    <Textarea
-                      value={completionNotes}
-                      rows={4}
-                      placeholder={copy.selectedTask.notesPlaceholder}
-                      className="mt-2 rounded-lg"
-                      disabled={isSubmitting}
-                      onChange={(event) => setCompletionNotes(event.target.value)}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-bold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                  {copy.task.resolved}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-3 bg-[#F4C84A] px-5 py-4 text-slate-950">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 rounded-lg border-white/45 bg-transparent px-4 text-sm font-black text-slate-950 hover:bg-white/20"
-                disabled={isSubmitting}
-                onClick={closeTaskCompletionModal}
-              >
-                {copy.selectedTask.closeModal}
-              </Button>
-              {selectedTask.can_complete && openTaskStatuses.has(selectedTask.status) ? (
-                <Button
-                  type="button"
-                  className="h-11 rounded-lg bg-emerald-600 px-5 text-sm font-black text-white hover:bg-emerald-700"
-                  disabled={isSubmitting}
-                  onClick={() => void handleCompleteTask()}
-                >
-                  <ClipboardCheck className="mr-2 h-5 w-5" />
-                  {isUploadingEvidence ? copy.selectedTask.uploadingEvidence : copy.selectedTask.complete}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  className="h-11 rounded-lg bg-white px-5 text-sm font-black text-[#7A5204] hover:bg-white/90"
-                  onClick={closeTaskCompletionModal}
-                >
-                  <ImageIcon className="mr-2 h-5 w-5" />
-                  {copy.selectedTask.closeModal}
-                </Button>
-              )}
-            </div>
-          </section>
-        </div>
-      ) : null}
-    </div>
+      <PublicTaskKioskDialogs
+        assignmentOptions={assignmentOptions}
+        closeResponsibleModal={closeResponsibleModal}
+        closeTaskCompletionModal={closeTaskCompletionModal}
+        completionNotes={completionNotes}
+        completionPercent={completionPercent}
+        copy={copy}
+        createBusinessOptions={createBusinessOptions}
+        createCollaboratorOptions={createCollaboratorOptions}
+        createEvidenceFiles={createEvidenceFiles}
+        createTaskForm={createTaskForm}
+        evidenceFiles={evidenceFiles}
+        formatDate={formatDate}
+        formatDateTime={formatDateTime}
+        handleAssignResponsible={handleAssignResponsible}
+        handleCompleteTask={handleCompleteTask}
+        handleCreateEvidenceFilesChange={handleCreateEvidenceFilesChange}
+        handleCreateTask={handleCreateTask}
+        handleEvidenceFilesChange={handleEvidenceFilesChange}
+        identity={identity}
+        isAssigningResponsible={isAssigningResponsible}
+        isCreateTaskModalOpen={isCreateTaskModalOpen}
+        isOnline={isOnline}
+        isSubmitting={isSubmitting}
+        isTaskModalOpen={isTaskModalOpen}
+        isUploadingEvidence={isUploadingEvidence}
+        labels={labels}
+        openTaskStatuses={openTaskStatuses}
+        responsibleCollaboratorOptions={responsibleCollaboratorOptions}
+        responsibleError={responsibleError}
+        responsibleTask={responsibleTask}
+        responsibleUserCompanyId={responsibleUserCompanyId}
+        scopeLabel={scopeLabel}
+        selectedLocale={selectedLocale}
+        selectedTask={selectedTask}
+        setCompletionNotes={setCompletionNotes}
+        setCompletionPercent={setCompletionPercent}
+        setCreateEvidenceFiles={setCreateEvidenceFiles}
+        setCreateTaskForm={setCreateTaskForm}
+        setIsCreateTaskModalOpen={setIsCreateTaskModalOpen}
+        setResponsibleUserCompanyId={setResponsibleUserCompanyId}
+        taskTypeLabel={taskTypeLabel}
+      />
+    </>
   );
 }

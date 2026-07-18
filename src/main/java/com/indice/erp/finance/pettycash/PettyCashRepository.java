@@ -299,6 +299,34 @@ class PettyCashRepository {
         return updated > 0;
     }
 
+    boolean updateKioskEnabled(FinanceContext context, long fundId, boolean enabled) {
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_funds
+            SET kiosk_enabled = ?, updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """,
+            enabled, context.userId(), context.companyId(), fundId
+        );
+        return updated > 0;
+    }
+
+    boolean clearKioskAccess(FinanceContext context, long fundId) {
+        var updated = jdbcTemplate.update(
+            """
+            UPDATE finance_petty_cash_funds
+            SET kiosk_enabled = 0,
+                kiosk_public_token = NULL,
+                kiosk_access_url = NULL,
+                updated_by_user_id = ?,
+                version = version + 1
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """,
+            context.userId(), context.companyId(), fundId
+        );
+        return updated > 0;
+    }
+
     boolean softDeleteFund(FinanceContext context, long fundId) {
         var updated = jdbcTemplate.update(
             """

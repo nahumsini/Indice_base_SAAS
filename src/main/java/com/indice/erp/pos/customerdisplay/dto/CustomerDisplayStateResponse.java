@@ -6,6 +6,11 @@ import java.time.Instant;
 
 public record CustomerDisplayStateResponse(
         String deviceToken,
+        String kioskName,
+        String companyName,
+        String unitName,
+        String businessName,
+        String warehouseName,
         Long cashRegisterId,
         String cashRegisterCode,
         String cashRegisterName,

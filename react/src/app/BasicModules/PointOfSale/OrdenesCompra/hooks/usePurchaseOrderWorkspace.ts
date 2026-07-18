@@ -15,6 +15,7 @@ import type {
   SupplierPortalAccess,
   SupplierPortalAccessStatus,
   SupplierPortalAccessPayload,
+  SupplierPortalKioskConfigurationPayload,
   SupplierSubmission,
   SupplierSubmissionConvertPayload,
   SupplierSubmissionReviewPayload,
@@ -41,6 +42,13 @@ const initialFilters: PurchaseOrderFilters = {
   dateFrom: '',
   dateTo: '',
   submissionStatus: 'ALL',
+};
+
+const supplierPortalStatusNotice: Record<SupplierPortalAccessStatus, string> = {
+  ACTIVE: 'Acceso de proveedor activado.',
+  DISABLED: 'Acceso de proveedor deshabilitado.',
+  EXPIRED: 'Acceso de proveedor marcado como vencido.',
+  REVOKED: 'Acceso de proveedor revocado definitivamente.',
 };
 
 const toErrorMessage = (error: unknown, fallback: string) => (
@@ -149,7 +157,7 @@ export function usePurchaseOrderWorkspace() {
       await loadOrders();
       return result;
     } catch (mutationError) {
-      setError(toErrorMessage(mutationError, 'No se pudo completar la accion.'));
+      setError(toErrorMessage(mutationError, 'No se pudo completar la acción.'));
       throw mutationError;
     } finally {
       setSaving(false);
@@ -165,11 +173,11 @@ export function usePurchaseOrderWorkspace() {
   ), [mutate]);
 
   const receiveOrder = useCallback((orderId: number, payload: PurchaseOrderReceivePayload) => (
-    mutate(() => purchaseOrdersApi.receive(orderId, payload), 'Recepcion guardada e inventario actualizado.')
+    mutate(() => purchaseOrdersApi.receive(orderId, payload), 'Recepción guardada e inventario actualizado.')
   ), [mutate]);
 
   const submitSupplierInvoice = useCallback((payload: SupplierInvoicePayload) => (
-    mutate(() => purchaseOrdersApi.submitSupplierInvoice(payload), 'Factura de proveedor registrada para revision.')
+    mutate(() => purchaseOrdersApi.submitSupplierInvoice(payload), 'Factura de proveedor registrada para revisión.')
   ), [mutate]);
 
   const createSupplierPortalAccess = useCallback((payload: SupplierPortalAccessPayload) => (
@@ -179,12 +187,26 @@ export function usePurchaseOrderWorkspace() {
   const updateSupplierPortalAccessStatus = useCallback((accessId: number, status: SupplierPortalAccessStatus) => (
     mutate(
       () => purchaseOrdersApi.updateSupplierPortalAccessStatus(accessId, { status }),
-      status === 'ACTIVE' ? 'Acceso de proveedor activado.' : 'Acceso de proveedor desactivado.',
+      supplierPortalStatusNotice[status],
     )
   ), [mutate]);
 
   const changeSupplierPortalAccessPin = useCallback((accessId: number, pin: string) => (
-    mutate(() => purchaseOrdersApi.changeSupplierPortalAccessPin(accessId, { pin }), 'NIP de proveedor actualizado.')
+    mutate(() => purchaseOrdersApi.changeSupplierPortalAccessPin(accessId, { pin }), 'PIN de proveedor actualizado.')
+  ), [mutate]);
+
+  const updateSupplierPortalKiosk = useCallback((kioskId: number, payload: SupplierPortalKioskConfigurationPayload) => (
+    mutate(
+      () => purchaseOrdersApi.updateSupplierPortalKiosk(kioskId, payload),
+      'Configuración del kiosco actualizada.',
+    )
+  ), [mutate]);
+
+  const deleteSupplierPortalKiosk = useCallback((kioskId: number, reason?: string) => (
+    mutate(
+      () => purchaseOrdersApi.deleteSupplierPortalKiosk(kioskId, reason),
+      'Kiosco de proveedor eliminado permanentemente.',
+    )
   ), [mutate]);
 
   const reviewSupplierInvoice = useCallback((invoiceId: number, status: SupplierInvoiceStatus, reviewNote?: string) => (
@@ -205,6 +227,7 @@ export function usePurchaseOrderWorkspace() {
     createSupplierPortalAccess,
     createOrder,
     error,
+    deleteSupplierPortalKiosk,
     filteredOrders,
     filteredSupplierSubmissions,
     filters,
@@ -226,6 +249,7 @@ export function usePurchaseOrderWorkspace() {
     supplierPortalAccess,
     supplierSubmissions,
     updateSupplierPortalAccessStatus,
+    updateSupplierPortalKiosk,
     warehouses,
   };
 }

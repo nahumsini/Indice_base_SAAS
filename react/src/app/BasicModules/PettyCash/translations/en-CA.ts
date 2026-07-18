@@ -490,6 +490,11 @@ export const enCA = {
     },
   },
   publicKiosk: {
+    session: {
+      offline: 'No network connection. This kiosk works online only.',
+      expiring: 'Your session will expire in less than one minute.',
+      expired: 'Your session expired due to inactivity. Enter your PIN again to continue.',
+    },
     errors: {
       bootstrap: 'Petty cash kiosk could not be opened.',
       identify: 'The PIN could not be validated.',

@@ -32,6 +32,22 @@ public class PosRequestGuard {
         return requireAccess(session, csrfToken, true);
     }
 
+    public Result requireAdminReadAccess(HttpSession session) {
+        return requireAdmin(requireAccess(session, null, false));
+    }
+
+    public Result requireAdminWriteAccess(HttpSession session, String csrfToken) {
+        return requireAdmin(requireAccess(session, csrfToken, true));
+    }
+
+    private Result requireAdmin(Result access) {
+        if (access.denied() || access.context() == null) {
+            return access;
+        }
+        return access.context().canManageOtherUsers()
+            ? access : Result.error(HttpStatus.FORBIDDEN, "Administrative access is required.");
+    }
+
     private Result requireAccess(HttpSession session, String csrfToken, boolean write) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {

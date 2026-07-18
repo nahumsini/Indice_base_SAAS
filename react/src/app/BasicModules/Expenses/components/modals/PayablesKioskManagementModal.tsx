@@ -7,6 +7,9 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Power,
+  RefreshCw,
+  ShieldCheck,
   Store,
   Trash2,
 } from 'lucide-react';
@@ -19,6 +22,7 @@ import type { FinanceReferenceOption } from '../../types/finance-reference.types
 import {
   payableKiosksService,
   type PayableKiosk,
+  type PayableKioskBiometricPolicy,
   type PayableKioskProviderAccess,
   type PayableKioskPayload,
 } from '../../services';
@@ -67,8 +71,10 @@ export function PayablesKioskManagementModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [kiosks, setKiosks] = useState<PayableKiosk[]>([]);
+  const [biometricPolicy, setBiometricPolicy] = useState<PayableKioskBiometricPolicy | null>(null);
   const [providerAccesses, setProviderAccesses] = useState<PayableKioskProviderAccess[]>([]);
   const [pendingDeleteKiosk, setPendingDeleteKiosk] = useState<PayableKiosk | null>(null);
+  const [pendingRotateKiosk, setPendingRotateKiosk] = useState<PayableKiosk | null>(null);
 
   const publicUrl = (kiosk: PayableKiosk) => `${window.location.origin}/expenses/kiosk/cuentas-por-pagar/${kiosk.publicAccessToken}`;
   const activeCount = useMemo(() => kiosks.filter(kiosk => kiosk.status === 'ACTIVE').length, [kiosks]);
@@ -84,12 +90,14 @@ export function PayablesKioskManagementModal({
   const loadKiosks = async () => {
     setIsLoading(true);
     try {
-      const [nextKiosks, nextAccesses] = await Promise.all([
+      const [nextKiosks, nextAccesses, nextBiometricPolicy] = await Promise.all([
         payableKiosksService.list(),
         payableKiosksService.listProviderAccesses(),
+        payableKiosksService.biometricPolicy(),
       ]);
       setKiosks(nextKiosks);
       setProviderAccesses(nextAccesses);
+      setBiometricPolicy(nextBiometricPolicy);
     } catch (error) {
       onError(error instanceof Error ? error.message : copyText.messages.loadFailed);
     } finally {
@@ -154,11 +162,52 @@ export function PayablesKioskManagementModal({
     try {
       await payableKiosksService.delete(kiosk.id);
       setPendingDeleteKiosk(null);
-      onSuccess(copyText.messages.deactivated);
+      onSuccess(copyText.messages.deleted);
       await loadKiosks();
       if (editing?.id === kiosk.id) closeForm();
     } catch (error) {
       onError(error instanceof Error ? error.message : copyText.messages.deactivateFailed);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleKiosk = async (kiosk: PayableKiosk) => {
+    setIsSaving(true);
+    try {
+      await payableKiosksService.setEnabled(kiosk.id, kiosk.status !== 'ACTIVE');
+      onSuccess(copyText.messages.statusUpdated);
+      await loadKiosks();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : copyText.messages.deactivateFailed);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const rotateLink = async (kiosk: PayableKiosk) => {
+    setIsSaving(true);
+    try {
+      await payableKiosksService.rotatePublicAccessToken(kiosk.id);
+      setPendingRotateKiosk(null);
+      onSuccess(copyText.messages.linkRotated);
+      await loadKiosks();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : copyText.messages.saveFailed);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleBiometrics = async () => {
+    if (!biometricPolicy) return;
+    setIsSaving(true);
+    try {
+      const nextPolicy = await payableKiosksService.updateBiometricPolicy(!biometricPolicy.enabled);
+      setBiometricPolicy(nextPolicy);
+      onSuccess(copyText.messages.biometricPolicyUpdated);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : copyText.messages.biometricPolicyFailed);
     } finally {
       setIsSaving(false);
     }
@@ -181,11 +230,40 @@ export function PayablesKioskManagementModal({
         footerSummary={copyText.activeCount(activeCount, kiosks.length)}
         icon={<Store className="h-5 w-5" />}
         modalType="standard-form"
-        onOpenChange={(open) => !open && !isFormOpen && !pendingDeleteKiosk && onClose()}
-        open={isOpen && !isFormOpen && !pendingDeleteKiosk}
+        onOpenChange={(open) => !open && !isFormOpen && !pendingDeleteKiosk && !pendingRotateKiosk && onClose()}
+        open={isOpen && !isFormOpen && !pendingDeleteKiosk && !pendingRotateKiosk}
         title={copyText.configureTitle}
         tone="green"
       >
+            {biometricPolicy && (
+              <section className="mb-4 flex flex-col gap-3 rounded-[22px] border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/25 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm dark:bg-emerald-950 dark:text-emerald-300">
+                    <ShieldCheck className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{copyText.biometricPolicy.title}</h4>
+                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">{copyText.biometricPolicy.description}</p>
+                    {!biometricPolicy.environmentAvailable && (
+                      <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">{copyText.biometricPolicy.environmentUnavailable}</p>
+                    )}
+                  </div>
+                </div>
+                <label className="inline-flex shrink-0 cursor-pointer items-center gap-3 rounded-xl border border-emerald-200 bg-white px-3 py-2 dark:border-emerald-800 dark:bg-slate-950">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    {biometricPolicy.enabled ? copyText.biometricPolicy.enabled : copyText.biometricPolicy.disabled}
+                  </span>
+                  <input
+                    aria-label={copyText.biometricPolicy.toggle}
+                    checked={biometricPolicy.enabled}
+                    className="h-5 w-5 accent-emerald-700"
+                    disabled={isSaving}
+                    onChange={() => void toggleBiometrics()}
+                    type="checkbox"
+                  />
+                </label>
+              </section>
+            )}
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -232,6 +310,8 @@ export function PayablesKioskManagementModal({
                       <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
                         <KioskAction ariaLabel={t.common.edit} onClick={() => openEdit(kiosk)} icon={<Pencil className="h-4 w-4" />} />
                         <KioskAction ariaLabel="Link" onClick={() => copy(publicUrl(kiosk), copyText.messages.linkCopied)} icon={<Copy className="h-4 w-4" />} />
+                        <KioskAction ariaLabel={copyText.rotateLink} onClick={() => setPendingRotateKiosk(kiosk)} icon={<RefreshCw className="h-4 w-4" />} />
+                        <KioskAction ariaLabel={kiosk.status === 'ACTIVE' ? copyText.deactivate : copyText.enable} onClick={() => void toggleKiosk(kiosk)} icon={<Power className="h-4 w-4" />} />
                         <button type="button" onClick={() => window.open(publicUrl(kiosk), '_blank', 'noopener,noreferrer')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-semibold text-white transition hover:bg-[#105f10]">
                           {copyText.open} <ExternalLink className="h-4 w-4" />
                         </button>
@@ -260,7 +340,7 @@ export function PayablesKioskManagementModal({
                     <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2.5 dark:border-slate-800 dark:bg-slate-950/40 sm:px-5">
                       <p className="min-w-0 truncate font-mono text-[11px] font-semibold text-slate-400">{publicUrl(kiosk)}</p>
                       <button type="button" onClick={() => setPendingDeleteKiosk(kiosk)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-300">
-                        <Trash2 className="h-3.5 w-3.5" /> {copyText.deactivate}
+                        <Trash2 className="h-3.5 w-3.5" /> {copyText.deleteKiosk}
                       </button>
                     </div>
                   </article>
@@ -284,14 +364,26 @@ export function PayablesKioskManagementModal({
 
       <ConfirmDeleteDialog
         isVisible={Boolean(pendingDeleteKiosk)}
-        title={copyText.deactivateTitle}
-        description={copyText.deactivateDescription}
+        title={copyText.deleteKioskTitle}
+        description={copyText.deleteKioskDescription}
         itemName={pendingDeleteKiosk?.name}
-        confirmLabel={copyText.deactivate}
+        confirmLabel={copyText.deleteKiosk}
         cancelLabel={t.common.cancel}
         confirmDisabled={isSaving}
         onCancel={() => setPendingDeleteKiosk(null)}
         onConfirm={() => pendingDeleteKiosk && void deleteKiosk(pendingDeleteKiosk)}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(pendingRotateKiosk)}
+        title={copyText.rotateLinkTitle}
+        description={copyText.rotateLinkDescription}
+        itemName={pendingRotateKiosk?.name}
+        confirmLabel={copyText.rotateLinkConfirm}
+        cancelLabel={t.common.cancel}
+        confirmDisabled={isSaving}
+        onCancel={() => setPendingRotateKiosk(null)}
+        onConfirm={() => pendingRotateKiosk && void rotateLink(pendingRotateKiosk)}
       />
     </>
   );

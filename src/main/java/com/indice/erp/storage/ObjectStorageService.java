@@ -10,7 +10,24 @@ public interface ObjectStorageService {
 
     PresignedUpload presignUpload(String bucketName, String objectKey, String contentType, int expirySeconds);
 
+    default PresignedUpload presignUpload(
+            String bucketName,
+            String objectKey,
+            String contentType,
+            long expectedContentLength,
+            int expirySeconds) {
+        return presignUpload(bucketName, objectKey, contentType, expirySeconds);
+    }
+
     boolean objectExists(String bucketName, String objectKey);
+
+    StoredObjectMetadata objectMetadata(String bucketName, String objectKey);
+
+    byte[] readObjectPrefix(String bucketName, String objectKey, int maxBytes);
+
+    void copyObject(String bucketName, String sourceObjectKey, String targetObjectKey);
+
+    void moveObject(String bucketName, String sourceObjectKey, String targetObjectKey);
 
     String presignDownload(String bucketName, String objectKey, int expirySeconds);
 

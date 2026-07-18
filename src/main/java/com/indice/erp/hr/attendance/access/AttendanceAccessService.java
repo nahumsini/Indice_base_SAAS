@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.access;
 
 import com.indice.erp.hr.attendance.models.AccessProfileRow;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskEngineIdentityService;
 import java.time.LocalDateTime;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -15,12 +16,16 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 @Service
 public class AttendanceAccessService extends AttendanceAccessKioskSupport {
 
+    private final AttendanceKioskEngineIdentityService engineIdentities;
+
     public AttendanceAccessService(
         AttendanceAccessRepository repository,
         AttendanceAccessMapper mapper,
-        AttendanceAccessCredentialService credentials
+        AttendanceAccessCredentialService credentials,
+        AttendanceKioskEngineIdentityService engineIdentities
     ) {
         super(repository, mapper, credentials);
+        this.engineIdentities = engineIdentities;
     }
 
     public Map<String, Object> listAccessProfiles(long companyId) {
@@ -49,6 +54,7 @@ public class AttendanceAccessService extends AttendanceAccessKioskSupport {
         if ("pin".equals(defaultMethod)) {
             ensurePinAccessMethod(companyId, profileId);
         }
+        engineIdentities.synchronizePersonalPin(companyId, userCompanyId);
         return Map.of("access_profile", mapper.toAccessProfileMap(repository.loadAccessProfile(companyId, profileId)));
     }
 
@@ -77,6 +83,7 @@ public class AttendanceAccessService extends AttendanceAccessKioskSupport {
         repository.ensureUniqueAccessMethod(companyId, methodId, methodType, prepared.credentialRef());
         methodId = upsertAccessMethod(companyId, accessProfileId, methodId, methodType, status, priority, prepared, existingMethod);
         var refreshedProfile = repository.loadAccessProfile(companyId, profile.id());
+        engineIdentities.synchronizePersonalPin(companyId, profile.userCompanyId());
         return Map.of(
             "access_method",
             mapper.toAccessMethodMap(repository.loadAccessMethod(companyId, methodId)),
@@ -90,6 +97,7 @@ public class AttendanceAccessService extends AttendanceAccessKioskSupport {
         var existingProfile = repository.loadAccessProfileByUser(companyId, userCompanyId);
         if (existingProfile != null) {
             ensurePinAccessMethod(companyId, existingProfile.id());
+            engineIdentities.synchronizePersonalPin(companyId, userCompanyId);
             return;
         }
         var accessUser = repository.loadAccessUser(companyId, userCompanyId);
@@ -103,6 +111,7 @@ public class AttendanceAccessService extends AttendanceAccessKioskSupport {
             LocalDateTime.now()
         );
         ensurePinAccessMethod(companyId, profileId);
+        engineIdentities.synchronizePersonalPin(companyId, userCompanyId);
     }
 
     public Map<Long, AccessProfileRow> loadAccessProfilesByUser(long companyId) {

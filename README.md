@@ -46,6 +46,32 @@ The reset script:
 - drops and recreates `indice_db`
 - leaves Flyway to rebuild the schema on the next backend startup from the latest baseline migration, currently `B40`
 
+## Backend tests use an isolated database
+
+`src/test/resources/application.properties` deliberately targets `indice_test_db`, never the functional `indice_db`. The default test connection is:
+
+- host/port: `127.0.0.1:3307`;
+- database: `indice_test_db`;
+- user: `indice_test_user`;
+- password: `indice_test_pass`.
+
+Run the suite against a disposable MySQL 8 instance or an equivalently isolated schema. A local example is:
+
+```bash
+docker run --rm -d --name indice-mysql-tests \
+  -p 127.0.0.1:3307:3306 \
+  -e MYSQL_DATABASE=indice_test_db \
+  -e MYSQL_USER=indice_test_user \
+  -e MYSQL_PASSWORD=indice_test_pass \
+  -e MYSQL_ROOT_PASSWORD=indice_test_root \
+  mysql:8.0
+
+./mvnw test
+docker stop indice-mysql-tests
+```
+
+If port `3307` is already occupied, point the test process to another dedicated instance with `TEST_DATASOURCE_URL`, `TEST_DATASOURCE_USERNAME` and `TEST_DATASOURCE_PASSWORD`. Do not set those variables to `indice_db`; Spring integration tests are allowed to write data.
+
 ## Frontend setup
 
 Point the React frontend to this backend:

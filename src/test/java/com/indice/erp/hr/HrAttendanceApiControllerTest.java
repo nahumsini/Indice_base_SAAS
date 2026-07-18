@@ -14,6 +14,8 @@ import com.indice.erp.hr.attendance.api.AttendanceLocationApiController;
 import com.indice.erp.hr.attendance.api.AttendanceScheduleApiController;
 import com.indice.erp.hr.attendance.api.HrAttendanceApiController;
 import com.indice.erp.hr.attendance.kiosk.api.PublicKioskAttendanceApiController;
+import com.indice.erp.hr.attendance.kiosk.AttendancePublicKioskEngineGateway;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskCapabilities;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -64,6 +67,9 @@ class HrAttendanceApiControllerTest {
 
     @MockBean
     private HrAccessService hrAccessService;
+
+    @MockBean
+    private AttendancePublicKioskEngineGateway publicKioskGateway;
 
     @BeforeEach
     void allowHrAccessByDefault() {
@@ -278,7 +284,7 @@ class HrAttendanceApiControllerTest {
 
     @Test
     void publicKioskBootstrapReturnsPayloadWithoutAuthentication() throws Exception {
-        given(hrAttendanceService.publicKioskBootstrap("device-token")).willReturn(Map.of(
+        given(publicKioskGateway.bootstrap(eq("device-token"), any(), any())).willReturn(Map.of(
             "kiosk_device", Map.of("id", 4, "code", "front-kiosk", "name", "Front Kiosk"),
             "location", Map.of("id", 9, "name", "North Gate"),
             "auth_methods", java.util.List.of("pin", "badge"),
@@ -293,7 +299,8 @@ class HrAttendanceApiControllerTest {
 
     @Test
     void publicKioskIdentifyReturnsPayloadWithoutAuthentication() throws Exception {
-        given(hrAttendanceService.publicKioskIdentify(eq("device-token"), anyMap())).willReturn(Map.of(
+        given(publicKioskGateway.identify(
+            eq("device-token"), nullable(String.class), anyMap(), any(), any())).willReturn(Map.of(
             "auth_attempt_event_id", 10,
             "auth_method", "pin",
             "user", Map.of(
@@ -322,7 +329,10 @@ class HrAttendanceApiControllerTest {
 
     @Test
     void publicKioskPunchReturnsCreatedPayloadWithoutAuthentication() throws Exception {
-        given(hrAttendanceService.publicKioskPunch(eq("device-token"), anyMap())).willReturn(Map.of(
+        given(publicKioskGateway.executeMutation(
+            eq("device-token"), nullable(String.class), nullable(String.class),
+            eq(AttendanceKioskCapabilities.PUNCH_CREATE), nullable(Long.class),
+            anyMap(), any(), any())).willReturn(Map.of(
             "event_id", 14,
             "user_company_id", 12,
             "event_kind", "check_in",

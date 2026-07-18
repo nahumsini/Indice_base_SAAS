@@ -1,11 +1,15 @@
 package com.indice.erp.hr.attendance.kiosk.api;
 
 import com.indice.erp.face.FaceVerificationIntegrationException;
-import com.indice.erp.hr.attendance.HrAttendanceService;
+import com.indice.erp.hr.attendance.kiosk.AttendanceKioskCapabilities;
+import com.indice.erp.hr.attendance.kiosk.AttendancePublicKioskEngineGateway;
 import com.indice.erp.hr.attendance.kiosk.KioskPinThrottleException;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,16 +24,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/hr/attendance/public-kiosk/{deviceToken}")
 public class PublicKioskAttendanceApiController {
 
-    private final HrAttendanceService hrAttendanceService;
+    private final AttendancePublicKioskEngineGateway gateway;
 
-    public PublicKioskAttendanceApiController(HrAttendanceService hrAttendanceService) {
-        this.hrAttendanceService = hrAttendanceService;
+    public PublicKioskAttendanceApiController(AttendancePublicKioskEngineGateway gateway) {
+        this.gateway = gateway;
     }
 
     @GetMapping("/bootstrap")
-    public ResponseEntity<?> bootstrap(@PathVariable String deviceToken) {
+    public ResponseEntity<?> bootstrap(
+            @PathVariable String deviceToken,
+            HttpServletRequest request,
+            HttpSession session) {
         try {
-            return ResponseEntity.ok(hrAttendanceService.publicKioskBootstrap(deviceToken));
+            return ResponseEntity.ok(gateway.bootstrap(deviceToken, request, session));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -38,22 +45,38 @@ public class PublicKioskAttendanceApiController {
     }
 
     @PostMapping("/identify")
-    public ResponseEntity<?> identify(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> identify(
+            @PathVariable String deviceToken,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody Map<String, Object> payload,
+            HttpServletRequest request,
+            HttpSession session) {
         try {
-            return ResponseEntity.ok(hrAttendanceService.publicKioskIdentify(deviceToken, payload));
+            return ResponseEntity.ok(gateway.identify(
+                deviceToken, csrfToken, payload, request, session));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
         } catch (KioskPinThrottleException ex) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
         }
     }
 
     @PostMapping("/media/presign-upload")
-    public ResponseEntity<?> presignUpload(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> presignUpload(
+            @PathVariable String deviceToken,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody Map<String, Object> payload,
+            HttpServletRequest request,
+            HttpSession session) {
         try {
-            return ResponseEntity.ok(hrAttendanceService.createPublicKioskPhotoUpload(deviceToken, payload));
+            return ResponseEntity.ok(gateway.executeMutation(
+                deviceToken, csrfToken, idempotencyKey, AttendanceKioskCapabilities.PHOTO_PRESIGN,
+                null, payload, request, session));
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (FaceVerificationIntegrationException ex) {
@@ -66,10 +89,19 @@ public class PublicKioskAttendanceApiController {
     }
 
     @PostMapping("/face-verification-sessions")
-    public ResponseEntity<?> createFaceVerificationSession(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createFaceVerificationSession(
+            @PathVariable String deviceToken,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody Map<String, Object> payload,
+            HttpServletRequest request,
+            HttpSession session) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                hrAttendanceService.createPublicKioskFaceVerificationSession(deviceToken, payload)
+                gateway.executeMutation(
+                    deviceToken, csrfToken, idempotencyKey,
+                    AttendanceKioskCapabilities.FACE_VERIFICATION_BEGIN,
+                    null, payload, request, session)
             );
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
@@ -86,11 +118,18 @@ public class PublicKioskAttendanceApiController {
     public ResponseEntity<?> presignFaceVerificationCapture(
         @PathVariable String deviceToken,
         @PathVariable long sessionId,
-        @RequestBody Map<String, Object> payload
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+        @RequestBody Map<String, Object> payload,
+        HttpServletRequest request,
+        HttpSession session
     ) {
         try {
             return ResponseEntity.ok(
-                hrAttendanceService.createPublicKioskFaceVerificationCaptureUpload(deviceToken, sessionId, payload)
+                gateway.executeMutation(
+                    deviceToken, csrfToken, idempotencyKey,
+                    AttendanceKioskCapabilities.FACE_VERIFICATION_CAPTURE_PRESIGN,
+                    sessionId, payload, request, session)
             );
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
@@ -107,11 +146,18 @@ public class PublicKioskAttendanceApiController {
     public ResponseEntity<?> completeFaceVerificationSession(
         @PathVariable String deviceToken,
         @PathVariable long sessionId,
-        @RequestBody Map<String, Object> payload
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+        @RequestBody Map<String, Object> payload,
+        HttpServletRequest request,
+        HttpSession session
     ) {
         try {
             return ResponseEntity.ok(
-                hrAttendanceService.completePublicKioskFaceVerificationSession(deviceToken, sessionId, payload)
+                gateway.executeMutation(
+                    deviceToken, csrfToken, idempotencyKey,
+                    AttendanceKioskCapabilities.FACE_VERIFICATION_COMPLETE,
+                    sessionId, payload, request, session)
             );
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
@@ -125,9 +171,17 @@ public class PublicKioskAttendanceApiController {
     }
 
     @PostMapping("/punch")
-    public ResponseEntity<?> punch(@PathVariable String deviceToken, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> punch(
+            @PathVariable String deviceToken,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody Map<String, Object> payload,
+            HttpServletRequest request,
+            HttpSession session) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(hrAttendanceService.publicKioskPunch(deviceToken, payload));
+            return ResponseEntity.status(HttpStatus.CREATED).body(gateway.executeMutation(
+                deviceToken, csrfToken, idempotencyKey, AttendanceKioskCapabilities.PUNCH_CREATE,
+                null, payload, request, session));
         } catch (ObjectStorageDisabledException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
         } catch (NoSuchElementException ex) {

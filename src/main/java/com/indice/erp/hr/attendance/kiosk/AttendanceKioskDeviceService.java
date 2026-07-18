@@ -1,10 +1,16 @@
 package com.indice.erp.hr.attendance.kiosk;
 
 import com.indice.erp.hr.attendance.models.LocationRow;
+import com.indice.erp.hr.HrOperationalScope;
+import com.indice.erp.kiosk.engine.KioskAccessLevel;
+import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
+import com.indice.erp.kiosk.engine.KioskRegistryService;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import java.security.SecureRandom;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,28 +30,51 @@ public class AttendanceKioskDeviceService {
     private final AttendanceKioskPinThrottleService pinThrottleService;
     private final AttendanceKioskDeviceMapper kioskDeviceMapper;
     private final AttendanceKioskDeviceValidator validator;
+    private final KioskRegistryService kioskRegistry;
 
     public AttendanceKioskDeviceService(
         AttendanceKioskDeviceRepository kioskDeviceRepository,
         AttendanceKioskDeviceWriter kioskDeviceWriter,
         AttendanceKioskPinThrottleService pinThrottleService,
         AttendanceKioskDeviceMapper kioskDeviceMapper,
-        AttendanceKioskDeviceValidator validator
+        AttendanceKioskDeviceValidator validator,
+        KioskRegistryService kioskRegistry
     ) {
         this.kioskDeviceRepository = kioskDeviceRepository;
         this.kioskDeviceWriter = kioskDeviceWriter;
         this.pinThrottleService = pinThrottleService;
         this.kioskDeviceMapper = kioskDeviceMapper;
         this.validator = validator;
+        this.kioskRegistry = kioskRegistry;
     }
 
     public Map<String, Object> listDevices(long companyId) {
-        return Map.of("items", kioskDeviceRepository.list(companyId).stream().map(kioskDeviceMapper::toMap).toList());
+        return Map.of("items", kioskDeviceRepository.list(companyId).stream().map(this::toEngineMap).toList());
+    }
+
+    public Map<String, Object> listDevices(long companyId, HrOperationalScope scope) {
+        return Map.of("items", kioskDeviceRepository.list(companyId, scope).stream()
+            .map(this::toEngineMap).toList());
     }
 
     @Transactional
     public void deleteDevice(long companyId, long kioskDeviceId) {
-        kioskDeviceRepository.get(companyId, kioskDeviceId);
+        deleteDevice(companyId, 0L, kioskDeviceId);
+    }
+
+    @Transactional
+    public void deleteDevice(long companyId, long actorId, long kioskDeviceId) {
+        var device = kioskDeviceRepository.get(companyId, kioskDeviceId);
+        try {
+            kioskRegistry.requireByLegacyReference(
+                companyId, AttendanceKioskCapabilities.OWNER_MODULE, kioskDeviceId);
+        } catch (NoSuchElementException ignored) {
+            synchronizeDefinition(device, actorId);
+        }
+        kioskRegistry.deleteDefinition(
+            companyId, AttendanceKioskCapabilities.OWNER_MODULE, kioskDeviceId,
+            actorId, "Attendance kiosk deleted from HR Control"
+        );
         kioskDeviceWriter.delete(companyId, kioskDeviceId);
     }
 
@@ -84,16 +113,85 @@ public class AttendanceKioskDeviceService {
         var savedId = kioskDeviceId == null || kioskDeviceId <= 0
             ? kioskDeviceWriter.insert(companyId, userId, code, name, status, scope, publicAccessToken, metadataJson)
             : kioskDeviceWriter.update(companyId, kioskDeviceId, code, name, status, scope, publicAccessToken, metadataJson);
-        return Map.of("kiosk_device", kioskDeviceMapper.toMap(kioskDeviceRepository.get(companyId, savedId)));
+        var saved = kioskDeviceRepository.get(companyId, savedId);
+        synchronizeDefinition(saved, userId);
+        return Map.of("kiosk_device", toEngineMap(saved));
     }
 
     @Transactional
     public Map<String, Object> rotatePublicAccessToken(long companyId, long kioskDeviceId) {
-        kioskDeviceRepository.get(companyId, kioskDeviceId);
-        kioskDeviceWriter.rotatePublicAccessToken(companyId, kioskDeviceId, generateUniquePublicAccessToken());
+        return rotatePublicAccessToken(companyId, 0L, kioskDeviceId);
+    }
+
+    @Transactional
+    public Map<String, Object> rotatePublicAccessToken(long companyId, long actorId, long kioskDeviceId) {
+        var existingKioskDevice = kioskDeviceRepository.get(companyId, kioskDeviceId);
+        pinThrottleService.clearFailures(existingKioskDevice);
+        var nextToken = generateUniquePublicAccessToken();
+        kioskDeviceWriter.rotatePublicAccessToken(companyId, kioskDeviceId, nextToken);
         var kioskDevice = kioskDeviceRepository.get(companyId, kioskDeviceId);
-        pinThrottleService.clearFailures(kioskDevice);
-        return Map.of("kiosk_device", kioskDeviceMapper.toMap(kioskDeviceRepository.get(companyId, kioskDeviceId)));
+        synchronizeDefinition(kioskDevice, actorId);
+        kioskRegistry.replacePublicToken(
+            companyId, AttendanceKioskCapabilities.OWNER_MODULE, kioskDeviceId, nextToken, actorId
+        );
+        return Map.of("kiosk_device", toEngineMap(kioskDeviceRepository.get(companyId, kioskDeviceId)));
+    }
+
+    @Transactional
+    public Map<String, Object> transitionDevice(
+            long companyId,
+            long actorId,
+            long kioskDeviceId,
+            KioskDefinitionStatus target,
+            String reason) {
+        var device = kioskDeviceRepository.get(companyId, kioskDeviceId);
+        synchronizeDefinition(device, actorId);
+        var definition = kioskRegistry.transition(
+            companyId, AttendanceKioskCapabilities.OWNER_MODULE, kioskDeviceId,
+            target, actorId, reason
+        );
+        kioskDeviceWriter.updateStatus(
+            companyId, kioskDeviceId,
+            target == KioskDefinitionStatus.ACTIVE ? "active" : "inactive"
+        );
+        return Map.of("kiosk_device", toEngineMap(
+            kioskDeviceRepository.get(companyId, kioskDeviceId), definition));
+    }
+
+    private KioskResolvedDefinition synchronizeDefinition(KioskDeviceRow device, long actorId) {
+        var kioskType = AttendanceKioskType.normalize(
+            kioskDeviceMapper.parseJsonMap(device.metadataJson()).get(AttendanceKioskType.METADATA_KEY));
+        if (kioskType == null) {
+            kioskType = AttendanceKioskType.infer(
+                device.locationId() == null ? null : validator.loadLocation(device.companyId(), device.locationId()));
+        }
+        var definition = kioskRegistry.registerLegacyDefinitionWithLocation(
+            device.companyId(), AttendanceKioskCapabilities.OWNER_MODULE, kioskType,
+            device.id(), device.code(), device.name(), device.status(),
+            device.unitId(), device.businessId(), device.locationId(), null,
+            device.publicAccessToken(), true, KioskAccessLevel.CONTROLLED,
+            "human-resources", "es-MX", actorId
+        );
+        kioskRegistry.synchronizeCapabilities(definition, AttendanceKioskCapabilities.descriptors());
+        return definition;
+    }
+
+    private Map<String, Object> toEngineMap(KioskDeviceRow device) {
+        try {
+            return toEngineMap(device, kioskRegistry.requireByLegacyReference(
+                device.companyId(), AttendanceKioskCapabilities.OWNER_MODULE, device.id()));
+        } catch (java.util.NoSuchElementException ignored) {
+            return kioskDeviceMapper.toMap(device);
+        }
+    }
+
+    private Map<String, Object> toEngineMap(KioskDeviceRow device, KioskResolvedDefinition definition) {
+        var item = new LinkedHashMap<>(kioskDeviceMapper.toMap(device));
+        item.put("kiosk_definition_id", definition.id());
+        item.put("engine_status", definition.status().name());
+        item.put("configuration_version", definition.configurationVersion());
+        item.put("public_token_hint", definition.publicTokenHint());
+        return item;
     }
 
     private KioskDeviceScope resolveScope(

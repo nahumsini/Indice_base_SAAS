@@ -11,6 +11,11 @@ export const zhCA = {
     title: '正在加载任务入口',
     description: '正在准备任务自助终端。',
   },
+  session: {
+    offline: '没有网络连接。此自助终端仅支持在线使用。',
+    expiring: '您的会话即将到期。请继续操作或重新验证身份。',
+    expired: '您的会话因不活动而过期。请输入 PIN 以继续。',
+  },
   header: {
     badge: '任务自助终端',
     title: '完成你的任务',
@@ -148,6 +153,7 @@ export const zhCA = {
     fileTooLarge: (fileName: string) => `${fileName} 超过 10 MB 限制。`,
     unsupportedEvidence: (fileName: string) => `${fileName} 不是支持的凭证文件。`,
     uploadFailure: '任务凭证上传失败。',
+    partialUploadFailure: '部分凭证已上传，但仍有文件失败。重试前请先检查任务。',
     completeFailure: '无法完成此任务。',
     createTitleRequired: '任务标题为必填项。',
     createFailure: '无法创建此任务。',

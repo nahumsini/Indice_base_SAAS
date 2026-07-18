@@ -16,5 +16,6 @@ export const enUS = {
     facturacion: 'Invoicing',
     descuentos: 'Discounts',
     kpis: 'KPIs',
+    kiosks: 'Kiosks',
   },
 } as const;

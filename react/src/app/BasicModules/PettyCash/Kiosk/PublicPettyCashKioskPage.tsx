@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
 import {
   ArrowRight,
   Banknote,
@@ -15,6 +15,8 @@ import {
 import { useParams } from 'react-router';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
+import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
+import { useKioskSessionBoundary } from '../../../components/kiosk-engine/useKioskSessionBoundary';
 import {
   getDefaultBudgetTaxProfile,
   inferTaxCountryFromCurrency,
@@ -39,6 +41,7 @@ import { usePettyCashLocaleControls, usePettyCashTranslations } from '../hooks/u
 import type { PettyCashLocale } from '../translations';
 
 const maxAttachmentSizeBytes = 10 * 1024 * 1024;
+const maxAttachments = 5;
 
 const todayInputValue = () => {
   const today = new Date();
@@ -91,6 +94,10 @@ function inferContentType(file: File) {
   if (extension === 'png') return 'image/png';
   if (extension === 'jpg' || extension === 'jpeg') return 'image/jpeg';
   if (extension === 'webp') return 'image/webp';
+  if (extension === 'doc') return 'application/msword';
+  if (extension === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (extension === 'xls') return 'application/vnd.ms-excel';
+  if (extension === 'xlsx') return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   if (extension === 'csv') return 'text/csv';
   if (extension === 'txt') return 'text/plain';
   return 'application/octet-stream';
@@ -294,6 +301,19 @@ export default function PublicPettyCashKioskPage() {
   const [isDeletingReceipt, setIsDeletingReceipt] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [sessionMessage, setSessionMessage] = useState('');
+
+  const expireSession = useCallback(() => {
+    setIdentity(null);
+    setPin('');
+    setSessionMessage(copy.publicKiosk.session.expired);
+  }, [copy.publicKiosk.session.expired]);
+  const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
+    active: Boolean(identity),
+    expiresAt: identity?.expires_at,
+    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 180,
+    onExpire: expireSession,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -368,6 +388,7 @@ export default function PublicPettyCashKioskPage() {
     try {
       const response = await pettyCashKioskApi.identifyPublicUser(fundToken, pin.trim());
       setIdentity(response);
+      setSessionMessage('');
       setPin('');
       setActiveTab('upload');
     } catch (error) {
@@ -379,8 +400,11 @@ export default function PublicPettyCashKioskPage() {
 
   const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files ?? []);
-    const validFiles = selectedFiles.filter(file => file.size <= maxAttachmentSizeBytes);
-    setAttachments(current => [...current, ...validFiles]);
+    const availableSlots = Math.max(0, maxAttachments - attachments.length);
+    const validFiles = selectedFiles
+      .filter(file => file.size <= maxAttachmentSizeBytes)
+      .slice(0, availableSlots);
+    setAttachments(current => [...current, ...validFiles].slice(0, maxAttachments));
     event.target.value = '';
     if (validFiles.length !== selectedFiles.length) setErrorMessage(copy.publicKiosk.errors.oversizedFiles);
   };
@@ -525,14 +549,12 @@ export default function PublicPettyCashKioskPage() {
     }
   };
 
-  if (isBootstrapping) {
-    return <LoadingBarOverlay isVisible title={copy.publicKiosk.loading.title} description={copy.publicKiosk.loading.description} />;
-  }
-
   return (
-    <main className="min-h-[100dvh] bg-slate-100 px-3 py-4 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-4 sm:py-6">
-      <div className="mx-auto flex w-full max-w-[480px] flex-col overflow-hidden rounded-[28px] border border-[#147514]/25 bg-white shadow-2xl dark:bg-slate-900">
-        <header className="flex items-center justify-between gap-3 bg-[#147514] px-4 py-3 text-white sm:px-5">
+    <>
+      <KioskPublicShell
+        banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900">{copy.publicKiosk.session.offline}</div> : null}
+        errorMessage={errorMessage}
+        header={(<header className="flex items-center justify-between gap-3 bg-[#147514] px-4 py-3 text-white sm:px-5">
           <div className="flex min-w-0 items-center gap-2">
             <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-sm">🗃️</span>
             <h1 className="truncate text-lg font-black tracking-tight">{copy.publicKiosk.header.eyebrow}</h1>
@@ -552,10 +574,12 @@ export default function PublicPettyCashKioskPage() {
               ))}
             </select>
           </label>
-        </header>
-
-        {errorMessage ? <div className="border-b border-red-200 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">{errorMessage}</div> : null}
-        {successMessage ? <div className="border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">{successMessage}</div> : null}
+        </header>)}
+        loadingOverlay={<LoadingBarOverlay isVisible={isBootstrapping} title={copy.publicKiosk.loading.title} description={copy.publicKiosk.loading.description} />}
+        maxWidthClassName="max-w-[480px]"
+        sessionExpiredMessage={sessionMessage || (isSessionExpiring ? copy.publicKiosk.session.expiring : null)}
+        successMessage={successMessage}
+      >
 
         {!identity ? (
           <div className="bg-slate-50 p-4 sm:p-5 dark:bg-slate-950/40">
@@ -661,7 +685,7 @@ export default function PublicPettyCashKioskPage() {
                     <div className="mt-3 rounded-full bg-white px-4 py-2 text-center text-sm font-black text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200">{copy.publicKiosk.receipt.currency(currencyCode)}</div>
                   </div>
 
-                  <label className="mt-5 inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-[#147514]/35 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><Upload className="h-4 w-4 text-[#147514]" />{copy.publicKiosk.receipt.attach}<input className="hidden" multiple onChange={handleAttachmentChange} type="file" /></label>
+                  <label className="mt-5 inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-[#147514]/35 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><Upload className="h-4 w-4 text-[#147514]" />{copy.publicKiosk.receipt.attach}<input accept="image/png,image/jpeg,image/webp,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" className="hidden" multiple onChange={handleAttachmentChange} type="file" /></label>
                   {attachments.length > 0 ? (
                     <div className="mt-3 grid gap-2">
                       {attachments.map((file, index) => (
@@ -733,7 +757,7 @@ export default function PublicPettyCashKioskPage() {
             ) : null}
           </div>
         )}
-      </div>
+      </KioskPublicShell>
 
       <PettyCashKioskAttachmentsModal
         attachments={receiptAttachments}
@@ -761,6 +785,6 @@ export default function PublicPettyCashKioskPage() {
         onConfirm={() => void handleDeleteReceipt()}
         title={copy.reconciliation.receipts.deleteTitle}
       />
-    </main>
+    </>
   );
 }

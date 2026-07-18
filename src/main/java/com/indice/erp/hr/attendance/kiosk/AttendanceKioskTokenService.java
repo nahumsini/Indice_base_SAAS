@@ -28,13 +28,15 @@ public class AttendanceKioskTokenService {
 
     public AttendanceKioskTokenService(
         ObjectMapper objectMapper,
-        @Value("${app.hr.kiosk.identification-token-secret:indice-kiosk-identification-secret}") String tokenSecret,
+        @Value("${app.hr.kiosk.identification-token-secret}") String tokenSecret,
         @Value("${app.hr.kiosk.identification-token-ttl-seconds:120}") int identificationTokenTtlSeconds
     ) {
         this.objectMapper = objectMapper;
-        this.tokenSecret = tokenSecret == null || tokenSecret.isBlank()
-            ? "indice-kiosk-identification-secret"
-            : tokenSecret;
+        if (tokenSecret == null || tokenSecret.trim().length() < 32) {
+            throw new IllegalArgumentException(
+                "HR kiosk identification token secret must contain at least 32 characters.");
+        }
+        this.tokenSecret = tokenSecret.trim();
         this.identificationTokenTtlSeconds = Math.max(identificationTokenTtlSeconds, 30);
     }
 

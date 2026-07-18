@@ -3,10 +3,17 @@ import type { SalesProductCategory, SalesProductType } from '../../../types';
 export type PublicCatalogContactMethod = 'whatsapp' | 'email' | 'phone' | 'website';
 export type PublicCatalogAppliedPriceType = 'public' | 'wholesale';
 export type PublicInventoryStatus = 'inStock' | 'lowStock' | 'madeToOrder' | 'noInventoryTracking' | 'serviceAvailability' | 'askAvailability';
-export type PublicCatalogStatus = 'draft' | 'active';
+export type PublicCatalogStatus = 'draft' | 'active' | 'disabled' | 'revoked' | 'expired';
 
 export type PublicCatalogConfig = {
   id?: string;
+  backendId?: number;
+  version?: number;
+  companyName?: string;
+  unitId?: number;
+  businessId?: number;
+  unitName?: string;
+  businessName?: string;
   title: string;
   description: string;
   coverImageUrl: string;
@@ -28,6 +35,8 @@ export type PublicCatalogConfig = {
   publicAccessToken?: string;
   qrImageDataUrl?: string;
   updatedAt?: string;
+  publicTokenHint?: string;
+  expiresAt?: string;
 };
 
 export type PublicCatalogItem = {
@@ -64,10 +73,4 @@ export type PublicCatalogRequest = {
   cartItems: PublicCatalogCartItem[];
   estimatedTotal: number;
   sourcePublicAccessToken?: string;
-};
-
-export type PublicCatalogLink = {
-  url: string;
-  token: string;
-  generatedAt: string;
 };

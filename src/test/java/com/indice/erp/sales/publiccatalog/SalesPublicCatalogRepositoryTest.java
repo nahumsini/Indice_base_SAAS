@@ -1,0 +1,47 @@
+package com.indice.erp.sales.publiccatalog;
+
+import java.time.Instant;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class SalesPublicCatalogRepositoryTest {
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void resolvesInventoryOnlyFromActiveWarehousesInTheCatalogScope() {
+        var jdbcTemplate = mock(JdbcTemplate.class);
+        var repository = new SalesPublicCatalogRepository(jdbcTemplate);
+        when(jdbcTemplate.query(any(String.class), any(RowMapper.class), any(Object[].class)))
+            .thenReturn(List.of());
+
+        repository.publicItems(catalog());
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        var arguments = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), arguments.capture());
+        assertThat(sql.getValue())
+            .contains("JOIN sales_inventory_warehouses warehouse")
+            .contains("warehouse.deleted_at IS NULL")
+            .contains("TRIM(warehouse.business_unit_id) = CAST(? AS CHAR)")
+            .contains("TRIM(warehouse.business_id) = CAST(? AS CHAR)");
+        assertThat(arguments.getValue()).containsExactly(11L, 12L, 7L, 17L, 7L);
+    }
+
+    private SalesPublicCatalogRepository.CatalogRecord catalog() {
+        var now = Instant.parse("2026-07-18T12:00:00Z");
+        return new SalesPublicCatalogRepository.CatalogRecord(
+            17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026",
+            "Catálogo 2026", "Catálogo público", null, null, "Contactar", "email",
+            "ventas@example.com", "ACTIVE", null, "tokenhint", true, false, true,
+            true, true, true, true, 1L, now, now);
+    }
+}

@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import static com.indice.erp.hr.shared.HrPayloadUtils.isBlank;
 
@@ -30,6 +32,10 @@ public class AttendanceKioskPinThrottleService {
         this.objectMapper = objectMapper;
     }
 
+    @Transactional(
+        propagation = Propagation.REQUIRES_NEW,
+        noRollbackFor = KioskPinThrottleException.class
+    )
     public void ensureAttemptAllowed(KioskDeviceRow kioskDevice) {
         var state = loadThrottle(kioskDevice);
         if (state == null) {
@@ -47,6 +53,10 @@ public class AttendanceKioskPinThrottleService {
         throw new KioskPinThrottleException(throttleMessage(state, now));
     }
 
+    @Transactional(
+        propagation = Propagation.REQUIRES_NEW,
+        noRollbackFor = KioskPinThrottleException.class
+    )
     public void recordFailure(KioskDeviceRow kioskDevice) {
         var now = Instant.now();
         var current = loadThrottle(kioskDevice);
@@ -68,6 +78,7 @@ public class AttendanceKioskPinThrottleService {
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void clearFailures(KioskDeviceRow kioskDevice) {
         updateThrottle(kioskDevice, null);
     }
