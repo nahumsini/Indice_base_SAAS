@@ -4,7 +4,7 @@ import { cn } from '../../../components/ui/utils';
 
 interface SalesTabsNavProps {
   activeTab: SalesTabId;
-  copy: Pick<SalesTranslations, 'tabs'>;
+  copy: Pick<SalesTranslations, 'title' | 'tabs'>;
   onTabChange: (tabId: SalesTabId) => void;
 }
 
@@ -14,7 +14,7 @@ export function SalesTabsNav({
   onTabChange,
 }: SalesTabsNavProps) {
   return (
-    <nav aria-label="Sales sections" className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
+    <nav aria-label={copy.title} className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
       <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
         {visibleSalesModuleTabs.map((tab) => {
           const active = activeTab === tab.id;

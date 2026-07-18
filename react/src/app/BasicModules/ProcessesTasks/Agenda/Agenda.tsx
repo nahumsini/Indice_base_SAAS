@@ -342,6 +342,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     catalogBusinesses,
     catalogCollaborators,
     catalogUnits,
+    isProjectsCatalogReady,
     processes,
     projects,
   } = useAgendaCatalogs();
@@ -701,8 +702,10 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
   } = useAgendaTaskFormDialog({
     agendaCopy,
     currentUserCollaborator,
+    isProjectsCatalogReady,
     loadAgenda: loadVisibleAgenda,
     onTaskCreated: rememberCreatedTask,
+    projects,
     quickTaskContext,
     quickTaskDate,
     selectedScheduleDate,
@@ -711,8 +714,10 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
   });
 
   const {
+    cancelTask,
     deleteTask,
     handleBusinessCellChange,
+    handleConfirmCancelTask,
     handleConfirmDeleteTask,
     handleDuplicateTask,
     handleProjectCellChange,
@@ -721,6 +726,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     handleUnitCellChange,
     persistTaskChange,
     scopeResponsiblePatch,
+    setCancelTask,
     setDeleteTask,
   } = useAgendaTaskMutations({
     agendaCopy,
@@ -830,6 +836,8 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       onEditTask={handleEditTask}
       onOpenAttachments={setAttachmentsTask}
       onPersistTaskChange={persistTaskChange}
+      onRequestCancel={setCancelTask}
+      onRequestComplete={handleCloseTask}
       onPriorityChange={handlePriorityCellChange}
       onProjectChange={handleProjectCellChange}
       onResponsibleChange={handleResponsibleCellChange}
@@ -872,6 +880,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       displayStatusClasses={agendaDisplayStatusClasses}
       isLoading={isAgendaViewLoading}
       isTaskPending={isTaskPending}
+      onCancelTask={setCancelTask}
       onCloseTask={handleCloseTask}
       onDeleteTask={setDeleteTask}
       onEditTask={handleEditTask}
@@ -1102,6 +1111,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       />
 
       <TaskFormDialog
+        error={agendaError}
         copy={agendaCopy}
         open={isTaskDialogOpen}
         onOpenChange={handleTaskDialogOpenChange}
@@ -1131,6 +1141,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
 
       <AgendaQuickTaskDialog
         copy={agendaCopy}
+        error={agendaError}
         isSubmitting={isSubmittingTask}
         onOpenChange={handleQuickTaskDialogOpenChange}
         onSubmit={handleSubmitQuickTask}
@@ -1141,6 +1152,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
 
       <TaskCompletionDialog
         copy={agendaCopy.completionDialog}
+        error={agendaError}
         open={Boolean(completionTask)}
         onOpenChange={handleCompletionDialogOpenChange}
         task={completionTask}
@@ -1156,6 +1168,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
 
       <TaskAuditDialog
         copy={agendaCopy.auditDialog}
+        error={agendaError}
         open={Boolean(auditTask)}
         onOpenChange={handleAuditDialogOpenChange}
         task={auditTask}
@@ -1238,6 +1251,20 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         onCancel={() => setBulkConfirmation(null)}
         onConfirm={() => {
           void runBulkTaskAction('complete');
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(cancelTask)}
+        title={agendaCopy.common.cancel}
+        itemName={cancelTask?.title}
+        description="La tarea quedará cancelada y conservará su historial para consulta."
+        confirmLabel={agendaCopy.common.cancel}
+        cancelLabel={agendaCopy.common.close}
+        confirmDisabled={cancelTask ? isTaskPending(cancelTask.taskId) : false}
+        onCancel={() => setCancelTask(null)}
+        onConfirm={() => {
+          void handleConfirmCancelTask();
         }}
       />
 

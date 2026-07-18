@@ -13,6 +13,7 @@ import {
 } from './salesIdentity';
 import { SalesCrmProvider } from './salesCrmContext';
 import { SalesHeader } from './components/SalesHeader';
+import { SalesDataStateBoundary } from './components/SalesDataStateBoundary';
 import { SalesLoadingState } from './components/SalesLoadingState';
 import { SalesTabsNav } from './components/SalesTabsNav';
 import { useSalesTranslations } from './hooks/useSalesTranslations';
@@ -33,23 +34,15 @@ const Prospectos = lazy(() => import('./Prospectos')) as SalesTabLazyComponent;
 const Contactos = lazy(() => import('./Contactos')) as SalesTabLazyComponent;
 const Cotizacion = lazy(() => import('./Cotizacion')) as SalesTabLazyComponent;
 const Sales = lazy(() => import('./Sales/Sales')) as SalesTabLazyComponent;
-const Productos = lazy(() => import('./Productos')) as SalesTabLazyComponent;
-const Providers = lazy(() => import('./Providers')) as SalesTabLazyComponent;
-const Inventory = lazy(() => import('./Inventory')) as SalesTabLazyComponent;
-const Postventa = lazy(() => import('./Postventa')) as SalesTabLazyComponent;
 const Contrato = lazy(() => import('./Contrato')) as SalesTabLazyComponent;
 const KPIs = lazy(() => import('./KPIs')) as SalesTabLazyComponent;
 
-const salesTabComponents: Record<SalesTabId, SalesTabLazyComponent> = {
+const salesTabComponents: Partial<Record<SalesTabId, SalesTabLazyComponent>> = {
   leads: Prospectos,
   contacts: Contactos,
   quotes: Cotizacion,
   sales: Sales,
-  products: Productos,
-  providers: Providers,
-  inventory: Inventory,
   contracts: Contrato,
-  'after-sales': Postventa,
   kpis: KPIs,
 };
 
@@ -141,17 +134,19 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
 
       <main ref={moduleContentRef} className="mx-auto max-w-[1600px] scroll-mt-6 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <SalesCrmProvider>
-          <Suspense
-            fallback={(
-              <SalesLoadingState
-                isVisible
-                title={copy.loading.fallbackTitle}
-                description={copy.loading.fallbackDescription}
-              />
-            )}
-          >
-            <ActiveComponent learningModeActive={learningModeActive} />
-          </Suspense>
+          <SalesDataStateBoundary>
+            <Suspense
+              fallback={(
+                <SalesLoadingState
+                  isVisible
+                  title={copy.loading.fallbackTitle}
+                  description={copy.loading.fallbackDescription}
+                />
+              )}
+            >
+              <ActiveComponent learningModeActive={learningModeActive} />
+            </Suspense>
+          </SalesDataStateBoundary>
         </SalesCrmProvider>
       </main>
     </div>

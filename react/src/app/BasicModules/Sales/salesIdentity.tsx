@@ -103,7 +103,7 @@ export const salesModuleTabs: Array<{
 ];
 
 export const visibleSalesModuleTabs = salesModuleTabs.filter(
-  (tab) => !['products', 'providers', 'inventory', 'contracts', 'after-sales'].includes(tab.id),
+  (tab) => !['products', 'providers', 'inventory', 'after-sales'].includes(tab.id),
 );
 
 const toneClasses: Record<SalesTone, {

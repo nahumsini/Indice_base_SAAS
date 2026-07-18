@@ -1036,6 +1036,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
   };
 
   const openCreateDialog = () => {
+    setProjectsError(null);
     setDialogMode('create');
     resetForm();
     setIsDialogOpen(true);
@@ -1050,6 +1051,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
   };
 
   const openEditDialog = (project: ProjectRecord) => {
+    setProjectsError(null);
     setDialogMode('edit');
     setEditingProjectId(project.id);
     setForm(toProjectFormValues(project));
@@ -1863,6 +1865,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
 
       <ProjectFormDialog
         copy={projectCopy}
+        error={projectsError}
         open={isDialogOpen}
         onOpenChange={handleDialogOpenChange}
         mode={dialogMode}

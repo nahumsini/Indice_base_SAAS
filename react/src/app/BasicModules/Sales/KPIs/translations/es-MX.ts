@@ -5,13 +5,17 @@ export const esMX: SalesKpisTranslations = {
   ...enCA,
   header: {
     title: 'KPIs comerciales',
-    subtitle: 'Tablero real de ventas: prospectos, cotizaciones, cierres, comisiones, productos e inventario comercial.',
+    subtitle: 'Tablero real de ventas: prospectos, cotizaciones, cierres, clientes, comisiones y riesgo comercial.',
   },
   actions: {
     printReport: 'Imprimir reporte',
   },
   filters: {
     title: 'Filtros globales',
+    search: 'Buscar',
+    unit: 'Unidad',
+    business: 'Negocio',
+    seller: 'Vendedor',
     allUnits: 'Todas las unidades',
     allBusinesses: 'Todos los negocios',
     allSellers: 'Todos los vendedores',

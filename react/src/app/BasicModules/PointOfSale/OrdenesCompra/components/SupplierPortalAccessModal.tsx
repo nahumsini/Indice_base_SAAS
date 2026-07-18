@@ -101,6 +101,7 @@ export function SupplierPortalAccessModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       onClose={onClose}
       closeLabel="Cerrar accesos de proveedor"
       title="Accesos por NIP"

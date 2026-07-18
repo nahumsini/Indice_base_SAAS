@@ -12,7 +12,6 @@ import {
   PencilLine,
   Plus,
   Printer,
-  Search,
 } from 'lucide-react';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
@@ -37,6 +36,11 @@ import {
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import {
+  SalesFilterBar,
+  SalesFilterSearch,
+  SalesFilterSelect,
+} from '../components/SalesFilterBar';
 import {
   SalesTitleBar,
   salesTitleBarPrimaryActionClassName,
@@ -79,6 +83,7 @@ import type {
 } from '../../shared/operational';
 import { OperationalKpiArea } from '../../shared/operational';
 import { QuoteExpirationBadge } from './components/QuoteExpirationBadge';
+import { QuoteLearningGuide } from './components/QuoteLearningGuide';
 import { QuoteMarginBadge } from './components/QuoteMarginBadge';
 import { QuotePreviewModal } from './components/QuotePreviewModal';
 import { QuoteReadinessBadge } from './components/QuoteReadinessBadge';
@@ -824,26 +829,22 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         )}
       />
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.filters.search}</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={t.filters.searchPlaceholder}
-                className={cn('h-11 rounded-lg pl-11 text-base font-semibold text-slate-950 placeholder:text-slate-400', coralFieldClassName)}
-              />
-            </div>
-          </div>
-          <FilterSelect label={t.filters.status} value={statusFilter} onValueChange={setStatusFilter} options={statusOptions} />
-          <FilterSelect label={t.filters.seller} value={sellerFilter} onValueChange={setSellerFilter} options={sellerOptions} />
-          <FilterSelect label={t.filters.opportunity} value={opportunityFilter} onValueChange={setOpportunityFilter} options={opportunityOptions} />
-        </div>
-      </section>
+      {learningModeActive ? <QuoteLearningGuide copy={t.learningMode} /> : null}
+
+      <SalesFilterBar
+        title={t.filters.title}
+        gridClassName="xl:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]"
+      >
+        <SalesFilterSearch
+          label={t.filters.search}
+          value={search}
+          onValueChange={setSearch}
+          placeholder={t.filters.searchPlaceholder}
+        />
+        <SalesFilterSelect label={t.filters.status} value={statusFilter} onValueChange={setStatusFilter} options={statusOptions} />
+        <SalesFilterSelect label={t.filters.seller} value={sellerFilter} onValueChange={setSellerFilter} options={sellerOptions} />
+        <SalesFilterSelect label={t.filters.opportunity} value={opportunityFilter} onValueChange={setOpportunityFilter} options={opportunityOptions} />
+      </SalesFilterBar>
 
       {!learningModeActive ? <OperationalKpiArea
         alertChips={quoteAlertChips}
@@ -972,7 +973,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         </div>
         <DataTablePagination
           currentPage={currentPage}
-          itemLabel="cotizaciones"
+          itemLabel={t.header.title.toLocaleLowerCase()}
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
           pageEnd={pageEnd}
@@ -1028,19 +1029,20 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       <SalesModalFrame
         open={Boolean(selectedFilesQuote)}
         onOpenChange={(open) => !open && setSelectedFilesQuote(null)}
+        closeLabel={t.common.close}
         title={t.filesModal.title}
         description={t.filesModal.description}
         icon={<Paperclip className="h-5 w-5" />}
-        contentClassName="w-[min(92vw,560px)]"
-        bodyClassName="space-y-4 px-7 py-6"
+        modalType="standard-form"
+        bodyClassName="space-y-4"
         footerClassName="sm:justify-end"
         footer={(
           <Button className={quoteModalActionClassNames.primary} onClick={() => setSelectedFilesQuote(null)}>{t.common.close}</Button>
         )}
       >
             <div className="rounded-lg border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/30 dark:bg-slate-900">
-              <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.table.columns.number}</p>
-              <p className="mt-2 break-all text-lg font-black text-slate-950 dark:text-white">{selectedFilesQuote?.quoteNumber}</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t.table.columns.number}</p>
+              <p className="mt-2 break-all text-lg font-medium text-slate-950 dark:text-white">{selectedFilesQuote?.quoteNumber}</p>
               <p className="mt-1 break-words text-sm font-semibold text-slate-500 dark:text-slate-400">{selectedFilesQuote?.clientName}</p>
             </div>
 
@@ -1052,9 +1054,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                       <FileText className="h-5 w-5" />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-950 dark:text-white">{t.previewModal.documentTitle}</p>
+                      <p className="text-sm font-semibold text-slate-950 dark:text-white">{t.previewModal.documentTitle}</p>
                       <p className="mt-1 break-all text-xs font-semibold text-slate-500 dark:text-slate-400">{selectedFilesQuote.quoteNumber}</p>
-                      <p className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                      <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">
                         {formatCurrency(selectedFilesQuote.total, selectedFilesQuote.currency)} · {selectedFilesQuote.currency ?? defaultSalesCurrency} · {t.statusLabels[selectedFilesQuote.status]}
                       </p>
                     </div>
@@ -1063,7 +1065,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-9 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white text-xs font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
+                      className="h-9 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white text-xs font-semibold text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:bg-slate-900 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
                       onClick={() => {
                         setPreviewQuote(selectedFilesQuote);
                         setSelectedFilesQuote(null);
@@ -1075,7 +1077,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-9 gap-2 rounded-lg border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                      className="h-9 gap-2 rounded-lg border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                       onClick={() => printSavedQuote(selectedFilesQuote)}
                     >
                       <Printer className="h-3.5 w-3.5" />
@@ -1088,7 +1090,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
             {selectedFilesQuote?.files.length ? (
               <section className="space-y-2">
-                <h3 className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.labels.files}</h3>
+                <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.labels.files}</h3>
                 {selectedFilesQuote.files.map((file) => (
                   <div key={file} className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32] dark:text-[#FFB0AA]">
@@ -1104,21 +1106,23 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       <SalesModalFrame
         open={Boolean(pendingAssignmentQuote)}
         onOpenChange={(open) => !open && closeAssignmentModal()}
+        closeLabel={t.common.cancel}
         title={t.assignmentModal.title}
         description={t.assignmentModal.description}
         icon={<Link2 className="h-5 w-5" />}
-        contentClassName="w-[min(94vw,1040px)]"
-        bodyClassName="grid gap-4 px-7 py-6 lg:grid-cols-3"
+        modalType="large-workspace"
+        bodyClassName="grid gap-4 lg:grid-cols-3"
         footerClassName="sm:justify-end"
         footer={(
           <Button variant="outline" className={quoteModalActionClassNames.secondary} onClick={closeAssignmentModal}>{t.common.cancel}</Button>
         )}
       >
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="font-black text-slate-950">{t.assignmentModal.existingTitle}</h3>
+              <h3 className="font-semibold text-slate-950">{t.assignmentModal.existingTitle}</h3>
               <p className="mt-2 min-h-[56px] text-sm font-medium leading-6 text-slate-500">{t.assignmentModal.existingDescription}</p>
               <div className="mt-4">
                 <FilterSelect
+                  softTypography
                   label={t.labels.opportunity}
                   value={selectedOpportunityId}
                   onValueChange={setSelectedOpportunityId}
@@ -1128,29 +1132,29 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                   ]}
                 />
               </div>
-              <Button className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-bold text-white hover:bg-[#E85C50]" onClick={assignExistingOpportunity}>
+              <Button className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={assignExistingOpportunity}>
                 <Link2 className="h-4 w-4" />
                 {t.assignmentModal.assign}
               </Button>
             </div>
 
             <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04] p-5 shadow-sm">
-              <h3 className="font-black text-slate-950">{t.assignmentModal.newTitle}</h3>
+              <h3 className="font-semibold text-slate-950">{t.assignmentModal.newTitle}</h3>
               <p className="mt-2 min-h-[56px] text-sm font-medium leading-6 text-slate-500">{t.assignmentModal.newDescription}</p>
               <div className="mt-4 space-y-2">
-                <label className="text-sm font-bold text-slate-700">{t.assignmentModal.opportunityName}</label>
+                <label className="text-sm font-medium text-slate-700">{t.assignmentModal.opportunityName}</label>
                 <Input className={cn('h-11 rounded-lg px-4 font-semibold', coralFieldClassName)} value={newOpportunityName} onChange={(event) => setNewOpportunityName(event.target.value)} placeholder={t.assignmentModal.opportunityNamePlaceholder} />
               </div>
-              <Button className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-bold text-white hover:bg-[#E8564B]" onClick={createOpportunityFromQuote}>
+              <Button className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E8564B]" onClick={createOpportunityFromQuote}>
                 <Plus className="h-4 w-4" />
                 {t.assignmentModal.createOpportunity}
               </Button>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="font-black text-slate-950">{t.assignmentModal.keepTitle}</h3>
+              <h3 className="font-semibold text-slate-950">{t.assignmentModal.keepTitle}</h3>
               <p className="mt-2 min-h-[56px] text-sm font-medium leading-6 text-slate-500">{t.assignmentModal.keepDescription}</p>
-              <Button variant="outline" className="mt-4 h-11 w-full rounded-lg border-slate-200 bg-white font-bold text-slate-800 hover:bg-slate-50" onClick={keepCommercialQuoteOnly}>
+              <Button variant="outline" className="mt-4 h-11 w-full rounded-lg border-slate-200 bg-white font-semibold text-slate-800 hover:bg-slate-50" onClick={keepCommercialQuoteOnly}>
                 <FileText className="h-4 w-4" />
                 {t.assignmentModal.keepQuote}
               </Button>

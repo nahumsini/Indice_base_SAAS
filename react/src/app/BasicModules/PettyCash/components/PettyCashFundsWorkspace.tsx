@@ -11,6 +11,7 @@ import type { PettyCashCurrency, PettyCashFund, PettyCashFundStatus, PettyCashSt
 import { hasPettyCashBackendId, pettyCashService } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../components/indice-modal';
 import {
   formatPettyCashNativeBreakdown,
   formatPettyCashCurrency,
@@ -415,12 +416,8 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       }, ...currentFunds]));
       setServiceNotice('');
     } catch (error) {
-      onFundsChange(currentFunds => ([{
-        ...localFund,
-        fundingSourceName: fundingAccountName,
-        paymentAccountId: draft.paymentAccountId,
-      }, ...currentFunds]));
       setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.saveFailed));
+      throw error;
     }
     setIsCreateFundOpen(false);
   };
@@ -468,6 +465,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       setServiceNotice('');
     } catch (error) {
       setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.updateFailed));
+      throw error;
     }
   };
 
@@ -567,8 +565,6 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       unitName,
     };
 
-    onFundsChange(currentFunds => currentFunds.map(fund => (fund.id === fundId ? updatedFund : fund)));
-
     if (hasPettyCashBackendId(fundId)) {
       try {
         let savedFund = await pettyCashService.updateFund(updatedFund);
@@ -589,10 +585,12 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
         return hydratedSavedFund;
       } catch (error) {
         setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
-        return undefined;
+        throw error;
       }
     }
 
+    onFundsChange(currentFunds => currentFunds.map(fund => (fund.id === fundId ? updatedFund : fund)));
+    setServiceNotice('');
     return updatedFund;
   };
 
@@ -632,9 +630,10 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       kioskUsesUniversalPin: true,
     };
 
-    onFundsChange(currentFunds => currentFunds.map(fund => (fund.id === fundId ? updatedFund : fund)));
-
-    if (!hasPettyCashBackendId(fundId)) return;
+    if (!hasPettyCashBackendId(fundId)) {
+      onFundsChange(currentFunds => currentFunds.map(fund => (fund.id === fundId ? updatedFund : fund)));
+      return;
+    }
 
     try {
       const savedFund = await pettyCashService.updateFund(updatedFund);
@@ -650,6 +649,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       setServiceNotice('');
     } catch (error) {
       setServiceNotice(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
+      throw error;
     }
   };
 
@@ -962,12 +962,14 @@ function CreateFundModal({
   isLoadingReferenceData: boolean;
   initialFund?: PettyCashFund;
   onClose: () => void;
-  onSave: (draft: FundDraft) => void;
+  onSave: (draft: FundDraft) => void | Promise<void>;
   paymentAccounts: PaymentAccount[];
   unitOptions: FinanceReferenceOption[];
   userOptions: FinanceReferenceOption[];
 }) {
   const copy = usePettyCashTranslations();
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<FundDraft>(() => {
     if (initialFund) return createFundDraftFromFund(initialFund);
     if (paymentAccounts.length === 0 && unitOptions.length === 0 && userOptions.length === 0) {
@@ -1047,29 +1049,51 @@ function CreateFundModal({
     && draft.fundingMethods.length > 0
     && draft.spendingMethods.length > 0;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <header className="bg-[#147514] px-7 py-5 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
-                <Banknote className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 className="text-2xl font-black">{initialFund ? copy.funds.modal.editTitle : copy.funds.modal.title}</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">{initialFund ? copy.funds.modal.editSubtitle : copy.funds.modal.subtitle}</p>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </header>
+  const handleSubmit = async () => {
+    if (!canCreate || isSaving) return;
+    setError('');
+    setIsSaving(true);
+    try {
+      await onSave(draft);
+    } catch (saveError) {
+      setError(toFinanceApiErrorMessage(saveError, initialFund ? copy.funds.notices.updateFailed : copy.funds.notices.saveFailed));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-        <div className="overflow-y-auto px-7 py-6">
+  return (
+    <IndiceModalFrame
+      busy={isSaving}
+      contentClassName="sm:max-w-4xl"
+      description={initialFund ? copy.funds.modal.editSubtitle : copy.funds.modal.subtitle}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" disabled={isSaving} onClick={onClose} className="min-h-11 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">
+            {copy.common.cancel}
+          </button>
+          <button
+            type="button"
+            disabled={!canCreate || isSaving}
+            onClick={handleSubmit}
+            className="min-h-11 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {initialFund ? copy.funds.modal.update : copy.funds.modal.submit}
+          </button>
+        </div>
+      )}
+      footerSummary={draft.name || (initialFund ? copy.funds.modal.editTitle : copy.funds.modal.title)}
+      icon={<Banknote className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => !open && onClose()}
+      open
+      title={initialFund ? copy.funds.modal.editTitle : copy.funds.modal.title}
+      tone="green"
+    >
+      <div className="space-y-4">
+        {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <h4 className="text-lg font-black text-slate-900 dark:text-white">{copy.funds.modal.dataTitle}</h4>
+            <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.funds.modal.dataTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <PettyCashField label={copy.funds.modal.name}>
                 <input
@@ -1145,7 +1169,7 @@ function CreateFundModal({
           </section>
 
           <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <h4 className="text-lg font-black text-slate-900 dark:text-white">{copy.funds.modal.responsibilityTitle}</h4>
+            <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.funds.modal.responsibilityTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <PettyCashField label={copy.funds.modal.responsible}>
                 <select
@@ -1213,7 +1237,7 @@ function CreateFundModal({
           </section>
 
           <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <h4 className="text-lg font-black text-slate-900 dark:text-white">{copy.funds.modal.fundingTitle}</h4>
+            <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.funds.modal.fundingTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <PettyCashField label={copy.funds.modal.fundAccount}>
                 <select
@@ -1268,10 +1292,10 @@ function CreateFundModal({
                 ) : null}
               </PettyCashField>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.funds.modal.fundingMethods}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.funds.modal.fundingMethods}</p>
                 <div className="mt-2 grid gap-2">
                   {pettyCashFundingMethodOptions.map(method => (
-                    <label key={method} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                    <label key={method} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                       <input
                         checked={draft.fundingMethods.includes(method)}
                         onChange={() => setDraft(current => ({ ...current, fundingMethods: toggleValue(current.fundingMethods, method) }))}
@@ -1283,10 +1307,10 @@ function CreateFundModal({
                 </div>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.funds.modal.spendingMethods}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.funds.modal.spendingMethods}</p>
                 <div className="mt-2 grid gap-2">
                   {pettyCashSpendingMethodOptions.map(method => (
-                    <label key={method} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                    <label key={method} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                       <input
                         checked={draft.spendingMethods.includes(method)}
                         onChange={() => setDraft(current => ({ ...current, spendingMethods: toggleValue(current.spendingMethods, method) }))}
@@ -1299,23 +1323,8 @@ function CreateFundModal({
               </div>
             </div>
           </section>
-        </div>
-
-        <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
-          <button type="button" onClick={onClose} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
-            {copy.common.cancel}
-          </button>
-          <button
-            type="button"
-            disabled={!canCreate}
-            onClick={() => onSave(draft)}
-            className="rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {initialFund ? copy.funds.modal.update : copy.funds.modal.submit}
-          </button>
-        </footer>
       </div>
-    </div>
+    </IndiceModalFrame>
   );
 }
 
@@ -1347,8 +1356,10 @@ function KioskModal({
   const [editorFundId, setEditorFundId] = useState('');
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
   const [draft, setDraft] = useState<KioskDraft>(() => buildDraft());
+  const [operationError, setOperationError] = useState('');
   const [copiedFundId, setCopiedFundId] = useState('');
   const [deletingKioskId, setDeletingKioskId] = useState('');
+  const [pendingDeleteKioskId, setPendingDeleteKioskId] = useState('');
   const [rotatingFundId, setRotatingFundId] = useState('');
   const activeKiosks = funds.filter(fund => fund.kioskEnabled).length;
   const nextFundToConfigure = funds.find(fund => !fund.kioskEnabled) ?? funds[0];
@@ -1378,6 +1389,7 @@ function KioskModal({
     setEditorFundId(fundId);
     setDraft(buildDraft(nextFund));
     setCopiedFundId('');
+    setOperationError('');
     setRotatingFundId('');
   };
   const closeEditor = () => {
@@ -1417,6 +1429,7 @@ function KioskModal({
     if (!hasPettyCashBackendId(fund.id)) return;
     const pendingWindow = window.open('', '_blank', 'noopener,noreferrer');
     setRotatingFundId(fund.id);
+    setOperationError('');
     try {
       const savedFund = await Promise.resolve(onSave(fund.id, {
         businessId: fund.businessId,
@@ -1434,6 +1447,9 @@ function KioskModal({
       } else {
         pendingWindow?.close();
       }
+    } catch (error) {
+      pendingWindow?.close();
+      setOperationError(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
     } finally {
       setRotatingFundId('');
     }
@@ -1448,52 +1464,123 @@ function KioskModal({
       setRotatingFundId('');
     }
   };
-  const handleDeleteKioskAccess = async (fundId: string) => {
-    setDeletingKioskId(fundId);
+  const handleDeleteKioskAccess = async () => {
+    if (!pendingDeleteKioskId) return;
+    setDeletingKioskId(pendingDeleteKioskId);
+    setOperationError('');
     try {
-      await Promise.resolve(onDelete(fundId));
+      await Promise.resolve(onDelete(pendingDeleteKioskId));
+      setPendingDeleteKioskId('');
+    } catch (error) {
+      setOperationError(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
     } finally {
       setDeletingKioskId('');
     }
   };
   const handleSaveEditor = async () => {
     if (!canSave) return;
-    await Promise.resolve(onSave(selectedFundId, { ...draft, kioskEnabled: true }));
-    closeEditor();
+    setOperationError('');
+    try {
+      const saved = await Promise.resolve(onSave(selectedFundId, { ...draft, kioskEnabled: true }));
+      if (saved) closeEditor();
+    } catch (error) {
+      setOperationError(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed));
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <header className="bg-[#147514] px-7 py-5 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
-                <KeyRound className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 className="text-2xl font-black">Kioskos de fondos</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">Administra portales móviles para ingresar dinero y subir comprobantes por fondo.</p>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
-              <X className="h-5 w-5" />
-            </button>
+    <>
+      <IndiceModalFrame
+        busy={Boolean(deletingKioskId || rotatingFundId)}
+        contentClassName="sm:max-w-2xl"
+        description={editorFundId ? 'Configura el portal móvil del fondo seleccionado.' : 'Administra portales móviles para ingresar dinero y subir comprobantes por fondo.'}
+        footer={editorFundId ? (
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+            <button type="button" onClick={closeEditor} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20">{copy.common.cancel}</button>
+            <button type="button" disabled={!canSave} onClick={() => void handleSaveEditor()} className="h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50">{copy.funds.kiosk.save}</button>
           </div>
-        </header>
+        ) : (
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20">{copy.common.cancel}</button>
+        )}
+        footerSummary={editorFundId ? (selectedFund?.name ?? 'Kiosco') : `${activeKiosks} activos de ${funds.length}`}
+        icon={<KeyRound className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={(open) => {
+          if (open) return;
+          if (editorFundId) closeEditor();
+          else onClose();
+        }}
+        open
+        title={editorFundId ? (selectedFund?.kioskEnabled ? 'Editar kiosco' : 'Crear acceso de kiosco') : 'Kioscos de fondos'}
+        tone="green"
+      >
+        {operationError ? <IndiceModalValidation className="mb-4" messages={[operationError]} tone="error" /> : null}
+        {editorFundId ? (
+          <>
+            <div>
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <div className="grid gap-4">
+                  <PettyCashField label={copy.funds.kiosk.assignedFund}>
+                    <select className={pettyCashInputClass} onChange={(event) => openEditor(event.target.value)} value={selectedFundId}>
+                      {funds.map(fund => (
+                        <option key={fund.id} value={fund.id}>{fund.name} - {fund.responsibleName}</option>
+                      ))}
+                    </select>
+                  </PettyCashField>
+                  <PettyCashField label={copy.funds.kiosk.boxName}>
+                    <input className={pettyCashInputClass} onChange={(event) => setDraft(current => ({ ...current, name: event.target.value }))} value={draft.name} />
+                  </PettyCashField>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <PettyCashField label={copy.funds.kiosk.assignedUnit}>
+                      <select
+                        className={pettyCashInputClass}
+                        onChange={(event) => {
+                          const nextUnitId = event.target.value;
+                          const nextBusinesses = filterBusinessesByUnit(businessOptions, nextUnitId);
+                          setDraft(current => ({
+                            ...current,
+                            businessId: nextBusinesses.some(option => option.value === current.businessId) ? current.businessId : firstOptionValue(nextBusinesses),
+                            unitId: nextUnitId,
+                          }));
+                        }}
+                        value={draft.unitId}
+                      >
+                        {unitChoices.length === 0 ? <option value="">{copy.funds.modal.noUnits}</option> : null}
+                        {unitChoices.map(unit => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
+                      </select>
+                    </PettyCashField>
+                    <PettyCashField label={copy.funds.kiosk.assignedBusiness}>
+                      <select className={pettyCashInputClass} onChange={(event) => setDraft(current => ({ ...current, businessId: event.target.value }))} value={draft.businessId}>
+                        {businessChoices.length === 0 ? <option value="">{copy.funds.modal.noBusinesses}</option> : null}
+                        {businessChoices.map(business => <option key={business.value} value={business.value}>{business.label}</option>)}
+                      </select>
+                    </PettyCashField>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{copy.funds.kiosk.universalPinTitle}</p>
+                    <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      {copy.funds.kiosk.universalPinDescription(selectedFund?.responsibleName ?? copy.funds.modal.responsible)}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
 
-        <div className="overflow-y-auto bg-slate-50 px-7 py-6 dark:bg-slate-950">
+          </>
+        ) : (
+          <>
+        <div>
           <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[0.72rem] font-black uppercase tracking-[0.32em] text-slate-500">Accesos configurados</p>
-                <p className="mt-1 text-sm font-black text-slate-600 dark:text-slate-300">{activeKiosks} activos de {funds.length}</p>
+                <p className="text-xs font-medium text-slate-500">Accesos configurados</p>
+                <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{activeKiosks} activos de {funds.length}</p>
               </div>
               <button
                 type="button"
                 disabled={!nextFundToConfigure}
                 onClick={() => nextFundToConfigure ? openEditor(nextFundToConfigure.id) : undefined}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#0f5f10] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f5f10] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span className="text-lg leading-none">+</span>
                 Nuevo acceso
@@ -1531,48 +1618,48 @@ function KioskModal({
                         </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="truncate text-lg font-black text-slate-950 dark:text-white">{fund.name}</h4>
-                            <span className={`rounded-full px-3 py-1 text-[0.68rem] font-black uppercase tracking-wide ${fund.kioskEnabled ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                            <h4 className="truncate text-lg font-semibold text-slate-950 dark:text-white">{fund.name}</h4>
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${fund.kioskEnabled ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                               {fund.kioskEnabled ? 'Activo' : 'Apagado'}
                             </span>
                           </div>
-                          <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Portal móvil de caja chica</p>
+                          <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Portal móvil de caja chica</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
-                        <p className="flex items-center gap-2 text-[0.68rem] font-black uppercase tracking-[0.28em] text-slate-500">
+                        <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
                           <Landmark className="h-4 w-4 text-[#147514]" />
                           Alcance
                         </p>
-                        <p className="mt-2 text-sm font-black text-slate-900 dark:text-white">{fundUnitLabel} · {fundBusinessLabel}</p>
+                        <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{fundUnitLabel} · {fundBusinessLabel}</p>
                       </div>
                       <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
-                        <p className="flex items-center gap-2 text-[0.68rem] font-black uppercase tracking-[0.28em] text-slate-500">
+                        <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
                           <ShieldCheck className="h-4 w-4 text-[#147514]" />
                           Configuración
                         </p>
-                        <p className="mt-2 text-sm font-black text-slate-900 dark:text-white">{fund.currencyCode} · PIN universal</p>
+                        <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{fund.currencyCode} · PIN universal</p>
                       </div>
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                         {canOpenFundKiosk ? 'Acceso listo' : (fund.kioskEnabled ? 'Sin link generado' : 'Pendiente de activar')}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                         {fund.responsibleName}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                         {fund.currencyCode}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex min-w-0 items-center gap-2 text-xs font-black text-slate-500 dark:text-slate-400">
+                    <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                       <ShieldCheck className={`h-4 w-4 ${canOpenFundKiosk ? 'text-[#147514]' : 'text-slate-400'}`} />
                       <span>{canOpenFundKiosk ? 'Link privado listo para compartir' : (fund.kioskEnabled ? 'Pendiente de generar acceso' : 'Kiosko desactivado')}</span>
                     </div>
@@ -1614,7 +1701,9 @@ function KioskModal({
                             void handleRotateLink(fund.id);
                             return;
                           }
-                          void onSave(fund.id, { businessId: fund.businessId, kioskEnabled: !fund.kioskEnabled, name: fund.name, unitId: fund.unitId });
+                          setOperationError('');
+                          void Promise.resolve(onSave(fund.id, { businessId: fund.businessId, kioskEnabled: !fund.kioskEnabled, name: fund.name, unitId: fund.unitId }))
+                            .catch(error => setOperationError(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed)));
                         }}
                         className={kioskActionButtonClass(fund.kioskEnabled && fundKioskUrl ? 'red' : 'emerald')}
                         title={actionLabel}
@@ -1627,7 +1716,7 @@ function KioskModal({
                       <button
                         type="button"
                         disabled={!hasKioskConfig || deletingKioskId === fund.id}
-                        onClick={() => void handleDeleteKioskAccess(fund.id)}
+                        onClick={() => setPendingDeleteKioskId(fund.id)}
                         className={kioskActionButtonClass('red')}
                         title="Eliminar kiosko"
                         aria-label="Eliminar kiosko"
@@ -1642,116 +1731,20 @@ function KioskModal({
           </div>
         </div>
 
-        <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
-          <button type="button" onClick={onClose} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
-            {copy.common.cancel}
-          </button>
-        </footer>
-      </div>
-
-      {editorFundId ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-[2px]">
-          <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-            <header className="bg-[#147514] px-7 py-5 text-white">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
-                    <KeyRound className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="text-2xl font-black">{selectedFund?.kioskEnabled ? 'Editar kiosko' : 'Crear acceso de kiosko'}</h3>
-                    <p className="mt-1 text-sm font-semibold text-white/80">Configura el portal móvil del fondo seleccionado.</p>
-                  </div>
-                </div>
-                <button type="button" onClick={closeEditor} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </header>
-
-            <div className="overflow-y-auto px-7 py-6">
-              <section className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-                <div className="grid gap-4">
-                  <PettyCashField label={copy.funds.kiosk.assignedFund}>
-                    <select className={pettyCashInputClass} onChange={(event) => openEditor(event.target.value)} value={selectedFundId}>
-                      {funds.map(fund => (
-                        <option key={fund.id} value={fund.id}>{fund.name} - {fund.responsibleName}</option>
-                      ))}
-                    </select>
-                  </PettyCashField>
-
-                  <PettyCashField label={copy.funds.kiosk.boxName}>
-                    <input
-                      className={pettyCashInputClass}
-                      onChange={(event) => setDraft(current => ({ ...current, name: event.target.value }))}
-                      value={draft.name}
-                    />
-                  </PettyCashField>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <PettyCashField label={copy.funds.kiosk.assignedUnit}>
-                      <select
-                        className={pettyCashInputClass}
-                        onChange={(event) => {
-                          const nextUnitId = event.target.value;
-                          const nextBusinesses = filterBusinessesByUnit(businessOptions, nextUnitId);
-                          setDraft(current => ({
-                            ...current,
-                            businessId: nextBusinesses.some(option => option.value === current.businessId)
-                              ? current.businessId
-                              : firstOptionValue(nextBusinesses),
-                            unitId: nextUnitId,
-                          }));
-                        }}
-                        value={draft.unitId}
-                      >
-                        {unitChoices.length === 0 ? <option value="">{copy.funds.modal.noUnits}</option> : null}
-                        {unitChoices.map(unit => (
-                          <option key={unit.value} value={unit.value}>{unit.label}</option>
-                        ))}
-                      </select>
-                    </PettyCashField>
-                    <PettyCashField label={copy.funds.kiosk.assignedBusiness}>
-                      <select
-                        className={pettyCashInputClass}
-                        onChange={(event) => setDraft(current => ({ ...current, businessId: event.target.value }))}
-                        value={draft.businessId}
-                      >
-                        {businessChoices.length === 0 ? <option value="">{copy.funds.modal.noBusinesses}</option> : null}
-                        {businessChoices.map(business => (
-                          <option key={business.value} value={business.value}>{business.label}</option>
-                        ))}
-                      </select>
-                    </PettyCashField>
-                  </div>
-
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                    <p className="text-sm font-black text-emerald-800 dark:text-emerald-200">{copy.funds.kiosk.universalPinTitle}</p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                      {copy.funds.kiosk.universalPinDescription(selectedFund?.responsibleName ?? copy.funds.modal.responsible)}
-                    </p>
-                  </div>
-
-                </div>
-              </section>
-            </div>
-
-            <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
-              <button type="button" onClick={closeEditor} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
-                {copy.common.cancel}
-              </button>
-              <button
-                type="button"
-                disabled={!canSave}
-                onClick={() => void handleSaveEditor()}
-                className="rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {copy.funds.kiosk.save}
-              </button>
-            </footer>
-          </div>
-        </div>
-      ) : null}
-    </div>
+          </>
+        )}
+      </IndiceModalFrame>
+      <ConfirmDeleteDialog
+        cancelLabel={copy.common.cancel}
+        confirmDisabled={Boolean(deletingKioskId)}
+        confirmLabel={deletingKioskId ? 'Eliminando…' : 'Eliminar acceso'}
+        description="El enlace público dejará de funcionar y tendrá que generarse uno nuevo para volver a habilitar este kiosco."
+        isVisible={Boolean(pendingDeleteKioskId)}
+        itemName={funds.find(fund => fund.id === pendingDeleteKioskId)?.name}
+        onCancel={() => !deletingKioskId && setPendingDeleteKioskId('')}
+        onConfirm={() => void handleDeleteKioskAccess()}
+        title="Eliminar acceso de kiosco"
+      />
+    </>
   );
 }

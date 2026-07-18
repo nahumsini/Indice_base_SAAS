@@ -115,7 +115,7 @@ export function ProductImageCarouselModal({
           </div>
 
           <aside className="overflow-y-auto border-l border-slate-200 bg-white p-5">
-            <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.gallery.thumbnails}</p>
+            <p className="text-xs font-semibold text-slate-500">{t.gallery.thumbnails}</p>
             <div className="mt-3 space-y-2">
               {hasImages ? images.map((image, index) => (
                 <button

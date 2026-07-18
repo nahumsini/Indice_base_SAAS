@@ -15,7 +15,6 @@ import {
   Phone,
   Plus,
   RefreshCw,
-  Search,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -43,6 +42,11 @@ import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { SalesModalFrame } from '../components/SalesModalFrame';
+import {
+  SalesFilterBar,
+  SalesFilterSearch,
+  SalesFilterSelect,
+} from '../components/SalesFilterBar';
 import { SalesTitleBar } from '../components/SalesTitleBar';
 import {
   customerRelationTypes,
@@ -502,26 +506,20 @@ export default function Postventa() {
         ))}
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-lg font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{t.filters.search}</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={t.filters.searchPlaceholder}
-                className="h-11 rounded-lg border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-              />
-            </div>
-          </div>
-          <FilterSelect label={t.filters.postSaleType} value={typeFilter} onValueChange={setTypeFilter} options={postSaleTypeOptions} />
-          <FilterSelect label={t.filters.owner} value={ownerFilter} onValueChange={setOwnerFilter} options={ownerOptions} />
-          <FilterSelect label={t.filters.customerHealth} value={healthFilter} onValueChange={setHealthFilter} options={healthOptions} />
-        </div>
-      </div>
+      <SalesFilterBar
+        title={t.filters.title}
+        gridClassName="xl:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]"
+      >
+        <SalesFilterSearch
+          label={t.filters.search}
+          value={search}
+          onValueChange={setSearch}
+          placeholder={t.filters.searchPlaceholder}
+        />
+        <SalesFilterSelect label={t.filters.postSaleType} value={typeFilter} onValueChange={setTypeFilter} options={postSaleTypeOptions} />
+        <SalesFilterSelect label={t.filters.owner} value={ownerFilter} onValueChange={setOwnerFilter} options={ownerOptions} />
+        <SalesFilterSelect label={t.filters.customerHealth} value={healthFilter} onValueChange={setHealthFilter} options={healthOptions} />
+      </SalesFilterBar>
 
       {viewMode === 'table' ? (
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -769,42 +767,42 @@ export default function Postventa() {
       >
         <section className="grid gap-3 md:grid-cols-3">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.saleReference}</p>
-            <p className="mt-2 font-black text-slate-950">{selectedSale?.saleNumber}</p>
+            <p className="text-xs font-semibold text-slate-500">{t.saleDetail.saleReference}</p>
+            <p className="mt-2 font-bold text-slate-950">{selectedSale?.saleNumber}</p>
             <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.quoteReference}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.total}</p>
-            <p className="mt-2 font-black text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0, selectedSale?.currency)}</p>
+            <p className="text-xs font-semibold text-slate-500">{t.saleDetail.total}</p>
+            <p className="mt-2 font-bold text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0, selectedSale?.currency)}</p>
             <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.currency}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.status}</p>
-            <p className="mt-2 font-black text-slate-950">{selectedSale?.commercialStatus}</p>
+            <p className="text-xs font-semibold text-slate-500">{t.saleDetail.status}</p>
+            <p className="mt-2 font-bold text-slate-950">{selectedSale?.commercialStatus}</p>
             <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.financeStatus} · {selectedSale?.inventoryStatus}</p>
           </div>
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white">
           <div className="border-b border-slate-100 px-5 py-4">
-            <p className="text-sm font-black uppercase tracking-normal text-slate-500">{t.saleDetail.lines}</p>
+            <p className="text-sm font-semibold text-slate-500">{t.saleDetail.lines}</p>
           </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.product}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.quantity}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.unitPrice}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.margin}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-black uppercase tracking-normal text-slate-500">{t.saleDetail.warehouse}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.product}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.quantity}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.unitPrice}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.margin}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.warehouse}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {selectedSale?.saleLines.map((line) => (
                   <TableRow key={line.id}>
                     <TableCell className="px-5 py-4">
-                      <p className="font-black text-slate-950">{line.productName}</p>
+                      <p className="font-bold text-slate-950">{line.productName}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{line.sku}</p>
                     </TableCell>
                     <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.quantity}</TableCell>
@@ -849,31 +847,31 @@ export default function Postventa() {
         <FilterSelect label={t.forms.postSale.status} value={caseForm.status} onValueChange={(value) => setCaseForm((current) => ({ ...current, status: value as PostSaleStatus }))} options={postSaleStatuses.map((status) => ({ value: status, label: t.statusLabels[status] }))} />
         <FilterSelect label={t.forms.postSale.owner} value={caseForm.owner} onValueChange={(value) => setCaseForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.lifetimeValue}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.lifetimeValue}</label>
           <Input type="number" value={caseForm.lifetimeValue} onChange={(event) => setCaseForm((current) => ({ ...current, lifetimeValue: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.lastPurchaseDate}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.lastPurchaseDate}</label>
           <Input type="date" value={caseForm.lastPurchaseDate} onChange={(event) => setCaseForm((current) => ({ ...current, lastPurchaseDate: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.nextFollowUpDate}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.nextFollowUpDate}</label>
           <Input type="date" value={caseForm.nextFollowUpDate} onChange={(event) => setCaseForm((current) => ({ ...current, nextFollowUpDate: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.renewalDate}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.renewalDate}</label>
           <Input type="date" value={caseForm.renewalDate} onChange={(event) => setCaseForm((current) => ({ ...current, renewalDate: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.nextAction}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.nextAction}</label>
           <Input value={caseForm.nextAction} onChange={(event) => setCaseForm((current) => ({ ...current, nextAction: event.target.value }))} placeholder={t.forms.postSale.nextActionPlaceholder} />
         </div>
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.notes}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.notes}</label>
           <Textarea value={caseForm.notes} onChange={(event) => setCaseForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.postSale.notesPlaceholder} />
         </div>
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.postSale.files}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.files}</label>
           <Input value={caseForm.files} onChange={(event) => setCaseForm((current) => ({ ...current, files: event.target.value }))} placeholder={t.forms.postSale.filesPlaceholder} />
         </div>
       </SalesModalFrame>
@@ -897,18 +895,18 @@ export default function Postventa() {
         }
       >
         <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
-          <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">{t.forms.lost.contextTitle}</p>
+          <p className="text-xs font-semibold text-[#B63B32]">{t.forms.lost.contextTitle}</p>
           <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
             <div>
-              <p className="font-black text-slate-950">{automationCase?.clientName}</p>
+              <p className="font-bold text-slate-950">{automationCase?.clientName}</p>
               <p className="mt-1 font-semibold text-slate-500">{automationCase?.contactPerson}</p>
             </div>
             <div>
-              <p className="font-black text-slate-950">{automationCase?.lastPurchaseDate ?? t.common.notAvailable}</p>
+              <p className="font-bold text-slate-950">{automationCase?.lastPurchaseDate ?? t.common.notAvailable}</p>
               <p className="mt-1 font-semibold text-slate-500">{t.table.columns.lastPurchase}</p>
             </div>
             <div>
-              <p className="font-black text-slate-950">{formatCurrency(automationCase?.sales[0]?.totalAmount ?? 0, automationCase?.sales[0]?.currency ?? getHistoryCurrency(automationCase))}</p>
+              <p className="font-bold text-slate-950">{formatCurrency(automationCase?.sales[0]?.totalAmount ?? 0, automationCase?.sales[0]?.currency ?? getHistoryCurrency(automationCase))}</p>
               <p className="mt-1 font-semibold text-slate-500">{automationCase?.sales[0]?.saleNumber ?? t.common.notAvailable}</p>
             </div>
           </div>
@@ -925,19 +923,19 @@ export default function Postventa() {
           ]} />
           <FilterSelect label={t.forms.lost.owner} value={automationForm.owner} onValueChange={(value) => setAutomationForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.forms.lost.scheduledDate}</label>
+            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.scheduledDate}</label>
             <Input type="date" value={automationForm.scheduledDate} onChange={(event) => setAutomationForm((current) => ({ ...current, delay: 'custom', scheduledDate: event.target.value }))} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.forms.lost.expectedCloseDate}</label>
+            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.expectedCloseDate}</label>
             <Input type="date" value={automationForm.expectedCloseDate} onChange={(event) => setAutomationForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-bold text-slate-700">{t.forms.lost.opportunityName}</label>
+            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.opportunityName}</label>
             <Input value={automationForm.opportunityName} onChange={(event) => setAutomationForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.lost.opportunityNamePlaceholder} />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-bold text-slate-700">{t.forms.lost.notes}</label>
+            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.notes}</label>
             <Textarea value={automationForm.notes} onChange={(event) => setAutomationForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.lost.notesPlaceholder} />
           </div>
         </div>
@@ -958,7 +956,7 @@ export default function Postventa() {
         icon={<FileText className={salesModalIconClassName} />}
         footer={<Button className={postSaleModalActions.primary} onClick={() => setSelectedFilesCase(null)}>{t.common.close}</Button>}
       >
-        <p className="text-sm font-bold text-slate-500 dark:text-slate-400">{selectedFilesCase?.clientName}</p>
+        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{selectedFilesCase?.clientName}</p>
         {selectedFilesCase?.files.length ? selectedFilesCase.files.map((file) => (
           <div key={file} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
             <FileText className="h-4 w-4 text-[#B63B32] dark:text-[#FFB0AA]" />
@@ -991,21 +989,21 @@ export default function Postventa() {
         }
       >
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.opportunityName}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.opportunityName}</label>
           <Input value={futureForm.opportunityName} onChange={(event) => setFutureForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.opportunity.opportunityNamePlaceholder} />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.expectedCloseDate}</label>
+            <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.expectedCloseDate}</label>
             <Input type="date" value={futureForm.expectedCloseDate} onChange={(event) => setFutureForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.nextActionDate}</label>
+            <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.nextActionDate}</label>
             <Input type="date" value={futureForm.nextActionDate} onChange={(event) => setFutureForm((current) => ({ ...current, nextActionDate: event.target.value }))} />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.forms.opportunity.notes}</label>
+          <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.notes}</label>
           <Textarea value={futureForm.notes} onChange={(event) => setFutureForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.opportunity.notesPlaceholder} />
         </div>
       </SalesModalFrame>

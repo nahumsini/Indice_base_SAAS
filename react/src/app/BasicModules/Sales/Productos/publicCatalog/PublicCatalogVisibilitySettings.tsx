@@ -47,7 +47,7 @@ export function PublicCatalogVisibilitySettings({
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <h3 className="text-lg font-black text-slate-950">{t.publicCatalog.visibility}</h3>
+      <h3 className="text-lg font-bold text-slate-950">{t.publicCatalog.visibility}</h3>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {visibilityKeys.map((key) => (
           <label key={key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardCheck, FileSearch } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCheck, FileSearch } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { SalesModalFrame } from '../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import {
@@ -18,7 +19,11 @@ import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft } from
 import { formatCommissionType } from '../utils/commissionRules';
 import { calculateCommissionAmount, formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
-import { SalesCreateForm } from './SalesCreateForm';
+import {
+  SalesCreateForm,
+  salesCreateStepIds,
+  type SalesCreateStepId,
+} from './SalesCreateForm';
 import { SaleSummaryPreviewModal } from './SaleSummaryPreviewModal';
 import { DetailField, SectionCard } from './SalesModalPrimitives';
 import { SalesOperationalContextCard } from './SalesOperationalContextCard';
@@ -27,7 +32,12 @@ import { SalesStatusSelectors } from './SalesStatusSelectors';
 const actionClassNames = getSalesModalActionClassNames('coral');
 
 function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function getDefaultBusinessScope() {
@@ -129,17 +139,15 @@ export function SalesDetailModal({
   const [form, setForm] = useState<SaleRecordDraft>(() => getInitialDraft(record));
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<SalesWorkflowValidationCode[]>([]);
+  const [activeCreateStep, setActiveCreateStep] = useState<SalesCreateStepId>('origin');
+  const [stepError, setStepError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const acceptedQuotes = useMemo(
     () => quotes.filter((quote) => quote.status === 'Approved' || quote.status === 'Closed Won'),
     [quotes],
   );
-  const quoteOptions = useMemo(() => {
-    if (acceptedQuotes.length === 0) return quotes;
-    const acceptedIds = new Set(acceptedQuotes.map((quote) => quote.id));
-    return [...acceptedQuotes, ...quotes.filter((quote) => !acceptedIds.has(quote.id))];
-  }, [acceptedQuotes, quotes]);
+  const quoteOptions = acceptedQuotes;
   const selectedQuote = useMemo(
     () => quotes.find((quote) => quote.id === form.quoteId) ?? quotes.find((quote) => quote.quoteNumber === form.quoteReference) ?? null,
     [form.quoteId, form.quoteReference, quotes],
@@ -180,7 +188,11 @@ export function SalesDetailModal({
     if (open) {
       setForm(getInitialDraft(record));
       setValidationErrors([]);
+      setActiveCreateStep('origin');
+      setStepError('');
       setIsSaving(false);
+    } else {
+      setIsSummaryPreviewOpen(false);
     }
   }, [open, record]);
 
@@ -188,6 +200,35 @@ export function SalesDetailModal({
     () => calculateCommissionAmount(Number(form.totalAmount) || 0, Number(form.commissionRate) || 0),
     [form.commissionRate, form.totalAmount],
   );
+  const selectedQuoteIsConvertible = Boolean(
+    selectedQuote && (selectedQuote.status === 'Approved' || selectedQuote.status === 'Closed Won'),
+  );
+  const createValidation = useMemo(
+    () => validateSaleDraftForBackendReadiness(form),
+    [form],
+  );
+  const originStepReady = Boolean(
+    selectedQuoteIsConvertible
+    && (form.contactId || form.customerId)
+    && form.saleLines.length,
+  );
+  const operationStepReady = Boolean(
+    form.businessUnitId
+    && form.businessUnitId !== 'none'
+    && form.businessId
+    && form.businessId !== 'none'
+    && form.saleDate,
+  );
+  const createReady = originStepReady && operationStepReady && createValidation.valid;
+  const activeCreateStepIndex = salesCreateStepIds.indexOf(activeCreateStep);
+  const createFooterSummary = selectedQuote
+    ? t.modal.wizard.footerSummary(
+      form.customerName || t.common.notAvailable,
+      form.quoteReference || t.common.notAvailable,
+      form.saleLines.length,
+      formatSalesCurrency(form.totalAmount, form.currency),
+    )
+    : t.modal.wizard.footerEmpty;
 
   const buildFormFromQuote = (current: SaleRecordDraft, quote: SalesQuote) => {
     const context = getSalesOperationalContext(current.businessId);
@@ -252,6 +293,7 @@ export function SalesDetailModal({
       return autoSelectedQuote ? buildFormFromQuote(opportunityPatch, autoSelectedQuote) : opportunityPatch;
     });
     setValidationErrors([]);
+    setStepError('');
   };
 
   const handleQuoteSelection = (quoteId: string) => {
@@ -260,6 +302,7 @@ export function SalesDetailModal({
 
     setForm((current) => buildFormFromQuote(current, quote));
     setValidationErrors([]);
+    setStepError('');
   };
 
   const handleBusinessUnitSelection = (businessUnitId: string) => {
@@ -273,7 +316,6 @@ export function SalesDetailModal({
       businessUnitName: businessUnit?.name ?? '',
       businessId: firstBusiness?.id ?? '',
       businessName: firstBusiness?.name ?? '',
-      currency: context.currency,
       saleLines: withBusinessScope(
         current.saleLines,
         businessUnitId,
@@ -282,27 +324,29 @@ export function SalesDetailModal({
       ),
     }));
     setValidationErrors([]);
+    setStepError('');
   };
 
   const handleBusinessSelection = (businessId: string) => {
     const business = salesBusinessOptions.find((item) => item.id === businessId);
-    const context = getSalesOperationalContext(businessId);
+    const normalizedBusinessId = business?.id ?? '';
+    const context = getSalesOperationalContext(normalizedBusinessId);
 
     setForm((current) => ({
       ...current,
-      businessId,
+      businessId: normalizedBusinessId,
       businessName: business?.name ?? '',
       businessUnitId: business?.businessUnitId ?? current.businessUnitId,
       businessUnitName: business?.businessUnitName ?? current.businessUnitName,
-      currency: context.currency,
       saleLines: withBusinessScope(
         current.saleLines,
         business?.businessUnitId ?? current.businessUnitId ?? '',
-        businessId,
+        normalizedBusinessId,
         context.defaultWarehouse,
       ),
     }));
     setValidationErrors([]);
+    setStepError('');
   };
 
   const handleStatusChange = (patch: Partial<SaleRecord>) => {
@@ -311,17 +355,63 @@ export function SalesDetailModal({
     setForm((current) => ({ ...current, ...patch }));
   };
 
+  const handleCreateStepBack = () => {
+    const previousStep = salesCreateStepIds[activeCreateStepIndex - 1];
+    if (!previousStep) return;
+
+    setActiveCreateStep(previousStep);
+    setStepError('');
+    setValidationErrors([]);
+  };
+
+  const handleCreateStepContinue = () => {
+    if (activeCreateStep === 'origin') {
+      if (!originStepReady) {
+        if (!selectedQuoteIsConvertible) {
+          setStepError(t.modal.wizard.originError);
+        } else if (!form.contactId && !form.customerId) {
+          setStepError(t.modal.validationErrors.missingCustomer);
+        } else {
+          setStepError(t.modal.validationErrors.missingLines);
+        }
+        return;
+      }
+
+      setActiveCreateStep('operation');
+      setStepError('');
+      setValidationErrors([]);
+      return;
+    }
+
+    if (activeCreateStep === 'operation') {
+      if (!operationStepReady) {
+        setStepError(t.modal.wizard.operationError);
+        return;
+      }
+
+      setActiveCreateStep('review');
+      setStepError('');
+      setValidationErrors(createValidation.errors);
+    }
+  };
+
   const handleCreate = async () => {
     if (isSaving) return;
 
-    const validation = validateSaleDraftForBackendReadiness(form);
-    const quoteIsConvertible = !selectedQuote || selectedQuote.status === 'Approved' || selectedQuote.status === 'Closed Won';
-    const errors = quoteIsConvertible
-      ? validation.errors
-      : [...validation.errors, 'quoteNotApproved' as const];
+    const errors = selectedQuoteIsConvertible
+      ? createValidation.errors
+      : [...createValidation.errors, 'quoteNotApproved' as const];
 
     if (errors.length) {
       setValidationErrors(Array.from(new Set(errors)));
+      setStepError('');
+      if (errors.some((error) => error === 'quoteNotApproved' || error === 'missingCustomer' || error === 'missingLines')) {
+        setActiveCreateStep('origin');
+      } else if (errors.some((error) => error === 'missingBusinessUnit' || error === 'missingBusiness')) {
+        setActiveCreateStep('operation');
+      } else {
+        setActiveCreateStep('review');
+      }
       return;
     }
 
@@ -353,11 +443,15 @@ export function SalesDetailModal({
     let createdRecord: SaleRecord | null = null;
     try {
       createdRecord = await onCreate(saleDraft);
+    } catch {
+      setStepError(t.modal.wizard.saveError);
+      return;
     } finally {
       setIsSaving(false);
     }
 
     if (!createdRecord) {
+      setStepError(t.modal.wizard.saveError);
       return;
     }
     if (form.quoteId) {
@@ -372,45 +466,80 @@ export function SalesDetailModal({
   return (
     <>
       <SalesModalFrame
-        open={open}
+        open={open && !isSummaryPreviewOpen}
         onOpenChange={onOpenChange}
         icon={<ClipboardCheck className="h-6 w-6" />}
         title={isCreateMode ? t.modal.createTitle : t.modal.detailTitle}
         description={t.modal.description}
-        contentClassName="!flex max-h-[92vh] w-[96vw] !max-w-[1480px] flex-col"
-        bodyClassName="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5"
+        eyebrow={isCreateMode ? t.modal.wizard.stepLabel(activeCreateStepIndex + 1, salesCreateStepIds.length) : undefined}
+        busy={isSaving}
+        closeLabel={isCreateMode ? t.common.cancel : t.common.close}
+        modalType={isCreateMode ? 'wizard' : 'large-workspace'}
+        contentClassName={isCreateMode ? 'max-h-[min(92dvh,820px)]' : 'h-[92dvh]'}
+        bodyClassName={isCreateMode ? 'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5' : 'min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5'}
         footerClassName="shrink-0"
-        footer={(
+        footerSummary={isCreateMode ? createFooterSummary : undefined}
+        footerLeading={isCreateMode ? (
+          <Button variant="outline" className={actionClassNames.secondary} onClick={() => onOpenChange(false)} disabled={isSaving}>
+            {t.common.cancel}
+          </Button>
+        ) : undefined}
+        footer={isCreateMode ? (
+          <>
+            {activeCreateStep !== 'origin' ? (
+              <Button variant="outline" className={actionClassNames.secondary} onClick={handleCreateStepBack} disabled={isSaving}>
+                <ChevronLeft className="h-4 w-4" />
+                {t.modal.wizard.back}
+              </Button>
+            ) : null}
+            {activeCreateStep === 'review' ? (
+              <Button
+                variant="outline"
+                className={actionClassNames.secondary}
+                onClick={() => setIsSummaryPreviewOpen(true)}
+                disabled={isSaving || !selectedQuote}
+              >
+                <FileSearch className="h-4 w-4" />
+                {t.modal.wizard.preview}
+              </Button>
+            ) : null}
+            {activeCreateStep !== 'review' ? (
+              <Button className={actionClassNames.primary} onClick={handleCreateStepContinue} disabled={isSaving}>
+                {t.modal.wizard.continue}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button className={actionClassNames.primary} onClick={() => { void handleCreate(); }} disabled={isSaving || !createReady}>
+                {t.modal.wizard.create}
+              </Button>
+            )}
+          </>
+        ) : (
           <>
             <Button
               variant="outline"
               className={actionClassNames.secondary}
               onClick={() => setIsSummaryPreviewOpen(true)}
-              disabled={!form.customerName.trim()}
+              disabled={isSaving || !form.customerName.trim()}
             >
               <FileSearch className="h-4 w-4" />
               {t.modal.previewSaleSummary}
             </Button>
-            <Button variant="outline" className={actionClassNames.secondary} onClick={() => onOpenChange(false)}>{isCreateMode ? t.common.cancel : t.common.close}</Button>
-            {isCreateMode ? <Button className={actionClassNames.primary} onClick={() => { void handleCreate(); }} disabled={isSaving}>{t.common.save}</Button> : null}
+            <Button variant="outline" className={actionClassNames.secondary} onClick={() => onOpenChange(false)} disabled={isSaving}>{t.common.close}</Button>
           </>
         )}
       >
-          <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 px-4 py-3 text-sm font-semibold text-[#B63B32]">
-            {t.modal.quoteHelper}
-          </div>
-
-          {validationErrors.length ? (
-            <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-semibold text-[#B63B32]">
-              <p className="mb-2 font-black">{t.modal.validationTitle}</p>
-              <ul className="space-y-1">
-                {validationErrors.map((error) => <li key={error}>{t.modal.validationErrors[error]}</li>)}
-              </ul>
-            </div>
-          ) : null}
+          <IndiceModalValidation
+            className="mb-4"
+            messages={validationErrors.length && (!isCreateMode || activeCreateStep === 'review')
+              ? validationErrors.map((error) => t.modal.validationErrors[error])
+              : []}
+            title={t.modal.validationTitle}
+          />
 
           {isCreateMode ? (
             <SalesCreateForm
+              activeStep={activeCreateStep}
               form={form}
               acceptedQuotes={acceptedQuotes}
               quoteOptions={opportunityQuoteOptions}
@@ -418,10 +547,13 @@ export function SalesDetailModal({
               selectedOpportunity={selectedOpportunity}
               selectedQuote={selectedQuote}
               businessOptions={businessOptions}
+              isReady={createReady}
+              stepError={stepError}
               t={t}
               onFormChange={(patch) => {
                 setForm((current) => ({ ...current, ...patch }));
                 setValidationErrors([]);
+                setStepError('');
               }}
               onOpportunitySelection={handleOpportunitySelection}
               onQuoteSelection={handleQuoteSelection}
@@ -486,7 +618,7 @@ export function SalesDetailModal({
                     ))}
                   </section>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-normal text-slate-500">
                     {t.commissions.detail.noCommissionRecords}
                   </div>
                 )}
@@ -498,12 +630,14 @@ export function SalesDetailModal({
             </>
           )}
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
-            {t.modal.inventoryHelper}
-          </div>
+          {!isCreateMode ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal text-slate-600">
+              {t.modal.inventoryHelper}
+            </div>
+          ) : null}
       </SalesModalFrame>
       <SaleSummaryPreviewModal
-        open={isSummaryPreviewOpen}
+        open={open && isSummaryPreviewOpen}
         sale={{ ...form, commissionAmount: form.commissionAmount ?? calculatedCommissionAmount }}
         quote={selectedQuote}
         t={t}

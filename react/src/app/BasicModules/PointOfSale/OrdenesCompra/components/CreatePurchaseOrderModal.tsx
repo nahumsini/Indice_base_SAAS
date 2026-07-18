@@ -359,6 +359,7 @@ export function CreatePurchaseOrderModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       onClose={onClose}
       closeLabel="Cerrar nueva compra POS"
       title="Nueva compra POS"
@@ -369,20 +370,16 @@ export function CreatePurchaseOrderModal({
       size="xl"
       bodyClassName="p-0"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      }
+      footerSummary={`${lines.length} partidas · ${registerInvoice ? `Diferencia ${formatMoney(difference, currencyCode)}` : `Total ${formatMoney(totals.total, currencyCode)}`}`}
       footer={
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-white/85">
-            {lines.length} partidas - {registerInvoice ? `Diferencia ${formatMoney(difference, currencyCode)}` : `Total ${formatMoney(totals.total, currencyCode)}`}
-          </p>
-          <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-              Cancelar
-            </button>
-            <button type="button" disabled={!canCreate} onClick={() => void submit()} className={posModalPrimaryActionClassName}>
-              {savingStep || (registerInvoice ? 'Crear compra y factura' : 'Crear compra')}
-            </button>
-          </div>
-        </div>
+        <button type="button" disabled={!canCreate} onClick={() => void submit()} className={posModalPrimaryActionClassName}>
+          {savingStep || (registerInvoice ? 'Crear compra y factura' : 'Crear compra')}
+        </button>
       }
     >
         <div className="grid min-h-0 bg-slate-50 dark:bg-slate-950 lg:grid-cols-[1fr_340px]">

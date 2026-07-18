@@ -28,6 +28,7 @@ export function PurchaseOrderDetailModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       onClose={onClose}
       closeLabel="Cerrar detalle de orden"
       title={order.folio}

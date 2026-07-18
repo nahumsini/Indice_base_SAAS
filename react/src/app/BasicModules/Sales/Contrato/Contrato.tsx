@@ -8,7 +8,6 @@ import {
   FolderOpen,
   PencilLine,
   Plus,
-  Search,
   Send,
   ShieldCheck,
   Sparkles,
@@ -41,6 +40,11 @@ import {
   useSalesCrm,
 } from '../salesCrmContext';
 import { SalesModalFrame } from '../components/SalesModalFrame';
+import {
+  SalesFilterBar,
+  SalesFilterSearch,
+  SalesFilterSelect,
+} from '../components/SalesFilterBar';
 import {
   SalesTitleBar,
   salesTitleBarPrimaryActionClassName,
@@ -182,9 +186,9 @@ function FilterSelect({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <label className="text-sm font-semibold text-slate-700">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none">
+        <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white px-4 text-base font-medium text-slate-950 shadow-none">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -475,39 +479,32 @@ export default function Contrato() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-[1.5fr_repeat(4,minmax(0,1fr))]">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.filters.search}</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={t.filters.searchPlaceholder}
-                className="h-11 rounded-lg border-slate-200 bg-white pl-11 text-base font-semibold text-slate-950 shadow-none"
-              />
-            </div>
-          </div>
-          <FilterSelect label={t.filters.client} value={clientFilter} onValueChange={setClientFilter} options={clientOptions} />
-          <FilterSelect label={t.filters.status} value={statusFilter} onValueChange={setStatusFilter} options={statusOptions} />
-          <FilterSelect label={t.filters.signatureStatus} value={signatureFilter} onValueChange={setSignatureFilter} options={signatureOptions} />
-          <FilterSelect label={t.filters.contractType} value={typeFilter} onValueChange={setTypeFilter} options={typeOptions} />
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <FilterSelect label={t.filters.owner} value={ownerFilter} onValueChange={setOwnerFilter} options={ownerOptions} />
-          <FilterSelect
-            label={t.filters.expiration}
-            value={expirationFilter}
-            onValueChange={(value) => setExpirationFilter(value as ExpirationFilter)}
-            options={[
-              { value: 'all', label: t.filters.allExpirations },
-              { value: 'next30', label: t.filters.next30 },
-              { value: 'expired', label: t.filters.expired },
-            ]}
-          />
-        </div>
-      </div>
+      <SalesFilterBar
+        title={t.filters.title}
+        gridClassName="xl:grid-cols-4 2xl:grid-cols-[1.5fr_repeat(4,minmax(0,1fr))]"
+      >
+        <SalesFilterSearch
+          label={t.filters.search}
+          value={search}
+          onValueChange={setSearch}
+          placeholder={t.filters.searchPlaceholder}
+        />
+        <SalesFilterSelect label={t.filters.status} value={statusFilter} onValueChange={setStatusFilter} options={statusOptions} />
+        <SalesFilterSelect label={t.filters.contractType} value={typeFilter} onValueChange={setTypeFilter} options={typeOptions} />
+        <SalesFilterSelect label={t.filters.client} value={clientFilter} onValueChange={setClientFilter} options={clientOptions} />
+        <SalesFilterSelect label={t.filters.signatureStatus} value={signatureFilter} onValueChange={setSignatureFilter} options={signatureOptions} />
+        <SalesFilterSelect label={t.filters.owner} value={ownerFilter} onValueChange={setOwnerFilter} options={ownerOptions} />
+        <SalesFilterSelect
+          label={t.filters.expiration}
+          value={expirationFilter}
+          onValueChange={(value) => setExpirationFilter(value as ExpirationFilter)}
+          options={[
+            { value: 'all', label: t.filters.allExpirations },
+            { value: 'next30', label: t.filters.next30 },
+            { value: 'expired', label: t.filters.expired },
+          ]}
+        />
+      </SalesFilterBar>
 
       <div className="grid gap-5 xl:grid-cols-[1.45fr_0.8fr]">
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -629,7 +626,7 @@ export default function Contrato() {
           </div>
           <DataTablePagination
             currentPage={currentPage}
-            itemLabel="contratos"
+            itemLabel={t.header.title.toLocaleLowerCase()}
             onPageChange={onPageChange}
             onPageSizeChange={onPageSizeChange}
             pageEnd={pageEnd}
@@ -710,10 +707,11 @@ export default function Contrato() {
       <SalesModalFrame
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
+        closeLabel={t.common.cancel}
         title={t.forms.create.title}
         description={t.forms.create.description}
         icon={<FileSignature className="h-5 w-5" />}
-        contentClassName="max-h-[90vh] max-w-5xl"
+        modalType="standard-form"
         bodyClassName="grid gap-4 md:grid-cols-2"
         footer={(
           <>
@@ -726,7 +724,7 @@ export default function Contrato() {
         )}
       >
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.create.mode}</label>
+              <label className="text-sm font-semibold text-slate-700">{t.forms.create.mode}</label>
               <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1 sm:grid-cols-2">
                 <Button
                   variant={form.mode === 'upload' ? 'default' : 'ghost'}
@@ -747,7 +745,7 @@ export default function Contrato() {
               </div>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.create.contractTitle}</label>
+              <label className="text-sm font-semibold text-slate-700">{t.forms.create.contractTitle}</label>
               <Input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={t.forms.create.contractTitlePlaceholder} />
             </div>
             <FilterSelect label={t.forms.create.client} value={form.clientId} onValueChange={(value) => setForm((current) => ({ ...current, clientId: value }))} options={contacts.map((contact) => ({ value: contact.id, label: `${contact.company} · ${contact.contactPerson}` }))} />
@@ -763,24 +761,24 @@ export default function Contrato() {
               <FilterSelect label={t.forms.create.template} value={form.templateId} onValueChange={(value) => setForm((current) => ({ ...current, templateId: value }))} options={digitalContractTemplateRegistry.map((template) => ({ value: template.id, label: template.name }))} />
             ) : null}
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.create.expiration}</label>
+              <label className="text-sm font-semibold text-slate-700">{t.forms.create.expiration}</label>
               <Input type="date" value={form.expirationDate} onChange={(event) => setForm((current) => ({ ...current, expirationDate: event.target.value }))} />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.create.files}</label>
+              <label className="text-sm font-semibold text-slate-700">{t.forms.create.files}</label>
               <Input value={form.files} onChange={(event) => setForm((current) => ({ ...current, files: event.target.value }))} placeholder={t.forms.create.filesPlaceholder} />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.create.notes}</label>
+              <label className="text-sm font-semibold text-slate-700">{t.forms.create.notes}</label>
               <Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.create.notesPlaceholder} />
             </div>
             {form.mode === 'template' && selectedTemplate ? (
               <div className="rounded-lg border border-[#222831]/15 bg-[#222831]/5 p-4 md:col-span-2">
-                <h4 className="font-black text-slate-950">{selectedTemplate.name}</h4>
+                <h4 className="font-semibold text-slate-950">{selectedTemplate.name}</h4>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{selectedTemplate.description}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedTemplate.dynamicFields.map((field) => (
-                    <Badge key={field.key} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700">
+                    <Badge key={field.key} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
                       {t.dynamicFieldLabels[field.key]}
                     </Badge>
                   ))}
@@ -792,10 +790,11 @@ export default function Contrato() {
       <SalesModalFrame
         open={isTemplatesOpen}
         onOpenChange={setIsTemplatesOpen}
+        closeLabel={t.common.close}
         title={t.sections.templateRegistry}
         description={t.sections.templateRegistryDescription}
         icon={<FolderOpen className="h-5 w-5" />}
-        contentClassName="max-h-[90vh] max-w-5xl"
+        modalType="large-workspace"
         bodyClassName="space-y-4"
         footerClassName="sm:justify-end"
         footer={(
@@ -807,10 +806,10 @@ export default function Contrato() {
               <article key={template.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-black text-slate-950">{template.name}</h3>
+                    <h3 className="font-semibold text-slate-950">{template.name}</h3>
                     <p className="mt-1 text-sm font-semibold text-slate-500">{template.version} · {t.countryLabels[template.country]}</p>
                   </div>
-                  <Badge className="rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2 py-1 text-xs font-bold text-[#1D4ED8]">
+                  <Badge className="rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2 py-1 text-xs font-medium text-[#1D4ED8]">
                     {t.typeLabels[template.contractType]}
                   </Badge>
                 </div>
@@ -826,10 +825,10 @@ export default function Contrato() {
             ))}
         </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <h3 className="font-black text-slate-950">{t.sections.backendReady}</h3>
+            <h3 className="font-semibold text-slate-950">{t.sections.backendReady}</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {digitalContractsBackendPreparation.entities.map((entity) => (
-                <Badge key={entity} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700">
+                <Badge key={entity} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
                   {entity}
                 </Badge>
               ))}
@@ -840,10 +839,11 @@ export default function Contrato() {
       <SalesModalFrame
         open={Boolean(filesContract)}
         onOpenChange={(open) => !open && setFilesContract(null)}
+        closeLabel={t.common.close}
         title={t.sections.files}
         description={t.notices.upload}
         icon={<FolderOpen className="h-5 w-5" />}
-        contentClassName="max-w-xl"
+        modalType="standard-form"
         bodyClassName="space-y-3"
         footerClassName="sm:justify-end"
         footer={(
@@ -855,7 +855,7 @@ export default function Contrato() {
                 <div className="flex items-center gap-3">
                   <FileText className="h-4 w-4 text-[#222831]" />
                   <div>
-                    <p className="text-sm font-black text-slate-950">{file.name}</p>
+                    <p className="text-sm font-semibold text-slate-950">{file.name}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
                       {t.fileKindLabels[file.kind]} · {t.fileStatusLabels[file.status]} · {t.sourceLabels[file.source]}
                     </p>
@@ -868,10 +868,11 @@ export default function Contrato() {
       <SalesModalFrame
         open={Boolean(signatureContract)}
         onOpenChange={(open) => !open && setSignatureContract(null)}
+        closeLabel={t.common.cancel}
         title={t.forms.signature.title}
         description={t.forms.signature.description}
         icon={<Send className="h-5 w-5" />}
-        contentClassName="max-w-2xl"
+        modalType="standard-form"
         bodyClassName="grid gap-4 md:grid-cols-2"
         footer={(
           <>
@@ -884,11 +885,11 @@ export default function Contrato() {
         )}
       >
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.signature.recipientName}</label>
+              <label className="text-sm font-semibold text-slate-700">{t.forms.signature.recipientName}</label>
               <Input value={signatureForm.recipientName} onChange={(event) => setSignatureForm((current) => ({ ...current, recipientName: event.target.value }))} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">{t.forms.signature.recipientEmail}</label>
+              <label className="text-sm font-semibold text-slate-700">{t.forms.signature.recipientEmail}</label>
               <Input value={signatureForm.recipientEmail} onChange={(event) => setSignatureForm((current) => ({ ...current, recipientEmail: event.target.value }))} />
             </div>
             <FilterSelect
@@ -903,7 +904,7 @@ export default function Contrato() {
               ]}
             />
             <div className="rounded-lg border border-[#F4C84A]/40 bg-[#F4C84A]/10 p-4">
-              <p className="text-sm font-bold text-[#9a6b05]">{t.notices.legalBoundary}</p>
+              <p className="text-sm font-medium text-[#9a6b05]">{t.notices.legalBoundary}</p>
             </div>
       </SalesModalFrame>
     </section>

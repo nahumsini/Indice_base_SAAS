@@ -135,6 +135,7 @@ class ProcessTasksSessionCsrfTest {
         return Stream.of(
             Arguments.of(HttpMethod.POST, "/api/v1/process-tasks", "{\"title\":\"Task\"}"),
             Arguments.of(HttpMethod.PUT, "/api/v1/process-tasks/11", "{\"title\":\"Task\"}"),
+            Arguments.of(HttpMethod.PATCH, "/api/v1/process-tasks/11", "{\"status\":\"in_progress\"}"),
             Arguments.of(HttpMethod.PATCH, "/api/v1/process-tasks/11/agenda-placement",
                     "{\"agendaDate\":\"2026-06-03\",\"agendaStartTime\":\"14:00\"}"),
             Arguments.of(HttpMethod.DELETE, "/api/v1/process-tasks/11", null),

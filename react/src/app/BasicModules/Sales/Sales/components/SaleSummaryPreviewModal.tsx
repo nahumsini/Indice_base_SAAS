@@ -81,8 +81,8 @@ function PreviewMetricCard({
       <div className="flex min-h-[88px]">
         <span className={cn('w-2 shrink-0', accentClassName)} aria-hidden="true" />
         <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
-          <p className="text-xs font-black uppercase tracking-normal text-slate-500">{label}</p>
-          <p className="truncate text-xl font-black text-slate-950">{value}</p>
+          <p className="text-xs font-semibold text-slate-500">{label}</p>
+          <p className="truncate text-xl font-semibold text-slate-950">{value}</p>
         </div>
       </div>
     </div>
@@ -138,35 +138,33 @@ export function SaleSummaryPreviewModal({
       icon={<FileText className="h-6 w-6" />}
       title={t.summaryPreview.title}
       description={t.summaryPreview.description}
-      contentClassName="flex h-[92vh] max-h-[920px] w-[calc(100vw-2rem)] max-w-[1180px] flex-col sm:max-w-[1180px]"
+      closeLabel={t.common.close}
+      modalType="large-workspace"
+      contentClassName="h-[92dvh] max-h-[920px]"
       bodyClassName="!max-h-none min-h-0 flex-1 overflow-auto bg-slate-100 px-4 py-5 dark:bg-slate-950"
       footerClassName="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      footerSummary={t.summaryPreview.footerNote}
       footer={(
         <>
-          <div className="text-xs font-semibold text-white/85">
-            {t.summaryPreview.footerNote}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', actionClassNames.secondary)}
-              onClick={handleDownload}
-            >
-              <Download className="h-4 w-4" />
-              {t.invoice.download}
-            </Button>
-            <Button
-              variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', actionClassNames.secondary)}
-              onClick={handlePrint}
-            >
-              <Printer className="h-4 w-4" />
-              {t.invoice.print}
-            </Button>
-            <Button type="button" className={cn('h-10 px-4 text-sm font-semibold', actionClassNames.primary)} onClick={() => onOpenChange(false)}>
-              {t.common.close}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className={cn('h-10 gap-2 px-4 text-sm font-semibold', actionClassNames.secondary)}
+            onClick={handleDownload}
+          >
+            <Download className="h-4 w-4" />
+            {t.invoice.download}
+          </Button>
+          <Button
+            variant="outline"
+            className={cn('h-10 gap-2 px-4 text-sm font-semibold', actionClassNames.secondary)}
+            onClick={handlePrint}
+          >
+            <Printer className="h-4 w-4" />
+            {t.invoice.print}
+          </Button>
+          <Button type="button" className={cn('h-10 px-4 text-sm font-semibold', actionClassNames.primary)} onClick={() => onOpenChange(false)}>
+            {t.common.close}
+          </Button>
         </>
       )}
     >
@@ -174,16 +172,16 @@ export function SaleSummaryPreviewModal({
         <header className="border-b border-slate-200 pb-7">
           <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
             <div>
-              <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.invoice.number}</p>
-              <p className="mt-1 text-lg font-black text-slate-950">{invoiceNumber}</p>
+              <p className="text-xs font-semibold text-slate-500">{t.invoice.number}</p>
+              <p className="mt-1 text-lg font-semibold text-slate-950">{invoiceNumber}</p>
             </div>
             <div className="text-left md:text-center">
-              <p className="text-2xl font-black text-slate-950">{t.invoice.documentTitle}</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-normal text-slate-500">
+              <p className="text-2xl font-semibold text-slate-950">{t.invoice.documentTitle}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
                 {t.invoice.documentLabel}
               </p>
             </div>
-            <div className="text-left text-sm font-semibold text-slate-500 md:text-right">
+            <div className="text-left text-sm font-normal text-slate-500 md:text-right">
               <p>{t.modal.fields.saleDate}: {sale.saleDate || t.common.notAvailable}</p>
               <p className="mt-1">{t.modal.fields.quoteReference}: {sale.quoteReference || quote?.quoteNumber || t.common.notAvailable}</p>
             </div>
@@ -195,10 +193,10 @@ export function SaleSummaryPreviewModal({
 
           <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">
+              <p className="text-xs font-semibold text-[#B63B32]">
                 {t.invoice.documentLabel}
               </p>
-              <h1 className="mt-3 text-5xl font-black leading-[0.95] text-slate-950">
+              <h1 className="mt-3 text-5xl font-bold leading-[0.95] text-slate-950">
                 {t.invoice.documentTitle}
               </h1>
               <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
@@ -206,10 +204,10 @@ export function SaleSummaryPreviewModal({
               </p>
             </div>
             <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5 text-right">
-              <p className="text-xs font-bold uppercase tracking-normal text-[#B63B32]">
+              <p className="text-xs font-semibold text-[#B63B32]">
                 {t.modal.fields.totalAmount} · {currency}
               </p>
-              <p className="mt-2 text-3xl font-black text-slate-950">{formatCurrency(sale.totalAmount, currency)}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-950">{formatCurrency(sale.totalAmount, currency)}</p>
             </div>
           </div>
         </header>
@@ -223,8 +221,8 @@ export function SaleSummaryPreviewModal({
 
         <section className="grid gap-4 border-b border-slate-200 py-7 md:grid-cols-2">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.invoice.billTo}</p>
-            <h2 className="mt-3 text-xl font-black text-slate-950">{sale.customerName || t.common.notAvailable}</h2>
+            <p className="text-xs font-semibold text-slate-500">{t.invoice.billTo}</p>
+            <h2 className="mt-3 text-xl font-semibold text-slate-950">{sale.customerName || t.common.notAvailable}</h2>
             <div className="mt-4 space-y-1 text-sm font-medium text-slate-500">
               <p>{t.modal.fields.sellerName}: {sale.sellerName || t.common.notAvailable}</p>
               <p>{t.modal.fields.paymentMethod}: {sale.paymentMethod || t.common.notAvailable}</p>
@@ -232,8 +230,8 @@ export function SaleSummaryPreviewModal({
             </div>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase tracking-normal text-slate-500">{t.invoice.issuedBy}</p>
-            <h2 className="mt-3 text-xl font-black text-slate-950">{operationalContext.legalName || t.common.notAvailable}</h2>
+            <p className="text-xs font-semibold text-slate-500">{t.invoice.issuedBy}</p>
+            <h2 className="mt-3 text-xl font-semibold text-slate-950">{operationalContext.legalName || t.common.notAvailable}</h2>
             <div className="mt-4 grid gap-2 text-sm font-medium text-slate-500">
               <p>{operationalContext.fiscalAddress || ''}</p>
               <p>{getTaxIdentifierLabel(operationalContext.country, operationalContext.taxIdentifierLabel, t.modal.operationalContext.taxIdentifier)}: {operationalContext.taxIdentifier || ''}</p>
@@ -245,8 +243,8 @@ export function SaleSummaryPreviewModal({
 
         <section className="py-7">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-xl font-black text-slate-950">{t.invoice.itemsTitle}</h2>
-            <span className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-black uppercase tracking-normal text-[#B63B32]">
+            <h2 className="text-xl font-semibold text-slate-950">{t.invoice.itemsTitle}</h2>
+            <span className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-medium text-[#B63B32]">
               {t.invoice.documentLabel}
             </span>
           </div>
@@ -255,12 +253,12 @@ export function SaleSummaryPreviewModal({
             <table className="w-full min-w-[760px] border-collapse text-left text-xs">
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
-                  <th className="px-3 py-3 font-black">{t.modal.summaryColumns.item}</th>
-                  <th className="px-3 py-3 font-black">{t.modal.summaryColumns.sku}</th>
-                  <th className="px-3 py-3 text-center font-black">{t.modal.summaryColumns.quantity}</th>
-                  <th className="px-3 py-3 text-right font-black">{t.modal.summaryColumns.unitPrice}</th>
-                  <th className="px-3 py-3 text-center font-black">{t.modal.summaryColumns.tax}</th>
-                  <th className="px-3 py-3 text-right font-black">{t.modal.summaryColumns.total}</th>
+                  <th className="px-3 py-3 font-semibold">{t.modal.summaryColumns.item}</th>
+                  <th className="px-3 py-3 font-semibold">{t.modal.summaryColumns.sku}</th>
+                  <th className="px-3 py-3 text-center font-semibold">{t.modal.summaryColumns.quantity}</th>
+                  <th className="px-3 py-3 text-right font-semibold">{t.modal.summaryColumns.unitPrice}</th>
+                  <th className="px-3 py-3 text-center font-semibold">{t.modal.summaryColumns.tax}</th>
+                  <th className="px-3 py-3 text-right font-semibold">{t.modal.summaryColumns.total}</th>
                 </tr>
               </thead>
               <tbody>
@@ -274,25 +272,25 @@ export function SaleSummaryPreviewModal({
                 {saleLines.map((item) => (
                   <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
                     <td className="max-w-[240px] px-3 py-4">
-                      <p className="font-black text-slate-950">{item.productName}</p>
+                      <p className="font-medium text-slate-950">{item.productName}</p>
                     </td>
-                    <td className="px-3 py-4 font-bold text-slate-600">{item.sku}</td>
-                    <td className="px-3 py-4 text-center font-bold text-slate-700">{item.quantity}</td>
-                    <td className="px-3 py-4 text-right font-bold text-slate-700">{formatCurrency(item.unitPrice, currency)}</td>
-                    <td className="px-3 py-4 text-center font-bold text-slate-700">{item.taxPercent}%</td>
-                    <td className="px-3 py-4 text-right font-black text-slate-950">{formatCurrency(getLineTotal(item), currency)}</td>
+                    <td className="px-3 py-4 font-normal text-slate-600">{item.sku}</td>
+                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.quantity}</td>
+                    <td className="px-3 py-4 text-right font-medium text-slate-700">{formatCurrency(item.unitPrice, currency)}</td>
+                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.taxPercent}%</td>
+                    <td className="px-3 py-4 text-right font-semibold text-slate-950">{formatCurrency(getLineTotal(item), currency)}</td>
                   </tr>
                 ))}
                 {!saleLines.length ? quoteLines.map((item) => (
                   <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
                     <td className="max-w-[240px] px-3 py-4">
-                      <p className="font-black text-slate-950">{item.productName}</p>
+                      <p className="font-medium text-slate-950">{item.productName}</p>
                     </td>
-                    <td className="px-3 py-4 font-bold text-slate-600">{item.sku}</td>
-                    <td className="px-3 py-4 text-center font-bold text-slate-700">{item.quantity}</td>
-                    <td className="px-3 py-4 text-right font-bold text-slate-700">{formatCurrency(item.unitPrice, currency)}</td>
-                    <td className="px-3 py-4 text-center font-bold text-slate-700">{item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`}</td>
-                    <td className="px-3 py-4 text-right font-black text-slate-950">{formatCurrency(getLineTotal(item), currency)}</td>
+                    <td className="px-3 py-4 font-normal text-slate-600">{item.sku}</td>
+                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.quantity}</td>
+                    <td className="px-3 py-4 text-right font-medium text-slate-700">{formatCurrency(item.unitPrice, currency)}</td>
+                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`}</td>
+                    <td className="px-3 py-4 text-right font-semibold text-slate-950">{formatCurrency(getLineTotal(item), currency)}</td>
                   </tr>
                 )) : null}
               </tbody>
@@ -301,11 +299,11 @@ export function SaleSummaryPreviewModal({
 
           <div className="mt-6 grid gap-4 md:grid-cols-[1fr_300px]">
             <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <h3 className="text-sm font-black uppercase tracking-normal text-slate-500">{t.modal.fields.notes}</h3>
+              <h3 className="text-sm font-semibold text-slate-500">{t.modal.fields.notes}</h3>
               <p className="mt-3 text-sm leading-6 text-slate-600">{sale.notes || t.invoice.defaultNotes}</p>
             </div>
             <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5">
-              <p className="mb-2 text-xs font-black uppercase tracking-normal text-[#B63B32]">{t.modal.fields.currency}: {currency}</p>
+              <p className="mb-2 text-xs font-semibold text-[#B63B32]">{t.modal.fields.currency}: {currency}</p>
               {[
                 [t.invoice.subtotal, sale.subtotal],
                 [t.invoice.discount, sale.discountTotal],
@@ -316,19 +314,19 @@ export function SaleSummaryPreviewModal({
                   key={label}
                   className={cn(
                     'flex items-center justify-between py-2 text-sm',
-                    index === rows.length - 1 && 'mt-2 border-t border-[#FF6B5E]/25 pt-4 text-lg font-black text-slate-950',
+                    index === rows.length - 1 && 'mt-2 border-t border-[#FF6B5E]/25 pt-4 text-lg font-bold text-slate-950',
                   )}
                 >
-                  <span className="font-bold text-slate-600">{label}</span>
-                  <span className="font-black text-slate-950">{formatCurrency(Number(value), currency)}</span>
+                  <span className="font-medium text-slate-600">{label}</span>
+                  <span className={index === rows.length - 1 ? 'font-bold text-slate-950' : 'font-medium text-slate-950'}>{formatCurrency(Number(value), currency)}</span>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-sm font-black uppercase tracking-normal text-slate-700">{t.invoice.disclaimerTitle}</h3>
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{t.invoice.disclaimerBody}</p>
+            <h3 className="text-sm font-semibold text-slate-700">{t.invoice.disclaimerTitle}</h3>
+            <p className="mt-3 text-sm font-normal leading-6 text-slate-600">{t.invoice.disclaimerBody}</p>
           </div>
         </section>
       </article>

@@ -97,6 +97,7 @@ export function CloseShiftModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar cierre de caja"
       eyebrow="Corte POS"
       icon={<LogOut className="h-6 w-6" />}
@@ -107,35 +108,33 @@ export function CloseShiftModal({
       title="Corte y cierre de caja"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} disabled={isSubmitting} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={preview
+        ? `Esperado ${formatClosingCurrency(preview.expected, currency)} · Contado ${formatClosingCurrency(preview.counted, currency)} · Diferencia ${formatClosingCurrency(preview.difference, currency)}`
+        : 'Calculando el resumen del turno'}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className={posModalSecondaryActionClassName}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={isSubmitting || isLoadingSummary || !summary}
-            className={posModalPrimaryActionClassName}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Cerrando...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-5 w-5" />
-                Cerrar turno
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={isSubmitting || isLoadingSummary || !summary}
+          className={posModalPrimaryActionClassName}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Cerrando...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-5 w-5" />
+              Cerrar turno
+            </>
+          )}
+        </button>
       )}
     >
       <div className="space-y-5">

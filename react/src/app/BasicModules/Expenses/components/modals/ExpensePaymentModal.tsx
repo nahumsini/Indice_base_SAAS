@@ -1,7 +1,7 @@
-import { Check, HandCoins, Loader2, X } from 'lucide-react';
+import { Check, HandCoins, Loader2 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
-import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import type { PaymentAccount } from '../../PaymentAccounts/types';
 import type { Expense } from '../../types/expenses.types';
 import { isBackendId } from '../../adapters/adapter.utils';
@@ -22,6 +22,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
   const [amount, setAmount] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState(expense.paymentAccountId ?? '');
   const [paymentDate, setPaymentDate] = useState(formatDateInputValue(new Date()));
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const eligiblePaymentAccounts = useMemo(() => (
@@ -45,46 +46,50 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
   const handleClose = () => {
     if (!isSubmitting) onClose();
   };
-  const { panelRef, titleId } = useFinanceModalAccessibility<HTMLFormElement>(handleClose);
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
+    setError('');
     setIsSubmitting(true);
     try {
       await onSubmit(expense.id, paymentAmount, selectedPaymentAccountId, toDateValue(paymentDate));
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'No se pudo registrar el pago.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={handleClose}>
-      <form
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onSubmit={handleSubmit}
-        onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[calc(100vh-3rem)] w-full max-w-[560px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-      >
-        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
-              <HandCoins className="h-5 w-5" />
-            </span>
-            <div>
-              <h3 id={titleId} className="text-xl font-bold text-white">{t.expenses.payment.title}</h3>
-              <p className="mt-1 max-w-xl text-sm leading-5 text-white/80">{t.expenses.payment.subtitle}</p>
-            </div>
-          </div>
-          <button type="button" onClick={handleClose} disabled={isSubmitting} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60" aria-label={t.columnModal.close}>
-            <X className="h-5 w-5" />
+    <IndiceModalFrame
+      busy={isSubmitting}
+      contentClassName="sm:max-w-[560px]"
+      description={t.expenses.payment.subtitle}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" onClick={handleClose} disabled={isSubmitting} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">
+            {t.common.cancel}
+          </button>
+          <button form="expense-payment-form" type="submit" disabled={!canSubmit} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            {t.expenses.payment.save}
           </button>
         </div>
-
-        <div className="flex-1 overflow-y-auto bg-slate-50/70 p-5 dark:bg-slate-950/40 sm:p-6">
+      )}
+      footerSummary={formatCurrency(newBalance, expense.currency)}
+      icon={<HandCoins className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => !open && handleClose()}
+      open
+      title={t.expenses.payment.title}
+      tone="green"
+    >
+      <form
+        id="expense-payment-form"
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
+        {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
           <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
               <div className="flex items-center justify-between gap-4">
@@ -157,11 +162,11 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
 
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{t.expenses.payment.newBalance}</p>
-                  <p className="mt-1 text-xl font-extrabold text-[#147514]">{formatCurrency(newBalance, expense.currency)}</p>
+                  <p className="text-xs font-medium text-slate-500">{t.expenses.payment.newBalance}</p>
+                  <p className="mt-1 text-xl font-semibold text-[#147514]">{formatCurrency(newBalance, expense.currency)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{t.paymentAccounts.columns.balance?.label ?? t.paymentAccounts.headerTitle}</p>
+                  <p className="text-xs font-medium text-slate-500">{t.paymentAccounts.columns.balance?.label ?? t.paymentAccounts.headerTitle}</p>
                   <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
                     {selectedPaymentAccount ? formatCurrency(selectedPaymentAccount.balance - paymentAmount, selectedPaymentAccount.currency) : '-'}
                   </p>
@@ -176,19 +181,8 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
               )}
             </div>
           </section>
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-[#0b3f1b]">
-          <button type="button" onClick={handleClose} disabled={isSubmitting} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-60">
-            {t.common.cancel}
-          </button>
-          <button type="submit" disabled={!canSubmit} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {t.expenses.payment.save}
-          </button>
-        </div>
       </form>
-    </div>
+    </IndiceModalFrame>
   );
 }
 
@@ -199,8 +193,8 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 function PaymentMetric({ label, strong, value, warning }: { label: string; strong?: boolean; value: string; warning?: boolean }) {
   return (
     <div className="min-w-0 px-3 py-4 text-center sm:px-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{label}</p>
-      <p className={`mt-1 truncate text-sm ${strong ? 'font-extrabold text-[#147514]' : warning ? 'font-bold text-amber-700 dark:text-amber-300' : 'font-bold text-slate-900 dark:text-slate-100'}`}>{value}</p>
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className={`mt-1 truncate text-sm ${strong ? 'font-semibold text-[#147514]' : warning ? 'font-semibold text-amber-700 dark:text-amber-300' : 'font-semibold text-slate-900 dark:text-slate-100'}`}>{value}</p>
     </div>
   );
 }

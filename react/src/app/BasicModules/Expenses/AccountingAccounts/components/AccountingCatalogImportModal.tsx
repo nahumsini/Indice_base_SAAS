@@ -1,7 +1,7 @@
-import { Check, Globe2, Search, X } from 'lucide-react';
+import { Check, Globe2, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
-import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import type { AccountingAccount, AccountingCountryCode } from '../types';
 import {
   accountMatchesCatalogTemplate,
@@ -25,7 +25,6 @@ export function AccountingCatalogImportModal({
   onImport,
 }: AccountingCatalogImportModalProps) {
   const t = useAccountingAccountsTranslations();
-  const { panelRef, titleId } = useFinanceModalAccessibility(onClose);
   const [activeCountry, setActiveCountry] = useState<AccountingCountryCode>('MX');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -69,30 +68,31 @@ export function AccountingCatalogImportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="flex h-[min(88vh,860px)] max-h-[calc(100vh-3rem)] w-full max-w-[980px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.32)] dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-5 text-white">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
-              <Globe2 className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 id={titleId} className="text-2xl font-extrabold tracking-normal">{t.accountingAccounts.importCatalog}</h2>
-              <p className="mt-1 max-w-2xl text-sm font-medium text-white/85">
-                {t.accountingAccounts.catalog.description}
-              </p>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/10 text-white transition hover:bg-white/20" aria-label={t.columnModal.close}>
-            <X className="h-5 w-5" />
+    <IndiceModalFrame
+      busy={isImporting}
+      contentClassName="h-[min(88vh,860px)] sm:max-w-[980px]"
+      description={t.accountingAccounts.catalog.description}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" disabled={isImporting} onClick={onClose} className="h-11 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">{t.common.cancel}</button>
+          <button type="button" onClick={() => void onImport(selectedTemplates)} disabled={isImporting || selectedTemplates.length === 0} className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            {isImporting ? t.accountingAccounts.catalog.importing : t.accountingAccounts.catalog.importSelected(selectedTemplates.length)}
           </button>
         </div>
-
+      )}
+      footerSummary={t.accountingAccounts.catalog.selectedCount(selectedTemplates.length)}
+      icon={<Globe2 className="h-5 w-5" />}
+      modalType="operational-workspace"
+      onOpenChange={(open) => !open && onClose()}
+      open
+      title={t.accountingAccounts.importCatalog}
+      tone="green"
+    >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70">
           <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-5">
             <div className="flex flex-wrap gap-2">
               {accountingCountryOptions.map(country => (
-                <button key={country.code} type="button" onClick={() => setActiveCountry(country.code)} className={`h-10 rounded-xl border px-4 text-sm font-extrabold transition ${activeCountry === country.code ? 'border-[#147514] bg-[#147514] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#147514]/30 hover:text-[#147514]'}`}>
+                <button key={country.code} type="button" onClick={() => setActiveCountry(country.code)} className={`h-10 rounded-xl border px-4 text-sm font-semibold transition ${activeCountry === country.code ? 'border-[#147514] bg-[#147514] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#147514]/30 hover:text-[#147514]'}`}>
                   {t.accountingAccounts.catalog.countryLabels[country.code] ?? country.label}
                 </button>
               ))}
@@ -127,8 +127,8 @@ export function AccountingCatalogImportModal({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-sm font-extrabold text-slate-900">{template.code}</span>
-                        <span className="text-base font-extrabold text-slate-900">{template.name}</span>
+                        <span className="font-mono text-sm font-semibold text-slate-900">{template.code}</span>
+                        <span className="text-base font-semibold text-slate-900">{template.name}</span>
                         {exists ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{t.accountingAccounts.catalog.alreadyExists}</span> : null}
                       </span>
                       <span className="mt-1 block text-sm font-semibold leading-5 text-slate-600">{template.description}</span>
@@ -145,13 +145,6 @@ export function AccountingCatalogImportModal({
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={onClose} className="h-12 rounded-2xl border border-white/35 bg-white/10 px-7 text-sm font-extrabold text-white transition hover:bg-white/18">{t.common.cancel}</button>
-          <button type="button" onClick={() => void onImport(selectedTemplates)} disabled={isImporting || selectedTemplates.length === 0} className="h-12 rounded-2xl bg-white px-7 text-sm font-extrabold text-[#147514] shadow-lg shadow-slate-900/15 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-white/45 disabled:text-[#147514]/50">
-            {isImporting ? t.accountingAccounts.catalog.importing : t.accountingAccounts.catalog.importSelected(selectedTemplates.length)}
-          </button>
-        </div>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }

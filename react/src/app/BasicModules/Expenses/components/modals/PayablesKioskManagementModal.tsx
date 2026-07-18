@@ -9,11 +9,10 @@ import {
   Plus,
   Store,
   Trash2,
-  X,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import { DEFAULT_FINANCE_CURRENCY } from '../../constants/financeCurrencyOptions';
 import type { Provider } from '../../types/expenses.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
@@ -172,28 +171,25 @@ export function PayablesKioskManagementModal({
 
   return (
     <>
-      <Dialog open={isOpen && !isFormOpen && !pendingDeleteKiosk} onOpenChange={(open) => !open && !isFormOpen && !pendingDeleteKiosk && onClose()}>
-        <DialogContent hideCloseButton className="max-h-[calc(100vh-3rem)] w-[min(94vw,760px)] overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-          <header className="flex items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
-              <div className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
-                  <Store className="h-5 w-5" />
-                </span>
-                <div>
-                  <DialogTitle className="text-xl font-bold text-white">{copyText.configureTitle}</DialogTitle>
-                  <DialogDescription className="mt-1 max-w-lg text-sm font-semibold leading-5 text-white/80">{copyText.configureDescription}</DialogDescription>
-                </div>
-              </div>
-              <button onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 transition hover:bg-white/20" type="button" aria-label={t.columnModal.close}>
-                <X className="h-5 w-5" />
-              </button>
-          </header>
-
-          <section className="max-h-[calc(100vh-13rem)] overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
+      <IndiceModalFrame
+        busy={isSaving}
+        contentClassName="sm:max-w-[760px]"
+        description={copyText.configureDescription}
+        footer={(
+          <button type="button" disabled={isSaving} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50" onClick={onClose}>{t.common.cancel}</button>
+        )}
+        footerSummary={copyText.activeCount(activeCount, kiosks.length)}
+        icon={<Store className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={(open) => !open && !isFormOpen && !pendingDeleteKiosk && onClose()}
+        open={isOpen && !isFormOpen && !pendingDeleteKiosk}
+        title={copyText.configureTitle}
+        tone="green"
+      >
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h4 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{copyText.configuredAccess}</h4>
+                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copyText.configuredAccess}</h4>
                   <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{copyText.activeCount(activeCount, kiosks.length)}</p>
                 </div>
                 <Button type="button" onClick={openCreate} className="h-10 rounded-xl bg-[#147514] px-4 text-white hover:bg-[#105f10]">
@@ -208,7 +204,7 @@ export function PayablesKioskManagementModal({
               </div>
             ) : kiosks.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-                <p className="text-base font-black text-slate-900 dark:text-slate-100">{copyText.emptyTitle}</p>
+                <p className="text-base font-semibold text-slate-900 dark:text-slate-100">{copyText.emptyTitle}</p>
                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copyText.emptyDescription}</p>
               </div>
             ) : (
@@ -223,8 +219,8 @@ export function PayablesKioskManagementModal({
                         </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-base font-black text-slate-950 dark:text-white">{kiosk.name}</p>
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                            <p className="truncate text-base font-semibold text-slate-950 dark:text-white">{kiosk.name}</p>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${kiosk.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                               {kiosk.status === 'ACTIVE' ? t.common.active : t.common.inactive}
                             </span>
@@ -236,7 +232,7 @@ export function PayablesKioskManagementModal({
                       <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
                         <KioskAction ariaLabel={t.common.edit} onClick={() => openEdit(kiosk)} icon={<Pencil className="h-4 w-4" />} />
                         <KioskAction ariaLabel="Link" onClick={() => copy(publicUrl(kiosk), copyText.messages.linkCopied)} icon={<Copy className="h-4 w-4" />} />
-                        <button type="button" onClick={() => window.open(publicUrl(kiosk), '_blank', 'noopener,noreferrer')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-black text-white transition hover:bg-[#105f10]">
+                        <button type="button" onClick={() => window.open(publicUrl(kiosk), '_blank', 'noopener,noreferrer')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-semibold text-white transition hover:bg-[#105f10]">
                           {copyText.open} <ExternalLink className="h-4 w-4" />
                         </button>
                       </div>
@@ -272,15 +268,7 @@ export function PayablesKioskManagementModal({
               </div>
               )}
             </div>
-          </section>
-
-          <DialogFooter className="gap-3 bg-[#147514] px-6 py-4 dark:bg-[#0b3f1b]">
-            <Button type="button" variant="outline" className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={onClose}>
-              {t.common.cancel}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </IndiceModalFrame>
 
       <PayablesKioskAccessFormModal
         businessOptions={businessOptions}
@@ -329,8 +317,8 @@ function KioskMeta({ icon, label }: { icon?: React.ReactNode; label: string }) {
 function KioskInfoPanel({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
-      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400"><span className="text-[#147514]">{icon}</span>{label}</div>
-      <p className="mt-2 text-sm font-bold leading-5 text-slate-900 dark:text-white">{value}</p>
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400"><span className="text-[#147514]">{icon}</span>{label}</div>
+      <p className="mt-2 text-sm font-semibold leading-5 text-slate-900 dark:text-white">{value}</p>
     </div>
   );
 }

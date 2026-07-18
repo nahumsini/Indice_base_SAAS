@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { isBackendId } from '../adapters/adapter.utils';
 import { useAccountingAccountsTranslations } from './hooks/useAccountingAccountsTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -15,7 +16,7 @@ import {
   catalogTemplateToAccount,
   type AccountingCatalogTemplate,
 } from './accountingCatalogSeed';
-import { defaultAccountingColumns, type AccountingColumnKey } from './accountingAccountsTableConfig';
+import { defaultAccountingColumns, type AccountingColumnConfig } from './accountingAccountsTableConfig';
 import { AccountingAccountColumnsModal } from './components/AccountingAccountColumnsModal';
 import { AccountingAccountModal } from './components/AccountingAccountModal';
 import { AccountingCatalogImportModal } from './components/AccountingCatalogImportModal';
@@ -40,6 +41,8 @@ export default function AccountingAccounts() {
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isCatalogImportOpen, setIsCatalogImportOpen] = useState(false);
   const [isImportingCatalog, setIsImportingCatalog] = useState(false);
+  const [accountPendingDelete, setAccountPendingDelete] = useState<AccountingAccount | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const translatedAccountingColumns = useMemo(() => defaultAccountingColumns.map(column => {
     const copy = t.accountingAccounts.columns[column.key];
     return {
@@ -48,7 +51,7 @@ export default function AccountingAccounts() {
       label: copy?.label ?? column.label,
     };
   }), [t]);
-  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns(
+  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns<AccountingColumnConfig>(
     'indice.expenses.accounting-accounts.columns.v1',
     translatedAccountingColumns,
   );
@@ -93,12 +96,6 @@ export default function AccountingAccounts() {
     }
     setSortField(field);
     setSortDirection('asc');
-  };
-
-  const handleToggleColumn = (key: AccountingColumnKey, visible: boolean) => {
-    setVisibleColumns(currentColumns => currentColumns.map(column => (
-      column.key === key ? { ...column, visible: column.fixed ? true : visible } : column
-    )));
   };
 
   const handleToggleActive = async (account: AccountingAccount) => {
@@ -163,30 +160,32 @@ export default function AccountingAccounts() {
           : [savedAccount, ...currentAccounts];
       });
       setSuccessToastMessage(isBackendId(account.id) ? t.accountingAccounts.messages.updated : t.accountingAccounts.messages.created);
-    } catch (error) {
-      setAccounts(currentAccounts => {
-        const exists = currentAccounts.some(item => item.id === account.id);
-        return exists
-          ? currentAccounts.map(item => (item.id === account.id ? account : item))
-          : [account, ...currentAccounts];
-      });
-      setFailureToastMessage(toFinanceApiErrorMessage(error, t.accountingAccounts.messages.saveFailed));
-    } finally {
       closeModal();
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.accountingAccounts.messages.saveFailed));
+      throw error;
     }
   };
 
   const handleDeleteAccount = (accountId: string) => {
-    const account = accounts.find(item => item.id === accountId);
-    setAccounts(currentAccounts => currentAccounts.filter(item => item.id !== accountId));
-    if (!account || !isBackendId(accountId)) return;
+    setAccountPendingDelete(accounts.find(item => item.id === accountId) ?? null);
+  };
 
-    accountingAccountsService.deleteAccountingAccount(accountId)
-      .then(() => setSuccessToastMessage(t.accountingAccounts.messages.deleted))
-      .catch(error => {
-        setAccounts(currentAccounts => [account, ...currentAccounts]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, t.accountingAccounts.messages.deleteFailed));
-      });
+  const confirmDeleteAccount = async () => {
+    if (!accountPendingDelete) return;
+    setIsDeletingAccount(true);
+    try {
+      if (isBackendId(accountPendingDelete.id)) {
+        await accountingAccountsService.deleteAccountingAccount(accountPendingDelete.id);
+      }
+      setAccounts(currentAccounts => currentAccounts.filter(item => item.id !== accountPendingDelete.id));
+      setSuccessToastMessage(t.accountingAccounts.messages.deleted);
+      setAccountPendingDelete(null);
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.accountingAccounts.messages.deleteFailed));
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   return (
@@ -231,12 +230,12 @@ export default function AccountingAccounts() {
       {isColumnsModalOpen && (
         <AccountingAccountColumnsModal
           columns={visibleColumns}
-          onApply={() => setIsColumnsModalOpen(false)}
+          defaultColumns={translatedAccountingColumns}
           onClose={() => setIsColumnsModalOpen(false)}
-          onHideOptional={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: Boolean(column.fixed) })))}
-          onRestoreDefault={() => setVisibleColumns(translatedAccountingColumns.map(column => ({ ...column })))}
-          onShowAll={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
-          onToggleColumn={handleToggleColumn}
+          onSave={(nextColumns) => {
+            setVisibleColumns(nextColumns);
+            setIsColumnsModalOpen(false);
+          }}
         />
       )}
       {isAddModalOpen && (
@@ -256,6 +255,17 @@ export default function AccountingAccounts() {
           onImport={handleImportCatalogTemplates}
         />
       )}
+      <ConfirmDeleteDialog
+        cancelLabel={t.common.cancel}
+        confirmDisabled={isDeletingAccount}
+        confirmLabel={isDeletingAccount ? 'Eliminando…' : t.common.delete}
+        description="La cuenta dejará de estar disponible para nuevas operaciones y esta acción no se puede deshacer."
+        isVisible={Boolean(accountPendingDelete)}
+        itemName={accountPendingDelete ? `${accountPendingDelete.code} · ${accountPendingDelete.name}` : undefined}
+        onCancel={() => !isDeletingAccount && setAccountPendingDelete(null)}
+        onConfirm={() => void confirmDeleteAccount()}
+        title="Eliminar cuenta contable"
+      />
       <SuccessToast
         isVisible={Boolean(successToastMessage)}
         message={successToastMessage}

@@ -112,12 +112,12 @@ export function QuoteLineItemRow({
         <div className="flex min-w-0 gap-3">
           <ProductThumbnail product={previewProduct} size="md" />
           <div className="min-w-0">
-            <p className="font-black text-slate-950">{item.productName}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">{item.sku}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-400">
+            <p className="font-semibold text-slate-950">{item.productName}</p>
+            <p className="mt-1 text-xs font-medium text-slate-500">{item.sku}</p>
+            <p className="mt-1 text-xs font-normal text-slate-400">
               {product ? t.productTypeLabels[product.type] : t.common.unassigned}
             </p>
-            <p className="mt-2 text-xs font-semibold text-slate-500">
+            <p className="mt-2 text-xs font-normal text-slate-500">
               {t.pricing.catalogPrice}: {formatCurrency(originalUnitPrice, originalCurrency)}
             </p>
           </div>
@@ -130,19 +130,19 @@ export function QuoteLineItemRow({
 
       <div className="mt-4 grid gap-3 md:grid-cols-6">
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.labels.quantity}</label>
+          <label className="text-xs font-medium text-slate-500">{t.labels.quantity}</label>
           <Input className={coralFieldClassName} type="number" min={1} value={item.quantity} onChange={(event) => onUpdate({ quantity: Number(event.target.value) || 1 })} />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.pricing.convertedPrice}</label>
+          <label className="text-xs font-medium text-slate-500">{t.pricing.convertedPrice}</label>
           <Input className={coralFieldClassName} type="number" min={0} value={item.unitPrice} onChange={(event) => handleUnitPriceChange(Number(event.target.value) || 0)} />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.labels.discount}</label>
+          <label className="text-xs font-medium text-slate-500">{t.labels.discount}</label>
           <Input className={coralFieldClassName} type="number" min={0} max={100} value={item.discountPercent} onChange={(event) => onUpdate({ discountPercent: Number(event.target.value) || 0 })} />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.taxBuilder.taxPreset}</label>
+          <label className="text-xs font-medium text-slate-500">{t.taxBuilder.taxPreset}</label>
           <Select value={selectedTaxCode} onValueChange={handleTaxPresetChange}>
             <SelectTrigger className={coralFieldClassName}>
               <SelectValue />
@@ -158,7 +158,7 @@ export function QuoteLineItemRow({
           </Select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.taxBuilder.taxRate}</label>
+          <label className="text-xs font-medium text-slate-500">{t.taxBuilder.taxRate}</label>
           <Input
             className={coralFieldClassName}
             type="number"
@@ -174,22 +174,22 @@ export function QuoteLineItemRow({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.labels.subtotal}</label>
-          <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-black text-slate-950">
+          <label className="text-xs font-medium text-slate-500">{t.labels.subtotal}</label>
+          <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-950">
             {formatCurrency(pricing.lineTotal, quoteCurrency)}
           </div>
         </div>
       </div>
 
       {hasCurrencyConversion ? (
-        <div className="mt-3 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-xs font-bold text-[#7C5604]">
+        <div className="mt-3 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-xs font-medium text-[#7C5604]">
           {t.pricing.exchangeRate}: 1 {originalCurrency} = {exchangeRateLabel} {quoteCurrency} · {item.exchangeRateDate}
         </div>
       ) : null}
 
       <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500">{t.labels.notes}</label>
+          <label className="text-xs font-medium text-slate-500">{t.labels.notes}</label>
           <Textarea
             className={coralFieldClassName}
             value={item.notes}
@@ -198,12 +198,12 @@ export function QuoteLineItemRow({
           />
         </div>
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
-          <p className="font-bold text-slate-500">{t.pricing.estimatedCost}</p>
-          <p className="mt-1 font-black text-slate-950">{formatCurrency(pricing.estimatedCost, quoteCurrency)}</p>
+          <p className="font-medium text-slate-500">{t.pricing.estimatedCost}</p>
+          <p className="mt-1 font-semibold text-slate-950">{formatCurrency(pricing.estimatedCost, quoteCurrency)}</p>
         </div>
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
-          <p className="font-bold text-slate-500">{t.pricing.estimatedMargin}</p>
-          <p className="mt-1 font-black text-[#B63B32]">{getRoundedMargin(pricing.estimatedMargin)}%</p>
+          <p className="font-medium text-slate-500">{t.pricing.estimatedMargin}</p>
+          <p className="mt-1 font-semibold text-[#B63B32]">{getRoundedMargin(pricing.estimatedMargin)}%</p>
         </div>
       </div>
     </article>

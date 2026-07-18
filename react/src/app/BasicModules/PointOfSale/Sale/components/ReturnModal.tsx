@@ -38,30 +38,32 @@ export function ReturnModal({ isOpen, onClose, onConfirm }: ReturnModalProps) {
 
   return (
     <PosModalFrame
-      closeLabel="Cerrar devolucion"
-      eyebrow="Operacion sensible"
+      modalType="standard-form"
+      closeLabel="Cerrar devolución"
+      eyebrow="Operación sensible"
       icon={<RotateCcw className="h-6 w-6" />}
       onClose={onClose}
       size="sm"
-      subtitle="Verifica el ticket original antes de restaurar inventario o generar nota."
-      title="Procesar devolucion"
+      subtitle="Verifica el ticket original antes de restaurar el inventario o generar una nota."
+      title="Procesar devolución"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={saleId.trim() ? `Venta ${saleId.trim()} · ${returnType === 'full' ? 'Devolución total' : 'Devolución parcial'}` : 'Selecciona la venta que deseas devolver'}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!saleId.trim()}
-            className={posModalPrimaryActionClassName}
-          >
-            <CheckCircle className="h-5 w-5" />
-            Procesar
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!saleId.trim()}
+          className={posModalPrimaryActionClassName}
+        >
+          <CheckCircle className="h-5 w-5" />
+          Procesar
+        </button>
       )}
     >
       <div className="space-y-4">

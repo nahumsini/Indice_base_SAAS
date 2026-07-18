@@ -67,7 +67,7 @@ function OpportunitySection({
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]">
           <Icon className="h-4 w-4" />
         </span>
-        <h3 className="text-lg font-bold text-slate-950">{title}</h3>
+        <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
       </div>
       {children}
     </section>
@@ -110,8 +110,9 @@ export function CreateOpportunityModal({
       title={editingOpportunity ? copy.editTitle : copy.createTitle}
       description={editingOpportunity ? copy.editDescription : copy.createDescription}
       icon={<Target className="h-5 w-5" />}
-      contentClassName="flex max-h-[calc(100vh-2rem)] w-[min(94vw,768px)] max-w-none flex-col sm:max-w-none"
-      bodyClassName="!max-h-none min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-6 py-5"
+      closeLabel={copy.cancel}
+      modalType="standard-form"
+      bodyClassName="bg-slate-50/70"
       footer={(
         <>
           <Button

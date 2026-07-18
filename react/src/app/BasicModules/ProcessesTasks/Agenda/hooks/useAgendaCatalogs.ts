@@ -18,6 +18,7 @@ import {
 export function useAgendaCatalogs() {
   const [processes, setProcesses] = useState<ProcessRecord[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [isProjectsCatalogReady, setIsProjectsCatalogReady] = useState(false);
   const [catalogUnits, setCatalogUnits] = useState<ProcessUnitOption[]>([]);
   const [catalogBusinesses, setCatalogBusinesses] = useState<ProcessBusinessOption[]>([]);
   const [catalogCollaborators, setCatalogCollaborators] = useState<ProcessCollaboratorOption[]>([]);
@@ -33,6 +34,7 @@ export function useAgendaCatalogs() {
       ]);
 
       setProjects(projectResult.status === 'fulfilled' ? projectResult.value : []);
+      setIsProjectsCatalogReady(projectResult.status === 'fulfilled');
       setProcesses(processResult.status === 'fulfilled' ? processResult.value : []);
       setCatalogUnits(
         unitResult.status === 'fulfilled'
@@ -69,5 +71,6 @@ export function useAgendaCatalogs() {
     catalogUnits,
     processes,
     projects,
+    isProjectsCatalogReady,
   };
 }

@@ -1,14 +1,7 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { Pencil, Plus, Save, X } from 'lucide-react';
+import { Pencil, Plus, Save } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -19,13 +12,6 @@ import {
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
-import {
-  processTaskModalCloseActionClass,
-  processTaskModalFooterClass,
-  processTaskModalHeaderClass,
-  processTaskModalPrimaryActionClass,
-  processTaskModalSecondaryActionClass,
-} from '../../shared/processTaskModalStyles';
 import { ProgressSlider } from '../../shared/ProgressSlider';
 import {
   collaboratorCanReceiveAssignment,
@@ -78,6 +64,7 @@ interface TaskFormDialogProps {
   setForm: Dispatch<SetStateAction<TaskFormValues>>;
   unitOptions: ProcessUnitOption[];
   currentUserCollaborator?: ProcessCollaboratorOption | null;
+  error?: string | null;
 }
 
 const statusOptionValues: TaskStatus[] = ['pending', 'in_progress', 'paused', 'completed', 'cancelled'];
@@ -115,7 +102,7 @@ function SelectField<T extends string>({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
         <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />
@@ -147,18 +134,33 @@ export function TaskFormDialog({
   setForm,
   unitOptions,
   currentUserCollaborator = null,
+  error = null,
+  processes,
 }: TaskFormDialogProps) {
   const formCopy = copy.form;
   const title = formCopy.titles[mode];
   const description = formCopy.descriptions[mode];
   const submitLabel = formCopy.submit[mode];
-  const statusOptions = statusOptionValues.map((value) => ({ value, label: copy.statuses[value] }));
+  const statusOptions = statusOptionValues
+    .filter((value) => !['completed', 'cancelled'].includes(value) || value === form.status)
+    .map((value) => ({ value, label: copy.statuses[value] }));
   const priorityOptions = priorityOptionValues.map((value) => ({ value, label: copy.priorities[value] }));
-  const isFormValid = Boolean(form.title.trim());
+  const hasValidDateRange = !form.startDate || !form.dueDate || form.startDate <= form.dueDate;
+  const isFormValid = Boolean(form.title.trim()) && hasValidDateRange;
   const isQuickCreate = layout === 'quickCreate' && mode === 'create';
   const selectedUnitId = numericFormValue(form.unitId);
   const selectedBusinessId = numericFormValue(form.businessId);
   const selectedAssignedUserCompanyId = numericFormValue(form.assignedUserCompanyId);
+  const selectedProjectId = numericFormValue(form.projectId);
+  const selectedProcessId = numericFormValue(form.processId);
+  const selectedProjectValue =
+    selectedProjectId != null && projects.some((project) => project.id === selectedProjectId)
+      ? selectedProjectId.toString()
+      : NONE_VALUE;
+  const selectedProcessValue =
+    selectedProcessId != null && processes.some((process) => process.id === selectedProcessId)
+      ? selectedProcessId.toString()
+      : NONE_VALUE;
   const actorScope = resolveCollaboratorAssignmentScope(currentUserCollaborator);
   const scopedUnitOptions = filterUnitsForActor(unitOptions, businessOptions, actorScope);
   const actorBusinessOptions = filterBusinessesForActor(businessOptions, actorScope);
@@ -353,41 +355,52 @@ export function TaskFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideCloseButton
-        className={`!flex ${isQuickCreate ? 'h-[min(82vh,720px)]' : 'h-[min(88vh,820px)]'} w-[calc(100vw-2rem)] !max-w-3xl max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-3xl dark:border-slate-700 dark:bg-slate-800`}
-      >
-        <div className={processTaskModalHeaderClass}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="pr-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
-                {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-                {title}
-              </DialogTitle>
-              <DialogDescription className="mt-1 max-w-2xl text-sm font-medium leading-5 text-slate-800/80">
-                {description}
-              </DialogDescription>
-            </div>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={`${processTaskModalCloseActionClass} w-9 shrink-0 px-0`}
-                disabled={isSubmitting}
-                aria-label={copy.common.close}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
-          </div>
-        </div>
-
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+    <IndiceModalFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      busy={isSubmitting}
+      closeLabel={copy.common.close}
+      modalType="standard-form"
+      tone="yellow"
+      icon={mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+      title={title}
+      description={description}
+      contentClassName={isQuickCreate ? 'h-[min(82vh,720px)]' : 'h-[min(88vh,820px)]'}
+      footer={(
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={isSubmitting}
+            onClick={() => onOpenChange(false)}
+          >
+            {copy.common.cancel}
+          </Button>
+          <Button
+            type="submit"
+            form="process-task-form"
+            className="w-full sm:w-auto"
+            disabled={!isFormValid || isSubmitting}
+          >
+            {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+            {isSubmitting ? copy.common.saving : submitLabel}
+          </Button>
+        </>
+      )}
+    >
+        <form id="process-task-form" onSubmit={onSubmit} className="space-y-6">
+          <IndiceModalValidation
+            messages={[
+              ...(error ? [error] : []),
+              ...(!hasValidDateRange
+                ? [`${formCopy.labels.dueDate}: ${formCopy.labels.startDate}`]
+                : []),
+            ]}
+          />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.title}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.title}</label>
                 <Input
                   value={form.title}
                   onChange={(event) =>
@@ -402,7 +415,7 @@ export function TaskFormDialog({
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
                 <Textarea
                   value={form.description}
                   onChange={(event) =>
@@ -436,6 +449,7 @@ export function TaskFormDialog({
                 <Input
                   type="date"
                   value={form.startDate}
+                  max={form.dueDate || undefined}
                   onChange={(event) =>
                     setForm((currentForm) => ({ ...currentForm, startDate: event.target.value }))
                   }
@@ -448,6 +462,7 @@ export function TaskFormDialog({
                 <Input
                   type="date"
                   value={form.dueDate}
+                  min={form.startDate || undefined}
                   onChange={(event) =>
                     setForm((currentForm) => ({ ...currentForm, dueDate: event.target.value }))
                   }
@@ -470,18 +485,45 @@ export function TaskFormDialog({
               {!isQuickCreate ? (
                 <>
                   <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.process}</label>
+                    <Select
+                      value={selectedProcessValue}
+                      onValueChange={(value) =>
+                        setForm((currentForm) => ({
+                          ...currentForm,
+                          processId: value === NONE_VALUE ? '' : value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                        <SelectValue placeholder={formCopy.placeholders.process} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE_VALUE}>{formCopy.empty.process}</SelectItem>
+                        {processes.map((process) => (
+                          <SelectItem key={process.id} value={process.id.toString()}>
+                            {process.folio} - {process.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.project}</label>
                     <Select
-                      value={form.projectId || 'none'}
+                      value={selectedProjectValue}
                       onValueChange={(value) =>
-                        setForm((currentForm) => ({ ...currentForm, projectId: value === 'none' ? '' : value }))
+                        setForm((currentForm) => ({
+                          ...currentForm,
+                          projectId: value === NONE_VALUE ? '' : value,
+                        }))
                       }
                     >
                       <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                         <SelectValue placeholder={formCopy.placeholders.project} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">{formCopy.empty.project}</SelectItem>
+                        <SelectItem value={NONE_VALUE}>{formCopy.empty.project}</SelectItem>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
                             {project.folio} - {project.name}
@@ -557,30 +599,7 @@ export function TaskFormDialog({
               ) : null}
 
             </div>
-          </div>
-
-          <DialogFooter className={`${processTaskModalFooterClass} sticky bottom-0 z-10 grid grid-cols-1 gap-2 px-4 sm:flex sm:px-6`}>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={`${processTaskModalSecondaryActionClass} w-full sm:w-auto`}
-                disabled={isSubmitting}
-              >
-                {copy.common.cancel}
-              </Button>
-            </DialogClose>
-            <Button
-              type="submit"
-              className={`${processTaskModalPrimaryActionClass} w-full sm:w-auto`}
-              disabled={!isFormValid || isSubmitting}
-            >
-              {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-              {isSubmitting ? copy.common.saving : submitLabel}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }

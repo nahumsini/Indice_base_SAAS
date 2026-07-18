@@ -35,6 +35,7 @@ type AgendaScheduleViewProps = {
   displayStatusClasses: Record<DisplayTaskStatus, string>;
   isLoading: boolean;
   isTaskPending: (taskId: number) => boolean;
+  onCancelTask: (task: AgendaTaskItem) => void;
   onCloseTask: (task: AgendaTaskItem) => void;
   onDeleteTask: (task: AgendaTaskItem) => void;
   onEditTask: (task: AgendaTaskItem) => void;
@@ -61,6 +62,7 @@ export function AgendaScheduleView({
   displayStatusClasses,
   isLoading,
   isTaskPending,
+  onCancelTask,
   onCloseTask,
   onDeleteTask,
   onEditTask,
@@ -163,6 +165,7 @@ export function AgendaScheduleView({
         copy={copy}
         displayStatusClasses={displayStatusClasses}
         isPending={isTaskPending(task.taskId)}
+        onCancelTask={onCancelTask}
         onCloseTask={onCloseTask}
         onDeleteTask={onDeleteTask}
         onEditTask={onEditTask}

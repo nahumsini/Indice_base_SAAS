@@ -28,6 +28,7 @@ export function CorteDetailModal({
 
   return (
     <CortesModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar detalle de corte"
       eyebrow="Detalle operativo"
       icon={<ReceiptText className="h-5 w-5" />}
@@ -35,7 +36,7 @@ export function CorteDetailModal({
       open={open}
       size="xl"
       title="Detalle de corte"
-      subtitle={detail ? `COR-${detail.id} - ${formatDateTime(detail.closedAt)}` : 'Cargando informacion del cierre'}
+      subtitle={detail ? `COR-${detail.id} - ${formatDateTime(detail.closedAt)}` : 'Cargando información del cierre'}
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button

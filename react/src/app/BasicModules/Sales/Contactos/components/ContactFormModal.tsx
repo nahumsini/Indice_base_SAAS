@@ -58,8 +58,9 @@ export function ContactFormModal({
       icon={<UsersRound className="h-5 w-5" />}
       title={editingContact ? copy.modal.editTitle : copy.modal.createTitle}
       description={copy.modal.description}
-      contentClassName="flex max-h-[calc(100vh-2rem)] w-[min(94vw,960px)] max-w-none flex-col sm:max-w-none"
-      bodyClassName="!max-h-none min-h-0 flex-1 space-y-5 overflow-y-auto bg-slate-50/70 px-6 py-5"
+      closeLabel={copy.modal.cancel}
+      modalType="standard-form"
+      bodyClassName="space-y-5 bg-slate-50/70"
       footer={
         <>
           <Button
@@ -76,7 +77,7 @@ export function ContactFormModal({
       }
     >
       {formError ? (
-        <div className="flex items-start gap-3 rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-bold text-[#B63B32]">
+        <div className="flex items-start gap-3 rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-medium text-[#B63B32]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <p>{formError}</p>
         </div>

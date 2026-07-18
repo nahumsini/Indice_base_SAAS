@@ -81,7 +81,8 @@ export function CommissionManagementModal({
       icon={<BadgePercent className="h-6 w-6" />}
       title={t.commissionModal.title}
       description={t.commissionModal.description}
-      contentClassName="max-w-[680px]"
+      closeLabel={t.common.cancel}
+      modalType="standard-form"
       bodyClassName="space-y-5"
       footer={(
         <>
@@ -91,8 +92,8 @@ export function CommissionManagementModal({
       )}
     >
       <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 px-4 py-3">
-        <p className="text-sm font-black text-[#B63B32]">{record?.saleNumber ?? t.common.notAvailable}</p>
-        <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
+        <p className="text-sm font-semibold text-[#B63B32]">{record?.saleNumber ?? t.common.notAvailable}</p>
+        <p className="mt-1 text-sm font-normal text-slate-600 dark:text-slate-300">
           {record?.customerName ?? t.common.notAvailable} · {formatSalesCurrency(record?.totalAmount ?? 0, record?.currency ?? defaultSalesCurrency)}
         </p>
       </div>
@@ -111,7 +112,7 @@ export function CommissionManagementModal({
           <Input type="number" value={draft.commissionAmount} onChange={(event) => setDraft((current) => ({ ...current, commissionAmount: Number(event.target.value) }))} className={salesFieldClassName} />
         </FormField>
         <div className="flex items-end">
-          <Button type="button" variant="outline" className="h-11 rounded-lg border-[#FF6B5E]/25 bg-white px-4 font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-950 dark:text-[#FFB0AA]" onClick={handleUseSuggestedAmount}>
+          <Button type="button" variant="outline" className="h-11 rounded-lg border-[#FF6B5E]/25 bg-white px-4 font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-950 dark:text-[#FFB0AA]" onClick={handleUseSuggestedAmount}>
             {t.commissionModal.useSuggestedAmount}
           </Button>
         </div>

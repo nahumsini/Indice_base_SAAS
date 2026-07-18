@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, ExternalLink, File, Image as ImageIcon, Paperclip, Trash2, Upload, X } from 'lucide-react';
+import { Download, ExternalLink, File, Image as ImageIcon, Paperclip, Trash2, Upload } from 'lucide-react';
+import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import {
   budgetLineAttachmentsService,
   expenseAttachmentsService,
@@ -7,7 +9,7 @@ import {
   type ExpenseAttachment,
 } from '../../services/expense-attachments.service';
 import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
-import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
+import { financeModalPrimaryButtonClass } from '../../components/modals/FinanceModalPrimitives';
 
 interface LocalAttachment {
   id: string;
@@ -43,7 +45,6 @@ export function AttachmentsModal({
   onChanged,
 }: AttachmentsModalProps) {
   const t = useExpensesTranslations();
-  const { panelRef, titleId } = useFinanceModalAccessibility(onClose);
   const accent = moduleVariant === 'sales' ? '#FF6B5E' : '#147514';
   const accentText = moduleVariant === 'sales' ? '#B63B32' : '#147514';
   const objectUrlsRef = useRef<Set<string>>(new Set());
@@ -51,9 +52,13 @@ export function AttachmentsModal({
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [storedFiles, setStoredFiles] = useState<ExpenseAttachment[]>([]);
   const [localFiles, setLocalFiles] = useState<LocalAttachment[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<
+    { kind: 'backend'; file: ExpenseAttachment } | { kind: 'local'; file: LocalAttachment } | null
+  >(null);
   const attachmentOwner = useMemo(() => resolveAttachmentOwner(expenseId), [expenseId]);
   const usesBackend = Boolean(attachmentOwner);
 
@@ -118,25 +123,29 @@ export function AttachmentsModal({
     onSave?.(updatedFiles.map(serializeLocalAttachment));
   };
 
-  const removeBackendFile = async (file: ExpenseAttachment) => {
-    if (!attachmentOwner) return;
+  const confirmRemoveFile = async () => {
+    if (!pendingDelete) return;
     setErrorMessage('');
+    setIsDeleting(true);
     try {
-      await attachmentOwner.service.remove(attachmentOwner.id, file.id);
-      const nextFiles = storedFiles.filter(item => item.id !== file.id);
-      setStoredFiles(nextFiles);
-      onChanged?.(nextFiles.map(item => item.originalFilename));
+      if (pendingDelete.kind === 'backend') {
+        if (!attachmentOwner) return;
+        await attachmentOwner.service.remove(attachmentOwner.id, pendingDelete.file.id);
+        const nextFiles = storedFiles.filter(item => item.id !== pendingDelete.file.id);
+        setStoredFiles(nextFiles);
+        onChanged?.(nextFiles.map(item => item.originalFilename));
+      } else {
+        revokeLocalObjectUrl(pendingDelete.file, objectUrlsRef.current);
+        const nextFiles = localFiles.filter(file => file.id !== pendingDelete.file.id);
+        setLocalFiles(nextFiles);
+        onSave?.(nextFiles.map(serializeLocalAttachment));
+      }
+      setPendingDelete(null);
     } catch (error) {
       setErrorMessage(messageFrom(error, t.expenses.attachments.operationFailed));
+    } finally {
+      setIsDeleting(false);
     }
-  };
-
-  const removeLocalFile = (id: string) => {
-    const fileToRemove = localFiles.find(file => file.id === id);
-    revokeLocalObjectUrl(fileToRemove, objectUrlsRef.current);
-    const updatedFiles = localFiles.filter(file => file.id !== id);
-    setLocalFiles(updatedFiles);
-    onSave?.(updatedFiles.map(serializeLocalAttachment));
   };
 
   const filesCount = usesBackend ? storedFiles.length : localFiles.length;
@@ -145,24 +154,23 @@ export function AttachmentsModal({
     : localFiles.reduce((sum, file) => sum + file.size, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-gray-800">
-        <div className="flex flex-shrink-0 items-center justify-between px-6 py-4 text-white" style={{ backgroundColor: accent }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20">
-              <Paperclip className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 id={titleId} className="text-xl font-bold text-white">{t.expenses.attachments.title}</h2>
-              <p className="text-sm text-white/90">{expenseFolio} - {expenseConcept}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white" aria-label={t.columnModal.close} type="button">
-            <X className="h-5 w-5" />
+    <>
+      <IndiceModalFrame
+        busy={isUploading || isDeleting}
+        closeLabel={t.columnModal.close}
+        description={`${expenseFolio} · ${expenseConcept}`}
+        footer={(
+          <button onClick={onClose} type="button" className={financeModalPrimaryButtonClass} style={{ color: accentText }}>
+            {t.columnModal.close}
           </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
+        )}
+        footerSummary={`${filesCount} ${filesCount === 1 ? 'archivo' : 'archivos'} · ${formatFileSize(totalSize)} · Guardado automático`}
+        icon={<Paperclip className="h-5 w-5" />}
+        onOpenChange={(open) => !open && onClose()}
+        open={isOpen}
+        title={t.expenses.attachments.title}
+        tone={moduleVariant === 'sales' ? 'coral' : 'green'}
+      >
           <UploadDropzone
             accent={accent}
             accentText={accentText}
@@ -176,11 +184,7 @@ export function AttachmentsModal({
             uploadingLabel={t.expenses.attachments.uploading}
           />
 
-          {errorMessage && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-              {errorMessage}
-            </div>
-          )}
+          <IndiceModalValidation className="mt-4" messages={errorMessage ? [errorMessage] : []} title={t.expenses.attachments.operationFailed} />
 
           <div className="mt-6">
             <div className="mb-4 flex items-center justify-between">
@@ -194,21 +198,27 @@ export function AttachmentsModal({
             {isLoading ? (
               <EmptyState label={t.expenses.attachments.loading} />
             ) : usesBackend ? (
-              <BackendFiles emptyLabel={t.expenses.attachments.empty} files={storedFiles} onRemove={removeBackendFile} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
+              <BackendFiles emptyLabel={t.expenses.attachments.empty} files={storedFiles} onRemove={(file) => setPendingDelete({ kind: 'backend', file })} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
             ) : (
-              <LocalFiles emptyLabel={t.expenses.attachments.empty} files={localFiles} onRemove={removeLocalFile} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
+              <LocalFiles emptyLabel={t.expenses.attachments.empty} files={localFiles} onRemove={(id) => {
+                const file = localFiles.find(item => item.id === id);
+                if (file) setPendingDelete({ kind: 'local', file });
+              }} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
             )}
           </div>
-        </div>
-
-        <div className="flex flex-shrink-0 items-center justify-between gap-3 px-6 py-4 text-white" style={{ backgroundColor: accent }}>
-          <p className="text-xs text-white/80">{usesBackend ? t.expenses.attachments.storedHint : t.expenses.attachments.saveHint}</p>
-          <button onClick={onClose} type="button" className="rounded-xl bg-white px-5 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50" style={{ color: accentText }}>
-            {usesBackend ? t.columnModal.close : t.common.cancel}
-          </button>
-        </div>
-      </div>
-    </div>
+      </IndiceModalFrame>
+      <ConfirmDeleteDialog
+        cancelLabel={t.common.cancel}
+        confirmDisabled={isDeleting}
+        confirmLabel={isDeleting ? 'Eliminando…' : t.expenses.attachments.remove}
+        description="El archivo dejará de estar disponible en este registro. Esta acción no se puede deshacer."
+        isVisible={Boolean(pendingDelete)}
+        itemName={pendingDelete?.kind === 'backend' ? pendingDelete.file.originalFilename : pendingDelete?.file.name}
+        onCancel={() => !isDeleting && setPendingDelete(null)}
+        onConfirm={() => void confirmRemoveFile()}
+        title="Eliminar archivo adjunto"
+      />
+    </>
   );
 }
 

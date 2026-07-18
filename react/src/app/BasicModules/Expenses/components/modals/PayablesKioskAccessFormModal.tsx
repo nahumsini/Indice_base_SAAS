@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react';
-import { Loader2, Store, X } from 'lucide-react';
-import { Button } from '../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '../../../../components/ui/dialog';
+import { Loader2, Store } from 'lucide-react';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { PayableKiosk } from '../../services';
 import type { PayableKioskFormState } from './PayablesKioskManagementModal';
@@ -20,7 +19,7 @@ type PayablesKioskAccessFormModalProps = {
   unitOptions: FinanceReferenceOption[];
 };
 
-const inputClass = 'h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100';
+const inputClass = 'h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100';
 export function PayablesKioskAccessFormModal({
   businessOptions,
   editing,
@@ -40,31 +39,28 @@ export function PayablesKioskAccessFormModal({
     : businessOptions;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent hideCloseButton className="max-h-[calc(100vh-1rem)] w-[min(94vw,560px)] overflow-hidden rounded-[28px] border-0 bg-white p-0 shadow-2xl dark:bg-slate-900">
-        <header className="flex items-start justify-between gap-4 bg-[#147514] px-5 py-5 text-white sm:px-6">
-          <div className="flex items-start gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-              <Store className="h-6 w-6" />
-            </span>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-white/70">
-                {editing ? t.common.edit : copy.newAccess}
-              </p>
-              <DialogTitle className="mt-1 text-2xl font-black text-white">
-                {editing ? copy.editTitle : copy.createTitle}
-              </DialogTitle>
-              <DialogDescription className="mt-1 text-sm font-semibold text-white/80">
-                {copy.formDescription}
-              </DialogDescription>
-            </div>
-          </div>
-          <button onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 hover:bg-white/20" type="button" aria-label={t.columnModal.close}>
-            <X className="h-5 w-5" />
+    <IndiceModalFrame
+      busy={isSaving}
+      contentClassName="sm:max-w-[560px]"
+      description={copy.formDescription}
+      eyebrow={editing ? t.common.edit : copy.newAccess}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" disabled={isSaving} onClick={onClose} className="h-11 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">{t.common.cancel}</button>
+          <button type="button" disabled={isSaving || !form.name.trim()} onClick={onSave} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:opacity-50">
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {editing ? t.common.saveChanges : copy.createAccess}
           </button>
-        </header>
-
-        <section className="max-h-[calc(100vh-13rem)] overflow-y-auto bg-slate-50 p-4 dark:bg-slate-950/60 sm:p-5">
+        </div>
+      )}
+      footerSummary={form.name || copy.newAccess}
+      icon={<Store className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => !open && onClose()}
+      open={isOpen}
+      title={editing ? copy.editTitle : copy.createTitle}
+      tone="green"
+    >
           <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
             <div className="grid gap-4">
               <Field label={copy.name} required>
@@ -98,26 +94,14 @@ export function PayablesKioskAccessFormModal({
               </Field>
             </div>
           </div>
-        </section>
-
-        <DialogFooter className="flex-col gap-3 bg-[#147514] px-5 py-4 sm:flex-row sm:px-6">
-          <Button type="button" variant="outline" className="h-11 w-full rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:w-auto" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button type="button" disabled={isSaving} className="h-11 w-full rounded-xl bg-white text-[#147514] hover:bg-slate-100 sm:w-auto" onClick={onSave}>
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {editing ? t.common.saveChanges : copy.createAccess}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
 function Field({ children, label, required }: { children: ReactNode; label: string; required?: boolean }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+      <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
         {label}{required ? ' *' : ''}
       </span>
       {children}

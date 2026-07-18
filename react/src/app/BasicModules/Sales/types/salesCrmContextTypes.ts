@@ -25,7 +25,18 @@ export type CreateQuoteInput = Omit<SalesQuote, 'id' | 'quoteNumber' | 'lastUpda
 export type UpdateQuoteInput = Partial<Omit<SalesQuote, 'id' | 'quoteNumber'>>;
 export type CreatePostSaleCaseInput = Omit<SalesPostSaleCase, 'id' | 'lastUpdated'> & { lastUpdated?: string };
 
+export type SalesCrmSyncIssue = {
+  action: string;
+  message: string;
+  occurredAt: string;
+};
+
 export type SalesCrmContextValue = {
+  isLoading: boolean;
+  isSyncing: boolean;
+  loadError: string;
+  hasPartialData: boolean;
+  syncIssue: SalesCrmSyncIssue | null;
   contacts: SalesContact[];
   opportunities: SalesOpportunity[];
   products: SalesCatalogItem[];
@@ -45,6 +56,8 @@ export type SalesCrmContextValue = {
   updateProductRecord: (productId: string, patch: UpdateProductInput) => Promise<SalesCatalogItem>;
   reloadProducts: () => Promise<void>;
   reloadSalesRecords: () => Promise<void>;
+  reloadAll: () => Promise<void>;
+  clearSyncIssue: () => void;
   addQuote: (quote: CreateQuoteInput) => SalesQuote;
   updateQuote: (quoteId: string, patch: UpdateQuoteInput) => void;
   addSaleRecord: (saleRecord: SaleRecord) => Promise<SaleRecord>;

@@ -49,6 +49,7 @@ export function CashAuditDetailPanel({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar detalle de arqueo"
       eyebrow="Arqueo POS"
       icon={<ClipboardCheck className="h-6 w-6" />}

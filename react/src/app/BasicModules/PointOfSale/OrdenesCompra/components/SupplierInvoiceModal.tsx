@@ -122,10 +122,11 @@ export function SupplierInvoiceModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       onClose={onClose}
       closeLabel="Cerrar factura de proveedor"
       title="Factura de proveedor"
-      subtitle="Registro tipo kiosko para que compras revise y autorice pago."
+      subtitle="Registro tipo kiosco para que Compras revise y autorice el pago."
       eyebrow="Cuentas por pagar POS"
       icon={<FileText className="h-6 w-6" />}
       tone="coral"

@@ -1,5 +1,6 @@
-import { Building2, Check, FileText, Pencil, Plus, ReceiptText, X } from 'lucide-react';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { Check, Pencil, Plus } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
 import {
   getBudgetTaxProfile,
   getDefaultBudgetTaxProfile,
@@ -17,7 +18,13 @@ import type { FinanceReferenceOption } from '../../types/finance-reference.types
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from './BudgetTaxControls';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
-import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
+import {
+  FinanceFieldLabel,
+  FinanceModalSection,
+  financeModalInputClass,
+  financeModalPrimaryButtonClass,
+  financeModalSecondaryButtonClass,
+} from './FinanceModalPrimitives';
 
 export type ExpenseFormValues = {
   accountingAccount: string;
@@ -70,8 +77,6 @@ type ExpenseDraftState = TaxControlDraft & {
   status: ExpenseStatus;
 };
 
-const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
-
 export function ExpenseFormModal({
   accountingAccountOptions = [],
   businessOptions = [],
@@ -84,14 +89,15 @@ export function ExpenseFormModal({
   onSubmitExpense,
 }: ExpenseFormModalProps) {
   const t = useExpensesTranslations();
-  const { panelRef, titleId } = useFinanceModalAccessibility<HTMLFormElement>(onClose);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
   const isEditMode = Boolean(editingExpense);
   const amount = toMoneyNumber(draft.amount);
   const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;
   const subtotal = draft.taxEnabled && draft.taxIncluded ? Math.max(amount - taxes, 0) : amount;
   const total = draft.taxEnabled && draft.taxIncluded ? amount : amount + taxes;
-  const canSubmit = draft.concept.trim().length > 0 && amount > 0 && draft.budgetCurrencyCode.trim().length > 0;
+  const canSubmit = draft.concept.trim().length > 0 && amount > 0 && draft.budgetCurrencyCode.trim().length > 0 && !isSaving;
   const scopedBusinessOptions = filterBusinessesForUnit(businessOptions, draft.businessUnit);
   const providerOptions = providers
     .filter(provider => provider.status !== 'inactive')
@@ -100,6 +106,7 @@ export function ExpenseFormModal({
     ? accountingAccountOptions
     : createFallbackAccountingOptions(editingExpense?.accountingAccount);
   const updateDraft = (updates: Partial<ExpenseDraftState>) => {
+    setErrorMessage('');
     setDraft(current => ({ ...current, ...updates }));
   };
 
@@ -120,142 +127,116 @@ export function ExpenseFormModal({
     updateDraft({ businessUnit, business: keepBusiness ? draft.business : '' });
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
 
     const taxProfile = draft.taxEnabled ? getBudgetTaxProfile(draft.taxProfileId, draft.taxCountry) : undefined;
-    void onSubmitExpense({
-      accountingAccount: draft.accountingAccount,
-      amount: subtotal,
-      attachments: editingExpense?.attachments ?? [],
-      business: draft.business,
-      businessUnit: draft.businessUnit,
-      concept: draft.concept.trim(),
-      currency: draft.budgetCurrencyCode,
-      description: draft.description.trim(),
-      dueDate: draft.dueDate,
-      paymentDate: draft.paymentDate,
-      paymentMethod: draft.paymentMethod,
-      providerId: draft.providerId,
-      status: draft.status,
-      taxes,
-      taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
-      taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
-      taxMode: draft.taxEnabled ? draft.taxMode : 'none',
-      taxName: draft.taxEnabled ? taxProfile?.shortName ?? taxProfile?.label : undefined,
-      taxProfileId: draft.taxEnabled ? draft.taxProfileId : undefined,
-      taxRate: draft.taxEnabled ? toPercentNumber(draft.taxRate) : undefined,
-      taxRegion: taxProfile?.region,
-      taxSpecialAmount: draft.taxEnabled ? toMoneyNumber(draft.taxSpecialAmount) : undefined,
-      total,
-    });
+    setIsSaving(true);
+    setErrorMessage('');
+    try {
+      await onSubmitExpense({
+        accountingAccount: draft.accountingAccount,
+        amount: subtotal,
+        attachments: editingExpense?.attachments ?? [],
+        business: draft.business,
+        businessUnit: draft.businessUnit,
+        concept: draft.concept.trim(),
+        currency: draft.budgetCurrencyCode,
+        description: draft.description.trim(),
+        dueDate: draft.dueDate,
+        paymentDate: draft.paymentDate,
+        paymentMethod: draft.paymentMethod,
+        providerId: draft.providerId,
+        status: draft.status,
+        taxes,
+        taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
+        taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
+        taxMode: draft.taxEnabled ? draft.taxMode : 'none',
+        taxName: draft.taxEnabled ? taxProfile?.shortName ?? taxProfile?.label : undefined,
+        taxProfileId: draft.taxEnabled ? draft.taxProfileId : undefined,
+        taxRate: draft.taxEnabled ? toPercentNumber(draft.taxRate) : undefined,
+        taxRegion: taxProfile?.region,
+        taxSpecialAmount: draft.taxEnabled ? toMoneyNumber(draft.taxSpecialAmount) : undefined,
+        total,
+      });
+    } catch {
+      setErrorMessage(isEditMode ? t.expenses.messages.updateFailed : t.expenses.messages.createFailed);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  const formId = `expense-form-${editingExpense?.id ?? 'new'}`;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
-      <form ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
-              {isEditMode ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-            </span>
-            <div>
-              <h3 id={titleId} className="text-xl font-bold text-white">{isEditMode ? t.expenses.modal.edit : t.expenses.headerButton}</h3>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{t.expenses.modal.subtitle}</p>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
-          <div className="space-y-5">
-            <StepCard description={t.expenses.modal.description} icon={<ReceiptText className="h-5 w-5" />} title={t.expenses.modal.mainTitle}>
-              <FieldGroup title={t.expenses.modal.groupTitle}>
-                <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
-                <SelectInput label={t.expenses.columns.status?.label ?? t.filters.status} value={draft.status} onChange={(status) => updateDraft({ status: status as ExpenseStatus })} options={createStatusOptions(t.expenses.table.statuses)} />
-                <DateInput label={t.expenses.columns.dueDate?.label ?? 'Due date'} value={draft.dueDate} onChange={(dueDate) => updateDraft({ dueDate })} />
-                <SelectInput label={t.expenses.columns.paymentMethod?.label ?? 'Payment method'} value={draft.paymentMethod} onChange={(paymentMethod) => updateDraft({ paymentMethod: paymentMethod as PaymentMethod })} options={createPaymentMethodOptions(t.expenses.table.paymentMethods)} />
-                <div className="md:col-span-2">
-                  <TextareaInput label={t.expenses.columns.description?.label ?? 'Description'} value={draft.description} onChange={(description) => updateDraft({ description })} placeholder={t.expenses.modal.placeholderConcept} />
-                </div>
-              </FieldGroup>
-            </StepCard>
-
-            <StepCard description={t.expenses.headerSubtitle} icon={<Building2 className="h-5 w-5" />} title={t.filters.title}>
-              <FieldGroup title={t.filters.title}>
-                <SelectInput label={t.filters.unit} value={draft.businessUnit} onChange={updateBusinessUnit} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
-                <SelectInput label={t.filters.business} value={draft.business} onChange={(business) => updateDraft({ business })} options={[{ value: '', label: t.common.unassigned }, ...scopedBusinessOptions]} />
-                <SelectInput label={t.filters.provider} value={draft.providerId} onChange={(providerId) => updateDraft({ providerId })} options={[{ value: '', label: t.common.unassigned }, ...providerOptions]} />
-                <SelectInput label={t.expenses.columns.accountingAccount?.label ?? 'Accounting account'} value={draft.accountingAccount} onChange={(accountingAccount) => updateDraft({ accountingAccount })} options={[{ value: '', label: t.common.unassigned }, ...accountingOptions]} />
-              </FieldGroup>
-            </StepCard>
-
-            <StepCard description={t.expenses.modal.description} icon={<FileText className="h-5 w-5" />} title={t.expenses.modal.summaryTotal}>
-              <FieldGroup title={t.expenses.modal.groupTitle}>
-                <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
-                <SelectInput label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
-                <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
-                <div className="md:col-span-2 grid gap-3 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-4 md:grid-cols-3">
-                  <SummaryMetric label={t.expenses.modal.summarySubtotal} value={formatCurrency(subtotal, draft.budgetCurrencyCode)} />
-                  <SummaryMetric label={t.expenses.modal.summaryTaxes} value={formatCurrency(taxes, draft.budgetCurrencyCode)} />
-                  <SummaryMetric label={t.expenses.modal.summaryTotal} value={formatCurrency(total, draft.budgetCurrencyCode)} strong />
-                </div>
-              </FieldGroup>
-            </StepCard>
-
-          </div>
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-[#0b3f1b]">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
-          <button type="submit" disabled={!canSubmit} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
+    <IndiceModalFrame
+      busy={isSaving}
+      closeLabel={t.columnModal.close}
+      description={t.expenses.modal.subtitle}
+      footer={(
+        <>
+          <button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving} onClick={onClose}>{t.common.cancel}</button>
+          <button type="submit" form={formId} disabled={!canSubmit} className={financeModalPrimaryButtonClass}>
             <Check className="h-4 w-4" />
-            {isEditMode ? t.common.saveChanges : t.expenses.modal.create}
+            {isSaving ? 'Guardando…' : isEditMode ? t.common.saveChanges : t.expenses.modal.create}
           </button>
-        </div>
+        </>
+      )}
+      footerSummary={`${draft.concept.trim() || 'Gasto sin concepto'} · ${formatCurrency(total, draft.budgetCurrencyCode)}`}
+      icon={isEditMode ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+      onOpenChange={(open) => !open && onClose()}
+      open
+      title={isEditMode ? t.expenses.modal.edit : t.expenses.headerButton}
+      tone="green"
+    >
+      <form id={formId} className="space-y-4" onSubmit={handleSubmit}>
+        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
+        <FinanceModalSection title={t.expenses.modal.mainTitle} description={t.expenses.modal.description}>
+          <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
+          <SelectInput label={t.expenses.columns.status?.label ?? t.filters.status} value={draft.status} onChange={(status) => updateDraft({ status: status as ExpenseStatus })} options={createStatusOptions(t.expenses.table.statuses)} />
+          <DateInput label={t.expenses.columns.dueDate?.label ?? 'Fecha de vencimiento'} value={draft.dueDate} onChange={(dueDate) => updateDraft({ dueDate })} />
+          <SelectInput label={t.expenses.columns.paymentMethod?.label ?? 'Método de pago'} value={draft.paymentMethod} onChange={(paymentMethod) => updateDraft({ paymentMethod: paymentMethod as PaymentMethod })} options={createPaymentMethodOptions(t.expenses.table.paymentMethods)} />
+          <div className="md:col-span-2">
+            <TextareaInput label={t.expenses.columns.description?.label ?? 'Descripción'} value={draft.description} onChange={(description) => updateDraft({ description })} placeholder={t.expenses.modal.placeholderConcept} />
+          </div>
+        </FinanceModalSection>
+
+        <FinanceModalSection title={t.filters.title} description={t.expenses.headerSubtitle}>
+          <SelectInput label={t.filters.unit} value={draft.businessUnit} onChange={updateBusinessUnit} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
+          <SelectInput label={t.filters.business} value={draft.business} onChange={(business) => updateDraft({ business })} options={[{ value: '', label: t.common.unassigned }, ...scopedBusinessOptions]} />
+          <SelectInput label={t.filters.provider} value={draft.providerId} onChange={(providerId) => updateDraft({ providerId })} options={[{ value: '', label: t.common.unassigned }, ...providerOptions]} />
+          <SelectInput label={t.expenses.columns.accountingAccount?.label ?? 'Cuenta contable'} value={draft.accountingAccount} onChange={(accountingAccount) => updateDraft({ accountingAccount })} options={[{ value: '', label: t.common.unassigned }, ...accountingOptions]} />
+        </FinanceModalSection>
+
+        <FinanceModalSection title={t.expenses.modal.summaryTotal} description={t.expenses.modal.description}>
+          <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
+          <SelectInput label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
+          <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
+          <IndiceModalSummary
+            className="md:col-span-2"
+            columns={3}
+            items={[
+              { label: t.expenses.modal.summarySubtotal, value: formatCurrency(subtotal, draft.budgetCurrencyCode) },
+              { label: t.expenses.modal.summaryTaxes, value: formatCurrency(taxes, draft.budgetCurrencyCode) },
+              { emphasized: true, label: t.expenses.modal.summaryTotal, value: formatCurrency(total, draft.budgetCurrencyCode) },
+            ]}
+            variant="success"
+          />
+        </FinanceModalSection>
       </form>
-    </div>
-  );
-}
-
-function StepCard({ children, description, icon, title }: { children: ReactNode; description: string; icon: ReactNode; title: string }) {
-  return (
-    <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="mb-6 flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]">
-          {icon}
-        </span>
-        <div>
-          <h3 className="text-base font-bold text-slate-950 dark:text-white">{title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function FieldGroup({ children, title }: { children: ReactNode; title: string }) {
-  return (
-    <section className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/45">
-      <h4 className="mb-4 text-sm font-bold text-slate-950 dark:text-white">{title}</h4>
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{children}</div>
-    </section>
+    </IndiceModalFrame>
   );
 }
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
-  return <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}{required ? ' *' : ''}</span>;
+  return <FinanceFieldLabel label={label} required={required} />;
 }
 
 function TextInput({ label, onChange, placeholder, required, value }: { label: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; value: string }) {
   return (
     <label>
       <FieldLabel label={label} required={required} />
-      <input required={required} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={inputClass} />
+      <input required={required} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={financeModalInputClass} />
     </label>
   );
 }
@@ -264,7 +245,7 @@ function MoneyInput({ label, onChange, placeholder, required, value }: { label: 
   return (
     <label>
       <FieldLabel label={label} required={required} />
-      <input required={required} min={required ? 0.01 : 0} step="0.01" type="number" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={inputClass} />
+      <input required={required} min={required ? 0.01 : 0} step="0.01" type="number" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={financeModalInputClass} />
     </label>
   );
 }
@@ -273,7 +254,7 @@ function DateInput({ label, onChange, value }: { label: string; onChange: (value
   return (
     <label>
       <FieldLabel label={label} />
-      <input type="date" value={value} onChange={(event) => onChange(event.target.value)} className={inputClass} />
+      <input type="date" value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass} />
     </label>
   );
 }
@@ -282,7 +263,7 @@ function TextareaInput({ label, onChange, placeholder, value }: { label: string;
   return (
     <label>
       <FieldLabel label={label} />
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={`${inputClass} min-h-24 resize-y`} />
+      <textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={`${financeModalInputClass} min-h-24 resize-y`} />
     </label>
   );
 }
@@ -303,19 +284,10 @@ function SelectInput({
   return (
     <label>
       <FieldLabel label={label} required={required} />
-      <select required={required} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
+      <select required={required} value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass}>
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </label>
-  );
-}
-
-function SummaryMetric({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p className={`mt-1 text-sm ${strong ? 'font-extrabold text-[#147514]' : 'font-bold text-slate-900 dark:text-slate-100'}`}>{value}</p>
-    </div>
   );
 }
 

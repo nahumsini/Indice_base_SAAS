@@ -798,14 +798,32 @@ Rules:
 
 All modals must follow the Indice modal system.
 
-Approved modal types:
+Before designing or changing a business modal, assign exactly one of these workflow types:
 
-- Confirmation
-- Standard Form
-- Columns
-- Wizard
-- Large Workspace
-- Full Workspace only for POS, kiosk, builder, or specialized workspaces
+1. Confirmation Modal
+2. Standard Form Modal
+3. Modal Wizard Índice
+4. Operational Workspace Modal
+
+`ColumnsModal` remains an approved system utility, not a fifth business workflow type. A Full Workspace is an exceptional route or surface reserved for POS, kiosk, builder, or another specialized workspace.
+
+### Mandatory modal classification checklist
+
+Answer these questions in order and stop at the first match:
+
+1. **Does the user only need to confirm or cancel one consequential action?** Use a Confirmation Modal.
+2. **Can the task be completed as one coherent form, without dependent stages?** Use a Standard Form Modal.
+3. **Does the task contain two or more dependent stages that require gated progress and a final review?** Use a Modal Wizard Índice.
+4. **Must the user compare, select, configure, or reconcile dense information in parallel?** Use an Operational Workspace Modal.
+
+Additional mandatory checks:
+
+- if a flow only looks long, first simplify and group it before promoting it to a wizard
+- if stages do not depend on each other, use a standard form with sections
+- if users need a table, builder, multi-pane context, or bulk operations throughout the task, use an operational workspace
+- do not use a workspace only to obtain a wider modal
+- record the selected modal type in the implementation plan and final report
+- deviations from the assigned type require a written UX reason
 
 Do not create one-off modal styles.
 
@@ -837,9 +855,18 @@ Avoid visual noise.
 
 ---
 
-## 19. Wizard Modal Standard
+## 19. Modal Wizard Índice
 
-Reference:
+Official visual and interaction reference:
+
+- Sales → Nueva venta
+- `react/src/app/BasicModules/Sales/Sales/components/SalesDetailModal.tsx`
+- `react/src/app/BasicModules/Sales/Sales/components/SalesCreateForm.tsx`
+- `react/src/app/BasicModules/Sales/components/SalesModalFrame.tsx`
+
+As of July 17, 2026, Nueva venta is the canonical reference for new Indice wizards. Reproduce its hierarchy and interaction model before introducing module-specific variation.
+
+Secondary implementation reference:
 
 - `react/src/app/BasicModules/HumanResources/Employees/components/CreateEmployeeModal/CreateEmployeeModal.tsx`
 - `react/src/app/BasicModules/HumanResources/Employees/components/CreateEmployeeModal/components/EmployeeModalFrame.tsx`
@@ -856,26 +883,76 @@ Use this pattern for:
 Required:
 
 - centered modal
-- approximate width: HR Add Collaborator, around `max-w-[900px]`
+- approximate width: Nueva venta, around `max-w-[900px]`
 - rounded corners, around `rounded-[28px]`
 - solid module-colored header
-- header includes icon, step pill, title, and short description
-- step progress below header
-- step cards/tabs when the flow has clear stages
+- header includes icon, current-step context, title, and one short description
+- all copy uses natural sentence case; do not use all caps for section titles or labels
+- use medium weight by default and reserve bold weight for the title, critical totals, and the primary action
+- compact step progress is the first element in the body
+- completed, active, and upcoming steps must be visually distinct
 - grouped body sections with clean neutral background
-- body may scroll
+- each step contains only the information and decisions needed at that moment
+- inherited or read-only data uses a compact summary surface
+- validation appears next to the current step and explains how to continue
+- body may scroll while header and footer remain stable
+- state must survive Back and Continue navigation
+- final step provides a complete review before submission
 - footer remains visible
 - solid module-colored footer
 - Cancel on the left
-- Back, Continue, Save on the right
+- a short live summary may sit between Cancel and the progression actions
+- Back, Continue, Preview, and Create or Save remain on the right
+- Preview is shown only when it is meaningful, normally on the final review step
 - disabled buttons remain visually clear
 - production shadow
+
+Do not add a permanent side summary to a standard-width wizard. Use compact contextual summaries inside each step and a complete final review. An operational workspace may use a persistent side panel when parallel context is essential.
+
+### Reusable Modal Wizard Índice components
+
+Shared, presentation-only primitives live in:
+
+- `react/src/app/components/indice-modal/IndiceModalWizardStepper.tsx`
+- `react/src/app/components/indice-modal/IndiceModalFooter.tsx`
+- `react/src/app/components/indice-modal/IndiceModalValidation.tsx`
+- `react/src/app/components/indice-modal/IndiceModalSummary.tsx`
+- `react/src/app/components/indice-modal/index.ts`
+
+Responsibilities:
+
+- `IndiceModalWizardStepper`: renders completed, active, and upcoming steps with the module accent; it does not decide whether a step is valid
+- `IndiceModalFooter`: maintains Cancel or secondary content on the left, live summary in the center, and progressive actions on the right
+- `IndiceModalValidation`: presents one or more accessible error, warning, or information messages
+- `IndiceModalSummary`: presents inherited, read-only, operational, or final-review values at consistent density
+
+Business modules remain responsible for:
+
+- step definitions and order
+- validation rules and error copy
+- API payloads and adapters
+- permission checks
+- save and retry behavior
+- deciding when Back, Continue, Preview, or Save is enabled
+
+### Wizard implementation checklist
+
+- [ ] The modal was classified as a wizard using the mandatory checklist.
+- [ ] Every step has one clear objective.
+- [ ] Continue validates the current step before navigation.
+- [ ] Back preserves completed input.
+- [ ] The final step reviews all consequential values.
+- [ ] The shared stepper, footer, validation, and summary primitives are reused.
+- [ ] Copy uses sentence case and restrained font weight.
+- [ ] Header and footer use the module color.
+- [ ] Keyboard focus, Escape behavior, disabled states, and error announcements were verified.
+- [ ] Loading, empty, validation, saving, failure, and success states were reviewed.
 
 Do not use wizard steps unless the flow truly requires multiple stages.
 
 ---
 
-## 20. Large Workspace Modal Standard
+## 20. Operational Workspace Modal Standard
 
 Reference:
 
@@ -1011,6 +1088,8 @@ Do not duplicate submit buttons.
 Keep business-specific modal files inside their module/tab folder.
 
 Generic modal shell components may live in shared UI only if they contain no business logic.
+
+The shared `react/src/app/components/indice-modal/` primitives are the approved foundation for wizard progression, footer layout, validation feedback, and compact summaries. Extend them through typed presentation props; do not add Sales, HR, Expenses, or other module-specific rules to shared components.
 
 Split large modals into:
 
@@ -1337,7 +1416,10 @@ Preferred shared components:
 - `LoadingState`
 - `ErrorState`
 - `ConfirmationModal`
-- `WizardModal`
+- `IndiceModalWizardStepper`
+- `IndiceModalFooter`
+- `IndiceModalValidation`
+- `IndiceModalSummary`
 - `WorkspaceModal`
 
 Do not keep duplicating the same UI manually in every module.
@@ -1478,6 +1560,8 @@ If standardizing modals, final report must include:
 
 - list of modals updated
 - modal type assigned to each one
+- completed mandatory classification checklist or concise decision rationale
+- official reference used and any justified deviations
 - files changed
 - files created
 - behavior preserved

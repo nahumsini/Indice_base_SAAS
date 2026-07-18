@@ -46,32 +46,31 @@ export function ReceivePurchaseOrderModal({
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       onClose={onClose}
-      closeLabel="Cerrar recepcion"
-      title="Recibir mercancia"
+      closeLabel="Cerrar recepción"
+      title="Recibir mercancía"
       subtitle={`${order.folio} - ${order.warehouseName}`}
-      eyebrow="Recepcion POS"
+      eyebrow="Recepción POS"
       icon={<PackageCheck className="h-6 w-6" />}
       tone="coral"
       size="md"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      }
+      footerSummary={`${receivableItems.length} partidas pendientes por recibir`}
       footer={
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-white/85">{receivableItems.length} partidas pendientes por recibir</p>
-          <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-              Cancelar
-            </button>
-            <button
-              type="button"
-              disabled={saving || receivableItems.length === 0}
-              onClick={() => void submit()}
-              className={posModalPrimaryActionClassName}
-            >
-              Guardar recepcion
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          disabled={saving || receivableItems.length === 0}
+          onClick={() => void submit()}
+          className={posModalPrimaryActionClassName}
+        >
+          Guardar recepción
+        </button>
       }
     >
       <main className="space-y-4">

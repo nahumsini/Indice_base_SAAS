@@ -1,4 +1,4 @@
-import { AlertTriangle, TrendingUp, Warehouse } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesKpisTranslations } from '../translations';
 
@@ -29,19 +29,21 @@ function ProgressLine({ danger = false, value }: { danger?: boolean; value: numb
 }
 
 export function SalesKpiSignals({
+  activeCustomers,
   commercialRisk,
   copy,
-  inventoryPreparedProducts,
-  inventoryReadiness,
+  quoteApprovalRate,
   quoteConversionRate,
-  totalProducts,
+  quoteRejectionRate,
+  totalContacts,
 }: {
+  activeCustomers: number;
   commercialRisk: number;
   copy: SalesKpisTranslations;
-  inventoryPreparedProducts: number;
-  inventoryReadiness: number;
+  quoteApprovalRate: number;
   quoteConversionRate: number;
-  totalProducts: number;
+  quoteRejectionRate: number;
+  totalContacts: number;
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -65,12 +67,12 @@ export function SalesKpiSignals({
 
         <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-bold text-slate-700 dark:text-slate-200">{copy.signals.inventoryReadiness}</p>
-            <Warehouse className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+            <p className="font-bold text-slate-700 dark:text-slate-200">{copy.cards.quoteApproval.label}</p>
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
           </div>
-          <p className="mb-4 text-3xl font-bold text-slate-950 dark:text-white">{percent(inventoryReadiness)}</p>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{copy.signals.inventoryReadyDetail(inventoryPreparedProducts, totalProducts)}</p>
-          <ProgressLine value={inventoryReadiness} danger={inventoryReadiness < 60} />
+          <p className="mb-4 text-3xl font-bold text-slate-950 dark:text-white">{percent(quoteApprovalRate)}</p>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{copy.cards.quoteApproval.detail(percent(quoteRejectionRate))}</p>
+          <ProgressLine value={quoteApprovalRate} danger={quoteApprovalRate < 40} />
         </div>
 
         <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
@@ -80,6 +82,7 @@ export function SalesKpiSignals({
           </div>
           <p className="mb-4 text-3xl font-bold text-slate-950 dark:text-white">{commercialRisk}</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">{copy.signals.commercialRiskDescription}</p>
+          <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">{copy.cards.contacts.detail(activeCustomers)} / {totalContacts}</p>
         </div>
       </div>
     </section>

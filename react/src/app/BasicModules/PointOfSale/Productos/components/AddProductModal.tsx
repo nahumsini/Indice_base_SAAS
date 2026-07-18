@@ -116,33 +116,27 @@ export function AddProductModal({ isOpen, onClose, onSave, product }: AddProduct
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar producto"
-      eyebrow="Catalogo POS"
+      eyebrow="Catálogo POS"
       footerClassName={posModalModuleFooterClassName}
       icon={<Package className="h-6 w-6" />}
       onClose={onClose}
       size="lg"
-      subtitle="Configura codigos, precios e inventario para venta rapida."
-      title={product ? 'Editar Producto' : 'Nuevo Producto'}
+      subtitle="Configura códigos, precios e inventario para venta rápida."
+      title={product ? 'Editar producto' : 'Nuevo producto'}
       tone="coral"
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`${formData.name || 'Producto sin nombre'} · ${formData.barcode || 'Sin código'} · MXN ${Number(formData.salePrice || 0).toFixed(2)}`}
       footer={(
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className={posModalSecondaryActionClassName}
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            form="pos-product-form"
-            className={posModalPrimaryActionClassName}
-          >
-            <Check className="h-4 w-4" />
-            {product ? 'Guardar cambios' : 'Crear producto'}
-          </button>
-        </div>
+        <button type="submit" form="pos-product-form" className={posModalPrimaryActionClassName}>
+          <Check className="h-4 w-4" />
+          {product ? 'Guardar cambios' : 'Crear producto'}
+        </button>
       )}
     >
         <form id="pos-product-form" onSubmit={handleSubmit} className="space-y-6">

@@ -41,6 +41,7 @@ export function TransferPaymentModal({ isOpen, onClose, totalAmount, onConfirmPa
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar pago por transferencia"
       eyebrow="Cobro POS"
       icon={<Landmark className="h-6 w-6" />}
@@ -50,16 +51,17 @@ export function TransferPaymentModal({ isOpen, onClose, totalAmount, onConfirmPa
       title="Pago por transferencia"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`Total ${formatCurrency(totalAmount)}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button type="button" onClick={onConfirmPayment} className={posModalPrimaryActionClassName}>
-            <CheckCircle className="h-5 w-5" />
-            Confirmar transferencia
-          </button>
-        </div>
+        <button type="button" onClick={onConfirmPayment} className={posModalPrimaryActionClassName}>
+          <CheckCircle className="h-5 w-5" />
+          Confirmar transferencia
+        </button>
       )}
     >
       <div className="space-y-5">

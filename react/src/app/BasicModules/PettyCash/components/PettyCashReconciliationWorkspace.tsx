@@ -8,8 +8,12 @@ import { mockProviderRecords } from '../../Expenses/data/providerRecords.mock';
 import { mockPaymentAccounts } from '../../Expenses/PaymentAccounts/paymentAccounts.mock';
 import type { PaymentAccount } from '../../Expenses/PaymentAccounts/types';
 import { ProviderCreateModal } from '../../Expenses/Providers/components/ProviderCreateModal';
+import { createQuickProviderRecord } from '../../Expenses/Providers/providerRecordFactory';
 import type { ProviderFormValues, ProviderRecord } from '../../Expenses/Providers/useProveedoresLogic';
+import { toExpenseProvider } from '../../Expenses/adapters/provider.adapter';
+import { QuickProviderField } from '../../Expenses/components/modals/QuickProviderField';
 import { accountingAccountsService, paymentAccountsService, providersService, toFinanceApiErrorMessage } from '../../Expenses/services';
+import type { Provider } from '../../Expenses/types/expenses.types';
 import type { FinanceReferenceOption } from '../../Expenses/types/finance-reference.types';
 import {
   getDefaultBudgetTaxProfile,
@@ -20,6 +24,7 @@ import { BudgetTaxControls, type TaxControlDraft } from '../../Expenses/componen
 import { hasPettyCashBackendId, pettyCashService, type PettyCashStatementCloseAction } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../components/indice-modal';
 import type {
   PettyCashAttachment,
   PettyCashFund,
@@ -991,6 +996,32 @@ export function PettyCashReconciliationWorkspace({
     setIsProviderModalOpen(false);
   };
 
+  const handleQuickProviderCreate = async (name: string): Promise<Provider> => {
+    const normalizedName = name.trim();
+    const existingProvider = providers.find(provider => (
+      provider.status === 'active'
+      && provider.name.trim().toLocaleLowerCase() === normalizedName.toLocaleLowerCase()
+    ));
+
+    if (existingProvider) {
+      return toExpenseProvider(existingProvider);
+    }
+
+    const provider = createQuickProviderRecord(providers, normalizedName);
+    try {
+      const savedProvider = await providersService.createProvider(provider);
+      setProviders(current => [
+        savedProvider,
+        ...current.filter(currentProvider => currentProvider.id !== savedProvider.id),
+      ]);
+      setReferenceError('');
+      return toExpenseProvider(savedProvider);
+    } catch (error) {
+      setReferenceError(toFinanceApiErrorMessage(error, copy.reconciliation.errors.providerCreate));
+      throw error;
+    }
+  };
+
   const handleCloseStatement = async (statement: PettyCashStatement, draft: CloseStatementDraft) => {
     const fund = getFundById(funds, statement.pettyCashFundId);
     if (!fund) return;
@@ -1257,6 +1288,7 @@ export function PettyCashReconciliationWorkspace({
           accountingAccounts={activeAccountingAccounts}
           fund={selectedFund}
           onClose={() => setIsReceiptModalOpen(false)}
+          onCreateProvider={handleQuickProviderCreate}
           providers={activeProviders}
           onSave={handleAddReceipt}
         />
@@ -1320,7 +1352,7 @@ function CloseStatementModal({
   fund?: PettyCashFund;
   isSaving: boolean;
   onClose: () => void;
-  onSave: (draft: CloseStatementDraft) => void;
+  onSave: (draft: CloseStatementDraft) => void | Promise<void>;
   statement: PettyCashStatement;
 }) {
   const copy = usePettyCashTranslations();
@@ -1345,6 +1377,7 @@ function CloseStatementModal({
       actionLabel={isSaving ? copy.reconciliation.statements.closing : copy.reconciliation.statements.close}
       canSave={canSave}
       icon={isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+      busy={isSaving}
       onClose={onClose}
       onSave={() => onSave(draft)}
       subtitle={`${statement.folio}${fund ? ` - ${fund.name}` : ''}`}
@@ -1352,12 +1385,12 @@ function CloseStatementModal({
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/70">
-          <span className="block text-xs font-black uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.closeModal.cashBalance}</span>
-          <p className="mt-2 text-lg font-black text-[#147514]">{formatPettyCashCurrency(closingBalance, statement.currencyCode)}</p>
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.closeModal.cashBalance}</span>
+          <p className="mt-2 text-lg font-semibold text-[#147514]">{formatPettyCashCurrency(closingBalance, statement.currencyCode)}</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/70">
-          <span className="block text-xs font-black uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">{copy.reconciliation.closeModal.pending}</span>
-          <p className={`mt-2 text-lg font-black ${pendingAmount > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.reconciliation.closeModal.pending}</span>
+          <p className={`mt-2 text-lg font-semibold ${pendingAmount > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>
             {formatPettyCashCurrency(pendingAmount, statement.currencyCode)}
           </p>
         </div>
@@ -1424,7 +1457,7 @@ function DepositModal({
   fund: PettyCashFund;
   paymentAccounts: PaymentAccount[];
   onClose: () => void;
-  onSave: (draft: DepositDraft) => void;
+  onSave: (draft: DepositDraft) => void | Promise<void>;
 }) {
   const copy = usePettyCashTranslations();
   const [draft, setDraft] = useState<DepositDraft>(() => createDepositDraft(fund, paymentAccounts));
@@ -1517,14 +1550,16 @@ function ReceiptModal({
   accountingAccounts,
   fund,
   onClose,
+  onCreateProvider,
   providers,
   onSave,
 }: {
   accountingAccounts: AccountingAccount[];
   fund: PettyCashFund;
   onClose: () => void;
+  onCreateProvider: (name: string) => Promise<Provider>;
   providers: ProviderRecord[];
-  onSave: (draft: ReceiptDraft) => void;
+  onSave: (draft: ReceiptDraft) => void | Promise<void>;
 }) {
   const copy = usePettyCashTranslations();
   const [draft, setDraft] = useState<ReceiptDraft>(() => createReceiptDraft(providers, accountingAccounts, fund.currencyCode));
@@ -1584,18 +1619,14 @@ function ReceiptModal({
             />
           </div>
         </div>
-        <PettyCashField label={copy.reconciliation.receiptModal.provider}>
-          <select
-            className={pettyCashInputClass}
-            onChange={(event) => setDraft(current => ({ ...current, providerId: event.target.value }))}
-            value={draft.providerId}
-          >
-            <option value="">{copy.reconciliation.receiptModal.noProvider}</option>
-            {providers.map(provider => (
-              <option key={provider.id} value={provider.id}>{provider.name}</option>
-            ))}
-          </select>
-        </PettyCashField>
+        <QuickProviderField
+          emptyLabel={copy.reconciliation.receiptModal.noProvider}
+          label={copy.reconciliation.receiptModal.provider}
+          onChange={(providerId) => setDraft(current => ({ ...current, providerId }))}
+          onCreateProvider={onCreateProvider}
+          providers={providers.map(toExpenseProvider)}
+          value={draft.providerId}
+        />
         <PettyCashField label={copy.reconciliation.receiptModal.accountingAccount}>
           <select
             className={pettyCashInputClass}
@@ -1654,8 +1685,8 @@ function PettyCashAmountSummaryTile({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className={`mt-1 text-lg font-black ${highlight ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`mt-1 text-lg font-semibold ${highlight ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>
         {value}
       </p>
     </div>
@@ -1678,6 +1709,7 @@ function PettyCashAttachmentsModal({
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingDeleteAttachment, setPendingDeleteAttachment] = useState<PettyCashAttachment | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const hasBackendLine = hasPettyCashBackendId(line.id) && hasPettyCashBackendId(fundId);
 
@@ -1751,14 +1783,15 @@ function PettyCashAttachmentsModal({
     }
   };
 
-  const deleteAttachment = async (attachmentId: number) => {
-    if (!hasBackendLine) return;
+  const deleteAttachment = async () => {
+    if (!hasBackendLine || !pendingDeleteAttachment) return;
     setIsSaving(true);
     try {
-      await pettyCashService.deleteSettlementLineAttachment(fundId, line.id, attachmentId);
-      const nextAttachments = attachments.filter(attachment => attachment.id !== attachmentId);
+      await pettyCashService.deleteSettlementLineAttachment(fundId, line.id, pendingDeleteAttachment.id);
+      const nextAttachments = attachments.filter(attachment => attachment.id !== pendingDeleteAttachment.id);
       setAttachments(nextAttachments);
       onCountChange(line, nextAttachments.length);
+      setPendingDeleteAttachment(null);
       setError('');
     } catch (deleteError) {
       setError(toFinanceApiErrorMessage(deleteError, copy.reconciliation.errors.attachmentDelete));
@@ -1770,41 +1803,51 @@ function PettyCashAttachmentsModal({
   const totalSize = attachments.reduce((sum, attachment) => sum + attachment.sizeBytes, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
-        <header className="bg-[#147514] px-7 py-5 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
-                <Paperclip className="h-5 w-5" />
-              </span>
-              <div>
-                <h3 className="text-2xl font-black">{copy.reconciliation.attachments.title}</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">{line.description}</p>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
-              <X className="h-5 w-5" />
+    <>
+      <IndiceModalFrame
+        busy={isSaving}
+        description={line.description}
+        footer={(
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={onClose}
+              className="min-h-11 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50"
+            >
+              {copy.common.close}
+            </button>
+            <button
+              type="button"
+              disabled={!hasBackendLine || pendingFiles.length === 0 || isSaving}
+              onClick={uploadPendingFiles}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              {copy.reconciliation.attachments.save}
             </button>
           </div>
-        </header>
-
-        <div className="overflow-y-auto px-7 py-6">
+        )}
+        footerSummary={copy.reconciliation.attachments.savedTitle(attachments.length)}
+        icon={<Paperclip className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={(open) => !open && onClose()}
+        open
+        title={copy.reconciliation.attachments.title}
+        tone="green"
+      >
+        <div className="space-y-4">
           {!hasBackendLine ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-              {copy.reconciliation.attachments.backendWarning}
-            </div>
+            <IndiceModalValidation messages={[copy.reconciliation.attachments.backendWarning]} tone="warning" />
           ) : null}
 
           {error ? (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-              {error}
-            </div>
+            <IndiceModalValidation messages={[error]} tone="error" />
           ) : null}
 
           <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#147514] bg-[#147514]/5 px-5 py-8 text-center transition hover:bg-[#147514]/10 dark:bg-[#147514]/10">
             <Upload className="h-9 w-9 text-[#147514]" />
-            <span className="mt-3 text-lg font-black text-slate-900 dark:text-white">{copy.reconciliation.attachments.selectTitle}</span>
+            <span className="mt-3 text-lg font-semibold text-slate-900 dark:text-white">{copy.reconciliation.attachments.selectTitle}</span>
             <span className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.reconciliation.attachments.selectDescription}</span>
             <input
               className="hidden"
@@ -1817,7 +1860,7 @@ function PettyCashAttachmentsModal({
 
           {pendingFiles.length > 0 ? (
             <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70">
-              <p className="text-sm font-black text-slate-900 dark:text-white">{copy.reconciliation.attachments.pendingFiles(pendingFiles.length)}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">{copy.reconciliation.attachments.pendingFiles(pendingFiles.length)}</p>
               <div className="mt-3 space-y-2">
                 {pendingFiles.map(file => (
                   <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-300">
@@ -1831,7 +1874,7 @@ function PettyCashAttachmentsModal({
 
           <div className="mt-6">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h4 className="text-base font-black text-slate-900 dark:text-white">{copy.reconciliation.attachments.savedTitle(attachments.length)}</h4>
+              <h4 className="text-base font-semibold text-slate-900 dark:text-white">{copy.reconciliation.attachments.savedTitle(attachments.length)}</h4>
               <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.reconciliation.attachments.total(formatBytes(totalSize))}</span>
             </div>
 
@@ -1845,7 +1888,7 @@ function PettyCashAttachmentsModal({
                 {attachments.map(attachment => (
                   <div key={attachment.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-900 dark:text-white">{attachment.originalFilename}</p>
+                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{attachment.originalFilename}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
                         {formatBytes(attachment.sizeBytes)}
                         {attachment.createdAt ? ` - ${formatPettyCashIsoDate(attachment.createdAt.slice(0, 10))}` : ''}
@@ -1871,7 +1914,7 @@ function PettyCashAttachmentsModal({
                       <button
                         type="button"
                         disabled={isSaving}
-                        onClick={() => deleteAttachment(attachment.id)}
+                        onClick={() => setPendingDeleteAttachment(attachment)}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20"
                         aria-label={copy.common.deleteAttachment}
                       >
@@ -1886,23 +1929,19 @@ function PettyCashAttachmentsModal({
             )}
           </div>
         </div>
+      </IndiceModalFrame>
 
-        <footer className="flex items-center justify-between gap-3 bg-[#147514] px-7 py-4">
-          <button type="button" onClick={onClose} className="rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
-            {copy.common.close}
-          </button>
-          <button
-            type="button"
-            disabled={!hasBackendLine || pendingFiles.length === 0 || isSaving}
-            onClick={uploadPendingFiles}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-            {copy.reconciliation.attachments.save}
-          </button>
-        </footer>
-      </div>
-    </div>
+      <ConfirmDeleteDialog
+        cancelLabel={copy.common.cancel}
+        confirmDisabled={isSaving}
+        confirmLabel={copy.common.deleteAttachment}
+        isVisible={Boolean(pendingDeleteAttachment)}
+        itemName={pendingDeleteAttachment?.originalFilename}
+        onCancel={() => setPendingDeleteAttachment(null)}
+        onConfirm={deleteAttachment}
+        title={copy.common.deleteAttachment}
+      />
+    </>
   );
 }
 
@@ -1916,6 +1955,7 @@ function formatBytes(size: number) {
 
 function PettyCashOperationModal({
   actionLabel,
+  busy = false,
   canSave,
   children,
   icon,
@@ -1925,55 +1965,72 @@ function PettyCashOperationModal({
   title,
 }: {
   actionLabel: string;
+  busy?: boolean;
   canSave: boolean;
   children: ReactNode;
   icon: ReactNode;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   subtitle: string;
   title: string;
 }) {
   const copy = usePettyCashTranslations();
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const effectiveBusy = busy || isSubmitting;
+
+  const handleSave = async () => {
+    if (!canSave || effectiveBusy) return;
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await onSave();
+    } catch (saveError) {
+      setError(toFinanceApiErrorMessage(saveError, 'No se pudo guardar la operación.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
-      <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[#147514]/30 bg-white shadow-2xl dark:bg-slate-900">
-        <header className="bg-[#147514] px-5 py-5 text-white sm:px-7">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-                {icon}
-              </span>
-              <div>
-                <h3 className="text-2xl font-black leading-tight">{title}</h3>
-                <p className="mt-1 text-sm font-semibold text-white/80">{subtitle}</p>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} className="rounded-full border border-white/25 bg-white/15 p-2 transition hover:bg-white/25">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </header>
-        <div className="overflow-y-auto bg-slate-50 px-4 py-5 sm:px-7 sm:py-6 dark:bg-slate-950/35">
-          <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-900">
-            {children}
-          </section>
-        </div>
-        <footer className="flex items-center justify-between gap-3 bg-[#147514] px-5 py-4 sm:px-7">
-          <button type="button" onClick={onClose} className="min-h-11 rounded-2xl border border-white/25 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+    <IndiceModalFrame
+      busy={effectiveBusy}
+      description={subtitle}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button
+            type="button"
+            disabled={effectiveBusy}
+            onClick={onClose}
+            className="min-h-11 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50"
+          >
             {copy.common.cancel}
           </button>
           <button
             type="button"
-            disabled={!canSave}
-            onClick={onSave}
-            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!canSave || effectiveBusy}
+            onClick={handleSave}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Plus className="h-4 w-4" />
+            {effectiveBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             {actionLabel}
           </button>
-        </footer>
+        </div>
+      )}
+      footerSummary={title}
+      icon={icon}
+      modalType="standard-form"
+      onOpenChange={(open) => !open && onClose()}
+      open
+      title={title}
+      tone="green"
+    >
+      <div className="space-y-4">
+        {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-900">
+          {children}
+        </section>
       </div>
-    </div>
+    </IndiceModalFrame>
   );
 }

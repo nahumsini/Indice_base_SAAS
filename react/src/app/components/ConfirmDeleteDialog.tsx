@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -34,18 +34,28 @@ export function ConfirmDeleteDialog({
   onConfirm,
   onCancel,
 }: ConfirmDeleteDialogProps) {
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
   return (
     <Dialog
       open={isVisible}
       onOpenChange={(open) => {
-        if (!open) {
+        if (!open && !confirmDisabled) {
           onCancel();
         }
       }}
     >
       <DialogContent
+        aria-busy={confirmDisabled}
         className="z-[100] w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-[28px] border border-red-200 bg-white p-0 shadow-[0_26px_70px_rgba(127,29,29,0.28)] dark:border-red-900/60 dark:bg-slate-950 sm:max-w-md"
         hideCloseButton
+        overlayClassName="bg-slate-950/55 backdrop-blur-[2px]"
+        onEscapeKeyDown={(event) => confirmDisabled && event.preventDefault()}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          cancelButtonRef.current?.focus();
+        }}
+        onPointerDownOutside={(event) => confirmDisabled && event.preventDefault()}
       >
         <div className="bg-red-600 px-5 py-4 text-white dark:bg-red-700">
           <div className="flex items-start justify-between gap-4">
@@ -60,10 +70,11 @@ export function ConfirmDeleteDialog({
               </DialogHeader>
             </div>
             <button
+              disabled={confirmDisabled}
               type="button"
               aria-label={cancelLabel}
               onClick={onCancel}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <X className="h-4 w-4" />
             </button>
@@ -86,8 +97,10 @@ export function ConfirmDeleteDialog({
 
         <div className="flex flex-col-reverse gap-3 bg-red-600 px-5 py-4 dark:bg-red-700 sm:flex-row sm:justify-end">
           <Button
+            ref={cancelButtonRef}
             type="button"
             onClick={onCancel}
+            disabled={confirmDisabled}
             className="w-full rounded-xl border border-white/30 bg-white/10 text-white hover:bg-white/20 sm:w-auto"
           >
             {cancelLabel}

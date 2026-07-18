@@ -71,6 +71,7 @@ export function MovementHistoryModal({ isOpen, onClose, product, movements }: Mo
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       actions={(
         <button
           type="button"

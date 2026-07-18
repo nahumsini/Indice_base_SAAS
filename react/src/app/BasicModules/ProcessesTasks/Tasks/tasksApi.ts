@@ -278,6 +278,15 @@ export async function updateProcessTask(taskId: number, payload: TaskPayload) {
   return normalizeTaskRecord(response);
 }
 
+export async function patchProcessTask(taskId: number, payload: Partial<TaskPayload>) {
+  const response = await apiClient<Partial<TaskRecord>>(`/api/v1/process-tasks/${taskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeTaskRecord(response);
+}
+
 export async function updateProcessTaskAgendaPlacement(taskId: number, payload: TaskAgendaPlacementPayload) {
   const response = await apiClient<Partial<TaskRecord>>(`/api/v1/process-tasks/${taskId}/agenda-placement`, {
     method: 'PATCH',

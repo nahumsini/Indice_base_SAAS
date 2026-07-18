@@ -68,7 +68,7 @@ export function PublicCatalogRequestModal({
         <div className="space-y-4 bg-slate-50/70 p-6">
           {success ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-emerald-700">
-              <h3 className="flex items-center gap-2 font-black">
+              <h3 className="flex items-center gap-2 font-bold">
                 <CheckCircle2 className="h-5 w-5" />
                 {t.publicCatalog.requestModal.successTitle}
               </h3>

@@ -498,6 +498,7 @@ export default function Tasks() {
   };
 
   const openCreateDialog = () => {
+    setTasksError(null);
     setDialogMode('create');
     setEditingTaskId(null);
     setForm(createDefaultTaskFormForCurrentUser());
@@ -505,6 +506,7 @@ export default function Tasks() {
   };
 
   const openEditDialog = (task: TaskRecord) => {
+    setTasksError(null);
     setDialogMode('edit');
     setEditingTaskId(task.id);
     setForm(toTaskFormValues(task));
@@ -910,6 +912,7 @@ export default function Tasks() {
       </section>
 
       <TaskFormDialog
+        error={tasksError}
         open={isDialogOpen}
         onOpenChange={handleDialogOpenChange}
         mode={dialogMode}
@@ -926,6 +929,7 @@ export default function Tasks() {
       />
 
       <TaskCompletionDialog
+        error={tasksError}
         open={Boolean(completionTask)}
         onOpenChange={handleCompletionDialogOpenChange}
         task={completionTask}

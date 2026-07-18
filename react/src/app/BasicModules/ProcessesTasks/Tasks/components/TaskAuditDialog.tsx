@@ -1,23 +1,13 @@
-import { ClipboardCheck, X } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
 import { Input } from '../../../../components/ui/input';
 import { Textarea } from '../../../../components/ui/textarea';
-import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import {
-  processTaskModalCloseActionClass,
-  processTaskModalFooterClass,
-  processTaskModalHeaderClass,
-  processTaskModalPrimaryActionClass,
-  processTaskModalSecondaryActionClass,
-} from '../../shared/processTaskModalStyles';
+  IndiceModalFrame,
+  IndiceModalSummary,
+  IndiceModalValidation,
+} from '../../../../components/indice-modal';
+import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 
 const maximumAuditWeighting = 5;
 const auditWeightingOptions = [0, 1, 2, 3, 4, 5];
@@ -31,6 +21,7 @@ interface AuditableTask {
 interface TaskAuditDialogProps {
   auditNotes: string;
   copy?: AgendaTranslations['auditDialog'];
+  error?: string | null;
   isSubmitting: boolean;
   onAuditNotesChange: (value: string) => void;
   onConfirm: () => void;
@@ -44,6 +35,7 @@ interface TaskAuditDialogProps {
 export function TaskAuditDialog({
   auditNotes,
   copy = defaultAgendaTranslations.auditDialog,
+  error,
   isSubmitting,
   onAuditNotesChange,
   onConfirm,
@@ -54,126 +46,92 @@ export function TaskAuditDialog({
   weighting,
 }: TaskAuditDialogProps) {
   const parsedWeighting = Number(weighting);
-  const isWeightingValid =
-    Number.isInteger(parsedWeighting) && parsedWeighting >= 0 && parsedWeighting <= maximumAuditWeighting;
+  const isWeightingValid = Number.isInteger(parsedWeighting) && parsedWeighting >= 0 && parsedWeighting <= maximumAuditWeighting;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideCloseButton
-        className="!flex max-h-[calc(100vh-3rem)] w-[calc(100vw-2rem)] !max-w-[680px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[680px] dark:border-slate-700 dark:bg-slate-800"
-      >
-        <div className={processTaskModalHeaderClass}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0 pr-4">
-              <DialogTitle className="flex min-w-0 items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
-                <ClipboardCheck className="h-5 w-5 shrink-0" />
-                <span className="truncate">{copy.title}</span>
-              </DialogTitle>
-              <DialogDescription className="mt-1 text-sm font-medium text-slate-800/90">
-                {copy.scale(maximumAuditWeighting)}
-              </DialogDescription>
-            </div>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={`${processTaskModalCloseActionClass} w-9 shrink-0 px-0`}
-                disabled={isSubmitting}
-                aria-label={copy.close}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
-          </div>
-        </div>
-
-        <div className="space-y-5 bg-slate-50/70 px-6 py-5 dark:bg-slate-900/60">
-          <DialogDescription className="text-sm leading-6 text-slate-600 dark:text-slate-400">
-            {task
-              ? copy.description(task.folio)
-              : copy.fallbackDescription}
-          </DialogDescription>
-
-          {task ? (
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <p className="text-xs font-bold uppercase text-[#9A6B05]">
-                {task.folio}
-              </p>
-              <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">{task.title}</p>
-              {task.description ? (
-                <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  {task.description}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.weightingLabel}</label>
-            <div className="grid grid-cols-6 gap-2">
-              {auditWeightingOptions.map((score) => (
-                <button
-                  key={score}
-                  type="button"
-                  className={`h-10 rounded-xl border text-sm font-bold transition-colors ${
-                    weighting === String(score)
-                      ? 'border-[#F4C84A] bg-[#F4C84A] text-slate-950 shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-[#F4C84A] hover:text-[#9A6B05] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
-                  }`}
-                  onClick={() => onWeightingChange(String(score))}
-                >
-                  {score}
-                </button>
-              ))}
-            </div>
-            <Input
-              type="number"
-              min="0"
-              max={maximumAuditWeighting}
-              value={weighting}
-              onChange={(event) => onWeightingChange(event.target.value)}
-              placeholder={`0-${maximumAuditWeighting}`}
-              className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-            />
-            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-              {copy.weightingHint(maximumAuditWeighting)}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.notesLabel}</label>
-            <Textarea
-              value={auditNotes}
-              onChange={(event) => onAuditNotesChange(event.target.value)}
-              placeholder={copy.notesPlaceholder}
-              className="min-h-[120px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-            />
-          </div>
-        </div>
-
-        <DialogFooter className={processTaskModalFooterClass}>
-          <DialogClose asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className={processTaskModalSecondaryActionClass}
-              disabled={isSubmitting}
-            >
-              {copy.cancel}
-            </Button>
-          </DialogClose>
+    <IndiceModalFrame
+      busy={isSubmitting}
+      closeLabel={copy.close}
+      description={task ? copy.description(task.folio) : copy.fallbackDescription}
+      footer={(
+        <>
+          <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
+            {copy.cancel}
+          </Button>
           <Button
             type="button"
-            className={processTaskModalPrimaryActionClass}
             disabled={!task || !isWeightingValid || isSubmitting}
             onClick={onConfirm}
           >
             <ClipboardCheck className="h-4 w-4" />
             {isSubmitting ? copy.submitting : copy.submit}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      )}
+      footerSummary={task ? `${task.folio} · ${weighting || 0}/${maximumAuditWeighting}` : undefined}
+      icon={<ClipboardCheck className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={onOpenChange}
+      open={open}
+      title={copy.title}
+      tone="yellow"
+    >
+      <div className="space-y-5">
+        <IndiceModalValidation messages={error ? [error] : []} />
+        {!isWeightingValid ? (
+          <IndiceModalValidation messages={[copy.weightingHint(maximumAuditWeighting)]} />
+        ) : null}
+
+        {task ? (
+          <IndiceModalSummary
+            columns={2}
+            items={[
+              { label: task.folio, value: task.title },
+              ...(task.description ? [{ label: copy.notesLabel, value: task.description }] : []),
+            ]}
+          />
+        ) : null}
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.weightingLabel}</label>
+          <div className="grid grid-cols-6 gap-2">
+            {auditWeightingOptions.map((score) => (
+              <button
+                key={score}
+                type="button"
+                className={`h-10 rounded-xl border text-sm font-medium transition-colors ${
+                  weighting === String(score)
+                    ? 'border-[#F4C84A] bg-[#F4C84A] text-slate-950 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-[#F4C84A] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                }`}
+                onClick={() => onWeightingChange(String(score))}
+              >
+                {score}
+              </button>
+            ))}
+          </div>
+          <Input
+            type="number"
+            min="0"
+            max={maximumAuditWeighting}
+            value={weighting}
+            onChange={(event) => onWeightingChange(event.target.value)}
+            placeholder={`0-${maximumAuditWeighting}`}
+            className="h-11 rounded-xl border-slate-200 bg-white shadow-none dark:border-slate-600 dark:bg-slate-800"
+          />
+          <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.weightingHint(maximumAuditWeighting)}</p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.notesLabel}</label>
+          <Textarea
+            value={auditNotes}
+            onChange={(event) => onAuditNotesChange(event.target.value)}
+            placeholder={copy.notesPlaceholder}
+            className="min-h-[120px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 shadow-none dark:border-slate-600 dark:bg-slate-800"
+          />
+        </div>
+      </div>
+    </IndiceModalFrame>
   );
 }

@@ -191,9 +191,8 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
       setSuccessToastMessage(t.expenses.payableAccount.quickProviderCreated);
       return toExpenseProvider(savedProvider);
     } catch (error) {
-      onProvidersChange?.(currentProviders => [providerRecord, ...currentProviders]);
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.payableAccount.quickProviderSaveFailed));
-      return toExpenseProvider(providerRecord);
+      throw error;
     }
   };
 
@@ -257,6 +256,7 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
       setIsCreateModalOpen(false);
     } catch (error) {
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.createFailed));
+      throw error;
     }
   };
 
@@ -301,12 +301,19 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
       updatedAt: new Date(),
     };
 
-    onExpensesChange(currentExpenses => currentExpenses.map(expense => (
-      expense.id === editingBudgetExpense.id ? nextExpense : expense
-    )));
-    persistBudgetExpense(nextExpense);
-    setSuccessToastMessage(t.budgets.messages.updated);
-    closeBudgetModal();
+    try {
+      const savedExpense = editingBudgetExpense.id.startsWith('budget-line-')
+        ? await budgetLinesService.updateBudgetLineFromExpense(nextExpense)
+        : nextExpense;
+      onExpensesChange(currentExpenses => currentExpenses.map(expense => (
+        expense.id === editingBudgetExpense.id ? savedExpense : expense
+      )));
+      setSuccessToastMessage(t.budgets.messages.updated);
+      closeBudgetModal();
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.lineSaveFailed));
+      throw error;
+    }
   };
 
   const persistBudgetExpense = useCallback((expense: Expense) => {

@@ -43,8 +43,8 @@ export function QuoteMarginGuidance({
       <div className="flex items-start gap-3">
         <Icon className="mt-0.5 h-5 w-5 shrink-0" />
         <div>
-          <p className="text-sm font-black">{t.marginGuidance.title(getRoundedMargin(totals.estimatedMargin))}</p>
-          <p className="mt-1 text-sm font-semibold leading-5">{t.marginGuidance.messages[messageKey]}</p>
+          <p className="text-sm font-semibold">{t.marginGuidance.title(getRoundedMargin(totals.estimatedMargin))}</p>
+          <p className="mt-1 text-sm font-normal leading-5">{t.marginGuidance.messages[messageKey]}</p>
         </div>
       </div>
     </div>

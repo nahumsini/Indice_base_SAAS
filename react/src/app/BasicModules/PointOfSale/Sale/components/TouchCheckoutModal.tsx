@@ -62,35 +62,32 @@ export function TouchCheckoutModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar cobro"
       eyebrow="Cobro touch"
       icon={<Wallet className="h-6 w-6" />}
       onClose={onClose}
       size="xl"
-      subtitle="Elige metodo, agrega pagos y finaliza la venta."
+      subtitle="Elige un método, agrega pagos y finaliza la venta."
       title="Resumen de cobro"
       tone="coral"
       zIndexClassName="z-40"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Volver
+        </button>
+      )}
+      footerSummary={`Total ${formatCurrency(totals.total)} · Pagado ${formatCurrency(totals.paid)} · ${cartItemCount} artículos`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-bold text-white/85">
-            Total {formatCurrency(totals.total)} - Pagado {formatCurrency(totals.paid)}
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-              Volver
-            </button>
-            <button
-              type="button"
-              onClick={onCompleteSale}
-              disabled={!totals.isPaid || isCompletingSale}
-              className={posModalPrimaryActionClassName}
-            >
-              {isCompletingSale ? 'Guardando venta...' : 'Finalizar venta'}
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={onCompleteSale}
+          disabled={!totals.isPaid || isCompletingSale}
+          className={posModalPrimaryActionClassName}
+        >
+          {isCompletingSale ? 'Guardando venta...' : 'Finalizar venta'}
+        </button>
       )}
     >
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">

@@ -219,7 +219,7 @@ export function ProductPresentationSection({
       <div className="rounded-lg border border-slate-200 bg-white p-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h4 className="text-sm font-black text-slate-950">{t.packaging.bundleTitle}</h4>
+            <h4 className="text-sm font-bold text-slate-950">{t.packaging.bundleTitle}</h4>
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{t.packaging.bundleDescription}</p>
           </div>
           <Button
@@ -300,7 +300,7 @@ export function ProductPresentationSection({
       </div>
 
       <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-3">
-        <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">{t.presentation.packageSummary}</p>
+        <p className="text-xs font-semibold text-[#B63B32]">{t.presentation.packageSummary}</p>
         <p className="mt-1 text-sm font-semibold text-slate-600">
           {t.presentation.packageSummaryValue(form.bundleItems.length, estimatedBundlePrice)}
         </p>
@@ -392,7 +392,7 @@ export function ProductPresentationSection({
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="flex items-center gap-2 text-base font-black text-slate-950">
+        <h3 className="flex items-center gap-2 text-base font-bold text-slate-950">
           <Boxes className="h-5 w-5 text-[#B63B32]" />
           {t.packaging.title}
         </h3>

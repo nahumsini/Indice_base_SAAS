@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { IndiceModalSummary } from '../../../../../components/indice-modal';
 import { Button } from '../../../../../components/ui/button';
 import { SalesModalFrame } from '../../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../../salesModalStyles';
@@ -30,24 +31,27 @@ export function CancelMovementDialog({
       title={t.operational.modals.cancelMovementTitle}
       description={t.operational.modals.cancelMovementDescription}
       icon={<AlertTriangle className="h-5 w-5" />}
-      contentClassName="sm:max-w-[460px]"
+      modalType="confirmation"
       bodyClassName="bg-slate-50/70 px-7 py-6"
-      footerClassName="sm:justify-end"
+      footerLeading={(
+        <Button type="button" variant="outline" className={cancelMovementActionClassNames.secondary} onClick={onClose}>
+          {t.common.cancel}
+        </Button>
+      )}
       footer={(
-        <>
-          <Button type="button" variant="outline" className={cancelMovementActionClassNames.secondary} onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button type="button" className={cancelMovementActionClassNames.primary} onClick={handleConfirm}>
-            {t.operational.modals.confirmCancelMovement}
-          </Button>
-        </>
+        <Button type="button" className="h-11 rounded-lg bg-red-600 px-5 font-semibold text-white shadow-sm hover:bg-red-700" onClick={handleConfirm}>
+          {t.operational.modals.confirmCancelMovement}
+        </Button>
       )}
     >
-      <div className="rounded-lg border border-red-200 bg-red-50 p-5">
-        <p className="text-sm font-semibold text-slate-950">{movement?.movementNumber ?? movement?.id}</p>
-        <p className="mt-1 text-xs font-semibold text-red-700">{movement?.reference ?? t.common.notAvailable}</p>
-      </div>
+      <IndiceModalSummary
+        columns={2}
+        items={[
+          { id: 'movement', label: t.operational.columns.movement, value: movement?.movementNumber ?? movement?.id ?? t.common.notAvailable, emphasized: true },
+          { id: 'reference', label: t.operational.columns.reference, value: movement?.reference ?? t.common.notAvailable },
+        ]}
+        variant="accent"
+      />
     </SalesModalFrame>
   );
 }

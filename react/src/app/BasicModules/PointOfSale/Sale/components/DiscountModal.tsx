@@ -105,12 +105,13 @@ export function DiscountModal({
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar descuento"
       eyebrow="Venta POS"
       icon={<Percent className="h-6 w-6" />}
       onClose={onClose}
       size="sm"
-      subtitle="Aplica descuentos manuales o reglas disponibles para la linea."
+      subtitle="Aplica descuentos manuales o reglas disponibles para la línea."
       title="Aplicar descuento"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}

@@ -3,6 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { usePettyCash } from '../../PettyCash/context/PettyCashContext';
 import { isBackendId } from '../adapters/adapter.utils';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -11,7 +12,7 @@ import { usePaymentAccountsTranslations } from './hooks/usePaymentAccountsTransl
 import { paymentAccountsService, toFinanceApiErrorMessage } from '../services';
 import type { PaymentAccount, PaymentSortField, SortDirection } from './types';
 import { filterPaymentAccounts, sortPaymentAccounts } from './paymentAccounts.utils';
-import { defaultPaymentColumns, type PaymentColumnKey } from './paymentAccountsTableConfig';
+import { defaultPaymentColumns, type PaymentColumnConfig } from './paymentAccountsTableConfig';
 import { PaymentAccountColumnsModal } from './components/PaymentAccountColumnsModal';
 import { PaymentAccountModal } from './components/PaymentAccountModal';
 import { PaymentAccountsFilters } from './components/PaymentAccountsFilters';
@@ -39,6 +40,8 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [accountPendingDelete, setAccountPendingDelete] = useState<PaymentAccount | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const {
     businessOptions,
     unitOptions,
@@ -52,7 +55,7 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
       label: copy?.label ?? column.label,
     };
   }), [t]);
-  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns(
+  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns<PaymentColumnConfig>(
     'indice.expenses.payment-accounts.columns.v1',
     translatedPaymentColumns,
   );
@@ -121,12 +124,6 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
     setSortDirection('asc');
   };
 
-  const handleToggleColumn = (key: PaymentColumnKey, visible: boolean) => {
-    setVisibleColumns(currentColumns => currentColumns.map(column => (
-      column.key === key ? { ...column, visible: column.fixed ? true : visible } : column
-    )));
-  };
-
   const handleToggleActive = async (account: PaymentAccount) => {
     if (account.source === 'petty_cash') return;
     const nextAccount = { ...account, isActive: !account.isActive };
@@ -166,24 +163,32 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
         setStatusFilter('all');
       }
       setSuccessToastMessage(isEditing ? t.paymentAccounts.messages.updated : t.paymentAccounts.messages.created);
+      closeModal();
     } catch (error) {
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.saveFailed));
-    } finally {
-      closeModal();
+      throw error;
     }
   };
 
   const handleDeleteAccount = (accountId: string) => {
-    const account = accounts.find(item => item.id === accountId);
-    setAccounts(currentAccounts => currentAccounts.filter(item => item.id !== accountId));
-    if (!account || !isBackendId(accountId)) return;
+    setAccountPendingDelete(accounts.find(item => item.id === accountId) ?? null);
+  };
 
-    paymentAccountsService.deletePaymentAccount(accountId)
-      .then(() => setSuccessToastMessage(t.paymentAccounts.messages.deleted))
-      .catch(error => {
-        setAccounts(currentAccounts => [account, ...currentAccounts]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.deleteFailed));
-      });
+  const confirmDeleteAccount = async () => {
+    if (!accountPendingDelete) return;
+    setIsDeletingAccount(true);
+    try {
+      if (isBackendId(accountPendingDelete.id)) {
+        await paymentAccountsService.deletePaymentAccount(accountPendingDelete.id);
+      }
+      setAccounts(currentAccounts => currentAccounts.filter(item => item.id !== accountPendingDelete.id));
+      setSuccessToastMessage(t.paymentAccounts.messages.deleted);
+      setAccountPendingDelete(null);
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.paymentAccounts.messages.deleteFailed));
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   return (
@@ -238,12 +243,12 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
       {isColumnsModalOpen && (
         <PaymentAccountColumnsModal
           columns={visibleColumns}
-          onApply={() => setIsColumnsModalOpen(false)}
+          defaultColumns={translatedPaymentColumns}
           onClose={() => setIsColumnsModalOpen(false)}
-          onHideOptional={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: Boolean(column.fixed) })))}
-          onRestoreDefault={() => setVisibleColumns(translatedPaymentColumns.map(column => ({ ...column })))}
-          onShowAll={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
-          onToggleColumn={handleToggleColumn}
+          onSave={(nextColumns) => {
+            setVisibleColumns(nextColumns);
+            setIsColumnsModalOpen(false);
+          }}
         />
       )}
       {isAddModalOpen && (
@@ -255,6 +260,17 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
           onSubmit={handleSaveAccount}
         />
       )}
+      <ConfirmDeleteDialog
+        cancelLabel={t.common.cancel}
+        confirmDisabled={isDeletingAccount}
+        confirmLabel={isDeletingAccount ? 'Eliminando…' : t.common.delete}
+        description="La cuenta dejará de estar disponible para nuevos pagos y esta acción no se puede deshacer."
+        isVisible={Boolean(accountPendingDelete)}
+        itemName={accountPendingDelete?.name}
+        onCancel={() => !isDeletingAccount && setAccountPendingDelete(null)}
+        onConfirm={() => void confirmDeleteAccount()}
+        title="Eliminar cuenta de pago"
+      />
       <SuccessToast
         isVisible={Boolean(successToastMessage)}
         message={successToastMessage}

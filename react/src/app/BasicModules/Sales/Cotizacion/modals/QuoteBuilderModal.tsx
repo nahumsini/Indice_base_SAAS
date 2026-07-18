@@ -76,41 +76,41 @@ export function QuoteBuilderModal({
     <SalesModalFrame
       open={open}
       onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : onClose())}
+      closeLabel={t.common.cancel}
       title={isEditMode ? t.actions.edit : t.sections.builderTitle}
       description={t.sections.builderDescription}
       icon={<FileText className="h-6 w-6" />}
-      contentClassName="flex h-[min(90vh,900px)] w-[min(96vw,1440px)] max-w-none flex-col sm:max-w-none"
+      modalType="large-workspace"
+      contentClassName="h-[min(92dvh,900px)]"
       bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-white p-0 dark:bg-slate-950"
       footerClassName="sm:items-center sm:justify-between"
+      footerSummary={footerSummary}
       footer={(
         <>
-          <p className="text-sm font-semibold text-white/85">{footerSummary}</p>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-            <Button
-              variant="outline"
-              className={quoteBuilderActionClassNames.secondary}
-              onClick={onClose}
-            >
-              {t.common.cancel}
-            </Button>
-            <Button
-              variant="outline"
-              className={quoteBuilderActionClassNames.secondary}
-              onClick={onSubmitAndPrint}
-            >
-              <Printer className="h-4 w-4" />
-              {isEditMode ? t.builder.saveAndPrint : t.builder.submitAndPrint}
-            </Button>
-            <Button className={quoteBuilderActionClassNames.primary} onClick={onSubmit}>
-              <Plus className="h-4 w-4" />
-              {isEditMode ? t.common.save : t.builder.submit}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className={quoteBuilderActionClassNames.secondary}
+            onClick={onClose}
+          >
+            {t.common.cancel}
+          </Button>
+          <Button
+            variant="outline"
+            className={quoteBuilderActionClassNames.secondary}
+            onClick={onSubmitAndPrint}
+          >
+            <Printer className="h-4 w-4" />
+            {isEditMode ? t.builder.saveAndPrint : t.builder.submitAndPrint}
+          </Button>
+          <Button className={quoteBuilderActionClassNames.primary} onClick={onSubmit}>
+            <Plus className="h-4 w-4" />
+            {isEditMode ? t.common.save : t.builder.submit}
+          </Button>
         </>
       )}
     >
-        <div className="grid min-h-0 flex-1 overflow-hidden bg-white xl:grid-cols-[minmax(680px,1fr)_420px]">
-          <div className="min-h-0 overflow-y-auto bg-white px-6 py-5">
+        <div className="grid min-h-0 flex-1 overflow-y-auto bg-white xl:grid-cols-[minmax(680px,1fr)_420px] xl:overflow-hidden">
+          <div className="min-h-0 overflow-visible bg-white px-6 py-5 xl:overflow-y-auto">
             <QuoteBuilderTabs
               form={form}
               items={items}

@@ -1,29 +1,8 @@
-import { X } from 'lucide-react';
+import { Building2, UserRoundCheck } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../../components/ui/select';
-import { cn } from '../../../../components/ui/utils';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import type { ProcessCollaboratorOption, ProcessUnitOption } from '../../Processes/types';
-import {
-  processTaskModalCloseActionClass,
-  processTaskModalCompactFooterClass,
-  processTaskModalCompactHeaderClass,
-  processTaskModalPrimaryActionClass,
-  processTaskModalSecondaryActionClass,
-} from '../../shared/processTaskModalStyles';
 import type { AgendaTranslations } from '../translations';
 
 type AgendaBulkDialogsProps = {
@@ -46,140 +25,72 @@ type AgendaBulkDialogsProps = {
   units: ProcessUnitOption[];
 };
 
-export function AgendaBulkDialogs({
-  bulkResponsibleValue,
-  bulkUnitValue,
-  collaborators,
-  copy,
-  isAssignOpen,
-  isRunning,
-  isUnitOpen,
-  noUnitValue,
-  onAssignConfirm,
-  onAssignOpenChange,
-  onResponsibleValueChange,
-  onUnitConfirm,
-  onUnitOpenChange,
-  onUnitValueChange,
-  selectedCount,
-  unassignedResponsibleValue,
-  units,
-}: AgendaBulkDialogsProps) {
+const triggerClassName = 'h-11 rounded-xl border-slate-200 bg-white shadow-none dark:border-slate-600 dark:bg-slate-800';
+
+export function AgendaBulkDialogs(props: AgendaBulkDialogsProps) {
+  const {
+    bulkResponsibleValue, bulkUnitValue, collaborators, copy, isAssignOpen, isRunning, isUnitOpen,
+    noUnitValue, onAssignConfirm, onAssignOpenChange, onResponsibleValueChange, onUnitConfirm,
+    onUnitOpenChange, onUnitValueChange, selectedCount, unassignedResponsibleValue, units,
+  } = props;
+  const actions = (onCancel: () => void, onConfirm: () => void) => (
+    <>
+      <Button type="button" variant="outline" disabled={isRunning} onClick={onCancel}>{copy.common.cancel}</Button>
+      <Button type="button" disabled={isRunning} onClick={onConfirm}>
+        {isRunning ? copy.common.saving : copy.form.submit.edit}
+      </Button>
+    </>
+  );
+
   return (
     <>
-      <Dialog open={isAssignOpen} onOpenChange={onAssignOpenChange}>
-        <DialogContent
-          hideCloseButton
-          className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
-        >
-          <div className={processTaskModalCompactHeaderClass}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <DialogTitle className="text-lg font-bold text-slate-950">{copy.form.labels.responsible}</DialogTitle>
-                <DialogDescription className="mt-1 text-sm text-slate-800/85">
-                  {copy.bulk.assignDescription(selectedCount)}
-                </DialogDescription>
-              </div>
-              <DialogClose asChild>
-                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isRunning} aria-label={copy.common.cancel}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
-          </div>
-          <div className="space-y-3 px-5 py-5">
-            <Select value={bulkResponsibleValue} onValueChange={onResponsibleValueChange}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={unassignedResponsibleValue}>{copy.common.unassigned}</SelectItem>
-                {collaborators.map((collaborator) => (
-                  <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
-                    {collaborator.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter className={processTaskModalCompactFooterClass}>
-            <Button
-              type="button"
-              variant="outline"
-              className={processTaskModalSecondaryActionClass}
-              disabled={isRunning}
-              onClick={() => onAssignOpenChange(false)}
-            >
-              {copy.common.cancel}
-            </Button>
-            <Button
-              type="button"
-              className={processTaskModalPrimaryActionClass}
-              disabled={isRunning}
-              onClick={onAssignConfirm}
-            >
-              {isRunning ? copy.common.saving : copy.form.submit.edit}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IndiceModalFrame
+        busy={isRunning}
+        closeLabel={copy.common.cancel}
+        contentClassName="sm:!max-w-[520px]"
+        description={copy.bulk.assignDescription(selectedCount)}
+        footer={actions(() => onAssignOpenChange(false), onAssignConfirm)}
+        footerSummary={`${selectedCount} tarea${selectedCount === 1 ? '' : 's'}`}
+        icon={<UserRoundCheck className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={onAssignOpenChange}
+        open={isAssignOpen}
+        title={copy.form.labels.responsible}
+        tone="yellow"
+      >
+        <Select value={bulkResponsibleValue} onValueChange={onResponsibleValueChange}>
+          <SelectTrigger className={triggerClassName}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={unassignedResponsibleValue}>{copy.common.unassigned}</SelectItem>
+            {collaborators.map((collaborator) => (
+              <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>{collaborator.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </IndiceModalFrame>
 
-      <Dialog open={isUnitOpen} onOpenChange={onUnitOpenChange}>
-        <DialogContent
-          hideCloseButton
-          className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
-        >
-          <div className={processTaskModalCompactHeaderClass}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <DialogTitle className="text-lg font-bold text-slate-950">{copy.form.labels.unit}</DialogTitle>
-                <DialogDescription className="mt-1 text-sm text-slate-800/85">
-                  {copy.bulk.unitDescription(selectedCount)}
-                </DialogDescription>
-              </div>
-              <DialogClose asChild>
-                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isRunning} aria-label={copy.common.cancel}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
-          </div>
-          <div className="space-y-3 px-5 py-5">
-            <Select value={bulkUnitValue} onValueChange={onUnitValueChange}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={noUnitValue}>{copy.form.empty.unit}</SelectItem>
-                {units.map((unit) => (
-                  <SelectItem key={unit.id} value={String(unit.id)}>
-                    {unit.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter className={processTaskModalCompactFooterClass}>
-            <Button
-              type="button"
-              variant="outline"
-              className={processTaskModalSecondaryActionClass}
-              disabled={isRunning}
-              onClick={() => onUnitOpenChange(false)}
-            >
-              {copy.common.cancel}
-            </Button>
-            <Button
-              type="button"
-              className={processTaskModalPrimaryActionClass}
-              disabled={isRunning}
-              onClick={onUnitConfirm}
-            >
-              {isRunning ? copy.common.saving : copy.form.submit.edit}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IndiceModalFrame
+        busy={isRunning}
+        closeLabel={copy.common.cancel}
+        contentClassName="sm:!max-w-[520px]"
+        description={copy.bulk.unitDescription(selectedCount)}
+        footer={actions(() => onUnitOpenChange(false), onUnitConfirm)}
+        footerSummary={`${selectedCount} tarea${selectedCount === 1 ? '' : 's'}`}
+        icon={<Building2 className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={onUnitOpenChange}
+        open={isUnitOpen}
+        title={copy.form.labels.unit}
+        tone="yellow"
+      >
+        <Select value={bulkUnitValue} onValueChange={onUnitValueChange}>
+          <SelectTrigger className={triggerClassName}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={noUnitValue}>{copy.form.empty.unit}</SelectItem>
+            {units.map((unit) => <SelectItem key={unit.id} value={String(unit.id)}>{unit.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </IndiceModalFrame>
     </>
   );
 }

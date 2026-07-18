@@ -234,9 +234,8 @@ export function useProveedoresLogic({
       onSuccess?.('Proveedor creado en Finance.');
       return savedProvider.id;
     } catch (error) {
-      setProviders(currentProviders => [provider, ...currentProviders]);
-      reportError(error, 'No se pudo crear el proveedor en Finance. Se agregó como dato local.');
-      return provider.id;
+      reportError(error, 'No se pudo crear el proveedor en Finance.');
+      throw error;
     }
   };
 
@@ -254,6 +253,24 @@ export function useProveedoresLogic({
       ),
     );
     if (nextProvider) persistProvider(nextProvider);
+  };
+
+  const saveProvider = async (providerId: string, updates: Partial<ProviderRecord>) => {
+    const provider = providers.find(item => item.id === providerId);
+    if (!provider) throw new Error('Proveedor no encontrado.');
+    const nextProvider = { ...provider, ...updates, updatedAt: new Date() };
+    try {
+      const savedProvider = isBackendId(providerId)
+        ? await providersService.updateProvider(nextProvider)
+        : nextProvider;
+      setProviders(currentProviders => currentProviders.map(item => (
+        item.id === providerId ? savedProvider : item
+      )));
+      onSuccess?.('Proveedor actualizado en Finance.');
+    } catch (error) {
+      reportError(error, 'No se pudo guardar el proveedor.');
+      throw error;
+    }
   };
 
   const duplicateProvider = (providerId: string) => {
@@ -279,17 +296,20 @@ export function useProveedoresLogic({
       });
   };
 
-  const deleteProvider = (providerId: string) => {
+  const deleteProvider = async (providerId: string) => {
     const provider = providers.find(item => item.id === providerId);
-    setProviders(currentProviders => currentProviders.filter(provider => provider.id !== providerId));
-    if (!provider || !isBackendId(providerId)) return;
-
-    providersService.deleteProvider(providerId)
-      .then(() => onSuccess?.('Proveedor eliminado de Finance.'))
-      .catch(error => {
-        setProviders(currentProviders => [provider, ...currentProviders]);
-        reportError(error, 'No se pudo eliminar el proveedor en Finance.');
-      });
+    if (!provider) return false;
+    try {
+      if (isBackendId(providerId)) {
+        await providersService.deleteProvider(providerId);
+      }
+      setProviders(currentProviders => currentProviders.filter(item => item.id !== providerId));
+      onSuccess?.('Proveedor eliminado de Finance.');
+      return true;
+    } catch (error) {
+      reportError(error, 'No se pudo eliminar el proveedor en Finance.');
+      return false;
+    }
   };
 
   const activateProvider = (providerId: string) => {
@@ -317,6 +337,7 @@ export function useProveedoresLogic({
     filteredProviders,
     providers,
     searchTerm,
+    saveProvider,
     setBusinessFilter,
     setBusinessUnitFilter,
     setSearchTerm,

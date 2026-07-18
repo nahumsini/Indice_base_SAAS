@@ -1,50 +1,16 @@
-import { Search } from 'lucide-react';
 import {
   opportunitySources,
   opportunityStages,
   opportunityStatuses,
   opportunityTemperatures,
 } from '../../salesCrmContext';
-import { Input } from '../../../../components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../../components/ui/select';
+  SalesFilterBar,
+  SalesFilterSearch,
+  SalesFilterSelect,
+} from '../../components/SalesFilterBar';
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityFocusFilter, OpportunityPeriodFilter } from '../types/prospectosTypes';
-
-export function FilterSelect({
-  label,
-  value,
-  onValueChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  options: Array<{ value: string; label: string; disabled?: boolean }>;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</label>
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-none focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
 
 export function ProspectosFilters({
   copy,
@@ -105,40 +71,79 @@ export function ProspectosFilters({
   ];
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{copy.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
-        <div className="space-y-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">{copy.filters.search}</label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder={copy.filters.searchPlaceholder}
-              className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
-        </div>
-        <FilterSelect
-          label={copy.filters.focus}
-          value={focusFilter}
-          onValueChange={(value) => onFocusFilterChange(value as OpportunityFocusFilter)}
-          options={focusOptions}
-        />
-        <FilterSelect
-          label={copy.filters.period}
-          value={periodFilter}
-          onValueChange={(value) => onPeriodFilterChange(value as OpportunityPeriodFilter)}
-          options={periodOptions}
-        />
-        <FilterSelect label={copy.filters.stage} value={stageFilter} onValueChange={onStageFilterChange} options={[{ value: 'all', label: copy.filters.all }, ...opportunityStages.map((stage) => ({ value: stage, label: copy.options.stages[stage] }))]} />
-        <FilterSelect label={copy.filters.owner} value={ownerFilter} onValueChange={onOwnerFilterChange} options={[{ value: 'all', label: copy.filters.all }, ...ownerSelectOptions]} />
-        <FilterSelect label={copy.filters.temperature} value={temperatureFilter} onValueChange={onTemperatureFilterChange} options={[{ value: 'all', label: copy.filters.all }, ...opportunityTemperatures.map((temperature) => ({ value: temperature, label: copy.options.temperatures[temperature] }))]} />
-        <FilterSelect label={copy.filters.source} value={sourceFilter} onValueChange={onSourceFilterChange} options={[{ value: 'all', label: copy.filters.all }, ...opportunitySources.map((source) => ({ value: source, label: copy.options.sources[source] }))]} />
-        <FilterSelect label={copy.filters.status} value={statusFilter} onValueChange={onStatusFilterChange} options={[{ value: 'all', label: copy.filters.all }, ...opportunityStatuses.map((status) => ({ value: status, label: copy.options.statuses[status] }))]} />
-      </div>
-    </section>
+    <SalesFilterBar title={copy.filters.title} gridClassName="xl:grid-cols-4">
+      <SalesFilterSearch
+        label={copy.filters.search}
+        value={searchQuery}
+        onValueChange={onSearchChange}
+        placeholder={copy.filters.searchPlaceholder}
+      />
+      <SalesFilterSelect
+        label={copy.filters.period}
+        value={periodFilter}
+        onValueChange={(value) => onPeriodFilterChange(value as OpportunityPeriodFilter)}
+        options={periodOptions}
+      />
+      <SalesFilterSelect
+        label={copy.filters.status}
+        value={statusFilter}
+        onValueChange={onStatusFilterChange}
+        options={[
+          { value: 'all', label: copy.filters.all },
+          ...opportunityStatuses.map((status) => ({
+            value: status,
+            label: copy.options.statuses[status],
+          })),
+        ]}
+      />
+      <SalesFilterSelect
+        label={copy.filters.focus}
+        value={focusFilter}
+        onValueChange={(value) => onFocusFilterChange(value as OpportunityFocusFilter)}
+        options={focusOptions}
+      />
+      <SalesFilterSelect
+        label={copy.filters.stage}
+        value={stageFilter}
+        onValueChange={onStageFilterChange}
+        options={[
+          { value: 'all', label: copy.filters.all },
+          ...opportunityStages.map((stage) => ({
+            value: stage,
+            label: copy.options.stages[stage],
+          })),
+        ]}
+      />
+      <SalesFilterSelect
+        label={copy.filters.owner}
+        value={ownerFilter}
+        onValueChange={onOwnerFilterChange}
+        options={[{ value: 'all', label: copy.filters.all }, ...ownerSelectOptions]}
+      />
+      <SalesFilterSelect
+        label={copy.filters.temperature}
+        value={temperatureFilter}
+        onValueChange={onTemperatureFilterChange}
+        options={[
+          { value: 'all', label: copy.filters.all },
+          ...opportunityTemperatures.map((temperature) => ({
+            value: temperature,
+            label: copy.options.temperatures[temperature],
+          })),
+        ]}
+      />
+      <SalesFilterSelect
+        label={copy.filters.source}
+        value={sourceFilter}
+        onValueChange={onSourceFilterChange}
+        options={[
+          { value: 'all', label: copy.filters.all },
+          ...opportunitySources.map((source) => ({
+            value: source,
+            label: copy.options.sources[source],
+          })),
+        ]}
+      />
+    </SalesFilterBar>
   );
 }

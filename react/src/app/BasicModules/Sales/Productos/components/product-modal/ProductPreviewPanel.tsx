@@ -35,7 +35,7 @@ export function ProductPreviewPanel({
     <aside className="min-h-0 overflow-y-auto border-l border-slate-200 bg-slate-50 p-5">
       <div className="sticky top-0 space-y-4">
         <div>
-          <h3 className="text-lg font-black text-slate-950">{t.preview.title}</h3>
+          <h3 className="text-lg font-bold text-slate-950">{t.preview.title}</h3>
           <p className="mt-1 text-sm font-semibold text-slate-500">{t.preview.description}</p>
         </div>
 
@@ -55,38 +55,38 @@ export function ProductPreviewPanel({
 
           <div className="space-y-4 p-5">
             <div>
-              <p className="text-xs font-black uppercase tracking-normal text-slate-400">{product.sku}</p>
-              <h3 className="mt-2 text-lg font-black text-slate-950">{product.name}</h3>
+              <p className="text-xs font-semibold text-slate-500">{product.sku}</p>
+              <h3 className="mt-2 text-lg font-bold text-slate-950">{product.name}</h3>
               <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{product.description}</p>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                 <p className="font-semibold text-slate-500">{t.labels.price}</p>
-                <p className="mt-1 font-black text-slate-950">{formatProductCurrency(product.price, product.currency)}</p>
+                <p className="mt-1 font-bold text-slate-950">{formatProductCurrency(product.price, product.currency)}</p>
               </div>
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                 <p className="font-semibold text-slate-500">{t.labels.margin}</p>
-                <p className="mt-1 font-black text-[#B63B32]">{getRoundedPercentValue(pricing.actualMargin)}%</p>
+                <p className="mt-1 font-bold text-[#B63B32]">{getRoundedPercentValue(pricing.actualMargin)}%</p>
               </div>
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                 <p className="font-semibold text-slate-500">{t.labels.type}</p>
-                <p className="mt-1 truncate font-black text-slate-950">{t.typeLabels[product.type]}</p>
+                <p className="mt-1 truncate font-semibold text-slate-950">{t.typeLabels[product.type]}</p>
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
               <p className="font-semibold text-slate-500">{t.labels.category}</p>
-              <p className="mt-1 font-black text-slate-950">{getCategoryLabel(product.category, t)}</p>
+              <p className="mt-1 font-semibold text-slate-950">{getCategoryLabel(product.category, t)}</p>
             </div>
 
             {product.packaging ? (
               <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 px-3 py-3">
-                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-[#B63B32]">
+                <p className="flex items-center gap-2 text-xs font-semibold text-[#B63B32]">
                   <Boxes className="h-4 w-4" />
                   {t.packaging.previewTitle}
                 </p>
-                <p className="mt-2 text-sm font-black text-slate-950">
+                <p className="mt-2 text-sm font-semibold text-slate-950">
                   {t.packaging.priceSummary(formatProductCurrency(presentationPrice, product.currency), t.packaging.saleUnitLabels[product.packaging.saleUnit])}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -101,8 +101,8 @@ export function ProductPreviewPanel({
 
             {product.barcode ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.form.fields.barcode}</p>
-                <p className="mt-1 flex items-center gap-2 font-mono text-sm font-black text-slate-900">
+                <p className="text-xs font-semibold text-slate-500">{t.form.fields.barcode}</p>
+                <p className="mt-1 flex items-center gap-2 font-mono text-sm font-semibold text-slate-900">
                   <Barcode className="h-4 w-4 text-[#B63B32]" />
                   {product.barcode}
                 </p>
@@ -112,7 +112,7 @@ export function ProductPreviewPanel({
         </article>
 
         <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
-          <h4 className="text-sm font-black text-slate-950">{t.previewSummary.title}</h4>
+          <h4 className="text-sm font-bold text-slate-950">{t.previewSummary.title}</h4>
           <ProductReadinessBadges form={form} t={t} />
           <div className="flex flex-wrap gap-2">
             {usageOrder.map((key) => (

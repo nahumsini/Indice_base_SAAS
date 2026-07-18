@@ -6,7 +6,6 @@ import {
   PencilLine,
   Phone,
   Plus,
-  Search,
   Trash2,
   UploadCloud,
 } from 'lucide-react';
@@ -15,7 +14,6 @@ import { humanResourcesApi } from '../../../api/humanResources';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
-import { Input } from '../../../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -36,6 +34,10 @@ import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { ColumnasConfigModal } from '../../../components/rh/ColumnasConfigModal';
+import {
+  SalesFilterBar,
+  SalesFilterSearch,
+} from '../components/SalesFilterBar';
 import {
   SalesTitleBar,
   salesTitleBarPrimaryActionClassName,
@@ -60,6 +62,7 @@ import { ContactActionButton } from './components/ContactActionButton';
 import { ContactDeleteDialog } from './components/ContactDeleteDialog';
 import { ContactFiscalBadge } from './components/ContactFiscalBadge';
 import { ContactFormModal } from './components/ContactFormModal';
+import { ContactLearningGuide } from './components/ContactLearningGuide';
 import { ImportContactsModal } from './components/ImportContactsModal';
 import { ContactRelationshipSignal } from './components/ContactRelationshipSignal';
 import {
@@ -68,7 +71,10 @@ import {
   fiscalCountryOptions,
   initialContactForm,
 } from './constants/contactConstants';
-import { useContactosTranslations } from './hooks/useContactosTranslations';
+import {
+  useContactosLearningTranslations,
+  useContactosTranslations,
+} from './hooks/useContactosTranslations';
 import type {
   ContactColumnId,
   ContactFormState,
@@ -85,8 +91,9 @@ import {
   sortContacts,
 } from './utils/contactPageUtils';
 
-export default function Contactos({ learningModeActive: _learningModeActive = false }: ContactosProps) {
+export default function Contactos({ learningModeActive = false }: ContactosProps) {
   const t = useContactosTranslations();
+  const learningCopy = useContactosLearningTranslations();
   const { contacts, opportunities, quotes, addContact, updateContact, deleteContact } = useSalesCrm();
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -542,23 +549,20 @@ export default function Contactos({ learningModeActive: _learningModeActive = fa
         )}
       />
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t.search.placeholder}
-              className="h-11 rounded-lg border-slate-200 bg-white pl-10 text-slate-900 shadow-none placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
-          <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            <span>{t.search.visibleContacts}</span>
-            <span className="font-black text-[#B63B32]">{sortedContacts.length}</span>
-          </div>
-        </div>
-      </section>
+      {learningModeActive ? <ContactLearningGuide copy={learningCopy} /> : null}
+
+      <SalesFilterBar
+        title={t.search.title}
+        summary={`${t.search.visibleContacts}: ${sortedContacts.length}`}
+        gridClassName="md:grid-cols-1"
+      >
+        <SalesFilterSearch
+          label={t.search.label}
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          placeholder={t.search.placeholder}
+        />
+      </SalesFilterBar>
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <Table className="min-w-[1740px] table-fixed">
@@ -678,7 +682,7 @@ export default function Contactos({ learningModeActive: _learningModeActive = fa
         </Table>
         <DataTablePagination
           currentPage={currentPage}
-          itemLabel="contactos"
+          itemLabel={t.header.title.toLocaleLowerCase()}
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
           pageEnd={pageEnd}

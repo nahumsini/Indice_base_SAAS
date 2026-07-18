@@ -27,13 +27,13 @@ export function QuoteCatalogSection({
     <section className="space-y-4">
       <div className="flex flex-col gap-3 rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="flex items-center gap-2 text-base font-black text-slate-950">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
             <PackagePlus className="h-5 w-5 text-[#B63B32]" />
             {t.sections.catalogTitle}
           </h3>
-          <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">{t.catalog.description}</p>
+          <p className="mt-1 text-sm font-normal leading-6 text-slate-500">{t.catalog.description}</p>
         </div>
-        <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
+        <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
           <Switch
             checked={showNotReady}
             className="data-[state=checked]:bg-[#FF6B5E]"
@@ -44,7 +44,7 @@ export function QuoteCatalogSection({
       </div>
 
       {visibleProducts.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm font-medium text-slate-500">
           {t.catalog.empty}
         </div>
       ) : (

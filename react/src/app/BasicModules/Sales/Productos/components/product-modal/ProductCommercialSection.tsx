@@ -67,7 +67,7 @@ export function ProductCommercialSection({
   return (
     <section className="space-y-4">
       <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-4">
-        <h3 className="flex items-center gap-2 text-base font-black text-slate-950">
+        <h3 className="flex items-center gap-2 text-base font-bold text-slate-950">
           <Calculator className="h-5 w-5 text-[#B63B32]" />
           {t.priceBuilder.title}
         </h3>
@@ -79,7 +79,7 @@ export function ProductCommercialSection({
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.priceBuilder.costBlock}</p>
+          <p className="text-xs font-semibold text-slate-500">{t.priceBuilder.costBlock}</p>
           <ProductNumberField
             label={t.priceBuilder.baseCost}
             value={form.cost}
@@ -97,12 +97,12 @@ export function ProductCommercialSection({
           />
           <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
             <p className="text-xs font-bold text-slate-500">{t.priceBuilder.totalCost}</p>
-            <p className="mt-1 text-xl font-black text-slate-950">{formatProductCurrency(pricing.totalCost, form.currency)}</p>
+            <p className="mt-1 text-xl font-bold text-slate-950">{formatProductCurrency(pricing.totalCost, form.currency)}</p>
           </div>
         </div>
 
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.priceBuilder.suggestionBlock}</p>
+          <p className="text-xs font-semibold text-slate-500">{t.priceBuilder.suggestionBlock}</p>
           <ProductNumberField
             label={t.priceBuilder.desiredMargin}
             value={form.desiredMarginPercentage}
@@ -110,7 +110,7 @@ export function ProductCommercialSection({
           />
           <div className="rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/10 p-3">
             <p className="text-xs font-bold text-[#177d66]">{t.priceBuilder.suggestedPrice}</p>
-            <p className="mt-1 text-xl font-black text-slate-950">{formatProductCurrency(pricing.suggestedPrice, form.currency)}</p>
+            <p className="mt-1 text-xl font-bold text-slate-950">{formatProductCurrency(pricing.suggestedPrice, form.currency)}</p>
           </div>
           <Button
             type="button"
@@ -124,7 +124,7 @@ export function ProductCommercialSection({
         </div>
 
         <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.priceBuilder.finalBlock}</p>
+          <p className="text-xs font-semibold text-slate-500">{t.priceBuilder.finalBlock}</p>
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700">{t.labels.currency}</label>
             <Select value={form.currency} onValueChange={(value) => onFormChange((current) => ({ ...current, currency: value }))}>
@@ -147,7 +147,7 @@ export function ProductCommercialSection({
           />
           <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-3">
             <p className="text-xs font-bold text-[#B63B32]">{t.priceBuilder.estimatedMargin}</p>
-            <p className="mt-1 text-xl font-black text-slate-950">{getRoundedPercentValue(pricing.actualMargin)}%</p>
+            <p className="mt-1 text-xl font-bold text-slate-950">{getRoundedPercentValue(pricing.actualMargin)}%</p>
           </div>
           <ProductNumberField
             label={t.packaging.wholesalePrice}

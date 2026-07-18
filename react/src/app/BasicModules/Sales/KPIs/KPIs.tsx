@@ -5,12 +5,10 @@ import {
   CircleDollarSign,
   ClipboardList,
   FileText,
-  PackageCheck,
   Target,
   UsersRound,
 } from 'lucide-react';
 import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
-import { buildInventoryStockRows } from '../Inventory/data/inventoryMockData';
 import { useSalesCrm } from '../salesCrmContext';
 import {
   filterSalesKpiSources,
@@ -21,6 +19,7 @@ import {
   type SalesKpiDataSources,
 } from './salesKpiSelectors';
 import { SalesKpiCardItem, SalesKpiGrid } from './components/SalesKpiCard';
+import { SalesKpiCharts } from './components/SalesKpiCharts';
 import { SalesKpiContextStrip } from './components/SalesKpiContextStrip';
 import { SalesKpiFilters } from './components/SalesKpiFilters';
 import { SalesKpiSignals } from './components/SalesKpiSignals';
@@ -33,7 +32,7 @@ import { useSalesKpisTranslations } from './hooks/useSalesKpisTranslations';
 const percent = (value: number) => `${Math.round(value)}%`;
 
 export default function KPIs() {
-  const { contacts, opportunities, products, quotes, salesRecords } = useSalesCrm();
+  const { contacts, opportunities, quotes, salesRecords } = useSalesCrm();
   const copy = useSalesKpisTranslations();
   const { formatPreferred, preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
   const {
@@ -53,12 +52,10 @@ export default function KPIs() {
 
   const sources = useMemo<SalesKpiDataSources>(() => ({
     contacts,
-    inventoryRows: buildInventoryStockRows(products),
     opportunities,
-    products,
     quotes,
     sales: salesRecords,
-  }), [contacts, opportunities, products, quotes, salesRecords]);
+  }), [contacts, opportunities, quotes, salesRecords]);
 
   const options = useMemo(() => getSalesKpiOptions(sources), [sources]);
   const filteredSources = useMemo(() => filterSalesKpiSources(sources, {
@@ -109,6 +106,32 @@ export default function KPIs() {
       }))).preferredTotalLabel,
     }];
   })), [filteredOpportunities, filteredSources.sales, preferredCurrency, sellerRanking, summarize]);
+
+  const funnelChart = useMemo(() => [
+    { label: copy.cards.activeProspects.label, value: kpis.activeProspects },
+    { label: copy.cards.quotes.label, value: kpis.totalQuotes },
+    { label: copy.cards.quoteApproval.label, value: kpis.approvedQuotes + kpis.closedWonQuotes },
+    { label: copy.sellerTable.columns.closed, value: kpis.totalSales },
+  ], [copy, kpis]);
+  const salesTrend = useMemo(() => {
+    const monthTotals = new Map<string, Array<{ amount: number; currency: string }>>();
+    filteredSources.sales.forEach((sale) => {
+      const month = sale.saleDate.slice(0, 7);
+      const entries = monthTotals.get(month) ?? [];
+      entries.push({ amount: sale.totalAmount, currency: sale.currency });
+      monthTotals.set(month, entries);
+    });
+
+    return Array.from(monthTotals.entries())
+      .sort(([left], [right]) => left.localeCompare(right))
+      .slice(-6)
+      .map(([label, values]) => ({ label, value: summarize(values).preferredTotal }));
+  }, [filteredSources.sales, summarize]);
+  const sellerComparison = useMemo(() => sellerRanking.slice(0, 5).map((row) => ({
+    label: row.seller.split(' ')[0] || row.seller,
+    quotes: row.quotes,
+    wins: row.closed,
+  })), [sellerRanking]);
 
   const kpiCards = useMemo<SalesKpiCardItem[]>(() => [
     {
@@ -161,11 +184,11 @@ export default function KPIs() {
       value: commissionSummary.preferredTotalLabel,
     },
     {
-      detail: copy.cards.products.detail(kpis.activeProducts),
-      icon: PackageCheck,
-      label: copy.cards.products.label,
-      tone: kpis.inventoryReadiness < 60 ? 'yellow' : 'green',
-      value: percent(kpis.inventoryReadiness),
+      detail: copy.cards.contacts.detail(kpis.activeCustomers),
+      icon: UsersRound,
+      label: copy.cards.contacts.label,
+      tone: kpis.activeCustomers > 0 ? 'green' : 'yellow',
+      value: String(kpis.totalContacts),
     },
   ], [commissionSummary.preferredTotalLabel, copy.cards, formatPreferred, kpis, pipelineSummary.preferredTotalLabel, preferredCurrency, salesSummary.preferredTotal, salesSummary.preferredTotalLabel]);
 
@@ -173,7 +196,6 @@ export default function KPIs() {
     filteredSources.sales.length +
     filteredSources.quotes.length +
     filteredSources.opportunities.length +
-    filteredSources.products.length +
     filteredSources.contacts.length;
 
   return (
@@ -206,13 +228,21 @@ export default function KPIs() {
 
       <SalesKpiGrid items={kpiCards} />
 
+      <SalesKpiCharts
+        copy={copy}
+        funnel={funnelChart}
+        sellerComparison={sellerComparison}
+        trend={salesTrend}
+      />
+
       <SalesKpiSignals
+        activeCustomers={kpis.activeCustomers}
         commercialRisk={kpis.commercialRisk}
         copy={copy}
-        inventoryPreparedProducts={kpis.inventoryPreparedProducts}
-        inventoryReadiness={kpis.inventoryReadiness}
+        quoteApprovalRate={kpis.quoteApprovalRate}
         quoteConversionRate={kpis.quoteConversionRate}
-        totalProducts={kpis.totalProducts}
+        quoteRejectionRate={kpis.quoteRejectionRate}
+        totalContacts={kpis.totalContacts}
       />
 
       <SalesSellerRanking copy={copy} rows={sellerRanking} sellerMoney={sellerMoney} />

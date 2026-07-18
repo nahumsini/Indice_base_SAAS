@@ -152,8 +152,9 @@ export function AddCompositeProductModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar producto compuesto"
-      eyebrow="Catalogo POS"
+      eyebrow="Catálogo POS"
       icon={<Package className="h-6 w-6" />}
       onClose={onClose}
       size="lg"
@@ -161,20 +162,17 @@ export function AddCompositeProductModal({
       title={product ? 'Editar producto compuesto' : 'Nuevo producto compuesto'}
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`${selectedComponents.length} componentes · MXN ${Number(formData.salePrice || 0).toFixed(2)}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            form="pos-composite-product-form"
-            className={posModalPrimaryActionClassName}
-          >
-            <CheckCircle className="h-5 w-5" />
-            {product ? 'Guardar cambios' : 'Crear producto compuesto'}
-          </button>
-        </div>
+        <button type="submit" form="pos-composite-product-form" className={posModalPrimaryActionClassName}>
+          <CheckCircle className="h-5 w-5" />
+          {product ? 'Guardar cambios' : 'Crear producto compuesto'}
+        </button>
       )}
     >
       <form id="pos-composite-product-form" onSubmit={handleSubmit} className="space-y-6">

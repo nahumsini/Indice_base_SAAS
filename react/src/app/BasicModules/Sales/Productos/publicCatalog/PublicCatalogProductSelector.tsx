@@ -64,7 +64,7 @@ export function PublicCatalogProductSelector({
     <section className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-lg font-black text-slate-950">{t.publicCatalog.productSelection}</h3>
+          <h3 className="text-lg font-bold text-slate-950">{t.publicCatalog.productSelection}</h3>
           <p className="mt-1 text-sm font-semibold text-slate-500">{t.publicCatalog.selectedProducts(selectedProductIds.length)}</p>
         </div>
         <Button
@@ -85,7 +85,7 @@ export function PublicCatalogProductSelector({
           <button
             key={category}
             type="button"
-            className={`rounded-full border px-3 py-1.5 text-sm font-black ${selectedCategoryIds.includes(category) ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 text-[#B63B32]' : 'border-slate-200 bg-white text-slate-600'}`}
+            className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${selectedCategoryIds.includes(category) ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 text-[#B63B32]' : 'border-slate-200 bg-white text-slate-600'}`}
             onClick={() => toggleCategory(category)}
           >
             {getCategoryLabel(category, t)}
@@ -123,7 +123,7 @@ export function PublicCatalogProductSelector({
           <label key={product.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3">
             <Checkbox checked={selectedProductIds.includes(product.id)} onCheckedChange={() => toggleProduct(product.id)} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-black text-slate-950">{product.name}</span>
+              <span className="block truncate font-semibold text-slate-950">{product.name}</span>
               <span className="block text-xs font-semibold text-slate-500">{product.sku} - {t.typeLabels[product.type]}</span>
             </span>
           </label>

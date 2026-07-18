@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ArrowRightLeft, CheckCircle2, PackageOpen, Plus, Trash2, Warehouse } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, CheckCircle2, PackageOpen, Plus, Trash2, Warehouse } from 'lucide-react';
+import { IndiceModalSummary } from '../../../../../components/indice-modal';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
@@ -7,8 +8,12 @@ import { SalesModalFrame } from '../../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../../salesModalStyles';
 import type { InventoryBusiness, InventoryBusinessUnit, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
-import { getWarehouseInventorySummary } from '../../utils/inventoryCalculations';
+import { getWarehouseInventorySummary, getWarehouseMetrics } from '../../utils/inventoryCalculations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
+import {
+  InventoryModalField,
+  inventoryModalControlClassName,
+} from '../InventoryModalPrimitives';
 
 export type CreateWarehouseDraft = Omit<InventoryWarehouse, 'id' | 'lastMovementAt'>;
 
@@ -16,6 +21,11 @@ type WarehouseResponsibleOption = {
   id: string;
   name: string;
   email?: string;
+};
+
+type PendingWarehouseDeletion = {
+  warehouse: InventoryWarehouse;
+  targetWarehouseId?: string;
 };
 
 const warehouseTypes: InventoryWarehouse['type'][] = [
@@ -72,10 +82,12 @@ export function CreateWarehouseModal({
 }) {
   const [draft, setDraft] = useState<CreateWarehouseDraft>(() => createEmptyDraft());
   const [transferTargets, setTransferTargets] = useState<Record<string, string>>({});
+  const [pendingDeletion, setPendingDeletion] = useState<PendingWarehouseDeletion | null>(null);
   const summaries = useMemo(() => new Map(warehouses.map((warehouse) => [
     warehouse.id,
     getWarehouseInventorySummary(warehouse, rows),
   ])), [rows, warehouses]);
+  const warehouseMetrics = useMemo(() => getWarehouseMetrics(warehouses, rows), [rows, warehouses]);
   const availableBusinesses = draft.businessUnitId
     ? businesses.filter((business) => business.businessUnitId === draft.businessUnitId)
     : businesses;
@@ -101,31 +113,59 @@ export function CreateWarehouseModal({
     }));
   };
 
-  const handleDelete = (warehouse: InventoryWarehouse) => {
+  const requestDelete = (warehouse: InventoryWarehouse) => {
     const summary = summaries.get(warehouse.id) ?? getWarehouseInventorySummary(warehouse, rows);
     if (summary.totalUnits > 0) {
       const targetWarehouseId = transferTargets[warehouse.id];
       if (targetWarehouseId) {
-        onTransferAndDeleteWarehouse(warehouse.id, targetWarehouseId);
+        setPendingDeletion({ warehouse, targetWarehouseId });
       }
       return;
     }
 
-    onDeleteWarehouse(warehouse.id);
+    setPendingDeletion({ warehouse });
   };
 
+  const confirmDelete = () => {
+    if (!pendingDeletion) return;
+
+    if (pendingDeletion.targetWarehouseId) {
+      onTransferAndDeleteWarehouse(pendingDeletion.warehouse.id, pendingDeletion.targetWarehouseId);
+    } else {
+      onDeleteWarehouse(pendingDeletion.warehouse.id);
+    }
+
+    setPendingDeletion(null);
+  };
+
+  const pendingSummary = pendingDeletion
+    ? summaries.get(pendingDeletion.warehouse.id) ?? getWarehouseInventorySummary(pendingDeletion.warehouse, rows)
+    : null;
+  const pendingDestination = pendingDeletion?.targetWarehouseId
+    ? warehouses.find((warehouse) => warehouse.id === pendingDeletion.targetWarehouseId)?.name ?? t.common.notAvailable
+    : t.common.none;
+
   return (
-    <SalesModalFrame
+    <>
+      <SalesModalFrame
       open={open}
-      onOpenChange={onOpenChange}
-      title="Administrar almacenes"
-      description="Crea almacenes por unidad y negocio; para borrar, deja el stock en cero o transfiérelo primero."
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setPendingDeletion(null);
+        onOpenChange(nextOpen);
+      }}
+      title={t.operational.modals.manageWarehousesTitle}
+      description={t.operational.modals.manageWarehousesDescription}
       icon={<Warehouse className="h-5 w-5" />}
-      contentClassName="flex max-h-[92vh] flex-col sm:max-w-[1080px]"
+      modalType="operational-workspace"
+      contentClassName="flex max-h-[92vh] flex-col sm:max-w-[1200px]"
       bodyClassName="!max-h-none flex-1 overflow-y-auto bg-slate-50/70 px-6 py-5"
-      footerClassName="sm:justify-end"
-      footer={(
+      footerLeading={(
         <Button type="button" variant="outline" className={warehouseActionClassNames.secondary} onClick={() => onOpenChange(false)}>{t.common.close}</Button>
+      )}
+      footerSummary={t.operational.insight.warehouses(
+        warehouseMetrics.activeWarehouses,
+        warehouseMetrics.storedItems,
+        warehouseMetrics.attentionWarehouses,
       )}
     >
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
@@ -136,8 +176,8 @@ export function CreateWarehouseModal({
                 </span>
                 <div>
                   <h3 className="text-lg font-semibold text-slate-950">{t.operational.actions.createWarehouse}</h3>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-slate-500">
-                    Liga el almacén a una unidad de negocio y, cuando aplique, a un negocio específico.
+                  <p className="mt-1 text-sm font-normal leading-5 text-slate-500">
+                    {t.operational.modals.createWarehouseHelp}
                   </p>
                 </div>
               </div>
@@ -220,14 +260,14 @@ export function CreateWarehouseModal({
                     <PackageOpen className="h-5 w-5" />
                   </span>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-950">Almacenes activos</h3>
-                    <p className="mt-1 text-sm font-semibold leading-5 text-slate-500">
-                      Revisa stock, responsable y destino antes de eliminar.
+                    <h3 className="text-lg font-semibold text-slate-950">{t.operational.modals.activeWarehouses}</h3>
+                    <p className="mt-1 text-sm font-normal leading-5 text-slate-500">
+                      {t.operational.modals.activeWarehousesDescription}
                     </p>
                   </div>
                 </div>
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                  {warehouses.length} almacenes
+                  {t.operational.modals.warehouseCount(warehouses.length)}
                 </span>
               </div>
 
@@ -249,7 +289,7 @@ export function CreateWarehouseModal({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-base font-semibold leading-5 text-slate-950">{warehouse.name}</p>
-                            <span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-bold text-[#B63B32]">
+                            <span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-medium text-[#B63B32]">
                               {t.operational.warehouseTypes[warehouse.type]}
                             </span>
                           </div>
@@ -272,9 +312,9 @@ export function CreateWarehouseModal({
                         {hasStock ? (
                           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                             <SelectField
-                              label="Transferir mercancía a"
+                              label={t.operational.modals.transferStockTo}
                               value={transferTargetId || 'none'}
-                              options={[{ value: 'none', label: 'Seleccionar almacén destino' }, ...targetWarehouses.map((target) => ({ value: target.id, label: target.name }))]}
+                              options={[{ value: 'none', label: t.operational.modals.selectDestinationWarehouse }, ...targetWarehouses.map((target) => ({ value: target.id, label: target.name }))]}
                               onValueChange={(value) => handleTransferTargetChange(warehouse.id, value)}
                             />
                             <Button
@@ -282,26 +322,26 @@ export function CreateWarehouseModal({
                               variant="outline"
                               className="h-11 gap-2 rounded-lg border-cyan-200 bg-cyan-50 px-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
                               disabled={!transferTargetId}
-                              onClick={() => handleDelete(warehouse)}
+                              onClick={() => requestDelete(warehouse)}
                             >
                               <ArrowRightLeft className="h-4 w-4" />
-                              Transferir y borrar
+                              {t.operational.modals.transferAndDeleteWarehouse}
                             </Button>
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                            <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
                               <CheckCircle2 className="h-4 w-4" />
-                              Stock en cero, listo para borrar.
+                              {t.operational.modals.warehouseReadyToDelete}
                             </div>
                             <Button
                               type="button"
                               variant="outline"
                               className="h-10 gap-2 rounded-lg border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100"
-                              onClick={() => handleDelete(warehouse)}
+                              onClick={() => requestDelete(warehouse)}
                             >
                               <Trash2 className="h-4 w-4" />
-                              Borrar almacén
+                              {t.operational.modals.deleteWarehouse}
                             </Button>
                           </div>
                         )}
@@ -312,16 +352,48 @@ export function CreateWarehouseModal({
               </div>
             </section>
           </div>
-    </SalesModalFrame>
+      </SalesModalFrame>
+
+      <SalesModalFrame
+        open={Boolean(pendingDeletion)}
+        onOpenChange={(nextOpen) => !nextOpen && setPendingDeletion(null)}
+        title={t.operational.modals.deleteWarehouseTitle}
+        description={t.operational.modals.deleteWarehouseDescription}
+        icon={<AlertTriangle className="h-5 w-5" />}
+        modalType="confirmation"
+        bodyClassName="bg-slate-50/70 px-7 py-6"
+        footerLeading={(
+          <Button type="button" variant="outline" className={warehouseActionClassNames.secondary} onClick={() => setPendingDeletion(null)}>
+            {t.common.cancel}
+          </Button>
+        )}
+        footer={(
+          <Button type="button" className="h-11 rounded-lg bg-red-600 px-5 font-semibold text-white shadow-sm hover:bg-red-700" onClick={confirmDelete}>
+            {pendingDeletion?.targetWarehouseId
+              ? t.operational.modals.transferAndDeleteWarehouse
+              : t.operational.modals.confirmDeleteWarehouse}
+          </Button>
+        )}
+      >
+        <IndiceModalSummary
+          columns={3}
+          items={[
+            { id: 'warehouse', label: t.operational.columns.warehouse, value: pendingDeletion?.warehouse.name ?? t.common.notAvailable, emphasized: true },
+            { id: 'stock', label: t.operational.columns.totalUnits, value: formatInventoryNumber(pendingSummary?.totalUnits ?? 0) },
+            { id: 'destination', label: t.operational.modals.destination, value: pendingDestination },
+          ]}
+          variant="accent"
+        />
+      </SalesModalFrame>
+    </>
   );
 }
 
 function InputField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-2">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
-      <Input value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
-    </label>
+    <InventoryModalField label={label}>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} className={inventoryModalControlClassName} />
+    </InventoryModalField>
   );
 }
 
@@ -337,13 +409,12 @@ function SelectField({
   onValueChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-2">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
+    <InventoryModalField label={label}>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
+        <SelectTrigger className={inventoryModalControlClassName}><SelectValue /></SelectTrigger>
         <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>
-    </label>
+    </InventoryModalField>
   );
 }
 
@@ -351,7 +422,7 @@ function MiniMetric({ value, label }: { value: string; label: string }) {
   return (
     <div className="min-w-[84px] rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
       <p className="text-sm font-semibold text-slate-950">{value}</p>
-      <p className="mt-1 text-[10px] font-semibold text-slate-500">{label}</p>
+      <p className="mt-1 text-[10px] font-medium text-slate-500">{label}</p>
     </div>
   );
 }

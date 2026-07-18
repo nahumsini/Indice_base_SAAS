@@ -1,14 +1,7 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { Pencil, Plus, Save, X } from 'lucide-react';
+import { Pencil, Plus, Save } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -18,13 +11,6 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
-import {
-  processTaskModalCloseActionClass,
-  processTaskModalFooterClass,
-  processTaskModalHeaderClass,
-  processTaskModalPrimaryActionClass,
-  processTaskModalSecondaryActionClass,
-} from '../../shared/processTaskModalStyles';
 import type {
   ProcessBusinessOption,
   ProcessCollaboratorOption,
@@ -51,6 +37,7 @@ interface ProjectFormDialogProps {
   businessOptions: ProcessBusinessOption[];
   collaboratorOptions: ProcessCollaboratorOption[];
   copy?: ProjectsTranslations;
+  error?: string | null;
   form: ProjectFormValues;
   isSubmitting: boolean;
   mode: 'create' | 'edit';
@@ -122,6 +109,7 @@ export function ProjectFormDialog({
   businessOptions,
   collaboratorOptions,
   copy = defaultProjectsTranslations,
+  error,
   form,
   isSubmitting,
   mode,
@@ -139,7 +127,8 @@ export function ProjectFormDialog({
     value,
     label: value === 'none' ? copy.priorities.none : copy.priorities[value],
   }));
-  const isFormValid = Boolean(form.name.trim());
+  const hasValidDateRange = !form.startDate || !form.dueDate || form.startDate <= form.dueDate;
+  const isFormValid = Boolean(form.name.trim()) && hasValidDateRange;
   const selectedUnitId = numericFormValue(form.unitId);
   const selectedBusinessId = numericFormValue(form.businessId);
   const selectedOwnerUserCompanyId = numericFormValue(form.ownerUserCompanyId);
@@ -338,38 +327,38 @@ export function ProjectFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideCloseButton
-        className="!flex h-[min(88vh,780px)] w-[calc(100vw-2rem)] !max-w-3xl max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-3xl dark:border-slate-700 dark:bg-slate-800"
-      >
-        <div className={processTaskModalHeaderClass}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0 pr-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
-                {mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-                {title}
-              </DialogTitle>
-              <DialogDescription className="mt-1 max-w-2xl text-sm font-medium leading-5 text-slate-800/80">
-                {formCopy.description}
-              </DialogDescription>
-            </div>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={`${processTaskModalCloseActionClass} w-9 shrink-0 px-0`}
-                disabled={isSubmitting}
-                aria-label={copy.common.close}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
-          </div>
-        </div>
-
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+    <IndiceModalFrame
+      busy={isSubmitting}
+      closeLabel={copy.common.close}
+      description={formCopy.description}
+      footer={(
+        <>
+          <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
+            {copy.common.cancel}
+          </Button>
+          <Button
+            type="submit"
+            form="process-project-form"
+            disabled={!isFormValid || isSubmitting}
+          >
+            {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+            {isSubmitting ? copy.common.saving : submitLabel}
+          </Button>
+        </>
+      )}
+      footerSummary={form.name.trim() || title}
+      icon={mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={onOpenChange}
+      open={open}
+      title={title}
+      tone="yellow"
+    >
+      <form id="process-project-form" onSubmit={onSubmit} className="space-y-6">
+            <IndiceModalValidation messages={error ? [error] : []} />
+            {!hasValidDateRange ? (
+              <IndiceModalValidation messages={[`${formCopy.labels.dueDate}: ${formCopy.labels.startDate}`]} />
+            ) : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.name}</label>
@@ -408,6 +397,7 @@ export function ProjectFormDialog({
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
                 <Input
                   type="date"
+                  max={form.dueDate || undefined}
                   value={form.startDate}
                   onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))}
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
@@ -417,6 +407,7 @@ export function ProjectFormDialog({
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
                 <Input
                   type="date"
+                  min={form.startDate || undefined}
                   value={form.dueDate}
                   onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))}
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
@@ -470,30 +461,7 @@ export function ProjectFormDialog({
                 </Select>
               </div>
             </div>
-          </div>
-
-          <DialogFooter className={`${processTaskModalFooterClass} sticky bottom-0 z-10`}>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={processTaskModalSecondaryActionClass}
-                disabled={isSubmitting}
-              >
-                {copy.common.cancel}
-              </Button>
-            </DialogClose>
-            <Button
-              type="submit"
-              className={processTaskModalPrimaryActionClass}
-              disabled={!isFormValid || isSubmitting}
-            >
-              {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-              {isSubmitting ? copy.common.saving : submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      </form>
+    </IndiceModalFrame>
   );
 }

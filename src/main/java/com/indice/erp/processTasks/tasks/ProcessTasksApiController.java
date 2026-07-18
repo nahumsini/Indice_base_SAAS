@@ -77,6 +77,29 @@ public class ProcessTasksApiController {
         }
     }
 
+    @PatchMapping("/{taskId}")
+    public ResponseEntity<?> patch(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long taskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processTasksService.patchTask(
+                    access.user().companyId(),
+                    access.user().userId(),
+                    taskId,
+                    payload == null ? Map.of() : payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PatchMapping("/{taskId}/agenda-placement")
     public ResponseEntity<?> updateAgendaPlacement(
             HttpSession session,

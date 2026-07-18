@@ -45,17 +45,18 @@ export function OpportunityFilesModal({
   return (
     <>
       <SalesModalFrame
-        open={Boolean(opportunity)}
+        open={Boolean(opportunity) && !previewQuote}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !previewQuote) {
             handleClose();
           }
         }}
         title={copy.title}
         description={copy.description}
         icon={<Paperclip className="h-5 w-5" />}
-        contentClassName="w-[min(92vw,760px)]"
-        bodyClassName="space-y-5 px-7 py-6"
+        closeLabel={copy.close}
+        modalType="standard-form"
+        bodyClassName="space-y-5"
         footerClassName="sm:justify-end"
         footer={(
           <Button className={filesActionClassNames.primary} onClick={handleClose}>
@@ -64,21 +65,21 @@ export function OpportunityFilesModal({
         )}
       >
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="break-words font-bold text-slate-950">{opportunity?.opportunityName}</p>
+              <p className="break-words font-semibold text-slate-950">{opportunity?.opportunityName}</p>
               <p className="mt-1 break-words text-sm text-slate-600">{opportunity?.company}</p>
             </div>
 
             <div className="space-y-4">
               {hasQuoteFiles ? (
                 <section className="space-y-2">
-                  <h3 className="text-xs font-black uppercase tracking-normal text-slate-500">{copy.quotesTitle}</h3>
+                  <h3 className="text-sm font-semibold text-slate-700">{copy.quotesTitle}</h3>
                   {linkedQuotes.map((quote) => (
                     <div key={quote.id} className="flex flex-col gap-3 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="inline-flex min-w-0 items-start gap-3 text-sm font-semibold text-slate-800">
+                      <span className="inline-flex min-w-0 items-start gap-3 text-sm font-medium text-slate-800">
                         <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[#FF6B5E]" />
                         <span className="min-w-0">
-                          <span className="block break-all font-black text-slate-950">{quote.quoteNumber}</span>
-                          <span className="mt-1 block text-xs font-semibold text-slate-500">
+                          <span className="block break-all font-medium text-slate-950">{quote.quoteNumber}</span>
+                          <span className="mt-1 block text-xs font-medium text-slate-500">
                             {formatSalesCurrencyAmount(quote.total, quote.currency)} · {quote.status}
                           </span>
                         </span>
@@ -99,10 +100,10 @@ export function OpportunityFilesModal({
 
               {hasLocalFiles ? (
                 <section className="space-y-2">
-                  <h3 className="text-xs font-black uppercase tracking-normal text-slate-500">{copy.localFilesTitle}</h3>
+                  <h3 className="text-sm font-semibold text-slate-700">{copy.localFilesTitle}</h3>
                   {opportunity?.files.map((file) => (
                     <div key={file} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="inline-flex min-w-0 items-center gap-3 text-sm font-semibold text-slate-800">
+                      <span className="inline-flex min-w-0 items-center gap-3 text-sm font-medium text-slate-800">
                         <FileText className="h-4 w-4 shrink-0 text-[#FF6B5E]" />
                         <span className="min-w-0 break-all">{file}</span>
                       </span>

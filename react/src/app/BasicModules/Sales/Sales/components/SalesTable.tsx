@@ -196,7 +196,7 @@ export function SalesTable({
         </div>
         <DataTablePagination
           currentPage={currentPage}
-          itemLabel="ventas"
+          itemLabel={t.header.title.toLocaleLowerCase()}
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
           pageEnd={pageEnd}

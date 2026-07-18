@@ -236,6 +236,7 @@ export function OpenShiftModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar apertura de caja"
       eyebrow="Inicio de turno"
       icon={<LogIn className="h-6 w-6" />}
@@ -246,23 +247,21 @@ export function OpenShiftModal({
       title="Abrir caja"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} disabled={isSubmitting} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`${registerContext ? `${registerContext.cashRegisterCode} · ${registerContext.cashRegisterName}` : 'Caja pendiente'} · ${selectedCurrencyCode} · Fondo ${formatCurrency(Number(initialCash) || 0, selectedCurrencyCode)}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className={posModalSecondaryActionClassName}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={isSubmitting || hasWarehouseBlocker || hasIncompleteContext || hasRegisterBlocker || !registerContext}
-            className={posModalPrimaryActionClassName}
-          >
-            {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={isSubmitting || hasWarehouseBlocker || hasIncompleteContext || hasRegisterBlocker || !registerContext}
+          className={posModalPrimaryActionClassName}
+        >
+          {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
+        </button>
       )}
     >
           <div className="mb-5 grid gap-3 md:grid-cols-3">

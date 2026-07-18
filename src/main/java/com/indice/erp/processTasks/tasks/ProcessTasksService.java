@@ -61,6 +61,24 @@ public class ProcessTasksService {
             "paused");
     private static final Set<String> ALLOWED_PRIORITIES = Set.of("low", "medium", "high");
     private static final Set<String> ALLOWED_DEPENDENCY_TYPES = Set.of("finish_to_start");
+    private static final Set<String> PATCHABLE_TASK_FIELDS = Set.of(
+            "title",
+            "description",
+            "processId",
+            "projectId",
+            "assignedUserCompanyId",
+            "assignedName",
+            "status",
+            "priority",
+            "startDate",
+            "dueDate",
+            "notes",
+            "completionPercent",
+            "weighting",
+            "audited",
+            "auditNotes",
+            "businessId",
+            "unitId");
     private static final long MAX_ATTACHMENT_SIZE_BYTES = 10L * 1024L * 1024L;
 
     private final JdbcTemplate jdbcTemplate;
@@ -420,6 +438,28 @@ public class ProcessTasksService {
             publishTaskAudited(companyId, userId, task);
         }
         return task;
+    }
+
+    @Transactional
+    public Map<String, Object> patchTask(long companyId, long userId, long taskId, Map<String, Object> patch) {
+        if (patch == null || patch.isEmpty()) {
+            throw new IllegalArgumentException("At least one task field is required.");
+        }
+
+        var unsupportedFields = patch.keySet().stream()
+                .filter(field -> !PATCHABLE_TASK_FIELDS.contains(field))
+                .sorted()
+                .toList();
+        if (!unsupportedFields.isEmpty()) {
+            throw new IllegalArgumentException("Unsupported task fields: " + String.join(", ", unsupportedFields) + ".");
+        }
+
+        var existingTask = getTask(companyId, taskId);
+        var mergedPayload = new LinkedHashMap<String, Object>();
+        PATCHABLE_TASK_FIELDS.forEach(field -> mergedPayload.put(field, existingTask.get(field)));
+        mergedPayload.putAll(patch);
+
+        return updateTask(companyId, userId, taskId, mergedPayload);
     }
 
     @Transactional

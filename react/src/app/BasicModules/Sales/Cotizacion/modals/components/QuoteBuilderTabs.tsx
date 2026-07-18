@@ -62,7 +62,7 @@ export function QuoteBuilderTabs({
           <TabsTrigger
             key={tabId}
             value={tabId}
-            className="h-10 rounded-lg px-3 text-sm font-black data-[state=active]:bg-[#FF6B5E] data-[state=active]:text-white"
+            className="h-10 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-[#FF6B5E] data-[state=active]:font-semibold data-[state=active]:text-white"
           >
             {t.builderSections[tabId]}
           </TabsTrigger>

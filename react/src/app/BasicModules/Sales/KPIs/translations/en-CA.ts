@@ -1,13 +1,17 @@
 export const enCA = {
   header: {
     title: 'Commercial KPIs',
-    subtitle: 'Live sales board: prospects, quotes, wins, commissions, products, and commercial inventory.',
+    subtitle: 'Live sales board: prospects, quotes, wins, customers, commissions, and commercial risk.',
   },
   actions: {
     printReport: 'Print report',
   },
   filters: {
     title: 'Filters',
+    search: 'Search',
+    unit: 'Unit',
+    business: 'Business',
+    seller: 'Seller',
     allUnits: 'All units',
     allBusinesses: 'All businesses',
     allSellers: 'All sellers',

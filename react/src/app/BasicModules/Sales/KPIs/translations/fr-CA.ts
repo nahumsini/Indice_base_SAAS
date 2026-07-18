@@ -5,10 +5,14 @@ export const frCA: SalesKpisTranslations = {
   ...enCA,
   header: {
     title: 'ICP commerciaux',
-    subtitle: 'Tableau des ventes: occasions, devis, ventes gagnees, commissions, produits et inventaire commercial.',
+    subtitle: 'Tableau des ventes: occasions, devis, ventes gagnees, clients, commissions et risque commercial.',
   },
   filters: {
     title: 'Filtres',
+    search: 'Recherche',
+    unit: 'Unité',
+    business: 'Activité',
+    seller: 'Vendeur',
     allUnits: 'Toutes les unites',
     allBusinesses: 'Toutes les activites',
     allSellers: 'Tous les vendeurs',

@@ -55,30 +55,32 @@ export function CashUsdPaymentModal({ isOpen, onClose, totalAmount, onConfirmPay
 
   return (
     <PosModalFrame
-      closeLabel="Cerrar cobro en dolares"
+      modalType="standard-form"
+      closeLabel="Cerrar cobro en dólares"
       eyebrow="Cobro POS"
       icon={<DollarSign className="h-6 w-6" />}
       onClose={onClose}
       size="sm"
-      subtitle="Captura USD, valida el tipo de cambio y calcula cambio en MXN."
-      title="Cobro en dolares"
+      subtitle="Captura USD, valida el tipo de cambio y calcula el cambio en MXN."
+      title="Cobro en dólares"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`${formatCurrency(totalAmount, 'MXN')} · ${formatCurrency(totalInUsd, 'USD')}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!isEnough}
-            className={posModalPrimaryActionClassName}
-          >
-            <CheckCircle className="h-5 w-5" />
-            Confirmar cobro
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!isEnough}
+          className={posModalPrimaryActionClassName}
+        >
+          <CheckCircle className="h-5 w-5" />
+          Confirmar cobro
+        </button>
       )}
     >
       <div className="space-y-5">

@@ -26,12 +26,18 @@ const statusClasses: Record<CommissionStatus, string> = {
 export function CommissionStatusBadge({
   status,
   t,
+  naturalCase = false,
 }: {
   status: CommissionStatus;
   t: SalesRecordsTranslations;
+  naturalCase?: boolean;
 }) {
   return (
-    <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-normal', statusClasses[status])}>
+    <span className={cn(
+      'inline-flex rounded-full border px-3 py-1 text-xs font-black',
+      !naturalCase && 'uppercase tracking-normal',
+      statusClasses[status],
+    )}>
       {t.commissions.statuses[status]}
     </span>
   );
@@ -128,7 +134,7 @@ export function CommissionTable({
       </div>
       <DataTablePagination
         currentPage={currentPage}
-        itemLabel="comisiones"
+        itemLabel={t.commissions.view.title.toLocaleLowerCase()}
         onPageChange={onPageChange}
         onPageSizeChange={onPageSizeChange}
         pageEnd={pageEnd}

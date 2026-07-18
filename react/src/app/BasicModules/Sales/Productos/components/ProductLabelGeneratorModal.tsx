@@ -91,7 +91,7 @@ export function ProductLabelGeneratorModal({
                   key={label}
                   type="button"
                   onClick={() => handleApply(label)}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm font-black text-slate-900 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10"
                 >
                   <span>{label}</span>
                   <Barcode className="h-4 w-4 text-[#B63B32]" />

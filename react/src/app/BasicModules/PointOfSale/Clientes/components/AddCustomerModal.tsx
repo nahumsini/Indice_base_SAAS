@@ -71,33 +71,27 @@ export function AddCustomerModal({ isOpen, onClose, onSave, customer }: AddCusto
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar cliente"
       eyebrow="Clientes POS"
       footerClassName={posModalModuleFooterClassName}
       icon={<User className="h-6 w-6" />}
       onClose={onClose}
       size="md"
-      subtitle="Mantiene el directorio operativo listo para tickets, credito y estados de cuenta."
-      title={customer ? 'Editar Cliente' : 'Agregar Cliente'}
+      subtitle="Mantiene el directorio operativo listo para tickets, crédito y estados de cuenta."
+      title={customer ? 'Editar cliente' : 'Agregar cliente'}
       tone="coral"
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`${customerType === 'individual' ? 'Persona' : 'Empresa'} · ${formData.name.trim() || 'Nombre pendiente'}`}
       footer={(
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className={posModalSecondaryActionClassName}
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            form="pos-customer-form"
-            className={posModalPrimaryActionClassName}
-          >
-            <Check className="h-4 w-4" />
-            {customer ? 'Guardar cambios' : 'Agregar cliente'}
-          </button>
-        </div>
+        <button type="submit" form="pos-customer-form" className={posModalPrimaryActionClassName}>
+          <Check className="h-4 w-4" />
+          {customer ? 'Guardar cambios' : 'Agregar cliente'}
+        </button>
       )}
     >
         <form id="pos-customer-form" onSubmit={handleSubmit} className="space-y-6">

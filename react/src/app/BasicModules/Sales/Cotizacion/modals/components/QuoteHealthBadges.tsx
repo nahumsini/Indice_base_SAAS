@@ -27,7 +27,7 @@ export function QuoteHealthBadges({
         <Badge
           key={key}
           className={cn(
-            'rounded-full border px-3 py-1 text-xs font-bold',
+            'rounded-full border px-3 py-1 text-xs font-medium',
             key === 'readyToSend' || key === 'taxesConfigured'
               ? 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]'
               : key === 'marginLow' || key === 'taxesMissing'

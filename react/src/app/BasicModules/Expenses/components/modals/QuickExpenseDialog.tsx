@@ -1,7 +1,6 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
-import { Plus, ReceiptText, X } from 'lucide-react';
-import { Button } from '../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '../../../../components/ui/dialog';
+import { Plus, ReceiptText } from 'lucide-react';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import {
   getBudgetTaxProfile,
@@ -49,6 +48,7 @@ export function QuickExpenseDialog({
 }: QuickExpenseDialogProps) {
   const t = useExpensesTranslations();
   const [concept, setConcept] = useState('');
+  const [error, setError] = useState('');
   const [draft, setDraft] = useState<TaxControlDraft>(() => createQuickTaxDraft(currency));
   const enteredAmount = toMoneyNumber(draft.amount);
   const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;
@@ -64,51 +64,59 @@ export function QuickExpenseDialog({
     }
   }, [currency, open]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
     const taxProfile = draft.taxEnabled ? getBudgetTaxProfile(draft.taxProfileId, draft.taxCountry) : undefined;
-    void onSubmit({
-      amount: subtotal,
-      attachmentFiles: [],
-      business: '',
-      businessUnit: '',
-      concept: concept.trim(),
-      currency,
-      description: '',
-      taxes,
-      taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
-      taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
-      taxMode: draft.taxEnabled ? draft.taxMode : 'none',
-      taxName: draft.taxEnabled ? taxProfile?.shortName ?? taxProfile?.label : undefined,
-      taxProfileId: draft.taxEnabled ? draft.taxProfileId : undefined,
-      taxRate: draft.taxEnabled ? toPercentNumber(draft.taxRate) : undefined,
-      taxRegion: taxProfile?.region,
-      total,
-    });
+    setError('');
+    try {
+      await onSubmit({
+        amount: subtotal,
+        attachmentFiles: [],
+        business: '',
+        businessUnit: '',
+        concept: concept.trim(),
+        currency,
+        description: '',
+        taxes,
+        taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
+        taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
+        taxMode: draft.taxEnabled ? draft.taxMode : 'none',
+        taxName: draft.taxEnabled ? taxProfile?.shortName ?? taxProfile?.label : undefined,
+        taxProfileId: draft.taxEnabled ? draft.taxProfileId : undefined,
+        taxRate: draft.taxEnabled ? toPercentNumber(draft.taxRate) : undefined,
+        taxRegion: taxProfile?.region,
+        total,
+      });
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'No se pudo crear el gasto.');
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideCloseButton className="max-w-[480px] overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-start justify-between gap-4 bg-[#147514] px-5 py-4 text-white dark:bg-[#0b3f1b]">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
-              <ReceiptText className="h-5 w-5" />
-            </span>
-            <div>
-            <DialogTitle className="text-lg font-bold text-white">{t.expenses.quick.title}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm leading-5 text-white/80">
-                {t.expenses.quick.description}
-            </DialogDescription>
-            </div>
-          </div>
-          <button type="button" onClick={() => onOpenChange(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
-            <X className="h-5 w-5" />
+    <IndiceModalFrame
+      busy={isSubmitting}
+      contentClassName="sm:max-w-[480px]"
+      description={t.expenses.quick.description}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" className="h-10 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50" disabled={isSubmitting} onClick={() => onOpenChange(false)}>{t.common.cancel}</button>
+          <button form="quick-expense-form" type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:opacity-50" disabled={!canSubmit}>
+            <Plus className="h-4 w-4" />
+            {isSubmitting ? t.expenses.quick.saving : t.expenses.quick.create}
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="grid max-h-[calc(100vh-13rem)] gap-4 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-950/40">
+      )}
+      footerSummary={formatCurrency(total, currency)}
+      icon={<ReceiptText className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={onOpenChange}
+      open={open}
+      title={t.expenses.quick.title}
+      tone="green"
+    >
+        <form id="quick-expense-form" className="grid gap-4" onSubmit={handleSubmit}>
+            {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
             <Field label={t.expenses.modal.concept}>
               <Input autoFocus maxLength={160} value={concept} onChange={(event) => setConcept(event.target.value)} placeholder={t.expenses.modal.placeholderConcept} className={inputClass} />
             </Field>
@@ -123,19 +131,8 @@ export function QuickExpenseDialog({
                 <QuickSummary label={t.expenses.modal.summaryTotal} value={formatCurrency(total, currency)} strong />
               </div>
             ) : null}
-          </div>
-          <DialogFooter className="gap-3 bg-[#147514] px-5 py-4 dark:bg-[#0b3f1b]">
-            <Button type="button" variant="outline" className="h-10 rounded-xl border-white/30 bg-white/10 px-4 text-sm font-semibold text-white shadow-none hover:bg-white/20 hover:text-white" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
-              {t.common.cancel}
-            </Button>
-            <Button type="submit" className="h-10 rounded-xl bg-white px-4 text-sm font-semibold text-[#147514] shadow-sm hover:bg-slate-100 hover:text-[#147514] disabled:bg-white/40 disabled:text-[#147514]/50" disabled={!canSubmit}>
-              <Plus className="h-4 w-4" />
-              {isSubmitting ? t.expenses.quick.saving : t.expenses.quick.create}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -153,8 +150,8 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
 function QuickSummary({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-      <p className="truncate text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">{label}</p>
-      <p className={`mt-1 truncate text-sm font-bold ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
+      <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`mt-1 truncate text-sm font-semibold ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
     </div>
   );
 }

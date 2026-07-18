@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { AttachmentsModal } from '../Expenses/components/AttachmentsModal';
 import { useProvidersTranslations } from './hooks/useProvidersTranslations';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { usePersistentTableColumns } from '../hooks/usePersistentTableColumns';
 import { accountingAccountsService, providersService, toFinanceApiErrorMessage } from '../services';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
-import { defaultProviderColumns, type ProviderColumnKey } from './providerTableConfig';
+import { defaultProviderColumns, type ProviderColumnConfig } from './providerTableConfig';
 import { ProviderColumnsModal } from './components/ProviderColumnsModal';
 import { ProviderCreateModal } from './components/ProviderCreateModal';
 import { ProvidersFilterBar } from './components/ProvidersFilterBar';
@@ -72,6 +73,7 @@ export default function ProveedoresPage({
     filteredProviders,
     providers,
     searchTerm,
+    saveProvider,
     setBusinessFilter,
     setBusinessUnitFilter,
     setSearchTerm,
@@ -93,6 +95,8 @@ export default function ProveedoresPage({
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [accessProvider, setAccessProvider] = useState<ProviderRecord | null>(null);
+  const [providerPendingDelete, setProviderPendingDelete] = useState<ProviderRecord | null>(null);
+  const [isDeletingProvider, setIsDeletingProvider] = useState(false);
   const translatedProviderColumns = useMemo(() => defaultProviderColumns.map(column => {
     const copy = t.providers.columns[column.key];
     return {
@@ -101,7 +105,7 @@ export default function ProveedoresPage({
       label: copy?.label ?? column.label,
     };
   }), [t]);
-  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns(
+  const [visibleColumns, setVisibleColumns] = usePersistentTableColumns<ProviderColumnConfig>(
     'indice.expenses.providers.columns.v1',
     translatedProviderColumns,
   );
@@ -178,15 +182,17 @@ export default function ProveedoresPage({
 
   const handleEditProvider = async (values: ProviderFormValues) => {
     if (!editingProvider) return;
-    updateProvider(editingProvider.id, values);
+    await saveProvider(editingProvider.id, values);
     setEditingProviderId(editingProvider.id);
     setEditingProvider(null);
   };
 
-  const handleToggleColumn = (key: ProviderColumnKey, visible: boolean) => {
-    setVisibleColumns(currentColumns => currentColumns.map(column => (
-      column.key === key ? { ...column, visible: column.fixed ? true : visible } : column
-    )));
+  const confirmDeleteProvider = async () => {
+    if (!providerPendingDelete) return;
+    setIsDeletingProvider(true);
+    const deleted = await deleteProvider(providerPendingDelete.id);
+    setIsDeletingProvider(false);
+    if (deleted) setProviderPendingDelete(null);
   };
 
   const saveProviderAttachments = (attachments: string[]) => {
@@ -228,7 +234,7 @@ export default function ProveedoresPage({
         unitOptions={effectiveUnitOptions}
         userOptions={userOptions}
         onActivateProvider={activateProvider}
-        onDeleteProvider={deleteProvider}
+        onDeleteProvider={(providerId) => setProviderPendingDelete(providers.find(provider => provider.id === providerId) ?? null)}
         onDuplicateProvider={duplicateProvider}
         onEditProvider={setEditingProviderId}
         onOpenEditProvider={setEditingProvider}
@@ -282,15 +288,26 @@ export default function ProveedoresPage({
       {isColumnsModalOpen && (
         <ProviderColumnsModal
           columns={visibleColumns}
+          defaultColumns={translatedProviderColumns}
           variant={variant}
-          onApply={() => setIsColumnsModalOpen(false)}
           onClose={() => setIsColumnsModalOpen(false)}
-          onHideOptional={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: Boolean(column.fixed) })))}
-          onRestoreDefault={() => setVisibleColumns(translatedProviderColumns.map(column => ({ ...column })))}
-          onShowAll={() => setVisibleColumns(currentColumns => currentColumns.map(column => ({ ...column, visible: true })))}
-          onToggleColumn={handleToggleColumn}
+          onSave={(nextColumns) => {
+            setVisibleColumns(nextColumns);
+            setIsColumnsModalOpen(false);
+          }}
         />
       )}
+      <ConfirmDeleteDialog
+        cancelLabel={t.common.cancel}
+        confirmDisabled={isDeletingProvider}
+        confirmLabel={isDeletingProvider ? 'Eliminando…' : t.common.delete}
+        description="El proveedor dejará de estar disponible para nuevos gastos y cuentas por pagar. Esta acción no se puede deshacer."
+        isVisible={Boolean(providerPendingDelete)}
+        itemName={providerPendingDelete ? `${providerPendingDelete.folio} · ${providerPendingDelete.name}` : undefined}
+        onCancel={() => !isDeletingProvider && setProviderPendingDelete(null)}
+        onConfirm={() => void confirmDeleteProvider()}
+        title="Eliminar proveedor"
+      />
       <SuccessToast
         isVisible={Boolean(successToastMessage)}
         message={successToastMessage}

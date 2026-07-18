@@ -64,6 +64,7 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar cobro"
       eyebrow="Cobro POS"
       footerClassName={posModalModuleFooterClassName}
@@ -71,27 +72,24 @@ export function CashPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
       onClose={onClose}
       size="sm"
       subtitle="Captura efectivo recibido y cambio antes de confirmar."
-      title="Cobro en Efectivo"
+      title="Cobro en efectivo"
       tone="coral"
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`Total ${formatCurrency(totalAmount)} · Cambio ${formatCurrency(change)}`}
       footer={(
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className={posModalSecondaryActionClassName}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!isEnough}
-            className={posModalPrimaryActionClassName}
-          >
-            <Check className="h-4 w-4" />
-            Confirmar cobro
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!isEnough}
+          className={posModalPrimaryActionClassName}
+        >
+          <Check className="h-4 w-4" />
+          Confirmar cobro
+        </button>
       )}
     >
         <div className="space-y-6">

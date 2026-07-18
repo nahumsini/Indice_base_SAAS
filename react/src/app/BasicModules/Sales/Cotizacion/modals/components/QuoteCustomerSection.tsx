@@ -61,6 +61,7 @@ export function QuoteCustomerSection({
 
       {form.clientMode === 'contact' ? (
         <FilterSelect
+          softTypography
           label={t.labels.client}
           value={form.clientId}
           onValueChange={(value) => onFormChange((current) => ({ ...current, clientId: value }))}
@@ -69,7 +70,7 @@ export function QuoteCustomerSection({
       ) : (
         <div className="grid gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.labels.temporaryClient}</label>
+            <label className="text-sm font-medium text-slate-700">{t.labels.temporaryClient}</label>
             <Input
               className={coralFieldClassName}
               value={form.temporaryClient}
@@ -78,7 +79,7 @@ export function QuoteCustomerSection({
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.labels.contact}</label>
+            <label className="text-sm font-medium text-slate-700">{t.labels.contact}</label>
             <Input
               className={coralFieldClassName}
               value={form.contactPerson}
@@ -86,7 +87,7 @@ export function QuoteCustomerSection({
               placeholder={t.builder.contactPlaceholder}
             />
           </div>
-          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-5 text-slate-600">
+          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal leading-5 text-slate-600">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
             {t.builder.temporaryCustomerHelper}
           </div>
@@ -94,13 +95,14 @@ export function QuoteCustomerSection({
       )}
 
       <FilterSelect
+        softTypography
         label={t.labels.opportunity}
         value={form.opportunityId}
         onValueChange={(value) => onFormChange((current) => ({ ...current, opportunityId: value }))}
         options={opportunityOptions}
       />
       {form.opportunityId === 'none' ? (
-        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-5 text-slate-600">
+        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal leading-5 text-slate-600">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
           {t.builder.noOpportunityHelper}
         </div>
@@ -117,6 +119,7 @@ export function QuoteCustomerSection({
 
       <div className="grid gap-4">
         <FilterSelect
+          softTypography
           label={t.labels.seller}
           value={form.assignedSellerValue}
           onValueChange={onSellerChange}
@@ -126,7 +129,7 @@ export function QuoteCustomerSection({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.labels.createdDate}</label>
+          <label className="text-sm font-medium text-slate-700">{t.labels.createdDate}</label>
           <Input
             className={coralFieldClassName}
             type="date"
@@ -135,7 +138,7 @@ export function QuoteCustomerSection({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">{t.labels.expirationDate}</label>
+          <label className="text-sm font-medium text-slate-700">{t.labels.expirationDate}</label>
           <Input
             className={coralFieldClassName}
             type="date"
@@ -146,7 +149,7 @@ export function QuoteCustomerSection({
       </div>
 
       {isExpirationClose ? (
-        <div className="flex items-start gap-2 rounded-lg border border-[#F4C84A]/40 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold leading-5 text-[#9a6b05]">
+        <div className="flex items-start gap-2 rounded-lg border border-[#F4C84A]/40 bg-[#F4C84A]/10 px-4 py-3 text-sm font-normal leading-5 text-[#9a6b05]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {t.builder.expirationWarning(daysUntilExpiration ?? 0)}
         </div>

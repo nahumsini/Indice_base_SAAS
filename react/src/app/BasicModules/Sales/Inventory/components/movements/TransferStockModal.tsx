@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRightLeft, SlidersHorizontal } from 'lucide-react';
+import { IndiceModalSummary } from '../../../../../components/indice-modal';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
@@ -8,6 +9,11 @@ import { getSalesModalActionClassNames } from '../../../salesModalStyles';
 import type { InventoryMovementEntryType, InventoryOperationalMovement, InventoryStockRow, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { SUPPLIER_SOURCE_ID, getInventoryMovementEntryStatus, isSupplierSource } from '../../utils/inventoryMovementEntries';
+import {
+  InventoryModalField,
+  InventoryModalSection,
+  inventoryModalControlClassName,
+} from '../InventoryModalPrimitives';
 import { MovementProductLines, createMovementProductLine, type MovementProductLineDraft } from './MovementProductLines';
 
 export type TransferStockDraft = {
@@ -178,6 +184,12 @@ export function TransferStockModal({
       ? t.operational.actions.inventoryAdjustment
       : t.operational.modals.movementEntryTitle;
   const subtitle = isEditing ? t.operational.modals.editMovementSubtitle : t.operational.modals.movementEntrySubtitle;
+  const fromLocationLabel = sourceIsSupplier
+    ? draft.supplierName || t.operational.modals.supplier
+    : activeWarehouses.find((warehouse) => warehouse.id === draft.fromWarehouseId)?.name
+      ?? locationLabels[rules.from];
+  const toLocationLabel = activeWarehouses.find((warehouse) => warehouse.id === draft.toWarehouseId)?.name
+    ?? locationLabels[rules.to];
 
   return (
     <SalesModalFrame
@@ -186,32 +198,46 @@ export function TransferStockModal({
       title={title}
       description={subtitle}
       icon={<HeaderIcon className="h-5 w-5" />}
-      contentClassName="flex max-h-[86vh] flex-col sm:max-w-[920px]"
+      modalType="operational-workspace"
+      contentClassName="flex max-h-[88vh] flex-col sm:max-w-[1100px]"
       bodyClassName="!max-h-none flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5"
+      footerLeading={(
+        <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={() => onOpenChange(false)}>
+          {t.common.cancel}
+        </Button>
+      )}
+      footerSummary={`${t.operational.modals.products}: ${draft.items.length} · ${fromLocationLabel} → ${toLocationLabel}`}
       footer={(
-        <>
-          <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
-          <Button
-            type="button"
-            className={transferActionClassNames.primary}
-            disabled={!canSubmit}
-            onClick={() => {
-              if (editingMovement && onSaveEdit) {
-                onSaveEdit(editingMovement.id, draft);
-                return;
-              }
+        <Button
+          type="button"
+          className={transferActionClassNames.primary}
+          disabled={!canSubmit}
+          onClick={() => {
+            if (editingMovement && onSaveEdit) {
+              onSaveEdit(editingMovement.id, draft);
+              return;
+            }
 
-              onSubmit(draft);
-            }}
-          >
-            {isEditing ? t.common.save : t.operational.modals.registerMovement}
-          </Button>
-        </>
+            onSubmit(draft);
+          }}
+        >
+          {isEditing ? t.common.save : t.operational.modals.registerMovement}
+        </Button>
       )}
     >
-          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
+          <IndiceModalSummary
+            columns={3}
+            items={[
+              { id: 'status', label: t.operational.modals.status, value: t.operational.movementStatuses[displayedStatus] },
+              { id: 'source', label: t.operational.modals.source, value: fromLocationLabel },
+              { id: 'destination', label: t.operational.modals.destination, value: toLocationLabel },
+            ]}
+            variant="muted"
+          />
+
+          <InventoryModalSection>
+            <div className="grid gap-4 md:grid-cols-2">
             <SelectField label={t.operational.modals.movementType} value={draft.movementType} options={movementTypes.map((type) => ({ value: type, label: t.operational.movementTypes[type] }))} onValueChange={(movementType) => handleTypeChange(movementType as InventoryMovementEntryType)} />
-            <ReadOnlyField label={t.operational.modals.status} value={t.operational.movementStatuses[displayedStatus]} />
             <InputField label={t.operational.modals.date} type="date" value={draft.date} onChange={(date) => setDraft({ ...draft, date })} />
             {draft.movementType === 'supplierReceipt' ? (
               supplierOptions.length > 0 ? (
@@ -232,7 +258,8 @@ export function TransferStockModal({
             )}
             <InputField label={t.operational.modals.reason} value={draft.reason} onChange={(reason) => setDraft({ ...draft, reason })} />
             <InputField label={t.operational.modals.referenceNote} value={draft.reference} onChange={(reference) => setDraft({ ...draft, reference })} />
-          </div>
+            </div>
+          </InventoryModalSection>
 
           <MovementProductLines
             rows={rows}
@@ -248,34 +275,27 @@ export function TransferStockModal({
 
 function InputField({ label, value, type = 'text', onChange }: { label: string; value: string; type?: string; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-2">
-      <FieldLabel>{label}</FieldLabel>
-      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
-    </label>
+    <InventoryModalField label={label}>
+      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} className={inventoryModalControlClassName} />
+    </InventoryModalField>
   );
 }
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
-    <label className="grid gap-2">
-      <FieldLabel>{label}</FieldLabel>
-      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700">{value}</span>
-    </label>
+    <InventoryModalField label={label}>
+      <span className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">{value}</span>
+    </InventoryModalField>
   );
 }
 
 function SelectField({ label, value, options, onValueChange }: { label: string; value: string; options: Array<{ value: string; label: string }>; onValueChange: (value: string) => void }) {
   return (
-    <label className="grid gap-2">
-      <FieldLabel>{label}</FieldLabel>
+    <InventoryModalField label={label}>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"><SelectValue /></SelectTrigger>
+        <SelectTrigger className={inventoryModalControlClassName}><SelectValue /></SelectTrigger>
         <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>
-    </label>
+    </InventoryModalField>
   );
-}
-
-function FieldLabel({ children }: { children: ReactNode }) {
-  return <span className="text-sm font-semibold text-slate-700">{children}</span>;
 }

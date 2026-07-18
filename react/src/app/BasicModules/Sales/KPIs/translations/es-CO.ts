@@ -5,6 +5,10 @@ export const esCO: SalesKpisTranslations = {
   ...esMX,
   filters: {
     ...esMX.filters,
+    search: 'Buscar',
+    unit: 'Unidad',
+    business: 'Negocio',
+    seller: 'Vendedor',
     allBusinesses: 'Todos los negocios',
   },
   cards: {

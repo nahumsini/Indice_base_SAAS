@@ -79,6 +79,7 @@ export function CustomerDisplaySetupModal({
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar pantalla espejo"
       eyebrow="Pantalla cliente"
       icon={<Monitor className="h-6 w-6" />}

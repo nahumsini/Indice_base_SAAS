@@ -225,4 +225,27 @@ class ProcessTasksApiControllerTest {
             .andExpect(jsonPath("$.agendaDate").value("2026-06-03"))
             .andExpect(jsonPath("$.agendaStartTime").value("14:00"));
     }
+
+    @Test
+    void taskPatchReturnsUpdatedPayloadWhenModuleIsAllowed() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTasksService.patchTask(eq(7L), eq(1L), eq(91L), any())).willReturn(Map.of(
+            "id", 91,
+            "status", "in_progress"
+        ));
+
+        mockMvc.perform(
+            patch("/api/v1/process-tasks/91")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "status": "in_progress"
+                    }
+                    """)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(91))
+            .andExpect(jsonPath("$.status").value("in_progress"));
+    }
 }

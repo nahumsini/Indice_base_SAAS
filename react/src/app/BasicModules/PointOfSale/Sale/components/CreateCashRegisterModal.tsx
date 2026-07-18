@@ -94,13 +94,14 @@ export function CreateCashRegisterModal({
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar configuracion de caja"
-      eyebrow="Configuracion POS"
+      eyebrow="Configuración POS"
       icon={<Monitor className="h-6 w-6" />}
       isCloseDisabled={isSubmitting}
       onClose={onClose}
       size="md"
-      subtitle="Vincula la caja a un almacen para poder abrir turno."
+      subtitle="Vincula la caja a un almacén para poder abrir el turno."
       title="Crear caja POS"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}

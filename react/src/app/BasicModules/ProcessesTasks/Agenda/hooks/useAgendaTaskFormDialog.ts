@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { TaskFormValues } from '../../Tasks/components/TaskFormDialog';
 import { createProcessTask, updateProcessTask } from '../../Tasks/tasksApi';
 import type { ProcessCollaboratorOption } from '../../Processes/types';
+import type { ProjectRecord } from '../../Projects/projectsApi';
 import { normalizeAgendaTask, type AgendaTaskItem } from '../agendaApi';
 import type { AgendaTranslations } from '../translations';
 import { defaultTaskScopeForActor } from '../../shared/assignmentScope';
@@ -15,8 +16,10 @@ import {
 type UseAgendaTaskFormDialogOptions = {
   agendaCopy: AgendaTranslations;
   currentUserCollaborator: ProcessCollaboratorOption | null;
+  isProjectsCatalogReady: boolean;
   loadAgenda: () => Promise<void>;
   onTaskCreated: (task: AgendaTaskItem) => void;
+  projects: ProjectRecord[];
   quickTaskContext?: Partial<Pick<
     TaskFormValues,
     'assignedName' | 'assignedUserCompanyId' | 'businessId' | 'projectId' | 'unitId'
@@ -30,8 +33,10 @@ type UseAgendaTaskFormDialogOptions = {
 export function useAgendaTaskFormDialog({
   agendaCopy,
   currentUserCollaborator,
+  isProjectsCatalogReady,
   loadAgenda,
   onTaskCreated,
+  projects,
   quickTaskContext,
   quickTaskDate,
   selectedScheduleDate,
@@ -69,18 +74,29 @@ export function useAgendaTaskFormDialog({
   }, []);
 
   const handleCreateTaskClick = useCallback(() => {
+    setAgendaError(null);
     setTaskDialogMode('create');
     setEditingTaskId(null);
     setTaskForm(createDefaultTaskFormForCurrentUser());
     setIsTaskDialogOpen(true);
-  }, [createDefaultTaskFormForCurrentUser]);
+  }, [createDefaultTaskFormForCurrentUser, setAgendaError]);
 
   const handleEditTask = useCallback((task: AgendaTaskItem) => {
+    setAgendaError(null);
+    const nextForm = toTaskFormValues(task);
+    const projectExists =
+      !isProjectsCatalogReady ||
+      task.projectId == null ||
+      projects.some((project) => project.id === task.projectId);
+
     setTaskDialogMode('edit');
     setEditingTaskId(task.taskId);
-    setTaskForm(toTaskFormValues(task));
+    setTaskForm({
+      ...nextForm,
+      projectId: projectExists ? nextForm.projectId : '',
+    });
     setIsTaskDialogOpen(true);
-  }, []);
+  }, [isProjectsCatalogReady, projects, setAgendaError]);
 
   const handleTaskDialogOpenChange = useCallback(
     (open: boolean) => {
@@ -107,7 +123,13 @@ export function useAgendaTaskFormDialog({
       setAgendaError(null);
 
       try {
-        const payload = buildTaskPayload(taskForm, agendaCopy);
+        const normalizedTaskForm =
+          isProjectsCatalogReady &&
+          taskForm.projectId &&
+          !projects.some((project) => project.id === Number(taskForm.projectId))
+            ? { ...taskForm, projectId: '' }
+            : taskForm;
+        const payload = buildTaskPayload(normalizedTaskForm, agendaCopy);
 
         if (taskDialogMode === 'edit' && editingTaskId != null) {
           await updateProcessTask(editingTaskId, payload);
@@ -128,8 +150,36 @@ export function useAgendaTaskFormDialog({
         setIsSubmittingTask(false);
       }
     },
-    [agendaCopy, editingTaskId, loadAgenda, onTaskCreated, resetTaskForm, setAgendaError, taskDialogMode, taskForm],
+    [
+      agendaCopy,
+      editingTaskId,
+      isProjectsCatalogReady,
+      loadAgenda,
+      onTaskCreated,
+      projects,
+      resetTaskForm,
+      setAgendaError,
+      taskDialogMode,
+      taskForm,
+    ],
   );
+
+  useEffect(() => {
+    if (!isTaskDialogOpen || taskDialogMode !== 'edit' || !isProjectsCatalogReady) {
+      return;
+    }
+
+    setTaskForm((currentForm) => {
+      if (!currentForm.projectId || projects.some((project) => project.id === Number(currentForm.projectId))) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        projectId: '',
+      };
+    });
+  }, [isProjectsCatalogReady, isTaskDialogOpen, projects, taskDialogMode]);
 
   const handleSubmitQuickTask = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {

@@ -105,6 +105,7 @@ export function DiscountRuleModal({
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar regla de descuento"
       eyebrow="Descuentos POS"
       icon={<BadgePercent className="h-6 w-6" />}
@@ -114,16 +115,17 @@ export function DiscountRuleModal({
       title={draft.id.startsWith('new') ? 'Nueva regla de descuento' : 'Editar regla de descuento'}
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`${draft.name.trim() || 'Regla sin nombre'} · ${draft.discountType === 'percentage' ? `${draft.value}%` : `MXN ${draft.value.toFixed(2)}`}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button type="button" onClick={handleSave} className={posModalPrimaryActionClassName}>
-            <CheckCircle className="h-5 w-5" />
-            Guardar regla
-          </button>
-        </div>
+        <button type="button" onClick={handleSave} className={posModalPrimaryActionClassName}>
+          <CheckCircle className="h-5 w-5" />
+          Guardar regla
+        </button>
       )}
     >
       <div className="space-y-4">

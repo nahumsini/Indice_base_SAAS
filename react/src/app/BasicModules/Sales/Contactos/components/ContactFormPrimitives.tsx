@@ -13,7 +13,7 @@ export function ContactFormField({
 }) {
   return (
     <div className={cn('space-y-2', className)}>
-      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{label}</label>
+      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</label>
       {children}
     </div>
   );
@@ -51,7 +51,7 @@ export function ContactFormSection({
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-black text-slate-950">{title}</h3>
+          <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
         </div>
       </div>

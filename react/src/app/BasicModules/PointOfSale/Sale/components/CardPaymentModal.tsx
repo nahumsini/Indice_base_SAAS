@@ -36,45 +36,42 @@ export function CardPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar pago con tarjeta"
       eyebrow="Cobro POS"
       icon={<CreditCard className="h-6 w-6" />}
       isCloseDisabled={processing}
       onClose={onClose}
       size="sm"
-      subtitle="Confirma la autorizacion de la terminal antes de cerrar la venta."
+      subtitle="Confirma la autorización de la terminal antes de cerrar la venta."
       title="Pago con tarjeta"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} disabled={processing} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`Total ${formatCurrency(totalAmount)}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={processing}
-            className={posModalSecondaryActionClassName}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={processing}
-            className={posModalPrimaryActionClassName}
-          >
-            {processing ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Procesando
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-5 w-5" />
-                Confirmar pago
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={processing}
+          className={posModalPrimaryActionClassName}
+        >
+          {processing ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Procesando
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-5 w-5" />
+              Confirmar pago
+            </>
+          )}
+        </button>
       )}
     >
       <div className="space-y-5">

@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
+  cancelProcessTask,
   createProcessTask,
   deleteProcessTask,
-  updateProcessTask,
+  patchProcessTask,
   type TaskPayload,
 } from '../../Tasks/tasksApi';
 import type {
@@ -64,7 +65,9 @@ export function useAgendaTaskMutations({
   tasks,
   unassignedResponsibleValue,
 }: UseAgendaTaskMutationsOptions) {
+  const [cancelTask, setCancelTask] = useState<AgendaTaskItem | null>(null);
   const [deleteTask, setDeleteTask] = useState<AgendaTaskItem | null>(null);
+  const inlineSaveQueueRef = useRef(new Map<number, Promise<void>>());
 
   const scopeResponsiblePatch = useCallback(
     (task: AgendaTaskItem, unitId: number | null, businessId: number | null): Partial<TaskPayload> => {
@@ -92,41 +95,54 @@ export function useAgendaTaskMutations({
   );
 
   const persistTaskChange = useCallback(
-    async (task: AgendaTaskItem, patch: Partial<TaskPayload>) => {
+    (task: AgendaTaskItem, patch: Partial<TaskPayload>) => {
       const latestTask = tasks.find((currentTask) => currentTask.taskId === task.taskId) ?? task;
       const nextTitle = 'title' in patch ? patch.title : latestTask.title;
       if (!nextTitle?.trim()) {
         setAgendaError(agendaCopy.messages.titleRequired);
-        return;
+        return Promise.resolve();
       }
 
       setTaskPendingState(task.taskId, true);
       setAgendaError(null);
 
-      try {
-        const payload = buildAgendaTaskPayload(latestTask, patch);
-        patchTaskInAgenda(
-          task.taskId,
-          buildAgendaOptimisticPatch(payload, catalogUnits, catalogBusinesses, projects),
-        );
-        await updateProcessTask(task.taskId, payload);
-        await loadAgenda();
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.warn('Agenda task inline save failed.', { error, patch, taskId: task.taskId });
+      const previousSave = inlineSaveQueueRef.current.get(task.taskId) ?? Promise.resolve();
+      const queuedSave = previousSave
+        .catch(() => undefined)
+        .then(async () => {
+          const payload = buildAgendaTaskPayload(latestTask, patch);
+          patchTaskInAgenda(
+            task.taskId,
+            buildAgendaOptimisticPatch(payload, catalogUnits, catalogBusinesses, projects),
+          );
+
+          try {
+            const updatedTask = await patchProcessTask(task.taskId, patch);
+            patchTaskInAgenda(task.taskId, updatedTask);
+          } catch (error) {
+            if (import.meta.env.DEV) {
+              console.warn('Agenda task inline save failed.', { error, patch, taskId: task.taskId });
+            }
+            setAgendaError(getErrorMessage(error, agendaCopy.messages.updateTask));
+            patchTaskInAgenda(task.taskId, latestTask);
+          }
+        });
+
+      inlineSaveQueueRef.current.set(task.taskId, queuedSave);
+      void queuedSave.finally(() => {
+        if (inlineSaveQueueRef.current.get(task.taskId) === queuedSave) {
+          inlineSaveQueueRef.current.delete(task.taskId);
+          setTaskPendingState(task.taskId, false);
         }
-        setAgendaError(getErrorMessage(error, agendaCopy.messages.updateTask));
-        await loadAgenda();
-      } finally {
-        setTaskPendingState(task.taskId, false);
-      }
+      });
+
+      return queuedSave;
     },
     [
       agendaCopy.messages.titleRequired,
       agendaCopy.messages.updateTask,
       catalogBusinesses,
       catalogUnits,
-      loadAgenda,
       patchTaskInAgenda,
       projects,
       setAgendaError,
@@ -301,9 +317,36 @@ export function useAgendaTaskMutations({
     setTaskPendingState,
   ]);
 
+  const handleConfirmCancelTask = useCallback(async () => {
+    if (!cancelTask) {
+      return;
+    }
+
+    setTaskPendingState(cancelTask.taskId, true);
+    setAgendaError(null);
+
+    try {
+      const updatedTask = await cancelProcessTask(cancelTask.taskId);
+      patchTaskInAgenda(cancelTask.taskId, updatedTask);
+      setCancelTask(null);
+    } catch (error) {
+      setAgendaError(getErrorMessage(error, agendaCopy.messages.updateTask));
+    } finally {
+      setTaskPendingState(cancelTask.taskId, false);
+    }
+  }, [
+    agendaCopy.messages.updateTask,
+    cancelTask,
+    patchTaskInAgenda,
+    setAgendaError,
+    setTaskPendingState,
+  ]);
+
   return {
+    cancelTask,
     deleteTask,
     handleBusinessCellChange,
+    handleConfirmCancelTask,
     handleConfirmDeleteTask,
     handleDuplicateTask,
     handleProjectCellChange,
@@ -312,6 +355,7 @@ export function useAgendaTaskMutations({
     handleUnitCellChange,
     persistTaskChange,
     scopeResponsiblePatch,
+    setCancelTask,
     setDeleteTask,
   };
 }

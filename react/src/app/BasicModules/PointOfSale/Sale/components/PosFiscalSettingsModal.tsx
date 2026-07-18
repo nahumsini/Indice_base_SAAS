@@ -118,13 +118,14 @@ export function PosFiscalSettingsModal({
 
   return (
     <PosModalFrame
-      closeLabel="Cerrar configuracion fiscal"
-      eyebrow="Configuracion POS"
+      modalType="standard-form"
+      closeLabel="Cerrar configuración fiscal"
+      eyebrow="Configuración POS"
       icon={<Globe2 className="h-7 w-7" />}
       onClose={onClose}
       size="lg"
-      subtitle="Configura el pais fiscal, la divisa de venta y el impuesto antes de cobrar."
-      title="Divisa / Impuestos"
+      subtitle="Configura el país fiscal, la divisa de venta y el impuesto antes de cobrar."
+      title="Divisa e impuestos"
       zIndexClassName="z-[160]"
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">

@@ -290,6 +290,7 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       onClose={onClose}
       closeLabel="Cerrar estado de cuenta"
       title="Estado de cuenta"

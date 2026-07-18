@@ -401,15 +401,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
           : [savedExpense, ...replaceBudgetExpense(currentExpenses, updatedBudgetExpense)]
       ));
       setSuccessToastMessage(editingExpense ? t.expenses.messages.saved : t.expenses.messages.created);
-    } catch (error) {
-      setExpenses(currentExpenses => (
-        editingExpense
-          ? currentExpenses.map(item => (item.id === editingExpense.id ? draftExpense : item))
-          : [draftExpense, ...currentExpenses]
-      ));
-      setFailureToastMessage(toFinanceApiErrorMessage(error, editingExpense ? t.expenses.messages.updateFailed : t.expenses.messages.createFailed));
-    } finally {
       closeExpenseModal();
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, editingExpense ? t.expenses.messages.updateFailed : t.expenses.messages.createFailed));
+      throw error;
     }
   };
 

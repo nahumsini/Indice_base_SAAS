@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { AlertTriangle } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
-import { SalesModalFrame } from '../components/SalesModalFrame';
-import { getSalesModalActionClassNames } from '../salesModalStyles';
 import { CommissionManagementModal } from './components/CommissionManagementModal';
 import { CommissionRulesModal } from './components/CommissionRulesModal';
 import { CommissionsView } from './components/CommissionsView';
@@ -22,8 +19,6 @@ import type { SaleRecord } from './types/salesTypes';
 import { calculateCommissionRecords } from './utils/commissionRules';
 import { useSalesCrm } from '../salesCrmContext';
 
-const cancelDialogActionClassNames = getSalesModalActionClassNames('coral');
-
 function SaleCancelDialog({
   record,
   t,
@@ -36,44 +31,16 @@ function SaleCancelDialog({
   onConfirm: () => void;
 }) {
   return (
-    <SalesModalFrame
-      open={Boolean(record)}
-      onOpenChange={(open) => {
-        if (!open) {
-          onCancel();
-        }
-      }}
+    <ConfirmDeleteDialog
+      isVisible={Boolean(record)}
       title={t.table.actions.cancelSale}
       description={t.table.actions.cancelConfirmation}
-      icon={<AlertTriangle className="h-5 w-5" />}
-      contentClassName="w-[min(92vw,520px)]"
-      bodyClassName="px-7 py-6"
-      footerClassName="sm:justify-end"
-      footer={(
-        <>
-          <Button
-            type="button"
-            variant="outline"
-            className={cancelDialogActionClassNames.secondary}
-            onClick={onCancel}
-          >
-            {t.common.cancel}
-          </Button>
-          <Button
-            type="button"
-            className={cancelDialogActionClassNames.primary}
-            onClick={onConfirm}
-          >
-            {t.table.actions.cancelSale}
-          </Button>
-        </>
-      )}
-    >
-      <div className="rounded-lg border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/30 dark:bg-slate-800">
-        <p className="break-all text-base font-black text-slate-950 dark:text-slate-50">{record?.saleNumber}</p>
-        <p className="mt-1 break-words text-sm font-semibold text-slate-600 dark:text-slate-300">{record?.customerName}</p>
-      </div>
-    </SalesModalFrame>
+      itemName={record ? `${record.saleNumber} · ${record.customerName}` : undefined}
+      cancelLabel={t.common.cancel}
+      confirmLabel={t.table.actions.cancelSale}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }
 

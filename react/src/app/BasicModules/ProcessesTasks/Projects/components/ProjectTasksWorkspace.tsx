@@ -13,7 +13,6 @@ import {
   ClipboardCheck,
   Columns3,
   Copy,
-  Download,
   FileText,
   FolderOpen,
   Gauge,
@@ -23,7 +22,7 @@ import {
   Target,
   Trash2,
   UserRound,
-  X,
+  UserRoundCheck,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -33,14 +32,7 @@ import { DataTablePagination } from '../../../../components/table/DataTablePagin
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import {
@@ -59,15 +51,6 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
-import {
-  processTaskModalCloseActionClass,
-  processTaskModalCompactFooterClass,
-  processTaskModalCompactHeaderClass,
-  processTaskModalFooterClass,
-  processTaskModalHeaderClass,
-  processTaskModalPrimaryActionClass,
-  processTaskModalSecondaryActionClass,
-} from '../../shared/processTaskModalStyles';
 import { authApi } from '../../../../api/auth';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
 import { accentButtonClass } from '../../Processes/processesData';
@@ -80,14 +63,17 @@ import type {
 import type { AgendaTaskItem } from '../../Agenda/agendaApi';
 import { useAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { TaskAttachmentsDialog } from '../../Agenda/components/TaskAttachmentsDialog';
+import { AgendaReportDialog } from '../../Agenda/components/AgendaReportDialog';
 import { TaskAuditDialog } from '../../Tasks/components/TaskAuditDialog';
 import { TaskCompletionDialog } from '../../Tasks/components/TaskCompletionDialog';
 import { TaskFormDialog, type TaskFormValues } from '../../Tasks/components/TaskFormDialog';
 import {
   auditProcessTask,
+  cancelProcessTask,
   completeProcessTask,
   createProcessTask,
   deleteProcessTask,
+  patchProcessTask,
   updateProcessTask,
   updateProcessTaskDependencies,
   type TaskPayload,
@@ -810,14 +796,6 @@ function normalizeProjectTask(task: TaskRecord, project: ProjectRecord): AgendaT
   };
 }
 
-function reportValue(value: string | number | null | undefined, fallback: string) {
-  if (value == null || value === '') {
-    return fallback;
-  }
-
-  return String(value);
-}
-
 function taskReportRows(task: AgendaTaskItem, copy: AgendaTranslations, locale: string) {
   return [
     [copy.report.fields.folio, task.folio],
@@ -908,6 +886,7 @@ export function ProjectTasksWorkspace({
   const [auditNotes, setAuditNotes] = useState('');
   const [attachmentsTask, setAttachmentsTask] = useState<AgendaTaskItem | null>(null);
   const [reportTask, setReportTask] = useState<AgendaTaskItem | null>(null);
+  const [cancelTask, setCancelTask] = useState<AgendaTaskItem | null>(null);
   const [deleteTask, setDeleteTask] = useState<AgendaTaskItem | null>(null);
   const [tasksNotice, setTasksNotice] = useState<string | null>(null);
   const rowSelection = useRowSelection<number>();
@@ -1381,6 +1360,7 @@ export function ProjectTasksWorkspace({
   };
 
   const handleCreateTaskClick = () => {
+    setTasksError(null);
     setTaskDialogMode('create');
     setEditingTaskId(null);
     setTaskForm(createDefaultTaskFormForCurrentUser());
@@ -1388,6 +1368,7 @@ export function ProjectTasksWorkspace({
   };
 
   const handleEditTask = (task: AgendaTaskItem) => {
+    setTasksError(null);
     setTaskDialogMode('edit');
     setEditingTaskId(task.taskId);
     setTaskForm(toTaskFormValues(task));
@@ -1475,7 +1456,7 @@ export function ProjectTasksWorkspace({
     setTasksError(null);
 
     try {
-      await updateProcessTask(task.taskId, buildValidatedTaskPayloadFromRecord(task, patch));
+      await patchProcessTask(task.taskId, patch);
       await reloadEverything();
     } catch (error) {
       setTasksError(getErrorMessage(error, copy.messages.updateTask));
@@ -1897,6 +1878,21 @@ export function ProjectTasksWorkspace({
     }
   };
 
+  const handleConfirmCancel = async () => {
+    if (!cancelTask) return;
+    setTaskPendingState(cancelTask.taskId, true);
+    setTasksError(null);
+    try {
+      await cancelProcessTask(cancelTask.taskId);
+      setCancelTask(null);
+      await reloadEverything();
+    } catch (error) {
+      setTasksError(getErrorMessage(error, copy.messages.updateTask));
+    } finally {
+      setTaskPendingState(cancelTask.taskId, false);
+    }
+  };
+
   const handleAuditTask = (task: AgendaTaskItem) => {
     setAuditTask(task);
     setAuditWeighting(task.weighting != null ? String(Math.max(0, Math.min(5, task.weighting))) : '5');
@@ -2125,14 +2121,18 @@ export function ProjectTasksWorkspace({
           <Select
             value={displayStatus}
             disabled={pending}
-            onValueChange={(value) =>
-              value === 'overdue'
-                ? undefined
-                : void persistTaskChange(task, {
-                    status: value as TaskStatus,
-                    completionPercent: value === 'completed' ? 100 : task.completionPercent,
-                  })
-            }
+            onValueChange={(value) => {
+              if (value === 'overdue') return;
+              if (value === 'completed') {
+                handleCloseTask(task);
+                return;
+              }
+              if (value === 'cancelled') {
+                setCancelTask(task);
+                return;
+              }
+              void persistTaskChange(task, { status: value as TaskStatus });
+            }}
           >
             <SelectTrigger className={cn(tableSelectTriggerClass, 'w-full min-w-[160px]', statusClasses[displayStatus])}>
               <SelectValue />
@@ -3039,6 +3039,7 @@ export function ProjectTasksWorkspace({
       />
 
       <TaskFormDialog
+        error={tasksError}
         copy={taskCopy}
         open={isTaskDialogOpen}
         onOpenChange={handleTaskDialogOpenChange}
@@ -3057,6 +3058,7 @@ export function ProjectTasksWorkspace({
 
       <TaskCompletionDialog
         copy={taskCopy.completionDialog}
+        error={tasksError}
         open={Boolean(completionTask)}
         onOpenChange={handleCompletionDialogOpenChange}
         task={completionTask}
@@ -3072,6 +3074,7 @@ export function ProjectTasksWorkspace({
 
       <TaskAuditDialog
         copy={taskCopy.auditDialog}
+        error={tasksError}
         open={Boolean(auditTask)}
         onOpenChange={handleAuditDialogOpenChange}
         task={auditTask}
@@ -3098,177 +3101,46 @@ export function ProjectTasksWorkspace({
         onChanged={reloadEverything}
       />
 
-      <Dialog
-        open={Boolean(reportTask)}
+      <AgendaReportDialog
+        copy={taskCopy}
+        onDownload={handleDownloadTaskReport}
         onOpenChange={(open) => {
-          if (!open) {
-            setReportTask(null);
-          }
+          if (!open) setReportTask(null);
         }}
-      >
-        <DialogContent
-          hideCloseButton
-          className="!flex h-[min(88vh,760px)] w-[calc(100vw-2rem)] !max-w-[900px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[900px] dark:border-slate-700 dark:bg-slate-800"
-        >
-          <div className={processTaskModalHeaderClass}>
-            <div className="flex items-center justify-between gap-4">
-              <DialogTitle className="flex items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
-                <FileText className="h-5 w-5" />
-                {copy.report.title}
-              </DialogTitle>
-              <DialogClose asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')}
-                  aria-label={taskCopy.common.close}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
-          </div>
+        task={reportTask}
+      />
 
-          {reportTask ? (
-            <>
-              <div className="shrink-0 border-b border-slate-200/80 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
-                <DialogDescription className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-                  {copy.report.description}
-                </DialogDescription>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                    {reportTask.folio}
-                  </Badge>
-                  <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', statusClasses[getTaskDisplayStatus(reportTask)])}>
-                    {taskCopy.statuses[getTaskDisplayStatus(reportTask)]}
-                  </Badge>
-                  <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                    {taskCopy.priorities[reportTask.priority]}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-900/60">
-                <div className="space-y-5">
-                  <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">{reportTask.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                      {reportTask.description ?? taskCopy.common.noDescription}
-                    </p>
-                  </section>
-                  <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.report.sections.progress}</p>
-                      <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
-                        {clampPercent(reportTask.completionPercent)}%
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.report.sections.weighting}</p>
-                      <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
-                        {reportTask.weighting == null ? '-' : `${Math.max(0, Math.min(5, reportTask.weighting))}/5`}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.report.sections.audit}</p>
-                      <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
-                        {taskCopy.auditStatuses[reportTask.auditStatus]}
-                      </p>
-                    </div>
-                  </section>
-                  <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.report.sections.context}</p>
-                      <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                        <p>{taskCopy.report.fields.unit}: {reportValue(reportTask.unitName ?? reportTask.unitId, taskCopy.common.noRecord)}</p>
-                        <p>{taskCopy.report.fields.business}: {reportValue(reportTask.businessName ?? reportTask.businessId, taskCopy.common.noRecord)}</p>
-                        <p>{taskCopy.report.fields.project}: {reportValue(reportTask.projectName ?? reportTask.projectId, taskCopy.common.noRecord)}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.report.sections.people}</p>
-                      <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                        <p>{taskCopy.report.fields.creator}: {reportValue(reportTask.createdByName ?? reportTask.creator, taskCopy.common.noRecord)}</p>
-                        <p>{taskCopy.report.fields.responsible}: {reportValue(reportTask.assignedName, taskCopy.common.noRecord)}</p>
-                        <p>{taskCopy.report.fields.completedBy}: {reportValue(reportTask.closedByName ?? reportTask.completedByName, taskCopy.common.noRecord)}</p>
-                        <p>{taskCopy.report.fields.auditedBy}: {reportValue(reportTask.auditedByName, taskCopy.common.noRecord)}</p>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-              </div>
-
-              <DialogFooter className={processTaskModalFooterClass}>
-                <Button
-                  type="button"
-                  className={processTaskModalPrimaryActionClass}
-                  onClick={() => handleDownloadTaskReport(reportTask)}
-                >
-                  <Download className="h-4 w-4" />
-                  {copy.report.downloadPdf}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
-        <DialogContent
-          hideCloseButton
-          className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
-        >
-          <div className={processTaskModalCompactHeaderClass}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <DialogTitle className="text-lg font-bold text-slate-950">{taskCopy.form.labels.responsible}</DialogTitle>
-                <DialogDescription className="mt-1 text-sm text-slate-800/85">
-                  {copy.bulk.assignDescription(rowSelection.selectedCount)}
-                </DialogDescription>
-              </div>
-              <DialogClose asChild>
-                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isBulkActionRunning} aria-label={taskCopy.common.cancel}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
-          </div>
-          <div className="space-y-3 px-5 py-5">
-            <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{taskCopy.common.unassigned}</SelectItem>
-                {bulkAssignableCollaborators.map((collaborator) => (
-                  <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
-                    {collaborator.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter className={processTaskModalCompactFooterClass}>
-            <Button
-              type="button"
-              variant="outline"
-              className={processTaskModalSecondaryActionClass}
-              disabled={isBulkActionRunning}
-              onClick={() => setIsBulkAssignOpen(false)}
-            >
-              {taskCopy.common.cancel}
-            </Button>
-            <Button
-              type="button"
-              className={processTaskModalPrimaryActionClass}
-              disabled={isBulkActionRunning}
-              onClick={handleBulkAssign}
-            >
+      <IndiceModalFrame
+        busy={isBulkActionRunning}
+        closeLabel={taskCopy.common.cancel}
+        contentClassName="sm:!max-w-[520px]"
+        description={copy.bulk.assignDescription(rowSelection.selectedCount)}
+        footer={(
+          <>
+            <Button type="button" variant="outline" disabled={isBulkActionRunning} onClick={() => setIsBulkAssignOpen(false)}>{taskCopy.common.cancel}</Button>
+            <Button type="button" disabled={isBulkActionRunning} onClick={handleBulkAssign}>
               {isBulkActionRunning ? taskCopy.common.saving : taskCopy.form.submit.edit}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        )}
+        footerSummary={copy.bulk.selectedItemName(rowSelection.selectedCount)}
+        icon={<UserRoundCheck className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={setIsBulkAssignOpen}
+        open={isBulkAssignOpen}
+        title={taskCopy.form.labels.responsible}
+        tone="yellow"
+      >
+        <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
+          <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white shadow-none dark:border-slate-600 dark:bg-slate-800"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{taskCopy.common.unassigned}</SelectItem>
+            {bulkAssignableCollaborators.map((collaborator) => (
+              <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>{collaborator.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </IndiceModalFrame>
 
       <ConfirmDeleteDialog
         isVisible={bulkConfirmation === 'delete'}
@@ -3296,6 +3168,18 @@ export function ProjectTasksWorkspace({
         onConfirm={() => {
           void runBulkTaskAction('complete');
         }}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(cancelTask)}
+        title={taskCopy.common.cancel}
+        itemName={cancelTask?.title}
+        description="La tarea quedará cancelada y conservará su historial para consulta."
+        confirmLabel={taskCopy.common.cancel}
+        cancelLabel={taskCopy.common.close}
+        confirmDisabled={cancelTask ? isTaskPending(cancelTask.taskId) : false}
+        onCancel={() => setCancelTask(null)}
+        onConfirm={() => { void handleConfirmCancel(); }}
       />
 
       <ConfirmDeleteDialog

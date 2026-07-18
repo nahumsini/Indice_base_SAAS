@@ -83,38 +83,37 @@ export function MixedPaymentModal({ isOpen, onClose, totalAmount, onConfirmPayme
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar pago mixto"
       eyebrow="Cobro POS"
       icon={<Wallet className="h-6 w-6" />}
       onClose={onClose}
       size="md"
-      subtitle="Distribuye el total entre efectivo, dolares, tarjeta y transferencia."
+      subtitle="Distribuye el total entre efectivo, dólares, tarjeta y transferencia."
       title="Pago mixto"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
-      footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button
-            type="button"
-            onClick={handleClear}
-            disabled={totalPaid === 0}
-            className={posModalSecondaryActionClassName}
-          >
-            Limpiar
-          </button>
+      footerLeading={(
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
             Cancelar
           </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!isComplete}
-            className={posModalPrimaryActionClassName}
-          >
-            <CheckCircle className="h-5 w-5" />
-            Confirmar pago mixto
+          <button type="button" onClick={handleClear} disabled={totalPaid === 0} className={posModalSecondaryActionClassName}>
+            Limpiar
           </button>
         </div>
+      )}
+      footerSummary={`Pagado ${formatCurrency(totalPaid)} · Restante ${formatCurrency(Math.max(remaining, 0))}`}
+      footer={(
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!isComplete}
+          className={posModalPrimaryActionClassName}
+        >
+          <CheckCircle className="h-5 w-5" />
+          Confirmar pago mixto
+        </button>
       )}
     >
       <div className="space-y-5">

@@ -205,6 +205,7 @@ export function AddPaymentModal({
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar pago"
       eyebrow="Cobro POS"
       icon={config.icon}
@@ -214,22 +215,21 @@ export function AddPaymentModal({
       subtitle={`Restante ${formatCurrency(remainingAmount)}`}
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`Monto ${formatCurrency(amountValue || 0)} · Restante ${formatCurrency(Math.max(remainingAmount - (amountValue || 0), 0))}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            onClick={onClose}
-            className={posModalSecondaryActionClassName}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!amount || parseFloat(amount) <= 0}
-            className={posModalPrimaryActionClassName}
-          >
-            {paymentMethod === 'credit' ? 'Agregar Credito' : 'Agregar Pago'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!amount || parseFloat(amount) <= 0}
+          className={posModalPrimaryActionClassName}
+        >
+          {paymentMethod === 'credit' ? 'Agregar crédito' : 'Agregar pago'}
+        </button>
       )}
     >
         <div className="space-y-4">

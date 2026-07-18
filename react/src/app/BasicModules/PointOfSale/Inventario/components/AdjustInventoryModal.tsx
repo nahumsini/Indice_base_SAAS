@@ -111,6 +111,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar ajuste de inventario"
       eyebrow="Inventario POS"
       icon={<Edit className="h-6 w-6" />}
@@ -120,16 +121,17 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
       title="Ajustar inventario"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`Stock actual ${product.currentStock} · Nuevo stock ${newStock}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button type="button" onClick={() => handleSubmit()} className={posModalPrimaryActionClassName}>
-            <CheckCircle className="h-5 w-5" />
-            Guardar ajuste
-          </button>
-        </div>
+        <button type="button" onClick={() => handleSubmit()} className={posModalPrimaryActionClassName}>
+          <CheckCircle className="h-5 w-5" />
+          Guardar ajuste
+        </button>
       )}
     >
       <form id="pos-adjust-inventory-form" onSubmit={handleSubmit} className="space-y-6">

@@ -1,6 +1,5 @@
-import type { SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuote } from '../types';
+import type { SalesContact, SalesOpportunity, SalesQuote } from '../types';
 import type { SaleRecord } from '../Sales/types/salesTypes';
-import type { InventoryStockRow } from '../Inventory/types/inventoryTypes';
 
 export type SalesKpiFilters = {
   businessUnit: string;
@@ -14,8 +13,6 @@ export type SalesKpiDataSources = {
   opportunities: SalesOpportunity[];
   quotes: SalesQuote[];
   sales: SaleRecord[];
-  products: SalesCatalogItem[];
-  inventoryRows: InventoryStockRow[];
 };
 
 export type SalesKpiSellerRankingRow = {
@@ -52,13 +49,7 @@ export type SalesKpiMetrics = {
   quoteApprovalRate: number;
   quoteRejectionRate: number;
   quoteConversionRate: number;
-  inventoryReadiness: number;
-  inventoryPreparedProducts: number;
-  inventoryRisk: number;
   commercialRisk: number;
-  totalProducts: number;
-  activeProducts: number;
-  inactiveProducts: number;
 };
 
 export function parseSalesKpiMoney(value: string) {
@@ -116,18 +107,6 @@ function contactMatchesScope(
 
   return filteredQuotes.some((quote) => quote.clientId === contact.id || normalize(quote.clientName) === normalize(contact.company))
     || filteredSales.some((sale) => sale.contactId === contact.id || sale.customerId === contact.id || normalize(sale.customerName) === normalize(contact.company));
-}
-
-function productMatchesScope(
-  product: SalesCatalogItem,
-  filteredQuotes: SalesQuote[],
-  filteredSales: SaleRecord[],
-  filters: SalesKpiFilters,
-) {
-  if (filters.businessUnit === 'all' && filters.business === 'all' && filters.seller === 'all') return true;
-
-  return filteredQuotes.some((quote) => quote.items.some((item) => item.productId === product.id))
-    || filteredSales.some((sale) => sale.saleLines.some((line) => line.productId === product.id));
 }
 
 export function filterSalesKpiSources(sources: SalesKpiDataSources, filters: SalesKpiFilters): SalesKpiDataSources {
@@ -188,39 +167,11 @@ export function filterSalesKpiSources(sources: SalesKpiDataSources, filters: Sal
     ], filters.search)
   ));
 
-  const filteredProducts = sources.products.filter((product) => (
-    productMatchesScope(product, filteredQuotes, filteredSales, filters)
-    && includesSearch([
-      product.name,
-      product.sku,
-      product.category,
-      product.type,
-      product.status,
-      product.visibility,
-    ], filters.search)
-  ));
-
-  const filteredInventoryRows = sources.inventoryRows.filter((row) => (
-    matchesValue(row.businessUnitId, filters.businessUnit)
-    && matchesValue(row.businessId, filters.business)
-    && filteredProducts.some((product) => product.id === row.productId)
-    && includesSearch([
-      row.name,
-      row.sku,
-      row.category,
-      row.type,
-      row.businessUnitName,
-      row.businessName,
-    ], filters.search)
-  ));
-
   return {
     contacts: filteredContacts,
     opportunities: filteredOpportunities,
     quotes: filteredQuotes,
     sales: filteredSales,
-    products: filteredProducts,
-    inventoryRows: filteredInventoryRows,
   };
 }
 
@@ -248,30 +199,6 @@ export function getCommercialRisk(opportunities: SalesOpportunity[]) {
 
 export function getQuoteConversionRate(quotes: SalesQuote[]) {
   return getSalesKpiRate(quotes.filter((quote) => quote.status === 'Closed Won').length, quotes.length);
-}
-
-export function getInventoryReadiness(products: SalesCatalogItem[], inventoryRows: InventoryStockRow[]) {
-  if (!products.length) return { rate: 0, prepared: 0, risk: 0 };
-
-  const preparedProducts = products.filter((product) => {
-    const row = inventoryRows.find((item) => item.productId === product.id);
-    const available = row?.distributions.reduce((sum, distribution) => sum + distribution.available, 0) ?? 0;
-
-    return (product.stockPrepared && product.warehousePrepared) || available > 0;
-  }).length;
-  const risk = inventoryRows.filter((row) => {
-    if (!row.usesInventory) return false;
-    const available = row.distributions.reduce((sum, distribution) => sum + distribution.available, 0);
-    const minimum = row.distributions.reduce((sum, distribution) => sum + distribution.minimum, 0);
-
-    return available <= 0 || available <= minimum;
-  }).length;
-
-  return {
-    rate: getSalesKpiRate(preparedProducts, products.length),
-    prepared: preparedProducts,
-    risk,
-  };
 }
 
 export function getSellerRanking({
@@ -314,8 +241,6 @@ export function getSalesKpiMetrics(sources: SalesKpiDataSources): SalesKpiMetric
   const rejectedQuotes = sources.quotes.filter((quote) => quote.status === 'Rejected');
   const expiredQuotes = sources.quotes.filter((quote) => quote.status === 'Expired');
   const closedWonQuotes = sources.quotes.filter((quote) => quote.status === 'Closed Won');
-  const inventory = getInventoryReadiness(sources.products, sources.inventoryRows);
-
   return {
     totalProspects: sources.opportunities.length,
     activeProspects: sources.opportunities.filter((opportunity) => opportunity.status !== 'Closed').length,
@@ -341,13 +266,7 @@ export function getSalesKpiMetrics(sources: SalesKpiDataSources): SalesKpiMetric
     quoteApprovalRate: getSalesKpiRate(approvedQuotes.length, sources.quotes.length),
     quoteRejectionRate: getSalesKpiRate(rejectedQuotes.length + expiredQuotes.length, sources.quotes.length),
     quoteConversionRate: getQuoteConversionRate(sources.quotes),
-    inventoryReadiness: inventory.rate,
-    inventoryPreparedProducts: inventory.prepared,
-    inventoryRisk: inventory.risk,
     commercialRisk: getCommercialRisk(sources.opportunities),
-    totalProducts: sources.products.length,
-    activeProducts: sources.products.filter((product) => product.status === 'Active').length,
-    inactiveProducts: sources.products.filter((product) => product.status === 'Inactive').length,
   };
 }
 
@@ -371,11 +290,6 @@ export function getSalesKpiOptions(sources: SalesKpiDataSources) {
   sources.opportunities.forEach((opportunity) => {
     if (opportunity.owner) sellers.add(opportunity.owner);
   });
-  sources.inventoryRows.forEach((row) => {
-    if (row.businessUnitId && row.businessUnitName) businessUnits.set(row.businessUnitId, row.businessUnitName);
-    if (row.businessId && row.businessName) businesses.set(row.businessId, row.businessName);
-  });
-
   return {
     businessUnits: Array.from(businessUnits, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
     businesses: Array.from(businesses, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),

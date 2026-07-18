@@ -77,6 +77,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar ticket"
       eyebrow="Comprobante POS"
       icon={<Printer className="h-6 w-6" />}
@@ -128,7 +129,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
         <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
           <div className="space-y-4 font-mono text-sm">
             <div className="border-b border-gray-300 pb-3 text-center dark:border-gray-600">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white">MI TIENDA</h3>
+              <h3 className="text-lg font-black text-gray-900 dark:text-white">Mi tienda</h3>
               <p className="text-xs text-gray-600 dark:text-gray-400">RFC: ABC123456789</p>
               <p className="text-xs text-gray-600 dark:text-gray-400">Calle Principal #123</p>
               <p className="text-xs text-gray-600 dark:text-gray-400">Tel: (555) 123-4567</p>

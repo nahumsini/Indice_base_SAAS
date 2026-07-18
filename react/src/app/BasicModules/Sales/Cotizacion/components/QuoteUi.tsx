@@ -43,17 +43,19 @@ export function FilterSelect({
   value,
   onValueChange,
   options,
+  softTypography = false,
 }: {
   label: string;
   value: string;
   onValueChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
+  softTypography?: boolean;
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</label>
+      <label className={cn('text-sm text-slate-700 dark:text-slate-200', softTypography ? 'font-medium' : 'font-bold')}>{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className={cn('h-11 rounded-lg px-4 text-base font-semibold text-slate-950', coralFieldClassName)}>
+        <SelectTrigger className={cn('h-11 rounded-xl px-4 text-base text-slate-950', softTypography ? 'font-medium' : 'font-semibold', coralFieldClassName)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

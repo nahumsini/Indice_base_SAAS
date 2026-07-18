@@ -104,6 +104,7 @@ export function SupplierSubmissionDetailModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       onClose={onClose}
       closeLabel="Cerrar propuesta de proveedor"
       title={submission.submissionNumber}

@@ -1,13 +1,6 @@
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
-import { Check, File, Landmark, Paperclip, Trash2, Upload, X } from 'lucide-react';
-import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { Check, File, Landmark, Paperclip, Trash2, Upload } from 'lucide-react';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import {
   getDefaultBudgetTaxProfile,
@@ -80,6 +73,7 @@ export function PayableAccountDialog({
 }: PayableAccountDialogProps) {
   const t = useExpensesTranslations();
   const objectUrlsRef = useRef<Set<string>>(new Set());
+  const [error, setError] = useState('');
   const [draft, setDraft] = useState<PayableDraft>(() => createDraft(currency));
   const amount = toMoneyNumber(draft.amount);
   const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;
@@ -157,57 +151,56 @@ export function PayableAccountDialog({
     updateDraft({ attachments: draft.attachments.filter(item => item.id !== attachmentId) });
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
-    void onSubmit({
-      amount: subtotal,
-      attachmentFiles: draft.attachments.map(attachment => attachment.file).filter((file): file is File => Boolean(file)),
-      concept: draft.concept.trim(),
-      currency: draft.budgetCurrencyCode,
-      dueDate: draft.dueDate,
-      notes: draft.notes.trim(),
-      providerId: draft.providerId,
-      taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
-      taxMode: draft.taxEnabled ? 'auto' : 'none',
-      taxRate: draft.taxEnabled ? toPercentNumber(draft.taxRate) : undefined,
-      taxes,
-      total,
-    });
+    setError('');
+    try {
+      await onSubmit({
+        amount: subtotal,
+        attachmentFiles: draft.attachments.map(attachment => attachment.file).filter((file): file is File => Boolean(file)),
+        concept: draft.concept.trim(),
+        currency: draft.budgetCurrencyCode,
+        dueDate: draft.dueDate,
+        notes: draft.notes.trim(),
+        providerId: draft.providerId,
+        taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
+        taxMode: draft.taxEnabled ? 'auto' : 'none',
+        taxRate: draft.taxEnabled ? toPercentNumber(draft.taxRate) : undefined,
+        taxes,
+        total,
+      });
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar la cuenta por pagar.');
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideCloseButton
-        className="max-h-[calc(100vh-3rem)] max-w-[720px] overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
-      >
-        <div className="flex items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
-              <Landmark className="h-5 w-5" />
-            </span>
-            <div>
-              <DialogTitle className="text-xl font-bold text-white">{t.expenses.payableAccount.title}</DialogTitle>
-              <DialogDescription className="mt-1 text-sm leading-5 text-white/80">
-                {t.expenses.payableAccount.subtitle}
-              </DialogDescription>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20"
-            aria-label={t.columnModal.close}
-          >
-            <X className="h-5 w-5" />
+    <IndiceModalFrame
+      busy={isSubmitting}
+      contentClassName="sm:max-w-[720px]"
+      description={t.expenses.payableAccount.subtitle}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" className="h-10 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50" disabled={isSubmitting} onClick={() => onOpenChange(false)}>{t.expenses.payableAccount.cancel}</button>
+          <button form="payable-account-form" type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:opacity-50" disabled={!canSubmit}>
+            <Check className="h-4 w-4" />
+            {isSubmitting ? t.expenses.payableAccount.saving : t.expenses.payableAccount.save}
           </button>
         </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="max-h-[calc(100vh-13rem)] space-y-5 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
+      )}
+      footerSummary={formatCurrency(total, draft.budgetCurrencyCode)}
+      icon={<Landmark className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={onOpenChange}
+      open={open}
+      title={t.expenses.payableAccount.title}
+      tone="green"
+    >
+        <form id="payable-account-form" className="space-y-5" onSubmit={handleSubmit}>
+            {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-              <h4 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">{t.expenses.payableAccount.mainData}</h4>
+              <h4 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.mainData}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <QuickProviderField
                   emptyLabel={t.expenses.payableAccount.unassignedProvider}
@@ -236,7 +229,7 @@ export function PayableAccountDialog({
             </section>
 
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-              <h4 className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-500">{t.expenses.payableAccount.sectionAmount}</h4>
+              <h4 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.sectionAmount}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label={t.expenses.modal.amount} required>
                   <input
@@ -268,7 +261,7 @@ export function PayableAccountDialog({
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <div className="mb-4 flex items-center gap-2">
                 <Paperclip className="h-4 w-4 text-[#147514]" />
-                <h4 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">{t.expenses.payableAccount.evidence}</h4>
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.evidence}</h4>
               </div>
               <label className={`flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-[22px] border-2 border-dashed bg-slate-50 px-4 py-6 text-center transition ${
                 canAttachMoreFiles
@@ -320,30 +313,8 @@ export function PayableAccountDialog({
                 className={`${inputClass} min-h-24 resize-y`}
               />
             </Field>
-          </div>
-
-          <DialogFooter className="gap-3 bg-[#147514] px-6 py-4 dark:bg-[#0b3f1b]">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 rounded-xl border-white/30 bg-white/10 px-4 text-sm font-semibold text-white shadow-none hover:bg-white/20 hover:text-white"
-              disabled={isSubmitting}
-              onClick={() => onOpenChange(false)}
-            >
-              {t.expenses.payableAccount.cancel}
-            </Button>
-            <Button
-              type="submit"
-              className="h-10 rounded-xl bg-white px-4 text-sm font-semibold text-[#147514] shadow-sm hover:bg-slate-100 hover:text-[#147514] disabled:bg-white/40 disabled:text-[#147514]/50"
-              disabled={!canSubmit}
-            >
-              <Check className="h-4 w-4" />
-              {isSubmitting ? t.expenses.payableAccount.saving : t.expenses.payableAccount.save}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -384,8 +355,8 @@ function Field({ children, label, required }: { children: ReactNode; label: stri
 function SummaryMetric({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
-      <p className={`mt-1 text-sm ${strong ? 'font-extrabold text-[#147514]' : 'font-bold text-slate-900 dark:text-slate-100'}`}>{value}</p>
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className={`mt-1 text-sm font-semibold ${strong ? 'text-[#147514]' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
     </div>
   );
 }

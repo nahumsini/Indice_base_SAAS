@@ -29,6 +29,7 @@ type AgendaScheduleTaskCardProps = {
   copy: AgendaTranslations;
   displayStatusClasses: Record<DisplayTaskStatus, string>;
   isPending: boolean;
+  onCancelTask: (task: AgendaTaskItem) => void;
   onCloseTask: (task: AgendaTaskItem) => void;
   onDeleteTask: (task: AgendaTaskItem) => void;
   onEditTask: (task: AgendaTaskItem) => void;
@@ -48,6 +49,7 @@ export function AgendaScheduleTaskCard({
   copy,
   displayStatusClasses,
   isPending,
+  onCancelTask,
   onCloseTask,
   onDeleteTask,
   onEditTask,
@@ -185,7 +187,17 @@ export function AgendaScheduleTaskCard({
         <Select
           value={task.status}
           disabled={isPending}
-          onValueChange={(value) => void onPersistTaskChange(task, { status: value as TaskStatus })}
+          onValueChange={(value) => {
+            if (value === 'completed') {
+              onCloseTask(task);
+              return;
+            }
+            if (value === 'cancelled') {
+              onCancelTask(task);
+              return;
+            }
+            void onPersistTaskChange(task, { status: value as TaskStatus });
+          }}
         >
           <SelectTrigger
             className={cn(

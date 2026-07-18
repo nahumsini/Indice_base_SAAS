@@ -3,21 +3,21 @@ import {
   CalendarDays,
   CalendarPlus,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Info,
   Plus,
   Save,
   Trash2,
-  X,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+  IndiceModalFrame,
+  IndiceModalSummary,
+  IndiceModalValidation,
+  IndiceModalWizardStepper,
+  type IndiceModalWizardStep,
+} from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -38,12 +38,6 @@ import {
   priorityOptions,
   weekdayOptions,
 } from '../processesData';
-import {
-  processTaskModalFooterClass,
-  processTaskModalHeaderClass,
-  processTaskModalPrimaryActionClass,
-  processTaskModalSecondaryActionClass,
-} from '../../shared/processTaskModalStyles';
 import { defaultProcessesTranslations, type ProcessesTranslations } from '../translations';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../../shared/assignmentScope';
 import type {
@@ -58,6 +52,7 @@ interface ProcessFormDialogProps {
   businessOptions: ProcessBusinessOption[];
   collaboratorOptions: ProcessCollaboratorOption[];
   copy?: ProcessesTranslations;
+  error?: string | null;
   form: ProcessFormState;
   isSubmitting?: boolean;
   locale?: string;
@@ -68,6 +63,8 @@ interface ProcessFormDialogProps {
   setForm: Dispatch<SetStateAction<ProcessFormState>>;
   unitOptions: ProcessUnitOption[];
 }
+
+type ProcessWizardStep = 'identity' | 'template' | 'schedule' | 'review';
 
 interface SelectFieldProps<T extends string> {
   label: string;
@@ -156,6 +153,7 @@ export function ProcessFormDialog({
   businessOptions,
   collaboratorOptions,
   copy = defaultProcessesTranslations,
+  error,
   form,
   isSubmitting = false,
   locale = 'en-CA',
@@ -166,12 +164,12 @@ export function ProcessFormDialog({
   setForm,
   unitOptions,
 }: ProcessFormDialogProps) {
+  const [activeStep, setActiveStep] = useState<ProcessWizardStep>('identity');
   const [specificDateDraft, setSpecificDateDraft] = useState('');
 
   useEffect(() => {
-    if (!open) {
-      setSpecificDateDraft('');
-    }
+    setActiveStep('identity');
+    setSpecificDateDraft('');
   }, [open]);
 
   const selectedUnitValue =
@@ -397,9 +395,10 @@ export function ProcessFormDialog({
     value: option.value,
     label: copy.weekdays[option.value],
   }));
-  const isFormValid =
-    Boolean(form.title.trim()) &&
-    Boolean(form.description.trim()) &&
+  const isIdentityValid = Boolean(form.title.trim()) && Boolean(form.description.trim());
+  const hasValidDateRange = !form.startDate || !form.endDate || form.startDate <= form.endDate;
+  const isScheduleValid =
+    hasValidDateRange &&
     Number.isInteger(Number(form.graceDays)) &&
     Number(form.graceDays) >= 0 &&
     Number(form.graceDays) <= 365 &&
@@ -407,6 +406,21 @@ export function ProcessFormDialog({
     Number(form.generationWindowDays) >= 1 &&
     Number(form.generationWindowDays) <= 365 &&
     isRecurrenceConfigValid(form.frequency, form.recurrence);
+  const isFormValid =
+    Boolean(form.title.trim()) &&
+    Boolean(form.description.trim()) &&
+    isScheduleValid;
+  const wizardSteps: readonly IndiceModalWizardStep<ProcessWizardStep>[] = [
+    { id: 'identity', label: copy.form.labels.title },
+    { id: 'template', label: copy.form.sections.taskTemplate },
+    { id: 'schedule', label: copy.form.sections.schedule },
+    { id: 'review', label: submitLabel },
+  ];
+  const activeStepIndex = wizardSteps.findIndex((step) => step.id === activeStep);
+  const canContinue = activeStep === 'identity' ? isIdentityValid : activeStep === 'schedule' ? isScheduleValid : true;
+  const isSpanish = locale.toLowerCase().startsWith('es');
+  const previousLabel = isSpanish ? 'Anterior' : 'Previous';
+  const continueLabel = isSpanish ? 'Continuar' : 'Continue';
 
   const updateFrequency = (frequency: ProcessFormState['frequency']) => {
     setForm((currentForm) => ({
@@ -630,42 +644,72 @@ export function ProcessFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!flex h-[min(88vh,860px)] w-[calc(100vw-2rem)] !max-w-3xl max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-3xl dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className={processTaskModalHeaderClass}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3 pr-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#9A6B05]/20 bg-white/35 text-slate-950">
-                {mode === 'create' ? <Plus className="h-5 w-5" /> : <Save className="h-5 w-5" />}
-              </span>
-              <div className="min-w-0">
-                <DialogTitle className="text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">{title}</DialogTitle>
-                <DialogDescription className="mt-1 max-w-2xl text-sm font-medium leading-5 text-slate-800/80">{description}</DialogDescription>
-              </div>
-            </div>
-            <DialogClose asChild>
-              <button
-                type="button"
-                aria-label={copy.common.close}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#9A6B05]/25 bg-white/35 text-slate-950 shadow-sm transition-colors hover:bg-white/60"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </DialogClose>
-          </div>
-        </div>
-
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+    <IndiceModalFrame
+      busy={isSubmitting}
+      closeLabel={copy.common.close}
+      description={description}
+      footer={(
+        <>
+          <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
+            {copy.common.cancel}
+          </Button>
+          {activeStepIndex > 0 ? (
+            <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => setActiveStep(wizardSteps[activeStepIndex - 1].id)}>
+              <ChevronLeft className="h-4 w-4" />
+              {previousLabel}
+            </Button>
+          ) : null}
+          {activeStep !== 'review' ? (
+            <Button
+              type="button"
+              disabled={!canContinue || isSubmitting}
+              onClick={() => setActiveStep(wizardSteps[activeStepIndex + 1].id)}
+            >
+              {continueLabel}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              form="process-wizard-form"
+              disabled={!isFormValid || isSubmitting}
+            >
+              {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+              {isSubmitting ? copy.common.saving : submitLabel}
+            </Button>
+          )}
+        </>
+      )}
+      footerSummary={`${activeStepIndex + 1} / ${wizardSteps.length}`}
+      icon={mode === 'create' ? <Plus className="h-5 w-5" /> : <Save className="h-5 w-5" />}
+      modalType="wizard"
+      onOpenChange={onOpenChange}
+      open={open}
+      title={title}
+      tone="yellow"
+    >
+      <form id="process-wizard-form" onSubmit={onSubmit} className="space-y-6">
+            <IndiceModalWizardStepper
+              accent="yellow"
+              activeStepId={activeStep}
+              progressLabel={title}
+              steps={wizardSteps}
+            />
+            <IndiceModalValidation messages={error ? [error] : []} />
+            {activeStep === 'schedule' && !hasValidDateRange ? (
+              <IndiceModalValidation messages={[`${copy.form.labels.end}: ${copy.form.labels.start}`]} />
+            ) : null}
+            {activeStep === 'identity' ? (
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
                 <Info className="h-3.5 w-3.5" />
                 {copy.common.requiredFields}
               </div>
             </div>
+            ) : null}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+              <div className={cn('space-y-2', activeStep !== 'identity' && 'hidden')}>
                 <label id="process-unit-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.unit}</label>
                 <Select value={selectedUnitValue} onValueChange={updateUnit}>
                   <SelectTrigger aria-labelledby="process-unit-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -680,7 +724,7 @@ export function ProcessFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className={cn('space-y-2', activeStep !== 'identity' && 'hidden')}>
                 <label id="process-business-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.business}</label>
                 <Select value={selectedBusinessValue} onValueChange={updateBusiness}>
                   <SelectTrigger aria-labelledby="process-business-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -695,7 +739,7 @@ export function ProcessFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className={cn('space-y-2 md:col-span-2', activeStep !== 'identity' && 'hidden')}>
                 <label htmlFor="process-title" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.title}</label>
                 <Input
                   id="process-title"
@@ -710,7 +754,7 @@ export function ProcessFormDialog({
                   className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className={cn('space-y-2 md:col-span-2', activeStep !== 'identity' && 'hidden')}>
                 <label htmlFor="process-description" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.description}</label>
                 <Textarea
                   id="process-description"
@@ -726,7 +770,7 @@ export function ProcessFormDialog({
                 />
               </div>
 
-              <div className="space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/70 px-4 py-4 dark:border-slate-700 dark:bg-slate-900/40 md:col-span-2">
+              <div className={cn('space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/70 px-4 py-4 dark:border-slate-700 dark:bg-slate-900/40 md:col-span-2', activeStep !== 'template' && 'hidden')}>
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{copy.form.sections.taskTemplate}</h3>
                   <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -810,13 +854,15 @@ export function ProcessFormDialog({
                   </div>
                 </div>
               </div>
-              <SelectField
-                label={copy.form.labels.frequency}
-                value={form.frequency}
-                onChange={updateFrequency}
-                options={localizedFrequencyOptions}
-              />
-              <div className="space-y-2">
+              <div className={activeStep !== 'schedule' ? 'hidden' : undefined}>
+                <SelectField
+                  label={copy.form.labels.frequency}
+                  value={form.frequency}
+                  onChange={updateFrequency}
+                  options={localizedFrequencyOptions}
+                />
+              </div>
+              <div className={cn('space-y-2', activeStep !== 'identity' && 'hidden')}>
                 <label id="process-responsible-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.responsible}</label>
                 <Select value={selectedResponsibleValue} onValueChange={updateResponsible}>
                   <SelectTrigger aria-labelledby="process-responsible-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -831,14 +877,16 @@ export function ProcessFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <SelectField
-                label={copy.form.labels.priority}
-                value={form.priority}
-                onChange={(value) => setForm((currentForm) => ({ ...currentForm, priority: value }))}
-                options={localizedPriorityOptions}
-              />
+              <div className={activeStep !== 'identity' ? 'hidden' : undefined}>
+                <SelectField
+                  label={copy.form.labels.priority}
+                  value={form.priority}
+                  onChange={(value) => setForm((currentForm) => ({ ...currentForm, priority: value }))}
+                  options={localizedPriorityOptions}
+                />
+              </div>
 
-              <div className="space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/70 px-4 py-4 dark:border-slate-700 dark:bg-slate-900/40 md:col-span-2">
+              <div className={cn('space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/70 px-4 py-4 dark:border-slate-700 dark:bg-slate-900/40 md:col-span-2', activeStep !== 'schedule' && 'hidden')}>
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{copy.form.sections.engineControl}</h3>
                   <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -924,7 +972,7 @@ export function ProcessFormDialog({
               </div>
             </div>
 
-            <div className="space-y-4 rounded-[28px] border border-slate-200 bg-slate-50/70 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40">
+            <div className={cn('space-y-4 rounded-[28px] border border-slate-200 bg-slate-50/70 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40', activeStep !== 'schedule' && 'hidden')}>
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 rounded-2xl bg-[#F4C84A]/15 p-2 text-[#9A6B05] dark:bg-[#F4C84A]/20 dark:text-amber-200">
                   <CalendarDays className="h-4 w-4" />
@@ -943,30 +991,36 @@ export function ProcessFormDialog({
                 </p>
               ) : null}
             </div>
-          </div>
 
-          <DialogFooter className={`${processTaskModalFooterClass} sticky bottom-0 z-10`}>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={processTaskModalSecondaryActionClass}
-                disabled={isSubmitting}
-              >
-                {copy.common.cancel}
-              </Button>
-            </DialogClose>
-            <Button
-              type="submit"
-              className={processTaskModalPrimaryActionClass}
-              disabled={!isFormValid || isSubmitting}
-            >
-              {mode === 'create' ? <Plus className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
-              {isSubmitting ? copy.common.saving : submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            {activeStep === 'review' ? (
+              <div className="space-y-5">
+                <IndiceModalSummary
+                  columns={2}
+                  title={title}
+                  description={form.description}
+                  items={[
+                    { label: copy.form.labels.title, value: form.title, emphasized: true },
+                    { label: copy.form.labels.frequency, value: copy.frequencies[form.frequency] },
+                    { label: copy.form.labels.unit, value: form.unit || copy.common.noUnit },
+                    { label: copy.form.labels.business, value: form.business || copy.common.noBusiness },
+                    { label: copy.form.labels.responsible, value: form.responsible || copy.common.unassigned },
+                    { label: copy.form.labels.priority, value: copy.priorities[form.priority] },
+                    { label: copy.form.labels.start, value: form.startDate || copy.common.noDate },
+                    { label: copy.form.labels.end, value: form.endDate || copy.common.noDate },
+                  ]}
+                  variant="accent"
+                />
+                <IndiceModalSummary
+                  columns={2}
+                  title={copy.form.sections.taskTemplate}
+                  items={[
+                    { label: copy.form.labels.taskTitle, value: form.taskTitleTemplate || form.title },
+                    { label: copy.form.sections.evidenceRequired, value: form.evidenceRequired ? 'Sí' : 'No' },
+                  ]}
+                />
+              </div>
+            ) : null}
+      </form>
+    </IndiceModalFrame>
   );
 }

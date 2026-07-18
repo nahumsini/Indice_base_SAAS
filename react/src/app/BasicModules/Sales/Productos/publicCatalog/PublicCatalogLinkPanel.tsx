@@ -22,12 +22,12 @@ export function PublicCatalogLinkPanel({
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="flex items-center gap-2 text-lg font-black text-slate-950">
+      <h3 className="flex items-center gap-2 text-lg font-bold text-slate-950">
         <Link2 className="h-5 w-5 text-[#FF6B5E]" />
         {t.publicCatalog.linkSection}
       </h3>
       <div className="mt-4 space-y-3">
-        <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-black text-white hover:bg-[#E85C50]" onClick={onRegenerateLink}>
+        <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onRegenerateLink}>
           <RefreshCw className="h-4 w-4" />
           {t.publicCatalog.regenerateLink}
         </Button>

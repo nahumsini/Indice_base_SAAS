@@ -17,12 +17,12 @@ export function QuoteConditionsSection({
   return (
     <section className="space-y-4">
       <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-4">
-        <h3 className="text-base font-black text-slate-950">{t.conditions.title}</h3>
-        <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">{t.conditions.description}</p>
+        <h3 className="text-base font-semibold text-slate-950">{t.conditions.title}</h3>
+        <p className="mt-1 text-sm font-normal leading-6 text-slate-500">{t.conditions.description}</p>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-bold text-slate-700">{t.labels.notes}</label>
+        <label className="text-sm font-medium text-slate-700">{t.labels.notes}</label>
         <Textarea
           className={coralFieldClassName}
           value={form.notes}
@@ -31,7 +31,7 @@ export function QuoteConditionsSection({
         />
       </div>
       <div className="space-y-2">
-        <label className="text-sm font-bold text-slate-700">{t.labels.terms}</label>
+        <label className="text-sm font-medium text-slate-700">{t.labels.terms}</label>
         <Textarea
           className={coralFieldClassName}
           value={form.terms}

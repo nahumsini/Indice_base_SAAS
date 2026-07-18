@@ -82,8 +82,9 @@ export function ReceivablePaymentModal({ receivable, onClose, onSave }: Receivab
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar abono"
-      eyebrow="Credito POS"
+      eyebrow="Crédito POS"
       icon={<CircleDollarSign className="h-6 w-6" />}
       onClose={onClose}
       size="md"
@@ -91,16 +92,17 @@ export function ReceivablePaymentModal({ receivable, onClose, onSave }: Receivab
       title="Registrar abono"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`Abono ${formatCurrency(Number(amount) || 0, receivable.currency)} · Saldo ${formatCurrency(receivable.balance, receivable.currency)}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button type="button" onClick={handleSave} className={posModalPrimaryActionClassName}>
-            <CheckCircle className="h-5 w-5" />
-            Guardar abono
-          </button>
-        </div>
+        <button type="button" onClick={handleSave} className={posModalPrimaryActionClassName}>
+          <CheckCircle className="h-5 w-5" />
+          Guardar abono
+        </button>
       )}
     >
       <div className="space-y-4">

@@ -21,7 +21,7 @@ function StatusPill({
   } as const;
 
   return (
-    <span className={cn('inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-black', tones[tone])}>
+    <span className={cn('inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-medium', tones[tone])}>
       {children}
     </span>
   );
@@ -46,8 +46,8 @@ function SummaryMetric({
 
   return (
     <div className={cn('rounded-lg border border-slate-200 bg-slate-50 p-4 pl-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60', 'border-l-4', accents[tone])}>
-      <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-2 text-lg font-black text-slate-950 dark:text-white">{value}</p>
+      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={cn('mt-2 text-lg text-slate-950 dark:text-white', tone === 'coral' ? 'font-bold' : 'font-semibold')}>{value}</p>
     </div>
   );
 }
@@ -75,8 +75,8 @@ export function SalesCreateSummaryPanel({
             <ClipboardCheck className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-xl font-black text-slate-950 dark:text-white">{t.modal.workspace.summaryTitle}</h3>
-            <p className="mt-1 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{t.modal.workspace.summarySubtitle}</p>
+            <h3 className="text-xl font-semibold text-slate-950 dark:text-white">{t.modal.workspace.summaryTitle}</h3>
+            <p className="mt-1 text-sm font-normal leading-6 text-slate-600 dark:text-slate-300">{t.modal.workspace.summarySubtitle}</p>
           </div>
         </div>
 
@@ -93,7 +93,7 @@ export function SalesCreateSummaryPanel({
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-        <h3 className="text-sm font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.modal.workspace.readinessTitle}</h3>
+        <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t.modal.workspace.readinessTitle}</h3>
         <div className="mt-4 flex flex-wrap gap-2">
           <StatusPill tone={selectedOpportunity ? 'green' : 'slate'}>
             {selectedOpportunity ? t.modal.workspace.opportunityLoaded : t.modal.workspace.opportunityPending}
@@ -106,8 +106,8 @@ export function SalesCreateSummaryPanel({
         </div>
 
         <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-          <p className="text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">{t.modal.workspace.nextAction}</p>
-          <p className="mt-2 text-sm font-bold leading-6 text-slate-950 dark:text-white">{nextAction}</p>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t.modal.workspace.nextAction}</p>
+          <p className="mt-2 text-sm font-medium leading-6 text-slate-950 dark:text-white">{nextAction}</p>
         </div>
       </section>
     </aside>

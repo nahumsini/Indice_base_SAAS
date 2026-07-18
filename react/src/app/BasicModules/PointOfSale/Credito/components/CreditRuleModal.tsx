@@ -77,25 +77,27 @@ export function CreditRuleModal({ rule, customers, onClose, onSave }: CreditRule
 
   return (
     <PosModalFrame
-      closeLabel="Cerrar politica de credito"
-      eyebrow="Credito POS"
+      modalType="standard-form"
+      closeLabel="Cerrar política de crédito"
+      eyebrow="Crédito POS"
       icon={<WalletCards className="h-6 w-6" />}
       onClose={onClose}
       size="lg"
-      subtitle="Define plazos, limite, riesgo y bloqueo para venta a credito."
-      title={draft.id.startsWith('credit-new') ? 'Nueva politica de credito' : 'Editar politica de credito'}
+      subtitle="Define plazos, límite, riesgo y bloqueo para venta a crédito."
+      title={draft.id.startsWith('credit-new') ? 'Nueva política de crédito' : 'Editar política de crédito'}
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
+      footerLeading={(
+        <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+          Cancelar
+        </button>
+      )}
+      footerSummary={`${draft.name?.trim() || 'Política sin nombre'} · ${draft.currency ?? 'MXN'} ${draft.creditLimit.toLocaleString('es-MX')}`}
       footer={(
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cancelar
-          </button>
-          <button type="button" onClick={handleSave} className={posModalPrimaryActionClassName}>
-            <CheckCircle className="h-5 w-5" />
-            Guardar politica
-          </button>
-        </div>
+        <button type="button" onClick={handleSave} className={posModalPrimaryActionClassName}>
+          <CheckCircle className="h-5 w-5" />
+          Guardar política
+        </button>
       )}
     >
       <div className="space-y-4">

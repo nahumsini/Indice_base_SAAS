@@ -81,12 +81,13 @@ export function ProductSearchModal({
 
   return (
     <PosModalFrame
+      modalType="operational-workspace"
       closeLabel="Cerrar busqueda de productos"
-      eyebrow="Catalogo POS"
+      eyebrow="Catálogo POS"
       icon={<Search className="h-6 w-6" />}
       onClose={onClose}
       size="lg"
-      subtitle="Busca por codigo, nombre o categoria y agrega productos al ticket."
+      subtitle="Busca por código, nombre o categoría y agrega productos al ticket."
       title="Buscar productos"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}

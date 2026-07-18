@@ -20,7 +20,7 @@ import {
   Search,
   Timer,
   Trash2,
-  X,
+  UserRoundCheck,
 } from 'lucide-react';
 import { useLanguage } from '../../../shared/context';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
@@ -29,14 +29,7 @@ import { DataTablePagination } from '../../../components/table/DataTablePaginati
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { Checkbox } from '../../../components/ui/checkbox';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../components/indice-modal';
 import { Input } from '../../../components/ui/input';
 import { Skeleton } from '../../../components/ui/skeleton';
 import {
@@ -78,13 +71,6 @@ import {
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
 import { useRowSelection } from '../../shared/operational';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../shared/assignmentScope';
-import {
-  processTaskModalCloseActionClass,
-  processTaskModalCompactFooterClass,
-  processTaskModalCompactHeaderClass,
-  processTaskModalPrimaryActionClass,
-  processTaskModalSecondaryActionClass,
-} from '../shared/processTaskModalStyles';
 import type {
   Option,
   ProcessBusinessOption,
@@ -1055,6 +1041,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   };
 
   const openCreateDialog = () => {
+    setProcessesError(null);
     setEditorMode('create');
     resetForm();
     setProcessEditorOpen(true);
@@ -1069,6 +1056,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   };
 
   const openEditDialog = (record: ProcessRecord) => {
+    setProcessesError(null);
     setEditorMode('edit');
     setEditingProcessId(record.id);
     setForm(toProcessFormState(record));
@@ -2360,62 +2348,41 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
         renderProcessDiagram()
       )}
 
-      <Dialog open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
-        <DialogContent
-          hideCloseButton
-          className="max-w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
-        >
-          <div className={processTaskModalCompactHeaderClass}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <DialogTitle className="text-lg font-bold text-slate-950">{processCopy.form.labels.responsible}</DialogTitle>
-                <DialogDescription className="mt-1 text-sm text-slate-800/85">
-                  {processCopy.bulk.assignDescription(rowSelection.selectedCount)}
-                </DialogDescription>
-              </div>
-              <DialogClose asChild>
-                <Button type="button" variant="outline" className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')} disabled={isBulkActionRunning} aria-label={processCopy.common.cancel}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </div>
-          </div>
-          <div className="space-y-3 px-5 py-5">
-            <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
-              <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{processCopy.common.unassigned}</SelectItem>
-                {bulkAssignableCollaborators.map((collaborator) => (
-                  <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
-                    {collaborator.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter className={processTaskModalCompactFooterClass}>
-            <Button
-              type="button"
-              variant="outline"
-              className={processTaskModalSecondaryActionClass}
-              disabled={isBulkActionRunning}
-              onClick={() => setIsBulkAssignOpen(false)}
-            >
+      <IndiceModalFrame
+        busy={isBulkActionRunning}
+        closeLabel={processCopy.common.cancel}
+        contentClassName="sm:!max-w-[520px]"
+        description={processCopy.bulk.assignDescription(rowSelection.selectedCount)}
+        footer={(
+          <>
+            <Button type="button" variant="outline" disabled={isBulkActionRunning} onClick={() => setIsBulkAssignOpen(false)}>
               {processCopy.common.cancel}
             </Button>
-            <Button
-              type="button"
-              className={processTaskModalPrimaryActionClass}
-              disabled={isBulkActionRunning}
-              onClick={handleBulkAssign}
-            >
+            <Button type="button" disabled={isBulkActionRunning} onClick={handleBulkAssign}>
               {isBulkActionRunning ? processCopy.common.saving : processCopy.form.submit.edit}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        )}
+        footerSummary={processCopy.bulk.itemName(rowSelection.selectedCount)}
+        icon={<UserRoundCheck className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={setIsBulkAssignOpen}
+        open={isBulkAssignOpen}
+        title={processCopy.form.labels.responsible}
+        tone="yellow"
+      >
+        <Select value={bulkResponsibleValue} onValueChange={setBulkResponsibleValue}>
+          <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white shadow-none dark:border-slate-600 dark:bg-slate-800">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{processCopy.common.unassigned}</SelectItem>
+            {bulkAssignableCollaborators.map((collaborator) => (
+              <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>{collaborator.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </IndiceModalFrame>
 
       <ConfirmDeleteDialog
         isVisible={bulkConfirmation === 'delete'}
@@ -2433,6 +2400,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
 
       <ProcessFormDialog
         copy={processCopy}
+        error={processesError}
         locale={locale}
         open={processEditorOpen}
         onOpenChange={handleEditorOpenChange}

@@ -85,7 +85,7 @@ export function SalesProspectsPerformanceTable({
                 <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
                   <p>{formatPreferred(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
                   {item.currency !== preferredCurrency ? (
-                    <p className="text-xs font-medium text-slate-400">Nativo: {formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
+                    <p className="text-xs font-medium text-slate-400">{copy.context.native}: {formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
                   ) : null}
                 </td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.nextAction} - {item.nextActionDate}</td>

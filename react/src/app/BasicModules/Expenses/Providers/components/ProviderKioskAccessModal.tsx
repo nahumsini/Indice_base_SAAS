@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, KeyRound, Loader2, ShieldCheck, Store, X } from 'lucide-react';
+import { Copy, KeyRound, Loader2, ShieldCheck, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '../../../../components/ui/dialog';
+import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { payableKiosksService, type PayableKiosk, type PayableKioskProviderAccess } from '../../services';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import type { ProviderRecord } from '../useProveedoresLogic';
@@ -103,27 +104,27 @@ export function ProviderKioskAccessModal({ onClose, onError, onSuccess, provider
   };
 
   return (
-    <Dialog open={Boolean(provider)} onOpenChange={open => !open && onClose()}>
-      <DialogContent hideCloseButton className="max-h-[calc(100vh-2rem)] max-w-[560px] overflow-hidden rounded-[28px] border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-        <header className="flex items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15"><KeyRound className="h-5 w-5" /></span>
-            <div>
-              <DialogTitle className="text-xl font-bold text-white">{copy.manageProviderAccess}</DialogTitle>
-              <DialogDescription className="mt-1 text-sm font-semibold text-white/80">{provider?.name}</DialogDescription>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/10 hover:bg-white/20" aria-label={t.columnModal.close}><X className="h-5 w-5" /></button>
-        </header>
-
-        <section className="max-h-[calc(100vh-12rem)] space-y-4 overflow-y-auto bg-slate-50/70 p-5 dark:bg-slate-950/40">
+    <>
+      <IndiceModalFrame
+        busy={isSaving}
+        contentClassName="sm:max-w-[560px]"
+        description={provider?.name ?? copy.providerAccess}
+        footer={(
+          <button type="button" disabled={isSaving} onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">{t.common.cancel}</button>
+        )}
+        footerSummary={activeAccess ? copy.accessReady : copy.selectKiosk}
+        icon={<KeyRound className="h-5 w-5" />}
+        modalType="standard-form"
+        onOpenChange={open => !open && onClose()}
+        open={Boolean(provider)}
+        title={copy.manageProviderAccess}
+        tone="green"
+      >
+        <section className="space-y-4">
           {isLoading ? (
             <div className="flex min-h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-[#147514]" /></div>
           ) : provider?.status !== 'active' ? (
-            <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-5 text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100">
-              <p className="font-bold">{copy.providerAccess}</p>
-              <p className="mt-1 text-sm font-semibold">{copy.pendingProviderHint}</p>
-            </div>
+            <IndiceModalValidation messages={[copy.pendingProviderHint]} title={copy.providerAccess} tone="warning" />
           ) : activeKiosks.length === 0 ? (
             <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-6 text-center font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900">{copy.noKiosks}</div>
           ) : (
@@ -133,7 +134,7 @@ export function ProviderKioskAccessModal({ onClose, onError, onSuccess, provider
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#147514]/10 text-[#147514]"><Store className="h-5 w-5" /></span>
                   <div><p className="font-bold text-slate-950 dark:text-white">{copy.providerAccess}</p><p className="text-xs font-semibold text-slate-500">{activeAccess ? copy.accessReady : copy.selectKiosk}</p></div>
                 </div>
-                <label className="block text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                <label className="block text-xs font-medium text-slate-500">
                   {copy.assignedKiosk}
                   <select value={activeAccess ? String(activeAccess.kioskId) : selectedKioskId} disabled={Boolean(activeAccess)} onChange={event => setSelectedKioskId(event.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
                     {activeKiosks.map(kiosk => <option key={kiosk.id} value={kiosk.id}>{kiosk.name} · {kiosk.currencyCode}</option>)}
@@ -153,26 +154,29 @@ export function ProviderKioskAccessModal({ onClose, onError, onSuccess, provider
                 <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-800/50 dark:bg-emerald-950/30">
                   <div className="flex items-center gap-2 font-bold text-emerald-900 dark:text-emerald-100"><ShieldCheck className="h-5 w-5" />{copy.generatedPin}</div>
                   <button type="button" onClick={() => copyValue(generatedPin, copy.messages.pinCopied)} className="mt-3 flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-900">
-                    <code className="text-2xl font-black tracking-[0.25em] text-slate-950 dark:text-white">{generatedPin}</code><Copy className="h-5 w-5 text-[#147514]" />
+                    <code className="text-2xl font-semibold tracking-[0.2em] text-slate-950 dark:text-white">{generatedPin}</code><Copy className="h-5 w-5 text-[#147514]" />
                   </button>
                   <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{copy.generatedPinOnce}</p>
                 </div>
               ) : null}
 
-              {activeAccess ? (
-                showRevokeConfirm ? (
-                  <div className="rounded-[22px] border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30">
-                    <p className="text-sm font-bold text-red-800 dark:text-red-200">{copy.deactivateDescription}</p>
-                    <div className="mt-3 flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setShowRevokeConfirm(false)}>{t.common.cancel}</Button><Button type="button" disabled={isSaving} onClick={revoke} className="bg-red-600 text-white hover:bg-red-700">{copy.revokeAccess}</Button></div>
-                  </div>
-                ) : <button type="button" onClick={() => setShowRevokeConfirm(true)} className="w-full text-center text-sm font-bold text-red-600 hover:underline">{copy.revokeAccess}</button>
-              ) : null}
+              {activeAccess ? <button type="button" onClick={() => setShowRevokeConfirm(true)} className="w-full text-center text-sm font-semibold text-red-600 hover:underline">{copy.revokeAccess}</button> : null}
             </>
           )}
         </section>
+      </IndiceModalFrame>
 
-        <DialogFooter className="bg-[#147514] px-6 py-4 dark:bg-[#0b3f1b]"><Button type="button" variant="outline" onClick={onClose} className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">{t.common.cancel}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <ConfirmDeleteDialog
+        cancelLabel={t.common.cancel}
+        confirmDisabled={isSaving}
+        confirmLabel={copy.revokeAccess}
+        description={copy.deactivateDescription}
+        isVisible={showRevokeConfirm}
+        itemName={provider?.name}
+        onCancel={() => setShowRevokeConfirm(false)}
+        onConfirm={revoke}
+        title={copy.revokeAccess}
+      />
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { DigitalContract } from './Contrato/types/digitalContractTypes';
 import {
   backendIdFrom,
@@ -100,9 +100,9 @@ export {
 
 const SalesCrmContext = createContext<SalesCrmContextValue | null>(null);
 
-const logSalesSyncFailure = (action: string, error: unknown) => {
-  console.warn(`[Sales] ${action} could not sync with backend. Keeping local state.`, error);
-};
+const getSyncErrorMessage = (error: unknown) => (
+  error instanceof Error ? error.message : 'The request could not be completed.'
+);
 
 function stripProductIdentityForCreate(
   product: CreateProductInput & Partial<Pick<SalesCatalogItem, 'id' | 'backendId' | 'productCode'>>,
@@ -125,62 +125,123 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
   const [salesRecords, setSalesRecords] = useState<SaleRecord[]>([]);
   const [postSaleCases, setPostSaleCases] = useState<SalesPostSaleCase[]>([]);
   const [contracts, setContracts] = useState<DigitalContract[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pendingSyncs, setPendingSyncs] = useState(0);
+  const [loadError, setLoadError] = useState('');
+  const [hasPartialData, setHasPartialData] = useState(false);
+  const [syncIssue, setSyncIssue] = useState<SalesCrmContextValue['syncIssue']>(null);
+  const loadRequestId = useRef(0);
 
-  const reloadProducts = useCallback(async () => {
-    const productsResponse = await salesApi.list('products');
-    setProducts(productsResponse.items.map(toFrontendProduct));
+  const beginSync = useCallback(() => {
+    setPendingSyncs((current) => current + 1);
   }, []);
 
-  const reloadSalesRecords = useCallback(async () => {
-    const salesResponse = await salesApi.list('sales');
-    setSalesRecords(salesResponse.items.map(toFrontendSaleRecord));
+  const finishSync = useCallback(() => {
+    setPendingSyncs((current) => Math.max(0, current - 1));
   }, []);
 
-  useEffect(() => {
-    let active = true;
+  const clearSyncIssue = useCallback(() => {
+    setSyncIssue(null);
+  }, []);
 
-    const loadSalesData = async () => {
-      try {
-        const [
-          contactsResponse,
-          opportunitiesResponse,
-          productsResponse,
-          quotesResponse,
-          salesResponse,
-          postSalesResponse,
-          contractsResponse,
-        ] = await Promise.all([
-          salesApi.list('contacts'),
-          salesApi.list('opportunities'),
-          salesApi.list('products'),
-          salesApi.list('quotes'),
-          salesApi.list('sales'),
-          salesApi.list('post-sales'),
-          salesApi.list('contracts'),
-        ]);
+  const reloadAll = useCallback(async () => {
+    const requestId = loadRequestId.current + 1;
+    loadRequestId.current = requestId;
+    setIsLoading(true);
+    setLoadError('');
 
-        if (!active) return;
+    const results = await Promise.allSettled([
+      salesApi.list('contacts'),
+      salesApi.list('opportunities'),
+      salesApi.list('products'),
+      salesApi.list('quotes'),
+      salesApi.list('sales'),
+      salesApi.list('post-sales'),
+      salesApi.list('contracts'),
+    ] as const);
 
-        setContacts(contactsResponse.items.map(toFrontendContact));
-        setOpportunities(opportunitiesResponse.items.map(toFrontendOpportunity));
-        setProducts(productsResponse.items.map(toFrontendProduct));
-        setQuotes(quotesResponse.items.map(toFrontendQuote));
-        setSalesRecords(salesResponse.items.map(toFrontendSaleRecord));
-        setPostSaleCases(postSalesResponse.items.map(toFrontendPostSaleCase));
-        setContracts(contractsResponse.items.map(toFrontendContract));
-      } catch (error) {
-        logSalesSyncFailure('initial load', error);
+    if (loadRequestId.current !== requestId) return;
+
+    const failedResources: string[] = [];
+    let loadedResources = 0;
+    const applyResult = <T,>(
+      result: PromiseSettledResult<{ items: Record<string, unknown>[] }>,
+      resource: string,
+      apply: (items: Record<string, unknown>[]) => T,
+    ) => {
+      if (result.status === 'fulfilled') {
+        loadedResources += 1;
+        apply(result.value.items);
+      } else {
+        failedResources.push(resource);
       }
     };
 
-    void loadSalesData();
+    applyResult(results[0], 'contacts', (items) => setContacts(items.map(toFrontendContact)));
+    applyResult(results[1], 'opportunities', (items) => setOpportunities(items.map(toFrontendOpportunity)));
+    applyResult(results[2], 'products', (items) => setProducts(items.map(toFrontendProduct)));
+    applyResult(results[3], 'quotes', (items) => setQuotes(items.map(toFrontendQuote)));
+    applyResult(results[4], 'sales', (items) => setSalesRecords(items.map(toFrontendSaleRecord)));
+    applyResult(results[5], 'post-sales', (items) => setPostSaleCases(items.map(toFrontendPostSaleCase)));
+    applyResult(results[6], 'contracts', (items) => setContracts(items.map(toFrontendContract)));
 
-    return () => {
-      active = false;
-    };
+    setHasPartialData(failedResources.length > 0 && loadedResources > 0);
+    setLoadError(failedResources.join(', '));
+    setIsLoading(false);
   }, []);
 
+  const handleSyncFailure = useCallback((action: string, error: unknown) => {
+    console.warn(`[Sales] ${action} could not sync with the backend.`, error);
+    setSyncIssue({
+      action,
+      message: getSyncErrorMessage(error),
+      occurredAt: new Date().toISOString(),
+    });
+    void reloadAll();
+  }, [reloadAll]);
+
+  const reloadProducts = useCallback(async () => {
+    beginSync();
+    try {
+      const productsResponse = await salesApi.list('products');
+      setProducts(productsResponse.items.map(toFrontendProduct));
+      setSyncIssue(null);
+    } catch (error) {
+      handleSyncFailure('reload products', error);
+      throw error;
+    } finally {
+      finishSync();
+    }
+  }, [beginSync, finishSync, handleSyncFailure]);
+
+  const reloadSalesRecords = useCallback(async () => {
+    beginSync();
+    try {
+      const salesResponse = await salesApi.list('sales');
+      setSalesRecords(salesResponse.items.map(toFrontendSaleRecord));
+      setSyncIssue(null);
+    } catch (error) {
+      handleSyncFailure('reload sales', error);
+      throw error;
+    } finally {
+      finishSync();
+    }
+  }, [beginSync, finishSync, handleSyncFailure]);
+
+  useEffect(() => {
+    void reloadAll();
+
+    return () => {
+      loadRequestId.current += 1;
+    };
+  }, [reloadAll]);
+
   const value = useMemo<SalesCrmContextValue>(() => ({
+    isLoading,
+    isSyncing: pendingSyncs > 0,
+    loadError,
+    hasPartialData,
+    syncIssue,
     contacts,
     opportunities,
     products,
@@ -190,6 +251,8 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
     contracts,
     reloadProducts,
     reloadSalesRecords,
+    reloadAll,
+    clearSyncIssue,
     addContact: (contact) => {
       let createdContact: SalesContact = {
         ...contact,
@@ -211,7 +274,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
             item.id === createdContact.id ? persistedContact : item
           )));
         })
-        .catch((error) => logSalesSyncFailure('create contact', error));
+        .catch((error) => handleSyncFailure('create contact', error));
       return createdContact;
     },
     updateContact: (contactId, patch) => {
@@ -230,7 +293,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               contact.id === contactId || contact.backendId === backendId ? persistedContact : contact
             )));
           })
-          .catch((error) => logSalesSyncFailure('update contact', error));
+          .catch((error) => handleSyncFailure('update contact', error));
+      } else if (currentContact) {
+        handleSyncFailure('update contact', new Error('Missing backend identifier.'));
       }
     },
     deleteContact: (contactId) => {
@@ -239,7 +304,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       const backendId = backendIdFrom(currentContact);
       if (backendId !== undefined) {
         void salesApi.delete('contacts', backendId)
-          .catch((error) => logSalesSyncFailure('delete contact', error));
+          .catch((error) => handleSyncFailure('delete contact', error));
+      } else if (currentContact) {
+        handleSyncFailure('delete contact', new Error('Missing backend identifier.'));
       }
     },
     addOpportunity: (opportunity) => {
@@ -256,7 +323,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
             item.id === createdOpportunity.id ? persistedOpportunity : item
           )));
         })
-        .catch((error) => logSalesSyncFailure('create opportunity', error));
+        .catch((error) => handleSyncFailure('create opportunity', error));
       return createdOpportunity;
     },
     updateOpportunity: (opportunityId, patch) => {
@@ -275,7 +342,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               opportunity.id === opportunityId || opportunity.backendId === backendId ? persistedOpportunity : opportunity
             )));
           })
-          .catch((error) => logSalesSyncFailure('update opportunity', error));
+          .catch((error) => handleSyncFailure('update opportunity', error));
+      } else if (currentOpportunity) {
+        handleSyncFailure('update opportunity', new Error('Missing backend identifier.'));
       }
     },
     deleteOpportunity: (opportunityId) => {
@@ -284,7 +353,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       const backendId = backendIdFrom(currentOpportunity);
       if (backendId !== undefined) {
         void salesApi.delete('opportunities', backendId)
-          .catch((error) => logSalesSyncFailure('delete opportunity', error));
+          .catch((error) => handleSyncFailure('delete opportunity', error));
+      } else if (currentOpportunity) {
+        handleSyncFailure('delete opportunity', new Error('Missing backend identifier.'));
       }
     },
     addProduct: (product) => {
@@ -303,7 +374,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
             item.id === createdProduct.id ? persistedProduct : item
           )));
         })
-        .catch((error) => logSalesSyncFailure('create product', error));
+        .catch((error) => handleSyncFailure('create product', error));
       return createdProduct;
     },
     updateProduct: (productId, patch) => {
@@ -327,7 +398,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               product.id === productId ? persistedProduct : product
             )));
           })
-          .catch((error) => logSalesSyncFailure('update product', error));
+          .catch((error) => handleSyncFailure('update product', error));
+      } else if (currentProduct) {
+        handleSyncFailure('update product', new Error('Missing backend identifier.'));
       }
     },
     createProductRecord: async (product) => {
@@ -347,7 +420,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         )));
         return persistedProduct;
       } catch (error) {
-        logSalesSyncFailure('create product', error);
+        handleSyncFailure('create product', error);
         throw error;
       }
     },
@@ -385,7 +458,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         )));
         return persistedProduct;
       } catch (error) {
-        logSalesSyncFailure('update product', error);
+        handleSyncFailure('update product', error);
         throw error;
       }
     },
@@ -406,7 +479,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
             item.id === createdQuote.id ? persistedQuote : item
           )));
         })
-        .catch((error) => logSalesSyncFailure('create quote', error));
+        .catch((error) => handleSyncFailure('create quote', error));
       return createdQuote;
     },
     updateQuote: (quoteId, patch) => {
@@ -425,7 +498,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               quote.id === quoteId || quote.backendId === backendId ? persistedQuote : quote
             )));
           })
-          .catch((error) => logSalesSyncFailure('update quote', error));
+          .catch((error) => handleSyncFailure('update quote', error));
+      } else if (currentQuote) {
+        handleSyncFailure('update quote', new Error('Missing backend identifier.'));
       }
     },
     addSaleRecord: async (saleRecord) => {
@@ -438,8 +513,8 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         )));
         return persistedSale;
       } catch (error) {
-        logSalesSyncFailure('create sale', error);
-        return saleRecord;
+        handleSyncFailure('create sale', error);
+        throw error;
       }
     },
     updateSaleRecord: (saleId, patch) => {
@@ -456,7 +531,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               saleRecord.id === saleId || saleRecord.backendId === backendId ? persistedSale : saleRecord
             )));
           })
-          .catch((error) => logSalesSyncFailure('update sale', error));
+          .catch((error) => handleSyncFailure('update sale', error));
+      } else if (currentSale) {
+        handleSyncFailure('update sale', new Error('Missing backend identifier.'));
       }
     },
     addPostSaleCase: (postSaleCase) => {
@@ -474,7 +551,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
             item.id === createdPostSaleCase.id ? persistedPostSaleCase : item
           )));
         })
-        .catch((error) => logSalesSyncFailure('create post-sale case', error));
+        .catch((error) => handleSyncFailure('create post-sale case', error));
       return createdPostSaleCase;
     },
     addContract: (contract) => {
@@ -494,7 +571,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
             item.id === createdContract.id ? persistedContract : item
           )));
         })
-        .catch((error) => logSalesSyncFailure('create contract', error));
+        .catch((error) => handleSyncFailure('create contract', error));
       return createdContract;
     },
     updateQuoteStatus: (quoteId, status) => {
@@ -513,7 +590,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               quote.id === quoteId || quote.backendId === backendId ? persistedQuote : quote
             )));
           })
-          .catch((error) => logSalesSyncFailure('update quote status', error));
+          .catch((error) => handleSyncFailure('update quote status', error));
+      } else if (currentQuote) {
+        handleSyncFailure('update quote status', new Error('Missing backend identifier.'));
       }
     },
     connectQuoteToOpportunity: (quoteId, opportunityId) => {
@@ -532,7 +611,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               quote.id === quoteId || quote.backendId === backendId ? persistedQuote : quote
             )));
           })
-          .catch((error) => logSalesSyncFailure('connect quote to opportunity', error));
+          .catch((error) => handleSyncFailure('connect quote to opportunity', error));
+      } else if (currentQuote) {
+        handleSyncFailure('connect quote to opportunity', new Error('Missing backend identifier.'));
       }
     },
     updatePostSaleCaseStatus: (caseId, status) => {
@@ -551,7 +632,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               postSaleCase.id === caseId || postSaleCase.backendId === backendId ? persistedCase : postSaleCase
             )));
           })
-          .catch((error) => logSalesSyncFailure('update post-sale status', error));
+          .catch((error) => handleSyncFailure('update post-sale status', error));
+      } else if (currentCase) {
+        handleSyncFailure('update post-sale status', new Error('Missing backend identifier.'));
       }
     },
     updateContractStatus: (contractId, status) => {
@@ -570,7 +653,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               contract.id === contractId || contract.backendId === backendId ? persistedContract : contract
             )));
           })
-          .catch((error) => logSalesSyncFailure('update contract status', error));
+          .catch((error) => handleSyncFailure('update contract status', error));
+      } else if (currentContract) {
+        handleSyncFailure('update contract status', new Error('Missing backend identifier.'));
       }
     },
     updateContractSignatureStatus: (contractId, signatureStatus) => {
@@ -589,7 +674,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               contract.id === contractId || contract.backendId === backendId ? persistedContract : contract
             )));
           })
-          .catch((error) => logSalesSyncFailure('update contract signature status', error));
+          .catch((error) => handleSyncFailure('update contract signature status', error));
+      } else if (currentContract) {
+        handleSyncFailure('update contract signature status', new Error('Missing backend identifier.'));
       }
     },
     requestContractSignature: (contractId, signatureRequest) => {
@@ -624,10 +711,30 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
               contract.id === contractId || contract.backendId === backendId ? persistedContract : contract
             )));
           })
-          .catch((error) => logSalesSyncFailure('request contract signature', error));
+          .catch((error) => handleSyncFailure('request contract signature', error));
+      } else if (currentContract) {
+        handleSyncFailure('request contract signature', new Error('Missing backend identifier.'));
       }
     },
-  }), [contacts, contracts, opportunities, postSaleCases, products, quotes, reloadProducts, reloadSalesRecords, salesRecords]);
+  }), [
+    clearSyncIssue,
+    contacts,
+    contracts,
+    handleSyncFailure,
+    hasPartialData,
+    isLoading,
+    loadError,
+    opportunities,
+    pendingSyncs,
+    postSaleCases,
+    products,
+    quotes,
+    reloadAll,
+    reloadProducts,
+    reloadSalesRecords,
+    salesRecords,
+    syncIssue,
+  ]);
 
   return (
     <SalesCrmContext.Provider value={value}>

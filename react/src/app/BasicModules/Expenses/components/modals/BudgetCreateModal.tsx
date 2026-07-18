@@ -1,6 +1,7 @@
-import { CalendarDays, Check, ChevronLeft, ChevronRight, FileText, Plus, X } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, FileText, Plus, ScanSearch } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation, IndiceModalWizardStepper } from '../../../../components/indice-modal';
 import { getDefaultBudgetTaxProfile, inferTaxCountryFromCurrency, taxRateToPercentInput } from '../../Budgets/budgetTaxCatalog';
 import { budgetFrequencyOptions, getBudgetScheduleDates } from '../../Budgets/budgetUtils';
 import { financeCurrencySelectOptions } from '../../constants/financeCurrencyOptions';
@@ -10,9 +11,9 @@ import type { Provider } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { BudgetTaxControls } from './BudgetTaxControls';
 import { useBudgetsTranslations } from '../../Budgets/hooks/useBudgetsTranslations';
-import { useFinanceModalAccessibility } from '../../hooks/useFinanceModalAccessibility';
 import type { FinanceTranslations } from '../../translations';
 import { QuickProviderField } from './QuickProviderField';
+import { financeModalPrimaryButtonClass, financeModalSecondaryButtonClass } from './FinanceModalPrimitives';
 
 type BudgetCreateModalProps = {
   accountingAccountOptions: FinanceReferenceOption[];
@@ -24,8 +25,10 @@ type BudgetCreateModalProps = {
   onClose: () => void;
   onCreateProvider?: (name: string) => Promise<Provider>;
   onDraftChange: (updates: Partial<BudgetDraftState>) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 };
+
+type BudgetStepId = 'cost' | 'schedule' | 'review';
 
 const inputClass = 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
@@ -42,16 +45,18 @@ export function BudgetCreateModal({
   onSubmit,
 }: BudgetCreateModalProps) {
   const t = useBudgetsTranslations();
-  const { panelRef, titleId } = useFinanceModalAccessibility<HTMLFormElement>(onClose);
-  const [stepIndex, setStepIndex] = useState(0);
-  const steps = useMemo<Array<{ id: number; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
-    { id: 0, label: t.budgets.modal.stepCost, icon: FileText, title: t.budgets.modal.titleCost, description: t.budgets.modal.subtitle },
-    { id: 1, label: t.budgets.modal.stepSchedule, icon: CalendarDays, title: t.budgets.modal.scheduleTitle, description: t.budgets.modal.scheduleDescription },
+  const [activeStepId, setActiveStepId] = useState<BudgetStepId>('cost');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const steps = useMemo<Array<{ id: BudgetStepId; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
+    { id: 'cost', label: t.budgets.modal.stepCost, icon: FileText, title: t.budgets.modal.titleCost, description: t.budgets.modal.subtitle },
+    { id: 'schedule', label: t.budgets.modal.stepSchedule, icon: CalendarDays, title: t.budgets.modal.scheduleTitle, description: t.budgets.modal.scheduleDescription },
+    { id: 'review', label: 'Revisión final', icon: ScanSearch, title: 'Revisa el presupuesto', description: 'Confirma el alcance, la programación y el total antes de guardar.' },
   ], [t]);
-  const currentStep = steps[stepIndex];
+  const stepIndex = steps.findIndex(step => step.id === activeStepId);
+  const currentStep = steps[Math.max(0, stepIndex)];
   const isEditMode = mode === 'edit';
-  const isLastStep = stepIndex === steps.length - 1;
-  const progressPercentage = `${((stepIndex + 1) / steps.length) * 100}%`;
+  const isLastStep = activeStepId === 'review';
   const scopedBusinessOptions = useMemo(() => (
     businessOptions.filter(option => !option.unitId || !draft.businessUnit || option.unitId === draft.businessUnit)
   ), [businessOptions, draft.businessUnit]);
@@ -76,7 +81,7 @@ export function BudgetCreateModal({
     draft.frequency.trim().length > 0 &&
     scheduleDates.length > 0
   );
-  const canContinue = stepIndex === 0 ? hasCostDetails : hasSchedule;
+  const canContinue = activeStepId === 'cost' ? hasCostDetails : activeStepId === 'schedule' ? hasSchedule : hasCostDetails && hasSchedule;
 
   useEffect(() => {
     const updates: Partial<BudgetDraftState> = {};
@@ -99,111 +104,111 @@ export function BudgetCreateModal({
     }
   }, [accountingAccountOptions, draft.accountingAccount, draft.business, draft.businessUnit, onDraftChange, scopedBusinessOptions, unitOptions]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canContinue) return;
     if (!isLastStep) {
-      setStepIndex(current => current + 1);
+      setActiveStepId(activeStepId === 'cost' ? 'schedule' : 'review');
       return;
     }
-    onSubmit(event);
+    setIsSaving(true);
+    setErrorMessage('');
+    try {
+      await onSubmit(event);
+    } catch {
+      setErrorMessage(isEditMode ? t.budgets.messages.lineSaveFailed : t.budgets.messages.createFailed);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  const formId = `budget-form-${mode}`;
+  const maxUnlockedIndex = !hasCostDetails ? 0 : !hasSchedule ? 1 : 2;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
-      <form ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()} className="flex max-h-[calc(100vh-3rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex shrink-0 items-start justify-between gap-4 bg-[#147514] px-6 py-4 text-white dark:bg-[#0b3f1b]">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-sm">
-              <Plus className="h-5 w-5" />
-            </span>
-            <div>
-              <div className="mb-1 inline-flex items-center rounded-full border border-white/25 bg-white px-3 py-1 text-xs font-semibold text-[#147514] shadow-sm">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</div>
-              <h3 id={titleId} className="text-xl font-bold text-white">{isEditMode ? t.budgets.modal.editTitle : t.budgets.modal.createTitle}</h3>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-white/80">{isEditMode ? t.budgets.modal.editSubtitle : t.budgets.modal.subtitle}</p>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20" aria-label={t.columnModal.close}>
-            <X className="h-5 w-5" />
+    <IndiceModalFrame
+      busy={isSaving}
+      closeLabel={t.columnModal.close}
+      description={isEditMode ? t.budgets.modal.editSubtitle : t.budgets.modal.subtitle}
+      footer={(
+        <>
+          <button type="button" onClick={onClose} disabled={isSaving} className={financeModalSecondaryButtonClass}>{t.common.cancel}</button>
+          <button
+            type="button"
+            onClick={() => setActiveStepId(activeStepId === 'review' ? 'schedule' : 'cost')}
+            disabled={activeStepId === 'cost' || isSaving}
+            className={financeModalSecondaryButtonClass}
+          >
+            <ChevronLeft className="mr-2 inline h-4 w-4" />
+            {t.budgets.modal.back}
           </button>
-        </div>
-
-        <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-          <p className="mb-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{t.budgets.modal.stepOf(stepIndex + 1, steps.length)}</p>
-          <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-            <div className="h-full rounded-full bg-[#147514] transition-all duration-300 ease-out" style={{ width: progressPercentage }} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {steps.map(step => {
-              const StepIcon = step.icon;
-              const isActive = stepIndex === step.id;
-              const isCompleted = stepIndex > step.id;
-              const canOpenStep = step.id <= stepIndex || (step.id === stepIndex + 1 && canContinue);
-              return (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => canOpenStep && setStepIndex(step.id)}
-                  disabled={!canOpenStep}
-                  className={`flex min-h-16 items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${isActive ? 'border-[#147514]/40 bg-[#147514]/10 text-[#147514] shadow-sm dark:text-emerald-300' : isCompleted ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-[#147514]/25 hover:bg-white hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-emerald-300'}`}
-                >
-                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isActive ? 'bg-[#147514] text-white' : isCompleted ? 'bg-emerald-600 text-white' : 'border border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-900'}`}>
-                    {isCompleted ? <Check className="h-4 w-4" /> : step.id + 1}
-                  </span>
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StepIcon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{step.label}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto bg-slate-50/70 px-6 py-6 dark:bg-slate-950/40">
-          <StepCard description={currentStep.description} icon={currentStep.icon} title={currentStep.title}>
-            {stepIndex === 0 ? (
-              <BudgetCostStep
-                accountingAccountOptions={accountingAccountOptions}
-                businessOptions={scopedBusinessOptions}
-                draft={draft}
-                onCreateProvider={onCreateProvider}
-                providers={providers}
-                unitOptions={unitOptions}
-                onDraftChange={onDraftChange}
-                t={t}
-              />
-            ) : null}
-            {stepIndex === 1 ? (
-              <BudgetScheduleStep
-                draft={draft}
-                plannedTotal={plannedTotal}
-                scheduleCount={scheduleDates.length}
-                totalPerOrder={totalPerOrder}
-                currency={draft.budgetCurrencyCode}
-                mode={mode}
-                onDraftChange={onDraftChange}
-                t={t}
-              />
-            ) : null}
-          </StepCard>
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-3 bg-[#147514] px-6 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-[#0b3f1b]">
-          <button type="button" onClick={onClose} className="h-10 rounded-lg border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white">{t.common.cancel}</button>
-          <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-            <button type="button" onClick={() => setStepIndex(current => Math.max(0, current - 1))} disabled={stepIndex === 0} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none transition hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50">
-              <ChevronLeft className="h-4 w-4" />
-              {t.budgets.modal.back}
-            </button>
-            <button type="submit" disabled={!canContinue} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-slate-100 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-[#147514]/50">
-              {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              {isLastStep ? (isEditMode ? t.budgets.modal.finishEdit : t.budgets.modal.finishCreate) : t.common.continue}
-            </button>
-          </div>
-        </div>
+          <button type="submit" form={formId} disabled={!canContinue || isSaving} className={financeModalPrimaryButtonClass}>
+            {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            {isSaving ? 'Guardando…' : isLastStep ? (isEditMode ? t.budgets.modal.finishEdit : t.budgets.modal.finishCreate) : t.common.continue}
+          </button>
+        </>
+      )}
+      footerSummary={`${scheduleDates.length} ${scheduleDates.length === 1 ? 'fecha' : 'fechas'} · ${formatCurrency(plannedTotal, draft.budgetCurrencyCode)}`}
+      icon={<Plus className="h-5 w-5" />}
+      modalType="wizard"
+      onOpenChange={(open) => !open && onClose()}
+      open
+      title={isEditMode ? t.budgets.modal.editTitle : t.budgets.modal.createTitle}
+      tone="green"
+    >
+      <form id={formId} className="space-y-4" onSubmit={handleSubmit}>
+        <IndiceModalWizardStepper
+          accent="green"
+          activeStepId={activeStepId}
+          onStepSelect={(nextStepId) => {
+            const nextIndex = steps.findIndex(step => step.id === nextStepId);
+            if (nextIndex <= maxUnlockedIndex && !isSaving) setActiveStepId(nextStepId);
+          }}
+          progressLabel={t.budgets.modal.stepOf(stepIndex + 1, steps.length)}
+          steps={steps.map(({ id, label }) => ({ id, label }))}
+        />
+        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
+        <StepCard description={currentStep.description} icon={currentStep.icon} title={currentStep.title}>
+          {activeStepId === 'cost' ? (
+            <BudgetCostStep
+              accountingAccountOptions={accountingAccountOptions}
+              businessOptions={scopedBusinessOptions}
+              draft={draft}
+              onCreateProvider={onCreateProvider}
+              providers={providers}
+              unitOptions={unitOptions}
+              onDraftChange={onDraftChange}
+              t={t}
+            />
+          ) : null}
+          {activeStepId === 'schedule' ? (
+            <BudgetScheduleStep
+              draft={draft}
+              plannedTotal={plannedTotal}
+              scheduleCount={scheduleDates.length}
+              totalPerOrder={totalPerOrder}
+              currency={draft.budgetCurrencyCode}
+              mode={mode}
+              onDraftChange={onDraftChange}
+              t={t}
+            />
+          ) : null}
+          {activeStepId === 'review' ? (
+            <IndiceModalSummary
+              columns={4}
+              description="El presupuesto está listo para guardarse. Puedes regresar a cualquier paso para corregirlo."
+              items={[
+                { label: t.budgets.modal.concept, value: draft.concept },
+                { label: t.budgets.modal.frequency, value: t.budgets.frequencies[draft.frequency] ?? draft.frequency },
+                { label: 'Fechas programadas', value: String(scheduleDates.length) },
+                { emphasized: true, label: 'Total planeado', value: formatCurrency(plannedTotal, draft.budgetCurrencyCode) },
+              ]}
+              title="Resumen del presupuesto"
+              variant="success"
+            />
+          ) : null}
+        </StepCard>
       </form>
-    </div>
+    </IndiceModalFrame>
   );
 }
 
@@ -300,7 +305,7 @@ function BudgetScheduleStep({
         />
       </FieldGroup>
       <div className="rounded-lg border border-[#147514]/20 bg-[#147514]/5 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
-        <p className="text-sm font-extrabold text-slate-900 dark:text-white">{t.budgets.modal.scheduleSummary}</p>
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.budgets.modal.scheduleSummary}</p>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <SummaryMetric label={t.budgets.budgetLine} value={String(scheduleCount)} />
           <SummaryMetric label={t.budgets.columns.total.label} value={formatCurrency(totalPerOrder, currency)} />
@@ -408,8 +413,8 @@ function BudgetSelect({
 function SummaryMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-white bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-base font-extrabold text-[#147514] dark:text-emerald-300">{value}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-base font-semibold text-[#147514] dark:text-emerald-300">{value}</p>
     </div>
   );
 }

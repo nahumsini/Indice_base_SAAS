@@ -37,6 +37,8 @@ export function AgendaTaskCell({
   onEditTask,
   onOpenAttachments,
   onPersistTaskChange,
+  onRequestCancel,
+  onRequestComplete,
   onPriorityChange,
   onProjectChange,
   onResponsibleChange,
@@ -119,28 +121,29 @@ export function AgendaTaskCell({
 
       return (
         <Select
-          value={displayStatus === 'overdue' || displayStatus === 'audited' ? displayStatus : task.status}
+          value={task.status}
           disabled={isPending}
           onValueChange={(value) => {
-            if (value === 'overdue' || value === 'audited') {
+            const nextStatus = value as TaskStatus;
+            if (nextStatus === 'completed') {
+              onRequestComplete(task);
               return;
             }
-
-            const nextStatus = value as TaskStatus;
+            if (nextStatus === 'cancelled') {
+              onRequestCancel(task);
+              return;
+            }
             void onPersistTaskChange(task, {
               status: nextStatus,
-              completionPercent: nextStatus === 'completed' ? 100 : task.completionPercent,
-              ...(nextStatus === 'completed'
-                ? {}
-                : {
-                    audited: false,
-                    auditNotes: null,
-                    weighting: null,
-                  }),
+              completionPercent: task.completionPercent,
+              audited: false,
+              auditNotes: null,
+              weighting: null,
             });
           }}
         >
           <SelectTrigger
+            title={displayStatus === 'overdue' ? copy.messages.overdueDragBlocked : undefined}
             className={cn(
               tableSelectTriggerClass,
               'w-full',
@@ -148,19 +151,9 @@ export function AgendaTaskCell({
                 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300',
             )}
           >
-            <SelectValue />
+            <span className="truncate">{copy.statuses[displayStatus]}</span>
           </SelectTrigger>
           <SelectContent>
-            {displayStatus === 'overdue' ? (
-              <SelectItem value="overdue" disabled>
-                {copy.statuses.overdue}
-              </SelectItem>
-            ) : null}
-            {displayStatus === 'audited' ? (
-              <SelectItem value="audited" disabled>
-                {copy.statuses.audited}
-              </SelectItem>
-            ) : null}
             {(['pending', 'in_progress', 'paused', 'completed', 'cancelled'] as TaskStatus[]).map((value) => (
               <SelectItem key={value} value={value}>
                 {copy.statuses[value]}

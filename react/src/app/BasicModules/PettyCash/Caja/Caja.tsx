@@ -1,5 +1,6 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { AlertTriangle, Columns3, FileUp, Info, Search, WalletCards } from 'lucide-react';
+import { ColumnasConfigModal } from '../../../components/rh/ColumnasConfigModal';
 import type { CashFund, PettyCashExpense, PettyCashExpenseStatus } from '../types/pettyCash.types';
 import { formatPettyCashCurrency, getPettyCashSummary } from '../utils/pettyCash.utils';
 import {
@@ -206,16 +207,6 @@ export default function Caja({
     });
   };
 
-  const toggleColumn = (columnKey: string) => {
-    setColumns(currentColumns =>
-      currentColumns.map(column =>
-        column.key === columnKey && column.key !== 'folio' && column.key !== 'actions'
-          ? { ...column, visible: !column.visible }
-          : column,
-      ),
-    );
-  };
-
   return (
     <div className="space-y-5">
       <section className="rounded-lg border border-green-200 bg-green-50 px-5 py-4 dark:border-green-800 dark:bg-green-900/20">
@@ -368,39 +359,33 @@ export default function Caja({
       />
 
       {isColumnsModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-gray-950/40 px-4">
-          <div className="w-full max-w-md overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
-            <div className="bg-[#147514] px-5 py-4 text-white">
-              <h2 className="text-lg font-bold">Columns</h2>
-              <p className="mt-1 text-sm text-green-100">Choose the fields visible in the cash table.</p>
-            </div>
-            <div className="max-h-[55vh] overflow-y-auto p-5">
-              <div className="space-y-3">
-                {columns.map((column) => (
-                  <label key={column.key} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700">
-                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{column.label}</span>
-                    <input
-                      checked={column.visible}
-                      disabled={column.key === 'folio' || column.key === 'actions'}
-                      onChange={() => toggleColumn(column.key)}
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-[#147514] focus:ring-[#147514]"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end bg-[#147514] px-5 py-4">
-              <button
-                type="button"
-                onClick={() => setIsColumnsModalOpen(false)}
-                className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-[#147514] shadow-sm transition hover:bg-green-50"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
+        <ColumnasConfigModal
+          columns={columns.map(column => ({
+            description: `Show ${column.label.toLocaleLowerCase()} in the cash table.`,
+            id: column.key,
+            label: column.label,
+            locked: column.key === 'folio' || column.key === 'actions',
+            visible: column.visible,
+          }))}
+          defaultColumns={initialColumns.map(column => ({
+            description: `Show ${column.label.toLocaleLowerCase()} in the cash table.`,
+            id: column.key,
+            label: column.label,
+            locked: column.key === 'folio' || column.key === 'actions',
+            visible: column.visible,
+          }))}
+          isOpen
+          onClose={() => setIsColumnsModalOpen(false)}
+          onSave={(nextColumns) => {
+            const visibilityByKey = new Map(nextColumns.map(column => [column.id, column.visible]));
+            setColumns(current => current.map(column => ({
+              ...column,
+              visible: visibilityByKey.get(column.key) ?? column.visible,
+            })));
+            setIsColumnsModalOpen(false);
+          }}
+          theme="expenses"
+        />
       )}
     </div>
   );

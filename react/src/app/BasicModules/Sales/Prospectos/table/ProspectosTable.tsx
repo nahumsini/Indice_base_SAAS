@@ -45,10 +45,12 @@ function OpportunitySortableHeader({
 
 function ColumnResizeHandle({
   columnId,
+  label,
   width,
   onResizeColumn,
 }: {
   columnId: OpportunityColumnId;
+  label: string;
   width: number;
   onResizeColumn: (columnId: OpportunityColumnId, width: number) => void;
 }) {
@@ -79,7 +81,7 @@ function ColumnResizeHandle({
   return (
     <button
       type="button"
-      aria-label={`Resize ${columnId} column`}
+      aria-label={label}
       className="absolute right-0 top-1/2 h-8 w-2 -translate-y-1/2 cursor-col-resize rounded-full transition-colors hover:bg-[#FF6B5E]/35 focus-visible:bg-[#FF6B5E]/35 focus-visible:outline-none"
       onMouseDown={handleMouseDown}
     />
@@ -162,7 +164,7 @@ export function ProspectosTable({
                     style={{ width: `${columnWidth}px`, minWidth: `${columnWidth}px`, maxWidth: `${columnWidth}px` }}
                   >
                     <OpportunitySortableHeader column={column} sortState={sortState} onSort={onSort} />
-                    <ColumnResizeHandle columnId={columnId} width={columnWidth} onResizeColumn={onResizeColumn} />
+                    <ColumnResizeHandle columnId={columnId} label={column.label} width={columnWidth} onResizeColumn={onResizeColumn} />
                   </TableHead>
                 );
               })}
@@ -209,7 +211,7 @@ export function ProspectosTable({
       </div>
       <DataTablePagination
         currentPage={currentPage}
-        itemLabel="oportunidades"
+        itemLabel={copy.header.title.toLocaleLowerCase()}
         onPageChange={onPageChange}
         onPageSizeChange={onPageSizeChange}
         pageEnd={pageEnd}

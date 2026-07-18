@@ -27,8 +27,9 @@ export function OpportunityDetailModal({
       title={copy.title}
       description={copy.description}
       icon={<History className="h-5 w-5" />}
-      contentClassName="w-[min(92vw,760px)]"
-      bodyClassName="space-y-5 px-7 py-6"
+      closeLabel={copy.close}
+      modalType="standard-form"
+      bodyClassName="space-y-5"
       footerClassName="sm:justify-end"
       footer={(
         <Button className={detailActionClassNames.primary} onClick={onClose}>
@@ -37,7 +38,7 @@ export function OpportunityDetailModal({
       )}
     >
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="font-bold text-slate-950">{opportunity?.opportunityName}</p>
+            <p className="font-semibold text-slate-950">{opportunity?.opportunityName}</p>
             <p className="mt-1 text-sm text-slate-600">{opportunity?.company} · {opportunity?.contactPerson}</p>
           </div>
 
@@ -55,10 +56,10 @@ export function OpportunityDetailModal({
                   )}
                 />
                 <div>
-                  <p className="font-bold text-slate-950">{entry.title}</p>
+                  <p className="font-medium text-slate-950">{entry.title}</p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">{entry.description}</p>
                 </div>
-                <p className="text-sm font-semibold text-slate-500 sm:text-right">{entry.timestamp}</p>
+                <p className="text-sm font-medium text-slate-500 sm:text-right">{entry.timestamp}</p>
               </div>
             )) : null}
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { X } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import type { CashFund, PettyCashPaymentMethod } from '../../types/pettyCash.types';
 
 export interface NewPettyCashExpenseInput {
@@ -19,7 +20,7 @@ interface UploadPettyCashExpenseModalProps {
   funds: CashFund[];
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (input: NewPettyCashExpenseInput) => void;
+  onSubmit: (input: NewPettyCashExpenseInput) => void | Promise<void>;
 }
 
 const defaultDueDate = () => {
@@ -45,6 +46,8 @@ export function UploadPettyCashExpenseModal({
   const [paymentMethod, setPaymentMethod] = useState<PettyCashPaymentMethod>('cash');
   const [approver, setApprover] = useState('');
   const [dueDate, setDueDate] = useState(defaultDueDate);
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const selectedFund = useMemo(() => funds.find(fund => fund.id === cashFundId), [cashFundId, funds]);
 
@@ -59,7 +62,7 @@ export function UploadPettyCashExpenseModal({
     return null;
   }
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
     const parsedAmount = Number(amount);
@@ -67,18 +70,26 @@ export function UploadPettyCashExpenseModal({
       return;
     }
 
-    onSubmit({
-      cashFundId,
-      collaborator: collaborator.trim(),
-      department: department.trim() || selectedFund?.department || 'Operations',
-      category,
-      concept: concept.trim(),
-      description: description.trim(),
-      amount: parsedAmount,
-      paymentMethod,
-      approver: approver.trim() || selectedFund?.custodian || 'Operations Manager',
-      dueDate: new Date(`${dueDate}T12:00:00`),
-    });
+    setError('');
+    setIsSaving(true);
+    try {
+      await onSubmit({
+        cashFundId,
+        collaborator: collaborator.trim(),
+        department: department.trim() || selectedFund?.department || 'Operations',
+        category,
+        concept: concept.trim(),
+        description: description.trim(),
+        amount: parsedAmount,
+        paymentMethod,
+        approver: approver.trim() || selectedFund?.custodian || 'Operations Manager',
+        dueDate: new Date(`${dueDate}T12:00:00`),
+      });
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'The expense could not be saved.');
+      setIsSaving(false);
+      return;
+    }
 
     setCollaborator('');
     setDepartment('');
@@ -88,34 +99,41 @@ export function UploadPettyCashExpenseModal({
     setAmount('');
     setPaymentMethod('cash');
     setApprover('');
+    setIsSaving(false);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-gray-950/40 px-4 py-6">
-      <form
-        onSubmit={handleSubmit}
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
-      >
-        <div className="flex items-start justify-between bg-[#147514] px-5 py-4 text-white">
-          <div>
-            <h2 className="text-lg font-bold">Upload Expense</h2>
-            <p className="mt-1 text-sm text-green-100">Register cash assigned to a collaborator and keep receipt control visible.</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
-            aria-label="Close upload expense modal"
-          >
-            <X className="h-4 w-4" />
+    <IndiceModalFrame
+      busy={isSaving}
+      contentClassName="sm:max-w-3xl"
+      description="Register cash assigned to a collaborator and keep receipt control visible."
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" disabled={isSaving} onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">Cancel</button>
+          <button form="upload-petty-cash-expense-form" type="submit" disabled={isSaving} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-green-50 disabled:opacity-50">
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Upload expense
           </button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-5">
+      )}
+      footerSummary={amount ? `${amount} · ${selectedFund?.name ?? 'Cash fund'}` : selectedFund?.name ?? 'Cash fund'}
+      icon={<Upload className="h-5 w-5" />}
+      modalType="standard-form"
+      onOpenChange={(open) => !open && onClose()}
+      open={isOpen}
+      title="Upload expense"
+      tone="green"
+    >
+      <form
+        id="upload-petty-cash-expense-form"
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
+        {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Cash fund</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Cash fund</span>
               <select
                 value={cashFundId}
                 onChange={(event) => setCashFundId(event.target.value)}
@@ -129,7 +147,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Collaborator</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Collaborator</span>
               <input
                 value={collaborator}
                 onChange={(event) => setCollaborator(event.target.value)}
@@ -140,7 +158,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Department</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Department</span>
               <input
                 value={department}
                 onChange={(event) => setDepartment(event.target.value)}
@@ -150,7 +168,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Category</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Category</span>
               <select
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
@@ -165,7 +183,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1 md:col-span-2">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Concept</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Concept</span>
               <input
                 value={concept}
                 onChange={(event) => setConcept(event.target.value)}
@@ -176,7 +194,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1 md:col-span-2">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Description</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Description</span>
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -186,7 +204,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Amount</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Amount</span>
               <input
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
@@ -199,7 +217,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Due date</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Due date</span>
               <input
                 value={dueDate}
                 onChange={(event) => setDueDate(event.target.value)}
@@ -210,7 +228,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Payment method</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Payment method</span>
               <select
                 value={paymentMethod}
                 onChange={(event) => setPaymentMethod(event.target.value as PettyCashPaymentMethod)}
@@ -223,7 +241,7 @@ export function UploadPettyCashExpenseModal({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Approver</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Approver</span>
               <input
                 value={approver}
                 onChange={(event) => setApprover(event.target.value)}
@@ -232,24 +250,7 @@ export function UploadPettyCashExpenseModal({
               />
             </label>
           </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-3 bg-[#147514] px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-white/60 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-[#147514] shadow-sm transition hover:bg-green-50"
-          >
-            Upload Expense
-          </button>
-        </div>
       </form>
-    </div>
+    </IndiceModalFrame>
   );
 }

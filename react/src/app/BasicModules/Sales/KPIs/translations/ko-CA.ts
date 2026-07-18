@@ -5,10 +5,14 @@ export const koCA: SalesKpisTranslations = {
   ...enCA,
   header: {
     title: '영업 KPI',
-    subtitle: '기회, 견적, 수주, 커미션, 상품, 영업 재고를 보는 실시간 영업 보드입니다.',
+    subtitle: '기회, 견적, 수주, 고객, 커미션 및 영업 위험을 보는 실시간 영업 보드입니다.',
   },
   filters: {
     title: '필터',
+    search: '검색',
+    unit: '유닛',
+    business: '비즈니스',
+    seller: '담당자',
     allUnits: '전체 유닛',
     allBusinesses: '전체 비즈니스',
     allSellers: '전체 담당자',

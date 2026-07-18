@@ -9,18 +9,11 @@ import {
   Paperclip,
   Trash2,
   Upload,
-  X,
 } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '../../../../components/ui/dialog';
+import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { cn } from '../../../../components/ui/utils';
 import {
   deleteTaskAttachment,
@@ -32,12 +25,6 @@ import {
 } from '../../Tasks/tasksApi';
 import type { AgendaTaskItem } from '../agendaApi';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../translations';
-import {
-  processTaskModalCloseActionClass,
-  processTaskModalFooterClass,
-  processTaskModalHeaderClass,
-  processTaskModalSecondaryActionClass,
-} from '../../shared/processTaskModalStyles';
 
 const maxAttachmentSizeBytes = 10 * 1024 * 1024;
 const acceptedAttachmentTypes = new Set([
@@ -164,6 +151,7 @@ export function TaskAttachmentsDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [deletingAttachmentIds, setDeletingAttachmentIds] = useState<number[]>([]);
+  const [pendingDeleteAttachment, setPendingDeleteAttachment] = useState<TaskAttachmentRecord | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,6 +179,7 @@ export function TaskAttachmentsDialog({
       setAttachments([]);
       setError(null);
       setIsDragging(false);
+      setPendingDeleteAttachment(null);
       return;
     }
 
@@ -204,6 +193,8 @@ export function TaskAttachmentsDialog({
 
     setIsUploading(true);
     setError(null);
+
+    let uploadedCount = 0;
 
     try {
       for (const file of files) {
@@ -235,13 +226,19 @@ export function TaskAttachmentsDialog({
           mime_type: contentType,
           size_bytes: file.size,
         });
+        uploadedCount += 1;
       }
-
-      await reloadAttachments();
-      await onChanged();
     } catch (uploadError) {
       setError(getErrorMessage(uploadError, copy.errors.upload));
     } finally {
+      if (uploadedCount > 0) {
+        await reloadAttachments();
+        try {
+          await onChanged();
+        } catch (refreshError) {
+          setError(getErrorMessage(refreshError, copy.errors.load));
+        }
+      }
       setIsUploading(false);
     }
   };
@@ -279,6 +276,7 @@ export function TaskAttachmentsDialog({
       await deleteTaskAttachment(task.taskId, attachment.id);
       await reloadAttachments();
       await onChanged();
+      setPendingDeleteAttachment(null);
     } catch (deleteError) {
       setError(getErrorMessage(deleteError, copy.errors.delete));
     } finally {
@@ -289,36 +287,32 @@ export function TaskAttachmentsDialog({
   const totalSize = attachments.reduce((sum, attachment) => sum + attachment.sizeBytes, 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        hideCloseButton
-        className="!flex h-[min(88vh,820px)] w-[calc(100vw-2rem)] !max-w-[880px] max-h-[calc(100vh-3rem)] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] sm:!max-w-[880px] dark:border-slate-700 dark:bg-slate-800"
+    <>
+      <IndiceModalFrame
+        open={open}
+        onOpenChange={onOpenChange}
+        busy={isUploading || deletingAttachmentIds.length > 0}
+        closeLabel={commonCopy.close}
+        modalType="operational-workspace"
+        tone="yellow"
+        icon={<Paperclip className="h-5 w-5" />}
+        title={copy.title}
+        description={task ? `${task.folio} · ${task.title}` : copy.fallbackSubtitle}
+        contentClassName="h-[min(88vh,820px)] sm:!max-w-[880px]"
+        bodyClassName="px-5 py-5"
+        footer={(
+          <Button
+            type="button"
+            variant="outline"
+            className="px-6"
+            disabled={isUploading || deletingAttachmentIds.length > 0}
+            onClick={() => onOpenChange(false)}
+          >
+            {commonCopy.close}
+          </Button>
+        )}
+        footerSummary={copy.filesCount(attachments.length, formatFileSize(totalSize))}
       >
-        <div className={processTaskModalHeaderClass}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0 pr-4">
-              <DialogTitle className="flex min-w-0 items-center gap-2 text-[1.2rem] font-bold leading-tight text-slate-950 sm:text-[1.4rem]">
-                <Paperclip className="h-5 w-5 shrink-0" />
-                <span className="truncate">{copy.title}</span>
-              </DialogTitle>
-              <DialogDescription className="mt-1 truncate text-sm font-medium text-slate-800/90">
-                {task ? `${task.folio} - ${task.title}` : copy.fallbackSubtitle}
-              </DialogDescription>
-            </div>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={cn(processTaskModalCloseActionClass, 'w-9 shrink-0 px-0')}
-                aria-label={commonCopy.close}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-5 py-5 dark:bg-slate-900/60">
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(260px,320px)_1fr]">
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <div
@@ -335,7 +329,7 @@ export function TaskAttachmentsDialog({
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4C84A]/15 text-[#9A6B05]">
                   {isUploading ? <Loader2 className="h-7 w-7 animate-spin" /> : <Upload className="h-7 w-7" />}
                 </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
                   {isUploading ? copy.uploadingTitle : copy.addTitle}
                 </h3>
                 <p className="mt-2 text-sm leading-5 text-slate-500 dark:text-slate-400">
@@ -360,17 +354,13 @@ export function TaskAttachmentsDialog({
                 </Button>
               </div>
 
-              {error ? (
-                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-                  {error}
-                </div>
-              ) : null}
+              <IndiceModalValidation className="mt-4" messages={error ? [error] : []} />
             </section>
 
             <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.filesTitle}</h3>
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white">{copy.filesTitle}</h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {copy.filesCount(attachments.length, formatFileSize(totalSize))}
                   </p>
@@ -415,7 +405,7 @@ export function TaskAttachmentsDialog({
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                          <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
                             {attachment.originalFilename}
                           </p>
                           <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
@@ -448,9 +438,7 @@ export function TaskAttachmentsDialog({
                             aria-label={commonCopy.delete}
                             disabled={isDeleting}
                             className="h-9 w-9 rounded-xl border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
-                            onClick={() => {
-                              void handleDeleteAttachment(attachment);
-                            }}
+                            onClick={() => setPendingDeleteAttachment(attachment)}
                           >
                             {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           </Button>
@@ -462,20 +450,24 @@ export function TaskAttachmentsDialog({
               )}
             </section>
           </div>
-        </div>
+      </IndiceModalFrame>
 
-        <DialogFooter className={processTaskModalFooterClass}>
-          <DialogClose asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(processTaskModalSecondaryActionClass, 'px-6')}
-            >
-              {commonCopy.close}
-            </Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <ConfirmDeleteDialog
+        isVisible={Boolean(pendingDeleteAttachment)}
+        title={commonCopy.delete}
+        itemName={pendingDeleteAttachment?.originalFilename}
+        confirmLabel={commonCopy.delete}
+        cancelLabel={commonCopy.cancel}
+        confirmDisabled={Boolean(
+          pendingDeleteAttachment && deletingAttachmentIds.includes(pendingDeleteAttachment.id)
+        )}
+        onCancel={() => setPendingDeleteAttachment(null)}
+        onConfirm={() => {
+          if (pendingDeleteAttachment) {
+            void handleDeleteAttachment(pendingDeleteAttachment);
+          }
+        }}
+      />
+    </>
   );
 }

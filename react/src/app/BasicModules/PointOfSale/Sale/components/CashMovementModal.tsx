@@ -127,6 +127,7 @@ export function CashMovementModal({
 
   return (
     <PosModalFrame
+      modalType="standard-form"
       closeLabel="Cerrar movimiento de efectivo"
       eyebrow="Caja operativa"
       icon={<ActiveIcon className="h-6 w-6" />}

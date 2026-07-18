@@ -57,14 +57,15 @@ export function CortesColumnsModal({
 
   return (
     <CortesModalFrame
-      closeLabel="Cerrar configuracion de columnas"
+      modalType="standard-form"
+      closeLabel="Cerrar configuración de columnas"
       eyebrow="Tabla de cortes"
       icon={<Columns3 className="h-5 w-5" />}
       onClose={onClose}
       open={open}
       size="md"
       title="Configurar columnas"
-      subtitle="Selecciona la informacion visible en la tabla de cortes."
+      subtitle="Selecciona la información visible en la tabla de cortes."
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
