@@ -1,6 +1,6 @@
 import { Paperclip } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../types/expenses.types';
 import { formatDate } from '../../utils/expenses.utils';
 import {
@@ -22,6 +22,7 @@ import {
   getExpenseBalance,
   isExpenseEffectivelyOverdue,
 } from '../../utils/expenseFilters';
+import { printExpenseVoucher } from '../../utils/expensePrintDocument';
 
 export type ExpenseWorkflowState = {
   authorizer: string;
@@ -95,6 +96,7 @@ export function EditableExpenseRow({
   onAudit,
 }: EditableExpenseRowProps) {
   const t = useExpensesTranslations();
+  const locale = useExpensesResolvedLocale();
   const startEditing = () => onStartEdit(expense.id);
   const startActionEdit = onActionEdit ?? startEditing;
   const rowHighlightClass = isEditing
@@ -372,6 +374,7 @@ export function EditableExpenseRow({
           onDelete={onDelete}
           onDuplicate={onDuplicate}
           onMarkPaid={onMarkPaid}
+          onPrint={() => printExpenseVoucher({ expense, locale, t })}
           onRecordPayment={onRecordPayment}
           onStartEdit={startActionEdit}
           isDeletePending={isDeletePending}

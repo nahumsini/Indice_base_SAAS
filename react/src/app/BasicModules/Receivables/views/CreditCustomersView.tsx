@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Columns3, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Columns3, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { IndiceModalValidation } from '../../../components/indice-modal';
 import { Badge } from '../../../components/ui/badge';
@@ -37,13 +37,15 @@ import {
   moduleModalOutlineButtonClassName,
 } from '../constants/receivables.constants';
 import type { ReceivablesTranslations } from '../translations';
-import type { CandidateCreditCustomer, CreditPolicy } from '../types';
+import type { CandidateCreditCustomer, CreditPolicy, ReceivableAccount, ReceivableInstallment, ReceivablePayment } from '../types';
 import {
   formatMoney,
   formatPercent,
   getOptionsFromRows,
   textMatch,
 } from '../utils';
+import { useReceivablesResolvedLocale } from '../hooks/useReceivablesTranslations';
+import { printCreditCustomerStatement } from '../utils/receivablesPrintDocuments';
 
 type CreditCustomersColumnId =
   | 'customer'
@@ -88,22 +90,29 @@ function getCreditCustomerSortValue(policy: CreditPolicy, columnId: CreditCustom
 }
 
 interface CreditCustomersViewProps {
+  accounts: ReceivableAccount[];
   candidateCustomers: CandidateCreditCustomer[];
   copy: ReceivablesTranslations;
   creditPolicies: CreditPolicy[];
+  installments: ReceivableInstallment[];
   onCreatePolicy: (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => boolean | void | Promise<boolean | void>;
   onDeletePolicy: (policyId: string) => boolean | void | Promise<boolean | void>;
   onUpdatePolicy: (policyId: string, policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => boolean | void | Promise<boolean | void>;
+  payments: ReceivablePayment[];
 }
 
 export function CreditCustomersView({
+  accounts,
   candidateCustomers,
   copy,
   creditPolicies,
+  installments,
   onCreatePolicy,
   onDeletePolicy,
   onUpdatePolicy,
+  payments,
 }: CreditCustomersViewProps) {
+  const locale = useReceivablesResolvedLocale();
   const viewCopy = copy.views.creditCustomers;
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'customer', label: viewCopy.table.customer, visible: true, locked: true },
@@ -308,6 +317,17 @@ export function CreditCustomersView({
                 })}
                 <TableCell className="px-5 py-4">
                   <div className="ml-auto inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title="Imprimir estado de cuenta / Print statement"
+                      aria-label="Imprimir estado de cuenta / Print statement"
+                      onClick={() => printCreditCustomerStatement({ accounts, copy, installments, locale, payments, policy })}
+                      className="h-10 w-10 rounded-xl border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"

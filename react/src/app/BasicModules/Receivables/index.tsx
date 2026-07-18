@@ -406,12 +406,15 @@ function ReceivablesWorkspace({
         ) : null}
         {activeTab === 'credit-customers' ? (
           <CreditCustomersView
+            accounts={accountsWithStatus}
             candidateCustomers={candidateCustomers}
             copy={copy}
             creditPolicies={state.creditPolicies}
+            installments={installmentsWithStatus}
             onCreatePolicy={createCreditPolicy}
             onDeletePolicy={deleteCreditPolicy}
             onUpdatePolicy={updateCreditPolicy}
+            payments={state.payments}
           />
         ) : null}
       </main>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Banknote, Columns3, FolderOpen } from 'lucide-react';
+import { Banknote, Columns3, FolderOpen, Printer } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import {
   TableBody,
@@ -41,6 +41,8 @@ import {
   matchesPeriod,
   textMatch,
 } from '../utils';
+import { useReceivablesResolvedLocale } from '../hooks/useReceivablesTranslations';
+import { printReceivablesAgingReport } from '../utils/receivablesPrintDocuments';
 
 type AccountsReceivableColumnId =
   | 'sale'
@@ -106,6 +108,7 @@ export function AccountsReceivableView({
   onRegisterPayment,
   payments,
 }: AccountsReceivableViewProps) {
+  const locale = useReceivablesResolvedLocale();
   const viewCopy = copy.views.accountsReceivable;
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'sale', label: viewCopy.table.sale, visible: true, locked: true },
@@ -209,15 +212,38 @@ export function AccountsReceivableView({
         title={viewCopy.title}
         subtitle={viewCopy.subtitle}
         actions={(
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowColumnsModal(true)}
-            className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
-          >
-            <Columns3 className="h-4 w-4" />
-            {viewCopy.columnsAction}
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={sortedInstallments.length === 0}
+              onClick={() => printReceivablesAgingReport({
+                copy,
+                filterSummary: [
+                  `${copy.filters.period}: ${copy.filters.periodOptions[filters.period]}`,
+                  filters.status !== 'all' ? `${copy.filters.status}: ${copy.status[filters.status as keyof typeof copy.status]}` : '',
+                  filters.unit !== 'all' ? `${copy.filters.unit}: ${filters.unit}` : '',
+                  filters.business !== 'all' ? `${copy.filters.business}: ${filters.business}` : '',
+                  filters.search ? `${copy.filters.search}: ${filters.search}` : '',
+                ].filter(Boolean).join(' · '),
+                installments: sortedInstallments,
+                locale,
+              })}
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir antigüedad
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowColumnsModal(true)}
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+            >
+              <Columns3 className="h-4 w-4" />
+              {viewCopy.columnsAction}
+            </Button>
+          </>
         )}
       />
       <ReceivablesFilters

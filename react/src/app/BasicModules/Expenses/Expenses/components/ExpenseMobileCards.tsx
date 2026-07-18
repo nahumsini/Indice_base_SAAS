@@ -2,11 +2,12 @@ import { Paperclip, Search } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
 import { getStatusBadgeColor, type SelectOption } from '../../components/table/ExpenseInlineControls';
-import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense } from '../../types/expenses.types';
 import { formatCurrency, formatDate } from '../../utils/expenses.utils';
 import { getEffectiveExpenseStatus, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
 import type { EditableExpenseRowOptions, ExpenseRowActionVisibility } from './EditableExpenseRow';
+import { printExpenseVoucher } from '../../utils/expensePrintDocument';
 
 type ExpenseMobileCardsProps = {
   actionVisibility?: ExpenseRowActionVisibility;
@@ -119,6 +120,7 @@ function ExpenseMobileCard({
   onSelectionChange: (selected: boolean) => void;
 }) {
   const t = useExpensesTranslations();
+  const locale = useExpensesResolvedLocale();
   const total = expense.total || expense.amount || 0;
   const paid = expense.amountPaid ?? 0;
   const balance = Math.max(total - paid, 0);
@@ -209,6 +211,7 @@ function ExpenseMobileCard({
             onDelete={onDelete}
             onDuplicate={onDuplicate}
             onMarkPaid={onMarkPaid}
+            onPrint={() => printExpenseVoucher({ expense, locale, t })}
             onRecordPayment={onRecordPayment}
             onStartEdit={onEdit}
             isDeletePending={isDeletePending}
