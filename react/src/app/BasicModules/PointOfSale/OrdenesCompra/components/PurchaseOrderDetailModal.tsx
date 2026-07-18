@@ -1,4 +1,4 @@
-import { ExternalLink, FileText } from 'lucide-react';
+import { ExternalLink, FileText, Printer } from 'lucide-react';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -13,6 +13,7 @@ import {
   statusClassName,
   supplierInvoiceStatusLabels,
 } from '../utils/purchaseOrderFormat';
+import { printPurchaseOrder } from '../../shared/pointOfSalePrintDocuments';
 
 export function PurchaseOrderDetailModal({
   invoices,
@@ -44,9 +45,15 @@ export function PurchaseOrderDetailModal({
           <p className="text-sm font-semibold text-white/85">
             {order.items.length} partidas - Total {formatMoney(order.totalAmount, order.currencyCode)}
           </p>
-          <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-            Cerrar
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => printPurchaseOrder(order)} className={posModalSecondaryActionClassName}>
+              <Printer className="h-4 w-4" />
+              Imprimir orden
+            </button>
+            <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
+              Cerrar
+            </button>
+          </div>
         </div>
       }
     >
