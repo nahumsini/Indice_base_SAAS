@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Banknote, FileText, Image as ImageIcon, Upload, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
 import { FilterSelect } from '../ReceivablesFilters';
@@ -20,7 +21,7 @@ interface PaymentModalProps {
   initialAmount?: number;
   initialReceivableId?: string;
   onClose: () => void;
-  onSubmit: (payment: Omit<ReceivablePayment, 'id'>) => void;
+  onSubmit: (payment: Omit<ReceivablePayment, 'id'>) => boolean | void | Promise<boolean | void>;
 }
 
 export function PaymentModal({
@@ -40,7 +41,15 @@ export function PaymentModal({
   const [registeredBy, setRegisteredBy] = useState(copy.common.financeUser);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptDataUrl, setReceiptDataUrl] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const isReceiptImage = Boolean(receiptFile?.type.startsWith('image/') && receiptDataUrl);
+  const isAmountValid = Boolean(
+    selectedAccount
+    && Number.isFinite(amount)
+    && amount > 0
+    && amount <= selectedAccount.balance,
+  );
 
   useEffect(() => {
     if (initialReceivableId && accounts.some((account) => account.id === initialReceivableId)) {
@@ -77,42 +86,57 @@ export function PaymentModal({
     }
   };
 
+  const handleSubmit = async () => {
+    if (!selectedAccount || !isAmountValid || isSaving) return;
+
+    setIsSaving(true);
+    setSubmitError('');
+    try {
+      const result = await onSubmit({
+        receivableId: selectedAccount.id,
+        saleNumber: selectedAccount.saleNumber,
+        customerName: selectedAccount.customerName,
+        currency: selectedAccount.currency,
+        paymentDate: todayIso(),
+        method,
+        amount,
+        reference: reference || copy.common.noReference,
+        registeredBy: registeredBy || copy.common.financeUser,
+        receiptDataUrl: receiptDataUrl || undefined,
+        receiptFileName: receiptFile?.name,
+        receiptImageDataUrl: isReceiptImage ? receiptDataUrl : undefined,
+        receiptMimeType: receiptFile?.type,
+      });
+      if (result === false) {
+        setSubmitError(copy.errors.registerPayment);
+        return;
+      }
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error && error.message ? error.message : copy.errors.registerPayment);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <ReceivablesModalFrame
+      busy={isSaving}
+      closeLabel={copy.common.close}
       description={copy.modals.payment.description}
       icon={<Banknote className="h-5 w-5" />}
-      maxWidthClassName="max-w-2xl"
       onClose={onClose}
       title={copy.modals.payment.title}
       footer={(
         <>
-          <Button type="button" variant="outline" className={moduleModalOutlineButtonClassName} onClick={onClose}>
+          <Button type="button" variant="outline" className={moduleModalOutlineButtonClassName} onClick={onClose} disabled={isSaving}>
             {copy.common.cancel}
           </Button>
           <Button
             type="button"
-            disabled={!selectedAccount || amount <= 0}
+            disabled={!isAmountValid || isSaving}
             className={moduleModalPrimaryButtonClassName}
-            onClick={() => {
-              if (!selectedAccount) {
-                return;
-              }
-              onSubmit({
-                receivableId: selectedAccount.id,
-                saleNumber: selectedAccount.saleNumber,
-                customerName: selectedAccount.customerName,
-                currency: selectedAccount.currency,
-                paymentDate: todayIso(),
-                method,
-                amount: Math.min(amount, selectedAccount.balance),
-                reference: reference || copy.common.noReference,
-                registeredBy: registeredBy || copy.common.financeUser,
-                receiptDataUrl: receiptDataUrl || undefined,
-                receiptFileName: receiptFile?.name,
-                receiptImageDataUrl: isReceiptImage ? receiptDataUrl : undefined,
-                receiptMimeType: receiptFile?.type,
-              });
-            }}
+            onClick={() => void handleSubmit()}
           >
             {copy.modals.payment.save}
           </Button>
@@ -121,6 +145,7 @@ export function PaymentModal({
     >
       {selectedAccount ? (
         <div className="space-y-4">
+          <IndiceModalValidation messages={submitError ? [submitError] : []} />
           <FilterSelect
             label={copy.modals.payment.account}
             value={selectedAccount.id}

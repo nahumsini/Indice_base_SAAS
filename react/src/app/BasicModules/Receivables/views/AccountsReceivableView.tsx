@@ -95,7 +95,7 @@ interface AccountsReceivableViewProps {
   accounts: ReceivableAccount[];
   copy: ReceivablesTranslations;
   installments: ReceivableInstallment[];
-  onRegisterPayment: (payment: Omit<ReceivablePayment, 'id'>) => void | Promise<void>;
+  onRegisterPayment: (payment: Omit<ReceivablePayment, 'id'>) => boolean | void | Promise<boolean | void>;
   payments: ReceivablePayment[];
 }
 
@@ -342,10 +342,7 @@ export function AccountsReceivableView({
           initialAmount={paymentInstallment.balance}
           initialReceivableId={paymentInstallment.receivableId}
           onClose={() => setPaymentInstallment(null)}
-          onSubmit={(payment) => {
-            void onRegisterPayment(payment);
-            setPaymentInstallment(null);
-          }}
+          onSubmit={onRegisterPayment}
         />
       ) : null}
       {filesInstallment ? (

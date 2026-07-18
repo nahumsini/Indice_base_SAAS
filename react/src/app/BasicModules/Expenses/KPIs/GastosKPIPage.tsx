@@ -45,6 +45,7 @@ import { downloadFinancialOverviewPdf } from './financialOverviewPdf';
 import { useFinancialOverview } from './useFinancialOverview';
 import { LearningModeTitleBarBridge } from '../../../learningMode';
 import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 
 interface GastosKPIPageProps {
   expenses: Expense[];
@@ -163,6 +164,7 @@ const rankTone = (score: number): Tone => score >= 80 ? 'healthy' : score >= 55 
 export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: GastosKPIPageProps) {
   const t = useKpisTranslations();
   const locale = useKpisResolvedLocale();
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const { convertToPreferred, formatPreferred, preferredCurrency, rateContext } = useCurrencyAwareMoney();
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('this_month');
   const [customStartDate, setCustomStartDate] = useState('');
@@ -395,7 +397,12 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   }
 
   const titleAction = (
-    <button type="button" onClick={() => downloadFinancialOverviewPdf({ copy: t, locale, overview, periodLabel })} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#147514]/20 bg-white px-4 text-sm font-bold text-[#147514] transition hover:bg-[#147514]/5 dark:bg-slate-900 dark:text-emerald-300">
+    <button
+      type="button"
+      disabled={!isCompanyPrintIdentityReady}
+      onClick={() => void downloadFinancialOverviewPdf({ companyIdentity: companyPrintIdentity, copy: t, locale, overview, periodLabel })}
+      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#147514]/20 bg-white px-4 text-sm font-bold text-[#147514] transition hover:bg-[#147514]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-900 dark:text-emerald-300"
+    >
       <Printer className="h-4 w-4" /> Imprimir reporte
     </button>
   );

@@ -190,7 +190,7 @@ interface CreditSalesViewProps {
     firstDueDate: string;
     creditPolicy: CreditPolicy;
     selectedSimulation: CreditSimulation;
-  }) => void | Promise<void>;
+  }) => boolean | void | Promise<boolean | void>;
 }
 
 export function CreditSalesView({
@@ -472,10 +472,7 @@ export function CreditSalesView({
           creditPolicies={creditPolicies}
           initialSelectedSaleId={initialModalSaleId}
           onClose={() => setShowCreateModal(false)}
-          onCreate={(draft) => {
-            void onCreateCreditSale(draft);
-            setShowCreateModal(false);
-          }}
+          onCreate={onCreateCreditSale}
         />
       ) : null}
       {detailSale ? (

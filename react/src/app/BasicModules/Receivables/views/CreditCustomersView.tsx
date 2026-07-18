@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Columns3, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { IndiceModalValidation } from '../../../components/indice-modal';
 import { Badge } from '../../../components/ui/badge';
 import {
   TableBody,
@@ -90,9 +91,9 @@ interface CreditCustomersViewProps {
   candidateCustomers: CandidateCreditCustomer[];
   copy: ReceivablesTranslations;
   creditPolicies: CreditPolicy[];
-  onCreatePolicy: (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => void | Promise<void>;
-  onDeletePolicy: (policyId: string) => void | Promise<void>;
-  onUpdatePolicy: (policyId: string, policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => void | Promise<void>;
+  onCreatePolicy: (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => boolean | void | Promise<boolean | void>;
+  onDeletePolicy: (policyId: string) => boolean | void | Promise<boolean | void>;
+  onUpdatePolicy: (policyId: string, policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => boolean | void | Promise<boolean | void>;
 }
 
 export function CreditCustomersView({
@@ -125,6 +126,8 @@ export function CreditCustomersView({
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<CreditPolicy | null>(null);
   const [deletePolicyCandidate, setDeletePolicyCandidate] = useState<CreditPolicy | null>(null);
+  const [isDeletingPolicy, setIsDeletingPolicy] = useState(false);
+  const [deletePolicyError, setDeletePolicyError] = useState('');
   const [sortState, setSortState] = useState<ReceivablesSortState<CreditCustomersColumnId>>({
     columnId: 'customer',
     direction: 'asc',
@@ -204,6 +207,7 @@ export function CreditCustomersView({
     return formatPercent(policy.annualInterestRate);
   };
   const deletePolicy = (policy: CreditPolicy) => {
+    setDeletePolicyError('');
     setDeletePolicyCandidate(policy);
   };
 
@@ -349,10 +353,7 @@ export function CreditCustomersView({
           candidateCustomers={candidateCustomers}
           copy={copy}
           onClose={() => setShowPolicyModal(false)}
-          onSubmit={(policy) => {
-            void onCreatePolicy(policy);
-            setShowPolicyModal(false);
-          }}
+          onSubmit={onCreatePolicy}
         />
       ) : null}
       {editingPolicy ? (
@@ -361,18 +362,20 @@ export function CreditCustomersView({
           copy={copy}
           initialPolicy={editingPolicy}
           onClose={() => setEditingPolicy(null)}
-          onSubmit={(policy) => {
-            void onUpdatePolicy(editingPolicy.id, policy);
-            setEditingPolicy(null);
-          }}
+          onSubmit={(policy) => onUpdatePolicy(editingPolicy.id, policy)}
         />
       ) : null}
       {deletePolicyCandidate ? (
         <ReceivablesModalFrame
+          busy={isDeletingPolicy}
+          closeLabel={copy.common.close}
           description={copy.modals.creditPolicy.deleteDescription(deletePolicyCandidate.customerName)}
           icon={<AlertTriangle className="h-5 w-5" />}
-          maxWidthClassName="max-w-xl"
-          onClose={() => setDeletePolicyCandidate(null)}
+          modalType="confirmation"
+          onClose={() => {
+            setDeletePolicyCandidate(null);
+            setDeletePolicyError('');
+          }}
           title={copy.modals.creditPolicy.deleteTitle}
           footer={(
             <>
@@ -381,16 +384,32 @@ export function CreditCustomersView({
                 variant="outline"
                 className={moduleModalOutlineButtonClassName}
                 onClick={() => setDeletePolicyCandidate(null)}
+                disabled={isDeletingPolicy}
               >
                 {copy.common.cancel}
               </Button>
               <Button
                 type="button"
                 variant="destructive"
+                data-modal-destructive="true"
                 className="h-11 rounded-xl bg-red-600 px-5 text-sm font-black text-white shadow-sm hover:bg-red-700"
+                disabled={isDeletingPolicy}
                 onClick={() => {
-                  void onDeletePolicy(deletePolicyCandidate.id);
-                  setDeletePolicyCandidate(null);
+                  if (isDeletingPolicy) return;
+                  setIsDeletingPolicy(true);
+                  setDeletePolicyError('');
+                  void Promise.resolve(onDeletePolicy(deletePolicyCandidate.id))
+                    .then((result) => {
+                      if (result === false) {
+                        setDeletePolicyError(copy.errors.createCreditPolicy);
+                        return;
+                      }
+                      setDeletePolicyCandidate(null);
+                    })
+                    .catch((error: unknown) => {
+                      setDeletePolicyError(error instanceof Error && error.message ? error.message : copy.errors.createCreditPolicy);
+                    })
+                    .finally(() => setIsDeletingPolicy(false));
                 }}
               >
                 {copy.modals.creditPolicy.deleteAction}
@@ -398,8 +417,11 @@ export function CreditCustomersView({
             </>
           )}
         >
-          <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
-            {copy.modals.creditPolicy.deleteConfirm(deletePolicyCandidate.customerName)}
+          <div className="space-y-4">
+            <IndiceModalValidation messages={deletePolicyError ? [deletePolicyError] : []} />
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+              {copy.modals.creditPolicy.deleteConfirm(deletePolicyCandidate.customerName)}
+            </div>
           </div>
         </ReceivablesModalFrame>
       ) : null}

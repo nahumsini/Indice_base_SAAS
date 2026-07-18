@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router';
 import { configCenterApi, type ConfigCenterCurrentUser, type ConfigCenterPhoneNumber } from '../../../api/configCenter';
 import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { languages, useLanguage } from '../../../shared/context';
-import { LearningModeTitleBarBridge } from '../../../learningMode';
+import { DashboardTitleBar } from '../components/DashboardTitleBar';
 import {
   DEFAULT_PROFILE_COUNTRY,
   getProfileCountryLabel,
@@ -725,25 +725,15 @@ export default function Profile() {
   return (
     <>
       <div>
-        <LearningModeTitleBarBridge actions={titleBarActions}>
-        <div className="bg-blue-50 dark:bg-blue-900/10 mb-6 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-white">
-                <span className="text-2xl">👤</span>
-                {t.panelInicial.profile.title}
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t.panelInicial.profile.subtitle}
-              </p>
-              <p className="mt-2 text-sm text-blue-700 dark:text-blue-200">
-                {profileCopy.helper}
-              </p>
-            </div>
-            {titleBarActions}
-          </div>
+        <div className="mb-6">
+          <DashboardTitleBar
+            actions={titleBarActions}
+            emoji="👤"
+            helper={profileCopy.helper}
+            subtitle={t.panelInicial.profile.subtitle}
+            title={t.panelInicial.profile.title}
+          />
         </div>
-        </LearningModeTitleBarBridge>
 
         {isLoading ? (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">

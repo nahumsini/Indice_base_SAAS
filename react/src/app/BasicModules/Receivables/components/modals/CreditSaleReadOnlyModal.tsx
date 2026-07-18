@@ -46,9 +46,11 @@ export function CreditSaleReadOnlyModal({
 
   return (
     <ReceivablesModalFrame
+      closeLabel={copy.common.close}
       description={isSchedule ? copy.modals.creditSale.scheduleDescription : copy.modals.creditSale.detailDescription}
+      footerSummary={isSchedule ? `${sale.customerName} · ${formatMoney(account.totalPayable, sale.currency)}` : undefined}
       icon={isSchedule ? <CalendarClock className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-      maxWidthClassName={isSchedule ? 'max-w-5xl' : 'max-w-3xl'}
+      modalType={isSchedule ? 'operational-workspace' : 'standard-form'}
       onClose={onClose}
       title={isSchedule ? copy.modals.creditSale.scheduleTitle : copy.modals.creditSale.detailTitle}
       footer={(

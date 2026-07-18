@@ -1,0 +1,18 @@
+import type { PanelInicialShellTranslations } from './types';
+
+export const frCA: PanelInicialShellTranslations = {
+  subtitle: "Configurez votre profil, la structure de l'entreprise, les utilisateurs et les préférences opérationnelles.",
+  loadingTabTitle: "Chargement de l'onglet du panneau initial",
+  loadingTabDescription: "Ouverture de l'espace de configuration sélectionné.",
+  downloadingTabDescription: "Téléchargement de l'espace de configuration sélectionné uniquement.",
+  accessEmptyTitle: 'Aucune zone de configuration attribuée',
+  accessEmptyDescription: "Demandez à un administrateur d'attribuer au moins une zone du panneau initial à votre compte.",
+  accessErrorTitle: "Impossible de vérifier vos accès",
+  accessErrorDescription: 'Vos zones de configuration ne peuvent pas être chargées. Réessayez avant de continuer.',
+  retry: 'Réessayer',
+  tabErrorEyebrow: 'Panneau initial',
+  tabErrorTitle: "Impossible d'ouvrir cette zone de configuration",
+  tabErrorDescription: "Rechargez la page pour restaurer l'espace. Vos informations enregistrées ne seront pas supprimées.",
+  reload: 'Recharger la page',
+  navigationLabel: 'Zones du panneau initial',
+};

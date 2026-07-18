@@ -89,7 +89,7 @@ interface PaymentsViewProps {
   allAccounts: ReceivableAccount[];
   copy: ReceivablesTranslations;
   payments: ReceivablePayment[];
-  onRegisterPayment: (payment: Omit<ReceivablePayment, 'id'>) => void | Promise<void>;
+  onRegisterPayment: (payment: Omit<ReceivablePayment, 'id'>) => boolean | void | Promise<boolean | void>;
 }
 
 export function PaymentsView({
@@ -322,10 +322,7 @@ export function PaymentsView({
           accounts={accounts}
           copy={copy}
           onClose={() => setShowPaymentModal(false)}
-          onSubmit={(payment) => {
-            void onRegisterPayment(payment);
-            setShowPaymentModal(false);
-          }}
+          onSubmit={onRegisterPayment}
         />
       ) : null}
       {filesPayment ? (

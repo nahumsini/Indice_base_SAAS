@@ -43,9 +43,9 @@ export function ReceivableFilesModal({
 
   return (
     <ReceivablesModalFrame
+      closeLabel={copy.common.close}
       description={description ?? copy.modals.files.description}
       icon={<FileText className="h-5 w-5" />}
-      maxWidthClassName="max-w-3xl"
       onClose={onClose}
       title={title ?? copy.modals.files.title}
       footer={(
