@@ -52,6 +52,7 @@ import {
   formatBusinessCurrencyBreakdown,
 } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { useKPIsTranslations } from './hooks/useKPIsTranslations';
 import { HrTitleBar, hrTitleBarPrimaryActionClass, hrTitleBarSecondaryActionClass } from '../shared/HrTitleBar';
 import type { KPIsTranslations } from './translations';
@@ -525,6 +526,7 @@ export default function KPIs() {
   const { currentLanguage } = useLanguage();
   const standardCopy = getHrKpiStandardCopy(currentLanguage.code);
   const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
   const [employeeSummary, setEmployeeSummary] = useState(emptyHrSummary);
   const [attendanceOverview, setAttendanceOverview] = useState<AttendanceControlOverviewResponse | null>(null);
@@ -1347,6 +1349,8 @@ export default function KPIs() {
         title,
         value,
       })),
+      companyLogoUrl: companyPrintIdentity.logoUrl,
+      companyName: companyPrintIdentity.name,
       copy,
       filters: [
         { label: copy.dashboard.filters.search, value: searchQuery.trim() || copy.dashboard.common.notAvailable },
@@ -1396,6 +1400,7 @@ export default function KPIs() {
             <button
               type="button"
               onClick={handlePrintReport}
+              disabled={!isCompanyPrintIdentityReady}
               className={hrTitleBarPrimaryActionClass}
             >
               <Printer className="h-4 w-4" />

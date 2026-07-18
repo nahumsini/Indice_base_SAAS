@@ -9,6 +9,9 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
+import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
+import { useLanguage } from '../../../shared/context';
 import { useSalesCrm } from '../salesCrmContext';
 import {
   filterSalesKpiSources,
@@ -34,6 +37,8 @@ const percent = (value: number) => `${Math.round(value)}%`;
 export default function KPIs() {
   const { contacts, opportunities, quotes, salesRecords } = useSalesCrm();
   const copy = useSalesKpisTranslations();
+  const { currentLanguage } = useLanguage();
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const { formatPreferred, preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
   const {
     businessFilter,
@@ -198,9 +203,99 @@ export default function KPIs() {
     filteredSources.opportunities.length +
     filteredSources.contacts.length;
 
+  const handlePrintReport = () => {
+    const unitLabel = businessUnitFilter === 'all'
+      ? copy.filters.allUnits
+      : options.businessUnits.find((item) => item.id === businessUnitFilter)?.name ?? businessUnitFilter;
+    const businessLabel = businessFilter === 'all'
+      ? copy.filters.allBusinesses
+      : options.businesses.find((item) => item.id === businessFilter)?.name ?? businessFilter;
+    const sellerLabel = sellerFilter === 'all' ? copy.filters.allSellers : sellerFilter;
+
+    printStandardKpiReport({
+      charts: [
+        {
+          rows: funnelChart.map((row) => ({ ...row, valueLabel: String(row.value) })),
+          title: copy.cards.activeProspects.label,
+        },
+        {
+          rows: salesTrend.map((row) => ({
+            ...row,
+            valueLabel: formatPreferred(row.value, preferredCurrency),
+          })),
+          title: copy.cards.salesRevenue.label,
+        },
+      ],
+      companyIdentity: companyPrintIdentity,
+      documentName: copy.header.title,
+      locale: currentLanguage.code,
+      meta: [
+        { label: copy.filters.unit, value: unitLabel },
+        { label: copy.filters.business, value: businessLabel },
+        { label: copy.filters.seller, value: sellerLabel },
+        { label: copy.filters.search, value: search.trim() || '-' },
+        { label: copy.context.preferredCurrency, value: preferredCurrency },
+        { label: copy.context.records, value: String(totalRecords) },
+      ],
+      metrics: kpiCards.map((card) => ({
+        detail: card.detail,
+        label: card.label,
+        value: card.value,
+      })),
+      reportTitle: copy.header.title,
+      subtitle: copy.header.subtitle,
+      tables: [
+        {
+          emptyLabel: '-',
+          headers: [
+            copy.sellerTable.columns.rank,
+            copy.sellerTable.columns.seller,
+            copy.sellerTable.columns.sales,
+            copy.sellerTable.columns.pipeline,
+            copy.sellerTable.columns.quotes,
+            copy.sellerTable.columns.closed,
+            copy.sellerTable.columns.conversion,
+          ],
+          rows: sellerRanking.map((row, index) => [
+            String(index + 1),
+            row.seller,
+            sellerMoney.get(row.seller)?.sales ?? '-',
+            sellerMoney.get(row.seller)?.pipeline ?? '-',
+            String(row.quotes),
+            String(row.closed),
+            percent(row.conversion),
+          ]),
+          title: copy.sellerTable.title,
+        },
+        {
+          emptyLabel: '-',
+          headers: [
+            copy.prospectsTable.columns.prospect,
+            copy.prospectsTable.columns.customer,
+            copy.prospectsTable.columns.stage,
+            copy.prospectsTable.columns.owner,
+            copy.prospectsTable.columns.value,
+            copy.prospectsTable.columns.nextAction,
+            copy.prospectsTable.columns.status,
+          ],
+          rows: filteredOpportunities.map((item) => [
+            item.opportunityName,
+            item.company,
+            item.stage,
+            item.owner,
+            `${item.estimatedValue}${item.currency ? ` ${item.currency}` : ''}`,
+            `${item.nextAction} · ${item.nextActionDate}`,
+            item.status,
+          ]),
+          title: copy.prospectsTable.title,
+        },
+      ],
+    });
+  };
+
   return (
     <div className="space-y-5">
-      <SalesKpiTitleBar copy={copy} />
+      <SalesKpiTitleBar copy={copy} disabled={!isCompanyPrintIdentityReady} onPrint={handlePrintReport} />
 
       <SalesKpiFilters
         businessFilter={businessFilter}

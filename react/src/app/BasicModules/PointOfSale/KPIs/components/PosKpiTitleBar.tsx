@@ -5,7 +5,7 @@ import {
   pointOfSaleTitleBarSecondaryActionClassName,
 } from '../../shared/components/PointOfSaleTitleBar';
 
-export function PosKpiTitleBar() {
+export function PosKpiTitleBar({ disabled = false, onPrint }: { disabled?: boolean; onPrint: () => void }) {
   return (
     <PointOfSaleTitleBar
       icon={<BarChart3 className="h-5 w-5" />}
@@ -16,7 +16,8 @@ export function PosKpiTitleBar() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => window.print()}
+          disabled={disabled}
+          onClick={onPrint}
           className={pointOfSaleTitleBarSecondaryActionClassName}
         >
           <Printer className="h-4 w-4" />

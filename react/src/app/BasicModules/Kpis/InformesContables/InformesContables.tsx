@@ -12,6 +12,9 @@ import {
   type StatementLine,
 } from '../kpisExecutiveData';
 import { LearningModeTitleBarBridge } from '../../../learningMode';
+import { useLanguage } from '../../../shared/context';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
+import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
 
 type PeriodPreset = {
   id: string;
@@ -89,6 +92,8 @@ function inputClassName(extra?: string) {
 }
 
 export default function InformesContables() {
+  const { currentLanguage } = useLanguage();
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [activeStatementId, setActiveStatementId] = useState<StatementId>('income');
   const [periodPresetId, setPeriodPresetId] = useState('current-month');
   const [periodFrom, setPeriodFrom] = useState(periodPresets[0].from);
@@ -154,10 +159,58 @@ export default function InformesContables() {
       to: periodTo,
     });
   };
+
+  const handlePrintStatement = () => {
+    const basisLabel = calculationBasis === 'accrual'
+      ? 'Devengado'
+      : calculationBasis === 'cash'
+        ? 'Flujo de caja'
+        : 'Proforma';
+    const statementTable = activeStatement.lines
+      ? {
+          emptyLabel: 'No hay conceptos para este documento.',
+          headers: ['Concepto', 'Importe', 'Detalle'],
+          rows: activeStatement.lines.map((line) => [
+            line.label,
+            formatCurrency(line.value),
+            line.detail ?? '',
+          ]),
+          title: activeStatement.title,
+        }
+      : {
+          emptyLabel: 'No hay registros para este documento.',
+          headers: ['Concepto', ...(activeStatement.columns ?? []), 'Estado'],
+          rows: (activeStatement.rows ?? []).map((row) => [
+            row.label,
+            ...row.columns.map(formatCellValue).map(String),
+            row.status ? statusLabels[row.status] : '',
+          ]),
+          title: activeStatement.title,
+        };
+
+    printStandardKpiReport({
+      companyIdentity: companyPrintIdentity,
+      documentName: activeStatement.title,
+      locale: currentLanguage.code,
+      meta: [
+        { label: 'Periodo', value: `${selectedPreset.label} · ${periodFrom} - ${periodTo}` },
+        { label: 'Base', value: basisLabel },
+        { label: 'Categoría', value: activeStatement.category },
+        { label: 'Estado', value: statusLabels[activeStatement.status] },
+      ],
+      metrics: [
+        { detail: activeStatement.description, label: 'Documento', value: activeStatement.title },
+        { detail: activeStatement.insight, label: 'Lectura ejecutiva', value: statusLabels[activeStatement.status] },
+      ],
+      reportTitle: activeStatement.title,
+      subtitle: activeStatement.description,
+      tables: [statementTable],
+    });
+  };
   const titleActions = (
     <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
       <Button type="button" variant="outline" onClick={exportActiveStatement} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Download className="mr-2 h-4 w-4" />Exportar</Button>
-      <Button type="button" variant="outline" onClick={() => window.print()} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Printer className="mr-2 h-4 w-4" />Imprimir</Button>
+      <Button type="button" variant="outline" disabled={!isCompanyPrintIdentityReady} onClick={handlePrintStatement} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Printer className="mr-2 h-4 w-4" />Imprimir</Button>
     </div>
   );
 
@@ -392,7 +445,8 @@ export default function InformesContables() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => window.print()}
+                    disabled={!isCompanyPrintIdentityReady}
+                    onClick={handlePrintStatement}
                     className="h-9 rounded-xl border-slate-300 text-sm font-semibold dark:border-slate-700"
                   >
                     <Printer className="mr-2 h-4 w-4" />

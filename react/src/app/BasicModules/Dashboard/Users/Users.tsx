@@ -4,15 +4,17 @@ import {
   CheckCircle2,
   ChevronDown,
   Copy,
-  Filter,
   Layers3,
   Mail,
-  Search,
   Settings,
   Trash2,
+  UserCheck,
   UserPlus,
+  UserX,
+  X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { Checkbox } from '../../../components/ui/checkbox';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import {
   IndiceModalFrame,
@@ -23,7 +25,6 @@ import {
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
-import { LearningModeTitleBarBridge } from '../../../learningMode';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import {
   configCenterApi,
@@ -48,6 +49,12 @@ import {
   mergeDefaultTabPermissions,
   pruneTabPermissionKeysForModules,
 } from './usersTabPermissionAssignments';
+import { UsersFeedback } from './components/UsersFeedback';
+import { UsersFilters } from './components/UsersFilters';
+import { UsersKpiStrip } from './components/UsersKpiStrip';
+import { getUsersTranslations } from './usersTranslations';
+import { DashboardTitleBar } from '../components/DashboardTitleBar';
+import { OperationalBulkActionsBar, useRowSelection } from '../../shared/operational';
 
 interface User {
   id: string;
@@ -109,7 +116,7 @@ type EditableBusinessCell = {
   userId: string;
   field: BusinessInlineField;
 } | null;
-type SortColumn = 'name' | 'role' | 'businessUnit' | 'business' | 'modules' | 'status' | 'actions';
+type SortColumn = 'name' | 'role' | 'businessUnit' | 'business' | 'modules' | 'status';
 type SortDirection = 'asc' | 'desc';
 type SortState = {
   column: SortColumn;
@@ -146,6 +153,11 @@ const USER_SELF_SERVICE_TAB_PERMISSION_KEYS = new Set([
 
 export default function Users() {
   const { currentLanguage, t } = useLanguage();
+  const usersCopy = useMemo(
+    () => getUsersTranslations(currentLanguage.code),
+    [currentLanguage.code],
+  );
+  const rowSelection = useRowSelection<string>();
   const businessCellRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>(() =>
@@ -269,157 +281,19 @@ export default function Users() {
   };
 
   const summaryLabels = {
-    total:
-      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-        ? 'Total users'
-        : currentLanguage.code === 'fr-CA'
-          ? 'Utilisateurs total'
-          : currentLanguage.code === 'pt-BR'
-            ? 'Total users'
-            : currentLanguage.code === 'ko-CA'
-              ? '총 사용자'
-              : currentLanguage.code === 'zh-CA'
-                ? '总用户'
-                : 'Total users',
-    noResults:
-      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-        ? 'No users match the current filters.'
-        : currentLanguage.code === 'fr-CA'
-          ? 'Aucun utilisateur ne correspond aux filtres actuels.'
-          : currentLanguage.code === 'pt-BR'
-            ? 'Nenhum usuário corresponde aos filtros atuais.'
-            : currentLanguage.code === 'ko-CA'
-              ? '현재 필터와 일치하는 사용자가 없습니다.'
-              : currentLanguage.code === 'zh-CA'
-                ? '没有符合当前筛选条件的用户。'
-                : 'No users match the current filters.',
-    inviteSuccess:
-      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-        ? 'Invitation sent successfully.'
-        : currentLanguage.code === 'fr-CA'
-          ? 'Invitation envoyee avec succes.'
-          : currentLanguage.code === 'pt-BR'
-            ? 'Convite enviado com sucesso.'
-            : currentLanguage.code === 'ko-CA'
-              ? '초대가 성공적으로 전송되었습니다.'
-              : currentLanguage.code === 'zh-CA'
-                ? '邀请已成功发送。'
-                : 'Invitation sent successfully.',
-    inviteCreated:
-      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-        ? 'Invitation link created.'
-        : currentLanguage.code === 'fr-CA'
-          ? 'Lien d invitation cree.'
-          : currentLanguage.code === 'pt-BR'
-            ? 'Link de convite criado.'
-            : currentLanguage.code === 'ko-CA'
-              ? '초대 링크가 생성되었습니다.'
-              : currentLanguage.code === 'zh-CA'
-                ? '邀请链接已创建。'
-                : 'Invitation link created.',
-    resendSuccess:
-      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-        ? 'Invitation resent successfully.'
-        : currentLanguage.code === 'fr-CA'
-          ? 'Invitation renvoyee avec succes.'
-          : currentLanguage.code === 'pt-BR'
-            ? 'Convite reenviado com sucesso.'
-            : currentLanguage.code === 'ko-CA'
-              ? '초대가 다시 전송되었습니다.'
-              : currentLanguage.code === 'zh-CA'
-                ? '邀请已重新发送。'
-                : 'Invitation resent successfully.',
-    resendCreated:
-      currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-        ? 'Invitation link refreshed.'
-        : currentLanguage.code === 'fr-CA'
-          ? 'Lien d invitation actualise.'
-          : currentLanguage.code === 'pt-BR'
-            ? 'Link de convite atualizado.'
-            : currentLanguage.code === 'ko-CA'
-              ? '초대 링크가 새로 고쳐졌습니다.'
-              : currentLanguage.code === 'zh-CA'
-                ? '邀请链接已刷新。'
-                : 'Invitation link refreshed.',
+    total: usersCopy.total,
+    noResults: usersCopy.noResults,
+    inviteSuccess: usersCopy.inviteSuccess,
+    inviteCreated: usersCopy.inviteCreated,
+    resendSuccess: usersCopy.resendSuccess,
+    resendCreated: usersCopy.resendCreated,
   };
-
-  const closeLabel =
-    currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-      ? 'Close'
-      : currentLanguage.code === 'fr-CA'
-        ? 'Fermer'
-        : currentLanguage.code === 'pt-BR'
-          ? 'Fechar'
-          : currentLanguage.code === 'ko-CA'
-            ? '닫기'
-            : currentLanguage.code === 'zh-CA'
-              ? '关闭'
-              : 'Close';
-
-  const resendEmailLabel =
-    currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-      ? 'New email (optional)'
-      : currentLanguage.code === 'fr-CA'
-        ? 'Nouvel e-mail (optionnel)'
-        : currentLanguage.code === 'pt-BR'
-          ? 'Novo e-mail (opcional)'
-          : currentLanguage.code === 'ko-CA'
-            ? '새 이메일(선택 사항)'
-            : currentLanguage.code === 'zh-CA'
-              ? '新电子邮件（可选）'
-              : 'New email (optional)';
-
-  const resendEmailHint =
-    currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA'
-      ? 'Leave it empty to use the current email.'
-      : currentLanguage.code === 'fr-CA'
-        ? 'Laissez vide pour utiliser l e-mail actuel.'
-        : currentLanguage.code === 'pt-BR'
-          ? 'Deixe em branco para usar o e-mail atual.'
-          : currentLanguage.code === 'ko-CA'
-            ? '현재 이메일을 사용하려면 비워 두세요.'
-            : currentLanguage.code === 'zh-CA'
-              ? '留空将使用当前电子邮件。'
-              : 'Leave it empty to use the current email.';
-
-  const deleteLabel =
-    currentLanguage.code === 'fr-CA'
-      ? 'Supprimer'
-      : currentLanguage.code === 'pt-BR'
-        ? 'Excluir'
-        : currentLanguage.code === 'ko-CA'
-          ? '삭제'
-          : currentLanguage.code === 'zh-CA'
-            ? '删除'
-            : currentLanguage.code === 'es-MX'
-              ? 'Eliminar'
-              : 'Delete';
-
-  const deletingLabel =
-    currentLanguage.code === 'fr-CA'
-      ? 'Suppression...'
-      : currentLanguage.code === 'pt-BR'
-        ? 'Excluindo...'
-        : currentLanguage.code === 'ko-CA'
-          ? '삭제 중...'
-          : currentLanguage.code === 'zh-CA'
-            ? '正在删除...'
-            : currentLanguage.code === 'es-MX'
-              ? 'Eliminando...'
-              : 'Deleting...';
-
-  const currentUserBadgeLabel =
-    currentLanguage.code === 'fr-CA'
-      ? 'Vous'
-      : currentLanguage.code === 'pt-BR'
-        ? 'Voce'
-        : currentLanguage.code === 'ko-CA'
-          ? '나'
-          : currentLanguage.code === 'zh-CA'
-            ? '你'
-            : currentLanguage.code === 'es-MX'
-              ? 'Tu'
-              : 'You';
+  const closeLabel = usersCopy.close;
+  const resendEmailLabel = usersCopy.resendEmailLabel;
+  const resendEmailHint = usersCopy.resendEmailHint;
+  const deleteLabel = usersCopy.delete;
+  const deletingLabel = usersCopy.deleting;
+  const currentUserBadgeLabel = usersCopy.currentUser;
 
   const filteredUsers = useMemo(() => users.filter((user) => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -432,55 +306,47 @@ export default function Users() {
 
     return matchesSearch && matchesRole && matchesStatus;
   }), [roleFilter, searchTerm, statusFilter, users]);
+  const sortedUsers = useMemo(() => {
+    if (!sortState) {
+      return filteredUsers;
+    }
+
+    const valueFor = (user: User): string | number => {
+      const assignment = businessAssignments[user.id];
+      switch (sortState.column) {
+        case 'name': return user.name.toLocaleLowerCase();
+        case 'role': return user.role;
+        case 'businessUnit': {
+          const unitId = assignment?.businessUnitId ?? (user.unitId == null ? '' : String(user.unitId));
+          return availableUnits.find((unit) => unit.id === unitId)?.name.toLocaleLowerCase() ?? '';
+        }
+        case 'business': {
+          const businessId = assignment?.businessId ?? (user.businessId == null ? '' : String(user.businessId));
+          return availableBusinesses.find((business) => business.id === businessId)?.name.toLocaleLowerCase() ?? '';
+        }
+        case 'modules': return user.modules.length;
+        case 'status': return user.status;
+      }
+    };
+
+    return [...filteredUsers].sort((left, right) => {
+      const leftValue = valueFor(left);
+      const rightValue = valueFor(right);
+      const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
+        ? leftValue - rightValue
+        : String(leftValue).localeCompare(String(rightValue), currentLanguage.code, { sensitivity: 'base' });
+      return sortState.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [availableBusinesses, availableUnits, businessAssignments, currentLanguage.code, filteredUsers, sortState]);
   const usersPaginationResetKey = useMemo(
     () => `${searchTerm}:${roleFilter}:${statusFilter}:${filteredUsers.map(user => user.id).join('|')}`,
     [filteredUsers, roleFilter, searchTerm, statusFilter],
   );
   const usersPagination = useTablePagination({
     resetKey: usersPaginationResetKey,
-    rows: filteredUsers,
+    rows: sortedUsers,
   });
-  const usersPaginationCopy = useMemo(() => {
-    const languageCode = currentLanguage.code;
-
-    if (languageCode === 'en-US' || languageCode === 'en-CA') {
-      return {
-        itemLabel: 'users',
-        next: 'Next',
-        previous: 'Previous',
-        rowsPerPage: 'Rows per page',
-        showing: (start: number, end: number, total: number, label: string) => `Showing ${start}-${end} of ${total} ${label}`,
-      };
-    }
-
-    if (languageCode === 'fr-CA') {
-      return {
-        itemLabel: 'utilisateurs',
-        next: 'Suivant',
-        previous: 'Precedent',
-        rowsPerPage: 'Lignes par page',
-        showing: (start: number, end: number, total: number, label: string) => `${start}-${end} sur ${total} ${label}`,
-      };
-    }
-
-    if (languageCode === 'pt-BR') {
-      return {
-        itemLabel: 'usuarios',
-        next: 'Proximo',
-        previous: 'Anterior',
-        rowsPerPage: 'Linhas por pagina',
-        showing: (start: number, end: number, total: number, label: string) => `Mostrando ${start}-${end} de ${total} ${label}`,
-      };
-    }
-
-    return {
-      itemLabel: 'usuarios',
-      next: 'Siguiente',
-      previous: 'Anterior',
-      rowsPerPage: 'Filas por pagina',
-      showing: (start: number, end: number, total: number, label: string) => `Mostrando ${start}-${end} de ${total} ${label}`,
-    };
-  }, [currentLanguage.code]);
+  const usersPaginationCopy = usersCopy.pagination;
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
@@ -495,7 +361,7 @@ export default function Users() {
     complementary: t.sections.complementaryModules,
     ai: t.sections.aiModules,
   };
-  const inviteWizardCopy = getInviteWizardCopy(currentLanguage.code);
+  const inviteWizardCopy = usersCopy.inviteWizard;
   const inviteWizardSteps = [
     { id: 'identity', label: inviteWizardCopy.identity },
     { id: 'organization', label: inviteWizardCopy.organization },
@@ -713,7 +579,7 @@ export default function Users() {
         if (!active) {
           return;
         }
-        setLoadError(error instanceof Error ? error.message : 'Unable to load users.');
+        setLoadError(error instanceof Error ? error.message : usersCopy.errors.load);
       })
       .finally(() => {
         if (active) {
@@ -724,7 +590,7 @@ export default function Users() {
     return () => {
       active = false;
     };
-  }, [t]);
+  }, [t, usersCopy.errors.load]);
 
   const closeInviteModal = () => {
     setShowInviteModal(false);
@@ -820,6 +686,38 @@ export default function Users() {
     return user.role !== 'Super Admin';
   };
 
+  const selectedEditableUsers = users.filter(
+    (user) => rowSelection.selectedIds.has(user.id) && canEditAccessFor(user),
+  );
+  const visibleSelectableUserIds = usersPagination.paginatedRows
+    .filter(canEditAccessFor)
+    .map((user) => user.id);
+  const visibleSelectionState = rowSelection.visibleSelectionState(visibleSelectableUserIds);
+
+  const handleBulkStatusChange = async (status: User['status']) => {
+    if (selectedEditableUsers.length === 0) {
+      rowSelection.clearSelection();
+      return;
+    }
+
+    try {
+      setLoadError('');
+      await runUserFeedbackTask({
+        title: usersCopy.bulk.updatingTitle,
+        description: usersCopy.bulk.updatingDescription,
+        task: async () => {
+          await Promise.all(selectedEditableUsers.map((user) =>
+            configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { status })),
+          ));
+          await refreshUsers();
+          rowSelection.clearSelection();
+        },
+      });
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.status);
+    }
+  };
+
   const toggleUserStatus = async (user: User) => {
     if (!canEditAccessFor(user)) {
       return;
@@ -832,7 +730,7 @@ export default function Users() {
       await configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { status: nextStatus }));
       await refreshUsers();
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to update user status.');
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.status);
     }
   };
 
@@ -849,7 +747,7 @@ export default function Users() {
       await configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { role: newRole }));
       await refreshUsers();
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to update user role.');
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.role);
     }
   };
 
@@ -862,7 +760,7 @@ export default function Users() {
     const trimmedEmail = inviteForm.email.trim();
 
     if (!trimmedName || !trimmedEmail || !inviteForm.businessUnitId || !inviteForm.businessId || inviteModuleIds.length === 0) {
-      setInviteValidationMessage(getInviteWizardCopy(currentLanguage.code).accessError);
+      setInviteValidationMessage(usersCopy.inviteWizard.accessError);
       return;
     }
 
@@ -876,8 +774,8 @@ export default function Users() {
       setLoadError('');
       setInviteValidationMessage('');
       await runUserFeedbackTask({
-        title: 'Sending invitation...',
-        description: 'Creating the user invitation and preparing email delivery.',
+        title: usersCopy.overlays.sendingTitle,
+        description: usersCopy.overlays.sendingDescription,
         task: async () => {
           const response = await configCenterApi.inviteUser({
             name: trimmedName,
@@ -906,7 +804,7 @@ export default function Users() {
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to send invitation.');
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.sendInvitation);
     }
   };
 
@@ -927,8 +825,8 @@ export default function Users() {
     try {
       setLoadError('');
       await runUserFeedbackTask({
-        title: 'Resending invitation...',
-        description: 'Refreshing the invite link and sending the email again.',
+        title: usersCopy.overlays.resendingTitle,
+        description: usersCopy.overlays.resendingDescription,
         task: async () => {
           const response = await configCenterApi.resendInvitation(
             resendUser.backendId,
@@ -944,7 +842,7 @@ export default function Users() {
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to resend invitation.');
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.resendInvitation);
     }
   };
 
@@ -966,15 +864,15 @@ export default function Users() {
       setLoadError('');
       setSelectedUserForDelete(null);
       await runUserFeedbackTask({
-        title: 'Deleting invitation...',
-        description: 'Cancelling the pending invite link and refreshing the users list.',
+        title: usersCopy.overlays.deletingTitle,
+        description: usersCopy.overlays.deletingDescription,
         task: async () => {
           await configCenterApi.deleteInvitation(pendingDelete.backendId);
           await refreshUsers();
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to delete invitation.');
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.deleteInvitation);
     } finally {
       setIsDeletingUser(false);
     }
@@ -1020,7 +918,7 @@ export default function Users() {
       await refreshUsers();
       setSelectedUserForModules(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to save module access.');
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.moduleAccess);
     }
   };
 
@@ -1049,7 +947,7 @@ export default function Users() {
       setCopiedLink(true);
       window.setTimeout(() => setCopiedLink(false), 2000);
     } catch (error) {
-      console.error('Unable to copy invitation link', error);
+      console.error(usersCopy.errors.copyLink, error);
     }
   };
 
@@ -1080,29 +978,7 @@ export default function Users() {
     });
   };
 
-  const formatSelectedModulesCount = (count: number) => {
-    if (currentLanguage.code === 'en-US' || currentLanguage.code === 'en-CA') {
-      return `${count} module${count === 1 ? '' : 's'} selected`;
-    }
-
-    if (currentLanguage.code === 'fr-CA') {
-      return `${count} module${count === 1 ? '' : 's'} selectionnes`;
-    }
-
-    if (currentLanguage.code === 'pt-BR') {
-      return `${count} modulo${count === 1 ? '' : 's'} selecionado${count === 1 ? '' : 's'}`;
-    }
-
-    if (currentLanguage.code === 'ko-CA') {
-      return `${count}개 모듈 선택됨`;
-    }
-
-    if (currentLanguage.code === 'zh-CA') {
-      return `已选择 ${count} 个模块`;
-    }
-
-    return `${count} módulos seleccionados`;
-  };
+  const formatSelectedModulesCount = usersCopy.selectedModules;
 
   const formatModulesCount = (count: number) => (
     `${count} ${count === 1 ? usersBusinessCopy.module : usersBusinessCopy.modules}`
@@ -1173,7 +1049,7 @@ export default function Users() {
     }
 
     if (!nextAssignment.businessUnitId || !nextAssignment.businessId) {
-      setLoadError('Select both a business unit and business.');
+      setLoadError(usersCopy.errors.selectBusiness);
       return;
     }
 
@@ -1192,7 +1068,7 @@ export default function Users() {
       }));
       await refreshUsers();
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Unable to update business assignment.');
+      setLoadError(error instanceof Error ? error.message : usersCopy.errors.businessAssignment);
     }
   };
 
@@ -1277,10 +1153,10 @@ export default function Users() {
         ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
         : 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300';
     const title = inviteEmailStatus.sent
-      ? 'Email sent'
+      ? usersCopy.emailSent
       : isDisabled
-        ? 'Email delivery disabled'
-        : 'Email not sent';
+        ? usersCopy.emailDeliveryDisabled
+        : usersCopy.emailNotSent;
 
     return (
       <div className={`flex gap-3 rounded-lg border p-3 text-sm ${tone}`}>
@@ -1288,7 +1164,7 @@ export default function Users() {
         <div>
           <div className="font-medium">{title}</div>
           <div className="mt-1 opacity-90">
-            {inviteEmailStatus.message || 'Use the invite link below to test the acceptance flow.'}
+            {inviteEmailStatus.message || usersCopy.statusFallback}
           </div>
         </div>
       </div>
@@ -1317,124 +1193,102 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
-        The users list, role updates, status changes, module assignments, and invitation links in this screen are now backed by Spring.
-      </div>
+      <UsersFeedback error={loadError} isLoading={isLoading} loadingLabel={usersCopy.loading} />
 
-      {isLoading ? (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-700/30 dark:bg-blue-900/20 dark:text-blue-300">
-          Loading users...
-        </div>
+      <DashboardTitleBar
+        actions={titleBarActions ?? undefined}
+        emoji="👥"
+        subtitle={t.panelInicial.users.subtitle}
+        title={t.panelInicial.users.title}
+      />
+
+      <UsersFilters
+        allLabel={t.panelInicial.users.filters.all}
+        clearLabel={usersCopy.clearFilters}
+        filterTitle={usersCopy.filters.title}
+        hasActiveFilters={Boolean(searchTerm || roleFilter || statusFilter)}
+        insightLabel={usersCopy.insight(filteredUsers.length, totalUsers)}
+        onClear={() => {
+          setSearchTerm('');
+          setRoleFilter('');
+          setStatusFilter('');
+        }}
+        onRoleChange={setRoleFilter}
+        onSearchChange={setSearchTerm}
+        onStatusChange={setStatusFilter}
+        roleFilter={roleFilter}
+        roleLabel={usersCopy.filters.role}
+        roleOptions={[
+          { value: 'Super Admin', label: t.panelInicial.users.roles.superAdmin },
+          { value: 'Admin', label: t.panelInicial.users.roles.admin },
+          { value: 'User', label: t.panelInicial.users.roles.user },
+        ]}
+        searchLabel={t.panelInicial.users.search}
+        searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        statusLabel={usersCopy.filters.status}
+        statusOptions={[
+          { value: 'active', label: t.panelInicial.users.status.active },
+          { value: 'pending', label: t.panelInicial.users.status.pending },
+          { value: 'inactive', label: t.panelInicial.users.status.inactive },
+        ]}
+      />
+
+      <UsersKpiStrip items={[
+        { label: summaryLabels.total, tone: 'blue', value: totalUsers },
+        { label: t.panelInicial.users.filters.active, tone: 'green', value: activeUsers },
+        { label: t.panelInicial.users.filters.pending, tone: 'yellow', value: pendingUsers },
+        { label: t.panelInicial.users.filters.inactive, tone: 'slate', value: inactiveUsers },
+      ]} />
+
+      {rowSelection.selectedCount > 0 ? (
+        <OperationalBulkActionsBar
+          accent="blue"
+          actions={[
+            {
+              id: 'activate',
+              icon: <UserCheck aria-hidden="true" className="h-4 w-4" />,
+              label: usersCopy.bulk.activate,
+              onClick: () => void handleBulkStatusChange('active'),
+              tone: 'success',
+            },
+            {
+              id: 'deactivate',
+              icon: <UserX aria-hidden="true" className="h-4 w-4" />,
+              label: usersCopy.bulk.deactivate,
+              onClick: () => void handleBulkStatusChange('inactive'),
+              tone: 'danger',
+            },
+            {
+              id: 'clear',
+              icon: <X aria-hidden="true" className="h-4 w-4" />,
+              label: usersCopy.bulk.clear,
+              onClick: rowSelection.clearSelection,
+            },
+          ]}
+          selectedLabel={usersCopy.bulk.selected(rowSelection.selectedCount)}
+          title={usersCopy.bulk.title}
+        />
       ) : null}
 
-      {loadError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/30 dark:bg-red-900/20 dark:text-red-300">
-          {loadError}
-        </div>
-      ) : null}
-
-      <LearningModeTitleBarBridge actions={titleBarActions ?? undefined}>
-      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-              <span className="text-2xl">👥</span>
-              {t.panelInicial.users.title}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t.panelInicial.users.subtitle}
-            </p>
-          </div>
-          {titleBarActions}
-        </div>
-      </div>
-      </LearningModeTitleBarBridge>
-
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder={t.panelInicial.users.search}
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className={`pl-10 pr-4 py-2 ${inputClassName}`}
-            />
-          </div>
-
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <select
-              className={`appearance-none cursor-pointer pl-10 pr-10 py-2 ${inputClassName}`}
-              value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value)}
-            >
-              <option value="">{t.panelInicial.users.filters.all}</option>
-              <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
-              <option value="Admin">{t.panelInicial.users.roles.admin}</option>
-              <option value="User">{t.panelInicial.users.roles.user}</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
-
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <select
-              className={`appearance-none cursor-pointer pl-10 pr-10 py-2 ${inputClassName}`}
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">{t.panelInicial.users.filters.all}</option>
-              <option value="active">{t.panelInicial.users.status.active}</option>
-              <option value="pending">{t.panelInicial.users.status.pending}</option>
-              <option value="inactive">{t.panelInicial.users.status.inactive}</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
-          <div className="text-center">
-            <div className="mb-1 text-2xl font-bold text-blue-600 dark:text-blue-400 sm:text-3xl">
-              {totalUsers}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">{summaryLabels.total}</div>
-          </div>
-          <div className="text-center">
-            <div className="mb-1 text-2xl font-bold text-green-600 dark:text-green-400 sm:text-3xl">
-              {activeUsers}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {t.panelInicial.users.filters.active}
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="mb-1 text-2xl font-bold text-yellow-600 dark:text-yellow-400 sm:text-3xl">
-              {pendingUsers}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {t.panelInicial.users.filters.pending}
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="mb-1 text-2xl font-bold text-gray-600 dark:text-gray-400 sm:text-3xl">
-              {inactiveUsers}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {t.panelInicial.users.filters.inactive}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <table className="min-w-[1120px] w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+            <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>
+                <th className="w-12 px-4 py-3 text-center">
+                  <Checkbox
+                    aria-label={usersCopy.bulk.selectAll}
+                    checked={visibleSelectionState.allVisibleSelected
+                      ? true
+                      : visibleSelectionState.someVisibleSelected
+                        ? 'indeterminate'
+                        : false}
+                    disabled={visibleSelectableUserIds.length === 0}
+                    onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleSelectableUserIds, checked === true)}
+                    className="border-slate-300 data-[state=checked]:border-[var(--indice-blue)] data-[state=checked]:bg-[var(--indice-blue)]"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {renderSortableHeader(t.panelInicial.users.table.name, 'name')}
                 </th>
@@ -1453,8 +1307,8 @@ export default function Users() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {renderSortableHeader(t.panelInicial.users.table.status, 'status')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {renderSortableHeader(t.panelInicial.users.table.actions, 'actions')}
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {t.panelInicial.users.table.actions}
                 </th>
               </tr>
             </thead>
@@ -1475,8 +1329,18 @@ export default function Users() {
                   return (
                     <tr
                       key={user.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      data-selected={rowSelection.isSelected(user.id) || undefined}
+                      className="transition-colors hover:bg-blue-50/40 data-[selected=true]:bg-blue-50/70 dark:hover:bg-blue-950/20 dark:data-[selected=true]:bg-blue-950/30"
                     >
+                      <td className="px-4 py-4 text-center align-middle">
+                        <Checkbox
+                          aria-label={usersCopy.bulk.selectUser(user.name)}
+                          checked={rowSelection.isSelected(user.id)}
+                          disabled={!canEditUserAccess}
+                          onCheckedChange={(checked) => rowSelection.toggleSelection(user.id, checked === true)}
+                          className="border-slate-300 data-[state=checked]:border-[var(--indice-blue)] data-[state=checked]:bg-[var(--indice-blue)]"
+                        />
+                      </td>
                       <td className="px-6 py-4 align-middle whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {user.avatarUrl ? (
@@ -1535,15 +1399,9 @@ export default function Users() {
                         {renderBusinessInlineCell(user, 'business')}
                       </td>
                       <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenModuleSettings(user)}
-                          disabled={!canEditUserAccess}
-                          className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800/70 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
-                        >
-                          <Settings className="h-4 w-4" />
-                          <span>{formatModulesCount(user.modules.length)}</span>
-                        </button>
+                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 dark:border-blue-800/70 dark:bg-blue-900/20 dark:text-blue-300">
+                          {formatModulesCount(user.modules.length)}
+                        </span>
                       </td>
                       <td className="px-6 py-4 align-middle whitespace-nowrap">
                         <span
@@ -1554,12 +1412,12 @@ export default function Users() {
                         </span>
                       </td>
                       <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => toggleUserStatus(user)}
                             disabled={!canEditUserAccess}
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-150 ease-in-out disabled:cursor-not-allowed disabled:opacity-50 ${
+                            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                               user.status === 'active'
                                 ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
                                 : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
@@ -1569,21 +1427,27 @@ export default function Users() {
                                 ? t.panelInicial.users.status.inactive
                                 : t.panelInicial.users.status.active
                             }
+                            aria-label={
+                              user.status === 'active'
+                                ? t.panelInicial.users.status.inactive
+                                : t.panelInicial.users.status.active
+                            }
                           >
-                            <CheckCircle2 className="h-5 w-5" />
+                            <CheckCircle2 aria-hidden="true" className="h-5 w-5" />
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleOpenModuleSettings(user)}
                             disabled={!canEditUserAccess}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-violet-200 bg-violet-50 text-violet-600 transition-all duration-150 ease-in-out hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
                             title={t.panelInicial.users.modal.modules}
+                            aria-label={t.panelInicial.users.modal.modules}
                           >
-                            <Settings className="h-5 w-5" />
+                            <Settings aria-hidden="true" className="h-5 w-5" />
                           </button>
 
-                          <button
+                          {user.source === 'invitation' ? <button
                             type="button"
                             onClick={() => {
                               setSelectedUserForResend(user.id);
@@ -1593,21 +1457,23 @@ export default function Users() {
                               setCopiedLink(false);
                               setNewEmail('');
                             }}
-                            disabled={user.source !== 'invitation'}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-blue-200 bg-blue-50 text-blue-600 transition-all duration-150 ease-in-out hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition-colors hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300"
                             title={t.panelInicial.users.actions.resend}
+                            aria-label={t.panelInicial.users.actions.resend}
                           >
-                            <Mail className="h-5 w-5" />
+                            <Mail aria-hidden="true" className="h-5 w-5" />
                           </button>
+                          : null}
 
                           {user.source === 'invitation' ? (
                             <button
                               type="button"
                               onClick={() => setSelectedUserForDelete(user.id)}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-200 bg-red-50 text-red-600 transition-all duration-150 ease-in-out hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
                               title={deleteLabel}
+                              aria-label={deleteLabel}
                             >
-                              <Trash2 className="h-5 w-5" />
+                              <Trash2 aria-hidden="true" className="h-5 w-5" />
                             </button>
                           ) : null}
                         </div>
@@ -1618,7 +1484,7 @@ export default function Users() {
               ) : (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     {summaryLabels.noResults}
@@ -1647,7 +1513,7 @@ export default function Users() {
           totalCount={usersPagination.totalCount}
           totalPages={usersPagination.totalPages}
         />
-      </div>
+      </section>
 
       {selectedUser && (
         <IndiceModalFrame
@@ -2102,9 +1968,9 @@ export default function Users() {
 
       <ConfirmDeleteDialog
         isVisible={Boolean(invitationPendingDelete)}
-        title="Delete invitation?"
+        title={usersCopy.deleteConfirmationTitle}
         itemName={invitationPendingDelete ? `${invitationPendingDelete.name} <${invitationPendingDelete.email}>` : undefined}
-        description="This cancels the pending invite link and removes it from the users list."
+        description={usersCopy.deleteConfirmationDescription}
         confirmLabel={isDeletingUser ? deletingLabel : deleteLabel}
         cancelLabel={t.panelInicial.users.modal.cancel}
         confirmDisabled={isDeletingUser || loadingOverlay.isVisible}
@@ -2113,61 +1979,6 @@ export default function Users() {
       />
     </div>
   );
-}
-
-function getInviteWizardCopy(languageCode: string) {
-  if (languageCode === 'en-US' || languageCode === 'en-CA') {
-    return {
-      access: 'Access', accessError: 'Select at least one module before sending the invitation.', back: 'Back',
-      completed: 'Invitation ready', finalReview: 'Final review', identity: 'Profile',
-      identityError: 'Enter a valid name and email address to continue.', inheritedProfile: 'Profile to invite',
-      next: 'Continue', organization: 'Organization', organizationError: 'Select a business unit and business to continue.',
-      progress: (step: number, total: number) => `Step ${step} of ${total}`, reviewFields: 'Review the required fields',
-    };
-  }
-  if (languageCode === 'fr-CA') {
-    return {
-      access: 'Accès', accessError: 'Sélectionnez au moins un module avant d’envoyer l’invitation.', back: 'Retour',
-      completed: 'Invitation prête', finalReview: 'Révision finale', identity: 'Profil',
-      identityError: 'Saisissez un nom et une adresse courriel valides pour continuer.', inheritedProfile: 'Profil à inviter',
-      next: 'Continuer', organization: 'Organisation', organizationError: 'Sélectionnez une unité et une entreprise pour continuer.',
-      progress: (step: number, total: number) => `Étape ${step} sur ${total}`, reviewFields: 'Vérifiez les champs requis',
-    };
-  }
-  if (languageCode === 'pt-BR') {
-    return {
-      access: 'Acesso', accessError: 'Selecione pelo menos um módulo antes de enviar o convite.', back: 'Voltar',
-      completed: 'Convite pronto', finalReview: 'Revisão final', identity: 'Perfil',
-      identityError: 'Informe um nome e um email válidos para continuar.', inheritedProfile: 'Perfil a convidar',
-      next: 'Continuar', organization: 'Organização', organizationError: 'Selecione uma unidade e um negócio para continuar.',
-      progress: (step: number, total: number) => `Etapa ${step} de ${total}`, reviewFields: 'Revise os campos obrigatórios',
-    };
-  }
-  if (languageCode === 'ko-CA') {
-    return {
-      access: '접근 권한', accessError: '초대하기 전에 하나 이상의 모듈을 선택하세요.', back: '뒤로',
-      completed: '초대 준비 완료', finalReview: '최종 검토', identity: '프로필',
-      identityError: '계속하려면 유효한 이름과 이메일을 입력하세요.', inheritedProfile: '초대할 프로필',
-      next: '계속', organization: '조직', organizationError: '계속하려면 조직 단위와 사업체를 선택하세요.',
-      progress: (step: number, total: number) => `${total}단계 중 ${step}단계`, reviewFields: '필수 항목을 확인하세요',
-    };
-  }
-  if (languageCode === 'zh-CA') {
-    return {
-      access: '访问权限', accessError: '发送邀请前请至少选择一个模块。', back: '返回',
-      completed: '邀请已准备好', finalReview: '最终检查', identity: '个人资料',
-      identityError: '请输入有效的姓名和电子邮箱。', inheritedProfile: '待邀请资料',
-      next: '继续', organization: '组织', organizationError: '请选择业务单位和业务。',
-      progress: (step: number, total: number) => `第 ${step} 步，共 ${total} 步`, reviewFields: '请检查必填字段',
-    };
-  }
-  return {
-    access: 'Accesos', accessError: 'Selecciona al menos un módulo antes de enviar la invitación.', back: 'Atrás',
-    completed: 'Invitación lista', finalReview: 'Revisión final', identity: 'Perfil',
-    identityError: 'Ingresa un nombre y un correo válidos para continuar.', inheritedProfile: 'Perfil por invitar',
-    next: 'Continuar', organization: 'Organización', organizationError: 'Selecciona una unidad y un negocio para continuar.',
-    progress: (step: number, total: number) => `Paso ${step} de ${total}`, reviewFields: 'Revisa los campos necesarios',
-  };
 }
 
 function buildAvailableModules(t: any): AvailableModule[] {

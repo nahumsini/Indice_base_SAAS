@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
-import { AlertTriangle, ArrowUpRight, CheckCircle2, ReceiptText, ShieldCheck, TrendingUp, Users, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, CheckCircle2, Printer, ReceiptText, ShieldCheck, TrendingUp, Users, Wallet } from 'lucide-react';
 import type { CashFund, PettyCashExpense } from '../types/pettyCash.types';
 import { formatPettyCashCurrency, getCashFundSummary, getPettyCashSummary } from '../utils/pettyCash.utils';
 import { PettyCashStatusBar } from './components/PettyCashStatusBar';
+import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 
 interface KPIsProps {
   expenses: PettyCashExpense[];
@@ -12,6 +14,7 @@ interface KPIsProps {
 type MetricTone = 'green' | 'blue' | 'amber' | 'red';
 
 export default function KPIs({ expenses, funds }: KPIsProps) {
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const cashSummary = useMemo(() => getPettyCashSummary(expenses), [expenses]);
   const fundSummary = useMemo(() => getCashFundSummary(funds), [funds]);
   const settlementRate = cashSummary.totalIssued > 0
@@ -80,6 +83,61 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
     },
   ] as const;
 
+  const handlePrint = () => {
+    printStandardKpiReport({
+      companyIdentity: companyPrintIdentity,
+      documentName: 'Petty Cash KPI Report',
+      locale: 'en-US',
+      meta: [
+        { label: 'Scope', value: 'All petty cash funds and movements' },
+        { label: 'Settlement rate', value: `${settlementRate}%` },
+      ],
+      metrics: [
+        { label: 'Issued cash', value: formatPettyCashCurrency(cashSummary.totalIssued), detail: `${expenses.length} movements` },
+        { label: 'Settled cash', value: formatPettyCashCurrency(cashSummary.totalSettled), detail: `${settlementRate}% of issued cash` },
+        { label: 'Pending balance', value: formatPettyCashCurrency(cashSummary.pendingBalance), detail: `${cashSummary.pendingReceiptCount} receipt cases` },
+        { label: 'Audit queue', value: String(auditQueueCount), detail: 'Movements pending audit follow-up' },
+        { label: 'Cash funds', value: String(funds.length), detail: `${fundSummary.riskFunds} require attention` },
+      ],
+      reportTitle: 'Petty Cash KPI Report',
+      subtitle: 'Issued cash, settlement, receipt control, audit status, and fund health.',
+      tables: [
+        {
+          emptyLabel: 'No cash funds available.',
+          headers: ['Fund', 'Custodian', 'Business', 'Currency', 'Limit', 'Balance', 'Pending receipts', 'Status'],
+          rows: funds.map((fund) => [
+            fund.name,
+            fund.custodian,
+            fund.business,
+            fund.currency,
+            formatPettyCashCurrency(fund.limit),
+            formatPettyCashCurrency(fund.currentBalance),
+            formatPettyCashCurrency(fund.pendingReceipts),
+            fund.status.replace(/_/g, ' '),
+          ]),
+          title: 'Fund health',
+        },
+        {
+          emptyLabel: 'No petty cash movements available.',
+          headers: ['Folio', 'Date', 'Collaborator', 'Fund', 'Concept', 'Issued', 'Settled', 'Balance', 'Status', 'Audit'],
+          rows: expenses.map((expense) => [
+            expense.folio,
+            expense.date.toLocaleDateString('en-US'),
+            expense.collaborator,
+            expense.cashFundName,
+            expense.concept,
+            formatPettyCashCurrency(expense.amountIssued),
+            formatPettyCashCurrency(expense.amountSettled),
+            formatPettyCashCurrency(expense.balance),
+            expense.status.replace(/_/g, ' '),
+            expense.auditStatus.replace(/_/g, ' '),
+          ]),
+          title: 'Petty cash movements',
+        },
+      ],
+    });
+  };
+
   return (
     <div className="space-y-5">
       <section className="rounded-lg border border-green-200 bg-green-50 px-5 py-4 dark:border-green-800 dark:bg-green-900/20">
@@ -95,9 +153,19 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
               </p>
             </div>
           </div>
-          <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#147514] shadow-sm dark:bg-gray-900 dark:text-green-300">
-            {settlementRate}% settlement rate
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#147514] shadow-sm dark:bg-gray-900 dark:text-green-300">
+              {settlementRate}% settlement rate
+            </span>
+            <button
+              type="button"
+              disabled={!isCompanyPrintIdentityReady}
+              onClick={handlePrint}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#147514]/20 bg-white px-3 text-sm font-semibold text-[#147514] transition hover:bg-[#147514]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-green-300"
+            >
+              <Printer className="h-4 w-4" /> Print report
+            </button>
+          </div>
         </div>
       </section>
 

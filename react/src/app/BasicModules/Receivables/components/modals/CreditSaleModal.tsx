@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, CreditCard } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
 import { FilterSelect } from '../ReceivablesFilters';
@@ -34,7 +35,7 @@ interface CreditSaleModalProps {
     firstDueDate: string;
     creditPolicy: CreditPolicy;
     selectedSimulation: CreditSimulation;
-  }) => void;
+  }) => boolean | void | Promise<boolean | void>;
 }
 
 export function CreditSaleModal({
@@ -76,7 +77,18 @@ export function CreditSaleModal({
   const [selectedSimulationId, setSelectedSimulationId] = useState(simulations[0]?.id ?? 'balanced');
   const selectedSimulation = simulations.find((simulation) => simulation.id === selectedSimulationId) ?? simulations[0];
   const overLimit = selectedPolicy ? financedAmount > selectedPolicy.availableCredit : false;
-  const canApprove = Boolean(selectedSale && selectedSimulation && selectedPolicy && !overLimit);
+  const canApprove = Boolean(
+    selectedSale
+    && selectedSimulation
+    && selectedPolicy
+    && !overLimit
+    && Number.isFinite(financedAmount) && financedAmount > 0
+    && Number.isFinite(termMonths) && termMonths >= 1
+    && Number.isFinite(annualInterestRate) && annualInterestRate >= 0
+    && firstDueDate,
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (initialSelectedSaleId && candidateSales.some((sale) => sale.id === initialSelectedSaleId)) {
@@ -130,34 +142,53 @@ export function CreditSaleModal({
     }
   }, [selectedSimulationId, simulations]);
 
+  const handleCreate = async () => {
+    if (!selectedSale || !selectedSimulation || !selectedPolicy || !canApprove || isSaving) return;
+
+    setIsSaving(true);
+    setSubmitError('');
+    try {
+      const result = await onCreate({
+        candidate: selectedSale,
+        financedAmount,
+        firstDueDate,
+        creditPolicy: selectedPolicy,
+        selectedSimulation,
+      });
+      if (result === false) {
+        setSubmitError(copy.errors.createCreditSale);
+        return;
+      }
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error && error.message ? error.message : copy.errors.createCreditSale);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <ReceivablesModalFrame
+      busy={isSaving}
+      closeLabel={copy.common.close}
       description={copy.modals.creditSale.description}
+      footerSummary={selectedSimulation && selectedSale
+        ? `${selectedSale.customerName} · ${formatMoney(selectedSimulation.monthlyPayment, selectedSale.currency)} / ${copy.modals.creditSale.months.toLowerCase()}`
+        : undefined}
       icon={<CreditCard className="h-5 w-5" />}
-      maxWidthClassName="max-w-5xl"
+      modalType="operational-workspace"
       onClose={onClose}
       title={copy.modals.creditSale.title}
       footer={(
         <>
-          <Button type="button" variant="outline" className={moduleModalOutlineButtonClassName} onClick={onClose}>
+          <Button type="button" variant="outline" className={moduleModalOutlineButtonClassName} onClick={onClose} disabled={isSaving}>
             {copy.common.cancel}
           </Button>
           <Button
             type="button"
-            disabled={!canApprove}
+            disabled={!canApprove || isSaving}
             className={moduleModalPrimaryButtonClassName}
-            onClick={() => {
-              if (!selectedSale || !selectedSimulation || !selectedPolicy) {
-                return;
-              }
-              onCreate({
-                candidate: selectedSale,
-                financedAmount,
-                firstDueDate,
-                creditPolicy: selectedPolicy,
-                selectedSimulation,
-              });
-            }}
+            onClick={() => void handleCreate()}
           >
             {copy.modals.creditSale.approve}
           </Button>
@@ -165,7 +196,9 @@ export function CreditSaleModal({
       )}
     >
       {selectedSale ? (
-        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+        <div className="space-y-4">
+          <IndiceModalValidation messages={submitError ? [submitError] : []} />
+          <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
           <div className="space-y-4">
             <FilterSelect
               label={copy.modals.creditSale.sourceSale}
@@ -261,7 +294,6 @@ export function CreditSaleModal({
                   : copy.modals.creditSale.availableLine(formatMoney(selectedPolicy.availableCredit), selectedPolicy.defaultTermMonths)}
             </div>
           </div>
-
           <div className="space-y-3">
             <h3 className="text-lg font-black text-slate-950 dark:text-white">{copy.modals.creditSale.simulations}</h3>
             {simulations.map((simulation) => {
@@ -299,6 +331,7 @@ export function CreditSaleModal({
                 </button>
               );
             })}
+          </div>
           </div>
         </div>
       ) : (

@@ -41,6 +41,7 @@ import {
 } from '../../../components/ui/select';
 import { cn } from '../../../components/ui/utils';
 import { LearningModeTitleBarBridge } from '../../../learningMode';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import {
   listProcessTaskKpis,
   type ProcessTaskKpiCard,
@@ -778,6 +779,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   const agendaCopy = useAgendaTranslations();
   const headerCopy = copy.header;
   const periodLabels = agendaCopy.periods;
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [dashboard, setDashboard] = useState<ProcessTaskKpiDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrintingPdf, setIsPrintingPdf] = useState(false);
@@ -1092,6 +1094,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
       const statusLabel = statusFilter === 'all' ? copy.common.all : agendaCopy.statuses[statusFilter];
 
       printKpisDashboardPdf({
+        companyIdentity: companyPrintIdentity,
         dashboard,
         copy,
         periodLabel: periodLabels[period],
@@ -1137,7 +1140,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
       <Button
         type="button"
         variant="outline"
-        disabled={!dashboard || isPrintingPdf}
+        disabled={!dashboard || isPrintingPdf || !isCompanyPrintIdentityReady}
         title={copy.pdf.print}
         onClick={handlePrintPdf}
         className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
