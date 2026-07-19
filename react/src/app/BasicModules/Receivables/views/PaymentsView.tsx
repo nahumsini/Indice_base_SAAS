@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Columns3, FileCheck2, FileWarning, FolderOpen, Plus } from 'lucide-react';
+import { Columns3, FileCheck2, FileWarning, FolderOpen, Plus, Printer } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import {
@@ -41,6 +41,8 @@ import {
   matchesPeriod,
   textMatch,
 } from '../utils';
+import { useReceivablesResolvedLocale } from '../hooks/useReceivablesTranslations';
+import { printReceivablePaymentReceipt } from '../utils/receivablesPrintDocuments';
 
 type PaymentsColumnId =
   | 'date'
@@ -89,7 +91,7 @@ interface PaymentsViewProps {
   allAccounts: ReceivableAccount[];
   copy: ReceivablesTranslations;
   payments: ReceivablePayment[];
-  onRegisterPayment: (payment: Omit<ReceivablePayment, 'id'>) => void | Promise<void>;
+  onRegisterPayment: (payment: Omit<ReceivablePayment, 'id'>) => boolean | void | Promise<boolean | void>;
 }
 
 export function PaymentsView({
@@ -99,6 +101,7 @@ export function PaymentsView({
   payments,
   onRegisterPayment,
 }: PaymentsViewProps) {
+  const locale = useReceivablesResolvedLocale();
   const viewCopy = copy.views.payments;
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'date', label: viewCopy.table.date, visible: true, locked: true },
@@ -292,6 +295,22 @@ export function PaymentsView({
                       type="button"
                       variant="ghost"
                       size="icon"
+                      title="Imprimir recibo / Print receipt"
+                      aria-label="Imprimir recibo / Print receipt"
+                      onClick={() => printReceivablePaymentReceipt({
+                        account: allAccounts.find((account) => account.id === payment.receivableId),
+                        copy,
+                        locale,
+                        payment,
+                      })}
+                      className="h-10 w-10 rounded-xl border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
                       title={viewCopy.rowActions.files}
                       aria-label={viewCopy.rowActions.files}
                       onClick={() => setFilesPayment(payment)}
@@ -322,10 +341,7 @@ export function PaymentsView({
           accounts={accounts}
           copy={copy}
           onClose={() => setShowPaymentModal(false)}
-          onSubmit={(payment) => {
-            void onRegisterPayment(payment);
-            setShowPaymentModal(false);
-          }}
+          onSubmit={onRegisterPayment}
         />
       ) : null}
       {filesPayment ? (

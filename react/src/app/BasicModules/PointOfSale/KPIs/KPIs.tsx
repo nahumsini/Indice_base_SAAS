@@ -12,6 +12,9 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
+import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
+import { useLanguage } from '../../../shared/context';
 import { PosKpiCashClosingTable } from './components/PosKpiCashClosingTable';
 import { PosKpiContextStrip } from './components/PosKpiContextStrip';
 import { PosKpiFilters } from './components/PosKpiFilters';
@@ -30,6 +33,8 @@ const percent = (value: number) => `${value.toFixed(1)}%`;
 
 export default function KPIs() {
   const { convertToPreferred, formatPreferred, preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
+  const { currentLanguage } = useLanguage();
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [period, setPeriod] = useState<PosKpiPeriod>('today');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -141,9 +146,90 @@ export default function KPIs() {
     },
   ], [analytics, formatCurrency, hasDifference]);
 
+  const handlePrintReport = () => {
+    const registerNameById = new Map(details.map((detail) => [
+      String(detail.cashRegisterId),
+      detail.cashRegister?.name || detail.cashRegister?.code || `Caja ${detail.cashRegisterId}`,
+    ]));
+    const dateFormatter = new Intl.DateTimeFormat(currentLanguage.code, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+
+    printStandardKpiReport({
+      charts: [
+        {
+          rows: analytics.paymentMix.map((item) => ({
+            label: item.method,
+            value: item.amount,
+            valueLabel: `${formatCurrency(item.amount)} · ${item.percentage}%`,
+          })),
+          title: 'Mezcla de pago',
+        },
+        {
+          rows: analytics.hourlySales.map((item) => ({
+            label: `${item.hour}:00`,
+            value: item.sales,
+            valueLabel: formatCurrency(item.sales),
+          })),
+          title: 'Venta por hora',
+        },
+        {
+          rows: analytics.topCashRegisters.map((item) => ({
+            label: item.name,
+            value: item.value,
+            valueLabel: formatCurrency(item.value),
+          })),
+          title: 'Cajas con mayor venta',
+        },
+        {
+          rows: analytics.topWarehouses.map((item) => ({
+            label: item.name,
+            value: item.value,
+            valueLabel: formatCurrency(item.value),
+          })),
+          title: 'Almacenes con mayor venta',
+        },
+      ],
+      companyIdentity: companyPrintIdentity,
+      documentName: 'KPIs de punto de venta',
+      locale: currentLanguage.code,
+      meta: [
+        { label: 'Periodo', value: analytics.periodLabel },
+        { label: 'Moneda preferida', value: preferredCurrency },
+        { label: 'Cierres incluidos', value: String(analytics.closings) },
+        { label: 'Registros disponibles', value: String(analytics.totalCount) },
+      ],
+      metrics: kpiCards.map((card) => ({ detail: card.detail, label: card.label, value: card.value })),
+      reportTitle: 'KPIs de punto de venta',
+      subtitle: 'Lectura ejecutiva de cierres, tickets, mezcla de pago y diferencias de caja por periodo.',
+      tables: [
+        {
+          emptyLabel: 'No hay cierres de caja en el periodo.',
+          headers: ['Cierre', 'Fecha', 'Caja', 'Almacén', 'Tickets', 'Venta', 'Diferencia'],
+          rows: rows.map((row) => {
+            const currency = row.currencyCode ?? preferredCurrency;
+            const sales = convertToPreferred(Number(row.totalSalesAmount ?? 0), currency);
+            const difference = convertToPreferred(Number(row.overShortAmount ?? 0), currency);
+            return [
+              String(row.id),
+              dateFormatter.format(new Date(row.closedAt)),
+              registerNameById.get(String(row.cashRegisterId)) ?? `Caja ${row.cashRegisterId}`,
+              `Almacén ${row.warehouseId}`,
+              String(row.ticketsCount),
+              formatCurrency(sales),
+              `${difference > 0 ? '+' : ''}${formatCurrency(difference)}`,
+            ];
+          }),
+          title: 'Detalle de cierres de caja',
+        },
+      ],
+    });
+  };
+
   return (
     <div className="space-y-5">
-      <PosKpiTitleBar />
+      <PosKpiTitleBar disabled={!isCompanyPrintIdentityReady || loading} onPrint={handlePrintReport} />
 
       <PosKpiFilters
         loading={loading}

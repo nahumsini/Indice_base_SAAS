@@ -3,6 +3,8 @@ import autoTable from 'jspdf-autotable';
 import type { SaleRecord } from '../../Sales/types/salesTypes';
 import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { PostSalesTranslations } from '../translations';
+import { buildDocumentFileName } from '../../../shared/print/documentFileName';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../../shared/print/documentPdfEngine';
 
 const brand = {
   coral: [255, 107, 94] as const,
@@ -30,7 +32,7 @@ function formatCurrency(value: number, currency?: string | null) {
 }
 
 function getSalePdfFileName(sale: SaleRecord) {
-  return `${sale.saleNumber.replace(/[^a-z0-9-]+/gi, '-')}-summary.pdf`;
+  return buildDocumentFileName({ documentType: 'post-sale-summary', identifier: sale.saleNumber });
 }
 
 function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
@@ -38,6 +40,10 @@ function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
   const left = 42;
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - left * 2;
+  applyStandardPdfMetadata(doc, {
+    subject: copy.saleDetail.title,
+    title: `${copy.saleDetail.title} ${sale.saleNumber}`,
+  });
 
   setFill(doc, brand.coral);
   doc.roundedRect(left, 36, contentWidth, 86, 12, 12, 'F');
@@ -107,7 +113,11 @@ function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
     },
   });
 
-  const notesY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 360;
+  let notesY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 360;
+  if (notesY + 116 > doc.internal.pageSize.getHeight() - 22) {
+    doc.addPage();
+    notesY = 28;
+  }
   setFill(doc, [255, 243, 241]);
   doc.setDrawColor(255, 199, 193);
   doc.roundedRect(left, notesY + 24, contentWidth, 72, 8, 8, 'FD');
@@ -120,9 +130,10 @@ function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
   doc.setFontSize(9);
   doc.text(sale.notes || copy.common.notAvailable, left + 18, notesY + 66, { maxWidth: contentWidth - 36 });
 
-  setText(doc, brand.slate);
-  doc.setFontSize(8);
-  doc.text(copy.saleDetail.pdfFooter, left, doc.internal.pageSize.getHeight() - 32);
+  addStandardPdfFooters(doc, {
+    folio: sale.saleNumber,
+    locale: 'es-MX',
+  });
 
   return doc;
 }

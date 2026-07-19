@@ -1,4 +1,4 @@
-import { CheckCircle2, Copy, HandCoins, Loader2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { CheckCircle2, Copy, HandCoins, Loader2, Pencil, Printer, ShieldCheck, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
@@ -8,6 +8,7 @@ type ExpenseRowActionsProps = {
   onDelete: (expenseId: string) => void;
   onDuplicate: (expenseId: string) => void;
   onMarkPaid: (expenseId: string) => void;
+  onPrint: () => void;
   onRecordPayment: (expenseId: string) => void;
   onStartEdit: () => void;
   isDeletePending?: boolean;
@@ -25,6 +26,7 @@ export function ExpenseRowActions({
   onDelete,
   onDuplicate,
   onMarkPaid,
+  onPrint,
   onRecordPayment,
   onStartEdit,
   isDeletePending = false,
@@ -36,6 +38,9 @@ export function ExpenseRowActions({
 
   return (
     <div className="inline-flex items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <ActionButton label="Imprimir comprobante / Print voucher" colorClass="border-emerald-200 bg-emerald-50/80 text-[#147514] hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300" onClick={onPrint}>
+        <Printer className="h-4 w-4" />
+      </ActionButton>
       <ActionButton label={t.common.duplicate} colorClass="border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300" onClick={() => onDuplicate(expenseId)}>
         <Copy className="h-4 w-4 text-blue-600" />
       </ActionButton>

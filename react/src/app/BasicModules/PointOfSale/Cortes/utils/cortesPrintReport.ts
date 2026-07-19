@@ -273,13 +273,13 @@ export function buildCortesPrintReportHtml({
     .logo-bars span:nth-child(2) { background: #f4c84a; height: 22px; }
     .logo-bars span:nth-child(3) { background: #58c7a7; height: 28px; }
     .logo-bars span:nth-child(4) { background: #2563eb; height: 32px; }
-    .brand { letter-spacing: 0.28em; font-size: 13pt; font-weight: 800; }
-    .brand-subtitle { color: #6b7280; font-size: 8pt; font-weight: 700; letter-spacing: 0.16em; margin-top: 4px; text-transform: uppercase; }
+    .brand { letter-spacing: 0.08em; font-size: 12pt; font-weight: 500; }
+    .brand-subtitle { color: #6b7280; font-size: 8pt; font-weight: 400; margin-top: 4px; }
     .document-title { text-align: center; }
-    .document-title h1 { font-size: 28pt; line-height: 1.08; margin: 0; }
-    .document-title p { color: #6b7280; font-size: 10pt; font-weight: 700; margin: 8px 0 0; }
+    .document-title h1 { font-size: 25pt; font-weight: 500; line-height: 1.08; margin: 0; }
+    .document-title p { color: #6b7280; font-size: 10pt; font-weight: 400; margin: 8px 0 0; }
     .meta { color: #6b7280; font-size: 8pt; line-height: 1.65; text-align: right; }
-    .meta strong { color: #222831; display: block; font-size: 10pt; }
+    .meta strong { color: #222831; display: block; font-size: 10pt; font-weight: 500; }
     .color-bar { border-radius: 999px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; height: 8px; margin: 22px 0 26px; overflow: hidden; }
     .color-bar span:nth-child(1) { background: #ff6b5e; }
     .color-bar span:nth-child(2) { background: #f4c84a; }
@@ -287,13 +287,13 @@ export function buildCortesPrintReportHtml({
     .color-bar span:nth-child(4) { background: #2563eb; }
     .insights { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); margin-bottom: 22px; }
     .insight-card { border: 1px solid #d8dce3; border-radius: 18px; min-height: 150px; padding: 20px; }
-    .insight-title { align-items: center; display: flex; font-size: 12pt; font-weight: 800; gap: 10px; margin-bottom: 16px; }
+    .insight-title { align-items: center; display: flex; font-size: 12pt; font-weight: 500; gap: 10px; margin-bottom: 16px; }
     .dot { border-radius: 999px; display: inline-block; height: 14px; width: 14px; }
     .dot.coral { background: #ff6b5e; }
     .dot.yellow { background: #f4c84a; }
     .dot.aqua { background: #58c7a7; }
     .insight-card p { color: #4b5563; font-size: 10pt; line-height: 1.45; margin: 0; }
-    .section-title { font-size: 16pt; font-weight: 800; margin: 26px 0 12px; }
+    .section-title { font-size: 16pt; font-weight: 500; margin: 26px 0 12px; }
     .kpis { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
     .kpi { background: #f7f8fa; border: 1px solid #d8dce3; border-radius: 16px; min-height: 98px; padding: 16px 16px 16px 20px; position: relative; }
     .kpi::before { border-radius: 999px; bottom: 14px; content: ""; left: 0; position: absolute; top: 14px; width: 6px; }
@@ -301,18 +301,18 @@ export function buildCortesPrintReportHtml({
     .kpi.yellow::before { background: #f4c84a; }
     .kpi.aqua::before { background: #58c7a7; }
     .kpi.blue::before { background: #2563eb; }
-    .kpi-label { color: #6b7280; font-size: 8pt; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-    .kpi-value { font-size: 17pt; font-weight: 800; line-height: 1.15; margin-top: 12px; word-break: break-word; }
+    .kpi-label { color: #6b7280; font-size: 8pt; font-weight: 400; }
+    .kpi-value { font-size: 17pt; font-weight: 500; line-height: 1.15; margin-top: 12px; word-break: break-word; }
     .filters { border: 1px solid #d8dce3; border-radius: 16px; display: grid; gap: 0; grid-template-columns: repeat(3, 1fr); overflow: hidden; }
     .filter-item { border-bottom: 1px solid #d8dce3; border-right: 1px solid #d8dce3; padding: 11px 14px; }
     .filter-item:nth-child(3n) { border-right: 0; }
     .filter-item:nth-last-child(-n+3) { border-bottom: 0; }
-    .filter-label { color: #6b7280; display: block; font-size: 8pt; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-    .filter-value { color: #222831; display: block; font-size: 10pt; font-weight: 700; margin-top: 5px; }
-    .scope-note { color: #6b7280; font-size: 9pt; font-weight: 700; line-height: 1.4; margin: 10px 0 0; }
+    .filter-label { color: #6b7280; display: block; font-size: 8pt; font-weight: 400; }
+    .filter-value { color: #222831; display: block; font-size: 10pt; font-weight: 500; margin-top: 5px; }
+    .scope-note { color: #6b7280; font-size: 9pt; font-weight: 400; line-height: 1.4; margin: 10px 0 0; }
     table { border-collapse: collapse; font-size: 9pt; margin-top: 12px; width: 100%; }
     thead { background: #222831; color: white; }
-    th { font-size: 8pt; font-weight: 800; letter-spacing: 0.08em; padding: 9px 8px; text-align: left; text-transform: uppercase; }
+    th { font-size: 8pt; font-weight: 500; padding: 9px 8px; text-align: left; }
     td { border-bottom: 1px solid #d8dce3; padding: 9px 8px; vertical-align: top; }
     tbody tr:nth-child(even) { background: #f7f8fa; }
     .number, .amount { text-align: right; white-space: nowrap; }
@@ -320,7 +320,7 @@ export function buildCortesPrintReportHtml({
     .risk { color: #be123c; }
     .warning { color: #a16207; }
     .ok { color: #047857; }
-    .empty-row { color: #6b7280; font-weight: 700; padding: 24px; text-align: center; }
+    .empty-row { color: #6b7280; font-weight: 400; padding: 24px; text-align: center; }
     .footer { border-top: 1px solid #d8dce3; color: #6b7280; display: flex; font-size: 8pt; justify-content: space-between; margin-top: 28px; padding-top: 12px; }
     @media print {
       body { background: #ffffff; }
@@ -344,7 +344,7 @@ export function buildCortesPrintReportHtml({
         <div class="logo-bars" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
         <div>
           <div class="brand">INDICE</div>
-          <div class="brand-subtitle">ERP Intelligence</div>
+          <div class="brand-subtitle">Control operativo</div>
         </div>
       </div>
       <div class="document-title">
@@ -419,8 +419,8 @@ export function buildCortesPrintReportHtml({
     </section>
 
     <footer class="footer">
-      <span>Generado por Indice ERP</span>
-      <span>Página 1 de 1 · ${escapeHtml(documentId)}</span>
+      <span>Generated by Indice · Actualizado: ${escapeHtml(formatGeneratedDate(generatedAt))} ${escapeHtml(formatGeneratedTime(generatedAt))}</span>
+      <span>${escapeHtml(documentId)}</span>
     </footer>
   </main>
 </body>

@@ -14,6 +14,7 @@ import {
   Download,
   Landmark,
   LineChart,
+  Printer,
   RefreshCw,
   Search,
   SlidersHorizontal,
@@ -38,6 +39,8 @@ import type {
   ExecutiveUnitRow,
 } from './types';
 import { LearningModeTitleBarBridge } from '../../../learningMode';
+import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 
 const periodOptions: Array<{ label: string; value: ExecutivePanelPeriod }> = [
   { label: 'Mensual', value: 'monthly' },
@@ -110,6 +113,7 @@ const defaultMatrixColumns = matrixColumns.map((column) => column.key);
 const matrixPageSizeOptions = [10, 25, 50, 100] as const;
 
 export default function KPIs() {
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [filters, setFilters] = useState<ExecutivePanelFilters>(initialFilters);
   const [data, setData] = useState<ExecutiveKpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -168,9 +172,80 @@ export default function KPIs() {
     exportExecutivePanelCsv(data, filteredRows);
   };
 
+  const handlePrint = () => {
+    if (!data) return;
+
+    printStandardKpiReport({
+      charts: [
+        {
+          rows: data.salesBySource.map((row) => ({
+            label: row.source || 'Sin fuente',
+            value: row.total,
+            valueLabel: formatMoney(row.total),
+          })),
+          title: 'Ventas por fuente',
+        },
+        {
+          rows: data.expensesByAccount.map((row) => ({
+            label: row.accountName || 'Sin cuenta',
+            value: row.total,
+            valueLabel: formatMoney(row.total),
+          })),
+          title: 'Gastos por cuenta',
+        },
+      ],
+      companyIdentity: companyPrintIdentity,
+      documentName: 'Panel Ejecutivo de KPIs',
+      locale: 'es-MX',
+      meta: [
+        { label: 'Periodo', value: `${data.range.from} / ${data.range.to}` },
+        { label: 'Alcance', value: data.context.scopeLabel || 'Empresa completa' },
+        { label: 'Moneda', value: data.context.nativeCurrencies?.join(', ') || data.context.currency || 'MXN' },
+      ],
+      metrics: data.kpiCards.map((card) => ({
+        detail: `${statusLabels[card.status]} · ${card.description}`,
+        label: card.title,
+        value: formatValue(card.value, card.id),
+      })),
+      reportTitle: 'Panel ejecutivo de KPIs',
+      subtitle: 'Lectura directiva consolidada de ventas, gastos, cartera, cajas chicas y ejecución operativa.',
+      tables: [
+        {
+          emptyLabel: 'No hay unidades para los filtros seleccionados.',
+          headers: ['Unidad', 'Negocio', 'Ventas', 'Gastos', 'Utilidad', 'Margen', 'CxC', 'CxP', 'Estado'],
+          rows: filteredRows.map((row) => [
+            row.unitName,
+            row.businessName,
+            formatMoney(row.salesTotal),
+            formatMoney(row.expensesTotal),
+            formatMoney(row.operatingProfit),
+            formatPercent(row.operatingMargin),
+            formatMoney(row.receivablesTotal),
+            formatMoney(row.payablesTotal),
+            statusLabels[row.status],
+          ]),
+          title: 'Matriz por unidad y negocio',
+        },
+        {
+          emptyLabel: 'No hay alertas ejecutivas.',
+          headers: ['Estado', 'Alerta', 'Lectura'],
+          rows: data.alerts.map((alert) => [statusLabels[alert.status], alert.title, alert.description]),
+          title: 'Alertas ejecutivas',
+        },
+      ],
+    });
+  };
+
   return (
     <div className="space-y-5">
-      <TitleBar canExport={Boolean(data)} loading={loading} onExport={handleExport} onRefresh={load} />
+      <TitleBar
+        canExport={Boolean(data)}
+        canPrint={Boolean(data) && isCompanyPrintIdentityReady}
+        loading={loading}
+        onExport={handleExport}
+        onPrint={handlePrint}
+        onRefresh={load}
+      />
 
       <FiltersBar
         businesses={businesses}
@@ -257,19 +332,26 @@ export default function KPIs() {
 
 function TitleBar({
   canExport,
+  canPrint,
   loading,
   onExport,
+  onPrint,
   onRefresh,
 }: {
   canExport: boolean;
+  canPrint: boolean;
   loading: boolean;
   onExport: () => void;
+  onPrint: () => void;
   onRefresh: () => void;
 }) {
   const actionLayout = (
     <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
       <Button type="button" variant="outline" className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50" disabled={!canExport || loading} onClick={onExport}>
         <Download className="mr-2 h-4 w-4" />Exportar
+      </Button>
+      <Button type="button" variant="outline" className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 hover:bg-blue-50" disabled={!canPrint || loading} onClick={onPrint}>
+        <Printer className="mr-2 h-4 w-4" />Imprimir
       </Button>
       <Button type="button" onClick={onRefresh} disabled={loading} className="h-11 rounded-xl bg-blue-700 text-white hover:bg-blue-800">
         <RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />Actualizar

@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { buildDocumentFileName } from '../../../BasicModules/shared/print/documentFileName';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../../BasicModules/shared/print/documentPdfEngine';
 import { Button } from '../../../components/ui/button';
 import { Checkbox } from '../../../components/ui/checkbox';
 import {
@@ -2656,19 +2658,24 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
   };
 
   const handleDownloadTaskReport = (task: ProcessAgendaItem) => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ format: 'a4', orientation: 'portrait', unit: 'mm' });
     const sortedHistory = sortHistoryEntries(task.history).reverse();
+    const reportTitle = `${copy.reportModalTitle} - ${task.folio}`;
+    applyStandardPdfMetadata(doc, { subject: copy.reportModalTitle, title: reportTitle });
 
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
-    doc.text(`${copy.reportModalTitle} - ${task.folio}`, 14, 18);
+    doc.setTextColor(32, 36, 41);
+    doc.text(reportTitle, 14, 18);
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
-    doc.setTextColor(90, 98, 112);
+    doc.setTextColor(100, 107, 115);
     doc.text(task.title, 14, 26);
     doc.text(`${copy.creationDate}: ${formatReadableDate(task.createdAt, locale)}`, 14, 33);
 
     autoTable(doc, {
       startY: 40,
-      theme: 'grid',
+      theme: 'plain',
       head: [[copy.folio, copy.status, copy.responsible, copy.priority, copy.project, copy.completion]],
       body: [[
         task.folio,
@@ -2682,7 +2689,8 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         fontSize: 10,
       },
       headStyles: {
-        fillColor: [235, 165, 52],
+        fillColor: [243, 244, 244],
+        textColor: [72, 79, 87],
       },
     });
 
@@ -2701,7 +2709,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         cellPadding: 2.5,
       },
       headStyles: {
-        fillColor: [30, 41, 59],
+        fillColor: [72, 79, 87],
       },
     });
 
@@ -2720,11 +2728,16 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         cellPadding: 2.5,
       },
       headStyles: {
-        fillColor: [235, 165, 52],
+        fillColor: [243, 244, 244],
+        textColor: [72, 79, 87],
       },
     });
 
-    doc.save(`${task.folio.toLowerCase()}-task-report.pdf`);
+    addStandardPdfFooters(doc, { confidentiality: 'Internal', folio: task.folio, locale });
+    doc.save(buildDocumentFileName({
+      documentType: 'task-report',
+      identifier: task.folio,
+    }));
   };
 
   const isTaskFormValid = Boolean(taskForm.title.trim());

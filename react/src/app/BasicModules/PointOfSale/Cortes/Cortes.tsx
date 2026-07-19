@@ -516,7 +516,6 @@ export default function Cortes() {
         open={isDetailOpen}
         onClose={closeDetail}
         onDownload={() => setNotice('La descarga PDF del corte queda preparada para la siguiente fase documental.')}
-        onPrint={() => window.print()}
       />
     </div>
   );

@@ -12,6 +12,8 @@ import {
   formatPettyCashIsoDate,
   getStatementSettlementBalance,
 } from './pettyCash.utils';
+import { buildDocumentFileName } from '../../shared/print/documentFileName';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../shared/print/documentPdfEngine';
 
 type PdfDocumentWithTable = jsPDF & {
   lastAutoTable?: {
@@ -122,12 +124,6 @@ const labelsFor = (locale: string) => {
   };
 };
 
-const safeFileName = (value: string) => (
-  value.toLowerCase().replace(/[^a-z0-9-]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-);
-
-const dateStamp = () => new Date().toISOString().slice(0, 10);
-
 const formatGeneratedAt = (locale: string) => (
   new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
@@ -163,23 +159,6 @@ const drawAccentBar = (doc: jsPDF, x: number, y: number, width: number) => {
     setFill(doc, color);
     doc.rect(x + segmentWidth * index, y, segmentWidth, 2.2, 'F');
   });
-};
-
-const addFooter = (doc: jsPDF, labels: ReturnType<typeof labelsFor>) => {
-  const pageCount = doc.getNumberOfPages();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  for (let page = 1; page <= pageCount; page += 1) {
-    doc.setPage(page);
-    setDraw(doc, brand.border);
-    doc.line(layout.left, pageHeight - 14, pageWidth - layout.right, pageHeight - 14);
-    setText(doc, brand.slate);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.text(labels.generatedBy, layout.left, pageHeight - 8);
-    doc.text(`${page} / ${pageCount}`, pageWidth - layout.right, pageHeight - 8, { align: 'right' });
-  }
 };
 
 const addSectionTitle = (doc: jsPDF, title: string, y: number) => {
@@ -391,8 +370,7 @@ export function downloadPettyCashStatementPdf({
     movement.pettyCashStatementId === statement.id || movement.pettyCashFundId === fund.id
   ));
 
-  doc.setProperties({
-    creator: 'Indice OS',
+  applyStandardPdfMetadata(doc, {
     subject: labels.documentTitle,
     title: `${labels.documentTitle} ${statement.folio}`,
   });
@@ -416,7 +394,7 @@ export function downloadPettyCashStatementPdf({
     labels.movementSource,
     labels.amount,
     labels.reference,
-  ], statementMovements.slice(0, 18).map(movement => [
+  ], statementMovements.map(movement => [
     formatPettyCashIsoDate(movement.movementDate),
     copy.status.movement[movement.type],
     movement.fromPaymentAccountName ?? copy.common.notAvailable,
@@ -452,6 +430,14 @@ export function downloadPettyCashStatementPdf({
   doc.text(labels.legalNote, layout.left + 5, finalY + 6, { maxWidth: 176 });
   doc.text(labels.source, layout.left + 5, finalY + 12, { maxWidth: 176 });
 
-  addFooter(doc, labels);
-  doc.save(`${safeFileName(statement.folio || labels.documentTitle)}-${dateStamp()}.pdf`);
+  addStandardPdfFooters(doc, {
+    confidentiality: 'Internal',
+    folio: statement.folio,
+    locale,
+  });
+  doc.save(buildDocumentFileName({
+    documentType: 'petty-cash-statement',
+    identifier: statement.folio,
+    period: statement.periodKey,
+  }));
 }

@@ -6,6 +6,7 @@ import { getSalesModalActionClassNames } from '../../../salesModalStyles';
 import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
+import { printDocumentHtml } from '../../../../shared/print/documentHtmlPrintEngine';
 
 const printActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -25,25 +26,26 @@ export function MovementPrintModal({
 
   const lines = movementLines?.length ? movementLines : [movement];
   const movementValue = lines.reduce((total, line) => total + Math.abs(line.quantity) * (line.unitCost ?? 0), 0);
+  const isControlAct = movement.movementType === 'adjustment' || movement.movementType === 'transfer';
+  const documentTitle = isControlAct
+    ? `${t.operational.movementTypes[movement.movementType]} · ${t.operational.modals.movementDocumentTitle}`
+    : t.operational.modals.movementDocumentTitle;
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank', 'width=900,height=1100');
-    if (!printWindow || !documentRef.current) return;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${movement.movementNumber ?? movement.id}</title>
-          <style>
-            body { margin: 0; background: #f1f5f9; font-family: Inter, Arial, sans-serif; }
-            article { margin: 24px auto; max-width: 820px; background: white; padding: 48px; box-shadow: 0 1px 8px rgba(15,23,42,.16); }
-            @media print { body { background: white; } article { margin: 0; box-shadow: none; max-width: none; } }
-          </style>
-        </head>
-        <body>${documentRef.current.outerHTML}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    if (!documentRef.current) return;
+    printDocumentHtml({
+      bodyHtml: documentRef.current.outerHTML,
+      contentStyles: `
+        body { padding: 12mm 14mm 10mm; }
+        article { margin: 0 auto !important; min-height: 0 !important; max-width: none !important; padding: 0 !important; box-shadow: none !important; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; page-break-inside: avoid; }
+        footer { break-inside: avoid; }
+      `,
+      documentTitle: `inventory_movement_${movement.movementNumber ?? movement.id}`,
+      includeApplicationStyles: true,
+      locale: 'es-MX',
+      pageSize: 'a4',
+    });
   };
 
   return (
@@ -74,7 +76,7 @@ export function MovementPrintModal({
               <div className="flex items-start justify-between gap-6">
                 <div>
                   <p className="text-xs font-semibold text-[#B63B32]">Índice Sales OS</p>
-                  <h1 className="mt-3 text-4xl font-semibold tracking-normal text-slate-950">{t.operational.modals.movementDocumentTitle}</h1>
+                  <h1 className="mt-3 text-4xl font-semibold tracking-normal text-slate-950">{documentTitle}</h1>
                   <p className="mt-2 text-sm font-semibold text-slate-500">{t.operational.movementTypes[movement.movementType]}</p>
                 </div>
                 <div className="text-right">
@@ -136,6 +138,18 @@ export function MovementPrintModal({
                 </div>
               </div>
             </section>
+            <footer className="mt-8 border-t border-slate-200 pt-10">
+              <p className="mb-10 text-xs leading-5 text-slate-500">
+                {isControlAct
+                  ? 'Acta operativa de control de inventario. Las firmas confirman revisión del movimiento; no sustituyen autorizaciones requeridas por la política interna.'
+                  : 'Documento operativo de trazabilidad de inventario.'}
+              </p>
+              <div className="grid grid-cols-3 gap-8 text-center text-xs text-slate-600">
+                <div><div className="border-t border-slate-400 pt-2">{movement.responsibleName}</div></div>
+                <div><div className="border-t border-slate-400 pt-2">Entrega / origen</div></div>
+                <div><div className="border-t border-slate-400 pt-2">Recibe / autoriza</div></div>
+              </div>
+            </footer>
           </article>
     </SalesModalFrame>
   );

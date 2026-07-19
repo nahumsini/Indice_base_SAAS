@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { buildDocumentFileName } from '../../BasicModules/shared/print/documentFileName';
+import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../BasicModules/shared/print/documentPdfEngine';
 import { PreferenciasNominaModal } from '../PreferenciasNominaModal';
 import { EditarNominaModal } from '../EditarNominaModal';
 import { usePayrollTranslations } from '../../BasicModules/HumanResources/Payroll/hooks/usePayrollTranslations';
@@ -332,12 +334,14 @@ export function NominasTab({ colaboradores }: NominasTabProps) {
   };
 
   const handleDescargarPDF = (nomina: Nomina) => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ format: 'letter', orientation: 'landscape', unit: 'mm' });
     const colaboradoresData = generateColaboradoresData(nomina);
+    const reportTitle = `Nómina - ${nomina.periodo}`;
+    applyStandardPdfMetadata(doc, { subject: 'Reporte interno de nómina', title: reportTitle });
     
     // Título
     doc.setFontSize(18);
-    doc.text('Nómina - ' + nomina.periodo, 14, 20);
+    doc.text(reportTitle, 14, 20);
     
     // Información de la nómina
     doc.setFontSize(11);
@@ -368,11 +372,18 @@ export function NominasTab({ colaboradores }: NominasTabProps) {
       head: [['Unidad', 'Negocio', 'Colaborador', 'Días', 'Descanso', 'Retardos', 'Faltas', 'Sueldo', 'Percepciones', 'Deducciones', 'Neto', 'Fiscal']],
       body: tableData,
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [20, 54, 117] },
+      headStyles: { fillColor: [51, 65, 85], fontStyle: 'normal' },
     });
     
-    // Descargar
-    doc.save(`nomina-${nomina.periodo}.pdf`);
+    addStandardPdfFooters(doc, {
+      confidentiality: 'Confidencial',
+      folio: nomina.periodo,
+      locale: 'es-MX',
+    });
+    doc.save(buildDocumentFileName({
+      documentType: 'nomina',
+      identifier: nomina.periodo,
+    }));
   };
 
   const handleProcesarNomina = () => {

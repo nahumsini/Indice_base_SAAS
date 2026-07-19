@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Phone,
   Plus,
+  Printer,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -79,6 +80,8 @@ import type {
 } from './types/postSalesTypes';
 import { usePostSalesTranslations } from './translations';
 import { openSaleSummaryPdf } from './utils/postSalePdf';
+import { printPostSaleDeliveryAct } from './utils/postSaleDeliveryAct';
+import { useLanguage } from '../../../shared/context';
 import {
   buildCustomerHistories,
   buildLifecycleByHistoryId,
@@ -105,6 +108,7 @@ import {
 
 export default function Postventa() {
   const t = usePostSalesTranslations();
+  const { currentLanguage } = useLanguage();
   const {
     contacts,
     opportunities,
@@ -756,10 +760,16 @@ export default function Postventa() {
         footer={
           <>
             {selectedSale ? (
-              <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => openSaleSummaryPdf(selectedSale, t)}>
-                <FileText className="h-4 w-4" />
-                {t.saleDetail.viewPdf}
-              </Button>
+              <>
+                <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => printPostSaleDeliveryAct(selectedSale, t, currentLanguage.code)}>
+                  <Printer className="h-4 w-4" />
+                  Acta de entrega
+                </Button>
+                <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => openSaleSummaryPdf(selectedSale, t)}>
+                  <FileText className="h-4 w-4" />
+                  {t.saleDetail.viewPdf}
+                </Button>
+              </>
             ) : null}
             <Button className={postSaleModalActions.primary} onClick={() => setSelectedSale(null)}>{t.common.close}</Button>
           </>

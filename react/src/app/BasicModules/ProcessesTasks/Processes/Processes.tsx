@@ -17,6 +17,7 @@ import {
   Pencil,
   PlayCircle,
   Plus,
+  Printer,
   Search,
   Timer,
   Trash2,
@@ -84,6 +85,7 @@ import type {
   ProcessSortState,
   ProcessUnitOption,
 } from './types';
+import { printProcessProcedure } from './processPrintDocument';
 
 type FrequencyFilter = 'all' | ProcessFrequency;
 type CollaboratorFilter = 'all' | string;
@@ -2129,6 +2131,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                         <ProcessActionButton label={processCopy.actions.runEngine} onClick={() => { void handleMaterialize(record); }} disabled={isRecordPending(record.id)} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" icon={<CalendarPlus className="h-4 w-4" />} />
                         <ProcessActionButton label={record.isActive ? processCopy.actions.pause : processCopy.actions.activate} onClick={() => { void handleToggleActive(record.id); }} disabled={isRecordPending(record.id)} className={record.isActive ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'} icon={record.isActive ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />} />
                         <ProcessActionButton label={processCopy.actions.edit} onClick={() => openEditDialog(record)} disabled={isRecordPending(record.id)} className="border-amber-200 bg-amber-50 text-amber-700" icon={<Pencil className="h-4 w-4" />} />
+                        <ProcessActionButton label="Imprimir procedimiento / Print procedure" onClick={() => printProcessProcedure(record, processCopy, locale)} disabled={isRecordPending(record.id)} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9A6B05]" icon={<Printer className="h-4 w-4" />} />
                         <ProcessActionButton label={processCopy.actions.copy} onClick={() => { void handleDuplicate(record); }} disabled={isRecordPending(record.id)} className="border-blue-200 bg-blue-50 text-blue-700" icon={<Copy className="h-4 w-4" />} />
                         <ProcessActionButton label={processCopy.actions.delete} onClick={() => handleDelete(record)} disabled={isRecordPending(record.id)} className="border-red-200 bg-red-50 text-red-700" icon={<Trash2 className="h-4 w-4" />} />
                       </div>
@@ -2250,6 +2253,13 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                       disabled={isRecordPending(record.id)}
                       className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
                       icon={<Pencil className="h-4 w-4" />}
+                    />
+                    <ProcessActionButton
+                      label="Imprimir procedimiento / Print procedure"
+                      onClick={() => printProcessProcedure(record, processCopy, locale)}
+                      disabled={isRecordPending(record.id)}
+                      className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9A6B05] hover:bg-[#F4C84A]/20 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/10 dark:text-[#FEF3C7]"
+                      icon={<Printer className="h-4 w-4" />}
                     />
                     <ProcessActionButton
                       label={processCopy.actions.copy}

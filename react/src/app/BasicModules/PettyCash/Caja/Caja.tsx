@@ -333,6 +333,7 @@ export default function Caja({
       <PettyCashExpenseTable
         columns={columns}
         expenses={filteredExpenses}
+        funds={funds}
         onAuditExpense={handleAuditExpense}
         onDeleteExpense={handleDeleteExpense}
         onRegisterReceipt={handleRegisterReceipt}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { PackageCheck } from 'lucide-react';
+import { PackageCheck, Printer } from 'lucide-react';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -8,6 +8,7 @@ import {
 } from '../../Sale/components/PosModalFrame';
 import type { PurchaseOrder, PurchaseOrderReceivePayload } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
+import { printPurchaseOrderReceipt } from '../../shared/pointOfSalePrintDocuments';
 
 export function ReceivePurchaseOrderModal({
   onClose,
@@ -16,7 +17,7 @@ export function ReceivePurchaseOrderModal({
   saving,
 }: {
   onClose: () => void;
-  onSubmit: (orderId: number, payload: PurchaseOrderReceivePayload) => Promise<unknown>;
+  onSubmit: (orderId: number, payload: PurchaseOrderReceivePayload) => Promise<PurchaseOrder>;
   order: PurchaseOrder | null;
   saving: boolean;
 }) {
@@ -28,7 +29,7 @@ export function ReceivePurchaseOrderModal({
 
   if (!order) return null;
 
-  const submit = async () => {
+  const submit = async (printAfterSave = false) => {
     const items = receivableItems
       .map((item) => ({
         orderItemId: item.id,
@@ -37,7 +38,11 @@ export function ReceivePurchaseOrderModal({
       .filter((item) => item.receivedQuantity > 0);
     if (items.length === 0) return;
     try {
-      await onSubmit(order.id, { notes: notes || null, items });
+      const payload = { notes: notes || null, items };
+      const resultingOrder = await onSubmit(order.id, payload);
+      if (printAfterSave) {
+        printPurchaseOrderReceipt({ notes, order, payload, resultingOrder });
+      }
       onClose();
     } catch {
       // The parent workspace displays the backend error without losing captured quantities.
@@ -62,16 +67,27 @@ export function ReceivePurchaseOrderModal({
         </button>
       }
       footerSummary={`${receivableItems.length} partidas pendientes por recibir`}
-      footer={
-        <button
-          type="button"
-          disabled={saving || receivableItems.length === 0}
-          onClick={() => void submit()}
-          className={posModalPrimaryActionClassName}
-        >
-          Guardar recepción
-        </button>
-      }
+      footer={(
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            disabled={saving || receivableItems.length === 0}
+            onClick={() => void submit(true)}
+            className={posModalSecondaryActionClassName}
+          >
+            <Printer className="h-4 w-4" />
+            Guardar e imprimir
+          </button>
+          <button
+            type="button"
+            disabled={saving || receivableItems.length === 0}
+            onClick={() => void submit(false)}
+            className={posModalPrimaryActionClassName}
+          >
+            Guardar recepción
+          </button>
+        </div>
+      )}
     >
       <main className="space-y-4">
         {receivableItems.length === 0 ? (

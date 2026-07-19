@@ -201,11 +201,11 @@ function ReceivablesWorkspace({
     if (isBackendReady) {
       try {
         applyWorkspace(await receivablesApi.createCreditSale(draft));
-        return;
+        return true;
       } catch (error) {
         if (!shouldUseLocalFallback(error)) {
           setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditSale));
-          return;
+          return false;
         }
         setIsBackendReady(false);
       }
@@ -250,6 +250,7 @@ function ReceivablesWorkspace({
           : policy
       )),
     }));
+    return true;
   };
 
   const registerPayment = async (payment: Omit<ReceivablePayment, 'id'>) => {
@@ -257,11 +258,11 @@ function ReceivablesWorkspace({
       try {
         const workspace = await receivablesApi.registerPayment(payment);
         applyWorkspace(mergePaymentReceiptIntoWorkspace(workspace, payment));
-        return;
+        return true;
       } catch (error) {
         if (!shouldUseLocalFallback(error)) {
           setFailureToastMessage(receivablesErrorMessage(error, copy.errors.registerPayment));
-          return;
+          return false;
         }
         setIsBackendReady(false);
       }
@@ -289,6 +290,7 @@ function ReceivablesWorkspace({
         )),
       };
     });
+    return true;
   };
 
   const updateCreditPolicy = async (
@@ -310,6 +312,7 @@ function ReceivablesWorkspace({
         };
       }),
     }));
+    return true;
   };
 
   const deleteCreditPolicy = async (policyId: string) => {
@@ -317,17 +320,18 @@ function ReceivablesWorkspace({
       ...current,
       creditPolicies: current.creditPolicies.filter((policy) => policy.id !== policyId),
     }));
+    return true;
   };
 
   const createCreditPolicy = async (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => {
     if (isBackendReady) {
       try {
         applyWorkspace(await receivablesApi.createCreditPolicy(policy));
-        return;
+        return true;
       } catch (error) {
         if (!shouldUseLocalFallback(error)) {
           setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditPolicy));
-          return;
+          return false;
         }
         setIsBackendReady(false);
       }
@@ -341,6 +345,7 @@ function ReceivablesWorkspace({
         availableCredit: policy.creditLine,
       }, ...current.creditPolicies],
     }));
+    return true;
   };
 
   return (
@@ -398,12 +403,15 @@ function ReceivablesWorkspace({
         ) : null}
         {activeTab === 'credit-customers' ? (
           <CreditCustomersView
+            accounts={accountsWithStatus}
             candidateCustomers={candidateCustomers}
             copy={copy}
             creditPolicies={state.creditPolicies}
+            installments={installmentsWithStatus}
             onCreatePolicy={createCreditPolicy}
             onDeletePolicy={deleteCreditPolicy}
             onUpdatePolicy={updateCreditPolicy}
+            payments={state.payments}
           />
         ) : null}
 

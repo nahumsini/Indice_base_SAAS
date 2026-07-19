@@ -15,6 +15,7 @@ export interface OperationalBulkAction {
 
 interface OperationalBulkActionsBarProps {
   actions: ReadonlyArray<OperationalBulkAction>;
+  accent?: 'aqua' | 'blue';
   children?: ReactNode;
   selectedLabel: string;
   title: string;
@@ -33,6 +34,7 @@ const actionToneClassNames: Record<OperationalBulkActionTone, string> = {
 
 export function OperationalBulkActionsBar({
   actions,
+  accent = 'aqua',
   children,
   selectedLabel,
   title,
@@ -41,11 +43,17 @@ export function OperationalBulkActionsBar({
     return null;
   }
 
+  const isBlue = accent === 'blue';
+
   return (
-    <section className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mb-4 rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-3 shadow-lg shadow-slate-950/10 backdrop-blur dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15 sm:static sm:shadow-sm sm:backdrop-blur-0">
+    <section className={`sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mb-4 rounded-xl border px-4 py-3 shadow-lg shadow-slate-950/10 backdrop-blur sm:static sm:shadow-sm sm:backdrop-blur-0 ${isBlue
+      ? 'border-blue-200 bg-blue-50/95 dark:border-blue-800 dark:bg-blue-950/90'
+      : 'border-[#59C3A5]/25 bg-[#59C3A5]/10 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/15'}`}>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-          <span className="rounded-md border border-[#59C3A5]/30 bg-white px-3 py-1 text-sm font-extrabold text-[#177d66] dark:bg-slate-800 dark:text-emerald-200">
+          <span className={`rounded-md border bg-white px-3 py-1 text-sm font-extrabold dark:bg-slate-800 ${isBlue
+            ? 'border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-200'
+            : 'border-[#59C3A5]/30 text-[#177d66] dark:text-emerald-200'}`}>
             {selectedLabel}
           </span>
           <span className="text-slate-500 dark:text-slate-400">{title}</span>
@@ -67,7 +75,7 @@ export function OperationalBulkActionsBar({
         </div>
       </div>
       {children ? (
-        <div className="mt-3 border-t border-[#59C3A5]/20 pt-3 dark:border-[#59C3A5]/30">
+        <div className={`mt-3 border-t pt-3 ${isBlue ? 'border-blue-200 dark:border-blue-800' : 'border-[#59C3A5]/20 dark:border-[#59C3A5]/30'}`}>
           {children}
         </div>
       ) : null}

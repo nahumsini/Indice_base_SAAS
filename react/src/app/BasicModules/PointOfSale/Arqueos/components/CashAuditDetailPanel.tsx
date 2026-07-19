@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, ClipboardCheck, RotateCcw } from 'lucide-react';
+import { CheckCircle, ClipboardCheck, Printer, RotateCcw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CashAuditRecord, CashAuditReviewStatus } from '../types/cashAudit.types';
 import {
@@ -7,6 +7,7 @@ import {
   posModalModuleFooterClassName,
   posModalSecondaryActionClassName,
 } from '../../Sale/components/PosModalFrame';
+import { printCashAuditAct } from '../../shared/pointOfSalePrintDocuments';
 
 interface CashAuditDetailPanelProps {
   record: CashAuditRecord | null;
@@ -60,7 +61,11 @@ export function CashAuditDetailPanel({
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
       footer={(
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={() => printCashAuditAct(record, auditNote)} className={posModalSecondaryActionClassName}>
+            <Printer className="h-4 w-4" />
+            Imprimir acta
+          </button>
           <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
             Cerrar
           </button>

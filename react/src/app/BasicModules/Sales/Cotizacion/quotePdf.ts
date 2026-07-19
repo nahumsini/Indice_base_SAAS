@@ -4,6 +4,8 @@ import type { SalesContact, SalesOpportunity, SalesQuote } from '../types';
 import { formatSalesCurrencyAmount } from '../utils/salesCurrency';
 import type { QuotesTranslations } from './translations';
 import { getQuoteLineExchangeRateLabel } from './utils/quoteCurrencyConversion';
+import { buildDocumentFileName } from '../../shared/print/documentFileName';
+import { addStandardPdfFooters, openStandardPdfForPrint } from '../../shared/print/documentPdfEngine';
 
 const brand = {
   coral: [255, 107, 94] as const,
@@ -78,23 +80,6 @@ function getQuoteLinePdfLabel(item: SalesQuote['items'][number], copy: QuotesTra
     `${copy.pricing.catalogPrice}: ${formatCurrency(item.originalUnitPrice ?? item.unitPrice, originalCurrency)}`,
     `${copy.pricing.exchangeRate}: 1 ${originalCurrency} = ${getQuoteLineExchangeRateLabel(item.exchangeRate)} ${targetCurrency} · ${item.exchangeRateDate}`,
   ].join('\n');
-}
-
-function addFooter(doc: jsPDF, copy: QuotesTranslations) {
-  const pageCount = doc.getNumberOfPages();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  for (let page = 1; page <= pageCount; page += 1) {
-    doc.setPage(page);
-    setDraw(doc, brand.border);
-    doc.line(16, pageHeight - 15, pageWidth - 16, pageHeight - 15);
-    setText(doc, brand.slate);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text(copy.previewModal.documentTitle, 16, pageHeight - 9);
-    doc.text(copy.previewModal.pageLabel(page, pageCount), pageWidth - 16, pageHeight - 9, { align: 'right' });
-  }
 }
 
 export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-MX' }: QuotePdfContext) {
@@ -473,12 +458,16 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
     { maxWidth: contentWidth - 10 },
   );
 
-  addFooter(doc, copy);
+  addStandardPdfFooters(doc, {
+    folio: quote.quoteNumber,
+    locale,
+    updatedAt: generatedAt,
+  });
   return doc;
 }
 
 export function getQuotePdfFileName(quote: SalesQuote) {
-  return `${quote.quoteNumber.replace(/[^a-z0-9-]+/gi, '-')}.pdf`;
+  return buildDocumentFileName({ documentType: 'quotation', identifier: quote.quoteNumber });
 }
 
 export function getQuotePdfBlob(context: QuotePdfContext) {
@@ -496,19 +485,5 @@ export function downloadQuotePdf(context: QuotePdfContext) {
 }
 
 export function printQuotePdf(context: QuotePdfContext) {
-  const blob = getQuotePdfBlob(context);
-  const url = URL.createObjectURL(blob);
-  const printWindow = window.open(url, '_blank');
-
-  if (!printWindow) {
-    URL.revokeObjectURL(url);
-    return false;
-  }
-
-  printWindow.onload = () => {
-    printWindow.focus();
-    printWindow.print();
-  };
-  window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-  return true;
+  return openStandardPdfForPrint(buildQuotePdf(context));
 }

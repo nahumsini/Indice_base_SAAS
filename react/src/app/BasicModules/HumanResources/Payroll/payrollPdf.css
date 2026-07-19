@@ -254,6 +254,18 @@
   padding-top: 10px;
 }
 
+.prpdf-owned-footer {
+  align-items: center;
+  border-top: 1px solid #d7dce2;
+  color: #6f7780;
+  display: flex;
+  font-size: 9px;
+  font-weight: 400;
+  justify-content: space-between;
+  margin: 0 22px 14px;
+  padding-top: 8px;
+}
+
 .prpdf-ledger-table .prpdf-cell-title {
   color: #13294b;
   font-size: 12px;

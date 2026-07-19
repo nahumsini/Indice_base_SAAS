@@ -1,10 +1,11 @@
-import { BadgeDollarSign, Calendar, CheckCircle, Clock, Download, FileText, ShieldCheck, Trash2, User, XCircle } from 'lucide-react';
+import { BadgeDollarSign, Calendar, CheckCircle, Clock, Download, FileText, Printer, ShieldCheck, Trash2, User, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalFrame } from '../../../../components/indice-modal';
 import { Textarea } from '../../../../components/ui/textarea';
 import type { PermissionItem } from '../types/permissions.types';
 import type { PermissionsTranslations } from '../translations';
+import { printPermissionAuthorization } from '../utils/permissionPrintDocument';
 
 interface PermissionDetailModalProps {
   copy: PermissionsTranslations;
@@ -179,6 +180,14 @@ export function PermissionDetailModal({
       ) : (
         <>
           <Button variant="outline" onClick={onClose} disabled={isReviewing}>{copy.actions.close}</Button>
+          <Button
+            variant="outline"
+            onClick={() => printPermissionAuthorization({ copy, locale, permission })}
+            disabled={isReviewing}
+          >
+            <Printer className="h-4 w-4" />
+            Imprimir autorización
+          </Button>
           {isManager && permission.status === 'pending' && onApprove && onReject ? (
             <>
               <Button variant="outline" onClick={() => { void handleReject(); }} disabled={isReviewing}>

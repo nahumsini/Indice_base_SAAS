@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UsersRound } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import { FilterSelect } from '../ReceivablesFilters';
 import {
@@ -16,7 +17,7 @@ interface CreditPolicyModalProps {
   copy: ReceivablesTranslations;
   initialPolicy?: CreditPolicy;
   onClose: () => void;
-  onSubmit: (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => void;
+  onSubmit: (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => boolean | void | Promise<boolean | void>;
 }
 
 export function CreditPolicyModal({
@@ -49,43 +50,67 @@ export function CreditPolicyModal({
   const [annualInterestRate, setAnnualInterestRate] = useState(initialPolicy?.annualInterestRate ?? 24);
   const [status, setStatus] = useState<CreditPolicy['status']>(initialPolicy?.status ?? 'active');
   const [notes, setNotes] = useState(initialPolicy?.notes ?? '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const isFormValid = Boolean(
+    selectedCustomer
+    && Number.isFinite(creditLine) && creditLine >= 0
+    && Number.isFinite(monthlyPurchaseLimit) && monthlyPurchaseLimit >= 0
+    && Number.isFinite(defaultTermMonths) && defaultTermMonths >= 1
+    && Number.isFinite(annualInterestRate) && annualInterestRate >= 0,
+  );
+
+  const handleSubmit = async () => {
+    if (!selectedCustomer || !isFormValid || isSaving) return;
+
+    setIsSaving(true);
+    setSubmitError('');
+    try {
+      const result = await onSubmit({
+        customerId: selectedCustomer.id,
+        businessId: selectedCustomer.businessId ?? null,
+        contactId: selectedCustomer.contactId ?? null,
+        customerName: selectedCustomer.name,
+        creditLine,
+        monthlyPurchaseLimit,
+        defaultTermMonths,
+        annualInterestRate,
+        status,
+        unit: selectedCustomer.unit,
+        unitId: selectedCustomer.unitId ?? null,
+        business: selectedCustomer.business,
+        notes,
+      });
+      if (result === false) {
+        setSubmitError(copy.errors.createCreditPolicy);
+        return;
+      }
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof Error && error.message ? error.message : copy.errors.createCreditPolicy);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <ReceivablesModalFrame
+      busy={isSaving}
+      closeLabel={copy.common.close}
       description={isEditing ? copy.modals.creditPolicy.editDescription : copy.modals.creditPolicy.description}
       icon={<UsersRound className="h-5 w-5" />}
-      maxWidthClassName="max-w-3xl"
       onClose={onClose}
       title={isEditing ? copy.modals.creditPolicy.editTitle : copy.modals.creditPolicy.title}
       footer={(
         <>
-          <Button type="button" variant="outline" className={moduleModalOutlineButtonClassName} onClick={onClose}>
+          <Button type="button" variant="outline" className={moduleModalOutlineButtonClassName} onClick={onClose} disabled={isSaving}>
             {copy.common.cancel}
           </Button>
           <Button
             type="button"
-            disabled={!selectedCustomer}
+            disabled={!isFormValid || isSaving}
             className={moduleModalPrimaryButtonClassName}
-            onClick={() => {
-              if (!selectedCustomer) {
-                return;
-              }
-              onSubmit({
-                customerId: selectedCustomer.id,
-                businessId: selectedCustomer.businessId ?? null,
-                contactId: selectedCustomer.contactId ?? null,
-                customerName: selectedCustomer.name,
-                creditLine,
-                monthlyPurchaseLimit,
-                defaultTermMonths,
-                annualInterestRate,
-                status,
-                unit: selectedCustomer.unit,
-                unitId: selectedCustomer.unitId ?? null,
-                business: selectedCustomer.business,
-                notes,
-              });
-            }}
+            onClick={() => void handleSubmit()}
           >
             {isEditing ? copy.modals.creditPolicy.update : copy.modals.creditPolicy.save}
           </Button>
@@ -94,6 +119,7 @@ export function CreditPolicyModal({
     >
       {selectedCustomer ? (
         <div className="space-y-4">
+          <IndiceModalValidation messages={submitError ? [submitError] : []} />
           {isEditing ? (
             <div className="space-y-2">
               <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.customer}</span>

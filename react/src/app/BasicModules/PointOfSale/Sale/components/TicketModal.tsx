@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, Mail, Printer } from 'lucide-react';
+import { printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
 import type { Payment, SaleItem } from '../types/sale.types';
 import type { Shift } from '../types/shift.types';
 import {
@@ -25,6 +26,7 @@ interface TicketModalProps {
 }
 
 export function TicketModal({ isOpen, onClose, items, payments, totals, shift, saleNumber }: TicketModalProps) {
+  const ticketRef = useRef<HTMLElement>(null);
   const [isHovering, setIsHovering] = useState(false);
   const [countdown, setCountdown] = useState(2);
   const [notice, setNotice] = useState('');
@@ -58,7 +60,25 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   }, [isOpen, isHovering, onClose]);
 
   const handlePrint = () => {
-    window.print();
+    if (!ticketRef.current) return;
+    const opened = printDocumentHtml({
+      bodyHtml: ticketRef.current.outerHTML,
+      contentStyles: `
+        body { width: 80mm; padding: 4mm; }
+        section { border: 0 !important; box-shadow: none !important; padding: 0 !important; width: 72mm !important; }
+        * { color: #000000 !important; text-shadow: none !important; }
+        .bg-\[\#FF6B5E\]\/10, .bg-gray-100, .bg-white { background: #ffffff !important; }
+        img, svg { filter: grayscale(1); }
+        @media print { body { width: 80mm; } }
+      `,
+      documentTitle: `ticket_${saleNumber}`,
+      includeApplicationStyles: true,
+      locale: 'es-MX',
+      pageSize: '80mm',
+    });
+    if (!opened) {
+      setNotice('El navegador bloqueó la ventana de impresión. Habilita ventanas emergentes e inténtalo de nuevo.');
+    }
   };
 
   const handleEmail = () => {
@@ -126,7 +146,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
           </div>
         ) : null}
 
-        <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+        <section ref={ticketRef} className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
           <div className="space-y-4 font-mono text-sm">
             <div className="border-b border-gray-300 pb-3 text-center dark:border-gray-600">
               <h3 className="text-lg font-black text-gray-900 dark:text-white">Mi tienda</h3>
