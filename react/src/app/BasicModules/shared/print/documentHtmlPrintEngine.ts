@@ -13,7 +13,6 @@ const resolvePageRule = (pageSize: DocumentPageSize, orientation: DocumentPageOr
   }
   return `${pageSize.toUpperCase()} ${orientation}`;
 };
-
 const currentApplicationStyles = () => Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
   .map((node) => node.outerHTML)
   .join('\n');
@@ -80,4 +79,3 @@ export const printDocumentHtml = ({
   window.setTimeout(cleanup, 60_000);
   return true;
 };
-

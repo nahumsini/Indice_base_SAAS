@@ -13,7 +13,6 @@ const footerLabels = (locale: string) => {
   } as Record<string, { page: string; updated: string }>)[language]
     ?? { page: 'Page', updated: 'Updated' };
 };
-
 export const applyStandardPdfMetadata = (
   doc: jsPDF,
   {
@@ -89,4 +88,3 @@ export const openStandardPdfForPrint = (doc: jsPDF) => {
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
   return true;
 };
-

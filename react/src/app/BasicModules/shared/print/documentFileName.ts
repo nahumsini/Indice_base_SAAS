@@ -4,7 +4,6 @@ const formatDateStamp = (date: Date) => {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-
 export const sanitizeDocumentFileNameSegment = (value: string) => value
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -38,4 +37,3 @@ export const buildDocumentFileName = ({
   const safeExtension = sanitizeDocumentFileNameSegment(extension.replace(/^\./, '')) || 'pdf';
   return `${baseName}.${safeExtension.toLowerCase()}`;
 };
-
