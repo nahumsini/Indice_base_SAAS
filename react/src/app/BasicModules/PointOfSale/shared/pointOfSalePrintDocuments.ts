@@ -11,11 +11,17 @@ const money = (amount: number | string, currency: string, locale: string) => new
 }).format(numberFrom(amount));
 
 const date = (value: string | Date | null | undefined, locale: string) => {
-  if (!value) return '—';
-  const parsed = value instanceof Date ? value : new Date(value);
+  if (!value) return '-';
+  const stringValue = String(value);
+  const dateOnlyMatch = value instanceof Date ? null : /^(\d{4})-(\d{2})-(\d{2})$/.exec(stringValue);
+  const parsed = value instanceof Date
+    ? value
+    : dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(value);
   return Number.isNaN(parsed.getTime())
-    ? String(value)
-    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: value instanceof Date || String(value).includes('T') ? 'short' : undefined }).format(parsed);
+    ? stringValue
+    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: value instanceof Date || stringValue.includes('T') ? 'short' : undefined }).format(parsed);
 };
 
 export function printPurchaseOrder(order: PurchaseOrder, locale = 'es-MX') {
@@ -59,7 +65,7 @@ export function printPurchaseOrder(order: PurchaseOrder, locale = 'es-MX') {
     tables: [{
       columns: ['SKU', 'Producto', 'Cantidad', 'Costo unitario', 'Impuesto', 'Subtotal', 'Total'],
       rows: order.items.map((item) => [
-        item.sku || '—',
+        item.sku || '-',
         item.productName,
         numberFrom(item.quantity),
         money(item.unitCost, order.currencyCode, locale),
@@ -129,7 +135,7 @@ export function printPurchaseOrderReceipt({
       rows: receivedItems.map((item) => {
         const received = receivedByItemId.get(item.id) ?? 0;
         return [
-          item.sku || '—',
+          item.sku || '-',
           item.productName,
           numberFrom(item.quantity),
           numberFrom(item.pendingQuantity),

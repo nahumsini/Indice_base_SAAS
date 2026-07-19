@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { buildDocumentFileName } from './documentFileName';
 import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from './documentPdfEngine';
@@ -58,7 +58,9 @@ export interface StandardDocumentDefinition {
 }
 
 type Labels = {
+  confidential: string;
   generated: string;
+  internal: string;
   issuer: string;
   recipient: string;
   status: string;
@@ -68,19 +70,26 @@ type Labels = {
 const labelsFor = (locale: string): Labels => {
   const language = locale.toLowerCase().split('-')[0];
   return ({
-    en: { generated: 'Generated', issuer: 'Issuer', recipient: 'Recipient', status: 'Status', noData: 'No records available' },
-    es: { generated: 'Generado', issuer: 'Emisor', recipient: 'Destinatario', status: 'Estado', noData: 'Sin registros disponibles' },
-    fr: { generated: 'Généré', issuer: 'Émetteur', recipient: 'Destinataire', status: 'Statut', noData: 'Aucun enregistrement disponible' },
-    ko: { generated: '생성됨', issuer: '발행자', recipient: '수신자', status: '상태', noData: '사용 가능한 기록 없음' },
-    pt: { generated: 'Gerado', issuer: 'Emissor', recipient: 'Destinatário', status: 'Status', noData: 'Nenhum registro disponível' },
-    zh: { generated: '生成时间', issuer: '签发方', recipient: '接收方', status: '状态', noData: '暂无记录' },
+    en: { confidential: 'Confidential', generated: 'Generated', internal: 'Internal', issuer: 'Issuer', recipient: 'Recipient', status: 'Status', noData: 'No records available' },
+    es: { confidential: 'Confidencial', generated: 'Generado', internal: 'Interno', issuer: 'Emisor', recipient: 'Destinatario', status: 'Estado', noData: 'Sin registros disponibles' },
+    fr: { confidential: 'Confidentiel', generated: 'Généré', internal: 'Interne', issuer: 'Émetteur', recipient: 'Destinataire', status: 'Statut', noData: 'Aucun enregistrement disponible' },
+    ko: { confidential: '기밀', generated: '생성됨', internal: '내부용', issuer: '발행자', recipient: '수신자', status: '상태', noData: '사용 가능한 기록 없음' },
+    pt: { confidential: 'Confidencial', generated: 'Gerado', internal: 'Interno', issuer: 'Emissor', recipient: 'Destinatário', status: 'Status', noData: 'Nenhum registro disponível' },
+    zh: { confidential: '机密', generated: '生成时间', internal: '内部', issuer: '签发方', recipient: '接收方', status: '状态', noData: '暂无记录' },
   } as Record<string, Labels>)[language] ?? {
-    generated: 'Generated', issuer: 'Issuer', recipient: 'Recipient', status: 'Status', noData: 'No records available',
+    confidential: 'Confidential', generated: 'Generated', internal: 'Internal', issuer: 'Issuer', recipient: 'Recipient', status: 'Status', noData: 'No records available',
   };
 };
 
+const localizedConfidentiality = (value: string | undefined, labels: Labels) => {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === 'confidential') return labels.confidential;
+  if (normalized === 'internal') return labels.internal;
+  return value;
+};
+
 const cleanValue = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined || value === '') return '—';
+  if (value === null || value === undefined || value === '') return '-';
   return String(value);
 };
 
@@ -142,20 +151,27 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
     y += 9;
   };
 
-  setFillColor(doc, accent);
-  doc.roundedRect(margin, y, 4, 19, 1.5, 1.5, 'F');
   const titleX = margin + 8;
+  const titleMaxWidth = contentWidth * 0.62;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   setColor(doc, [92, 100, 112]);
   doc.text(definition.issuer || 'Indice', titleX, y + 3.8, { maxWidth: contentWidth * 0.58 });
-  doc.setFontSize(20);
+  doc.setFontSize(18);
+  const titleLines = doc.splitTextToSize(definition.title, titleMaxWidth) as string[];
+  const titleLineHeight = 6.4;
+  const titleStartY = y + 11;
+  const titleBottom = titleStartY + Math.max(0, titleLines.length - 1) * titleLineHeight;
+  const subtitleY = titleBottom + 5;
+  const headerHeight = Math.max(19, (definition.subtitle ? subtitleY + 2 : titleBottom + 3) - y);
+  setFillColor(doc, accent);
+  doc.roundedRect(margin, y, 4, headerHeight, 1.5, 1.5, 'F');
   setColor(doc, [32, 37, 45]);
-  doc.text(definition.title, titleX, y + 11, { maxWidth: contentWidth * 0.62 });
+  doc.text(titleLines, titleX, titleStartY, { lineHeightFactor: 1, maxWidth: titleMaxWidth });
   if (definition.subtitle) {
     doc.setFontSize(8.5);
     setColor(doc, [92, 100, 112]);
-    doc.text(definition.subtitle, titleX, y + 16.5, { maxWidth: contentWidth * 0.65 });
+    doc.text(definition.subtitle, titleX, subtitleY, { maxWidth: contentWidth * 0.65 });
   }
   const rightMeta = [definition.folio, definition.status].filter(Boolean).join(' · ');
   doc.setFontSize(8.5);
@@ -168,7 +184,7 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
     y + 12,
     { align: 'right', maxWidth: contentWidth * 0.3 },
   );
-  y += 27;
+  y += headerHeight + 8;
 
   const primaryMetadata: StandardDocumentField[] = [
     definition.issuer ? { label: labels.issuer, value: definition.issuer } : null,
@@ -314,7 +330,7 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
   }
 
   addStandardPdfFooters(doc, {
-    confidentiality: definition.confidentiality,
+    confidentiality: localizedConfidentiality(definition.confidentiality, labels),
     folio: definition.folio,
     locale,
     updatedAt: generatedAt,

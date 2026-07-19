@@ -11,7 +11,7 @@ const parseDate = (value: string) => {
 };
 
 const date = (value: string | undefined, locale: string) => {
-  if (!value) return '—';
+  if (!value) return '-';
   const parsed = parseDate(value);
   return Number.isNaN(parsed.getTime())
     ? value

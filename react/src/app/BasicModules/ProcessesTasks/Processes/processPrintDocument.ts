@@ -14,7 +14,7 @@ const labelsFor = (locale: string) => {
 };
 
 const date = (value: string | null | undefined, locale: string) => {
-  if (!value) return '—';
+  if (!value) return '-';
   const parsed = new Date(`${value.slice(0, 10)}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parsed);
 };

@@ -17,6 +17,7 @@ type PrintLabels = {
   business: string;
   creditLine: string;
   current: string;
+  customer: string;
   customerStatement: string;
   date: string;
   dueDate: string;
@@ -43,16 +44,16 @@ const labelsFor = (locale: string): PrintLabels => {
   const language = locale.toLowerCase().split('-')[0];
   const labels: Record<string, PrintLabels> = {
     en: {
-      aging: 'Accounts receivable aging', agingNotice: 'Operational collection report. Amounts remain in their native currency and are not combined across currencies.', amount: 'Amount', annualInterest: 'Annual interest', available: 'Available credit', balance: 'Balance', business: 'Business', creditLine: 'Credit line', current: 'Current', customerStatement: 'Customer credit statement', date: 'Date', dueDate: 'Due date', installments: 'Installments', method: 'Payment method', monthlyLimit: 'Monthly limit', notes: 'Notes', overdue: 'Overdue', paid: 'Paid', paymentReceipt: 'Payment receipt', paymentReceiptNotice: 'Operational payment receipt. It is not a fiscal receipt or bank-issued proof.', receiptAttachment: 'Supporting file', reference: 'Reference', registeredBy: 'Registered by', sale: 'Sale', statementNotice: 'Confidential operational statement. Confirm transactions and balances with the source system before collection actions.', status: 'Status', term: 'Term', totalRecords: 'Records', unit: 'Business unit',
+      aging: 'Accounts receivable aging', agingNotice: 'Operational collection report. Amounts remain in their native currency and are not combined across currencies.', amount: 'Amount', annualInterest: 'Annual interest', available: 'Available credit', balance: 'Balance', business: 'Business', creditLine: 'Credit line', current: 'Current', customer: 'Customer', customerStatement: 'Customer credit statement', date: 'Date', dueDate: 'Due date', installments: 'Installments', method: 'Payment method', monthlyLimit: 'Monthly limit', notes: 'Notes', overdue: 'Overdue', paid: 'Paid', paymentReceipt: 'Payment receipt', paymentReceiptNotice: 'Operational payment receipt. It is not a fiscal receipt or bank-issued proof.', receiptAttachment: 'Supporting file', reference: 'Reference', registeredBy: 'Registered by', sale: 'Sale', statementNotice: 'Confidential operational statement. Confirm transactions and balances with the source system before collection actions.', status: 'Status', term: 'Term', totalRecords: 'Records', unit: 'Business unit',
     },
     es: {
-      aging: 'Antigüedad de saldos', agingNotice: 'Reporte operativo de cobranza. Los importes permanecen en su moneda nativa y no se suman entre divisas.', amount: 'Importe', annualInterest: 'Interés anual', available: 'Crédito disponible', balance: 'Saldo', business: 'Negocio', creditLine: 'Línea de crédito', current: 'Al corriente', customerStatement: 'Estado de cuenta de crédito', date: 'Fecha', dueDate: 'Vencimiento', installments: 'Parcialidades', method: 'Método de pago', monthlyLimit: 'Límite mensual', notes: 'Notas', overdue: 'Vencido', paid: 'Pagado', paymentReceipt: 'Recibo de pago', paymentReceiptNotice: 'Comprobante operativo de pago. No constituye comprobante fiscal ni comprobante emitido por una institución bancaria.', receiptAttachment: 'Archivo de respaldo', reference: 'Referencia', registeredBy: 'Registrado por', sale: 'Venta', statementNotice: 'Estado de cuenta operativo y confidencial. Confirma movimientos y saldos con el sistema antes de realizar gestiones de cobranza.', status: 'Estado', term: 'Plazo', totalRecords: 'Registros', unit: 'Unidad de negocio',
+      aging: 'Antigüedad de saldos', agingNotice: 'Reporte operativo de cobranza. Los importes permanecen en su moneda nativa y no se suman entre divisas.', amount: 'Importe', annualInterest: 'Interés anual', available: 'Crédito disponible', balance: 'Saldo', business: 'Negocio', creditLine: 'Línea de crédito', current: 'Al corriente', customer: 'Cliente', customerStatement: 'Estado de cuenta de crédito', date: 'Fecha', dueDate: 'Vencimiento', installments: 'Parcialidades', method: 'Método de pago', monthlyLimit: 'Límite mensual', notes: 'Notas', overdue: 'Vencido', paid: 'Pagado', paymentReceipt: 'Recibo de pago', paymentReceiptNotice: 'Comprobante operativo de pago. No constituye comprobante fiscal ni comprobante emitido por una institución bancaria.', receiptAttachment: 'Archivo de respaldo', reference: 'Referencia', registeredBy: 'Registrado por', sale: 'Venta', statementNotice: 'Estado de cuenta operativo y confidencial. Confirma movimientos y saldos con el sistema antes de realizar gestiones de cobranza.', status: 'Estado', term: 'Plazo', totalRecords: 'Registros', unit: 'Unidad de negocio',
     },
     fr: {
-      aging: 'Ancienneté des soldes', agingNotice: 'Rapport opérationnel de recouvrement. Les montants restent dans leur devise d’origine.', amount: 'Montant', annualInterest: 'Intérêt annuel', available: 'Crédit disponible', balance: 'Solde', business: 'Entreprise', creditLine: 'Ligne de crédit', current: 'À jour', customerStatement: 'Relevé de compte de crédit', date: 'Date', dueDate: 'Échéance', installments: 'Échéances', method: 'Mode de paiement', monthlyLimit: 'Limite mensuelle', notes: 'Notes', overdue: 'En retard', paid: 'Payé', paymentReceipt: 'Reçu de paiement', paymentReceiptNotice: 'Reçu opérationnel; il ne s’agit ni d’un document fiscal ni d’une preuve bancaire.', receiptAttachment: 'Pièce justificative', reference: 'Référence', registeredBy: 'Enregistré par', sale: 'Vente', statementNotice: 'Relevé opérationnel confidentiel. Confirmez les mouvements et les soldes dans le système source.', status: 'Statut', term: 'Durée', totalRecords: 'Enregistrements', unit: 'Unité d’affaires',
+      aging: 'Ancienneté des soldes', agingNotice: 'Rapport opérationnel de recouvrement. Les montants restent dans leur devise d’origine.', amount: 'Montant', annualInterest: 'Intérêt annuel', available: 'Crédit disponible', balance: 'Solde', business: 'Entreprise', creditLine: 'Ligne de crédit', current: 'À jour', customer: 'Client', customerStatement: 'Relevé de compte de crédit', date: 'Date', dueDate: 'Échéance', installments: 'Échéances', method: 'Mode de paiement', monthlyLimit: 'Limite mensuelle', notes: 'Notes', overdue: 'En retard', paid: 'Payé', paymentReceipt: 'Reçu de paiement', paymentReceiptNotice: 'Reçu opérationnel; il ne s’agit ni d’un document fiscal ni d’une preuve bancaire.', receiptAttachment: 'Pièce justificative', reference: 'Référence', registeredBy: 'Enregistré par', sale: 'Vente', statementNotice: 'Relevé opérationnel confidentiel. Confirmez les mouvements et les soldes dans le système source.', status: 'Statut', term: 'Durée', totalRecords: 'Enregistrements', unit: 'Unité d’affaires',
     },
     pt: {
-      aging: 'Antiguidade de saldos', agingNotice: 'Relatório operacional de cobrança. Os valores permanecem em sua moeda nativa.', amount: 'Valor', annualInterest: 'Juros anuais', available: 'Crédito disponível', balance: 'Saldo', business: 'Negócio', creditLine: 'Linha de crédito', current: 'Em dia', customerStatement: 'Extrato de crédito do cliente', date: 'Data', dueDate: 'Vencimento', installments: 'Parcelas', method: 'Forma de pagamento', monthlyLimit: 'Limite mensal', notes: 'Observações', overdue: 'Vencido', paid: 'Pago', paymentReceipt: 'Recibo de pagamento', paymentReceiptNotice: 'Recibo operacional; não é documento fiscal nem comprovante bancário.', receiptAttachment: 'Arquivo de suporte', reference: 'Referência', registeredBy: 'Registrado por', sale: 'Venda', statementNotice: 'Extrato operacional confidencial. Confirme movimentos e saldos no sistema de origem.', status: 'Status', term: 'Prazo', totalRecords: 'Registros', unit: 'Unidade de negócio',
+      aging: 'Antiguidade de saldos', agingNotice: 'Relatório operacional de cobrança. Os valores permanecem em sua moeda nativa.', amount: 'Valor', annualInterest: 'Juros anuais', available: 'Crédito disponível', balance: 'Saldo', business: 'Negócio', creditLine: 'Linha de crédito', current: 'Em dia', customer: 'Cliente', customerStatement: 'Extrato de crédito do cliente', date: 'Data', dueDate: 'Vencimento', installments: 'Parcelas', method: 'Forma de pagamento', monthlyLimit: 'Limite mensal', notes: 'Observações', overdue: 'Vencido', paid: 'Pago', paymentReceipt: 'Recibo de pagamento', paymentReceiptNotice: 'Recibo operacional; não é documento fiscal nem comprovante bancário.', receiptAttachment: 'Arquivo de suporte', reference: 'Referência', registeredBy: 'Registrado por', sale: 'Venda', statementNotice: 'Extrato operacional confidencial. Confirme movimentos e saldos no sistema de origem.', status: 'Status', term: 'Prazo', totalRecords: 'Registros', unit: 'Unidade de negócio',
     },
   };
   return labels[language] ?? labels.en;
@@ -81,7 +82,7 @@ const totalsByCurrency = <Row,>(
   const code = currency(row) || 'MXN';
   totals.set(code, (totals.get(code) ?? 0) + amount(row));
   return totals;
-}, new Map<string, number>())).map(([code, total]) => money(total, code, locale)).join(' · ') || '—';
+}, new Map<string, number>())).map(([code, total]) => money(total, code, locale)).join(' · ') || '-';
 
 export function printReceivablePaymentReceipt({
   account,
@@ -126,7 +127,7 @@ export function printReceivablePaymentReceipt({
       fields: [
         { label: labels.reference, value: payment.reference || copy.common.noReference },
         { label: labels.registeredBy, value: payment.registeredBy },
-        { label: labels.receiptAttachment, value: payment.receiptFileName || '—' },
+        { label: labels.receiptAttachment, value: payment.receiptFileName || '-' },
       ],
       title: labels.paymentReceipt,
     }],
@@ -232,16 +233,19 @@ export function printReceivablesAgingReport({
   locale: string;
 }) {
   const labels = labelsFor(locale);
-  const now = new Date();
-  const overdue = installments.filter((installment) => installment.balance > 0 && new Date(`${installment.dueDate}T00:00:00`) < now);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const overdue = installments.filter((installment) => (
+    installment.balance > 0 && new Date(`${installment.dueDate}T00:00:00`) < today
+  ));
   const current = installments.filter((installment) => installment.balance > 0 && !overdue.includes(installment));
   const bucket = (installment: ReceivableInstallment) => {
     if (installment.balance <= 0) return labels.paid;
-    const days = Math.max(0, Math.floor((now.getTime() - new Date(`${installment.dueDate}T00:00:00`).getTime()) / 86_400_000));
+    const days = Math.max(0, Math.floor((today.getTime() - new Date(`${installment.dueDate}T00:00:00`).getTime()) / 86_400_000));
     if (days === 0) return labels.current;
-    if (days <= 30) return '1–30';
-    if (days <= 60) return '31–60';
-    if (days <= 90) return '61–90';
+    if (days <= 30) return '1-30';
+    if (days <= 60) return '31-60';
+    if (days <= 90) return '61-90';
     return '90+';
   };
   return printStandardDocumentPdf({
@@ -267,7 +271,7 @@ export function printReceivablesAgingReport({
     notice: labels.agingNotice,
     subtitle: filterSummary,
     tables: [{
-      columns: [labels.sale, labels.customerStatement, labels.unit, labels.business, labels.dueDate, labels.status, labels.amount, labels.paid, labels.balance, labels.aging],
+      columns: [labels.sale, labels.customer, labels.unit, labels.business, labels.dueDate, labels.status, labels.amount, labels.paid, labels.balance, labels.aging],
       rows: installments.map((installment) => [
         `${installment.saleNumber} · #${installment.installmentNumber}`,
         installment.customerName,

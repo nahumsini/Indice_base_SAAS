@@ -23,7 +23,7 @@ const money = (amount: number, currency: string, locale: string) => new Intl.Num
 
 const date = (value: Date | undefined, locale: string) => value
   ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(value)
-  : '—';
+  : '-';
 
 export function printExpenseVoucher({
   expense,
