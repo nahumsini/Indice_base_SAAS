@@ -6,11 +6,14 @@ import {
   ListChecks,
   Plus,
   RefreshCw,
-  ShieldCheck,
 } from 'lucide-react';
 import { useParams } from 'react-router';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
+import {
+  KioskIdentitySummary,
+  KioskMetricCard,
+} from '../../../components/kiosk-engine/KioskWorkspacePrimitives';
 import { Button } from '../../../components/ui/button';
 import {
   processTaskKioskApi,
@@ -249,12 +252,7 @@ function taskTypeLabel(taskType: PublicTaskKioskTask['task_type'] | undefined, c
 export default function PublicTaskKioskPage() {
   const { deviceToken } = useParams();
   const copy = useTaskKioskTranslations();
-  const {
-    detectedLocale,
-    localeOptions,
-    selectedLocale,
-    setTaskKioskLocale,
-  } = useTaskKioskLocaleControls();
+  const { selectedLocale } = useTaskKioskLocaleControls();
   const [bootstrap, setBootstrap] = useState<PublicTaskKioskBootstrapResponse | null>(null);
   const [identity, setIdentity] = useState<PublicTaskKioskIdentifyResponse | null>(null);
   const [pin, setPin] = useState('');
@@ -793,12 +791,8 @@ export default function PublicTaskKioskPage() {
         header={<PublicTaskKioskHeader
           copy={copy}
           currentTimeLabel={currentTimeLabel}
-          detectedLocale={detectedLocale}
-          identity={identity}
-          localeOptions={localeOptions}
-          onLocaleChange={setTaskKioskLocale}
           pointLabel={pointLabel}
-          selectedLocale={selectedLocale}
+          scopeLabel={scopeLabel}
         />}
         errorMessage={error}
         successMessage={successMessage}
@@ -815,63 +809,27 @@ export default function PublicTaskKioskPage() {
               />
             ) : (
               <section className="mt-3 space-y-4 pb-28 sm:mt-0 sm:space-y-5 sm:pb-0">
-                <div className="overflow-hidden rounded-lg border border-[#F4C84A]/35 bg-white shadow-sm dark:border-[#F4C84A]/20 dark:bg-slate-950">
-                  <div className="bg-[#F4C84A] px-4 py-3 text-slate-950">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/55">
-                          <ShieldCheck className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#7A5204]">{copy.header.badge}</p>
-                          <h1 className="truncate text-xl font-black">Kiosko de tareas</h1>
-                        </div>
-                      </div>
-                      <Button type="button" variant="outline" className="h-10 shrink-0 gap-2 rounded-lg border-white/45 bg-white/45 px-3 text-slate-950 hover:bg-white/70" onClick={resetKioskSession}>
-                        <RefreshCw className="h-4 w-4" />
-                        {copy.identity.reset}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-3 sm:p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A] text-base font-black text-slate-950 shadow-sm sm:h-16 sm:w-16 sm:text-xl">
-                        {identity.user.full_name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '??'}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">{copy.identity.eyebrow}</p>
-                        <p className="mt-1 truncate text-xl font-black text-slate-950 dark:text-white sm:text-2xl">{identity.user.full_name}</p>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                          {identity.user.position_title || identity.user.department || identity.user.user_code || copy.identity.fallbackStatus}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-2 text-sm font-black text-[#7A5204] dark:text-[#FDE68A]">
-                      {scopeLabel}
-                    </div>
-                  </div>
-                  </div>
-                </div>
+                <KioskIdentitySummary
+                  tone="yellow"
+                  kioskLabel={copy.header.badge}
+                  verifiedLabel={copy.identity.eyebrow}
+                  name={identity.user.full_name}
+                  detail={identity.user.position_title || identity.user.department || identity.user.user_code || copy.identity.fallbackStatus}
+                  initials={identity.user.full_name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() ?? '').join('') || '??'}
+                  scopeLabel={scopeLabel}
+                  action={(
+                    <Button type="button" variant="outline" className="h-10 shrink-0 gap-2 rounded-lg border-white/45 bg-white/45 px-3 text-slate-950 hover:bg-white/70" onClick={resetKioskSession}>
+                      <RefreshCw className="h-4 w-4" />
+                      {copy.identity.reset}
+                    </Button>
+                  )}
+                />
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{copy.sidebar.openTasks}</p>
-                    <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{openTasks.length}</p>
-                  </div>
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 shadow-sm dark:border-red-900/60 dark:bg-red-950/35">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-red-600 dark:text-red-200">{copy.task.overdue}</p>
-                    <p className="mt-1 text-2xl font-black text-red-700 dark:text-red-100">{overdueTasksCount}</p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{copy.tabs.resolved(resolvedTasks.length).replace(/[()0-9]/g, '').trim()}</p>
-                    <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{resolvedTasks.length}</p>
-                  </div>
-                  <div className="rounded-lg border border-[#F4C84A]/25 bg-[#F4C84A]/8 px-3 py-3 shadow-sm dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#9A6B05] dark:text-[#FDE68A]">{copy.header.scope}</p>
-                    <p className="mt-1 truncate text-sm font-black text-slate-950 dark:text-white">{scopeLabel}</p>
-                  </div>
+                  <KioskMetricCard label={copy.sidebar.openTasks} tone="yellow" value={openTasks.length} valueClassName="text-2xl" />
+                  <KioskMetricCard accent label={copy.task.overdue} tone="red" value={overdueTasksCount} valueClassName="text-2xl" />
+                  <KioskMetricCard label={copy.tabs.resolved(resolvedTasks.length).replace(/[()0-9]/g, '').trim()} tone="yellow" value={resolvedTasks.length} valueClassName="text-2xl" />
+                  <KioskMetricCard accent label={copy.header.scope} tone="yellow" value={scopeLabel} valueClassName="text-sm" />
                 </div>
 
                 <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-4">

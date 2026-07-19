@@ -66,7 +66,7 @@ import { useAgendaTranslations, type AgendaTranslations } from './translations';
 import { TaskKioskManagementModal } from '../Kiosk/TaskKioskManagementModal';
 import { TaskKioskConfirmationDialog } from '../Kiosk/components/TaskKioskConfirmationDialog';
 import { useRowSelection } from '../../shared/operational';
-import { LearningModeTitleBarBridge } from '../../../learningMode';
+import { IndiceTitleBar } from '../../../components/frontend-os';
 import {
   collaboratorCanReceiveAssignment,
   filterBusinessesForActor,
@@ -941,26 +941,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
 
   return (
     <>
-      <LearningModeTitleBarBridge actions={headerActions}>
-        <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-4 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/40 bg-white/70 text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">
-                {headerCopy.emoji}
-              </span>
-              <div className="min-w-0">
-                <h2 className="mb-1 text-xl font-semibold leading-tight text-slate-900 dark:text-white sm:text-2xl">
-                  {headerCopy.title}
-                </h2>
-                <p className="max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
-                  {headerCopy.subtitle}
-                </p>
-              </div>
-            </div>
-            {headerActions}
-          </div>
-        </section>
-      </LearningModeTitleBarBridge>
+      <IndiceTitleBar actions={headerActions} className="mb-5" icon={headerCopy.emoji} subtitle={headerCopy.subtitle} title={headerCopy.title} tone="yellow" />
 
       {agendaError ? (
         <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useRef, type ComponentType } from 'react';
+import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
-import { cn } from '../../components/ui/utils';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { SalesCrmProvider } from '../../BasicModules/Sales/salesCrmContext';
 import { useInventoryModuleTranslations } from './hooks/useInventoryModuleTranslations';
@@ -70,7 +70,7 @@ export default function Multiinventarios({ learningModeActive = false }: { learn
 
 function InventoryWorkspace({ learningModeActive }: { learningModeActive: boolean }) {
   const t = useInventoryModuleTranslations();
-  const mainContentRef = useRef<HTMLElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<InventoryTabId>(
     'products',
     inventoryTabIds,
@@ -88,68 +88,28 @@ function InventoryWorkspace({ learningModeActive }: { learningModeActive: boolea
   const ActiveComponent = activeTabConfig.component;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-950 dark:bg-gray-900 dark:text-white">
-      <LoadingBarOverlay
-        isVisible={isTabLoading}
-        title={t.loading.openingTitle}
-        description={t.loading.openingDescription}
-      />
-
-      <header className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
-                {t.title}
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 sm:text-base">
-                {t.subtitle}
-              </p>
-            </div>
-          </div>
-
-          <nav aria-label={t.navLabel} className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
-            <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
-              {inventoryTabs.map((tab) => {
-                const active = tab.id === activeTab;
-
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={cn(
-                      'flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/30',
-                      active
-                        ? 'bg-[#FF6B5E] text-white shadow-md shadow-[#FF6B5E]/20'
-                        : 'bg-gray-100 text-slate-600 hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#FF6B5E]/15 dark:hover:text-[#FFB0AA]',
-                    )}
-                  >
-                    <span className="text-base leading-none" aria-hidden="true">{tab.emoji}</span>
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
-
-          {learningModeActive ? (
-            <div className="mt-4">
-              <SimpleModuleLearningGuide
-                activeContextLabel={inventoryLearningLabels[activeTab]}
-                controls={inventoryLearningControls[activeTab]}
-                guideId="inventory-learning-guide"
-                moduleTitle="Guía para conectar productos, compras e inventario"
-                onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                scopeId={`inventory-${activeTab}`}
-                theme={learningModeGuideThemes.commercial}
-              />
-            </div>
-          ) : null}
-        </div>
-      </header>
-
-      <main ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+    <IndiceModuleShell
+      activeTab={activeTab}
+      contentRef={mainContentRef}
+      currentModule="inventory"
+      guide={learningModeActive ? (
+        <SimpleModuleLearningGuide
+          activeContextLabel={inventoryLearningLabels[activeTab]}
+          controls={inventoryLearningControls[activeTab]}
+          guideId="inventory-learning-guide"
+          moduleTitle={t.title}
+          onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          scopeId={`inventory-${activeTab}`}
+          theme={learningModeGuideThemes.commercial}
+        />
+      ) : undefined}
+      loadingOverlay={<LoadingBarOverlay isVisible={isTabLoading} title={t.loading.openingTitle} description={t.loading.openingDescription} />}
+      onTabChange={setActiveTab}
+      subtitle={t.subtitle}
+      tabs={inventoryTabs.map(tab => ({ id: tab.id, label: tab.label, icon: tab.emoji }))}
+      title={t.title}
+      tone="coral"
+    >
         <Suspense
           fallback={(
             <LoadingBarOverlay
@@ -161,7 +121,6 @@ function InventoryWorkspace({ learningModeActive }: { learningModeActive: boolea
         >
           <ActiveComponent />
         </Suspense>
-      </main>
-    </div>
+    </IndiceModuleShell>
   );
 }

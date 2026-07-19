@@ -1,7 +1,7 @@
 import { Columns3, Landmark, Plus, Store } from 'lucide-react';
+import { IndiceTitleBar } from '../../../../components/frontend-os';
 import { Button } from '../../../../components/ui/button';
 import { useExpensesModuleTranslations } from '../../hooks/useExpensesModuleTranslations';
-import { LearningModeTitleBarBridge } from '../../../../learningMode';
 
 type ExpensesHeaderProps = {
   createExpenseDisabled?: boolean;
@@ -43,26 +43,12 @@ export function ExpensesHeader({
   );
 
   return (
-    <LearningModeTitleBarBridge actions={<ActionLayout />}>
-    <section className="rounded-xl border border-[#147514]/25 bg-[#147514]/10 p-5 shadow-sm dark:border-emerald-700/40 dark:bg-emerald-950/30">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#147514]/25 bg-white/90 text-2xl leading-none shadow-sm dark:border-emerald-700/40 dark:bg-slate-800" aria-hidden="true">
-            💸
-          </span>
-          <div className="min-w-0">
-            <h2 className="mb-1 text-xl font-bold text-slate-950 dark:text-white">
-              {t.expenses.headerTitle}
-            </h2>
-            <p className="max-w-3xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
-              {t.expenses.headerSubtitle}
-            </p>
-          </div>
-        </div>
-
-        <ActionLayout />
-      </div>
-    </section>
-    </LearningModeTitleBarBridge>
+    <IndiceTitleBar
+      actions={<ActionLayout />}
+      icon="💸"
+      subtitle={t.expenses.headerSubtitle}
+      title={t.expenses.headerTitle}
+      tone="green"
+    />
   );
 }

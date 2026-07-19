@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '../../components/ui/button';
 import { FailureToast } from '../../components/FailureToast';
-import { FavoritesBar } from '../../components/FavoritesBar';
+import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { mockExpenses } from './data/expenses.mock';
@@ -216,89 +215,36 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <LoadingBarOverlay
-        isVisible={isTabLoading}
-        title={t.module.loadingTabTitle}
-        description={t.module.loadingTabDescription}
-      />
-      <LoadingBarOverlay
-        isVisible={isFinanceDataLoading}
-        title={t.module.loadingFinanceTitle}
-        description={t.module.loadingFinanceDescription}
-      />
-      <FailureToast
-        isVisible={Boolean(failureToastMessage)}
-        message={failureToastMessage}
-        onClose={() => setFailureToastMessage('')}
-      />
-
-      {/* Module Header */}
-      <div className="border-b border-gray-200 bg-white px-4 py-5 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8 lg:py-6">
-        <div className="max-w-[1600px] mx-auto">
-          {/* Favorites Bar */}
-          <FavoritesBar 
-            onNavigate={(page) => {
-              if (page === 'expenses') return;
-              onNavigate(page);
-            }} 
-            currentModule="expenses" 
+      <IndiceModuleShell
+        activeTab={activeTab}
+        backLabel={t.module.back}
+        contentRef={mainContentRef}
+        currentModule="expenses"
+        guide={learningModeActive ? (
+          <SimpleModuleLearningGuide
+            activeContextLabel={expensesLearningLabels[activeTab]}
+            controls={expensesLearningControls[activeTab]}
+            guideId="expenses-learning-guide"
+            moduleTitle={t.module.title}
+            onPrimaryAction={handleGuidePrimaryAction}
+            scopeId={`expenses-${activeTab}`}
+            theme={learningModeGuideThemes.finance}
           />
-          
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
-                {t.module.title}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {t.module.subtitle}
-              </p>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => onNavigate()}
-              className="w-full gap-2 text-sm sm:w-auto"
-            >
-              <span className="text-lg">🏠</span> {t.module.back}
-            </Button>
-          </div>
-
-          {/* Tabs */}
-          <div className="-mx-4 mt-4 flex snap-x items-center gap-2 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? 'bg-[#147514] text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                <span>{tab.emoji}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {learningModeActive ? (
-            <div className="mt-4">
-              <SimpleModuleLearningGuide
-                activeContextLabel={expensesLearningLabels[activeTab]}
-                controls={expensesLearningControls[activeTab]}
-                guideId="expenses-learning-guide"
-                moduleTitle="Guía para ordenar y controlar los gastos"
-                onPrimaryAction={handleGuidePrimaryAction}
-                scopeId={`expenses-${activeTab}`}
-                theme={learningModeGuideThemes.finance}
-              />
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Active Tab Content */}
-      <div ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+        ) : undefined}
+        loadingOverlay={(
+          <>
+            <LoadingBarOverlay isVisible={isTabLoading} title={t.module.loadingTabTitle} description={t.module.loadingTabDescription} />
+            <LoadingBarOverlay isVisible={isFinanceDataLoading} title={t.module.loadingFinanceTitle} description={t.module.loadingFinanceDescription} />
+            <FailureToast isVisible={Boolean(failureToastMessage)} message={failureToastMessage} onClose={() => setFailureToastMessage('')} />
+          </>
+        )}
+        onNavigate={onNavigate}
+        onTabChange={setActiveTab}
+        subtitle={t.module.subtitle}
+        tabs={tabs.map(tab => ({ id: tab.id, label: tab.label, icon: tab.emoji }))}
+        title={t.module.title}
+        tone="green"
+      >
         <Suspense
           fallback={(
             <LoadingBarOverlay
@@ -310,8 +256,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
         >
           {renderActiveTab()}
         </Suspense>
-      </div>
-    </div>
+      </IndiceModuleShell>
     </LearningModeHeaderActionsProvider>
   );
 }

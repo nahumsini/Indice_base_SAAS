@@ -18,6 +18,7 @@ export const esMX = {
     automaticCurrentStatement: 'Corte actual automatico',
     cancel: 'Cancelar',
     close: 'Cerrar',
+    clear: 'Limpiar',
     columns: 'Columnas',
     copied: 'Copiado',
     copyLink: 'Copiar link',

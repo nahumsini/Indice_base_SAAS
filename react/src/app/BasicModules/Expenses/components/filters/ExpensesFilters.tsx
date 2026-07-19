@@ -1,4 +1,5 @@
 import { Search, X } from 'lucide-react';
+import { getIndiceFilterControlClassName, IndiceFilterBar } from '../../../../components/frontend-os';
 import type { Provider } from '../../types/expenses.types';
 import type { ExpenseListFilters, PeriodFilter } from '../../types/expenseView.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
@@ -13,7 +14,7 @@ type ExpensesFiltersProps = {
   onFiltersChange: (filters: ExpenseListFilters) => void;
 };
 
-const filterInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
+const filterInputClass = getIndiceFilterControlClassName('green');
 
 const updateFilter = <K extends keyof ExpenseListFilters>(
   filters: ExpenseListFilters,
@@ -25,12 +26,11 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
   const t = useExpensesTranslations();
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-base font-semibold text-slate-900 dark:text-white">{t.filters.title}</h3>
-        <span className="text-sm text-slate-500 dark:text-slate-400">{t.common.results(filteredCount)}</span>
-      </div>
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(280px,1.4fr)_repeat(5,minmax(0,1fr))]">
+    <IndiceFilterBar
+      gridClassName="xl:grid-cols-[minmax(280px,1.4fr)_repeat(5,minmax(0,1fr))]"
+      summary={t.common.results(filteredCount)}
+      title={t.filters.title}
+    >
         <SearchFilter filters={filters} placeholder={t.expenses.searchPlaceholder} searchLabel={t.common.search} onFiltersChange={onFiltersChange} />
         <SelectFilter
           label={t.filters.unit}
@@ -77,8 +77,7 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
           onChange={(value) => onFiltersChange(updateFilter(filters, 'providerFilter', value))}
           options={providers.map(provider => [provider.id, provider.name])}
         />
-      </div>
-    </div>
+    </IndiceFilterBar>
   );
 }
 
@@ -98,7 +97,7 @@ function SearchFilter({
           value={filters.searchTerm}
           onChange={(event) => onFiltersChange(updateFilter(filters, 'searchTerm', event.target.value))}
           placeholder={placeholder}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          className={`${filterInputClass} py-2 pl-10 pr-10`}
         />
         {filters.searchTerm && (
           <button

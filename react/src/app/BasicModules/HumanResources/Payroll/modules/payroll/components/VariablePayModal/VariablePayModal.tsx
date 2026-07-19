@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Gift, Plus, ReceiptText, SlidersHorizontal, Trash2, WalletCards } from 'lucide-react';
 import { Button } from '../../../../../../../components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '../../../../../../../components/ui/dialog';
+import { IndiceModalFrame } from '../../../../../../../components/indice-modal';
 import { Switch } from '../../../../../../../components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../../../../components/ui/tabs';
 import type { PayrollVariablePayCopy } from '../../../../translations/types';
@@ -242,20 +236,26 @@ export function VariablePayModal({
 
     return (
         <>
-            <Dialog open={isOpen} onOpenChange={(open) => {
-                if (!open) {
-                    onClose();
-                }
-            }}>
-                <DialogContent className="z-[140] flex h-[min(88vh,860px)] max-w-[980px] flex-col gap-0 overflow-hidden p-0">
-                    <DialogHeader className="border-b border-[#3AAE90] bg-[#59C3A5] px-5 py-4">
-                        <DialogTitle className="text-lg font-semibold text-white">
-                            {copy.title}
-                        </DialogTitle>
-                        <p className="text-sm text-blue-100">{employeeName}</p>
-                    </DialogHeader>
-
-                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            <IndiceModalFrame
+                open={isOpen}
+                onOpenChange={(open) => {
+                    if (!open) onClose();
+                }}
+                modalType="operational-workspace"
+                tone="aqua"
+                icon={<WalletCards className="h-5 w-5" />}
+                title={copy.title}
+                description={employeeName}
+                closeLabel={copy.actions.cancel}
+                contentClassName="z-[140] h-[min(88vh,860px)] sm:max-w-[980px]"
+                bodyClassName="px-5 py-4"
+                footer={(
+                    <>
+                        <Button type="button" variant="outline" onClick={onClose}>{copy.actions.cancel}</Button>
+                        <Button type="button" onClick={() => onSave(localItems)}>{copy.actions.saveChanges}</Button>
+                    </>
+                )}
+            >
                         <Tabs defaultValue="bonuses" className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="bonuses">{copy.tabs.bonuses}</TabsTrigger>
@@ -319,22 +319,28 @@ export function VariablePayModal({
                                 </div>
                             </TabsContent>
                         </Tabs>
-                    </div>
+            </IndiceModalFrame>
 
-                    <DialogFooter className="border-t border-slate-200 px-5 py-4 dark:border-slate-700">
-                        <Button type="button" variant="outline" onClick={onClose}>{copy.actions.cancel}</Button>
-                        <Button type="button" onClick={() => onSave(localItems)} className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]">{copy.actions.saveChanges}</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={addMode === 'bonus'} onOpenChange={(open) => {
-                if (!open) setAddMode(null);
-            }}>
-                <DialogContent overlayClassName="z-[220]" className="z-[230] max-w-[760px]">
-                    <DialogHeader>
-                        <DialogTitle>{copy.labels.addManualBonus}</DialogTitle>
-                    </DialogHeader>
+            <IndiceModalFrame
+                open={addMode === 'bonus'}
+                onOpenChange={(open) => {
+                    if (!open) setAddMode(null);
+                }}
+                modalType="standard-form"
+                tone="aqua"
+                icon={<Gift className="h-5 w-5" />}
+                title={copy.labels.addManualBonus}
+                description={selectedBonusTemplate.description}
+                closeLabel={copy.actions.cancel}
+                contentClassName="z-[230] sm:max-w-[760px]"
+                overlayClassName="z-[220]"
+                footer={(
+                    <>
+                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
+                        <Button type="button" onClick={addBonus}>{copy.actions.addSelectedBonus}</Button>
+                    </>
+                )}
+            >
                     <div className="space-y-3">
                         {bonusTemplates.map((template) => (
                             <button
@@ -348,20 +354,28 @@ export function VariablePayModal({
                             </button>
                         ))}
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
-                        <Button type="button" onClick={addBonus} className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]">{copy.actions.addSelectedBonus}</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            </IndiceModalFrame>
 
-            <Dialog open={addMode === 'commission'} onOpenChange={(open) => {
-                if (!open) setAddMode(null);
-            }}>
-                <DialogContent overlayClassName="z-[220]" className="z-[230] max-w-[760px]">
-                    <DialogHeader>
-                        <DialogTitle>{copy.labels.addManualCommission}</DialogTitle>
-                    </DialogHeader>
+            <IndiceModalFrame
+                open={addMode === 'commission'}
+                onOpenChange={(open) => {
+                    if (!open) setAddMode(null);
+                }}
+                modalType="standard-form"
+                tone="aqua"
+                icon={<ReceiptText className="h-5 w-5" />}
+                title={copy.labels.addManualCommission}
+                description={selectedCommissionTemplate.description}
+                closeLabel={copy.actions.cancel}
+                contentClassName="z-[230] sm:max-w-[760px]"
+                overlayClassName="z-[220]"
+                footer={(
+                    <>
+                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
+                        <Button type="button" onClick={addCommission}>{copy.actions.addSelectedCommission}</Button>
+                    </>
+                )}
+            >
                     <div className="space-y-3">
                         {commissionTemplates.map((template) => (
                             <button
@@ -378,23 +392,37 @@ export function VariablePayModal({
                             {copy.labels.commissionAmount}: <span className="font-semibold text-slate-900 dark:text-slate-100">${money(selectedCommissionAmount)}</span>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
-                        <Button type="button" onClick={addCommission} className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]">{copy.actions.addSelectedCommission}</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            </IndiceModalFrame>
 
-            <Dialog open={addMode === 'adjustment'} onOpenChange={(open) => {
-                if (!open) {
-                    setAdjustmentDraft(defaultAdjustmentDraft);
-                    setAddMode(null);
-                }
-            }}>
-                <DialogContent overlayClassName="z-[220]" className="z-[230] max-w-[760px]">
-                    <DialogHeader>
-                        <DialogTitle>{copy.labels.addPayrollAdjustment}</DialogTitle>
-                    </DialogHeader>
+            <IndiceModalFrame
+                open={addMode === 'adjustment'}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setAdjustmentDraft(defaultAdjustmentDraft);
+                        setAddMode(null);
+                    }
+                }}
+                modalType="standard-form"
+                tone="aqua"
+                icon={<SlidersHorizontal className="h-5 w-5" />}
+                title={copy.labels.addPayrollAdjustment}
+                description={copy.labels.adjustmentSavedAs}
+                closeLabel={copy.actions.cancel}
+                contentClassName="z-[230] sm:max-w-[760px]"
+                overlayClassName="z-[220]"
+                footer={(
+                    <>
+                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
+                        <Button
+                            type="button"
+                            onClick={addAdjustment}
+                            disabled={!adjustmentDraft.reason.trim()}
+                        >
+                            {copy.actions.addAdjustment}
+                        </Button>
+                    </>
+                )}
+            >
                     <div className="space-y-3">
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <button
@@ -463,19 +491,7 @@ export function VariablePayModal({
                             />
                         </label>
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setAddMode(null)}>{copy.actions.cancel}</Button>
-                        <Button
-                            type="button"
-                            onClick={addAdjustment}
-                            disabled={!adjustmentDraft.reason.trim()}
-                            className="bg-[#59C3A5] text-white hover:bg-[#3AAE90] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {copy.actions.addAdjustment}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            </IndiceModalFrame>
         </>
     );
 }

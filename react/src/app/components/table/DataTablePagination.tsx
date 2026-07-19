@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
+import { useLanguage } from '../../shared/context';
 
 import {
   Pagination,
@@ -26,21 +27,29 @@ export type DataTablePaginationLabels = {
   showing?: (pageStart: number, pageEnd: number, totalCount: number, itemLabel: string) => ReactNode;
 };
 
-const defaultLabels: Required<DataTablePaginationLabels> = {
-  next: 'Siguiente',
-  page: (currentPage, totalPages) => `Página ${currentPage} de ${totalPages}`,
-  previous: 'Anterior',
-  rowsPerPage: 'Filas por página',
-  showing: (pageStart, pageEnd, totalCount, itemLabel) => (
-    `Mostrando ${pageStart}-${pageEnd} de ${totalCount} ${itemLabel}`
-  ),
+const paginationCopyByLocale: Record<string, {
+  next: string;
+  page: (currentPage: number, totalPages: number) => string;
+  previous: string;
+  records: string;
+  rowsPerPage: string;
+  showing: (pageStart: number, pageEnd: number, totalCount: number, itemLabel: string) => string;
+}> = {
+  'en-CA': { next: 'Next', page: (current, total) => `Page ${current} of ${total}`, previous: 'Previous', records: 'records', rowsPerPage: 'Rows per page', showing: (start, end, total, label) => `Showing ${start}-${end} of ${total} ${label}` },
+  'en-US': { next: 'Next', page: (current, total) => `Page ${current} of ${total}`, previous: 'Previous', records: 'records', rowsPerPage: 'Rows per page', showing: (start, end, total, label) => `Showing ${start}-${end} of ${total} ${label}` },
+  'es-MX': { next: 'Siguiente', page: (current, total) => `Página ${current} de ${total}`, previous: 'Anterior', records: 'registros', rowsPerPage: 'Filas por página', showing: (start, end, total, label) => `Mostrando ${start}-${end} de ${total} ${label}` },
+  'es-CO': { next: 'Siguiente', page: (current, total) => `Página ${current} de ${total}`, previous: 'Anterior', records: 'registros', rowsPerPage: 'Filas por página', showing: (start, end, total, label) => `Mostrando ${start}-${end} de ${total} ${label}` },
+  'fr-CA': { next: 'Suivant', page: (current, total) => `Page ${current} sur ${total}`, previous: 'Précédent', records: 'éléments', rowsPerPage: 'Lignes par page', showing: (start, end, total, label) => `Affichage de ${start}-${end} sur ${total} ${label}` },
+  'pt-BR': { next: 'Próxima', page: (current, total) => `Página ${current} de ${total}`, previous: 'Anterior', records: 'registros', rowsPerPage: 'Linhas por página', showing: (start, end, total, label) => `Mostrando ${start}-${end} de ${total} ${label}` },
+  'ko-CA': { next: '다음', page: (current, total) => `${current} / ${total} 페이지`, previous: '이전', records: '개 항목', rowsPerPage: '페이지당 행', showing: (start, end, total, label) => `${total}${label} 중 ${start}-${end} 표시` },
+  'zh-CA': { next: '下一页', page: (current, total) => `第 ${current} 页，共 ${total} 页`, previous: '上一页', records: '条记录', rowsPerPage: '每页行数', showing: (start, end, total, label) => `显示 ${start}-${end}，共 ${total} ${label}` },
 };
 
 export function DataTablePagination({
   attached = true,
   className,
   currentPage,
-  itemLabel = 'registros',
+  itemLabel,
   labels,
   onPageChange,
   onPageSizeChange,
@@ -65,6 +74,9 @@ export function DataTablePagination({
   totalCount: number;
   totalPages: number;
 }) {
+  const { currentLanguage } = useLanguage();
+  const defaultLabels = paginationCopyByLocale[currentLanguage.code] ?? paginationCopyByLocale['en-CA'];
+  const resolvedItemLabel = itemLabel ?? defaultLabels.records;
   const resolvedLabels = {
     next: labels?.next ?? defaultLabels.next,
     page: labels?.page ?? defaultLabels.page,
@@ -120,7 +132,7 @@ export function DataTablePagination({
       )}
     >
       <p className="font-semibold text-slate-500 dark:text-slate-400">
-        {resolvedLabels.showing(pageStart, pageEnd, totalCount, itemLabel)}
+        {resolvedLabels.showing(pageStart, pageEnd, totalCount, resolvedItemLabel)}
       </p>
 
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center md:justify-end">

@@ -9,6 +9,7 @@ import {
 } from '../ui/dialog';
 import { cn } from '../ui/utils';
 import { IndiceModalFooter, type IndiceModalFooterTone } from './IndiceModalFooter';
+import { useLanguage } from '../../shared/context';
 
 export type IndiceModalType = 'confirmation' | 'standard-form' | 'wizard' | 'operational-workspace';
 export type IndiceModalTone = IndiceModalFooterTone;
@@ -29,6 +30,7 @@ export type IndiceModalFrameProps = {
   modalType?: IndiceModalType;
   onOpenChange: (open: boolean) => void;
   open: boolean;
+  overlayClassName?: string;
   title: ReactNode;
   tone?: IndiceModalTone;
 };
@@ -88,7 +90,7 @@ export function IndiceModalFrame({
   bodyClassName,
   busy = false,
   children,
-  closeLabel = 'Cerrar',
+  closeLabel,
   contentClassName,
   description,
   eyebrow,
@@ -100,10 +102,22 @@ export function IndiceModalFrame({
   modalType = 'standard-form',
   onOpenChange,
   open,
+  overlayClassName,
   title,
   tone = 'green',
 }: IndiceModalFrameProps) {
+  const { currentLanguage } = useLanguage();
   const styles = toneStyles[tone];
+  const localizedCloseLabel = closeLabel ?? ({
+    'en-CA': 'Close',
+    'en-US': 'Close',
+    'es-CO': 'Cerrar',
+    'es-MX': 'Cerrar',
+    'fr-CA': 'Fermer',
+    'ko-CA': '닫기',
+    'pt-BR': 'Fechar',
+    'zh-CA': '关闭',
+  }[currentLanguage.code] ?? 'Close');
   const handleOpenChange = (nextOpen: boolean) => {
     if (busy && !nextOpen) return;
     onOpenChange(nextOpen);
@@ -124,8 +138,8 @@ export function IndiceModalFrame({
           busy && 'pointer-events-none opacity-50',
         )}
         closeButtonDisabled={busy}
-        closeButtonLabel={closeLabel}
-        overlayClassName="bg-slate-950/55 backdrop-blur-[2px]"
+        closeButtonLabel={localizedCloseLabel}
+        overlayClassName={cn('bg-slate-950/55 backdrop-blur-[2px]', overlayClassName)}
         onEscapeKeyDown={(event) => busy && event.preventDefault()}
         onPointerDownOutside={(event) => event.preventDefault()}
       >

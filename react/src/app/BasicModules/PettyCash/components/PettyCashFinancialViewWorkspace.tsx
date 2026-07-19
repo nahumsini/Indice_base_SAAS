@@ -394,7 +394,6 @@ export function PettyCashFinancialViewWorkspace({
       />
 
       <PettyCashFilterShell
-        clearLabel="Limpiar"
         onClear={resetFilters}
         resultLabel={copy.financial.filters.result(filteredStatements.length)}
         subtitle={copy.financial.filters.subtitle}

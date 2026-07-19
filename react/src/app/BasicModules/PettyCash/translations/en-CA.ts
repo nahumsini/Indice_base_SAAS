@@ -14,6 +14,7 @@ export const enCA = {
     automaticCurrentStatement: 'Current automatic statement',
     cancel: 'Cancel',
     close: 'Close',
+    clear: 'Clear',
     columns: 'Columns',
     copied: 'Copied',
     copyLink: 'Copy link',

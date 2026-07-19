@@ -20,10 +20,10 @@ import type {
   AgendaSortState,
   AgendaTableColumnId,
 } from '../types';
-import { useTablePagination } from '../../../../hooks/useTablePagination';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS, useTablePagination } from '../../../../hooks/useTablePagination';
 import { AgendaSortableTableHead, AgendaStaticTableHead } from './AgendaTablePrimitives';
 
-const agendaPageSizeOptions = [10, 25, 50, 100, 200] as const;
+const agendaPageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS;
 
 interface AgendaTableViewProps {
   agendaColumnWidths: Record<AgendaTableColumnId, number>;

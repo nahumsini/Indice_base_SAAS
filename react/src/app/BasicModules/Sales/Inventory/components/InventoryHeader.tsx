@@ -28,11 +28,7 @@ export function InventoryHeader({
 }) {
   const title = isMovementsView ? t.operational.movementsTitle : t.operational.title;
   const subtitle = isMovementsView ? t.operational.movementsSubtitle : t.operational.subtitle;
-  const warehouseActionLabel = t.operational.actions.createWarehouse === 'Crear almacén'
-    ? 'Administrar almacenes'
-    : t.operational.actions.createWarehouse === 'Create warehouse'
-      ? 'Manage warehouses'
-      : t.operational.actions.createWarehouse;
+  const warehouseActionLabel = t.operational.modals.manageWarehousesTitle;
 
   return (
     <SalesTitleBar

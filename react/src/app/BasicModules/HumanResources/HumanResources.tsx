@@ -1,16 +1,12 @@
-import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Button } from '../../components/ui/button';
-import { FavoritesBar } from '../../components/FavoritesBar';
+import { lazy, Suspense, useEffect, useRef } from 'react';
+import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { LearningModeHeaderActionsProvider } from '../../learningMode';
+import { HumanResourcesTabErrorBoundary } from './components/HumanResourcesTabErrorBoundary';
+import { useHumanResourcesAccess } from './hooks/useHumanResourcesAccess';
 import { useHumanResourcesTranslations } from './hooks/useHumanResourcesTranslations';
-import type { HumanResourcesTranslations } from './translations';
-import { authApi } from '../../api/auth';
-import {
-  canAccessHumanResourcesTab,
-  type HumanResourcesTabId,
-} from '../../access/accessRules';
+import type { HumanResourcesTabId } from '../../access/accessRules';
 import {
   OperationalModuleGuide,
   useHumanResourcesGuidanceTranslations,
@@ -56,99 +52,11 @@ const legacyHumanResourcesTabAliases: Partial<Record<string, HumanResourcesTabId
   incentivos: 'incentives',
 };
 
-interface TabContentErrorBoundaryProps {
-  children: ReactNode;
-  copy: HumanResourcesTranslations['tabError'];
-}
-
-interface TabContentErrorBoundaryState {
-  hasError: boolean;
-  errorMessage?: string;
-  errorStack?: string;
-  componentStack?: string;
-}
-
-class TabContentErrorBoundary extends Component<TabContentErrorBoundaryProps, TabContentErrorBoundaryState> {
-  state: TabContentErrorBoundaryState = {
-    hasError: false,
-  };
-
-  static getDerivedStateFromError(error: unknown): TabContentErrorBoundaryState {
-    return {
-      hasError: true,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
-    };
-  }
-
-  componentDidCatch(error: unknown, errorInfo: { componentStack?: string }) {
-    console.error('Human Resources tab failed to render.', error, errorInfo);
-    this.setState({ componentStack: errorInfo.componentStack });
-  }
-
-  private handleReload = () => {
-    window.location.reload();
-  };
-
-  render() {
-    if (this.state.hasError) {
-      const { copy } = this.props;
-
-      return (
-        <div
-          role="alert"
-          className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-amber-900 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700 dark:text-amber-300">
-            {copy.eyebrow}
-          </p>
-          <h2 className="mt-2 text-lg font-semibold text-amber-950 dark:text-white">
-            {copy.title}
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-800 dark:text-amber-100/85">
-            {copy.description}
-          </p>
-          <Button
-            type="button"
-            onClick={this.handleReload}
-            className="mt-4 bg-[#59C3A5] text-white hover:bg-[#4AAE91]"
-          >
-            {copy.reload}
-          </Button>
-          {import.meta.env.DEV ? (
-            <details className="mt-4 rounded-md border border-amber-200 bg-white/70 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-slate-950/40 dark:text-amber-100">
-              <summary className="cursor-pointer font-semibold">Detalle técnico local</summary>
-              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words">
-                {[
-                  this.state.errorMessage,
-                  this.state.errorStack,
-                  this.state.componentStack,
-                ].filter(Boolean).join('\n\n')}
-              </pre>
-            </details>
-          ) : null}
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
 export default function HumanResources({ learningModeActive = false, onNavigate }: HumanResourcesProps) {
   const t = useHumanResourcesTranslations();
   const guidanceCopy = useHumanResourcesGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
-  const [sessionAccess, setSessionAccess] = useState<{
-    role: string | null;
-    tabPermissionKeys: string[];
-    tabPermissionsConfigured: boolean;
-  }>({
-    role: null,
-    tabPermissionKeys: [],
-    tabPermissionsConfigured: false,
-  });
-  const [isAccessLoaded, setIsAccessLoaded] = useState(false);
+  const { canAccessTab, isAccessLoaded } = useHumanResourcesAccess();
   const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
     'collaborators',
     humanResourcesTabIds,
@@ -173,53 +81,12 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
     component: typeof Employees;
   }>;
 
-  const canAccessTab = (tabId: HumanResourcesTabId) => canAccessHumanResourcesTab(
-    sessionAccess.role,
-    tabId,
-    sessionAccess.tabPermissionKeys,
-    sessionAccess.tabPermissionsConfigured,
-  );
-
   const tabs = isAccessLoaded
     ? allTabs.filter((tab) => canAccessTab(tab.id))
     : [];
 
   // Get the active component
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component ?? null;
-
-  useEffect(() => {
-    let active = true;
-
-    authApi.getSessionOrNull()
-      .then((session) => {
-        if (!active) {
-          return;
-        }
-        setSessionAccess({
-          role: session?.user.role ?? null,
-          tabPermissionKeys: session?.user.tab_permission_keys ?? [],
-          tabPermissionsConfigured: Boolean(session?.user.tab_permissions_configured),
-        });
-      })
-      .catch(() => {
-        if (active) {
-          setSessionAccess({
-            role: null,
-            tabPermissionKeys: [],
-            tabPermissionsConfigured: false,
-          });
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setIsAccessLoaded(true);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!isAccessLoaded || canAccessTab(activeTab)) {
@@ -229,7 +96,7 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
     if (tabs[0]) {
       setActiveTab(tabs[0].id);
     }
-  }, [activeTab, isAccessLoaded, sessionAccess, setActiveTab, tabs]);
+  }, [activeTab, canAccessTab, isAccessLoaded, setActiveTab, tabs]);
 
   const handleTabClick = (tabId: HumanResourcesTabId) => {
     if (tabId === activeTab) {
@@ -251,72 +118,26 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Header del módulo */}
-      <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-        <div className="max-w-[1600px] mx-auto">
-          {/* Barra de Favoritos */}
-          <FavoritesBar 
-            onNavigate={(page) => {
-              if (page === 'human-resources') return;
-              onNavigate(page);
-            }} 
-            currentModule="human-resources" 
+      <IndiceModuleShell
+        activeTab={activeTab}
+        backLabel={t.back}
+        contentRef={mainContentRef}
+        currentModule="human-resources"
+        guide={learningModeActive && activeTab !== 'collaborators' ? (
+          <OperationalModuleGuide
+            copy={guidanceCopy}
+            activeTabId={activeTab}
+            onPrimaryAction={handleGuidePrimaryAction}
           />
-          
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="mb-2 text-2xl font-bold text-slate-950 dark:text-white sm:text-3xl">
-                {t.title}
-              </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-300 sm:text-base">
-                {t.subtitle}
-              </p>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => onNavigate()}
-              className="w-full justify-center gap-2 text-sm sm:w-auto"
-            >
-              <span className="text-lg">🏠</span> {t.back}
-            </Button>
-          </div>
-
-          {/* Pestañas */}
-          <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 scrollbar-hide sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
-            <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.id)}
-                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-[#59C3A5] text-white shadow-md shadow-[#59C3A5]/25'
-                      : 'bg-slate-100 text-slate-600 hover:bg-[#59C3A5]/10 hover:text-[#2F8F78] dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#59C3A5]/15 dark:hover:text-[#8BE0CB]'
-                  }`}
-                >
-                  <span>{tab.emoji}</span>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {learningModeActive && activeTab !== 'collaborators' ? (
-            <div className="mt-4">
-              <OperationalModuleGuide
-                copy={guidanceCopy}
-                activeTabId={activeTab}
-                onPrimaryAction={handleGuidePrimaryAction}
-              />
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Contenido del tab activo */}
-      <div ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-        <TabContentErrorBoundary key={activeTab} copy={t.tabError}>
+        ) : undefined}
+        onNavigate={onNavigate}
+        onTabChange={handleTabClick}
+        subtitle={t.subtitle}
+        tabs={tabs.map(tab => ({ id: tab.id, label: tab.label, icon: tab.emoji }))}
+        title={t.title}
+        tone="aqua"
+      >
+        <HumanResourcesTabErrorBoundary key={activeTab} copy={t.tabError}>
           <Suspense
             fallback={(
               <LoadingBarOverlay
@@ -344,9 +165,8 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
               />
             )}
           </Suspense>
-        </TabContentErrorBoundary>
-      </div>
-    </div>
+        </HumanResourcesTabErrorBoundary>
+      </IndiceModuleShell>
     </LearningModeHeaderActionsProvider>
   );
 }

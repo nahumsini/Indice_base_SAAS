@@ -18,7 +18,7 @@ type PointOfSaleTablePaginationProps = {
 
 export function PointOfSaleTablePagination({
   attached = true,
-  itemLabel = 'registros',
+  itemLabel,
   pageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS,
   ...paginationProps
 }: PointOfSaleTablePaginationProps) {
@@ -26,15 +26,6 @@ export function PointOfSaleTablePagination({
     <DataTablePagination
       attached={attached}
       itemLabel={itemLabel}
-      labels={{
-        next: 'Siguiente',
-        page: (currentPage, totalPages) => `${currentPage} / ${totalPages}`,
-        previous: 'Anterior',
-        rowsPerPage: 'Filas por pagina',
-        showing: (pageStart, pageEnd, totalCount, label) => (
-          `Mostrando ${pageStart}-${pageEnd} de ${totalCount} ${label}`
-        ),
-      }}
       pageSizeOptions={pageSizeOptions}
       {...paginationProps}
     />

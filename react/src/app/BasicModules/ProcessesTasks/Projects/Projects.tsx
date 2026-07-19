@@ -41,7 +41,7 @@ import {
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
-import { LearningModeTitleBarBridge } from '../../../learningMode';
+import { IndiceTitleBar } from '../../../components/frontend-os';
 import { priorityClasses } from '../Processes/processesData';
 import { listProcesses } from '../Processes/processesApi';
 import type {
@@ -1566,24 +1566,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
 
   return (
     <>
-      <LearningModeTitleBarBridge actions={headerActions}>
-        <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 shadow-sm dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-[#FFF8DF] text-2xl shadow-sm dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15" aria-hidden="true">
-                {headerCopy.emoji}
-              </span>
-              <div className="min-w-0">
-                <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">{headerCopy.title}</h2>
-                <p className="max-w-3xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
-                  {headerCopy.subtitle}
-                </p>
-              </div>
-            </div>
-            {headerActions}
-          </div>
-        </section>
-      </LearningModeTitleBarBridge>
+      <IndiceTitleBar actions={headerActions} className="mb-5" icon={headerCopy.emoji} subtitle={headerCopy.subtitle} title={headerCopy.title} tone="yellow" />
 
       {projectsError ? (
         <section className="mb-6 rounded-lg border border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-5 py-4 text-sm text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">

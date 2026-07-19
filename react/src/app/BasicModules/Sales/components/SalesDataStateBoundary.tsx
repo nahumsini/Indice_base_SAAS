@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react';
 import { useLanguage } from '../../../shared/context';
+import { IndiceViewState } from '../../../components/frontend-os';
 import { cn } from '../../../components/ui/utils';
 import { useSalesCrm } from '../salesCrmContext';
 
@@ -96,25 +97,27 @@ export function SalesDataStateBoundary({ children }: { children: ReactNode }) {
 
   if (isLoading && !hasData) {
     return (
-      <section className="rounded-[24px] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800" aria-live="polite">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#FF6B5E]" aria-hidden="true" />
-        <h2 className="mt-4 text-lg font-bold text-slate-950 dark:text-white">{copy.loadingTitle}</h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.loadingDescription}</p>
-      </section>
+      <IndiceViewState
+        description={copy.loadingDescription}
+        title={copy.loadingTitle}
+        tone="coral"
+        variant="loading"
+      />
     );
   }
 
   if (hasFatalLoadError) {
     return (
-      <section className="rounded-[24px] border border-rose-200 bg-rose-50 p-6 dark:border-rose-900/60 dark:bg-rose-950/20" role="alert">
-        <AlertTriangle className="h-7 w-7 text-rose-600 dark:text-rose-300" aria-hidden="true" />
-        <h2 className="mt-3 text-lg font-bold text-slate-950 dark:text-white">{copy.loadErrorTitle}</h2>
-        <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{copy.loadErrorDescription}</p>
-        <button type="button" onClick={() => void reloadAll()} className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-semibold text-white transition hover:bg-[#e85a4f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/40">
+      <IndiceViewState
+        action={<button type="button" onClick={() => void reloadAll()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-semibold text-white transition hover:bg-[#e85a4f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/40">
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
           {copy.retry}
-        </button>
-      </section>
+        </button>}
+        description={copy.loadErrorDescription}
+        title={copy.loadErrorTitle}
+        tone="coral"
+        variant="error"
+      />
     );
   }
 

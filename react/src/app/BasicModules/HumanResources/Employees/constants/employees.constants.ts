@@ -7,13 +7,14 @@ import type {
   OrganizationOptionTone,
 } from '../types/employees.types';
 import type { EmployeesTranslations } from '../translations';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 
 export const columnsStorageKey = 'rh-colaboradores-columns-v6';
 export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v3';
 export const allFilterValue = 'all';
 export const inlineUnassignedValue = '__unassigned__';
 export const employeesPerPage = 10;
-export const employeePageSizeOptions = [10, 25, 50, 100, 200] as const;
+export const employeePageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS;
 export const employeeSelectionColumnWidth = 64;
 export const hrAccentButtonClass = 'bg-[#59C3A5] text-white hover:bg-[#3AAE90]';
 

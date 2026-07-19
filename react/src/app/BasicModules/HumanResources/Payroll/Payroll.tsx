@@ -25,22 +25,12 @@ import {
   SlidersHorizontal,
   Wallet,
   WalletCards,
-  X,
   XCircle,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { Skeleton } from '../../../components/ui/skeleton';
-import {
-  DialogClose,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -50,7 +40,9 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
+import { IndiceModalFrame } from '../../../components/indice-modal';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
 import { ApiClientError, buildApiUrl } from '../../../lib/apiClient';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import {
@@ -152,7 +144,7 @@ const payrollRunColumnIds: PayrollRunColumnId[] = [
 ];
 const lockedPayrollRunColumnIds: PayrollRunColumnId[] = ['period', 'actions'];
 const defaultPayrollPageSize = 10;
-const payrollPageSizeOptions = [10, 25, 50, 100, 200];
+const payrollPageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS;
 
 const pickPayrollRateValues = (preferences: PayrollPreferences): PayrollRateValues => ({
   isr_rate: preferences.isr_rate,
@@ -2179,39 +2171,49 @@ function PayrollPreferencesDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
-      <DialogContent className="!flex h-[min(820px,calc(100vh-2rem))] w-[min(1120px,calc(100vw-2rem))] max-w-none sm:max-w-none flex-col gap-0 overflow-hidden rounded-lg border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#59C3A5] px-6 py-5 text-left text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/12 text-white shadow-sm ring-1 ring-white/10">
-                <SlidersHorizontal className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 space-y-1">
-                <DialogTitle className="text-xl font-bold leading-tight text-white">
-                  {copy.labels.preferences}
-                </DialogTitle>
-                <DialogDescription className="max-w-2xl text-sm leading-6 text-blue-100">
-                  {preferenceCopy.subtitle}
-                </DialogDescription>
-              </div>
-            </div>
-            <DialogClose asChild>
-              <button
-                type="button"
-                disabled={isSaving}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label={copy.labels.close}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </DialogClose>
-          </div>
-        </DialogHeader>
+    <IndiceModalFrame
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      modalType="wizard"
+      tone="aqua"
+      busy={isSaving}
+      icon={<SlidersHorizontal className="h-5 w-5" />}
+      title={copy.labels.preferences}
+      description={preferenceCopy.subtitle}
+      closeLabel={copy.labels.close}
+      contentClassName="h-[min(820px,calc(100dvh-2rem))]"
+      bodyClassName="flex flex-col p-0"
+      footerLeading={(
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white">{preferenceCopy.footerTitle}</p>
+          <p className="max-w-[540px] truncate text-xs text-white/80">{impactMessage}</p>
+        </div>
+      )}
+      footer={(
+        <div className="flex shrink-0 gap-2">
+          <Button variant="outline" disabled={isSaving} onClick={onClose}>
+            {copy.labels.cancel}
+          </Button>
+          {currentPreferenceStep > 0 ? (
+            <Button variant="outline" disabled={isSaving} onClick={goToPreviousPreferenceStep}>
+              {preferenceCopy.previous}
+            </Button>
+          ) : null}
+          {isFinalPreferenceStep ? (
+            <Button onClick={onSave} disabled={isSaving}>
+              {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
+              {saveButtonLabel}
+            </Button>
+          ) : (
+            <Button onClick={goToNextPreferenceStep} disabled={isSaving}>
+              {preferenceCopy.next}
+            </Button>
+          )}
+        </div>
+      )}
+    >
 
         <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -2454,55 +2456,7 @@ function PayrollPreferencesDialog({
           </section>
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-white/15 bg-[#59C3A5] px-6 py-4 text-white">
-          <div className="flex w-full items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">{preferenceCopy.footerTitle}</p>
-              <p className="max-w-[540px] truncate text-xs text-blue-100">{impactMessage}</p>
-            </div>
-
-            <div className="flex shrink-0 gap-2">
-              <Button
-                variant="outline"
-                disabled={isSaving}
-                className="h-11 rounded-xl border-white/50 bg-transparent px-5 text-sm font-semibold text-white shadow-none hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={onClose}
-              >
-                {copy.labels.cancel}
-              </Button>
-              {currentPreferenceStep > 0 ? (
-                <Button
-                  variant="outline"
-                  disabled={isSaving}
-                  className="h-11 rounded-xl border-white/50 bg-transparent px-5 text-sm font-semibold text-white shadow-none hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={goToPreviousPreferenceStep}
-                >
-                  {preferenceCopy.previous}
-                </Button>
-              ) : null}
-              {isFinalPreferenceStep ? (
-                <Button
-                  onClick={onSave}
-                  disabled={isSaving}
-                  className="h-11 gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#59C3A5] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
-                >
-                  {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
-                  {saveButtonLabel}
-                </Button>
-              ) : (
-                <Button
-                  onClick={goToNextPreferenceStep}
-                  disabled={isSaving}
-                  className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#59C3A5] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-80"
-                >
-                  {preferenceCopy.next}
-                </Button>
-              )}
-            </div>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -2703,30 +2657,32 @@ function PayrollRatesDialog({
   const adjustableDescription = copy.rateDialog.adjustableDescription;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
-      <DialogContent className="!flex h-[min(88vh,940px)] max-h-[calc(100vh-3rem)] max-w-[980px] flex-col gap-0 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-0 shadow-[0_30px_80px_rgba(15,23,42,0.22)] dark:border-slate-700 dark:bg-slate-800 [&>button]:hidden">
-        <div className="shrink-0 bg-[#59C3A5] px-5 py-3 sm:px-6 sm:py-3.5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="pr-4">
-              <DialogTitle className="text-[1.1rem] font-normal leading-tight text-white sm:text-[1.2rem]">
-                {headerTitle}
-              </DialogTitle>
-            </div>
-            <DialogClose asChild>
-              <button
-                type="button"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/70 bg-white/10 text-white shadow-sm transition-colors hover:bg-white/20"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </DialogClose>
-          </div>
-        </div>
-
+    <IndiceModalFrame
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      modalType="operational-workspace"
+      tone="aqua"
+      busy={isSaving}
+      icon={<SlidersHorizontal className="h-5 w-5" />}
+      title={headerTitle}
+      description={copy.rateDialog.profileIntro}
+      closeLabel={copy.labels.close}
+      contentClassName="h-[min(88dvh,940px)] sm:max-w-[980px]"
+      bodyClassName="p-0"
+      footer={(
+        <>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            {copy.labels.cancel}
+          </Button>
+          <Button onClick={onSave} disabled={isSaving}>
+            {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <SlidersHorizontal className="h-4 w-4" />}
+            {copy.rateConfiguration.saveAction}
+          </Button>
+        </>
+      )}
+    >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/70 dark:bg-slate-900/60">
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
             <div className="space-y-5">
@@ -2826,28 +2782,8 @@ function PayrollRatesDialog({
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800 sm:px-6">
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <Button
-                variant="outline"
-                className="h-11 rounded-2xl border-slate-200 bg-white px-5 text-base font-semibold shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                onClick={onClose}
-              >
-                {copy.labels.cancel}
-              </Button>
-              <Button
-                onClick={onSave}
-                disabled={isSaving}
-                className="h-11 gap-2 rounded-2xl bg-[#59C3A5] px-5 text-base font-semibold text-white hover:bg-[#3AAE90]"
-              >
-                {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <SlidersHorizontal className="h-4 w-4" />}
-                {copy.rateConfiguration.saveAction}
-              </Button>
-            </div>
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -2915,67 +2851,73 @@ function PayrollRunDialog({
   const selectedLineHasColombiaFiscalSetup = selectedLineIsColombia && selectedTreatment === 'fiscal_payroll';
   const runHasColombiaFiscalLines = detail?.lines.some(isColombiaFiscalPayrollLine) ?? false;
 
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isSaving) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, isSaving, onClose]);
-
   if (!isOpen) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-[140] overflow-y-auto bg-black/55 px-4 py-8 backdrop-blur-[2px]">
-      <div className="flex min-h-full items-start justify-center">
-        <div
-          className="relative w-full max-w-[96vw] overflow-hidden rounded-lg border border-[#59C3A5]/25 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)] dark:border-[#59C3A5]/30 dark:bg-slate-950"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="relative bg-[#59C3A5] px-6 py-5 pr-16 text-white">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSaving}
-              className="absolute right-4 top-4 rounded-full border border-white/30 bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:opacity-60"
-              aria-label={copy.labels.close}
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white shadow-sm">
-                <Wallet className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="text-xl font-bold">
-                  {detail ? `${copy.labels.detail} #${detail.run.id}` : copy.labels.detail}
-                </h2>
-                <p className="mt-1 text-sm font-semibold text-white/85">
-                  {detail
-                    ? `${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
-                    : copy.labels.currentRun}
-                </p>
-              </div>
-            </div>
-          </div>
-
+    <IndiceModalFrame
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      modalType="operational-workspace"
+      tone="aqua"
+      busy={isSaving}
+      icon={<Wallet className="h-5 w-5" />}
+      title={detail ? `${copy.labels.detail} #${detail.run.id}` : copy.labels.detail}
+      description={detail
+        ? `${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
+        : copy.labels.currentRun}
+      closeLabel={copy.labels.close}
+      contentClassName="z-[140] h-[min(92dvh,960px)]"
+      bodyClassName="p-0"
+      footer={detail ? (
+        <>
+          <Button variant="outline" onClick={() => onDownloadCsv(detail.run)} disabled={isSaving}>
+            {activeBusyKind === 'download-csv' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {copy.labels.exportCsv}
+          </Button>
+          <Button variant="outline" onClick={() => onDownloadPdf(detail.run)} disabled={isSaving}>
+            {activeBusyKind === 'download-pdf' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            {copy.labels.exportPdf}
+          </Button>
+          {runHasColombiaFiscalLines ? (
+            <Button variant="outline" onClick={() => onOpenGovernmentReporting(detail.run)} disabled={isSaving}>
+              {activeBusyKind === 'government-reporting' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
+              PILA / DIAN
+            </Button>
+          ) : null}
+          {canProcess ? (
+            <Button onClick={onProcess} disabled={isSaving}>
+              {activeBusyKind === 'process-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+              {copy.labels.process}
+            </Button>
+          ) : null}
+          {canApprove ? (
+            <Button onClick={onApprove} disabled={isSaving}>
+              {activeBusyKind === 'approve-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {copy.labels.approve}
+            </Button>
+          ) : null}
+          {canPay ? (
+            <Button onClick={onPay} disabled={isSaving}>
+              {activeBusyKind === 'mark-paid' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              {copy.labels.pay}
+            </Button>
+          ) : null}
+          {isDraft ? (
+            <Button onClick={onSaveLine} disabled={isSaving || !selectedLine}>
+              {activeBusyKind === 'save-line' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {copy.labels.saveLine}
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={onClose}>{copy.labels.closeDetail}</Button>
+        </>
+      ) : (
+        <Button variant="outline" onClick={onClose}>{copy.labels.close}</Button>
+      )}
+    >
           <div className="bg-slate-50 p-6 dark:bg-slate-950">
           {notice ? (
             <div
@@ -3375,58 +3317,7 @@ function PayrollRunDialog({
           )}
           </div>
 
-          <div className="flex flex-col-reverse gap-2 border-t border-white/15 bg-[#59C3A5] px-6 py-4 sm:flex-row sm:justify-end">
-            {detail ? (
-              <>
-                <div className="flex flex-wrap gap-2 sm:mr-auto">
-                  <Button variant="outline" onClick={() => onDownloadCsv(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
-                    {activeBusyKind === 'download-csv' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    {copy.labels.exportCsv}
-                  </Button>
-                  <Button variant="outline" onClick={() => onDownloadPdf(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
-                    {activeBusyKind === 'download-pdf' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                    {copy.labels.exportPdf}
-                  </Button>
-                  {runHasColombiaFiscalLines ? (
-                    <Button variant="outline" onClick={() => onOpenGovernmentReporting(detail.run)} className="gap-2 rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" disabled={isSaving}>
-                      {activeBusyKind === 'government-reporting' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
-                      PILA / DIAN
-                    </Button>
-                  ) : null}
-                  {canProcess ? (
-                    <Button onClick={onProcess} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
-                      {activeBusyKind === 'process-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                      {copy.labels.process}
-                    </Button>
-                  ) : null}
-                  {canApprove ? (
-                    <Button onClick={onApprove} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
-                      {activeBusyKind === 'approve-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                      {copy.labels.approve}
-                    </Button>
-                  ) : null}
-                  {canPay ? (
-                    <Button onClick={onPay} disabled={isSaving} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
-                      {activeBusyKind === 'mark-paid' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                      {copy.labels.pay}
-                    </Button>
-                  ) : null}
-                </div>
-                {isDraft ? (
-                  <Button onClick={onSaveLine} disabled={isSaving || !selectedLine} className="gap-2 rounded-lg bg-white text-[#177d66] hover:bg-white/90">
-                    {activeBusyKind === 'save-line' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    {copy.labels.saveLine}
-                  </Button>
-                ) : null}
-                <Button variant="outline" className="rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.labels.closeDetail}</Button>
-              </>
-            ) : (
-              <Button variant="outline" className="rounded-lg border-white/35 bg-white/10 text-white hover:bg-white/20" onClick={onClose}>{copy.labels.close}</Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    </IndiceModalFrame>
   );
 }
 
@@ -3492,38 +3383,32 @@ function PayrollColombiaSetupDialog({
   };
 
   return (
-    <Dialog open onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
-      <DialogContent className="z-[145] !flex h-[min(90vh,940px)] max-h-[calc(100vh-2rem)] max-w-[1080px] flex-col gap-0 overflow-hidden rounded-[28px] border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#59C3A5] px-6 py-5 text-left text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15">
-                <Globe2 className="h-5 w-5" />
-              </span>
-              <div>
-                <DialogTitle className="text-xl font-bold leading-tight text-white">Colombia</DialogTitle>
-                <DialogDescription className="mt-1 text-sm leading-6 text-blue-100">
-                  {context.line.user_name} · Corrida #{context.run.id}
-                </DialogDescription>
-              </div>
-            </div>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-9 w-9 rounded-lg p-0 text-white hover:bg-white/15 hover:text-white"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </DialogClose>
-          </div>
-        </DialogHeader>
-
+    <IndiceModalFrame
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      modalType="operational-workspace"
+      tone="aqua"
+      busy={isSaving}
+      icon={<Globe2 className="h-5 w-5" />}
+      title="Colombia"
+      description={`${context.line.user_name} · Corrida #${context.run.id}`}
+      closeLabel="Cerrar"
+      contentClassName="z-[145] h-[min(90dvh,940px)] sm:max-w-[1080px]"
+      bodyClassName="p-0"
+      footerSummary="Los cambios aplican al siguiente cálculo backend."
+      footer={(
+        <>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+            Cerrar
+          </Button>
+          <Button type="button" onClick={onSave} disabled={isSaving}>
+            {isSaving ? 'Guardando...' : 'Guardar Colombia'}
+          </Button>
+        </>
+      )}
+    >
         <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-6 dark:bg-slate-950">
           {notice ? (
             <div className={`mb-4 rounded-lg border px-4 py-3 text-sm font-semibold ${notice.tone === 'success'
@@ -3813,32 +3698,7 @@ function PayrollColombiaSetupDialog({
           </section>
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-white/15 bg-[#59C3A5] px-6 py-4 text-white">
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-semibold text-white">Los cambios aplican al siguiente cálculo backend.</p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isSaving}
-                className="h-10 rounded-lg border-white/30 bg-transparent px-4 text-sm font-bold text-white hover:bg-white/10 hover:text-white"
-              >
-                Cerrar
-              </Button>
-              <Button
-                type="button"
-                onClick={onSave}
-                disabled={isSaving}
-                className="h-10 rounded-lg bg-white px-5 text-sm font-black text-[#177d66] hover:bg-slate-50"
-              >
-                {isSaving ? 'Guardando...' : 'Guardar Colombia'}
-              </Button>
-            </div>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }
 
@@ -3863,42 +3723,22 @@ function PayrollGovernmentReportingDialog({
   const items = detail?.items ?? [];
 
   return (
-    <Dialog open onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
-      <DialogContent className="z-[140] !flex h-[min(88vh,900px)] max-h-[calc(100vh-2rem)] max-w-[1040px] flex-col gap-0 overflow-hidden rounded-[28px] border border-[#59C3A5]/25 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.26)] dark:border-[#59C3A5]/30 dark:bg-slate-900 [&>button]:hidden">
-        <DialogHeader className="shrink-0 bg-[#59C3A5] px-6 py-5 text-left text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15">
-                <Landmark className="h-5 w-5" />
-              </span>
-              <div>
-                <DialogTitle className="text-xl font-bold leading-tight text-white">
-                  PILA / DIAN Colombia
-                </DialogTitle>
-                <DialogDescription className="mt-1 text-sm leading-6 text-blue-100">
-                  {detail
-                    ? `Corrida #${detail.run.id} · ${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
-                    : 'Snapshots gubernamentales Colombia'}
-                </DialogDescription>
-              </div>
-            </div>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-9 w-9 rounded-lg p-0 text-white hover:bg-white/15 hover:text-white"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </DialogClose>
-          </div>
-        </DialogHeader>
-
+    <IndiceModalFrame
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      modalType="operational-workspace"
+      tone="aqua"
+      icon={<Landmark className="h-5 w-5" />}
+      title="PILA / DIAN Colombia"
+      description={detail
+        ? `Corrida #${detail.run.id} · ${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
+        : 'Snapshots gubernamentales Colombia'}
+      closeLabel="Cerrar"
+      contentClassName="z-[140] h-[min(88dvh,900px)] sm:max-w-[1040px]"
+      bodyClassName="p-0"
+    >
         <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-6 dark:bg-slate-950">
           {items.length > 0 ? (
             <div className="grid gap-4">
@@ -3980,7 +3820,6 @@ function PayrollGovernmentReportingDialog({
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </IndiceModalFrame>
   );
 }

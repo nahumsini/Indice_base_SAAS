@@ -18,6 +18,7 @@ export const frCA = {
     automaticCurrentStatement: 'Releve actuel automatique',
     cancel: 'Annuler',
     close: 'Fermer',
+    clear: 'Effacer',
     columns: 'Colonnes',
     copied: 'Copie',
     copyLink: 'Copier le lien',

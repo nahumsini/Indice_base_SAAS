@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
-import { cn } from '../../../components/ui/utils';
-import { LearningModeTitleBarBridge } from '../../../learningMode';
-import { financeSoftSurfaceClass } from '../constants/receivables.constants';
+import { IndiceTitleBar } from '../../../components/frontend-os';
 
 interface ReceivablesTitleBarProps {
   actions?: ReactNode;
@@ -16,28 +14,5 @@ export function ReceivablesTitleBar({
   subtitle,
   title,
 }: ReceivablesTitleBarProps) {
-  const actionLayout = actions ? (
-    <div className="flex flex-wrap items-center gap-3">
-      {actions}
-    </div>
-  ) : undefined;
-
-  return (
-    <LearningModeTitleBarBridge actions={actionLayout}>
-    <section className={cn('mb-5 rounded-lg border p-6 shadow-sm', financeSoftSurfaceClass)}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
-            <span className="inline-flex shrink-0 items-center justify-center text-3xl leading-none [&>*]:text-3xl">
-              {icon}
-            </span>
-            {title}
-          </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{subtitle}</p>
-        </div>
-        {actionLayout}
-      </div>
-    </section>
-    </LearningModeTitleBarBridge>
-  );
+  return <IndiceTitleBar actions={actions} className="mb-5" icon={icon} subtitle={subtitle} title={title} tone="green" />;
 }

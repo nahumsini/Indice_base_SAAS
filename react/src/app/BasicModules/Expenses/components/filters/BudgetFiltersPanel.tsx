@@ -1,4 +1,5 @@
 import { Search, X } from 'lucide-react';
+import { getIndiceFilterControlClassName } from '../../../../components/frontend-os';
 import type { Provider } from '../../types/expenses.types';
 import type { BudgetFutureFilter } from '../../Budgets/useBudgetLogic';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
@@ -28,7 +29,7 @@ type BudgetFiltersPanelProps = {
   onSearchChange: (value: string) => void;
 };
 
-const filterInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
+const filterInputClass = getIndiceFilterControlClassName('green');
 
 export function BudgetFiltersPanel({
   accountingAccountFilter,

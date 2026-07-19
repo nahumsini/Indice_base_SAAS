@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { CheckCircle2, CircleSlash, ClipboardCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CheckCircle2, CircleSlash, ClipboardCheck, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
-import { DataTablePagination } from '../../../components/table/DataTablePagination';
-import { Input } from '../../../components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../components/ui/select';
+  IndiceFilterBar,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  IndiceTitleBar,
+} from '../../../components/frontend-os';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import {
   Table,
   TableBody,
@@ -25,7 +23,8 @@ import { authApi } from '../../../api/auth';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { useTablePagination } from '../../../hooks/useTablePagination';
-import { accentButtonClass, priorityClasses, priorityLabels } from '../Processes/processesData';
+import { useLanguage } from '../../../shared/context';
+import { accentButtonClass, priorityClasses } from '../Processes/processesData';
 import { listProcesses } from '../Processes/processesApi';
 import type {
   ProcessBusinessOption,
@@ -37,6 +36,8 @@ import { listProjects, type ProjectRecord } from '../Projects/projectsApi';
 import { TaskCompletionDialog } from './components/TaskCompletionDialog';
 import { TaskFormDialog, type TaskFormValues } from './components/TaskFormDialog';
 import { defaultTaskScopeForActor } from '../shared/assignmentScope';
+import { useAgendaTranslations, type AgendaTranslations } from '../Agenda/translations';
+import { useTaskQueueTranslations, type TaskQueueCopy } from './taskQueueTranslations';
 import {
   cancelProcessTask,
   completeProcessTask,
@@ -53,14 +54,6 @@ import {
 type StatusFilter = 'all' | TaskStatus;
 type ConfirmationState = { type: 'cancel' | 'delete'; task: TaskRecord } | null;
 
-const statusLabels: Record<TaskStatus, string> = {
-  pending: 'Pending',
-  in_progress: 'In progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  paused: 'Paused',
-};
-
 const statusClasses: Record<TaskStatus, string> = {
   pending:
     'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200',
@@ -73,12 +66,6 @@ const statusClasses: Record<TaskStatus, string> = {
   paused:
     'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300',
 };
-
-const taskTypeLabels = {
-  task: 'Task',
-  'project-task': 'Project task',
-  process: 'Process task',
-} as const;
 
 const actionButtonBaseClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors';
@@ -131,7 +118,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function parseOptionalNumber(value: string, fieldLabel: string) {
+function parseOptionalNumber(value: string, invalidMessage: string) {
   const normalized = value.trim();
   if (!normalized) {
     return null;
@@ -139,13 +126,13 @@ function parseOptionalNumber(value: string, fieldLabel: string) {
 
   const parsed = Number(normalized);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${fieldLabel} must be a positive integer.`);
+    throw new Error(invalidMessage);
   }
 
   return parsed;
 }
 
-function parseOptionalNumberInRange(value: string, fieldLabel: string, min: number, max: number) {
+function parseOptionalNumberInRange(value: string, invalidMessage: string, min: number, max: number) {
   const normalized = value.trim();
   if (!normalized) {
     return null;
@@ -153,7 +140,7 @@ function parseOptionalNumberInRange(value: string, fieldLabel: string, min: numb
 
   const parsed = Number(normalized);
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-    throw new Error(`${fieldLabel} must be between ${min} and ${max}.`);
+    throw new Error(invalidMessage);
   }
 
   return parsed;
@@ -198,14 +185,18 @@ function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOp
   };
 }
 
-function buildTaskPayload(form: TaskFormValues): TaskPayload {
-  const assignedUserCompanyId = parseOptionalNumber(form.assignedUserCompanyId, 'Assigned HR user ID');
+function buildTaskPayload(form: TaskFormValues, agendaCopy: AgendaTranslations, pageCopy: TaskQueueCopy): TaskPayload {
+  const positiveIntegerMessage = (label: string) => pageCopy.messages.positiveInteger(label.replace(' *', ''));
+  const assignedUserCompanyId = parseOptionalNumber(
+    form.assignedUserCompanyId,
+    positiveIntegerMessage(agendaCopy.form.labels.responsible),
+  );
 
   return {
     title: form.title.trim(),
     description: form.description.trim() ? form.description.trim() : null,
-    processId: parseOptionalNumber(form.processId, 'Process ID'),
-    projectId: parseOptionalNumber(form.projectId, 'Project ID'),
+    processId: parseOptionalNumber(form.processId, positiveIntegerMessage(agendaCopy.form.labels.process)),
+    projectId: parseOptionalNumber(form.projectId, positiveIntegerMessage(agendaCopy.form.labels.project)),
     assignedUserCompanyId,
     assignedName: form.assignedName.trim() ? form.assignedName.trim() : null,
     status: form.status,
@@ -213,23 +204,33 @@ function buildTaskPayload(form: TaskFormValues): TaskPayload {
     startDate: form.startDate || null,
     dueDate: form.dueDate || null,
     notes: form.notes.trim() ? form.notes.trim() : null,
-    completionPercent: parseOptionalNumberInRange(form.completionPercent, 'Completion %', 0, 100),
-    weighting: parseOptionalNumberInRange(form.weighting, 'Weighting', 0, 5),
+    completionPercent: parseOptionalNumberInRange(
+      form.completionPercent,
+      agendaCopy.messages.numberRange(agendaCopy.form.labels.completion, 0, 100),
+      0,
+      100,
+    ),
+    weighting: parseOptionalNumberInRange(
+      form.weighting,
+      agendaCopy.messages.weightingRange(5),
+      0,
+      5,
+    ),
     audited: form.audited,
     auditNotes: form.audited && form.auditNotes.trim() ? form.auditNotes.trim() : null,
-    businessId: parseOptionalNumber(form.businessId, 'Business ID'),
-    unitId: parseOptionalNumber(form.unitId, 'Unit ID'),
+    businessId: parseOptionalNumber(form.businessId, positiveIntegerMessage(agendaCopy.form.labels.business)),
+    unitId: parseOptionalNumber(form.unitId, positiveIntegerMessage(agendaCopy.form.labels.unit)),
   };
 }
 
-function formatDate(value: string | null, includeTime = false) {
+function formatDate(value: string | null, locale: string, noDateLabel: string, includeTime = false) {
   if (!value) {
-    return 'No date';
+    return noDateLabel;
   }
 
   const date = includeTime ? new Date(value) : new Date(`${value}T00:00:00`);
 
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -284,6 +285,9 @@ function TaskActionButton({
 }
 
 export default function Tasks() {
+  const agendaCopy = useAgendaTranslations();
+  const pageCopy = useTaskQueueTranslations();
+  const { currentLanguage } = useLanguage();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [tasksError, setTasksError] = useState<string | null>(null);
@@ -315,7 +319,7 @@ export default function Tasks() {
       setTasks(items);
     } catch (error) {
       setTasks([]);
-      setTasksError(getErrorMessage(error, 'Unable to load tasks.'));
+      setTasksError(getErrorMessage(error, pageCopy.messages.load));
     } finally {
       setIsLoadingTasks(false);
     }
@@ -528,7 +532,7 @@ export default function Tasks() {
     setTasksError(null);
 
     try {
-      const payload = buildTaskPayload(form);
+      const payload = buildTaskPayload(form, agendaCopy, pageCopy);
 
       if (dialogMode === 'edit' && editingTaskId !== null) {
         const updatedTask = await updateProcessTask(editingTaskId, payload);
@@ -543,7 +547,7 @@ export default function Tasks() {
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      setTasksError(getErrorMessage(error, 'Unable to save task.'));
+      setTasksError(getErrorMessage(error, pageCopy.messages.save));
     } finally {
       setIsSubmittingTask(false);
     }
@@ -570,7 +574,7 @@ export default function Tasks() {
 
     const parsedCompletion = Number(completionPercent || 100);
     if (!Number.isInteger(parsedCompletion) || parsedCompletion < 0 || parsedCompletion > 100) {
-      setTasksError('Completion % must be between 0 and 100.');
+      setTasksError(pageCopy.messages.invalidCompletion);
       return;
     }
 
@@ -584,7 +588,7 @@ export default function Tasks() {
       );
       handleCompletionDialogOpenChange(false);
     } catch (error) {
-      setTasksError(getErrorMessage(error, 'Unable to complete task.'));
+      setTasksError(getErrorMessage(error, pageCopy.messages.complete));
     } finally {
       setTaskPendingState(completionTask.id, false);
     }
@@ -620,7 +624,7 @@ export default function Tasks() {
 
       setConfirmation(null);
     } catch (error) {
-      setTasksError(getErrorMessage(error, type === 'cancel' ? 'Unable to cancel task.' : 'Unable to delete task.'));
+      setTasksError(getErrorMessage(error, type === 'cancel' ? pageCopy.messages.cancel : pageCopy.messages.delete));
     } finally {
       setTaskPendingState(task.id, false);
     }
@@ -628,20 +632,17 @@ export default function Tasks() {
 
   return (
     <>
-      <section className="mb-5 rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-6 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="mb-1 text-2xl font-semibold text-slate-900 dark:text-white">Execution queue</h2>
-            <p className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-              Tasks are the main executable work unit. They can stand alone or reference a process or project later.
-            </p>
-          </div>
-          <Button className={cn('h-11 gap-2 rounded-xl px-4', accentButtonClass)} onClick={openCreateDialog}>
+      <IndiceTitleBar
+        actions={<Button className={cn('h-11 gap-2 rounded-xl px-4', accentButtonClass)} onClick={openCreateDialog}>
             <Plus className="h-4 w-4" />
-            Add task
-          </Button>
-        </div>
-      </section>
+            {pageCopy.add}
+          </Button>}
+        className="mb-5"
+        icon={<ClipboardCheck className="h-5 w-5" />}
+        subtitle={pageCopy.subtitle}
+        title={pageCopy.title}
+        tone="yellow"
+      />
 
       {tasksError ? (
         <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
@@ -655,73 +656,60 @@ export default function Tasks() {
                 void loadTasks();
               }}
             >
-              Retry
+              {pageCopy.retry}
             </Button>
           </div>
         </section>
       ) : null}
 
-      <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">Filters</h3>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Search task</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Folio, title, notes, assignee, unit, or business"
-                className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Status</label>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </section>
+      <IndiceFilterBar className="mb-6" gridClassName="lg:grid-cols-2" title={agendaCopy.filters.title}>
+        <IndiceFilterSearch
+          label={agendaCopy.filters.search}
+          onValueChange={setSearchQuery}
+          placeholder={agendaCopy.filters.searchPlaceholder}
+          tone="yellow"
+          value={searchQuery}
+        />
+        <IndiceFilterSelect
+          label={agendaCopy.filters.status}
+          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          options={[
+            { value: 'all', label: agendaCopy.common.all },
+            ...(['pending', 'in_progress', 'completed', 'cancelled', 'paused'] as TaskStatus[])
+              .map((value) => ({ value, label: agendaCopy.statuses[value] })),
+          ]}
+          tone="yellow"
+          value={statusFilter}
+        />
+      </IndiceFilterBar>
 
       <div className="mb-6 flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
         <span>
-          <span className="font-medium text-slate-900 dark:text-white">{totalCount}</span> total tasks
+          <span className="font-medium text-slate-900 dark:text-white">{totalCount}</span> {pageCopy.metrics.total}
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-blue-600">{openCount}</span> open
+          <span className="font-medium text-blue-600">{openCount}</span> {pageCopy.metrics.open}
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-emerald-600">{completedCount}</span> completed
+          <span className="font-medium text-emerald-600">{completedCount}</span> {pageCopy.metrics.completed}
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-[#9A6B05]">{averageCompletion}%</span> avg completion
+          <span className="font-medium text-[#9A6B05]">{averageCompletion}%</span> {pageCopy.metrics.average}
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-violet-600">{auditedCount}</span> audited
+          <span className="font-medium text-violet-600">{auditedCount}</span> {pageCopy.metrics.audited}
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-red-600">{overdueCount}</span> overdue
+          <span className="font-medium text-red-600">{overdueCount}</span> {pageCopy.metrics.overdue}
         </span>
         <span className="text-slate-300 dark:text-slate-600">|</span>
         <span>
-          <span className="font-medium text-[#9A6B05]">{filteredTasks.length}</span> visible
+          <span className="font-medium text-[#9A6B05]">{filteredTasks.length}</span> {pageCopy.metrics.visible}
         </span>
       </div>
 
@@ -730,17 +718,17 @@ export default function Tasks() {
           <Table className="min-w-[1540px]">
             <TableHeader>
               <TableRow className="border-slate-200 dark:border-slate-700">
-                <TableHead className="px-5 py-6">Folio</TableHead>
-                <TableHead className="px-5 py-6">Type</TableHead>
-                <TableHead className="px-5 py-6">Task</TableHead>
-                <TableHead className="px-5 py-6">Assigned</TableHead>
-                <TableHead className="px-5 py-6">Status</TableHead>
-                <TableHead className="px-5 py-6">Priority</TableHead>
-                <TableHead className="px-5 py-6">Progress</TableHead>
-                <TableHead className="px-5 py-6">Schedule</TableHead>
-                <TableHead className="px-5 py-6">Context</TableHead>
-                <TableHead className="px-5 py-6">Updated</TableHead>
-                <TableHead className="px-5 py-6">Actions</TableHead>
+                <TableHead className="px-5 py-6">{agendaCopy.columns.folio.label}</TableHead>
+                <TableHead className="px-5 py-6">{agendaCopy.columns.type.label}</TableHead>
+                <TableHead className="px-5 py-6">{agendaCopy.columns.title.label}</TableHead>
+                <TableHead className="px-5 py-6">{pageCopy.assigned}</TableHead>
+                <TableHead className="px-5 py-6">{agendaCopy.columns.status.label}</TableHead>
+                <TableHead className="px-5 py-6">{agendaCopy.columns.priority.label}</TableHead>
+                <TableHead className="px-5 py-6">{agendaCopy.columns.completion.label}</TableHead>
+                <TableHead className="px-5 py-6">{pageCopy.schedule}</TableHead>
+                <TableHead className="px-5 py-6">{pageCopy.context}</TableHead>
+                <TableHead className="px-5 py-6">{pageCopy.updated}</TableHead>
+                <TableHead className="px-5 py-6">{agendaCopy.columns.actions.label}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -751,7 +739,7 @@ export default function Tasks() {
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                    {taskTypeLabels[task.taskType]}
+                    {agendaCopy.taskTypes[task.taskType]}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-5 py-5">
@@ -767,22 +755,22 @@ export default function Tasks() {
                     {task.description ? (
                       <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{task.description}</p>
                     ) : (
-                      <p className="text-sm text-slate-400 dark:text-slate-500">No description</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-500">{agendaCopy.common.noDescription}</p>
                     )}
                     {task.notes ? (
-                      <p className="line-clamp-1 text-xs text-slate-500 dark:text-slate-400">Notes: {task.notes}</p>
+                      <p className="line-clamp-1 text-xs text-slate-500 dark:text-slate-400">{agendaCopy.columns.notes.label}: {task.notes}</p>
                     ) : null}
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <div className="min-w-[180px] space-y-1 text-sm text-slate-700 dark:text-slate-200">
                     <p className="font-medium text-slate-900 dark:text-white">{task.assignedName ?? 'Unassigned'}</p>
-                    {task.assignedUserCompanyId ? <p>HR user #{task.assignedUserCompanyId}</p> : null}
+                    {task.assignedUserCompanyId ? <p>{pageCopy.hrUser} #{task.assignedUserCompanyId}</p> : null}
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', statusClasses[task.status])}>
-                    {statusLabels[task.status]}
+                    {agendaCopy.statuses[task.status]}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-5 py-5">
@@ -790,7 +778,7 @@ export default function Tasks() {
                     variant="outline"
                     className={cn('rounded-full px-3 py-1 font-semibold capitalize', priorityClasses[task.priority])}
                   >
-                    {priorityLabels[task.priority as TaskPriority]}
+                    {agendaCopy.priorities[task.priority as TaskPriority]}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-5 py-5">
@@ -821,32 +809,32 @@ export default function Tasks() {
                 </TableCell>
                 <TableCell className="px-5 py-5 text-sm text-slate-700 dark:text-slate-200">
                   <div className="min-w-[150px] space-y-1">
-                    <p>Start: {task.startDate ? formatDate(task.startDate) : 'No date'}</p>
-                    <p>Due: {task.dueDate ? formatDate(task.dueDate) : 'No date'}</p>
+                    <p>{pageCopy.start}: {formatDate(task.startDate, currentLanguage.code, agendaCopy.common.noDate)}</p>
+                    <p>{pageCopy.due}: {formatDate(task.dueDate, currentLanguage.code, agendaCopy.common.noDate)}</p>
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <div className="min-w-[180px] space-y-1 text-sm text-slate-700 dark:text-slate-200">
-                    <p>Project: {task.projectId ?? 'None'}</p>
-                    <p>Process: {task.processId ?? 'None'}</p>
-                    <p>Unit: {task.unitName ?? task.unitId ?? 'None'}</p>
-                    <p>Business: {task.businessName ?? task.businessId ?? 'None'}</p>
+                    <p>{pageCopy.project}: {task.projectId ?? pageCopy.none}</p>
+                    <p>{pageCopy.process}: {task.processId ?? pageCopy.none}</p>
+                    <p>{pageCopy.unit}: {task.unitName ?? task.unitId ?? pageCopy.none}</p>
+                    <p>{pageCopy.business}: {task.businessName ?? task.businessId ?? pageCopy.none}</p>
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5 text-sm text-slate-700 dark:text-slate-200">
-                  {formatDate(task.updatedAt, true)}
+                  {formatDate(task.updatedAt, currentLanguage.code, agendaCopy.common.noDate, true)}
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
                     <TaskActionButton
-                      label="Edit task"
+                      label={pageCopy.actions.edit}
                       onClick={() => openEditDialog(task)}
                       disabled={isTaskPending(task.id)}
                       className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
                       icon={<Pencil className="h-4 w-4" />}
                     />
                     <TaskActionButton
-                      label="Complete task"
+                      label={pageCopy.actions.complete}
                       onClick={() => {
                         void handleComplete(task);
                       }}
@@ -855,7 +843,7 @@ export default function Tasks() {
                       icon={<CheckCircle2 className="h-4 w-4" />}
                     />
                     <TaskActionButton
-                      label="Cancel task"
+                      label={pageCopy.actions.cancel}
                       onClick={() => {
                         handleCancel(task);
                       }}
@@ -864,7 +852,7 @@ export default function Tasks() {
                       icon={<CircleSlash className="h-4 w-4" />}
                     />
                     <TaskActionButton
-                      label="Delete task"
+                      label={pageCopy.actions.delete}
                       onClick={() => {
                         handleDelete(task);
                       }}
@@ -880,7 +868,7 @@ export default function Tasks() {
               {isLoadingTasks ? (
                 <TableRow>
                   <TableCell colSpan={11} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                    Loading tasks...
+                    {agendaCopy.table.loading}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -888,7 +876,7 @@ export default function Tasks() {
               {!isLoadingTasks && filteredTasks.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
-                    No tasks match the current filters.
+                    {agendaCopy.table.empty}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -898,7 +886,7 @@ export default function Tasks() {
         {!isLoadingTasks && filteredTaskCount > 0 ? (
           <DataTablePagination
             currentPage={currentPage}
-            itemLabel="tareas"
+            itemLabel={pageCopy.itemLabel}
             onPageChange={onPageChange}
             onPageSizeChange={onPageSizeChange}
             pageEnd={pageEnd}
@@ -912,6 +900,7 @@ export default function Tasks() {
       </section>
 
       <TaskFormDialog
+        copy={agendaCopy}
         error={tasksError}
         open={isDialogOpen}
         onOpenChange={handleDialogOpenChange}
@@ -929,6 +918,7 @@ export default function Tasks() {
       />
 
       <TaskCompletionDialog
+        copy={agendaCopy.completionDialog}
         error={tasksError}
         open={Boolean(completionTask)}
         onOpenChange={handleCompletionDialogOpenChange}
@@ -945,14 +935,15 @@ export default function Tasks() {
 
       <ConfirmDeleteDialog
         isVisible={Boolean(confirmation)}
-        title={confirmation?.type === 'cancel' ? 'Cancel task' : 'Delete task'}
+        title={confirmation?.type === 'cancel' ? pageCopy.actions.cancel : pageCopy.actions.delete}
         itemName={confirmation?.task.title}
         description={
           confirmation?.type === 'cancel'
-            ? 'This will move the task to cancelled and keep it available for audit history.'
-            : 'This performs a soft delete and removes the task from the active queue.'
+            ? pageCopy.confirmation.cancelDescription
+            : pageCopy.confirmation.deleteDescription
         }
-        confirmLabel={confirmation?.type === 'cancel' ? 'Cancel task' : 'Delete task'}
+        cancelLabel={agendaCopy.common.cancel}
+        confirmLabel={confirmation?.type === 'cancel' ? pageCopy.actions.cancel : pageCopy.actions.delete}
         confirmDisabled={confirmation ? isTaskPending(confirmation.task.id) : false}
         onCancel={() => setConfirmation(null)}
         onConfirm={() => {

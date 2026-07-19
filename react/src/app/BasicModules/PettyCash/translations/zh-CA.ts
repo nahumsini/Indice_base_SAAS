@@ -13,6 +13,7 @@ export const zhCA = {
     tabs: { cash: '资金', control: '凭证', statements: '月度结算', kpis: '指标' },
   },
   common: {
+    clear: '\u6E05\u9664',
     actions: '操作',
     all: '全部',
     automaticCurrentStatement: '当前自动结算单',

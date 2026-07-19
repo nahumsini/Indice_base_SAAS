@@ -18,6 +18,7 @@ export const ptBR = {
     automaticCurrentStatement: 'Fechamento atual automatico',
     cancel: 'Cancelar',
     close: 'Fechar',
+    clear: 'Limpar',
     columns: 'Colunas',
     copied: 'Copiado',
     copyLink: 'Copiar link',

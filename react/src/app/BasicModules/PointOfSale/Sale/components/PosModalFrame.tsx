@@ -100,7 +100,7 @@ export function PosModalFrame({
   onMouseLeave,
   size = 'lg',
   subtitle,
-  tone = 'graphite',
+  tone = 'coral',
   title,
   zIndexClassName = 'z-50',
 }: PosModalFrameProps) {
@@ -156,11 +156,11 @@ export function PosModalFrame({
 
         {footer || footerLeading || footerSummary ? (
           <DialogFooter className={cn(
-            'shrink-0 border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950',
+            'shrink-0 border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-white dark:border-[#b63b32] dark:bg-[#b63b32]',
             '[&_.font-black]:font-semibold [&_.font-bold]:font-semibold [&_.uppercase]:normal-case [&_.tracking-wide]:tracking-normal [&_.tracking-wider]:tracking-normal [&_.tracking-widest]:tracking-normal',
             footerClassName,
           )}>
-            <IndiceModalFooter actions={footer} leading={footerLeading} summary={footerSummary} />
+            <IndiceModalFooter actions={footer} leading={footerLeading} summary={footerSummary} tone="coral" />
           </DialogFooter>
         ) : null}
       </DialogContent>

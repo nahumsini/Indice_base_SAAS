@@ -6,16 +6,16 @@ import {
   type LazyExoticComponent,
 } from 'react';
 import { Navigate, useParams } from 'react-router';
+import { IndiceModuleShell } from '../../components/frontend-os';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import {
   routedSalesTabIds,
   type SalesTabId,
+  visibleSalesModuleTabs,
 } from './salesIdentity';
 import { SalesCrmProvider } from './salesCrmContext';
-import { SalesHeader } from './components/SalesHeader';
 import { SalesDataStateBoundary } from './components/SalesDataStateBoundary';
 import { SalesLoadingState } from './components/SalesLoadingState';
-import { SalesTabsNav } from './components/SalesTabsNav';
 import { useSalesTranslations } from './hooks/useSalesTranslations';
 import { LearningModeHeaderActionsProvider } from '../../learningMode';
 import {
@@ -101,7 +101,7 @@ export default function Ventas({ learningModeActive = false, onNavigate }: Venta
 function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) {
   const copy = useSalesTranslations();
   const guidanceCopy = useSalesGuidanceTranslations();
-  const moduleContentRef = useRef<HTMLElement | null>(null);
+  const moduleContentRef = useRef<HTMLDivElement | null>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<SalesTabId>(
     'leads',
     routedSalesTabIds,
@@ -111,28 +111,26 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-900 dark:text-white">
-      <SalesLoadingState
-        isVisible={isTabLoading}
-        title={copy.loading.openingTitle}
-        description={copy.loading.openingDescription}
-      />
-
-      <header className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-        <div className="mx-auto max-w-[1600px]">
-          <SalesHeader copy={copy} onNavigate={onNavigate} />
-          <SalesTabsNav activeTab={activeTab} copy={copy} onTabChange={setActiveTab} />
-          {learningModeActive ? (
-            <OperationalModuleGuide
-              activeTabId={activeTab}
-              copy={guidanceCopy}
-              onPrimaryAction={() => moduleContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            />
-          ) : null}
-        </div>
-      </header>
-
-      <main ref={moduleContentRef} className="mx-auto max-w-[1600px] scroll-mt-6 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <IndiceModuleShell
+        activeTab={activeTab}
+        backLabel={copy.back}
+        contentRef={moduleContentRef}
+        currentModule="sales"
+        guide={learningModeActive ? (
+          <OperationalModuleGuide
+            activeTabId={activeTab}
+            copy={guidanceCopy}
+            onPrimaryAction={() => moduleContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          />
+        ) : undefined}
+        loadingOverlay={<SalesLoadingState isVisible={isTabLoading} title={copy.loading.openingTitle} description={copy.loading.openingDescription} />}
+        onNavigate={onNavigate}
+        onTabChange={setActiveTab}
+        subtitle={copy.subtitle}
+        tabs={visibleSalesModuleTabs.map(tab => ({ id: tab.id, label: copy.tabs[tab.translationKey], icon: tab.emoji }))}
+        title={copy.title}
+        tone="coral"
+      >
         <SalesCrmProvider>
           <SalesDataStateBoundary>
             <Suspense
@@ -148,8 +146,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
             </Suspense>
           </SalesDataStateBoundary>
         </SalesCrmProvider>
-      </main>
-    </div>
+      </IndiceModuleShell>
     </LearningModeHeaderActionsProvider>
   );
 }

@@ -2,6 +2,13 @@ import type { LucideIcon } from 'lucide-react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Plus, RefreshCcw } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
+import {
+  getIndiceFilterControlClassName,
+  IndiceFilterBar,
+  IndiceFilterField,
+  IndiceTitleBar,
+  IndiceViewState,
+} from '../../../components/frontend-os';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
 import {
   pettyCashFundStatusClasses,
@@ -10,7 +17,6 @@ import {
 } from '../utils/pettyCash.utils';
 import type { PettyCashFundStatus, PettyCashSettlementLineStatus, PettyCashStatementStatus } from '../types/pettyCash.types';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
-import { LearningModeTitleBarBridge } from '../../../learningMode';
 
 type StatusKind = 'fund' | 'statement' | 'line';
 
@@ -105,23 +111,13 @@ export function PettyCashHeaderBanner({
   );
 
   return (
-    <LearningModeTitleBarBridge actions={actionLayout}>
-    <section className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-4 py-4 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:px-6 sm:py-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#147514]/20 bg-white text-2xl leading-none shadow-sm dark:border-emerald-400/20 dark:bg-slate-900" aria-hidden="true">
-            {Icon ? <Icon className="h-5 w-5 text-[#147514] dark:text-emerald-300" /> : emoji}
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h2>
-            <p className="mt-1 max-w-3xl text-sm font-semibold leading-5 text-slate-600 dark:text-slate-400">{description}</p>
-          </div>
-        </div>
-
-        {actionLayout}
-      </div>
-    </section>
-    </LearningModeTitleBarBridge>
+    <IndiceTitleBar
+      actions={actionLayout}
+      icon={Icon ? <Icon className="h-5 w-5" /> : emoji}
+      subtitle={description}
+      title={title}
+      tone="green"
+    />
   );
 }
 
@@ -132,7 +128,7 @@ function HeaderColumnsLabel() {
 
 export function PettyCashFilterShell({
   children,
-  clearLabel = 'Limpiar',
+  clearLabel,
   onClear,
   resultLabel,
   subtitle,
@@ -144,32 +140,34 @@ export function PettyCashFilterShell({
   subtitle?: string;
 }) {
   const copy = usePettyCashTranslations();
+  const resolvedClearLabel = clearLabel ?? copy.common.clear;
+  const summary = (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-bold text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
+        {resultLabel}
+      </span>
+      {onClear ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
+        >
+          <RefreshCcw className="h-3.5 w-3.5" />
+          {resolvedClearLabel}
+        </button>
+      ) : null}
+    </div>
+  );
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{copy.common.filters}</h3>
-          {subtitle ? <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-bold text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
-            {resultLabel}
-          </span>
-          {onClear ? (
-            <button
-              type="button"
-              onClick={onClear}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
-            >
-              <RefreshCcw className="h-3.5 w-3.5" />
-              {clearLabel}
-            </button>
-          ) : null}
-        </div>
-      </div>
-      <div className="grid gap-3 lg:grid-cols-4">{children}</div>
-    </section>
+    <IndiceFilterBar
+      gridClassName="lg:grid-cols-4"
+      subtitle={subtitle}
+      summary={summary}
+      title={copy.common.filters}
+    >
+      {children}
+    </IndiceFilterBar>
   );
 }
 
@@ -181,14 +179,11 @@ export function PettyCashField({
   label: string;
 }) {
   return (
-    <label className="space-y-1.5">
-      <span className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</span>
-      {children}
-    </label>
+    <IndiceFilterField label={label}>{children}</IndiceFilterField>
   );
 }
 
-export const pettyCashInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition placeholder:text-slate-400 focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+export const pettyCashInputClass = getIndiceFilterControlClassName('green');
 
 export type PettyCashSortDirection = 'asc' | 'desc';
 
@@ -372,9 +367,5 @@ export function PettyCashPagination({
 }
 
 export function PettyCashEmptyState({ label }: { label: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-      {label}
-    </div>
-  );
+  return <IndiceViewState compact title={label} tone="green" variant="empty" />;
 }

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { FailureToast } from '../../components/FailureToast';
+import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { ApiClientError } from '../../lib/apiClient';
 import { SalesCrmProvider } from '../Sales/salesCrmContext';
-import { ReceivablesModuleHeader } from './components/ReceivablesModuleHeader';
 import {
   legacyReceivablesTabAliases,
+  receivablesTabs,
   receivablesTabIds,
   type ReceivablesTabId,
 } from './constants/receivables.constants';
@@ -119,7 +120,7 @@ function ReceivablesWorkspace({
   onNavigate: (page?: string) => void;
 }) {
   const copy = useReceivablesTranslations();
-  const mainContentRef = useRef<HTMLElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<ReceivablesState>(initialReceivablesState);
   const [apiCandidateSales, setApiCandidateSales] = useState<CandidateSale[]>([]);
   const [isBackendReady, setIsBackendReady] = useState(false);
@@ -343,33 +344,29 @@ function ReceivablesWorkspace({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-950 dark:bg-gray-900 dark:text-white">
-      <LoadingBarOverlay
-        isVisible={isTabLoading || isWorkspaceLoading}
-        title={copy.module.loadingTitle}
-        description={copy.module.loadingDescription}
-      />
-
-      <ReceivablesModuleHeader
+    <IndiceModuleShell
         activeTab={activeTab}
-        copy={copy}
-        onNavigate={(page) => onNavigate(page)}
-        onTabChange={setActiveTab}
-      >
-        {learningModeActive ? (
+        contentRef={mainContentRef}
+        currentModule="receivables"
+        guide={learningModeActive ? (
           <SimpleModuleLearningGuide
             activeContextLabel={receivablesLearningLabels[activeTab]}
             controls={receivablesLearningControls[activeTab]}
             guideId="receivables-learning-guide"
-            moduleTitle="Guía para vender a crédito y cobrar con claridad"
+            moduleTitle={copy.module.title}
             onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             scopeId={`receivables-${activeTab}`}
             theme={learningModeGuideThemes.finance}
           />
-        ) : null}
-      </ReceivablesModuleHeader>
-
-      <main ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+        ) : undefined}
+        loadingOverlay={<LoadingBarOverlay isVisible={isTabLoading || isWorkspaceLoading} title={copy.module.loadingTitle} description={copy.module.loadingDescription} />}
+        onNavigate={onNavigate}
+        onTabChange={setActiveTab}
+        subtitle={copy.module.subtitle}
+        tabs={receivablesTabs.map(tab => ({ id: tab.id, label: copy.tabs[tab.id], icon: tab.emoji }))}
+        title={copy.module.title}
+        tone="green"
+      >
         {activeTab === 'credit-sales' ? (
           <CreditSalesView
             candidateSales={candidateSales}
@@ -409,13 +406,12 @@ function ReceivablesWorkspace({
             onUpdatePolicy={updateCreditPolicy}
           />
         ) : null}
-      </main>
 
       <FailureToast
         isVisible={Boolean(failureToastMessage)}
         message={failureToastMessage}
         onClose={() => setFailureToastMessage('')}
       />
-    </div>
+    </IndiceModuleShell>
   );
 }
