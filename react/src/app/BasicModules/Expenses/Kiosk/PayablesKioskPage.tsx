@@ -6,6 +6,7 @@ import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { LiveFaceChallenge, type LiveFaceChallengeCapture } from '../../../components/LiveFaceChallenge';
 import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
 import { useKioskSessionBoundary } from '../../../components/kiosk-engine/useKioskSessionBoundary';
+import { ApiClientError } from '../../../lib/apiClient';
 import { languages, useLanguage } from '../../../shared/context';
 import {
   getDefaultBudgetTaxProfile,
@@ -151,7 +152,11 @@ export default function PayablesKioskPage() {
         setFaceStatus(null);
       }
     } catch (error) {
-      setFailureToastMessage(error instanceof Error ? error.message : copy.errors.pin);
+      setFailureToastMessage(
+        error instanceof ApiClientError && error.status === 429
+          ? copy.errors.rateLimited
+          : error instanceof Error ? error.message : copy.errors.pin,
+      );
     } finally {
       setIsSubmitting(false);
     }
