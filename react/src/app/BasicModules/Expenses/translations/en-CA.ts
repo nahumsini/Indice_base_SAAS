@@ -197,7 +197,7 @@ export const enCA: FinanceTranslations = {
           },
         },
         fields: { contactName: 'Contact', email: 'Email', legalName: 'Legal name', name: 'Trade name', phone: 'Phone', taxId: 'Tax ID' },
-        errors: { bootstrap: 'The kiosk could not be loaded.', filesInvalid: 'Use up to 5 PDF, Office, text or image files of no more than 10 MB each.', face: 'The biometric operation could not be completed.', pin: 'The PIN could not be validated.', provider: 'The provider registration could not be submitted.', submission: 'The account payable could not be submitted.' },
+        errors: { bootstrap: 'The kiosk could not be loaded.', filesInvalid: 'Use up to 5 PDF, Office, text or image files of no more than 10 MB each.', face: 'The biometric operation could not be completed.', pin: 'The PIN could not be validated.', provider: 'The provider registration could not be submitted.', rateLimited: 'Too many attempts. Wait 15 minutes and try again.', submission: 'The account payable could not be submitted.' },
       },
       accessTypes: { EMPLOYEE: 'Employee only', MIXED: 'Provider or employee', PROVIDER: 'Provider only', PROVIDER_REGISTRATION: 'Provider registration' },
       activeCount: (active, total) => `${active} active of ${total}`,

@@ -280,6 +280,7 @@ export type FinanceTranslations = {
           face: string;
           pin: string;
           provider: string;
+          rateLimited: string;
           submission: string;
         };
       };
