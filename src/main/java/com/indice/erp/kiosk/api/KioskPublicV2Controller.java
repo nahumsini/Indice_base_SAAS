@@ -263,7 +263,9 @@ public class KioskPublicV2Controller {
         if (!featureFlags.adapterEnabled(definition.ownerModule())) {
             throw new UnsupportedOperationException("Kiosk module adapter is not enabled.");
         }
-        return new ResolvedRequest(definition, context(definition.ownerModule(), token, request));
+        return new ResolvedRequest(
+            definition,
+            context(definition.ownerModule(), token, request).resolved(definition, null));
     }
 
     private ResolvedRequest resolvedForBootstrap(String token, HttpServletRequest request) {
@@ -274,7 +276,9 @@ public class KioskPublicV2Controller {
         if (!featureFlags.adapterEnabled(definition.ownerModule())) {
             throw new UnsupportedOperationException("Kiosk module adapter is not enabled.");
         }
-        return new ResolvedRequest(definition, context(definition.ownerModule(), token, request));
+        return new ResolvedRequest(
+            definition,
+            context(definition.ownerModule(), token, request).resolved(definition, null));
     }
 
     private void requireCsrf(HttpSession session, String csrfToken) {

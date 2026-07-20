@@ -17,12 +17,12 @@ export function CategoryQuickCreate({
   onCreate,
 }: CategoryQuickCreateProps) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="text-base font-semibold text-slate-950">{t.categoryManager.createTitle}</h3>
-      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-3.5">
+      <h3 className="text-sm font-semibold text-slate-900">{t.categoryManager.createTitle}</h3>
+      <div className="mt-2.5 flex min-w-0 gap-2">
         <Input
           value={value}
-          className="h-11 min-w-0 rounded-lg border-slate-200 bg-white text-sm font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20"
+          className="h-10 min-w-0 flex-1 rounded-lg border-slate-200 bg-slate-50 text-sm font-medium shadow-none focus:border-[#FF6B5E] focus:bg-white focus:ring-[#FF6B5E]/20"
           placeholder={t.categoryManager.namePlaceholder}
           onChange={(event) => onValueChange(event.target.value)}
           onKeyDown={(event) => {
@@ -34,11 +34,11 @@ export function CategoryQuickCreate({
         />
         <Button
           type="button"
-          className="h-11 gap-2 rounded-lg bg-[#FF6B5E] text-sm font-semibold text-white hover:bg-[#E85C50]"
+          className="h-10 shrink-0 gap-2 rounded-lg bg-[#FF6B5E] px-3 text-sm font-semibold text-white hover:bg-[#E85C50] sm:px-4"
           onClick={onCreate}
         >
           <Plus className="h-4 w-4" />
-          {t.categoryManager.create}
+          <span className="hidden sm:inline">{t.categoryManager.create}</span>
         </Button>
       </div>
     </section>

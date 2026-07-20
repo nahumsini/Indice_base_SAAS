@@ -26,10 +26,15 @@ export function ActiveCategoriesList({
   const [draggingCategoryId, setDraggingCategoryId] = useState<string | null>(null);
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h3 className="text-lg font-semibold text-slate-950">{t.categoryManager.activeTitle}</h3>
-        <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">{t.categoryManager.activeDescription}</p>
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="shrink-0 px-0.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <h3 className="min-w-0 truncate text-lg font-semibold text-slate-950">{t.categoryManager.activeTitle}</h3>
+          <span className="shrink-0 rounded-full bg-slate-200/70 px-2 py-0.5 text-xs font-semibold text-slate-600">
+            {activeCount}
+          </span>
+        </div>
+        <p className="mt-0.5 text-sm leading-5 text-slate-500">{t.categoryManager.activeDescription}</p>
       </div>
 
       {activeCount === 0 ? (
@@ -44,7 +49,7 @@ export function ActiveCategoriesList({
         </div>
       ) : null}
 
-      <div className="space-y-2">
+      <div className="mt-3 min-h-0 min-w-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
         {categories.map((category, index) => (
           <ActiveCategoryCard
             key={category.id}

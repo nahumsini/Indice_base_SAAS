@@ -109,6 +109,12 @@ export type PublicCatalogRequestList = {
   count: number;
 };
 
+type PublicCatalogLinkResponse = {
+  publicUrl: string;
+  publicTokenHint: string;
+  version: number;
+};
+
 type EngineEnvelope<T> = { data: T; meta?: { requestId?: string } };
 const adminPath = '/api/v1/sales/public-catalogs';
 
@@ -210,6 +216,19 @@ export const publicCatalogApi = {
       method: 'POST', body: JSON.stringify({}),
     });
     return toPublicCatalogConfig(response);
+  },
+
+  async revealLink(catalogId: number) {
+    const response = await apiClient<PublicCatalogLinkResponse>(`${adminPath}/${catalogId}/link`, {
+      method: 'POST', body: JSON.stringify({}),
+    });
+    return {
+      ...response,
+      publicUrl: new URL(
+        response.publicUrl,
+        typeof window === 'undefined' ? 'http://localhost' : window.location.origin,
+      ).toString(),
+    };
   },
 
   deleteAdmin(catalogId: number, reason = 'Eliminación definitiva desde Ventas') {

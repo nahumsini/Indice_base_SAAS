@@ -401,6 +401,9 @@ export const frCA = {
     emptyActiveDescription: 'Importez des categories depuis le repertoire ou creez votre propre categorie.',
     emptyLibrary: 'Aucune suggestion disponible pour cette bibliotheque.',
     alreadyInCatalog: 'Ajoute',
+    moveUp: 'Monter',
+    moveDown: 'Descendre',
+    remove: 'Supprimer',
   },
   form: {
     ...enCA.form,

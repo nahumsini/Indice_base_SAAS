@@ -367,6 +367,9 @@ export const ptBR = {
     emptyActiveDescription: 'Importe categorias do diretorio ou crie sua propria categoria.',
     emptyLibrary: 'Nenhuma sugestao disponivel para esta biblioteca.',
     alreadyInCatalog: 'Adicionada',
+    moveUp: 'Mover para cima',
+    moveDown: 'Mover para baixo',
+    remove: 'Remover',
   },
   form: {
     ...enCA.form,

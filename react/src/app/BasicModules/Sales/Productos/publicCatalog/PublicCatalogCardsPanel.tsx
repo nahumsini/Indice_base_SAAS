@@ -17,7 +17,7 @@ type PublicCatalogCardsPanelProps = {
   onCreate: () => void;
   onEdit: (catalog: PublicCatalogConfig) => void;
   onCatalogLink: (catalog: PublicCatalogConfig) => void;
-  onPreview: (catalog: PublicCatalogConfig) => void;
+  onOpenPublicCatalog: (catalog: PublicCatalogConfig) => void;
   onDelete: (catalogId: string) => void;
   onToggleStatus: (catalog: PublicCatalogConfig) => void;
 };
@@ -28,7 +28,7 @@ export function PublicCatalogCardsPanel({
   onCreate,
   onEdit,
   onCatalogLink,
-  onPreview,
+  onOpenPublicCatalog,
   onDelete,
   onToggleStatus,
 }: PublicCatalogCardsPanelProps) {
@@ -67,7 +67,7 @@ export function PublicCatalogCardsPanel({
             </div>
           </div>
         ) : (
-          <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="space-y-2.5">
             {catalogSummaries.map(({ catalog, summary }) => (
               <PublicCatalogListCard
                 key={catalog.id}
@@ -76,7 +76,7 @@ export function PublicCatalogCardsPanel({
                 t={t}
                 onSelect={() => onEdit(catalog)}
                 onCatalogLink={() => onCatalogLink(catalog)}
-                onPreview={() => onPreview(catalog)}
+                onOpenPublicCatalog={() => onOpenPublicCatalog(catalog)}
                 onToggleStatus={() => onToggleStatus(catalog)}
                 onDelete={() => catalog.id && onDelete(catalog.id)}
               />

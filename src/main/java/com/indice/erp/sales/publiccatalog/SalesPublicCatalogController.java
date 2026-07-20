@@ -81,6 +81,16 @@ public class SalesPublicCatalogController {
             service.rotate(access.context(), catalogId));
     }
 
+    @PostMapping("/{catalogId}/link")
+    public ResponseEntity<?> revealLink(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long catalogId) {
+        var access = guard.write(session, csrfToken);
+        return access.denied() ? access.error() : ResponseEntity.ok(
+            service.revealLink(access.context(), catalogId));
+    }
+
     @DeleteMapping("/{catalogId}")
     public ResponseEntity<?> delete(
             HttpSession session,

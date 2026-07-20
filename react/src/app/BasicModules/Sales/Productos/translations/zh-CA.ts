@@ -316,6 +316,9 @@ export const zhCA = {
     importAll: '全部导入',
     emptyActive: '尚无启用分类。创建一个或从目录导入。',
     alreadyInCatalog: '已添加',
+    moveUp: '向上移动',
+    moveDown: '向下移动',
+    remove: '删除',
   },
   form: {
     ...enCA.form,

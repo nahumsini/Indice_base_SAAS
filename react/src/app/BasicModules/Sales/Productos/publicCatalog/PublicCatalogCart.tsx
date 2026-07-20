@@ -6,6 +6,7 @@ import type { PublicCatalogCartItem, PublicCatalogConfig, PublicCatalogItem } fr
 import { calculatePublicCatalogCartItem, calculatePublicCatalogCartTotal } from './utils/publicCatalogPricing';
 
 export function PublicCatalogCart({
+  variant = 'desktop',
   items,
   cartItems,
   config,
@@ -14,6 +15,7 @@ export function PublicCatalogCart({
   onRemoveItem,
   onRequestPurchase,
 }: {
+  variant?: 'desktop' | 'mobile';
   items: PublicCatalogItem[];
   cartItems: PublicCatalogCartItem[];
   config: PublicCatalogConfig;
@@ -24,9 +26,12 @@ export function PublicCatalogCart({
 }) {
   const total = calculatePublicCatalogCartTotal(items, cartItems);
   const totalCurrency = cartItems.map((cartItem) => items.find((item) => item.id === cartItem.itemId)?.currency).find(Boolean);
+  const mobile = variant === 'mobile';
 
   return (
-    <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-5">
+    <aside className={mobile
+      ? 'bg-white px-4 pb-5 pt-2 dark:bg-slate-950'
+      : 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-5'}>
       <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white">
         <ShoppingBag className="h-5 w-5 text-[#FF6B5E]" />
         {t.publicCatalog.cart}

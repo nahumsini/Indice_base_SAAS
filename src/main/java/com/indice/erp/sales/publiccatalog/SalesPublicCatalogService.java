@@ -9,6 +9,7 @@ import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogAdminAccess.AdminContext;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.AdminResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.BootstrapResponse;
+import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.LinkResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PublicItem;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PurchaseRequest;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestItemResponse;
@@ -49,24 +50,28 @@ public class SalesPublicCatalogService {
     private final SalesPublicCatalogRepository repository;
     private final KioskRegistryService registry;
     private final ObjectMapper objectMapper;
+    private final SalesPublicCatalogLinkCodec linkCodec;
     private final Clock clock;
 
     @Autowired
     public SalesPublicCatalogService(
             SalesPublicCatalogRepository repository,
             KioskRegistryService registry,
-            ObjectMapper objectMapper) {
-        this(repository, registry, objectMapper, Clock.systemUTC());
+            ObjectMapper objectMapper,
+            SalesPublicCatalogLinkCodec linkCodec) {
+        this(repository, registry, objectMapper, linkCodec, Clock.systemUTC());
     }
 
     SalesPublicCatalogService(
             SalesPublicCatalogRepository repository,
             KioskRegistryService registry,
             ObjectMapper objectMapper,
+            SalesPublicCatalogLinkCodec linkCodec,
             Clock clock) {
         this.repository = repository;
         this.registry = registry;
         this.objectMapper = objectMapper;
+        this.linkCodec = linkCodec;
         this.clock = clock;
     }
 
@@ -84,7 +89,8 @@ public class SalesPublicCatalogService {
         var userId = access.userId();
         var code = uniqueCode(companyId, request.name());
         var token = token();
-        var id = repository.insert(companyId, userId, code, request, tokenHint(token));
+        var id = repository.insert(
+            companyId, userId, code, request, tokenHint(token), linkCodec.protect(token));
         repository.replaceProducts(companyId, id, distinct(request.productIds()));
         var definition = registry.registerLegacyDefinition(
             companyId, OWNER_MODULE, KIOSK_TYPE, id, code, request.name().trim(), "active",
@@ -148,12 +154,40 @@ public class SalesPublicCatalogService {
         requireMutable(current);
         var token = token();
         registry.replacePublicToken(companyId, OWNER_MODULE, catalogId, token, userId);
-        if (!repository.updateTokenHint(companyId, userId, catalogId, tokenHint(token))) {
+        if (!repository.updateToken(
+                companyId, userId, catalogId, tokenHint(token), linkCodec.protect(token))) {
             throw new NoSuchElementException("Public catalog not found.");
         }
         audit(companyId, catalogId, null, "PUBLIC_CATALOG_TOKEN_ROTATED", userId,
             Map.of("token_hint", tokenHint(token)));
         return admin(require(companyId, catalogId), token);
+    }
+
+    @Transactional
+    public LinkResponse revealLink(AdminContext access, long catalogId) {
+        var catalog = require(access, catalogId);
+        requireMutable(catalog);
+        if (catalog.protectedToken() == null || catalog.protectedToken().isBlank()) {
+            var token = token();
+            registry.replacePublicToken(
+                catalog.companyId(), OWNER_MODULE, catalog.id(), token, access.userId());
+            if (!repository.updateToken(
+                    catalog.companyId(), access.userId(), catalog.id(), tokenHint(token),
+                    linkCodec.protect(token))) {
+                throw new IllegalStateException("Legacy public catalog link could not be reissued.");
+            }
+            audit(catalog.companyId(), catalog.id(), null, "PUBLIC_CATALOG_LEGACY_LINK_REISSUED",
+                access.userId(), Map.of("token_hint", tokenHint(token)));
+            return new LinkResponse(
+                "/public-catalog/" + token, tokenHint(token), catalog.version() + 1);
+        }
+        var token = linkCodec.reveal(catalog.protectedToken());
+        if (!tokenHint(token).equals(catalog.tokenHint())) {
+            throw new IllegalStateException("Protected public catalog link does not match its token hint.");
+        }
+        audit(catalog.companyId(), catalog.id(), null, "PUBLIC_CATALOG_LINK_REVEALED",
+            access.userId(), Map.of("token_hint", catalog.tokenHint()));
+        return new LinkResponse("/public-catalog/" + token, catalog.tokenHint(), catalog.version());
     }
 
     @Transactional

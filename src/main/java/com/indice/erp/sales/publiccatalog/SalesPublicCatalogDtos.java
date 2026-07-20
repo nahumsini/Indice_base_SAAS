@@ -76,6 +76,9 @@ public final class SalesPublicCatalogDtos {
     ) {
     }
 
+    public record LinkResponse(String publicUrl, String publicTokenHint, long version) {
+    }
+
     public record PublicItem(
         Long id,
         String name,

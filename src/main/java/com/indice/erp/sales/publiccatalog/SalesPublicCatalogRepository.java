@@ -49,14 +49,15 @@ public class SalesPublicCatalogRepository {
             long userId,
             String code,
             SalesPublicCatalogDtos.SaveRequest request,
-            String tokenHint) {
+            String tokenHint,
+            String protectedToken) {
         var keys = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                 INSERT INTO sales_public_catalogs (
                     company_id, unit_id, business_id, code, name, title, description, cover_image_url,
                     contact_cta_label, contact_method, contact_value, status, expires_at,
-                    public_token_hint, show_prices, show_wholesale_prices, show_stock_status,
+                    public_token_hint, protected_public_token, show_prices, show_wholesale_prices, show_stock_status,
                     show_item_type_badges, show_categories, allow_cart, allow_purchase_request,
                     created_by_user_id, updated_by_user_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -75,6 +76,7 @@ public class SalesPublicCatalogRepository {
             statement.setString(index++, trim(request.contactValue()));
             statement.setTimestamp(index++, timestamp(request.expiresAt()));
             statement.setString(index++, tokenHint);
+            statement.setString(index++, protectedToken);
             statement.setBoolean(index++, defaultTrue(request.showPrices()));
             statement.setBoolean(index++, Boolean.TRUE.equals(request.showWholesalePrices()));
             statement.setBoolean(index++, defaultTrue(request.showStockStatus()));
@@ -123,12 +125,13 @@ public class SalesPublicCatalogRepository {
             """, status, userId, companyId, catalogId) > 0;
     }
 
-    public boolean updateTokenHint(long companyId, long userId, long catalogId, String hint) {
+    public boolean updateToken(long companyId, long userId, long catalogId, String hint, String protectedToken) {
         return jdbcTemplate.update("""
             UPDATE sales_public_catalogs
-            SET public_token_hint = ?, updated_by_user_id = ?, version = version + 1
+            SET public_token_hint = ?, protected_public_token = ?,
+                updated_by_user_id = ?, version = version + 1
             WHERE company_id = ? AND id = ? AND deleted_at IS NULL AND status <> 'REVOKED'
-            """, hint, userId, companyId, catalogId) > 0;
+            """, hint, protectedToken, userId, companyId, catalogId) > 0;
     }
 
     public boolean physicalDelete(long companyId, long catalogId) {
@@ -444,7 +447,8 @@ public class SalesPublicCatalogRepository {
             rs.getString("title"), rs.getString("description"), rs.getString("cover_image_url"),
             rs.getString("contact_cta_label"), rs.getString("contact_method"),
             rs.getString("contact_value"), rs.getString("status"), instant(rs, "expires_at"),
-            rs.getString("public_token_hint"), rs.getBoolean("show_prices"),
+            rs.getString("public_token_hint"), rs.getString("protected_public_token"),
+            rs.getBoolean("show_prices"),
             rs.getBoolean("show_wholesale_prices"), rs.getBoolean("show_stock_status"),
             rs.getBoolean("show_item_type_badges"), rs.getBoolean("show_categories"),
             rs.getBoolean("allow_cart"), rs.getBoolean("allow_purchase_request"),
@@ -521,6 +525,7 @@ public class SalesPublicCatalogRepository {
         String status,
         Instant expiresAt,
         String tokenHint,
+        String protectedToken,
         boolean showPrices,
         boolean showWholesalePrices,
         boolean showStockStatus,

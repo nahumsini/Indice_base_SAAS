@@ -316,6 +316,9 @@ export const koCA = {
     importAll: '모두 가져오기',
     emptyActive: '활성 카테고리가 없습니다. 직접 만들거나 디렉터리에서 가져오세요.',
     alreadyInCatalog: '추가됨',
+    moveUp: '위로 이동',
+    moveDown: '아래로 이동',
+    remove: '삭제',
   },
   form: {
     ...enCA.form,

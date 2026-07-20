@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,11 +46,68 @@ class SalesPublicCatalogServiceTest {
     private KioskRegistryService registry;
 
     private SalesPublicCatalogService service;
+    private SalesPublicCatalogLinkCodec linkCodec;
 
     @BeforeEach
     void setUp() {
+        linkCodec = new SalesPublicCatalogLinkCodec(
+            "test-kiosk-token-protection-secret-123456789", new SecureRandom());
         service = new SalesPublicCatalogService(
-            repository, registry, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
+            repository, registry, new ObjectMapper(), linkCodec,
+            Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    @Test
+    void revealsTheCurrentLinkWithoutRotatingIt() {
+        var token = "spc_1234567890abcdefghijklmnopqrstuvwxyz";
+        var base = catalog(true);
+        var catalog = new SalesPublicCatalogRepository.CatalogRecord(
+            base.id(), base.companyId(), base.companyName(), base.unitId(), base.unitName(),
+            base.businessId(), base.businessName(), base.code(), base.name(), base.title(),
+            base.description(), base.coverImageUrl(), base.contactCtaLabel(), base.contactMethod(),
+            base.contactValue(), base.status(), base.expiresAt(), token.substring(token.length() - 8),
+            linkCodec.protect(token), base.showPrices(), base.showWholesalePrices(),
+            base.showStockStatus(), base.showItemTypeBadges(), base.showCategories(),
+            base.allowCart(), base.allowPurchaseRequest(), base.version(), base.createdAt(), base.updatedAt());
+        var access = SalesPublicCatalogAdminAccess.AdminContext.corporate(5L, catalog.companyId());
+        given(repository.find(catalog.companyId(), catalog.id())).willReturn(Optional.of(catalog));
+
+        var response = service.revealLink(access, catalog.id());
+
+        assertThat(response.publicUrl()).isEqualTo("/public-catalog/" + token);
+        assertThat(response.publicTokenHint()).isEqualTo(catalog.tokenHint());
+        assertThat(response.version()).isEqualTo(catalog.version());
+        then(registry).shouldHaveNoInteractions();
+        then(repository).should().audit(
+            eq(catalog.companyId()), eq(catalog.id()), eq(null),
+            eq("PUBLIC_CATALOG_LINK_REVEALED"), eq(access.userId()), any(), any(), anyString());
+    }
+
+    @Test
+    void reissuesALegacyLinkOnceWhenNoRecoverableTokenExists() {
+        var catalog = catalog(true);
+        var access = SalesPublicCatalogAdminAccess.AdminContext.corporate(5L, catalog.companyId());
+        given(repository.find(catalog.companyId(), catalog.id())).willReturn(Optional.of(catalog));
+        given(repository.updateToken(
+            eq(catalog.companyId()), eq(access.userId()), eq(catalog.id()),
+            anyString(), anyString())).willReturn(true);
+
+        var response = service.revealLink(access, catalog.id());
+
+        assertThat(response.publicUrl()).startsWith("/public-catalog/spc_");
+        assertThat(response.publicTokenHint()).hasSize(8);
+        assertThat(response.version()).isEqualTo(catalog.version() + 1);
+        then(registry).should().replacePublicToken(
+            eq(catalog.companyId()), eq(SalesPublicCatalogService.OWNER_MODULE),
+            eq(catalog.id()), anyString(), eq(access.userId()));
+        then(repository).should().updateToken(
+            eq(catalog.companyId()), eq(access.userId()), eq(catalog.id()),
+            eq(response.publicTokenHint()),
+            org.mockito.ArgumentMatchers.startsWith(SalesPublicCatalogLinkCodec.PREFIX));
+        then(repository).should().audit(
+            eq(catalog.companyId()), eq(catalog.id()), eq(null),
+            eq("PUBLIC_CATALOG_LEGACY_LINK_REISSUED"), eq(access.userId()),
+            any(), any(), anyString());
     }
 
     @Test
@@ -205,7 +263,7 @@ class SalesPublicCatalogServiceTest {
         var catalog = new SalesPublicCatalogRepository.CatalogRecord(
             17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026",
             "Catálogo público", "Descripción", null, "Solicitar", "email",
-            "ventas@example.com", "ACTIVE", null, "tokenhint", true, true, false,
+            "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, true, false,
             false, false, true, true, 1L, NOW.minusSeconds(60), NOW.minusSeconds(60));
         given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));
         given(repository.publicItems(catalog)).willReturn(List.of(product()));
@@ -280,7 +338,7 @@ class SalesPublicCatalogServiceTest {
         return new SalesPublicCatalogRepository.CatalogRecord(
             17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026", "Catálogo público",
             "Descripción", null, "Solicitar", "email", "ventas@example.com", "ACTIVE", null,
-            "tokenhint", showPrices, showWholesalePrices, true, true, true, true, true, 1L,
+            "tokenhint", null, showPrices, showWholesalePrices, true, true, true, true, true, 1L,
             NOW.minusSeconds(60), NOW.minusSeconds(60));
     }
 

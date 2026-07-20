@@ -14,7 +14,7 @@ export function PublicCatalogLinkModal({
   onOpenChange,
   onRegenerateLink,
   onCopyLink,
-  onPreview,
+  onOpenPublicLink,
   onGenerateQr,
   onDownloadQr,
   busy = false,
@@ -25,7 +25,7 @@ export function PublicCatalogLinkModal({
   onOpenChange: (open: boolean) => void;
   onRegenerateLink: () => void;
   onCopyLink: () => void;
-  onPreview: () => void;
+  onOpenPublicLink: () => void;
   onGenerateQr: () => void;
   onDownloadQr: () => void;
   busy?: boolean;
@@ -59,7 +59,7 @@ export function PublicCatalogLinkModal({
               t={t}
               onRegenerateLink={onRegenerateLink}
               onCopyLink={onCopyLink}
-              onPreview={onPreview}
+              onOpenPublicLink={onOpenPublicLink}
               onGenerateQr={onGenerateQr}
               onDownloadQr={onDownloadQr}
               busy={busy}

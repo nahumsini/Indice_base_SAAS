@@ -8,7 +8,7 @@ export function PublicCatalogLinkPanel({
   t,
   onRegenerateLink,
   onCopyLink,
-  onPreview,
+  onOpenPublicLink,
   onGenerateQr,
   onDownloadQr,
   busy = false,
@@ -18,7 +18,7 @@ export function PublicCatalogLinkPanel({
   t: ProductsTranslations;
   onRegenerateLink: () => void;
   onCopyLink: () => void;
-  onPreview: () => void;
+  onOpenPublicLink: () => void;
   onGenerateQr: () => void;
   onDownloadQr: () => void;
   busy?: boolean;
@@ -37,23 +37,26 @@ export function PublicCatalogLinkPanel({
             {t.publicCatalog.protectedLinkHint(catalog.publicTokenHint)}
           </div>
         ) : null}
-        <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onRegenerateLink} disabled={busy}>
-          <RefreshCw className="h-4 w-4" />
-          {t.publicCatalog.regenerateLink}
-        </Button>
-        <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onCopyLink} disabled={busy || !catalog.publicUrl}>
-          <Copy className="h-4 w-4" />
-          {t.publicCatalog.copyLink}
-        </Button>
-        <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onPreview} disabled={busy}>
-          <ExternalLink className="h-4 w-4" />
-          {t.publicCatalog.openPreview}
-        </Button>
         {catalog.publicUrl ? (
-          <div className="break-all rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-600">
-            {catalog.publicUrl}
-          </div>
-        ) : null}
+          <>
+            <div className="break-all rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-600">
+              {catalog.publicUrl}
+            </div>
+            <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onCopyLink} disabled={busy}>
+              <Copy className="h-4 w-4" />
+              {t.publicCatalog.copyLink}
+            </Button>
+            <Button variant="outline" className="w-full gap-2 rounded-lg" onClick={onOpenPublicLink} disabled={busy}>
+              <ExternalLink className="h-4 w-4" />
+              {t.publicCatalog.openPublicCatalog}
+            </Button>
+          </>
+        ) : (
+          <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onRegenerateLink} disabled={busy}>
+            <RefreshCw className="h-4 w-4" />
+            {t.publicCatalog.generateNewLink}
+          </Button>
+        )}
         <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-sm font-bold text-slate-400">
           {catalog.qrImageDataUrl ? (
             <img src={catalog.qrImageDataUrl} alt={t.publicCatalog.qrPlaceholder} className="h-full w-full object-contain p-5" />
@@ -73,6 +76,12 @@ export function PublicCatalogLinkPanel({
             <Download className="h-4 w-4" />
             {t.publicCatalog.downloadQr}
           </Button>
+          {catalog.publicUrl ? (
+            <Button type="button" variant="ghost" className="w-full gap-2 rounded-lg text-slate-500" onClick={onRegenerateLink} disabled={busy}>
+              <RefreshCw className="h-4 w-4" />
+              {t.publicCatalog.regenerateLink}
+            </Button>
+          ) : null}
         </div>
       </div>
     </section>

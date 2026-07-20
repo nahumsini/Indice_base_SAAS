@@ -10,7 +10,6 @@ import { publicCatalogApi } from './publicCatalogApi';
 import { PublicCatalogCardsPanel } from './PublicCatalogCardsPanel';
 import { PublicCatalogEditorModal } from './PublicCatalogEditorModal';
 import { PublicCatalogLinkModal } from './PublicCatalogLinkModal';
-import { PublicCatalogPage } from './PublicCatalogPage';
 import { PublicCatalogRequestsModal } from './PublicCatalogRequestsModal';
 import type { PublicCatalogConfig } from './types/publicCatalogTypes';
 import { createDefaultPublicCatalogConfig } from './utils/publicCatalogAdapters';
@@ -26,6 +25,24 @@ type DestructiveAction = { catalog: PublicCatalogConfig; kind: 'revoke' | 'delet
 type OrganizationUnit = { id: number; name: string };
 type OrganizationBusiness = { id: number; unitId: number; name: string };
 const catalogManagerActionClassNames = getSalesModalActionClassNames('coral');
+
+const isValidCatalogContact = (catalog: PublicCatalogConfig) => {
+  const value = catalog.contactValue.trim();
+  if (!value) return false;
+  if (catalog.contactMethod === 'email') {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+  if (catalog.contactMethod === 'phone' || catalog.contactMethod === 'whatsapp') {
+    const digits = value.replace(/\D/g, '');
+    return digits.length >= 8 && digits.length <= 15;
+  }
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    return Boolean(url.hostname && url.hostname.includes('.'));
+  } catch {
+    return false;
+  }
+};
 
 const mergeEphemeralLink = (
   current: PublicCatalogConfig | undefined,
@@ -64,7 +81,6 @@ export function PublicCatalogConfigModal({
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
   const [businesses, setBusinesses] = useState<OrganizationBusiness[]>([]);
   const [linkCatalogId, setLinkCatalogId] = useState<string | null>(null);
-  const [previewCatalog, setPreviewCatalog] = useState<PublicCatalogConfig | null>(null);
   const [editingCatalog, setEditingCatalog] = useState<PublicCatalogConfig | null>(null);
   const [editingMode, setEditingMode] = useState<PublicCatalogEditorMode | null>(null);
   const [requestsOpen, setRequestsOpen] = useState(false);
@@ -84,7 +100,7 @@ export function PublicCatalogConfigModal({
     [catalogs, linkCatalogId],
   );
   const childViewOpen = Boolean(
-    editingCatalog || linkCatalog || requestsOpen || destructiveAction || previewCatalog,
+    editingCatalog || linkCatalog || requestsOpen || destructiveAction,
   );
 
   const tryAcquireOperation = () => {
@@ -97,15 +113,7 @@ export function PublicCatalogConfigModal({
     operationLockRef.current = false;
   };
 
-  const clearLinkSecret = (catalogId: string | null | undefined) => {
-    if (!catalogId) return;
-    setCatalogs((current) => current.map((catalog) => (
-      catalog.id === catalogId ? withoutEphemeralLink(catalog) : catalog
-    )));
-  };
-
   const closeLinkView = () => {
-    clearLinkSecret(linkCatalogId);
     setLinkCatalogId(null);
     setRotateCatalog(null);
     setLinkError('');
@@ -115,7 +123,6 @@ export function PublicCatalogConfigModal({
     loadSequenceRef.current += 1;
     setCatalogs((current) => current.map(withoutEphemeralLink));
     setLinkCatalogId(null);
-    setPreviewCatalog(null);
     setEditingCatalog(null);
     setEditingMode(null);
     setRequestsOpen(false);
@@ -224,15 +231,25 @@ export function PublicCatalogConfigModal({
   };
 
   const handleSaveEditor = async () => {
-    if (!editingCatalog || !editingCatalog.title.trim() || !editingCatalog.contactCtaLabel.trim()) {
+    if (!editingCatalog || !editingCatalog.title.trim()) {
       setEditorError(t.publicCatalog.requiredIdentityError);
       return;
     }
-    if (!editingCatalog.unitId || !editingCatalog.businessId) {
+    const catalogToSave: PublicCatalogConfig = {
+      ...editingCatalog,
+      title: editingCatalog.title.trim(),
+      contactCtaLabel: editingCatalog.contactCtaLabel.trim() || t.publicCatalog.contactCta,
+      contactValue: editingCatalog.contactValue.trim(),
+    };
+    if (!catalogToSave.unitId || !catalogToSave.businessId) {
       setEditorError(t.publicCatalog.requiredScopeError);
       return;
     }
-    if (editingCatalog.expiresAt && new Date(editingCatalog.expiresAt).getTime() <= Date.now()) {
+    if (!isValidCatalogContact(catalogToSave)) {
+      setEditorError(t.publicCatalog.contactInputs[catalogToSave.contactMethod].error);
+      return;
+    }
+    if (catalogToSave.expiresAt && new Date(catalogToSave.expiresAt).getTime() <= Date.now()) {
       setEditorError(t.publicCatalog.futureExpirationError);
       return;
     }
@@ -241,9 +258,9 @@ export function PublicCatalogConfigModal({
     setEditorError('');
     try {
       const persisted = editingMode === 'edit'
-        ? await publicCatalogApi.updateAdmin(editingCatalog, products)
-        : await publicCatalogApi.createAdmin(editingCatalog, products);
-      const saved = withScopeNames(mergeEphemeralLink(editingMode === 'edit' ? editingCatalog : undefined, persisted));
+        ? await publicCatalogApi.updateAdmin(catalogToSave, products)
+        : await publicCatalogApi.createAdmin(catalogToSave, products);
+      const saved = withScopeNames(mergeEphemeralLink(editingMode === 'edit' ? catalogToSave : undefined, persisted));
       setCatalogs((current) => editingMode === 'edit'
         ? current.map((catalog) => catalog.id === saved.id ? saved : catalog)
         : [saved, ...current]);
@@ -282,7 +299,6 @@ export function PublicCatalogConfigModal({
         setCatalogs((current) => current.filter((candidate) => candidate.id !== catalog.id));
       }
       if (linkCatalogId === catalog.id) setLinkCatalogId(null);
-      if (previewCatalog?.id === catalog.id) setPreviewCatalog(null);
       setDestructiveAction(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t.publicCatalog.operationError);
@@ -336,6 +352,59 @@ export function PublicCatalogConfigModal({
       setLinkError('');
     } catch {
       setLinkError(t.publicCatalog.copyLinkError);
+    }
+  };
+
+  const handleOpenPublicLink = (catalog = linkCatalog) => {
+    if (!catalog?.publicUrl) return;
+    window.open(catalog.publicUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const resolveCatalogLink = async (catalog: PublicCatalogConfig) => {
+    if (catalog.publicUrl) return catalog.publicUrl;
+    if (!catalog.backendId) throw new Error(t.publicCatalog.publicLinkMissing);
+    const revealed = await publicCatalogApi.revealLink(catalog.backendId);
+    if (catalog.id) {
+      updateCatalog(catalog.id, {
+        ...catalog,
+        publicUrl: revealed.publicUrl,
+        publicTokenHint: revealed.publicTokenHint,
+        version: revealed.version,
+      });
+    }
+    return revealed.publicUrl;
+  };
+
+  const handleCatalogLinkAction = async (catalog: PublicCatalogConfig) => {
+    try {
+      const publicUrl = await resolveCatalogLink(catalog);
+      await navigator.clipboard.writeText(publicUrl);
+      setLinkError('');
+    } catch (reason) {
+      setLinkError(reason instanceof Error ? reason.message : t.publicCatalog.copyLinkError);
+      setLinkCatalogId(catalog.id ?? null);
+    }
+  };
+
+  const handleOpenCatalogAction = async (catalog: PublicCatalogConfig) => {
+    if (catalog.publicUrl) {
+      window.open(catalog.publicUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    const target = window.open('about:blank', '_blank');
+    if (target) target.opener = null;
+    try {
+      const publicUrl = await resolveCatalogLink(catalog);
+      if (target) {
+        target.location.replace(publicUrl);
+      } else {
+        window.open(publicUrl, '_blank', 'noopener,noreferrer');
+      }
+      setLinkError('');
+    } catch (reason) {
+      target?.close();
+      setLinkError(reason instanceof Error ? reason.message : t.publicCatalog.operationError);
+      setLinkCatalogId(catalog.id ?? null);
     }
   };
 
@@ -395,8 +464,8 @@ export function PublicCatalogConfigModal({
                 t={t}
                 onCreate={handleCreateCatalog}
                 onEdit={handleEditCatalog}
-                onCatalogLink={(catalog) => { setLinkError(''); setLinkCatalogId(catalog.id ?? null); }}
-                onPreview={setPreviewCatalog}
+                onCatalogLink={(catalog) => void handleCatalogLinkAction(catalog)}
+                onOpenPublicCatalog={(catalog) => void handleOpenCatalogAction(catalog)}
                 onToggleStatus={(catalog) => void handleToggleStatus(catalog)}
                 onDelete={(catalogId) => {
                   const catalog = catalogs.find((candidate) => candidate.id === catalogId);
@@ -433,12 +502,7 @@ export function PublicCatalogConfigModal({
         onOpenChange={(nextOpen) => !nextOpen && closeLinkView()}
         onRegenerateLink={() => linkCatalog && setRotateCatalog(linkCatalog)}
         onCopyLink={() => void handleCopyLink(linkCatalog)}
-        onPreview={() => {
-          if (!linkCatalog) return;
-          setPreviewCatalog(withoutEphemeralLink(linkCatalog));
-          clearLinkSecret(linkCatalog.id);
-          setLinkCatalogId(null);
-        }}
+        onOpenPublicLink={() => handleOpenPublicLink(linkCatalog)}
         onGenerateQr={() => void handleGenerateQr(linkCatalog)}
         onDownloadQr={() => linkCatalog && downloadQrImage(linkCatalog)}
       />
@@ -497,25 +561,6 @@ export function PublicCatalogConfigModal({
         </div>
       </SalesModalFrame>
 
-      <SalesModalFrame
-        open={open && Boolean(previewCatalog)}
-        onOpenChange={(nextOpen) => !nextOpen && setPreviewCatalog(null)}
-        title={t.publicCatalog.previewAction}
-        description={previewCatalog?.title ?? t.publicCatalog.publicCatalog}
-        icon={<Globe2 className="h-5 w-5" />}
-        contentClassName="flex h-[92vh] w-[calc(100vw-2rem)] max-w-[1500px] flex-col sm:max-w-[1500px]"
-        bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-white p-0"
-        footerClassName="sm:justify-end"
-        footer={(
-          <Button variant="outline" className={catalogManagerActionClassNames.secondary} onClick={() => setPreviewCatalog(null)}>
-            {t.common.close}
-          </Button>
-        )}
-      >
-        <div className="h-full overflow-y-auto">
-          {previewCatalog ? <PublicCatalogPage config={previewCatalog} products={products} embedded /> : null}
-        </div>
-      </SalesModalFrame>
     </>
   );
 }

@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockHttpSession;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -101,6 +102,11 @@ class KioskPublicV2ControllerTest {
             .andExpect(jsonPath("$.data.csrfToken").value("csrf-token"))
             .andExpect(jsonPath("$.data.accessLevel").value("CONTROLLED"))
             .andExpect(jsonPath("$.meta.requestId").value("request-17"));
+
+        org.mockito.BDDMockito.then(adapter).should().bootstrap(argThat(context ->
+            context.definition() == definition
+                && context.session() == null
+                && "secret-token".equals(context.accessReference())));
     }
 
     @Test
