@@ -118,6 +118,7 @@ Dev override adds:
 
 - The frontend is served by Nginx and calls the backend through same-origin `/api` paths.
 - Deployment `.env` values for `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_FLYWAY_ENABLED` are authoritative when present. The compose file only falls back to the internal MySQL service when those values are omitted.
+- El preflight acepta credenciales `SPRING_DATASOURCE_*` completas para una base externa; sólo exige `MYSQL_PASSWORD` y `MYSQL_ROOT_PASSWORD` cuando se utiliza el MySQL interno de Compose. Una configuración externa parcial se rechaza.
 - APPTEST/app frontends are served from the running web container, not only from the cPanel document root. After every `npm run build`, publish `react/dist` into the container with `deployment/scripts/publish-web-dist.sh` or the equivalent `docker cp "$APP_DIR/react/dist/." indice-erp-web-1:/usr/share/nginx/html/`.
 - Nginx also proxies `/storage/` to MinIO so presigned browser uploads can stay on the web origin by default. Host-network deploys use `deployment/docker/web/nginx.host.conf`; compose deploys keep `deployment/docker/web/nginx.conf`.
 - The backend uses the internal MinIO endpoint for server-side access and rewrites presigned URLs onto `MINIO_PUBLIC_ENDPOINT`.

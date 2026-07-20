@@ -46,8 +46,6 @@ require_env_value() {
 
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
   required_keys=(
-    MYSQL_PASSWORD
-    MYSQL_ROOT_PASSWORD
     MINIO_ROOT_USER
     MINIO_ROOT_PASSWORD
     WEB_PUBLIC_URL
@@ -61,6 +59,19 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
   for key in "${required_keys[@]}"; do
     require_env_value "${key}"
   done
+
+  datasource_url="$(read_env_value SPRING_DATASOURCE_URL)"
+  datasource_username="$(read_env_value SPRING_DATASOURCE_USERNAME)"
+  datasource_password="$(read_env_value SPRING_DATASOURCE_PASSWORD)"
+
+  if [[ -n "${datasource_url}${datasource_username}${datasource_password}" ]]; then
+    require_env_value SPRING_DATASOURCE_URL
+    require_env_value SPRING_DATASOURCE_USERNAME
+    require_env_value SPRING_DATASOURCE_PASSWORD
+  else
+    require_env_value MYSQL_PASSWORD
+    require_env_value MYSQL_ROOT_PASSWORD
+  fi
 
   unsafe_values=(
     "MYSQL_PASSWORD:indice_pass"
