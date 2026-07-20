@@ -38,6 +38,7 @@ cp deployment/env/.env.example deployment/env/.env
 - `APP_SESSION_COOKIE_SECURE`
 - `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
 - `APP_KIOSK_TOKEN_PROTECTION_SECRET` (obligatoria; distinta de los demás secretos)
+- tiempos de sesión de kioskos (`APP_*_KIOSK_*_SECONDS`); la plantilla contiene los valores estándar aprobados
 - `MYSQL_*`
 - `MINIO_*`
 
@@ -73,6 +74,11 @@ las credenciales. Para comprobar solamente el repositorio con la plantilla:
 
 `--example` permite los valores inseguros documentales de `.env.example`; nunca
 debe usarse como autorización para desplegar esos valores en producción.
+
+Los tiempos estándar enviados al backend son: RH 3 minutos; Expenses 5 minutos
+de inactividad y 8 horas de sesión; Caja Chica 15 minutos y 4 horas; Procesos y
+Tareas 30 minutos y 8 horas. Para cambiarlos en un ambiente, modifica únicamente
+su archivo `deployment/env/.env` y vuelve a crear el contenedor del backend.
 
 Antes de una instalación que incluya las migraciones V134/V135, comprueba que no
 existan kioskos nuevos con alcance organizacional incompleto. Las consultas son
