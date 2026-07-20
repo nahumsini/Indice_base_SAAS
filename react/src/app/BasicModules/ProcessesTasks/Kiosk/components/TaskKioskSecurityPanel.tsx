@@ -9,13 +9,14 @@ import {
 } from '../processTaskKioskApi';
 
 interface TaskKioskSecurityPanelProps {
+  embedded?: boolean;
   kiosk: ProcessTaskKiosk;
   onClose: () => void;
 }
 
 type PanelTab = 'grants' | 'audit';
 
-export function TaskKioskSecurityPanel({ kiosk, onClose }: TaskKioskSecurityPanelProps) {
+export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: TaskKioskSecurityPanelProps) {
   const [tab, setTab] = useState<PanelTab>('grants');
   const [grants, setGrants] = useState<ProcessTaskKioskGrant[]>([]);
   const [audit, setAudit] = useState<ProcessTaskKioskAuditEvent[]>([]);
@@ -76,30 +77,34 @@ export function TaskKioskSecurityPanel({ kiosk, onClose }: TaskKioskSecurityPane
       setPendingRevokeId(null);
       await load('grants');
     } catch (revokeError) {
-      setError(revokeError instanceof Error ? revokeError.message : 'No fue posible revocar el acceso.');
+      setError(revokeError instanceof Error ? revokeError.message : 'No fue posible retirar el acceso.');
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <section className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950" aria-label={`Seguridad de ${kiosk.name}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-semibold text-slate-950 dark:text-white">Accesos y auditoría</p>
-          <p className="mt-1 text-xs text-slate-500">El PIN es personal; este kiosko únicamente concede o revoca capacidades.</p>
+    <section className={embedded ? 'min-w-0' : 'mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950'} aria-label={`Seguridad de ${kiosk.name}`}>
+      {!embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold text-slate-950 dark:text-white">Accesos y auditoría</p>
+            <p className="mt-1 text-xs text-slate-500">El PIN es personal; este kiosko únicamente concede o revoca capacidades.</p>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Cerrar seguridad">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Cerrar seguridad">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+      ) : (
+        <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">El PIN es personal; este kiosko únicamente concede o revoca capacidades.</p>
+      )}
 
-      <div className="mt-4 flex gap-2" role="tablist" aria-label="Administración de seguridad">
+      <div className="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Administración de seguridad">
         <Button type="button" size="sm" variant={tab === 'grants' ? 'default' : 'outline'} role="tab" aria-selected={tab === 'grants'} onClick={() => setTab('grants')}>
-          <KeyRound className="h-4 w-4" />Accesos
+          <KeyRound className="h-4 w-4" />Personas con acceso
         </Button>
         <Button type="button" size="sm" variant={tab === 'audit' ? 'default' : 'outline'} role="tab" aria-selected={tab === 'audit'} onClick={() => setTab('audit')}>
-          <History className="h-4 w-4" />Auditoría
+          <History className="h-4 w-4" />Historial
         </Button>
       </div>
 
@@ -136,7 +141,7 @@ export function TaskKioskSecurityPanel({ kiosk, onClose }: TaskKioskSecurityPane
                   </div>
                   {grant.status === 'ACTIVE' ? (
                     <Button type="button" size="sm" variant="outline" disabled={isSaving} className="text-red-600" onClick={() => void handleRevoke(grant.id)}>
-                      <ShieldX className="h-4 w-4" />{pendingRevokeId === grant.id ? 'Confirmar revocación' : 'Revocar'}
+                      <ShieldX className="h-4 w-4" />{pendingRevokeId === grant.id ? 'Confirmar retiro' : 'Retirar acceso'}
                     </Button>
                   ) : <span className="text-xs font-medium text-slate-500">Revocado</span>}
                 </div>

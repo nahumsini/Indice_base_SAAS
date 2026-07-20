@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Copy, KeyRound, Loader2, ShieldCheck, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
-import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
+import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
 import { payableKiosksService, type PayableKiosk, type PayableKioskProviderAccess } from '../../services';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import type { ProviderRecord } from '../useProveedoresLogic';
@@ -105,18 +106,18 @@ export function ProviderKioskAccessModal({ onClose, onError, onSuccess, provider
 
   return (
     <>
-      <IndiceModalFrame
+      <KioskModalFrame
         busy={isSaving}
-        contentClassName="sm:max-w-[560px]"
         description={provider?.name ?? copy.providerAccess}
         footer={(
-          <button type="button" disabled={isSaving} onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">{t.common.cancel}</button>
+          <button type="button" disabled={isSaving} onClick={onClose} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">{t.common.cancel}</button>
         )}
         footerSummary={activeAccess ? copy.accessReady : copy.selectKiosk}
         icon={<KeyRound className="h-5 w-5" />}
-        modalType="standard-form"
         onOpenChange={open => !open && onClose()}
-        open={Boolean(provider)}
+        open={Boolean(provider) && !showRevokeConfirm}
+        size="form"
+        surface="administration"
         title={copy.manageProviderAccess}
         tone="green"
       >
@@ -164,7 +165,7 @@ export function ProviderKioskAccessModal({ onClose, onError, onSuccess, provider
             </>
           )}
         </section>
-      </IndiceModalFrame>
+      </KioskModalFrame>
 
       <ConfirmDeleteDialog
         cancelLabel={t.common.cancel}

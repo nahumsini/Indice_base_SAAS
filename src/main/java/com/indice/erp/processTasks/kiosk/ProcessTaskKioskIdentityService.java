@@ -31,7 +31,8 @@ class ProcessTaskKioskIdentityService {
         var credentialRef = tokenService.pinCredentialReference(companyId, pin);
         var rows = jdbcTemplate.query(
             """
-                SELECT p.user_company_id,
+                SELECT m.id AS method_id,
+                       p.user_company_id,
                        uc.user_id,
                        COALESCE(e.user_code, '') AS user_code,
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
@@ -49,10 +50,10 @@ class ProcessTaskKioskIdentityService {
                   AND COALESCE(LOWER(p.status), 'active') = 'active'
                   AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
                   AND m.method_type = 'pin'
-                  AND (m.credential_ref = ? OR m.credential_ref IS NULL OR m.credential_ref = '')
                 ORDER BY p.user_company_id ASC, m.priority ASC, m.id ASC
                 """,
             (rs, rowNum) -> new ProcessTaskKioskPinCandidate(
+                rs.getLong("method_id"),
                 rs.getLong("user_company_id"),
                 rs.getLong("user_id"),
                 fallback(rs.getString("user_code"), ""),
@@ -63,12 +64,17 @@ class ProcessTaskKioskIdentityService {
                 fallback(rs.getString("credential_ref"), ""),
                 fallback(rs.getString("secret_hash"), "")
             ),
-            companyId,
-            credentialRef
+            companyId
         );
 
         for (var candidate : rows) {
             if (!candidate.secretHash().isBlank() && passwordEncoder.matches(pin, candidate.secretHash())) {
+                if (!credentialRef.equals(candidate.credentialRef())) {
+                    jdbcTemplate.update(
+                        "UPDATE user_access_methods SET credential_ref = ? WHERE company_id = ? AND id = ?",
+                        credentialRef, companyId, candidate.methodId()
+                    );
+                }
                 jdbcTemplate.update(
                     """
                         INSERT INTO kiosk_identity_credentials (
@@ -80,7 +86,7 @@ class ProcessTaskKioskIdentityService {
                             secret_hash = VALUES(secret_hash), status = 'ACTIVE'
                         """,
                     companyId, candidate.userCompanyId(),
-                    candidate.credentialRef().isBlank() ? credentialRef : candidate.credentialRef(),
+                    credentialRef,
                     candidate.secretHash()
                 );
                 return new ProcessTaskKioskEmployee(

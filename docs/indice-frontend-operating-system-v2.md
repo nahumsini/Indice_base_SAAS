@@ -1185,6 +1185,491 @@ Required:
 - operational focus
 - no dashboard-style decoration
 
+### Kiosk Experience Branch — `KioskIdentityGate`
+
+Public kiosks are a specialized branch of the Workspace View. This branch extends the Frontend Operating System; it does not create a separate design system and it does not turn the public experience into a modal.
+
+Authority is divided as follows:
+
+- this document owns frontend composition, hierarchy, responsive behavior, localization, accessibility, and reusable presentation primitives;
+- [`Kiosk Standard Engine v2`](./kiosk-standard-engine-v2.md) owns public-channel architecture, identity policy, security, sessions, capabilities, audit, and module boundaries;
+- the module owns business rules, API calls, validation, permissions, payloads, and the result of every operation;
+- Modal Engine applies only to kiosk administration, configuration, confirmation, and other explicitly classified modal workflows.
+
+The first approved visual reference is Caja Chica. Its PIN entry state defines the baseline for migrating other controlled kiosks without changing their backend contracts or business behavior.
+
+#### Scope and applicability
+
+Use `KioskIdentityGate` when a public kiosk must identify a collaborator, provider, customer, or other expected person before exposing protected information or actions.
+
+Do not add it blindly to:
+
+- anonymous catalogs;
+- paired customer displays;
+- public information-only experiences;
+- any kiosk whose approved policy does not require identity.
+
+Those surfaces continue to use `KioskPublicShell` and the relevant workspace primitives, but they enter their authorized flow without an identity gate.
+
+#### Canonical composition
+
+```text
+KioskPublicShell
+├── KioskUtilityBar
+│   ├── language selector
+│   └── accessibility settings
+├── KioskWorkspaceHeader
+│   ├── module identity
+│   ├── public-safe kiosk name
+│   └── connection or session context when useful
+├── KioskSessionBoundary
+├── KioskIdentityJourney                  conditional
+│   ├── KioskIdentityGate                 PIN baseline
+│   │   ├── masked PIN input
+│   │   ├── KioskPinKeypad
+│   │   ├── primary identify action
+│   │   ├── privacy message
+│   │   └── Powered by www.indiceapp.com
+│   └── KioskFaceVerificationStep         optional or required by policy
+├── ModuleKioskWorkspace                  shown only after authorization
+├── KioskActionFeedback
+└── KioskSessionControls
+```
+
+Approved shared frontend location:
+
+```text
+react/src/app/components/kiosk-engine/
+  KioskPublicShell.tsx
+  KioskIdentityGate.tsx
+  KioskWorkspacePrimitives.tsx
+  useKioskSessionBoundary.ts
+```
+
+These shared components are presentation and interaction primitives only. They must not import module services, create domain payloads, decide permissions, or contain module-specific business rules.
+
+#### Identity flow
+
+The canonical identity sequence is:
+
+```text
+preparing
+  -> identification-required
+  -> identifying
+  -> identified
+  -> verification-required        when policy requires it
+  -> verifying
+  -> authorized
+  -> module workspace
+```
+
+Any state may transition to a safe error, expired, unauthorized, offline, or reset state. A timeout or completed operation must clear the PIN, biometric captures, expected identity, and sensitive module data before returning to the gate.
+
+PIN requirements:
+
+- render the configured number of masked positions rather than showing the PIN;
+- support the on-screen numeric keypad and physical keyboard input;
+- use `inputMode="numeric"`, an appropriate `enterKeyHint`, and an accessible label;
+- provide Backspace and Clear without requiring the device keyboard;
+- enable the single primary action only when the expected PIN length is complete;
+- block duplicate submissions and show progress during identification;
+- never log, persist, recover, or reveal the PIN in frontend storage or visible copy;
+- let the module adapter perform authentication and map the response into the next UI state.
+
+Facial-recognition requirements:
+
+- determine the expected identity first; facial verification is one-to-one and never a mass search;
+- render the facial step only when the bootstrap or module policy declares it optional or required;
+- do not activate the camera before an explicit user action;
+- explain camera purpose and provide clear retry, cancel, permission-denied, unavailable, and failure states;
+- reuse the approved `LiveFaceChallenge` capture behavior until a shared presentation-only kiosk adapter replaces it;
+- require explicit consent for enrollment and keep enrollment distinct from verification;
+- allow fallback only when the module policy explicitly permits it;
+- keep biometric templates, comparison, retention, and audit outside frontend components.
+
+The approved first implementation of `KioskIdentityGate` covers the PIN state. Facial verification is composed as the next identity step; it must not be forced into the PIN component or duplicated independently by each kiosk.
+
+#### Visual and content standard
+
+The gate must feel modern, calm, and minimal:
+
+- one centered identity card, approximately `max-w-[30rem]`;
+- one clear title, one short instruction, one input, one keypad, and one primary action;
+- module color is an accent for focus, completed PIN dots, and the primary action, not a large decorative background;
+- neutral page and card surfaces with restrained borders and shadows;
+- no dashboard decoration, KPI cards, promotional hero, or repeated organizational summary before identity;
+- no large Índice logo inside the identity gate;
+- no duplicated language selector or accessibility control;
+- no internal database IDs, sequential business numbers, tokens, or unsafe scope values in public copy;
+- show only the minimum safe module, kiosk, location, fund, or connection context needed to orient the user;
+- place `Powered by www.indiceapp.com` below the identity card as subtle attribution, visually secondary to the task;
+- keep all visible copy localized through the owning module's catalog.
+
+The attribution must remain readable and keyboard accessible. It must never compete with the primary action or appear as an advertising card.
+
+#### Mobile and responsive behavior
+
+The identity gate is mobile first and must also remain composed on tablet and desktop.
+
+- use `100dvh` or an equivalent safe viewport strategy;
+- respect bottom safe-area insets;
+- maintain touch targets of at least 44 by 44 CSS pixels, with 48 pixels preferred for primary controls;
+- prevent horizontal overflow at 320 CSS pixels and above;
+- keep the PIN input, primary action, and numeric keypad in the first operational reading path;
+- allow vertical scrolling on short screens without hiding keypad actions;
+- use a compact header and remove nonessential pre-authentication information;
+- after authorization, the module workspace may expand beyond the gate width according to its view type.
+
+#### Authorized mobile workspace pattern
+
+Controlled transaction kiosks for Caja Chica, Procesos y Tareas, Asistencia, and Cuentas por Pagar continue as mobile workspaces after identity. Authorization must not switch them back to a desktop dashboard.
+
+Use the following composition:
+
+```text
+KioskUtilityBar
+KioskWorkspaceTitle
+KioskWorkspaceTabs              when the kiosk has sections
+KioskIdentityOrSessionContext   only the safe context needed to operate
+KioskMetricStrip                optional, two columns
+KioskFilters                    optional, one column on small phones
+KioskPrimaryContent             forms or cards, never a wide table
+KioskStickyPrimaryAction        when the current state has one dominant action
+```
+
+Rules:
+
+- controlled operational workspaces use a centered mobile canvas of approximately `max-w-[30rem]`; catalogs, paired displays, and other approved media-heavy experiences may use an adaptive wider view;
+- navigation belongs immediately below the public workspace title and before KPIs, filters, or long content;
+- use the shared `KioskWorkspaceTabs` presentation primitive for two or three operational sections;
+- tab targets are at least 56 pixels high, distribute available width evenly, expose `tablist` semantics, and remain usable at 320 CSS pixels;
+- tabs may remain sticky while long forms or histories scroll, but must not hide error or session feedback;
+- titles wrap to a maximum of two lines instead of being clipped to an unsafe or meaningless fragment;
+- metric summaries use a two-column grid; a dominant total may span both columns;
+- forms are one column on small phones and every field keeps a minimum 44-pixel target;
+- primary actions prefer 48 to 56 pixels and use the bottom safe area when sticky;
+- use cards or compact lists for records; do not recreate desktop tables inside the mobile canvas;
+- do not let viewport breakpoints activate a desktop multi-column layout inside the centered mobile canvas. Responsive decisions inside this branch must remain safe for the canvas width, not merely for the browser window width;
+- identity, navigation, filters, content, and actions must not create horizontal overflow at 320, 360, 390, 430, or 480 CSS pixels.
+
+The approved implementation order is: Caja Chica navigation baseline, Procesos y Tareas mobile workspace, Asistencia verification journey, and Cuentas por Pagar capture forms. Routes, services, permissions, validations, payloads, and business results remain owned by their modules and are not modified by this layout pattern.
+
+#### Accessibility behavior
+
+`KioskPublicShell` owns one shared accessibility entry point for the entire public workspace. The approved settings are:
+
+- large text;
+- high contrast;
+- reduced motion;
+- restore defaults.
+
+Preferences may persist on the device, but identity and business data may not. The accessibility panel must use visible focus, return focus to its trigger when closed, support Escape, prevent interaction with the obscured workspace, expose state with semantic attributes, and preserve WCAG AA contrast.
+
+The gate must also:
+
+- remain completely keyboard operable;
+- announce errors and progress without relying on color;
+- retain visible focus rings;
+- give every icon-only control an accessible name;
+- avoid motion that cannot be disabled;
+- provide understandable instructions without requiring training.
+
+#### Error and privacy behavior
+
+- show errors next to the identity task using `role="alert"` when immediate attention is required;
+- translate technical failures into safe, actionable public copy;
+- never render raw backend exception text such as `Internal server error`;
+- avoid confirming whether an identity, kiosk, or grant exists when that disclosure is unsafe;
+- distinguish retryable network failure, temporary lockout, expired session, disabled kiosk, and invalid input only to the level permitted by the security policy;
+- clear prior errors when the user meaningfully edits the PIN or restarts the identity flow;
+- keep privacy guidance short and specific to what becomes visible after authorization.
+
+#### Module integration contract
+
+The owning kiosk page supplies:
+
+- localized title, description, labels, privacy copy, and error mappings;
+- module tone and safe public context;
+- configured PIN length and allowed identity methods;
+- PIN state, submit state, and callbacks;
+- backend bootstrap, identification, face verification, authorization, and session behavior;
+- post-authentication workspace and reset behavior.
+
+`KioskIdentityGate` supplies:
+
+- consistent PIN presentation;
+- masked progress;
+- touch and physical-keyboard input;
+- action hierarchy and disabled/loading states;
+- privacy placement;
+- discreet Índice attribution;
+- shared responsive and accessible interaction behavior.
+
+#### Kiosk modal branch — `KioskModalFrame`
+
+The approved visual reference for kiosk modals is the Sales Public Catalog manager:
+
+- `react/src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogConfigModal.tsx`;
+- `react/src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogCardsPanel.tsx`;
+- `react/src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogListCard.tsx`;
+- `react/src/app/BasicModules/Sales/components/SalesModalFrame.tsx`;
+- `react/src/app/components/indice-modal/IndiceModalFrame.tsx`.
+
+This reference is adopted for its hierarchy, precise action groups, stable header and footer, internal scrolling, clear record rows, and replacement of the parent view when a child workflow opens. Its desktop dimensions are not copied blindly into a public mobile kiosk.
+
+The public kiosk remains a Full Workspace route. A modal is allowed only for a focused temporary task inside that workspace or for kiosk administration. It must not replace `KioskIdentityGate`, the primary workspace, navigation, or a long-running operational journey.
+
+Use a kiosk modal for:
+
+- creating or editing one record;
+- viewing one record and performing one bounded action;
+- selecting or changing one responsible identity;
+- reviewing or opening attachments;
+- registering a provider when the policy permits it;
+- confirming reset, submission, revocation, deletion, or another consequential transition;
+- administering kiosk definitions, grants, links, and lifecycle from an authenticated module.
+
+Do not use a kiosk modal for:
+
+- PIN or facial identification;
+- the main post-authentication workspace;
+- tabs, KPIs, histories, or forms that represent the normal kiosk journey;
+- a flow that needs permanent comparison with the workspace behind it;
+- hiding a layout that should instead be simplified for mobile.
+
+##### Canonical anatomy
+
+```text
+KioskModalFrame
+├── ModalHeader                         fixed
+│   ├── module icon
+│   ├── optional eyebrow
+│   ├── action-oriented title
+│   ├── one short description
+│   └── circular close control
+├── ModalFeedback                      first body element when present
+├── ModalBody                          only scrolling region
+│   ├── contextual summary             optional
+│   ├── form sections or record list
+│   ├── file selection                 optional
+│   └── inline empty/loading states
+└── ModalFooter                        fixed
+    ├── live summary or state          optional
+    ├── visible secondary action
+    └── one dominant primary action
+```
+
+The shared implementation is:
+
+```text
+react/src/app/components/kiosk-engine/KioskModalFrame.tsx
+react/src/app/components/kiosk-engine/KioskAdminPrimitives.tsx
+react/src/app/components/kiosk-engine/useKioskQrCode.ts
+```
+
+`KioskModalFrame` must be a typed presentation wrapper over `IndiceModalFrame`; it must not recreate the Radix dialog, focus trap, overlay, header, footer, or busy-close behavior. It may standardize kiosk-safe dimensions, safe-area padding, module tone, action layout, and public-versus-administration density.
+
+The wrapper must not import a module API, dispatch an Engine action, decide capabilities, transform payloads, authorize an identity, or own business validation.
+
+Canonical presentation props:
+
+```ts
+type KioskModalSurface = 'public' | 'administration';
+
+type KioskModalFrameProps = {
+  open: boolean;
+  surface: KioskModalSurface;
+  size: 'compact' | 'form' | 'wizard' | 'workspace';
+  tone: IndiceModalTone;
+  title: ReactNode;
+  description: ReactNode;
+  icon: ReactNode;
+  busy?: boolean;
+  footerSummary?: ReactNode;
+  footer?: ReactNode;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+};
+```
+
+##### Workflow classification
+
+| Kiosk task | Required modal type |
+|---|---|
+| Confirm reset, submit, revoke, delete, or irreversible transition | Confirmation Modal |
+| Create task, payable, provider, expense, income, or edit one record | Standard Form Modal |
+| Enrollment or setup with dependent identity, scope, capability, and review stages | Modal Wizard Índice |
+| Manage many kiosk definitions, grants, rules, requests, or links in parallel | Operational Workspace Modal |
+
+Classification follows the existing Modal System. `KioskModalFrame` is a specialization of the approved shell, not a fifth modal type.
+
+##### Dimensions and responsive behavior
+
+| Surface and type | Mobile | Tablet and desktop |
+|---|---|---|
+| Public confirmation | Bottom-aligned or centered safe sheet; width `100%` | Centered, approximately `max-w-[28rem]` |
+| Public standard form or record detail | Full safe width and, when needed, `100dvh` | Centered, approximately `max-w-[30rem]`, `max-h-[92dvh]` |
+| Public wizard | Full safe width and height | Centered, at most `max-w-[48rem]` unless the workflow proves it needs more |
+| Administration standard form | Full safe width and height | Existing `standard-form` width, approximately `max-w-[48rem]` |
+| Administration operational workspace | Full safe width and height | Existing workspace width, at most `96vw` and `92dvh` |
+
+Mandatory responsive rules:
+
+- at 320–639 CSS pixels, no fixed desktop width, two-column form, or horizontal action strip may be assumed;
+- public kiosk modals remain constrained by the mobile kiosk canvas even when the browser window is wide;
+- header and footer remain visible while only the body scrolls;
+- use `100dvh`, top and bottom safe-area insets, and `overscroll-contain` where needed;
+- primary and secondary controls are at least 48 pixels high on the public surface;
+- icon-only public actions are at least 44 by 44 pixels;
+- the software keyboard must not hide the active field or primary action;
+- no horizontal overflow is allowed at 320, 360, 390, 430, or 480 CSS pixels.
+
+##### Visual hierarchy
+
+- Use the module color as a confident header and footer identity, as in the catalog manager.
+- Keep the body white or neutral and reserve tinted surfaces for selected, informational, warning, or validation states.
+- The header contains one icon, one title, and one short description; it is not a second navigation bar.
+- Use sentence case and medium weight for most copy. Reserve bold weight for the title, critical value, record name, and primary action.
+- Body sections use restrained borders and shadows. Do not nest cards repeatedly merely to create decoration.
+- A record list row presents identity and status first, safe context second, and actions last.
+- Status is expressed with text and semantic tone, never by color alone.
+- Dark mode, high contrast, large text, reduced motion, and visible focus remain mandatory.
+
+##### Precise action standard
+
+Every modal state has at most one dominant primary action. The footer keeps the secondary action visible and the primary action at the final visual position; on mobile both actions may use full width.
+
+For compact record actions, use this semantic order when the actions exist:
+
+1. primary record action such as Edit or Select;
+2. copy or share link;
+3. open external/public view;
+4. enable or disable;
+5. destructive action last.
+
+Rules:
+
+- icon-only actions require `aria-label`, localized `title`, visible focus, and disabled state;
+- inside a dialog, compact actions must not depend on a portaled dropdown that escapes the active focus boundary; use direct actions or suspend the manager and open one replacement child view;
+- a compact kiosk row should normally expose only Edit, Open, Share, and More; lifecycle, audit, and destructive operations belong to the internal More view;
+- when a public token is intentionally display-once, the row must distinguish `Liga disponible ahora` from `Liga protegida`; Open or Share must lead to the link view and offer explicit replacement instead of appearing inert;
+- use familiar Lucide icons and never rely on an icon to communicate an unfamiliar business action;
+- public kiosk actions prioritize touch size over desktop density;
+- disable/revoke/delete never shares the normal primary treatment;
+- destructive actions open a Confirmation Modal and state the affected record and consequence;
+- do not duplicate the submit action in the body and footer;
+- while `busy`, block duplicate submission, Escape, outside dismissal, and conflicting actions;
+- a retry is explicit and reuses the current safe form state without replaying a completed command.
+
+##### Modal navigation and view replacement
+
+Avoid nested open dialogs. When a manager opens Create, Edit, Link, Requests, or Confirmation:
+
+1. hide or suspend the parent modal;
+2. open exactly one child workflow;
+3. preserve the parent query, filters, scroll, and safe draft state;
+4. return focus to the originating action after the child closes;
+5. refresh only the affected record after a successful child action.
+
+This is the approved behavior already demonstrated by the Public Catalog manager. A modal must never render another active overlay above itself merely to move to the next screen.
+
+##### State, files, and Engine handoff
+
+The visual state machine is:
+
+```text
+closed -> opening -> ready -> validating -> submitting -> success -> closed
+                              |              |
+                              -> invalid     -> recoverable-error -> ready
+                                             -> session-expired -> reset
+```
+
+The owning kiosk module must:
+
+- check the capability before exposing the action;
+- validate the form and map safe localized errors;
+- create one idempotency key per logical mutation;
+- dispatch through its Kiosk Engine adapter with the current session and CSRF context;
+- keep server authorization authoritative even when a button is hidden;
+- scrub sensitive draft, selected files, previews, and record context on reset or session expiration;
+- surface the successful result in the workspace after the modal closes.
+
+For files, the modal provides selection, camera capture when permitted, filename/size/type feedback, removal, progress, retry, and partial-failure presentation. The module and Engine retain ownership of presign, upload, registration, adoption, limits, authorization, and audit. A selected browser file is not evidence until the backend completes the approved adoption contract.
+
+##### Initial kiosk adoption matrix
+
+| Kiosk | Modal | Classification | Migration intention |
+|---|---|---|---|
+| Procesos y Tareas | Create task | Standard Form | Replace the hand-built overlay; preserve fields, evidence, idempotency, and create command |
+| Procesos y Tareas | Task detail and completion | Standard Form | Keep detail, progress, evidence, note, and complete action in one bounded flow |
+| Procesos y Tareas | Change responsible | Standard Form | Keep one selector and one save action; return to task detail without stacked dialogs |
+| Caja Chica | Attachment viewer | Standard Form | Adopt `KioskModalFrame`; preserve secure download behavior |
+| Caja Chica | Consequential movement confirmation | Confirmation | Add only where policy requires explicit review; do not move the primary capture workspace into a modal |
+| Cuentas por Pagar | Provider registration | Standard Form | Preserve review policy and registration API |
+| Cuentas por Pagar | Payable or attachment detail | Standard Form | Preserve employee/provider scope and file authorization |
+| RH Asistencia | Restart or cancel consequential flow | Confirmation | Keep camera, face, GPS, and attendance journey inline in the Full Workspace |
+| Kiosk administration | Definition/grant/link manager | Operational Workspace | Reuse catalog-manager hierarchy with the owning module tone |
+| Kiosk administration | Create/edit definition | Standard Form or Wizard | Choose by dependency of identity, scope, capabilities, and review |
+
+##### Administrative adoption status — 2026-07-20
+
+| Owner | Manager | Child views | Status |
+|---|---|---|---|
+| Procesos y Tareas | Operational Workspace | Create/Edit, Link, QR, Options, Access/Audit | Adopted |
+| RH Asistencia | Operational Workspace | Create/Edit, Link, QR, Options, Delete confirmation | Adopted |
+| Caja Chica | Operational Workspace | Create/Edit, Link, QR, Options, Delete confirmation | Adopted |
+| Expenses / Cuentas por Pagar | Operational Workspace | Create/Edit, Link, QR, Options, provider access, lifecycle confirmations | Adopted |
+| Punto de Venta | No change in this adoption pass | Existing flows remain authoritative | Explicitly excluded from the 2026-07-20 scope |
+
+The four compact manager actions are **Edit**, **Open**, **Share**, and **More**. Module APIs, permission checks, lifecycle semantics, display-once behavior, provider/employee boundaries, and deletion consequences remain owned by each feature. Shared primitives contain presentation only.
+
+##### Kiosk modal acceptance checklist
+
+- [ ] The task was classified as confirmation, standard form, wizard, or operational workspace.
+- [ ] The main kiosk remains a Full Workspace route.
+- [ ] `KioskModalFrame` extends `IndiceModalFrame` instead of recreating dialog behavior.
+- [ ] Header, body, footer, actions, and module tone follow the approved anatomy.
+- [ ] The body is the only scrolling region and the footer remains reachable above the safe area and keyboard.
+- [ ] One primary action dominates and destructive actions are separated.
+- [ ] Compact row actions have labels, semantic order, focus, and touch-safe dimensions.
+- [ ] Parent/child modal workflows use view replacement rather than stacked dialogs.
+- [ ] Busy, validation, retry, partial file failure, success, offline, and session-expired states were tested.
+- [ ] Capability, CSRF, idempotency, session, file ownership, and audit remain enforced by the Engine/module boundary.
+- [ ] Focus trap, focus restoration, Escape, screen-reader names, large text, contrast, and reduced motion were verified.
+- [ ] The modal was reviewed at 320, 360, 390, 430, and 480 CSS pixels and at its approved desktop maximum.
+- [ ] All visible copy and accessible labels are localized.
+
+#### Migration sequence
+
+Migrate incrementally and preserve the existing route and service contract at every step:
+
+| Order | Kiosk | Identity composition | Migration note |
+|---:|---|---|---|
+| 1 | Caja Chica | PIN | Approved visual and component baseline |
+| 2 | Procesos y Tareas | PIN | Replace duplicated PIN surface, preserve task filters and commands |
+| 3 | Asistencia | PIN, then face when configured | Preserve location, attendance state, timeout, and facial policy |
+| 4 | Cuentas por Pagar | PIN or registration, then face when configured | Preserve provider review, enrollment, files, and financial privacy |
+
+After these migrations, audit other controlled kiosks individually. Anonymous and paired-display experiences are not part of this identity migration unless their access policy changes through an approved backend decision.
+
+#### Kiosk branch acceptance checklist
+
+- [ ] The public surface is a Full Workspace route, not a modal.
+- [ ] `KioskPublicShell` provides exactly one language selector and one accessibility entry point.
+- [ ] `KioskIdentityGate` is reused for the approved PIN state instead of recreating it locally.
+- [ ] The module's route, APIs, payloads, permissions, validations, and business results are unchanged.
+- [ ] The PIN works with touch, physical keyboard, Enter, Backspace, and Clear.
+- [ ] Duplicate submission is blocked and progress is visible.
+- [ ] Facial verification occurs only after expected identity and according to declared policy.
+- [ ] Camera permission, retry, fallback, consent, and failure states were reviewed when face is enabled.
+- [ ] No raw backend error, token, internal ID, PIN, or sensitive context is exposed.
+- [ ] Identity and sensitive workspace state reset on expiration, completion, or kiosk restart.
+- [ ] The layout was reviewed at 320 px, mobile, tablet, and desktop widths without overlap or horizontal overflow.
+- [ ] Light mode, dark mode, large text, high contrast, reduced motion, keyboard, and visible focus were reviewed.
+- [ ] All visible copy is localized.
+- [ ] `Powered by www.indiceapp.com` remains discreet, readable, and secondary.
+- [ ] Kiosk-specific tests, TypeScript, and the production build pass.
+
 ### Finance View
 
 Examples:
@@ -1421,6 +1906,9 @@ Preferred shared components:
 - `IndiceModalValidation`
 - `IndiceModalSummary`
 - `WorkspaceModal`
+- `KioskPublicShell`
+- `KioskIdentityGate`
+- `KioskPinKeypad`
 
 Do not keep duplicating the same UI manually in every module.
 
@@ -1568,6 +2056,16 @@ If standardizing modals, final report must include:
 - APIs/backend untouched
 - typecheck result
 - remaining modal inconsistencies
+
+If standardizing public kiosks, final report must include:
+
+- kiosks migrated
+- identity methods and policy preserved for each kiosk
+- shared kiosk primitives reused or created
+- route, API, payload, permission, and business behavior preservation
+- responsive and accessibility review performed
+- kiosk test, typecheck, and build results
+- remaining kiosks or identity states not yet migrated
 
 ---
 

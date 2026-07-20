@@ -36,7 +36,7 @@ class KioskEngineMaintenanceJobTest {
     }
 
     @Test
-    void expiresSupplierPortalSessionsAtFifteenMinutesWhileKeepingDefaultAtThree() {
+    void expiresSessionsWithTheConfiguredModuleInactivityPolicy() {
         var jdbcTemplate = mock(JdbcTemplate.class);
         when(jdbcTemplate.update(anyString())).thenReturn(0, 2);
 
@@ -50,8 +50,12 @@ class KioskEngineMaintenanceJobTest {
         assertThat(sql).hasSize(2).allSatisfy(statement -> {
             assertThat(statement).contains("definition.owner_module = 'PROCUREMENT'");
             assertThat(statement).contains("definition.kiosk_type = 'supplier_portal'");
-            assertThat(statement).contains("INTERVAL 15 MINUTE");
-            assertThat(statement).contains("INTERVAL 3 MINUTE");
+            assertThat(statement).contains("THEN 900");
+            assertThat(statement).contains("definition.owner_module = 'HUMAN_RESOURCES' THEN 180");
+            assertThat(statement).contains("definition.owner_module = 'EXPENSES' THEN 300");
+            assertThat(statement).contains("definition.owner_module = 'PETTY_CASH' THEN 900");
+            assertThat(statement).contains("definition.owner_module = 'PROCESS_TASKS' THEN 1800");
+            assertThat(statement).contains("ELSE 180");
         });
     }
 }

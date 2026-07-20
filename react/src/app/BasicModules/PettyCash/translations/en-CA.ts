@@ -492,6 +492,8 @@ export const enCA = {
   },
   publicKiosk: {
     session: {
+      online: 'Online',
+      offlineShort: 'Offline',
       offline: 'No network connection. This kiosk works online only.',
       expiring: 'Your session will expire in less than one minute.',
       expired: 'Your session expired due to inactivity. Enter your PIN again to continue.',
@@ -499,11 +501,13 @@ export const enCA = {
     errors: {
       bootstrap: 'Petty cash kiosk could not be opened.',
       identify: 'The PIN could not be validated.',
+      invalidFiles: 'Some files were empty, unsupported, larger than 10 MB, or exceeded the five-file limit.',
       oversizedFiles: 'Some files were larger than 10 MB and were not added.',
       receipt: 'The receipt could not be registered.',
     },
     success: {
       receipt: 'Receipt registered successfully.',
+      receiptPartial: (count: number) => `Receipt registered. ${count} file${count === 1 ? '' : 's'} could not be attached.`,
       deleted: 'Expense deleted and the amount returned to the fund.',
     },
     loading: {
@@ -520,15 +524,28 @@ export const enCA = {
       secureDescription: 'Sign in to operate the fund.',
     },
     identify: {
-      title: 'Enter your PIN',
-      description: 'Use your employee universal PIN to register movements for the assigned fund.',
+      title: 'Identify yourself to continue',
+      description: 'Enter your personal PIN to access securely.',
       pin: 'Universal PIN',
       capture: 'PIN entry',
       placeholder: 'Enter PIN',
-      privacy: 'For privacy, fund details, balances and receipts are shown only after validating the PIN.',
-      submit: 'Enter fund',
+      backspace: 'Delete last digit',
+      privacy: 'Your balances and receipts will be shown after validating your identity.',
+      submit: 'Continue',
     },
     tabs: { label: 'Kiosk sections', upload: 'Upload expense', expenses: 'Expenses', income: 'Income' },
+    workspace: {
+      identified: 'Collaborator identified',
+      reset: 'Restart',
+      calculation: 'Receipt calculation',
+      subtotal: 'Subtotal',
+      taxes: 'Taxes',
+      evidenceTitle: 'Evidence',
+      evidenceDescription: 'Attach a photo or file that supports this expense.',
+      takePhoto: 'Take photo',
+      chooseFile: 'Choose file',
+      evidenceHint: 'Photos, PDF or documents. Up to 5 files of 10 MB.',
+    },
     metrics: { currentBalance: 'Current balance', fundLimit: 'Fund limit', periodIncome: 'Period income', periodExpenses: 'Period expenses' },
     history: {
       period: 'Monthly period',

@@ -3,6 +3,12 @@ type StoredKioskAttempt = {
   createdAt: number;
 };
 
+type KioskMutationWithRecoveryOptions<T> = {
+  operation: string;
+  payload: unknown;
+  request: (idempotencyKey: string) => Promise<T>;
+};
+
 const storagePrefix = 'indice:kiosk-idempotency:';
 const maximumAttemptAgeMs = 24 * 60 * 60 * 1000;
 
@@ -43,6 +49,34 @@ export function completeKioskIdempotentOperation(operation: string) {
     window.sessionStorage.removeItem(storageKeyFor(operation));
   } catch {
     // Storage can be unavailable in privacy-restricted browser contexts.
+  }
+}
+
+export function isKioskIdempotencyRequestMismatch(error: unknown) {
+  return error instanceof Error
+    && /idempotency-key was already used with another request/i.test(error.message);
+}
+
+/**
+ * Keeps normal network retries idempotent, but replaces a stale key when the
+ * API explicitly confirms that the key belongs to a different request body.
+ */
+export async function executeKioskMutationWithMismatchRecovery<T>({
+  operation,
+  payload,
+  request,
+}: KioskMutationWithRecoveryOptions<T>): Promise<T> {
+  const execute = () => request(kioskIdempotencyKeyFor(operation, payload));
+
+  try {
+    return await execute();
+  } catch (error) {
+    if (!isKioskIdempotencyRequestMismatch(error)) {
+      throw error;
+    }
+
+    completeKioskIdempotentOperation(operation);
+    return execute();
   }
 }
 

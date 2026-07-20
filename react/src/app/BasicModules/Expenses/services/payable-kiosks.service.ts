@@ -1,7 +1,7 @@
 import { apiClient, buildApiUrl } from '../../../lib/apiClient';
 import {
   completeKioskIdempotentOperation,
-  kioskIdempotencyKeyFor,
+  executeKioskMutationWithMismatchRecovery,
 } from '../../../components/kiosk-engine/kioskIdempotency';
 
 const adminPath = '/api/v1/finance/payable-kiosks';
@@ -37,10 +37,19 @@ export type PayableKioskPublicProvider = {
   name: string;
 };
 
+export type PayableKioskPublicEmployee = {
+  id: number;
+  name: string;
+};
+
 export type PayableKioskBootstrap = {
   csrfToken?: string;
+  inactivity_timeout_seconds?: number;
   kiosk: Omit<PayableKiosk, 'id' | 'pin' | 'publicAccessToken'>;
+  identityType?: 'EMPLOYEE' | 'PROVIDER';
+  employee?: PayableKioskPublicEmployee;
   provider?: PayableKioskPublicProvider;
+  providers?: PayableKioskPublicProvider[];
   authorized?: boolean;
   expires_at?: string;
   identification_token?: string;
@@ -63,6 +72,7 @@ export type PublicPayablePayload = {
   description?: string;
   dueDate?: string;
   externalReference?: string;
+  providerId?: number;
   subtotalAmount: number;
   taxAmount: number;
   totalAmount: number;
@@ -210,7 +220,7 @@ export const publicPayableKioskService = {
       sizeBytes: file.size,
     };
     const presign = await kioskMutation<PresignUploadResponse>(
-      `payables:${token}:expense:${expenseId}:attachment:presign:${file.name}`,
+      `payables:${token}:expense:${expenseId}:attachment:presign:${file.name}:${file.size}`,
       `${basePath}/presign-upload`,
       presignPayload,
     );
@@ -220,10 +230,12 @@ export const publicPayableKioskService = {
       throw new Error('Upload URL was not returned.');
     }
 
+    const uploadHeaders = new Headers(presign.uploadHeaders ?? presign.upload_headers ?? {});
+    if (!uploadHeaders.has('Content-Type')) uploadHeaders.set('Content-Type', contentType);
     const uploadResponse = await fetch(buildApiUrl(uploadUrl), {
       method: 'PUT',
       body: file,
-      headers: presign.uploadHeaders ?? presign.upload_headers ?? {},
+      headers: uploadHeaders,
     });
     if (!uploadResponse.ok) {
       throw new Error(uploadResponse.statusText || 'Attachment upload failed.');
@@ -236,7 +248,7 @@ export const publicPayableKioskService = {
         sizeBytes: file.size,
     };
     return kioskMutation(
-      `payables:${token}:expense:${expenseId}:attachment:${file.name}`,
+      `payables:${token}:expense:${expenseId}:attachment:${file.name}:${file.size}:${objectKey}`,
       basePath,
       registrationPayload,
     );
@@ -313,11 +325,14 @@ async function uploadBiometricCapture(
 }
 
 async function kioskMutation<T>(operation: string, path: string, payload: unknown) {
-  const idempotencyKey = kioskIdempotencyKeyFor(operation, payload);
-  const response = await apiClient<T>(path, {
-    method: 'POST',
-    headers: { 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(payload),
+  const response = await executeKioskMutationWithMismatchRecovery({
+    operation,
+    payload,
+    request: (idempotencyKey) => apiClient<T>(path, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+    }),
   });
   completeKioskIdempotentOperation(operation);
   return response;

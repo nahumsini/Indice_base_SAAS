@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,14 +27,33 @@ import org.springframework.transaction.annotation.Transactional;
 public class KioskSessionService {
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
-    private static final Duration INACTIVITY_TIMEOUT = Duration.ofMinutes(3);
+    private static final Duration DEFAULT_INACTIVITY_TIMEOUT = Duration.ofMinutes(3);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final Duration hrInactivityTimeout;
+    private final Duration expensesInactivityTimeout;
+    private final Duration pettyCashInactivityTimeout;
+    private final Duration processTasksInactivityTimeout;
 
-    public KioskSessionService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    @Autowired
+    public KioskSessionService(
+            JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper,
+            @Value("${app.hr.kiosk.inactivity-timeout-seconds:180}") int hrInactivityTimeoutSeconds,
+            @Value("${app.expenses.kiosk.inactivity-timeout-seconds:300}") int expensesInactivityTimeoutSeconds,
+            @Value("${app.petty-cash.kiosk.inactivity-timeout-seconds:900}") int pettyCashInactivityTimeoutSeconds,
+            @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int processTasksInactivityTimeoutSeconds) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.hrInactivityTimeout = durationSeconds(hrInactivityTimeoutSeconds, 180);
+        this.expensesInactivityTimeout = durationSeconds(expensesInactivityTimeoutSeconds, 300);
+        this.pettyCashInactivityTimeout = durationSeconds(pettyCashInactivityTimeoutSeconds, 900);
+        this.processTasksInactivityTimeout = durationSeconds(processTasksInactivityTimeoutSeconds, 1800);
+    }
+
+    KioskSessionService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+        this(jdbcTemplate, objectMapper, 180, 300, 900, 1800);
     }
 
     @Transactional
@@ -289,7 +310,17 @@ public class KioskSessionService {
                 && "supplier_portal".equals(definition.kioskType())) {
             return Duration.ofMinutes(15);
         }
-        return INACTIVITY_TIMEOUT;
+        return switch (definition.ownerModule()) {
+            case "HUMAN_RESOURCES" -> hrInactivityTimeout;
+            case "EXPENSES" -> expensesInactivityTimeout;
+            case "PETTY_CASH" -> pettyCashInactivityTimeout;
+            case "PROCESS_TASKS" -> processTasksInactivityTimeout;
+            default -> DEFAULT_INACTIVITY_TIMEOUT;
+        };
+    }
+
+    private static Duration durationSeconds(int configuredSeconds, int fallbackSeconds) {
+        return Duration.ofSeconds(Math.max(30, configuredSeconds > 0 ? configuredSeconds : fallbackSeconds));
     }
 
     private void auditSession(

@@ -245,17 +245,19 @@ public class MinioObjectStorageService implements ObjectStorageService {
         try {
             var signedUri = new URI(signedUrl);
             var publicBase = new URI(trimTrailingSlash(configuredPublicEndpoint));
-            var publicPath = joinPaths(publicBase.getPath(), signedUri.getPath());
-
-            return new URI(
-                publicBase.getScheme(),
-                publicBase.getUserInfo(),
-                publicBase.getHost(),
-                publicBase.getPort(),
-                publicPath,
-                signedUri.getQuery(),
-                signedUri.getFragment()
-            ).toString();
+            var publicPath = joinPaths(publicBase.getRawPath(), signedUri.getRawPath());
+            var rewritten = new StringBuilder()
+                .append(publicBase.getScheme())
+                .append("://")
+                .append(publicBase.getRawAuthority())
+                .append(publicPath);
+            if (signedUri.getRawQuery() != null && !signedUri.getRawQuery().isBlank()) {
+                rewritten.append('?').append(signedUri.getRawQuery());
+            }
+            if (signedUri.getRawFragment() != null && !signedUri.getRawFragment().isBlank()) {
+                rewritten.append('#').append(signedUri.getRawFragment());
+            }
+            return new URI(rewritten.toString()).toString();
         } catch (URISyntaxException ex) {
             throw new ObjectStorageException("Unable to rewrite the MinIO public URL.", ex);
         }

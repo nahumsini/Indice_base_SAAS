@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
-import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
+import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
+import { IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Button } from '../../../../components/ui/button';
 
 type Props = {
@@ -28,7 +29,7 @@ export function TaskKioskConfirmationDialog({
   title,
 }: Props) {
   return (
-    <IndiceModalFrame
+    <KioskModalFrame
       busy={busy}
       closeLabel={cancelLabel}
       description={description}
@@ -48,9 +49,10 @@ export function TaskKioskConfirmationDialog({
         </Button>
       )}
       icon={<AlertTriangle className="h-5 w-5" />}
-      modalType="confirmation"
       onOpenChange={(nextOpen) => { if (!nextOpen && !busy) onCancel(); }}
       open={open}
+      size="compact"
+      surface="administration"
       title={title}
       tone="coral"
     >
@@ -60,6 +62,6 @@ export function TaskKioskConfirmationDialog({
         items={[{ label: 'Kiosko', value: itemName || 'Kiosko seleccionado', emphasized: true }]}
         variant="accent"
       />
-    </IndiceModalFrame>
+    </KioskModalFrame>
   );
 }

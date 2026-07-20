@@ -194,6 +194,8 @@ export type FinanceTranslations = {
         back: string;
         concept: string;
         conceptPlaceholder: string;
+        clearPin: string;
+        continueLabel: string;
         dueDate: string;
         evidence: string;
         externalReference: string;
@@ -208,8 +210,12 @@ export type FinanceTranslations = {
         offline: string;
         payableDescription: string;
         payableTitle: string;
+        provider: string;
+        providerPlaceholder: string;
+        employeeProviderHint: string;
         pinDescription: string;
         pinPlaceholder: string;
+        pinPrivacy: string;
         pinTitle: string;
         providerChoiceDescription: string;
         providerChoiceLabel: string;

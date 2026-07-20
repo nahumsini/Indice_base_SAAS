@@ -66,7 +66,7 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
         HrFaceService hrFaceService,
         GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
         @Value("${app.hr.attendance.enforce-location-radius:false}") boolean enforceLocationRadius,
-        @Value("${app.hr.kiosk.inactivity-timeout-seconds:60}") int kioskInactivityTimeoutSeconds
+        @Value("${app.hr.kiosk.inactivity-timeout-seconds:180}") int kioskInactivityTimeoutSeconds
     ) {
         super(new AttendanceDependencies(
             jdbcTemplate,

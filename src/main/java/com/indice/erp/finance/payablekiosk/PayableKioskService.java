@@ -21,12 +21,12 @@ import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import jakarta.servlet.http.HttpSession;
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +48,8 @@ public class PayableKioskService {
     private final KioskRegistryService kioskRegistry;
     private final KioskGrantService kioskGrants;
     private final KioskIdentityCredentialService kioskCredentials;
+    private final int inactivityTimeoutSeconds;
+    private final int sessionTtlSeconds;
 
     public PayableKioskService(
             PayableKioskRepository repository,
@@ -60,7 +62,9 @@ public class PayableKioskService {
             PublicPayableKioskSession publicSession,
             KioskRegistryService kioskRegistry,
             KioskGrantService kioskGrants,
-            KioskIdentityCredentialService kioskCredentials) {
+            KioskIdentityCredentialService kioskCredentials,
+            @Value("${app.expenses.kiosk.inactivity-timeout-seconds:300}") int inactivityTimeoutSeconds,
+            @Value("${app.expenses.kiosk.session-ttl-seconds:28800}") int sessionTtlSeconds) {
         this.repository = repository;
         this.publicRepository = publicRepository;
         this.objectMapper = objectMapper;
@@ -72,6 +76,8 @@ public class PayableKioskService {
         this.kioskRegistry = kioskRegistry;
         this.kioskGrants = kioskGrants;
         this.kioskCredentials = kioskCredentials;
+        this.inactivityTimeoutSeconds = Math.max(30, inactivityTimeoutSeconds);
+        this.sessionTtlSeconds = Math.max(this.inactivityTimeoutSeconds, sessionTtlSeconds);
     }
 
     public Map<String, Object> list(FinanceContext context) {
@@ -152,14 +158,18 @@ public class PayableKioskService {
 
     public Map<String, Object> publicBootstrap(String token) {
         var kiosk = activeByToken(token);
-        return Map.of("kiosk", PayableKioskMapper.toPublicMap(kiosk), "csrfReady", true);
+        return Map.of(
+            "kiosk", PayableKioskMapper.toPublicMap(kiosk),
+            "csrfReady", true,
+            "inactivity_timeout_seconds", inactivityTimeoutSeconds
+        );
     }
 
     public Map<String, Object> publicAuthenticate(HttpSession session, String token, PayableKioskPinRequest request) {
         publicSession.requireAttemptAllowed(session);
         try {
-            var verified = authenticateProvider(token, request.pin());
-            publicSession.authorize(session, verified.access(), verified.sessionToken());
+            var verified = authenticateIdentity(token, request.pin());
+            authorizeLegacySession(session, token, verified);
             return verified.response();
         } catch (FinanceApiException failure) {
             publicSession.registerFailure(session);
@@ -169,12 +179,25 @@ public class PayableKioskService {
 
     public Map<String, Object> publicAuthenticateCanonical(String token, Map<String, Object> payload) {
         var pin = stringValue(payload, "credential_payload", "pin", "credential");
-        return authenticateProvider(token, pin).response();
+        return authenticateIdentity(token, pin).response();
     }
 
     void rememberLegacyAuthorization(
             HttpSession session, String token, Map<String, Object> authenticationResponse) {
         var kiosk = activeByToken(token);
+        var sessionToken = stringValue(
+            authenticationResponse, "kiosk_session_token", "identification_token");
+        var identityType = stringValue(authenticationResponse, "identityType", "identity_type").toUpperCase();
+        if ("EMPLOYEE".equals(identityType)) {
+            var employeeValue = authenticationResponse.get("employee");
+            var employeeId = employeeValue instanceof Map<?, ?> employee
+                ? longValue(employee.get("id")) : 0L;
+            if (employeeId <= 0) {
+                throw FinanceApiException.unauthorized("Employee kiosk access is no longer active.");
+            }
+            publicSession.authorizeEmployee(session, kiosk.id(), employeeId, sessionToken);
+            return;
+        }
         var providerValue = authenticationResponse.get("provider");
         var providerId = providerValue instanceof Map<?, ?> provider
             ? longValue(provider.get("id")) : 0L;
@@ -182,9 +205,7 @@ public class PayableKioskService {
             .filter(candidate -> candidate.providerId() == providerId)
             .findFirst()
             .orElseThrow(() -> FinanceApiException.unauthorized("Provider kiosk access is no longer active."));
-        var sessionToken = stringValue(
-            authenticationResponse, "kiosk_session_token", "identification_token");
-        publicSession.authorize(session, access, sessionToken);
+        publicSession.authorizeProvider(session, access, sessionToken);
     }
 
     Map<String, Object> withLegacySession(
@@ -215,47 +236,70 @@ public class PayableKioskService {
     @Transactional
     public Map<String, Object> createPayable(HttpSession session, String token, PublicPayableRequest request) {
         var kiosk = activeByToken(token);
-        var access = requireProviderAccess(session, kiosk);
-        return createPayableForProvider(token, access.providerId(), request);
+        var authorization = publicSession.require(session, kiosk.id());
+        return createPayableForIdentity(
+            token, authorization.identityType(), authorization.identityId(), request);
     }
 
     @Transactional
     public Map<String, Object> createPayableForProvider(
             String token, long providerId, PublicPayableRequest request) {
+        return createPayableForIdentity(token, "PROVIDER", providerId, request);
+    }
+
+    @Transactional
+    public Map<String, Object> createPayableForIdentity(
+            String token, String identityType, long identityId, PublicPayableRequest request) {
         var kiosk = activeByToken(token);
-        requireActiveProviderGrant(kiosk, providerId);
+        var normalizedIdentityType = normalizeIdentityType(identityType);
+        var providerId = resolveTargetProvider(kiosk, normalizedIdentityType, identityId, request.providerId());
         var expenseId = publicRepository.insertPayable(
-            kiosk, providerId, request, payableCustomJson(request), payableMetadataJson(kiosk));
+            kiosk, providerId, request, payableCustomJson(request),
+            payableMetadataJson(kiosk, normalizedIdentityType, identityId));
         return Map.of("expenseId", expenseId, "status", "DRAFT", "reviewRequired", true);
     }
 
     @Transactional
     public Object presignPayableAttachment(HttpSession session, String token, long expenseId, ExpenseAttachmentUploadRequest request) {
         var kiosk = activeByToken(token);
-        var access = requireProviderAccess(session, kiosk);
-        return presignPayableAttachmentForProvider(token, access.providerId(), expenseId, request);
+        var authorization = publicSession.require(session, kiosk.id());
+        return presignPayableAttachmentForIdentity(
+            token, authorization.identityType(), authorization.identityId(), expenseId, request);
     }
 
     public Object presignPayableAttachmentForProvider(
             String token, long providerId, long expenseId, ExpenseAttachmentUploadRequest request) {
+        return presignPayableAttachmentForIdentity(
+            token, "PROVIDER", providerId, expenseId, request);
+    }
+
+    public Object presignPayableAttachmentForIdentity(
+            String token, String identityType, long identityId, long expenseId,
+            ExpenseAttachmentUploadRequest request) {
         var kiosk = activeByToken(token);
-        requireActiveProviderGrant(kiosk, providerId);
-        requireProviderPayable(kiosk, providerId, expenseId);
+        requireIdentityPayable(kiosk, normalizeIdentityType(identityType), identityId, expenseId);
         return attachmentService.presignUpload(contextFor(kiosk), expenseId, request);
     }
 
     @Transactional
     public Object registerPayableAttachment(HttpSession session, String token, long expenseId, RegisterExpenseAttachmentRequest request) {
         var kiosk = activeByToken(token);
-        var access = requireProviderAccess(session, kiosk);
-        return registerPayableAttachmentForProvider(token, access.providerId(), expenseId, request);
+        var authorization = publicSession.require(session, kiosk.id());
+        return registerPayableAttachmentForIdentity(
+            token, authorization.identityType(), authorization.identityId(), expenseId, request);
     }
 
     public Object registerPayableAttachmentForProvider(
             String token, long providerId, long expenseId, RegisterExpenseAttachmentRequest request) {
+        return registerPayableAttachmentForIdentity(
+            token, "PROVIDER", providerId, expenseId, request);
+    }
+
+    public Object registerPayableAttachmentForIdentity(
+            String token, String identityType, long identityId, long expenseId,
+            RegisterExpenseAttachmentRequest request) {
         var kiosk = activeByToken(token);
-        requireActiveProviderGrant(kiosk, providerId);
-        requireProviderPayable(kiosk, providerId, expenseId);
+        requireIdentityPayable(kiosk, normalizeIdentityType(identityType), identityId, expenseId);
         return attachmentService.register(contextFor(kiosk), expenseId, request);
     }
 
@@ -335,11 +379,6 @@ public class PayableKioskService {
         return kiosk;
     }
 
-    private PayableKioskProviderAccessRow requireProviderAccess(HttpSession session, PayableKioskRow kiosk) {
-        var authorization = publicSession.require(session, kiosk.id());
-        return providerAccessRepository.activeById(authorization.accessId(), kiosk.id());
-    }
-
     private void requireActiveProviderGrant(PayableKioskRow kiosk, long providerId) {
         var allowed = providerAccessRepository.activeForKiosk(kiosk.id()).stream()
             .anyMatch(access -> access.providerId() == providerId);
@@ -348,13 +387,31 @@ public class PayableKioskService {
         }
     }
 
-    private VerifiedProvider authenticateProvider(String token, String rawPin) {
+    private VerifiedIdentity authenticateIdentity(String token, String rawPin) {
         var kiosk = activeByToken(token);
         var pin = rawPin == null ? "" : rawPin.trim();
         if (pin.isBlank()) {
-            throw FinanceApiException.unauthorized("Invalid provider PIN.");
+            throw FinanceApiException.unauthorized("Invalid personal PIN.");
         }
-        for (var access : providerAccessRepository.activeForKiosk(kiosk.id())) {
+        if (allowsEmployee(kiosk)) {
+            for (var employee : publicRepository.activeEmployeesForKiosk(kiosk)) {
+                if (passwordEncoder.matches(pin, employee.secretHash())) {
+                    var sessionToken = newSessionToken();
+                    var body = baseAuthenticationResponse(kiosk, sessionToken);
+                    body.put("identityType", "EMPLOYEE");
+                    body.put("employee", Map.of("id", employee.identityId(), "name", employee.name()));
+                    body.put("providers", publicRepository.availableProviders(kiosk).stream()
+                        .map(provider -> Map.of("id", provider.id(), "name", provider.name()))
+                        .toList());
+                    body.put("engine_identity", Map.of(
+                        "type", "EMPLOYEE", "id", employee.identityId(),
+                        "verified_factors", Set.of("PIN")));
+                    return new VerifiedIdentity(
+                        "EMPLOYEE", employee.identityId(), null, sessionToken, body);
+                }
+            }
+        }
+        if (allowsProvider(kiosk)) for (var access : providerAccessRepository.activeForKiosk(kiosk.id())) {
             var credential = kioskCredentials.pinCredential(
                 kiosk.companyId(), "PROVIDER", access.providerId()).orElse(null);
             var matchesPersonal = credential != null
@@ -364,21 +421,17 @@ public class PayableKioskService {
             if ((access.lockedUntil() == null || access.lockedUntil().isBefore(Instant.now()))
                     && acceptsCredential(credential, matchesPersonal, matchesLegacy)) {
                 providerAccessRepository.markUsed(access.id());
-                var sessionToken = UUID.randomUUID().toString().replace("-", "")
-                    + Long.toHexString(Math.abs(SECURE_RANDOM.nextLong()));
-                var expiresAt = Instant.now().plus(8, ChronoUnit.HOURS);
-                var body = new LinkedHashMap<String, Object>();
-                body.put("authorized", true);
-                body.put("kiosk", PayableKioskMapper.toPublicMap(kiosk));
+                var sessionToken = newSessionToken();
+                var body = baseAuthenticationResponse(kiosk, sessionToken);
+                body.put("identityType", "PROVIDER");
                 body.put("provider", providerMap(access));
-                body.put("identification_token", sessionToken);
-                body.put("expires_at", expiresAt.toString());
                 body.put("engine_identity", Map.of(
                     "type", "PROVIDER", "id", access.providerId(), "verified_factors", Set.of("PIN")));
-                return new VerifiedProvider(access, sessionToken, body);
+                return new VerifiedIdentity(
+                    "PROVIDER", access.providerId(), access, sessionToken, body);
             }
         }
-        throw FinanceApiException.unauthorized("Invalid provider PIN.");
+        throw FinanceApiException.unauthorized("Invalid personal PIN.");
     }
 
     static boolean acceptsCredential(
@@ -445,7 +498,7 @@ public class PayableKioskService {
                 code,
                 request.name(),
                 "ACTIVE",
-                "PROVIDER",
+                PayableKioskRules.normalizeAccessType(request.accessType()),
                 currencyCode,
                 true);
     }
@@ -459,7 +512,7 @@ public class PayableKioskService {
     }
 
     private String newPin() {
-        return String.valueOf(100000 + SECURE_RANDOM.nextInt(900000));
+        return String.format("%05d", SECURE_RANDOM.nextInt(100000));
     }
 
     private String newProviderPin(long kioskId) {
@@ -493,8 +546,10 @@ public class PayableKioskService {
         return toJson(fields);
     }
 
-    private String payableMetadataJson(PayableKioskRow kiosk) {
-        return toJson(Map.of("source", "payable-kiosk", "kioskId", kiosk.id()));
+    private String payableMetadataJson(PayableKioskRow kiosk, String identityType, long identityId) {
+        return toJson(Map.of(
+            "source", "payable-kiosk", "kioskId", kiosk.id(),
+            "actorType", identityType, "actorId", identityId));
     }
 
     private Map<String, Object> providerMap(PayableKioskProviderAccessRow access) {
@@ -547,8 +602,79 @@ public class PayableKioskService {
         }
     }
 
-    private record VerifiedProvider(
-            PayableKioskProviderAccessRow access,
+    private void authorizeLegacySession(
+            HttpSession session, String token, VerifiedIdentity verified) {
+        if ("EMPLOYEE".equals(verified.identityType())) {
+            var kiosk = activeByToken(token);
+            publicSession.authorizeEmployee(session, kiosk.id(), verified.identityId(), verified.sessionToken());
+            return;
+        }
+        publicSession.authorizeProvider(session, verified.providerAccess(), verified.sessionToken());
+    }
+
+    private String normalizeIdentityType(String identityType) {
+        var normalized = identityType == null ? "" : identityType.trim().toUpperCase();
+        if (!Set.of("PROVIDER", "EMPLOYEE").contains(normalized)) {
+            throw FinanceApiException.unauthorized("Personal PIN authentication is required.");
+        }
+        return normalized;
+    }
+
+    private long resolveTargetProvider(
+            PayableKioskRow kiosk, String identityType, long identityId, Long requestedProviderId) {
+        if ("PROVIDER".equals(identityType)) {
+            requireActiveProviderGrant(kiosk, identityId);
+            return identityId;
+        }
+        if (requestedProviderId == null || requestedProviderId <= 0
+                || !publicRepository.providerAvailable(kiosk, requestedProviderId)) {
+            throw FinanceApiException.badRequest("Select an active provider within this kiosk scope.");
+        }
+        return requestedProviderId;
+    }
+
+    private void requireIdentityPayable(
+            PayableKioskRow kiosk, String identityType, long identityId, long expenseId) {
+        if ("PROVIDER".equals(identityType)) {
+            requireActiveProviderGrant(kiosk, identityId);
+            requireProviderPayable(kiosk, identityId, expenseId);
+            return;
+        }
+        if (!publicRepository.payableBelongsToEmployee(kiosk, identityId, expenseId)) {
+            throw new NoSuchElementException("Payable not available for this kiosk session.");
+        }
+    }
+
+    private boolean allowsEmployee(PayableKioskRow kiosk) {
+        return Set.of("MIXED", "EMPLOYEE").contains(
+            PayableKioskRules.normalizeAccessType(kiosk.accessType()));
+    }
+
+    private boolean allowsProvider(PayableKioskRow kiosk) {
+        return Set.of("MIXED", "PROVIDER", "PROVIDER_REGISTRATION").contains(
+            PayableKioskRules.normalizeAccessType(kiosk.accessType()));
+    }
+
+    private String newSessionToken() {
+        return UUID.randomUUID().toString().replace("-", "")
+            + Long.toHexString(Math.abs(SECURE_RANDOM.nextLong()));
+    }
+
+    private LinkedHashMap<String, Object> baseAuthenticationResponse(
+            PayableKioskRow kiosk, String sessionToken) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("authorized", true);
+        body.put("kiosk", PayableKioskMapper.toPublicMap(kiosk));
+        body.put("identification_token", sessionToken);
+        body.put("expires_at", Instant.now().plusSeconds(sessionTtlSeconds).toString());
+        body.put("inactivity_timeout_seconds", inactivityTimeoutSeconds);
+        return body;
+    }
+
+    private record VerifiedIdentity(
+            String identityType,
+            long identityId,
+            PayableKioskProviderAccessRow providerAccess,
             String sessionToken,
             Map<String, Object> response) {
     }

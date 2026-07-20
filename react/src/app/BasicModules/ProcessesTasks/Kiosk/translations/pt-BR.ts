@@ -32,11 +32,12 @@ export const ptBR = {
     complete: 'Concluir',
   },
   pin: {
-    title: 'Digite seu PIN',
-    description: 'Use o mesmo PIN atribuído para ponto.',
+    title: 'Identifique-se para continuar',
+    description: 'Digite seu PIN pessoal para acessar com seguranca.',
     placeholder: 'PIN',
     continue: 'Continuar',
     deleteKey: 'Apagar',
+    privacy: 'Suas tarefas permanecem privadas até a validação do PIN.',
   },
   identity: {
     eyebrow: 'Colaborador identificado',
@@ -154,6 +155,8 @@ export const ptBR = {
     unsupportedEvidence: (fileName: string) => `${fileName} não é um arquivo de evidência permitido.`,
     uploadFailure: 'Falha ao enviar a evidência da tarefa.',
     partialUploadFailure: 'Parte da evidência foi enviada, mas alguns arquivos falharam. Revise a tarefa antes de tentar novamente.',
+    completionUploadFailure: 'A tarefa foi concluída, mas não foi possível anexar a evidência.',
+    completionPartialUploadFailure: 'A tarefa foi concluída e parte da evidência foi anexada, mas alguns arquivos falharam.',
     completeFailure: 'Não foi possível concluir esta tarefa.',
     createTitleRequired: 'O título da tarefa é obrigatório.',
     createFailure: 'Não foi possível criar esta tarefa.',

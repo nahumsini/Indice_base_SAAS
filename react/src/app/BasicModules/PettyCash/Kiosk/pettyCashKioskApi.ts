@@ -1,7 +1,7 @@
 import { apiClient } from '../../../lib/apiClient';
 import {
   completeKioskIdempotentOperation,
-  kioskIdempotencyKeyFor,
+  executeKioskMutationWithMismatchRecovery,
 } from '../../../components/kiosk-engine/kioskIdempotency';
 
 export interface PublicPettyCashFund {
@@ -159,7 +159,7 @@ export const pettyCashKioskApi = {
       expires_at: string;
       upload_headers?: Record<string, string>;
     }>(
-      `petty-cash:${fundToken}:receipt:${settlementLineId}:attachment:presign:${payload.file_name}`,
+      `petty-cash:${fundToken}:receipt:${settlementLineId}:attachment:presign:${payload.file_name}:${payload.size_bytes}`,
       `${publicBasePath}/${fundToken}/settlement-lines/${settlementLineId}/attachments/presign-upload`,
       'POST',
       payload,
@@ -178,7 +178,7 @@ export const pettyCashKioskApi = {
     },
   ) {
     return kioskMutation<Record<string, unknown>>(
-      `petty-cash:${fundToken}:receipt:${settlementLineId}:attachment:${payload.original_filename}`,
+      `petty-cash:${fundToken}:receipt:${settlementLineId}:attachment:${payload.original_filename}:${payload.size_bytes}:${payload.object_key}`,
       `${publicBasePath}/${fundToken}/settlement-lines/${settlementLineId}/attachments`,
       'POST',
       payload,
@@ -211,11 +211,14 @@ async function kioskMutation<T>(
   method: 'POST' | 'DELETE',
   payload: unknown,
 ) {
-  const idempotencyKey = kioskIdempotencyKeyFor(operation, payload);
-  const result = await apiClient<T>(path, {
-    method,
-    headers: { 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(payload),
+  const result = await executeKioskMutationWithMismatchRecovery({
+    operation,
+    payload,
+    request: (idempotencyKey) => apiClient<T>(path, {
+      method,
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+    }),
   });
   completeKioskIdempotentOperation(operation);
   return result;

@@ -1,13 +1,13 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
-import { ArrowLeft, Check, File, Globe2, KeyRound, Landmark, Loader2, Paperclip, ScanFace, ShieldCheck, Store, Trash2, Upload, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, File, KeyRound, Loader2, Paperclip, ScanFace, ShieldCheck, Store, Trash2, Upload, UserPlus } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { LiveFaceChallenge, type LiveFaceChallengeCapture } from '../../../components/LiveFaceChallenge';
+import { KioskIdentityGate } from '../../../components/kiosk-engine/KioskIdentityGate';
 import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
 import { useKioskSessionBoundary } from '../../../components/kiosk-engine/useKioskSessionBoundary';
 import { ApiClientError } from '../../../lib/apiClient';
-import { languages, useLanguage } from '../../../shared/context';
 import {
   getDefaultBudgetTaxProfile,
   inferTaxCountryFromCurrency,
@@ -18,7 +18,7 @@ import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import { publicPayableKioskService, type PayableKioskBootstrap, type PayableKioskFaceStatus } from '../services';
 import { formatCurrency } from '../utils/expenses.utils';
 import { BudgetTaxControls, type TaxControlDraft } from '../components/modals/BudgetTaxControls';
-import { useExpensesResolvedLocale, useExpensesTranslations } from '../Expenses/hooks/useExpensesTranslations';
+import { useExpensesTranslations } from '../Expenses/hooks/useExpensesTranslations';
 
 type ScreenMode = 'access' | 'provider-registration' | 'payable';
 type FaceMode = 'idle' | 'enroll' | 'verify';
@@ -54,13 +54,15 @@ type AttachmentDraft = {
 const inputClass = 'min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-900 shadow-sm placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_ATTACHMENT_EXTENSIONS = new Set(['csv', 'doc', 'docx', 'jpeg', 'jpg', 'pdf', 'png', 'txt', 'webp', 'xls', 'xlsx']);
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set(['csv', 'doc', 'docx', 'heic', 'heif', 'jpeg', 'jpg', 'pdf', 'png', 'txt', 'webp', 'xls', 'xlsx']);
 const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   'application/msword',
   'application/pdf',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/heic',
+  'image/heif',
   'image/jpeg',
   'image/png',
   'image/webp',
@@ -87,6 +89,7 @@ export default function PayablesKioskPage() {
   const [mode, setMode] = useState<ScreenMode>('access');
   const [pin, setPin] = useState('');
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(createProviderDraft());
+  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [sessionMessage, setSessionMessage] = useState('');
 
@@ -95,11 +98,11 @@ export default function PayablesKioskPage() {
   const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;
   const subtotal = draft.taxEnabled && draft.taxIncluded ? Math.max(amount - taxes, 0) : amount;
   const total = draft.taxEnabled && draft.taxIncluded ? amount : amount + taxes;
-  const canSubmitPayable = isAuthorized && draft.concept.trim().length > 0 && amount > 0 && !isSubmitting;
+  const canSubmitPayable = isAuthorized && selectedProviderId !== null && draft.concept.trim().length > 0 && amount > 0 && !isSubmitting;
   const canSubmitProvider = providerDraft.name.trim().length > 0 && !isSubmitting;
   const canAttachMoreFiles = draft.attachments.length < MAX_ATTACHMENTS;
   const canRegisterProvider = Boolean(bootstrap?.kiosk.allowProviderRegistration);
-  const title = bootstrap?.kiosk.name ?? 'Cuenta por pagar';
+  const title = bootstrap?.kiosk.name ?? copy.payableTitle;
 
   const expireSession = useCallback(() => {
     setIsAuthorized(false);
@@ -108,25 +111,28 @@ export default function PayablesKioskPage() {
     setFaceConsent(false);
     setFaceMode('idle');
     setFaceStatus(null);
+    setSelectedProviderId(null);
     setIsConfirmingFaceWithdrawal(false);
     setSessionMessage(copy.sessionExpired);
   }, [copy.sessionExpired]);
   const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
     active: isAuthorized,
     expiresAt: bootstrap?.expires_at,
-    inactivityTimeoutSeconds: 180,
+    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 300,
     onExpire: expireSession,
   });
 
   useEffect(() => {
     if (!token) return;
     setIsLoading(true);
+    setFailureToastMessage('');
     publicPayableKioskService.bootstrap(token)
       .then(response => {
         setBootstrap(response);
+        setFailureToastMessage('');
         setDraft(createPayableDraft(response.kiosk.currencyCode || DEFAULT_FINANCE_CURRENCY));
       })
-      .catch(error => setFailureToastMessage(error instanceof Error ? error.message : copy.errors.bootstrap))
+      .catch(error => setFailureToastMessage(publicErrorMessage(error, copy.errors.bootstrap)))
       .finally(() => setIsLoading(false));
 
     return () => revokeLocalUrls(objectUrlsRef.current);
@@ -135,13 +141,18 @@ export default function PayablesKioskPage() {
   const updateDraft = (updates: Partial<PayableDraft>) => setDraft(current => ({ ...current, ...updates }));
 
   const authenticate = async () => {
-    if (!pin.trim() || !token) return;
+    if (pin.length !== 5 || !token) return;
     setFailureToastMessage('');
     setSuccessToastMessage('');
     setIsSubmitting(true);
     try {
       const response = await publicPayableKioskService.authenticate(token, pin);
       setBootstrap(response);
+      setSelectedProviderId(
+        response.identityType === 'EMPLOYEE'
+          ? response.providers?.[0]?.id ?? null
+          : response.provider?.id ?? null,
+      );
       setIsAuthorized(true);
       setMode('payable');
       setSessionMessage('');
@@ -155,7 +166,7 @@ export default function PayablesKioskPage() {
       setFailureToastMessage(
         error instanceof ApiClientError && error.status === 429
           ? copy.errors.rateLimited
-          : error instanceof Error ? error.message : copy.errors.pin,
+          : publicErrorMessage(error, copy.errors.pin),
       );
     } finally {
       setIsSubmitting(false);
@@ -180,8 +191,9 @@ export default function PayablesKioskPage() {
       setFaceMode('idle');
       setFaceConsent(false);
     } catch (error) {
-      setFailureToastMessage(error instanceof Error ? error.message : copy.errors.face);
-      throw error;
+      setFailureToastMessage(copy.errors.face);
+      void error;
+      throw new Error(copy.errors.face);
     } finally {
       setIsSubmitting(false);
     }
@@ -199,7 +211,7 @@ export default function PayablesKioskPage() {
       setIsConfirmingFaceWithdrawal(false);
       setSuccessToastMessage(copy.face.withdrawSuccess);
     } catch (error) {
-      setFailureToastMessage(error instanceof Error ? error.message : copy.errors.face);
+      setFailureToastMessage(publicErrorMessage(error, copy.errors.face));
     } finally {
       setIsSubmitting(false);
     }
@@ -244,7 +256,7 @@ export default function PayablesKioskPage() {
       setSuccessToastMessage(copy.registrationSubmitted);
       setMode('access');
     } catch (error) {
-      setFailureToastMessage(error instanceof Error ? error.message : copy.errors.provider);
+      setFailureToastMessage(publicErrorMessage(error, copy.errors.provider));
     } finally {
       setIsSubmitting(false);
     }
@@ -264,6 +276,7 @@ export default function PayablesKioskPage() {
         description: draft.notes.trim(),
         dueDate: draft.dueDate || undefined,
         externalReference: draft.externalReference.trim(),
+        providerId: selectedProviderId ?? undefined,
         subtotalAmount: subtotal,
         taxAmount: taxes,
         totalAmount: total,
@@ -285,7 +298,7 @@ export default function PayablesKioskPage() {
         setSuccessToastMessage(copy.submissionSuccess);
       }
     } catch (error) {
-      setFailureToastMessage(error instanceof Error ? error.message : copy.errors.submission);
+      setFailureToastMessage(publicErrorMessage(error, copy.errors.submission));
     } finally {
       payableSubmissionLockRef.current = false;
       setIsSubmitting(false);
@@ -301,7 +314,7 @@ export default function PayablesKioskPage() {
   }
 
   return (
-    <KioskShell copy={copy} errorMessage={failureToastMessage} isLoading={isLoading} isOnline={isOnline} sessionMessage={sessionMessage || (isSessionExpiring ? copy.sessionExpiring : '')} successMessage={successToastMessage} title={title} subtitle={copy.subtitle}>
+    <KioskShell copy={copy} errorMessage={failureToastMessage} isLoading={isLoading} isOnline={isOnline} minimal={!isAuthorized && mode === 'access'} sessionMessage={sessionMessage || (isSessionExpiring ? copy.sessionExpiring : '')} successMessage={successToastMessage} title={title} subtitle={copy.subtitle}>
       {isLoading ? (
         <div className="flex min-h-80 items-center justify-center">
           <Loader2 className="mr-2 h-6 w-6 animate-spin text-[#147514]" /> {copy.loading}
@@ -316,17 +329,25 @@ export default function PayablesKioskPage() {
           ) : null}
 
           {mode === 'access' ? (
-            <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-black text-slate-950 dark:text-white">{copy.pinTitle}</h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.pinDescription}</p>
-              <div className="mt-5 space-y-3">
-                <input aria-label={copy.pinPlaceholder} autoComplete="one-time-code" inputMode="numeric" maxLength={6} className={`${inputClass} text-center text-2xl font-black tracking-[0.3em]`} value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" type="password" />
-                <Button type="button" onClick={authenticate} disabled={!pin.trim() || isSubmitting} className="h-12 w-full rounded-xl bg-[#147514] px-6 font-black text-white hover:bg-[#105010]">
-                  {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
-                  {copy.accessLabel}
-                </Button>
-              </div>
-            </section>
+            <KioskIdentityGate
+              backspaceLabel={copy.clearPin}
+              clearLabel={copy.clearPin}
+              description={copy.pinDescription}
+              disabled={!isOnline || isLoading}
+              isSubmitting={isSubmitting}
+              onPinChange={(value) => {
+                setPin(value);
+                if (failureToastMessage) setFailureToastMessage('');
+              }}
+              onSubmit={() => void authenticate()}
+              pinAriaLabel={copy.pinPlaceholder}
+              pinLength={5}
+              pinValue={pin}
+              privacyMessage={copy.pinPrivacy}
+              submitLabel={copy.continueLabel}
+              title={copy.pinTitle}
+              tone="green"
+            />
           ) : null}
 
           {mode === 'provider-registration' ? (
@@ -363,7 +384,7 @@ export default function PayablesKioskPage() {
                         helperText={faceMode === 'enroll' ? copy.face.enrollmentHelper : copy.face.verificationHelper}
                         onSubmit={submitFaceChallenge}
                         onCancel={() => setFaceMode('idle')}
-                        onError={setFailureToastMessage}
+                        onError={() => setFailureToastMessage(copy.errors.face)}
                         resetToken={`${faceMode}-${faceStatus.enrollmentId ?? 'new'}`}
                         copy={copy.face.challenge}
                       />
@@ -388,10 +409,26 @@ export default function PayablesKioskPage() {
 
               <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <div><h2 className="text-xl font-black text-slate-950 dark:text-white">{copy.payableTitle}</h2><p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{bootstrap?.provider?.name}</p></div>
+                  <div><h2 className="text-xl font-black text-slate-950 dark:text-white">{copy.payableTitle}</h2><p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{bootstrap?.employee?.name ?? bootstrap?.provider?.name}</p></div>
                   <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{currency}</span>
                 </div>
                 <div className="mt-5 grid gap-4">
+                  {bootstrap?.identityType === 'EMPLOYEE' ? (
+                    <Field label={copy.provider} required>
+                      <select
+                        required
+                        className={inputClass}
+                        value={selectedProviderId ?? ''}
+                        onChange={event => setSelectedProviderId(event.target.value ? Number(event.target.value) : null)}
+                      >
+                        <option value="">{copy.providerPlaceholder}</option>
+                        {(bootstrap.providers ?? []).map(provider => (
+                          <option key={provider.id} value={provider.id}>{provider.name}</option>
+                        ))}
+                      </select>
+                      <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">{copy.employeeProviderHint}</span>
+                    </Field>
+                  ) : null}
                   <Field label={copy.dueDate}><input type="date" value={draft.dueDate} onChange={event => updateDraft({ dueDate: event.target.value })} className={inputClass} /></Field>
                   <Field label={copy.externalReference}><input value={draft.externalReference} onChange={event => updateDraft({ externalReference: event.target.value })} className={inputClass} placeholder={copy.externalReferencePlaceholder} /></Field>
                   <Field label={copy.concept} required><input required value={draft.concept} onChange={event => updateDraft({ concept: event.target.value })} placeholder={copy.conceptPlaceholder} className={inputClass} /></Field>
@@ -403,7 +440,7 @@ export default function PayablesKioskPage() {
                 <div className="mt-5 grid gap-4">
                   <Field label={t.expenses.modal.amount} required><input required min={0.01} step="0.01" type="number" value={draft.amount} onChange={event => updateDraft({ amount: event.target.value })} placeholder="0.00" className={inputClass} /></Field>
                   <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
-                  <div className="grid grid-cols-3 gap-2 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-3">
+                  <div className="grid grid-cols-2 gap-2 rounded-[22px] border border-[#147514]/20 bg-[#147514]/5 p-3">
                     <SummaryMetric label={t.expenses.modal.summarySubtotal} value={formatCurrency(subtotal, currency)} />
                     <SummaryMetric label={copy.taxAmount} value={formatCurrency(taxes, currency)} />
                     <SummaryMetric strong label={copy.totalAmount} value={formatCurrency(total, currency)} />
@@ -414,7 +451,7 @@ export default function PayablesKioskPage() {
               <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2"><Paperclip className="h-4 w-4 text-[#147514]" /><h2 className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">{copy.evidence}</h2></div>
                 <label className={`flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-[22px] border-2 border-dashed bg-slate-50 px-4 py-6 text-center transition ${canAttachMoreFiles ? 'border-[#147514]/25 hover:bg-[#147514]/5' : 'cursor-not-allowed opacity-60'}`}>
-                  <input type="file" multiple disabled={!canAttachMoreFiles} onChange={event => { addAttachments(event.target.files); event.target.value = ''; }} className="hidden" accept="image/png,image/jpeg,image/webp,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" />
+                  <input type="file" multiple disabled={!canAttachMoreFiles} onChange={event => { addAttachments(event.target.files); event.target.value = ''; }} className="hidden" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" />
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]"><Upload className="h-5 w-5" /></span>
                   <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{copy.attachmentAction}</span>
                   <span className="mt-1 text-xs font-medium text-slate-500">{copy.attachmentHint}</span>
@@ -437,43 +474,30 @@ export default function PayablesKioskPage() {
   );
 }
 
-function KioskShell({ children, copy, errorMessage, isLoading, isOnline, sessionMessage, subtitle, successMessage, title }: {
+function KioskShell({ children, copy, errorMessage, isLoading, isOnline, minimal = false, sessionMessage, subtitle, successMessage, title }: {
   children: ReactNode;
   copy: PublicWorkspaceCopy;
   errorMessage: string;
   isLoading: boolean;
   isOnline: boolean;
+  minimal?: boolean;
   sessionMessage: string;
   subtitle: string;
   successMessage: string;
   title: string;
 }) {
-  const selectedLocale = useExpensesResolvedLocale();
-  const { setCurrentLanguage } = useLanguage();
   return (
     <KioskPublicShell
       banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900">{copy.offline}</div> : null}
       errorMessage={errorMessage}
-      header={(<header className="bg-[#147514] px-5 py-5 text-white">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15"><Landmark className="h-6 w-6" /></span>
-            <div className="min-w-0"><p className="text-sm font-black uppercase tracking-[0.18em] text-white/70">{copy.kioskEyebrow}</p><h1 className="mt-1 truncate text-2xl font-black">{title}</h1><p className="mt-1 text-sm font-semibold leading-6 text-white/80">{subtitle}</p></div>
-          </div>
-          <label className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-2.5">
-            <Globe2 className="h-4 w-4" />
-            <span className="sr-only">{copy.language}</span>
-            <select aria-label={copy.language} className="bg-transparent text-xs font-black uppercase outline-none [&>option]:bg-white [&>option]:text-slate-900" value={selectedLocale} onChange={event => {
-              const language = languages.find(item => item.code === event.target.value);
-              if (language) setCurrentLanguage(language);
-            }}>
-              {languages.map(language => <option key={language.code} value={language.code}>{language.flag} {language.code}</option>)}
-            </select>
-          </label>
-        </div>
+      header={(<header className="border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
+        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#147514] dark:text-emerald-300">{copy.kioskEyebrow}</p>
+        <h1 className="mt-1 line-clamp-2 break-words text-2xl font-black leading-tight tracking-tight text-slate-950 dark:text-white">{title}</h1>
+        <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{subtitle}</p>
       </header>)}
       loadingOverlay={<LoadingBarOverlay isVisible={isLoading} title={copy.loading} description={copy.subtitle} />}
       maxWidthClassName="max-w-[480px]"
+      minimalContent={minimal}
       sessionExpiredMessage={sessionMessage || null}
       successMessage={successMessage}
     >
@@ -495,7 +519,7 @@ function Field({ children, label, required }: { children: ReactNode; label: stri
 }
 
 function SummaryMetric({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
-  return <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-2 py-3 dark:border-slate-700 dark:bg-slate-900"><p className="truncate text-[10px] font-bold uppercase text-slate-500">{label}</p><p title={value} className={`mt-1 truncate text-xs ${strong ? 'font-black text-[#147514]' : 'font-bold text-slate-900 dark:text-white'}`}>{value}</p></div>;
+  return <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white px-2 py-3 dark:border-slate-700 dark:bg-slate-900 ${strong ? 'col-span-2' : ''}`}><p className="truncate text-[10px] font-bold uppercase text-slate-500">{label}</p><p title={value} className={`mt-1 truncate text-xs ${strong ? 'font-black text-[#147514]' : 'font-bold text-slate-900 dark:text-white'}`}>{value}</p></div>;
 }
 
 function AttachmentRow({ attachment, deleteLabel, onRemove }: { attachment: AttachmentDraft; deleteLabel: string; onRemove: () => void }) {
@@ -538,4 +562,8 @@ function isAllowedAttachment(file: File) {
   if (file.size <= 0 || file.size > MAX_ATTACHMENT_SIZE_BYTES) return false;
   const extension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() ?? '' : '';
   return ALLOWED_ATTACHMENT_MIME_TYPES.has(file.type.toLowerCase()) || ALLOWED_ATTACHMENT_EXTENSIONS.has(extension);
+}
+
+function publicErrorMessage(_error: unknown, fallback: string) {
+  return fallback;
 }

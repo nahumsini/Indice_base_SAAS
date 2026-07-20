@@ -32,11 +32,12 @@ export const enUS = {
     complete: 'Complete',
   },
   pin: {
-    title: 'Enter your PIN',
-    description: 'Use the same PIN assigned for time clock access.',
+    title: 'Identify yourself to continue',
+    description: 'Enter your personal PIN to access securely.',
     placeholder: 'PIN',
     continue: 'Continue',
     deleteKey: 'Del',
+    privacy: 'Your assigned tasks remain private until your PIN is validated.',
   },
   identity: {
     eyebrow: 'Employee identified',
@@ -154,6 +155,8 @@ export const enUS = {
     unsupportedEvidence: (fileName: string) => `${fileName} is not a supported evidence file.`,
     uploadFailure: 'Task evidence upload failed.',
     partialUploadFailure: 'Some evidence was uploaded, but the remaining files failed. Review the task before retrying.',
+    completionUploadFailure: 'The task was completed, but the evidence could not be attached.',
+    completionPartialUploadFailure: 'The task was completed and some evidence was attached, but some files failed.',
     completeFailure: 'Could not complete this task.',
     createTitleRequired: 'Task title is required.',
     createFailure: 'Could not create this task.',

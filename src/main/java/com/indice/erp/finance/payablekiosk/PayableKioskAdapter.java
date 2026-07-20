@@ -65,8 +65,9 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
                 || PayableKioskCapabilities.PROVIDER_REGISTER.equals(request.capabilityKey())) {
             return KioskAuthorization.allow();
         }
-        if (context.session() == null || !"PROVIDER".equals(context.session().identityType())) {
-            return KioskAuthorization.deny("Provider kiosk authentication is required.");
+        if (context.session() == null
+                || !Set.of("PROVIDER", "EMPLOYEE").contains(context.session().identityType())) {
+            return KioskAuthorization.deny("Personal kiosk authentication is required.");
         }
         return KioskAuthorization.allow();
     }
@@ -96,14 +97,14 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
                 service.publicAuthenticateCanonical(context.accessReference(), request.payload());
             case PayableKioskCapabilities.PROVIDER_REGISTER -> service.registerProvider(
                 context.accessReference(), validated(request.payload(), PublicProviderRegistrationRequest.class));
-            case PayableKioskCapabilities.PAYABLE_CREATE -> service.createPayableForProvider(
-                context.accessReference(), providerId(context),
+            case PayableKioskCapabilities.PAYABLE_CREATE -> service.createPayableForIdentity(
+                context.accessReference(), identityType(context), identityId(context),
                 validated(request.payload(), PublicPayableRequest.class));
-            case PayableKioskCapabilities.ATTACHMENT_PRESIGN -> map(service.presignPayableAttachmentForProvider(
-                context.accessReference(), providerId(context), resourceId(request),
+            case PayableKioskCapabilities.ATTACHMENT_PRESIGN -> map(service.presignPayableAttachmentForIdentity(
+                context.accessReference(), identityType(context), identityId(context), resourceId(request),
                 validated(request.payload(), ExpenseAttachmentUploadRequest.class)));
-            case PayableKioskCapabilities.ATTACHMENT_REGISTER -> map(service.registerPayableAttachmentForProvider(
-                context.accessReference(), providerId(context), resourceId(request),
+            case PayableKioskCapabilities.ATTACHMENT_REGISTER -> map(service.registerPayableAttachmentForIdentity(
+                context.accessReference(), identityType(context), identityId(context), resourceId(request),
                 validated(request.payload(), RegisterExpenseAttachmentRequest.class)));
             case PayableKioskCapabilities.FACE_ENROLLMENT_STATUS -> biometrics.status(context);
             case PayableKioskCapabilities.FACE_ENROLLMENT_BEGIN ->
@@ -156,11 +157,19 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
         }
     }
 
-    private long providerId(KioskExecutionContext context) {
+    private long identityId(KioskExecutionContext context) {
         if (context.session() == null || context.session().identityId() <= 0) {
-            throw new SecurityException("Provider kiosk authentication is required.");
+            throw new SecurityException("Personal kiosk authentication is required.");
         }
         return context.session().identityId();
+    }
+
+    private String identityType(KioskExecutionContext context) {
+        if (context.session() == null
+                || !Set.of("PROVIDER", "EMPLOYEE").contains(context.session().identityType())) {
+            throw new SecurityException("Personal kiosk authentication is required.");
+        }
+        return context.session().identityType();
     }
 
     private long resourceId(KioskActionRequest request) {

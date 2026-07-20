@@ -27,13 +27,13 @@ public final class PayableKioskCapabilities {
 
     private static final Map<String, Object> FILE_POLICY = Map.of(
         "mimeTypes", List.of(
-            "application/pdf", "image/png", "image/jpeg", "image/webp",
+            "application/pdf", "image/png", "image/jpeg", "image/webp", "image/heic", "image/heif",
             "text/csv", "text/plain", "application/msword",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         "extensions", List.of(
-            ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".csv", ".txt",
+            ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".csv", ".txt",
             ".doc", ".docx", ".xls", ".xlsx"),
         "maxSizeBytes", 10L * 1024L * 1024L,
         "maxFiles", 5,

@@ -25,6 +25,18 @@ import { usePublicKioskFaceVerification } from './usePublicKioskFaceVerification
 import { usePublicKioskToasts } from './usePublicKioskToasts';
 import { usePublicKioskViewModel } from './usePublicKioskViewModel';
 
+function publicKioskErrorMessage(error: unknown, fallback: string, credentialFallback?: string) {
+  if (!(error instanceof Error)) return fallback;
+  const message = error.message.trim();
+  if (/credential validation failed|invalid (?:employee )?pin|pin (?:is )?invalid/i.test(message)) {
+    return credentialFallback ?? fallback;
+  }
+  if (!message || /internal server error|status\s*500|unexpected server error/i.test(message)) {
+    return fallback;
+  }
+  return message;
+}
+
 export function usePublicKioskController() {
   const { deviceToken } = useParams();
   const copy = useKioskTranslations();
@@ -92,7 +104,7 @@ export function usePublicKioskController() {
   const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
     active: Boolean(identificationToken),
     expiresAt,
-    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 60,
+    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 180,
     onExpire: expireSession,
   });
 
@@ -105,7 +117,7 @@ export function usePublicKioskController() {
 
   const scheduleAutoReset = (reason?: string) => {
     clearResetTimer();
-    const timeoutMs = Math.max((bootstrap?.inactivity_timeout_seconds ?? 60) * 1000, 15000);
+    const timeoutMs = Math.max((bootstrap?.inactivity_timeout_seconds ?? 180) * 1000, 15000);
     resetTimeoutRef.current = window.setTimeout(() => {
       resetFlow({ reason });
       resetTimeoutRef.current = null;
@@ -135,7 +147,7 @@ export function usePublicKioskController() {
       }
     } catch (error) {
       setBootstrap(null);
-      showFailureToast(error instanceof Error ? error.message : copy.invalidDevice);
+      showFailureToast(publicKioskErrorMessage(error, copy.invalidDevice));
     } finally {
       setIsLoading(false);
     }
@@ -294,6 +306,12 @@ export function usePublicKioskController() {
     clearFailureToastState();
   };
 
+  const handleCredentialChange = (value: string) => {
+    setCredentialValue(value.replace(/\D/g, '').slice(0, 5));
+    if (errorMessage) setErrorMessage('');
+    clearFailureToastState();
+  };
+
   const handleIdentify = async () => {
     if (!deviceToken || !bootstrap) {
       return;
@@ -336,7 +354,8 @@ export function usePublicKioskController() {
       fallbackPhotoUpload.clearPhoto();
       scheduleAutoReset(copy.timeout);
     } catch (error) {
-      showFailureToast(error instanceof Error ? error.message : copy.invalidDevice);
+      clearFailureToastState();
+      setErrorMessage(publicKioskErrorMessage(error, copy.invalidDevice, copy.invalidCredential));
     } finally {
       setBusyState('idle');
     }
@@ -393,7 +412,7 @@ export function usePublicKioskController() {
     resetFlow,
     selectedLocale,
     selectedMethod,
-    setCredentialValue,
+    setCredentialValue: handleCredentialChange,
     setKioskLocale,
     showFailureToast,
     successMessage,

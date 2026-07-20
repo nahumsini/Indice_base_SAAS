@@ -4,18 +4,26 @@ import {
   CircleDollarSign,
   Copy,
   ExternalLink,
+  KeyRound,
+  Link2,
   Loader2,
+  MoreHorizontal,
   Pencil,
   Plus,
   Power,
+  QrCode,
   RefreshCw,
+  Share2,
   ShieldCheck,
   Store,
   Trash2,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
-import { IndiceModalFrame } from '../../../../components/indice-modal';
+import { IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
+import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../../components/kiosk-engine/KioskAdminPrimitives';
+import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
+import { useKioskQrCode } from '../../../../components/kiosk-engine/useKioskQrCode';
 import { DEFAULT_FINANCE_CURRENCY } from '../../constants/financeCurrencyOptions';
 import type { Provider } from '../../types/expenses.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
@@ -75,9 +83,17 @@ export function PayablesKioskManagementModal({
   const [providerAccesses, setProviderAccesses] = useState<PayableKioskProviderAccess[]>([]);
   const [pendingDeleteKiosk, setPendingDeleteKiosk] = useState<PayableKiosk | null>(null);
   const [pendingRotateKiosk, setPendingRotateKiosk] = useState<PayableKiosk | null>(null);
+  const [shareKioskId, setShareKioskId] = useState<number | null>(null);
+  const [optionsKioskId, setOptionsKioskId] = useState<number | null>(null);
+  const [qrKioskId, setQrKioskId] = useState<number | null>(null);
 
   const publicUrl = (kiosk: PayableKiosk) => `${window.location.origin}/expenses/kiosk/cuentas-por-pagar/${kiosk.publicAccessToken}`;
   const activeCount = useMemo(() => kiosks.filter(kiosk => kiosk.status === 'ACTIVE').length, [kiosks]);
+  const shareKiosk = kiosks.find(kiosk => kiosk.id === shareKioskId) ?? null;
+  const optionsKiosk = kiosks.find(kiosk => kiosk.id === optionsKioskId) ?? null;
+  const qrKiosk = kiosks.find(kiosk => kiosk.id === qrKioskId) ?? null;
+  const qrDataUrl = useKioskQrCode(qrKiosk ? publicUrl(qrKiosk) : '', '#147514');
+  const childViewOpen = Boolean(isFormOpen || shareKiosk || optionsKiosk || qrKiosk || pendingDeleteKiosk || pendingRotateKiosk);
   const optionLabel = (options: FinanceReferenceOption[], id?: number | null) => (
     options.find(option => String(option.value) === String(id))?.label
   );
@@ -220,18 +236,18 @@ export function PayablesKioskManagementModal({
 
   return (
     <>
-      <IndiceModalFrame
+      <KioskModalFrame
         busy={isSaving}
-        contentClassName="sm:max-w-[760px]"
         description={copyText.configureDescription}
         footer={(
-          <button type="button" disabled={isSaving} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50" onClick={onClose}>{t.common.cancel}</button>
+          <button type="button" disabled={isSaving} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50" onClick={onClose}>{t.common.cancel}</button>
         )}
         footerSummary={copyText.activeCount(activeCount, kiosks.length)}
         icon={<Store className="h-5 w-5" />}
-        modalType="standard-form"
-        onOpenChange={(open) => !open && !isFormOpen && !pendingDeleteKiosk && !pendingRotateKiosk && onClose()}
-        open={isOpen && !isFormOpen && !pendingDeleteKiosk && !pendingRotateKiosk}
+        onOpenChange={(open) => !open && !childViewOpen && onClose()}
+        open={isOpen && !childViewOpen}
+        size="workspace"
+        surface="administration"
         title={copyText.configureTitle}
         tone="green"
       >
@@ -264,6 +280,16 @@ export function PayablesKioskManagementModal({
                 </label>
               </section>
             )}
+            <div className="mb-4">
+              <IndiceModalSummary
+                columns={3}
+                items={[
+                  { label: 'Total de kioskos', value: kiosks.length, emphasized: true },
+                  { label: 'Activos', value: activeCount },
+                  { label: 'Proveedores con acceso', value: providerAccesses.filter(access => access.status === 'ACTIVE').length },
+                ]}
+              />
+            </div>
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -307,14 +333,11 @@ export function PayablesKioskManagementModal({
                         </div>
                       </div>
 
-                      <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
-                        <KioskAction ariaLabel={t.common.edit} onClick={() => openEdit(kiosk)} icon={<Pencil className="h-4 w-4" />} />
-                        <KioskAction ariaLabel="Link" onClick={() => copy(publicUrl(kiosk), copyText.messages.linkCopied)} icon={<Copy className="h-4 w-4" />} />
-                        <KioskAction ariaLabel={copyText.rotateLink} onClick={() => setPendingRotateKiosk(kiosk)} icon={<RefreshCw className="h-4 w-4" />} />
-                        <KioskAction ariaLabel={kiosk.status === 'ACTIVE' ? copyText.deactivate : copyText.enable} onClick={() => void toggleKiosk(kiosk)} icon={<Power className="h-4 w-4" />} />
-                        <button type="button" onClick={() => window.open(publicUrl(kiosk), '_blank', 'noopener,noreferrer')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 text-sm font-semibold text-white transition hover:bg-[#105f10]">
-                          {copyText.open} <ExternalLink className="h-4 w-4" />
-                        </button>
+                      <div className="grid shrink-0 grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label={`Acciones de ${kiosk.name}`}>
+                        <KioskAdminActionButton accent="green" label={t.common.edit} onClick={() => openEdit(kiosk)} tone="primary"><Pencil className="h-4 w-4" /></KioskAdminActionButton>
+                        <KioskAdminActionButton accent="green" disabled={kiosk.status !== 'ACTIVE'} label={copyText.open} onClick={() => window.open(publicUrl(kiosk), '_blank', 'noopener,noreferrer')}><ExternalLink className="h-4 w-4" /></KioskAdminActionButton>
+                        <KioskAdminActionButton accent="green" label="Compartir y administrar liga" onClick={() => setShareKioskId(kiosk.id)}><Share2 className="h-4 w-4" /></KioskAdminActionButton>
+                        <KioskAdminActionButton accent="green" label="Más opciones" onClick={() => setOptionsKioskId(kiosk.id)}><MoreHorizontal className="h-4 w-4" /></KioskAdminActionButton>
                       </div>
                       </div>
 
@@ -337,18 +360,108 @@ export function PayablesKioskManagementModal({
                         <KioskMeta icon={<CircleDollarSign className="h-3.5 w-3.5" />} label={kiosk.currencyCode} />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2.5 dark:border-slate-800 dark:bg-slate-950/40 sm:px-5">
-                      <p className="min-w-0 truncate font-mono text-[11px] font-semibold text-slate-400">{publicUrl(kiosk)}</p>
-                      <button type="button" onClick={() => setPendingDeleteKiosk(kiosk)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-300">
-                        <Trash2 className="h-3.5 w-3.5" /> {copyText.deleteKiosk}
-                      </button>
+                    <div className="flex items-start gap-2 border-t border-slate-100 bg-slate-50/80 px-4 py-3 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 sm:px-5">
+                      <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      <span>El portal limita la operación al registro de cuentas por pagar y al proveedor o colaborador identificado.</span>
                     </div>
                   </article>
                 ))}
               </div>
               )}
             </div>
-      </IndiceModalFrame>
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel="Cerrar administración de liga"
+        description={shareKiosk ? `Administra la liga pública de ${shareKiosk.name}.` : 'Liga pública del kiosko.'}
+        footer={<Button type="button" variant="outline" onClick={() => setShareKioskId(null)}>{t.common.cancel}</Button>}
+        icon={<Share2 className="h-5 w-5" />}
+        onOpenChange={(open) => { if (!open) setShareKioskId(null); }}
+        open={isOpen && Boolean(shareKiosk)}
+        size="compact"
+        surface="administration"
+        title="Liga del kiosko"
+        tone="green"
+      >
+        {shareKiosk ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#147514]"><Link2 className="h-5 w-5" /></span>
+                <div className="min-w-0"><p className="text-sm font-semibold text-slate-950 dark:text-white">{shareKiosk.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{shareKiosk.currencyCode} · {shareKiosk.status === 'ACTIVE' ? t.common.active : t.common.inactive}</p></div>
+              </div>
+            </div>
+            <IndiceModalValidation tone="info" title="Liga disponible" messages={['Puedes abrirla, copiarla o convertirla en código QR. Reemplazarla invalida inmediatamente la liga anterior.']} />
+            <div className="grid gap-2">
+              <KioskAdminPanelAction accent="green" primary disabled={shareKiosk.status !== 'ACTIVE'} icon={<ExternalLink className="h-4 w-4" />} label={copyText.open} onClick={() => window.open(publicUrl(shareKiosk), '_blank', 'noopener,noreferrer')} />
+              <KioskAdminPanelAction accent="green" icon={<Copy className="h-4 w-4" />} label={copyText.copyLink} onClick={() => void copy(publicUrl(shareKiosk), copyText.messages.linkCopied)} />
+              <KioskAdminPanelAction accent="green" icon={<QrCode className="h-4 w-4" />} label="Mostrar código QR" onClick={() => { setShareKioskId(null); setQrKioskId(shareKiosk.id); }} />
+              <KioskAdminPanelAction accent="green" icon={<RefreshCw className="h-4 w-4" />} label={copyText.rotateLink} onClick={() => { setShareKioskId(null); setPendingRotateKiosk(shareKiosk); }} />
+            </div>
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        busy={isSaving}
+        closeLabel="Cerrar opciones"
+        description={optionsKiosk ? `Gestiona el estado de ${optionsKiosk.name}.` : 'Opciones del kiosko.'}
+        footer={<Button type="button" variant="outline" onClick={() => setOptionsKioskId(null)}>{t.common.cancel}</Button>}
+        icon={<MoreHorizontal className="h-5 w-5" />}
+        onOpenChange={(open) => { if (!open) setOptionsKioskId(null); }}
+        open={isOpen && Boolean(optionsKiosk)}
+        size="compact"
+        surface="administration"
+        title="Opciones del kiosko"
+        tone="green"
+      >
+        {optionsKiosk ? (
+          <div className="space-y-3">
+            <KioskAdminPanelAction
+              accent="green"
+              disabled
+              description="Solo las personas identificadas pueden operar dentro del alcance configurado."
+              icon={<KeyRound className="h-4 w-4" />}
+              label={copyText.providerAccessCount(providerAccesses.filter(access => access.kioskId === optionsKiosk.id && access.status === 'ACTIVE').length)}
+              onClick={() => undefined}
+            />
+            <KioskAdminPanelAction
+              accent="green"
+              primary={optionsKiosk.status !== 'ACTIVE'}
+              description={optionsKiosk.status === 'ACTIVE' ? 'Es reversible y conserva proveedores, cuentas y documentos.' : 'Permite utilizar nuevamente la liga vigente.'}
+              icon={<Power className="h-4 w-4" />}
+              label={optionsKiosk.status === 'ACTIVE' ? copyText.deactivate : copyText.enable}
+              onClick={() => { setOptionsKioskId(null); void toggleKiosk(optionsKiosk); }}
+            />
+            <KioskAdminPanelAction
+              accent="green"
+              danger
+              description={copyText.deleteKioskDescription}
+              icon={<Trash2 className="h-4 w-4" />}
+              label={copyText.deleteKiosk}
+              onClick={() => { setOptionsKioskId(null); setPendingDeleteKiosk(optionsKiosk); }}
+            />
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel="Cerrar código QR"
+        description={qrKiosk ? `Comparte el acceso autorizado de ${qrKiosk.name}.` : 'Código de acceso del kiosko.'}
+        footer={<Button type="button" variant="outline" onClick={() => setQrKioskId(null)}>{t.common.cancel}</Button>}
+        icon={<QrCode className="h-5 w-5" />}
+        onOpenChange={(open) => { if (!open) setQrKioskId(null); }}
+        open={isOpen && Boolean(qrKiosk)}
+        size="compact"
+        surface="administration"
+        title="Código QR del kiosko"
+        tone="green"
+      >
+        <div className="flex flex-col items-center text-center">
+          {qrDataUrl ? <img src={qrDataUrl} alt={`Código QR del kiosko ${qrKiosk?.name ?? ''}`} className="h-56 w-56 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" /> : <p className="py-16 text-sm font-medium text-slate-600">Generando código QR seguro...</p>}
+          <p className="mt-4 text-xs leading-5 text-slate-500">Compártelo únicamente con proveedores o colaboradores autorizados.</p>
+        </div>
+      </KioskModalFrame>
 
       <PayablesKioskAccessFormModal
         businessOptions={businessOptions}
@@ -386,14 +499,6 @@ export function PayablesKioskManagementModal({
         onConfirm={() => pendingRotateKiosk && void rotateLink(pendingRotateKiosk)}
       />
     </>
-  );
-}
-
-function KioskAction({ ariaLabel, icon, onClick }: { ariaLabel: string; icon: React.ReactNode; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} aria-label={ariaLabel} title={ariaLabel} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/40">
-      {icon}
-    </button>
   );
 }
 

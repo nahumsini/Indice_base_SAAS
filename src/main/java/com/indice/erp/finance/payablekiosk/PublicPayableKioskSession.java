@@ -14,20 +14,42 @@ class PublicPayableKioskSession {
     private static final int MAX_ATTEMPTS = 5;
     private static final long LOCK_SECONDS = 15 * 60;
 
-    record Authorization(long accessId, long kioskId, long providerId, String kioskSessionToken) {
+    record Authorization(
+            Long accessId,
+            long kioskId,
+            String identityType,
+            long identityId,
+            Long providerId,
+            String kioskSessionToken) {
     }
 
     Authorization require(HttpSession session, long kioskId) {
         var value = session.getAttribute(AUTHORIZED_ACCESS);
         if (!(value instanceof Authorization authorization) || authorization.kioskId() != kioskId) {
-            throw FinanceApiException.unauthorized("Provider PIN authentication is required.");
+            throw FinanceApiException.unauthorized("Personal PIN authentication is required.");
         }
         return authorization;
     }
 
-    void authorize(HttpSession session, PayableKioskProviderAccessRow access, String kioskSessionToken) {
+    void authorizeProvider(HttpSession session, PayableKioskProviderAccessRow access, String kioskSessionToken) {
         session.setAttribute(AUTHORIZED_ACCESS, new Authorization(
-            access.id(), access.kioskId(), access.providerId(), kioskSessionToken));
+            access.id(), access.kioskId(), "PROVIDER", access.providerId(),
+            access.providerId(), kioskSessionToken));
+        clearFailures(session);
+    }
+
+    void authorize(HttpSession session, PayableKioskProviderAccessRow access, String kioskSessionToken) {
+        authorizeProvider(session, access, kioskSessionToken);
+    }
+
+    void authorizeEmployee(
+            HttpSession session, long kioskId, long employeeId, String kioskSessionToken) {
+        session.setAttribute(AUTHORIZED_ACCESS, new Authorization(
+            null, kioskId, "EMPLOYEE", employeeId, null, kioskSessionToken));
+        clearFailures(session);
+    }
+
+    private void clearFailures(HttpSession session) {
         session.removeAttribute(FAILED_ATTEMPTS);
         session.removeAttribute(LOCKED_UNTIL);
     }

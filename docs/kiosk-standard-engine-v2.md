@@ -448,6 +448,19 @@ revoked_at nullable
 
 Las sesiones son de corta duración, renovables solo dentro de las políticas configuradas y reiniciables por inactividad.
 
+#### 11.7.1 Política operativa de sesión por familia
+
+La inactividad se mide desde la última actividad aceptada por el servidor. La vigencia absoluta limita cuánto puede conservarse una identidad antes de solicitar nuevamente su PIN, aunque exista actividad. Estos valores son defaults de producto y deben permanecer parametrizables por ambiente.
+
+| Familia | Inactividad | Vigencia absoluta | Propiedad de ambiente |
+|---|---:|---:|---|
+| Asistencia | 3 minutos | 3 minutos | `APP_HR_KIOSK_INACTIVITY_TIMEOUT_SECONDS` y `APP_HR_KIOSK_IDENTIFICATION_TOKEN_TTL_SECONDS` |
+| Cuentas por Pagar | 5 minutos | 8 horas | `APP_EXPENSES_KIOSK_INACTIVITY_TIMEOUT_SECONDS` y `APP_EXPENSES_KIOSK_SESSION_TTL_SECONDS` |
+| Caja Chica | 15 minutos | 4 horas | `APP_PETTY_CASH_KIOSK_INACTIVITY_TIMEOUT_SECONDS` y `APP_PETTY_CASH_KIOSK_SESSION_TTL_SECONDS` |
+| Procesos y Tareas | 30 minutos | 8 horas | `APP_PROCESS_TASKS_KIOSK_INACTIVITY_TIMEOUT_SECONDS` y `APP_PROCESS_TASKS_KIOSK_SESSION_TTL_SECONDS` |
+
+El frontend, el adaptador del módulo, la validación de `KioskSessionService` y el mantenimiento de sesiones deben consumir la misma política. Ningún job de limpieza puede conservar un timeout global más corto que el declarado para la familia.
+
 ### 11.8 Kiosk Action
 
 ```text
@@ -951,6 +964,204 @@ Se reutilizan para:
 - No se crean estilos alternativos de modal.
 - Evitar modales anidados.
 - Header y footer usan color del módulo.
+
+### 21.4 Rama homologada `KioskModalFrame`
+
+La referencia visual aprobada para homologar los modales de kiosko es el Administrador de Catálogos Públicos de Ventas. Se adopta su anatomía —header y footer conectados por el color del módulo, cuerpo neutral, acciones compactas y precisas, estado visible, scroll interno y vistas hijas por reemplazo— sin copiar sus dimensiones de escritorio a la experiencia pública móvil.
+
+La especificación frontend completa vive en la rama `KioskModalFrame` de [`Indice Frontend Operating System v2`](./indice-frontend-operating-system-v2.md). Este documento define su relación con sesiones, capacidades, acciones, archivos y auditoría del Kiosk Engine.
+
+Implementación compartida vigente:
+
+```text
+react/src/app/components/kiosk-engine/KioskModalFrame.tsx
+react/src/app/components/kiosk-engine/KioskAdminPrimitives.tsx
+react/src/app/components/kiosk-engine/useKioskQrCode.ts
+```
+
+`KioskModalFrame` debe envolver `IndiceModalFrame`. Es una primitive tipada de presentación y comportamiento accesible; no es otro motor, no reemplaza Radix, no contiene APIs de módulos y no decide permisos.
+
+### 21.5 Dos superficies, una anatomía
+
+La misma anatomía se aplica con distinta densidad:
+
+| Superficie | Propósito | Regla de tamaño |
+|---|---|---|
+| Pública dentro del kiosko | Tarea temporal y enfocada después de autorizar la sesión | Mobile first, touch targets de 44–48 px, normalmente `max-w-[30rem]` |
+| Administración autenticada | Crear, editar, configurar y administrar kioskos, grants o enlaces | Usa las anchuras del Modal Engine según la clasificación |
+
+El kiosko público completo nunca se convierte en modal. Identificación, navegación, contexto principal, captura continua, rostro, cámara, GPS, consulta e historial permanecen en el Full Workspace cuando forman parte del viaje normal.
+
+### 21.6 Clasificación obligatoria
+
+- Confirmar reinicio, envío, revocación, eliminación o transición irreversible: Confirmation Modal.
+- Crear o editar una tarea, cuenta, proveedor, gasto, ingreso o registro individual: Standard Form Modal.
+- Configurar identidad, alcance, capacidades y revisión en etapas dependientes: Modal Wizard Índice.
+- Administrar múltiples definiciones, grants, reglas, solicitudes o enlaces: Operational Workspace Modal.
+
+Usar `KioskModalFrame` no crea un quinto tipo. Un flujo no puede elegir una anchura mayor sin justificar primero su clasificación.
+
+### 21.7 Contrato de apertura
+
+Un módulo solo abre un modal público cuando:
+
+1. el bootstrap del kiosko concluyó;
+2. la sesión requerida está autorizada;
+3. la capability correspondiente fue concedida;
+4. el registro está dentro del scope resuelto por el servidor;
+5. el estado de red permite la operación;
+6. no existe otra mutación o modal activo.
+
+Ocultar o deshabilitar el botón en React mejora la experiencia, pero nunca sustituye autorización backend. El adapter del módulo vuelve a validar identidad, grant, capability, scope, propiedad del registro y política de operación.
+
+### 21.8 Contrato de acción desde modal
+
+```text
+KioskModal action
+  -> validación local segura
+  -> KioskSessionBoundary
+  -> CSRF
+  -> idempotency key de la operación lógica
+  -> Kiosk Public Gateway
+  -> KioskActionDispatcher
+  -> adapter del módulo
+  -> servicio funcional autoritativo
+  -> auditoría Engine + auditoría del módulo
+  -> resultado público seguro
+```
+
+Cada acción nacida en un modal debe declarar o resolver:
+
+- `kioskId` y versión de definición;
+- sesión pública vigente cuando corresponda;
+- identidad y factores verificados exigidos;
+- capability y versión;
+- política `DIRECT`, `REVIEW_REQUIRED`, `APPROVAL_REQUIRED` o `INFORMATION_ONLY`;
+- `actionId` o idempotency key;
+- payload tipado del módulo;
+- referencias de archivo adoptadas, nunca archivos supuestos por el frontend;
+- `requestId` y `moduleReference` para correlación.
+
+El modal no construye permisos ni transforma un fallo técnico en éxito. Solo representa el estado seguro que entrega el módulo.
+
+### 21.9 Ciclo de operación y cierre
+
+Estados mínimos:
+
+```text
+closed -> ready -> validating -> submitting -> success -> closed
+                    |             |
+                    -> invalid    -> recoverable-error -> ready
+                                  -> session-expired -> reset
+```
+
+Durante `submitting`:
+
+- una sola acción puede estar activa;
+- el botón primario muestra progreso;
+- cerrar, Escape, click exterior y acciones incompatibles quedan bloqueados;
+- el cliente no genera otra idempotency key para el mismo intento lógico;
+- una respuesta desconocida se reconcilia antes de ofrecer reenvío.
+
+Al cerrar por éxito, cancelación, reinicio o expiración se limpian campos sensibles, archivos locales, previews, identificadores internos no necesarios y errores anteriores. Si expira la sesión, el Engine ordena cerrar el modal y regresar al boundary seguro; no se conserva un formulario autorizado sobre la pantalla de identidad.
+
+### 21.10 Archivos dentro del modal
+
+La selección de un archivo en el navegador no significa que el módulo ya posea evidencia.
+
+El flujo continúa siendo:
+
+```text
+seleccionar o capturar
+  -> validar tipo, tamaño y cantidad
+  -> presign autorizado
+  -> cargar a staging
+  -> registrar intención consumible
+  -> adoptar desde el servicio funcional
+  -> sellar referencia y auditar
+```
+
+El modal presenta selección, cámara cuando proceda, lista, remoción, progreso, error parcial y reintento. Engine y módulo conservan presign, autorización, ownership, límites, adopción, cleanup y auditoría. Cerrar el modal debe cancelar o dejar expirar intenciones no adoptadas sin asociarlas a otro registro.
+
+### 21.11 Jerarquía de acciones
+
+Cada estado tiene una acción primaria dominante. Cancelar o Cerrar permanece visible. En una fila compacta de administración, el orden semántico aprobado es:
+
+1. editar o seleccionar;
+2. copiar o compartir enlace;
+3. abrir vista pública;
+4. habilitar o deshabilitar;
+5. revocar o eliminar al final.
+
+Toda acción icon-only requiere etiqueta accesible localizada, foco visible y estado disabled. Revocar y eliminar siempre pasan por Confirmation Modal y nunca comparten el tratamiento visual de una acción primaria normal.
+
+En managers de kiosko, la fila compacta expone normalmente solo **Editar**, **Abrir**, **Compartir** y **Más**. Accesos e historial, pausa/reactivación, cancelación definitiva y eliminación se resuelven en una vista hija interna por reemplazo. No se usan dropdowns portaled fuera del focus boundary del modal activo. Si el token público es `display-once` y ya no está disponible en memoria, la interfaz muestra **Liga protegida** y conduce a reemplazar/emitir una liga; nunca deja Abrir o Compartir como controles aparentemente bloqueados.
+
+### 21.12 Navegación sin modales apilados
+
+Cuando un manager abre Crear, Editar, Enlace, Solicitudes o Confirmación, la vista padre se suspende y se muestra una sola vista hija. Al volver se restauran foco, filtros, scroll y estado seguro del manager, actualizando únicamente el registro afectado.
+
+No se permiten dos overlays activos. Un wizard cambia de etapa dentro del mismo modal; no abre otro modal para cada paso.
+
+### 21.13 Matriz inicial de homologación
+
+| Kiosko | Modal o acción | Tipo | Decisión |
+|---|---|---|---|
+| Procesos y Tareas | Crear tarea | Standard Form | Migrar el overlay manual a `KioskModalFrame` sin cambiar comando, evidencia ni idempotencia |
+| Procesos y Tareas | Detalle/cierre de tarea | Standard Form | Mantener detalle, avance, evidencia, nota y cierre en una operación acotada |
+| Procesos y Tareas | Cambiar responsable | Standard Form | Regresar al detalle sin apilar otro dialog |
+| Caja Chica | Visor de adjuntos | Standard Form | Conservar autorización y descarga segura |
+| Caja Chica | Confirmación financiera consecuente | Confirmation | Agregar solo cuando la política requiera revisión explícita; la captura principal sigue inline |
+| Cuentas por Pagar | Registro de proveedor | Standard Form | Conservar revisión y alcance del proveedor |
+| Cuentas por Pagar | Detalle de cuenta/adjuntos | Standard Form | Mantener separación empleado-proveedor y ownership de archivos |
+| RH Asistencia | Reiniciar o cancelar flujo consecuente | Confirmation | Rostro, foto, GPS y registro permanecen inline |
+| Administración | Manager de definiciones, grants y enlaces | Operational Workspace | Adoptar jerarquía del manager de Catálogo Público con color del módulo |
+| Administración | Crear/editar kiosko | Standard Form o Wizard | Clasificar según dependencia entre identidad, scope, capabilities y revisión |
+
+#### Estado de adopción administrativa — 20 de julio de 2026
+
+| Módulo propietario | Manager | Vistas hijas homologadas | Estado |
+|---|---|---|---|
+| Procesos y Tareas | Operational Workspace | Crear/Editar, Liga, QR, Opciones, Accesos/Historial | Adoptado |
+| RH Asistencia | Operational Workspace | Crear/Editar, Liga, QR, Opciones, confirmación de eliminación | Adoptado |
+| Caja Chica | Operational Workspace | Crear/Editar, Liga, QR, Opciones, confirmación de eliminación | Adoptado |
+| Expenses / Cuentas por Pagar | Operational Workspace | Crear/Editar, Liga, QR, Opciones, acceso de proveedor y confirmaciones de ciclo de vida | Adoptado |
+| Punto de Venta | Sin cambios en esta pasada | Conserva sus flujos vigentes | Excluido expresamente del alcance del 20 de julio de 2026 |
+
+La primitive compartida estandariza únicamente presentación, targets, tonos y jerarquía. Activar, pausar, rotar liga, eliminar acceso, emitir PIN y administrar proveedores continúan ejecutando los servicios del módulo propietario y sus validaciones backend.
+
+### 21.14 Secuencia para futuros kioskos
+
+Un kiosko nuevo se conecta a este patrón en el siguiente orden:
+
+1. registrar definición, tipo y módulo propietario;
+2. declarar capabilities versionadas y política de operación;
+3. implementar adapter, comandos, queries y archivo bajo autoridad del módulo;
+4. integrar `KioskPublicShell`, session boundary y, si aplica, `KioskIdentityGate`;
+5. clasificar cada tarea temporal que realmente necesite modal;
+6. componerla con `KioskModalFrame` y primitives `indice-modal`;
+7. conectar la acción al dispatcher con CSRF, idempotencia y sesión;
+8. localizar copy, errores y etiquetas accesibles;
+9. probar mobile, teclado, archivos, fallos, expiración y doble envío;
+10. certificar paridad funcional y auditoría antes de retirar el overlay legacy.
+
+### 21.15 Criterios de aceptación de modales de kiosko
+
+- [ ] El kiosko principal sigue siendo Full Workspace.
+- [ ] Cada modal tiene clasificación explícita.
+- [ ] `KioskModalFrame` extiende `IndiceModalFrame` y no duplica infraestructura.
+- [ ] Header y footer usan el tono del módulo; el cuerpo permanece neutral.
+- [ ] Solo el body hace scroll y el footer permanece accesible sobre teclado y safe area.
+- [ ] Existe una sola acción primaria; la acción destructiva está separada.
+- [ ] No existen overlays anidados.
+- [ ] Focus trap, restauración de foco, Escape, lector de pantalla y touch targets están verificados.
+- [ ] Capability, sesión, scope, CSRF e idempotencia se revalidan en backend.
+- [ ] Archivos completan presign, registro, adopción y auditoría antes de considerarse evidencia.
+- [ ] Expiración o reset limpia estado sensible y cierra el modal.
+- [ ] Loading, empty, validation, offline, submitting, partial-file-failure, success y retry están cubiertos.
+- [ ] La experiencia pública fue probada a 320, 360, 390, 430 y 480 CSS pixels.
+- [ ] La administración fue probada en tablet y desktop dentro del máximo de su tipo.
+- [ ] Copy visible, títulos, errores, tooltips y `aria-label` están localizados.
 
 ---
 

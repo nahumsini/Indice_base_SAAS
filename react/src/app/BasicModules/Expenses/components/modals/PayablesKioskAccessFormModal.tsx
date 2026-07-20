@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { Loader2, Store } from 'lucide-react';
-import { IndiceModalFrame } from '../../../../components/indice-modal';
+import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { PayableKiosk } from '../../services';
 import type { PayableKioskFormState } from './PayablesKioskManagementModal';
@@ -39,15 +39,14 @@ export function PayablesKioskAccessFormModal({
     : businessOptions;
 
   return (
-    <IndiceModalFrame
+    <KioskModalFrame
       busy={isSaving}
-      contentClassName="sm:max-w-[560px]"
       description={copy.formDescription}
       eyebrow={editing ? t.common.edit : copy.newAccess}
       footer={(
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-          <button type="button" disabled={isSaving} onClick={onClose} className="h-11 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">{t.common.cancel}</button>
-          <button type="button" disabled={isSaving || !form.name.trim()} onClick={onSave} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:opacity-50">
+          <button type="button" disabled={isSaving} onClick={onClose} className="h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">{t.common.cancel}</button>
+          <button type="button" disabled={isSaving || !form.name.trim()} onClick={onSave} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#147514] px-5 text-sm font-semibold text-white transition hover:bg-[#105F10] disabled:opacity-50">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {editing ? t.common.saveChanges : copy.createAccess}
           </button>
@@ -55,9 +54,10 @@ export function PayablesKioskAccessFormModal({
       )}
       footerSummary={form.name || copy.newAccess}
       icon={<Store className="h-5 w-5" />}
-      modalType="standard-form"
       onOpenChange={(open) => !open && onClose()}
       open={isOpen}
+      size="form"
+      surface="administration"
       title={editing ? copy.editTitle : copy.createTitle}
       tone="green"
     >
@@ -94,7 +94,7 @@ export function PayablesKioskAccessFormModal({
               </Field>
             </div>
           </div>
-    </IndiceModalFrame>
+    </KioskModalFrame>
   );
 }
 

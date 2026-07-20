@@ -5,7 +5,6 @@ import com.indice.erp.hr.attendance.models.AccessMethodRow;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -99,10 +98,8 @@ class AttendanceAccessCredentialService {
     }
 
     boolean matchesPin(long companyId, String credentialPayload, AccessMethodRow method) {
-        var credentialRef = kioskTokenService.pinCredentialReference(companyId, credentialPayload);
         return method.secretHash() != null
             && !method.secretHash().isBlank()
-            && (method.credentialRef() == null || method.credentialRef().isBlank() || Objects.equals(method.credentialRef(), credentialRef))
             && passwordEncoder.matches(credentialPayload, method.secretHash());
     }
 }

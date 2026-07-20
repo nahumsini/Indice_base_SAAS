@@ -1,8 +1,7 @@
-import { Building2, ExternalLink, Link2, MapPin, Radio, ShieldCheck } from 'lucide-react';
+import { Building2, ExternalLink, Link2, MapPin, MoreHorizontal, Pencil, Radio, Share2, ShieldCheck } from 'lucide-react';
 import { type AttendanceKioskDevice } from '../../../../../api/humanResources';
-import { Button } from '../../../../../components/ui/button';
+import { KioskAdminActionButton } from '../../../../../components/kiosk-engine/KioskAdminPrimitives';
 import type { ControlTranslations } from '../../translations';
-import { KioskActionsMenu } from './KioskActionsMenu';
 
 export interface KioskCardProps {
   device: AttendanceKioskDevice;
@@ -16,12 +15,10 @@ export interface KioskCardProps {
   statusClassName: string;
   statusLabel: string;
   usageLabel: string;
-  onCopy: () => void;
-  onDelete: () => void;
   onEdit: () => void;
+  onMore: () => void;
   onOpen: () => void;
-  onRotate: () => void;
-  onShowQr: () => void;
+  onShare: () => void;
 }
 
 export function KioskCard({
@@ -36,12 +33,10 @@ export function KioskCard({
   statusClassName,
   statusLabel,
   usageLabel,
-  onCopy,
-  onDelete,
   onEdit,
+  onMore,
   onOpen,
-  onRotate,
-  onShowQr,
+  onShare,
 }: KioskCardProps) {
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#59C3A5]/30 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
@@ -98,26 +93,19 @@ export function KioskCard({
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
-          <Button
-            type="button"
-            className="h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#3AAE90] hover:shadow-md disabled:hover:translate-y-0 disabled:hover:shadow-sm"
-            disabled={isSaving}
-            onClick={onOpen}
-          >
+        <div className="grid shrink-0 grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label={copy.kiosk.actions.openActions}>
+          <KioskAdminActionButton accent="aqua" disabled={isSaving} label={copy.kiosk.actions.editAttendancePoint} onClick={onEdit} tone="primary">
+            <Pencil className="h-4 w-4" />
+          </KioskAdminActionButton>
+          <KioskAdminActionButton accent="aqua" disabled={isSaving} label={copy.kiosk.card.openAttendanceScreen} onClick={onOpen}>
             <ExternalLink className="h-4 w-4" />
-            {copy.kiosk.card.openAttendanceScreen}
-          </Button>
-          <KioskActionsMenu
-            copy={copy}
-            hasPublicLink={hasPublicLink}
-            isSaving={isSaving}
-            onCopy={onCopy}
-            onDelete={onDelete}
-            onEdit={onEdit}
-            onRotate={onRotate}
-            onShowQr={onShowQr}
-          />
+          </KioskAdminActionButton>
+          <KioskAdminActionButton accent="aqua" disabled={isSaving} label={copy.kiosk.actions.copyAccessLink} onClick={onShare}>
+            <Share2 className="h-4 w-4" />
+          </KioskAdminActionButton>
+          <KioskAdminActionButton accent="aqua" disabled={isSaving} label={copy.kiosk.actions.openActions} onClick={onMore}>
+            <MoreHorizontal className="h-4 w-4" />
+          </KioskAdminActionButton>
         </div>
       </div>
     </article>

@@ -3,6 +3,7 @@ package com.indice.erp.finance.payablekiosk;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.finance.kiosk.FinanceKioskModuleAuditService;
 import com.indice.erp.finance.payablekiosk.dto.PublicProviderRegistrationRequest;
+import com.indice.erp.finance.payablekiosk.dto.PublicPayableRequest;
 import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
@@ -71,15 +72,41 @@ class PayableKioskAdapterTest {
     }
 
     @Test
-    void onlyProviderSessionsCanSubmitPayablesOrEvidence() {
+    void providerAndEmployeeSessionsCanSubmitPayablesOrEvidence() {
         var request = KioskActionRequest.of(
             PayableKioskCapabilities.PAYABLE_CREATE,
             Map.of("concept", "Servicio"));
 
         assertThatThrownBy(() -> adapter.authorize(publicContext(), request).requireAllowed())
             .isInstanceOf(SecurityException.class)
-            .hasMessage("Provider kiosk authentication is required.");
+            .hasMessage("Personal kiosk authentication is required.");
         assertThat(adapter.authorize(providerContext(), request).allowed()).isTrue();
+        assertThat(adapter.authorize(employeeContext(), request).allowed()).isTrue();
+    }
+
+    @Test
+    void employeeSubmissionKeepsEmployeeIdentityAndSelectedProviderSeparate() {
+        var context = employeeContext();
+        var request = KioskActionRequest.of(
+            PayableKioskCapabilities.PAYABLE_CREATE,
+            Map.of(
+                "providerId", 222L,
+                "concept", "Servicio",
+                "subtotalAmount", 100,
+                "taxAmount", 0,
+                "totalAmount", 100,
+                "currencyCode", "MXN"));
+        given(service.createPayableForIdentity(
+            eq("payable-token"), eq("EMPLOYEE"), eq(44L), any(PublicPayableRequest.class)))
+            .willReturn(Map.of("expenseId", 901L, "status", "DRAFT"));
+
+        var response = adapter.execute(context, request);
+
+        assertThat(response).containsEntry("expenseId", 901L);
+        var payload = ArgumentCaptor.forClass(PublicPayableRequest.class);
+        then(service).should().createPayableForIdentity(
+            eq("payable-token"), eq("EMPLOYEE"), eq(44L), payload.capture());
+        assertThat(payload.getValue().providerId()).isEqualTo(222L);
     }
 
     @Test
@@ -109,7 +136,7 @@ class PayableKioskAdapterTest {
 
         assertThatThrownBy(() -> adapter.authorize(publicContext(), request).requireAllowed())
             .isInstanceOf(SecurityException.class)
-            .hasMessage("Provider kiosk authentication is required.");
+            .hasMessage("Personal kiosk authentication is required.");
     }
 
     private KioskExecutionContext publicContext() {
@@ -120,6 +147,15 @@ class PayableKioskAdapterTest {
     private KioskExecutionContext providerContext() {
         var session = new KioskSessionPrincipal(
             "session-provider", 17L, 7L, "PROVIDER", 91L,
+            Set.of(PayableKioskCapabilities.PAYABLE_CREATE + "@1"),
+            Instant.now().plusSeconds(600));
+        return KioskExecutionContext.publicLink(PayableKioskCapabilities.OWNER_MODULE, "payable-token")
+            .resolved(definition(), session);
+    }
+
+    private KioskExecutionContext employeeContext() {
+        var session = new KioskSessionPrincipal(
+            "session-employee", 17L, 7L, "EMPLOYEE", 44L,
             Set.of(PayableKioskCapabilities.PAYABLE_CREATE + "@1"),
             Instant.now().plusSeconds(600));
         return KioskExecutionContext.publicLink(PayableKioskCapabilities.OWNER_MODULE, "payable-token")

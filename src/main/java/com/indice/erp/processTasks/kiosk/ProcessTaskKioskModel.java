@@ -33,6 +33,7 @@ record ProcessTaskKioskEmployee(
 }
 
 record ProcessTaskKioskPinCandidate(
+    long methodId,
     long userCompanyId,
     long userId,
     String userCode,

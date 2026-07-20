@@ -5,12 +5,19 @@ import com.indice.erp.finance.payablekiosk.dto.PublicProviderRegistrationRequest
 import java.math.BigDecimal;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 
 @Repository
 class PayableKioskPublicRepository {
+
+    record EmployeePinCandidate(long identityId, String name, String secretHash) {
+    }
+
+    record PublicProvider(long id, String name) {
+    }
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -113,7 +120,7 @@ class PayableKioskPublicRepository {
                 """
                 SELECT COUNT(*)
                 FROM finance_providers
-                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                WHERE company_id = ? AND id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
                   AND (? IS NULL OR unit_id IS NULL OR unit_id = ?)
                   AND (? IS NULL OR business_id IS NULL OR business_id = ?)
                 """,
@@ -125,6 +132,59 @@ class PayableKioskPublicRepository {
                 kiosk.businessId(),
                 kiosk.businessId());
         return count != null && count > 0;
+    }
+
+    List<PublicProvider> availableProviders(PayableKioskRow kiosk) {
+        return jdbcTemplate.query(
+                """
+                SELECT id, name
+                FROM finance_providers
+                WHERE company_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+                  AND (? IS NULL OR unit_id IS NULL OR unit_id = ?)
+                  AND (? IS NULL OR business_id IS NULL OR business_id = ?)
+                ORDER BY name ASC, id ASC
+                """,
+                (rs, rowNum) -> new PublicProvider(rs.getLong("id"), rs.getString("name")),
+                kiosk.companyId(),
+                kiosk.unitId(), kiosk.unitId(),
+                kiosk.businessId(), kiosk.businessId());
+    }
+
+    List<EmployeePinCandidate> activeEmployeesForKiosk(PayableKioskRow kiosk) {
+        return jdbcTemplate.query(
+                """
+                SELECT credential.identity_id,
+                       TRIM(COALESCE(NULLIF(employee.full_name, ''), employee.email, '')) AS employee_name,
+                       credential.secret_hash
+                FROM kiosk_identity_credentials credential
+                JOIN user_companies membership
+                  ON membership.id = credential.identity_id
+                 AND membership.company_id = credential.company_id
+                JOIN hr_users employee
+                  ON employee.id = credential.identity_id
+                 AND employee.company_id = credential.company_id
+                WHERE credential.company_id = ?
+                  AND credential.identity_type = 'EMPLOYEE'
+                  AND credential.credential_type = 'PIN'
+                  AND credential.status = 'ACTIVE'
+                  AND credential.secret_hash IS NOT NULL
+                  AND credential.secret_hash <> ''
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                  AND LOWER(COALESCE(employee.status, 'active')) <> 'terminated'
+                  AND (
+                    (? IS NULL AND ? IS NULL)
+                    OR (employee.unit_id IS NULL AND employee.business_id IS NULL)
+                    OR (? IS NOT NULL AND employee.business_id = ?)
+                    OR (? IS NOT NULL AND employee.unit_id = ? AND employee.business_id IS NULL)
+                  )
+                ORDER BY credential.identity_id ASC
+                """,
+                (rs, rowNum) -> new EmployeePinCandidate(
+                    rs.getLong("identity_id"), rs.getString("employee_name"), rs.getString("secret_hash")),
+                kiosk.companyId(),
+                kiosk.unitId(), kiosk.businessId(),
+                kiosk.businessId(), kiosk.businessId(),
+                kiosk.unitId(), kiosk.unitId());
     }
 
     boolean payableBelongsToProvider(PayableKioskRow kiosk, long providerId, long expenseId) {
@@ -141,6 +201,22 @@ class PayableKioskPublicRepository {
                 expenseId,
                 providerId,
                 kiosk.id());
+        return count != null && count > 0;
+    }
+
+    boolean payableBelongsToEmployee(PayableKioskRow kiosk, long employeeId, long expenseId) {
+        var count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM finance_expenses
+                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                  AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.source')) = 'payable-kiosk'
+                  AND CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.kioskId')) AS UNSIGNED) = ?
+                  AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.actorType')) = 'EMPLOYEE'
+                  AND CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.actorId')) AS UNSIGNED) = ?
+                """,
+                Integer.class,
+                kiosk.companyId(), expenseId, kiosk.id(), employeeId);
         return count != null && count > 0;
     }
 

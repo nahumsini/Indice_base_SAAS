@@ -32,11 +32,12 @@ export const frCA = {
     complete: 'Terminer',
   },
   pin: {
-    title: 'Entrez votre NIP',
-    description: 'Utilisez le même NIP que pour la présence.',
+    title: 'Identifiez-vous pour continuer',
+    description: 'Entrez votre NIP personnel pour acceder de facon securisee.',
     placeholder: 'NIP',
     continue: 'Continuer',
     deleteKey: 'Effacer',
+    privacy: 'Vos tâches restent privées jusqu’à la validation de votre NIP.',
   },
   identity: {
     eyebrow: 'Employé identifié',
@@ -154,6 +155,8 @@ export const frCA = {
     unsupportedEvidence: (fileName: string) => `${fileName} n’est pas un fichier de preuve accepté.`,
     uploadFailure: 'Le téléversement de la preuve a échoué.',
     partialUploadFailure: 'Certaines preuves ont été téléversées, mais des fichiers ont échoué. Vérifiez la tâche avant de réessayer.',
+    completionUploadFailure: 'La tâche a été terminée, mais la preuve n’a pas pu être jointe.',
+    completionPartialUploadFailure: 'La tâche a été terminée et certaines preuves ont été jointes, mais des fichiers ont échoué.',
     completeFailure: 'Impossible de terminer cette tâche.',
     createTitleRequired: 'Le titre de la tâche est obligatoire.',
     createFailure: 'Impossible de créer cette tâche.',

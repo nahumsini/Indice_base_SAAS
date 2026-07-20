@@ -16,6 +16,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,8 @@ public class PettyCashPublicKioskService {
     private final PettyCashMapper mapper;
     private final PettyCashService pettyCashService;
     private final PettyCashAttachmentService attachmentService;
+    private final int inactivityTimeoutSeconds;
+    private final int sessionTtlSeconds;
     private final ConcurrentHashMap<String, PinFailureWindow> pinFailures = new ConcurrentHashMap<>();
 
     public PettyCashPublicKioskService(
@@ -43,7 +46,9 @@ public class PettyCashPublicKioskService {
             BCryptPasswordEncoder passwordEncoder,
             PettyCashMapper mapper,
             PettyCashService pettyCashService,
-            PettyCashAttachmentService attachmentService) {
+            PettyCashAttachmentService attachmentService,
+            @Value("${app.petty-cash.kiosk.inactivity-timeout-seconds:900}") int inactivityTimeoutSeconds,
+            @Value("${app.petty-cash.kiosk.session-ttl-seconds:14400}") int sessionTtlSeconds) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.tokenService = tokenService;
@@ -51,6 +56,8 @@ public class PettyCashPublicKioskService {
         this.mapper = mapper;
         this.pettyCashService = pettyCashService;
         this.attachmentService = attachmentService;
+        this.inactivityTimeoutSeconds = Math.max(30, inactivityTimeoutSeconds);
+        this.sessionTtlSeconds = Math.max(this.inactivityTimeoutSeconds, sessionTtlSeconds);
     }
 
     public Map<String, Object> publicBootstrap(String fundToken) {
@@ -59,7 +66,7 @@ public class PettyCashPublicKioskService {
         body.put("fund", publicFundMap(fund));
         body.put("scope_label", scopeLabel(fund));
         body.put("auth_methods", List.of("pin"));
-        body.put("inactivity_timeout_seconds", 180);
+        body.put("inactivity_timeout_seconds", inactivityTimeoutSeconds);
         return body;
     }
 
@@ -82,7 +89,7 @@ public class PettyCashPublicKioskService {
         clearPinFailures(fundToken);
         validateEmployeeAccess(fund, employee);
 
-        var expiresAtEpochSeconds = tokenService.nextIdentificationExpiryEpochSeconds();
+        var expiresAtEpochSeconds = Instant.now().plusSeconds(sessionTtlSeconds).getEpochSecond();
         var identificationToken = tokenService.createIdentificationToken(
             normalizeFundToken(fundToken),
             employee.userCompanyId(),
@@ -345,7 +352,8 @@ public class PettyCashPublicKioskService {
         var credentialRef = tokenService.pinCredentialReference(companyId, pin);
         var rows = jdbcTemplate.query(
             """
-                SELECT p.user_company_id,
+                SELECT m.id AS method_id,
+                       p.user_company_id,
                        uc.user_id,
                        COALESCE(e.user_code, '') AS user_code,
                        TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
@@ -363,10 +371,10 @@ public class PettyCashPublicKioskService {
                   AND COALESCE(LOWER(p.status), 'active') = 'active'
                   AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
                   AND m.method_type = 'pin'
-                  AND (m.credential_ref = ? OR m.credential_ref IS NULL OR m.credential_ref = '')
                 ORDER BY p.user_company_id ASC, m.priority ASC, m.id ASC
                 """,
             (rs, rowNum) -> new PinCandidate(
+                rs.getLong("method_id"),
                 rs.getLong("user_company_id"),
                 rs.getLong("user_id"),
                 fallback(rs.getString("user_code"), ""),
@@ -377,12 +385,17 @@ public class PettyCashPublicKioskService {
                 fallback(rs.getString("credential_ref"), ""),
                 fallback(rs.getString("secret_hash"), "")
             ),
-            companyId,
-            credentialRef
+            companyId
         );
 
         for (var candidate : rows) {
             if (!candidate.secretHash().isBlank() && passwordEncoder.matches(pin, candidate.secretHash())) {
+                if (!credentialRef.equals(candidate.credentialRef())) {
+                    jdbcTemplate.update(
+                        "UPDATE user_access_methods SET credential_ref = ? WHERE company_id = ? AND id = ?",
+                        credentialRef, companyId, candidate.methodId()
+                    );
+                }
                 return new PublicPettyCashEmployee(
                     candidate.userCompanyId(),
                     candidate.userId(),
@@ -794,6 +807,7 @@ public class PettyCashPublicKioskService {
     }
 
     private record PinCandidate(
+        long methodId,
         long userCompanyId,
         long userId,
         String userCode,

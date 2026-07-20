@@ -29,7 +29,7 @@ public class AttendanceKioskTokenService {
     public AttendanceKioskTokenService(
         ObjectMapper objectMapper,
         @Value("${app.hr.kiosk.identification-token-secret}") String tokenSecret,
-        @Value("${app.hr.kiosk.identification-token-ttl-seconds:120}") int identificationTokenTtlSeconds
+        @Value("${app.hr.kiosk.identification-token-ttl-seconds:180}") int identificationTokenTtlSeconds
     ) {
         this.objectMapper = objectMapper;
         if (tokenSecret == null || tokenSecret.trim().length() < 32) {

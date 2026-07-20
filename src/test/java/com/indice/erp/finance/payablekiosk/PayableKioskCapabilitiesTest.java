@@ -53,6 +53,6 @@ class PayableKioskCapabilitiesTest {
             .containsEntry("purpose", "payable-evidence");
         assertThat(upload.mutation()).isTrue();
         assertThat((List<String>) upload.filePolicy().get("extensions"))
-            .contains(".pdf", ".jpg", ".docx", ".xlsx");
+            .contains(".pdf", ".jpg", ".heic", ".heif", ".docx", ".xlsx");
     }
 }

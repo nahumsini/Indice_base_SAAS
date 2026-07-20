@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
   completeKioskIdempotentOperation,
+  executeKioskMutationWithMismatchRecovery as executeSharedKioskMutationWithMismatchRecovery,
   kioskIdempotencyKeyFor,
 } from '../src/app/components/kiosk-engine/kioskIdempotency.ts';
+import {
+  executeKioskMutationWithMismatchRecovery,
+  kioskIdempotencyKeyFor as taskKioskIdempotencyKeyFor,
+} from '../src/app/BasicModules/ProcessesTasks/Kiosk/kioskIdempotency.ts';
+import { runTaskCompletionWithBestEffortEvidence } from '../src/app/BasicModules/ProcessesTasks/Kiosk/publicTaskKioskEvidence.ts';
 import { resolvePreticketProductRequests } from '../src/app/BasicModules/PointOfSale/Sale/utils/preticketQueuePolicy.ts';
 import { applyPublicCatalogPriceVisibility } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogVisibility.ts';
 
@@ -47,6 +54,75 @@ test('idempotency retries reuse one opaque key without persisting kiosk PII', ()
   completeKioskIdempotentOperation(operation);
   const nextOperationKey = kioskIdempotencyKeyFor(operation, payload);
   assert.notEqual(nextOperationKey, firstKey);
+});
+
+test('task kiosk rotates a stale idempotency key once after a request mismatch', async () => {
+  const sessionStorage = memorySessionStorage();
+  globalThis.window = { sessionStorage };
+  const operation = 'process-tasks:create';
+  const staleKey = taskKioskIdempotencyKeyFor(operation, { title: 'previous task' });
+  const usedKeys = [];
+
+  const result = await executeKioskMutationWithMismatchRecovery({
+    operation,
+    payload: { title: 'current task' },
+    request: async (idempotencyKey) => {
+      usedKeys.push(idempotencyKey);
+      if (usedKeys.length === 1) {
+        throw new Error('Idempotency-Key was already used with another request.');
+      }
+      return 'created';
+    },
+  });
+
+  assert.equal(result, 'created');
+  assert.equal(usedKeys.length, 2);
+  assert.equal(usedKeys[0], staleKey);
+  assert.notEqual(usedKeys[1], staleKey);
+});
+
+test('shared finance kiosk mutations rotate a stale idempotency key once', async () => {
+  const sessionStorage = memorySessionStorage();
+  globalThis.window = { sessionStorage };
+  const operation = 'petty-cash:receipt:create';
+  const staleKey = kioskIdempotencyKeyFor(operation, { concept: 'previous' });
+  const usedKeys = [];
+
+  const result = await executeSharedKioskMutationWithMismatchRecovery({
+    operation,
+    payload: { concept: 'current' },
+    request: async (idempotencyKey) => {
+      usedKeys.push(idempotencyKey);
+      if (usedKeys.length === 1) {
+        throw new Error('Idempotency-Key was already used with another request.');
+      }
+      return 'created';
+    },
+  });
+
+  assert.equal(result, 'created');
+  assert.equal(usedKeys.length, 2);
+  assert.equal(usedKeys[0], staleKey);
+  assert.notEqual(usedKeys[1], staleKey);
+});
+
+test('task kiosk completion is not blocked by an evidence transport failure', async () => {
+  const calls = [];
+
+  const result = await runTaskCompletionWithBestEffortEvidence({
+    uploadEvidence: async () => {
+      calls.push('evidence');
+      throw new Error('TASK_EVIDENCE_UPLOAD_FAILED');
+    },
+    completeTask: async () => {
+      calls.push('complete');
+      return { status: 'completed' };
+    },
+  });
+
+  assert.deepEqual(calls, ['evidence', 'complete']);
+  assert.deepEqual(result.response, { status: 'completed' });
+  assert.equal(result.evidenceFailure, 'TASK_EVIDENCE_UPLOAD_FAILED');
 });
 
 test('public catalog removes every forbidden price field before rendering', () => {
@@ -104,4 +180,40 @@ test('pre-ticket product resolution is all-or-nothing', () => {
     products,
   );
   assert.deepEqual(invalidQuantity, { ok: false, requests: [] });
+});
+
+test('task kiosk manager keeps compact actions inside replacement modal views', async () => {
+  const source = await readFile(
+    new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/TaskKioskManagementModal.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.doesNotMatch(source, /DropdownMenu/);
+  assert.match(source, /label="Abrir kiosko"/);
+  assert.match(source, /label="Compartir y administrar liga"/);
+  assert.match(source, /title="Liga del kiosko"/);
+  assert.match(source, /title="Opciones del kiosko"/);
+  assert.match(source, /Reemplazar y emitir liga/);
+});
+
+test('administrative kiosk managers share replacement views without portaled action menus', async () => {
+  const [hrSource, hrCardSource, pettyCashSource, expensesSource] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/HumanResources/Control/components/kiosks/KioskManagementModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/HumanResources/Control/components/kiosks/KioskCard.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PettyCash/components/PettyCashFundsWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Expenses/components/modals/PayablesKioskManagementModal.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  for (const source of [`${hrSource}\n${hrCardSource}`, pettyCashSource, expensesSource]) {
+    assert.doesNotMatch(source, /DropdownMenu/);
+    assert.match(source, /KioskModalFrame/);
+    assert.match(source, /KioskAdminActionButton/);
+    assert.match(source, /KioskAdminPanelAction/);
+    assert.match(source, /Liga del kiosko|copy\.kiosk\.card\.openAttendanceScreen/);
+    assert.match(source, /Opciones del kiosko|copy\.kiosk\.actions\.openActions/);
+  }
+
+  assert.match(hrSource, /Compartir y administrar liga|copyAccessLink/);
+  assert.match(pettyCashSource, /Compartir y administrar liga/);
+  assert.match(expensesSource, /Compartir y administrar liga/);
 });

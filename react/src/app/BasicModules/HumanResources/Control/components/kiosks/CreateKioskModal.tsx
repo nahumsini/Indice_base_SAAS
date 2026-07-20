@@ -2,7 +2,7 @@ import { CheckCircle2, Lock, MonitorSmartphone, Save, Unlock, type LucideIcon } 
 import { type AttendanceKioskDevicePayload } from '../../../../../api/humanResources';
 import { Button } from '../../../../../components/ui/button';
 import type { ControlTranslations } from '../../translations';
-import { IndiceModalFrame } from '../../../../../components/indice-modal';
+import { KioskModalFrame } from '../../../../../components/kiosk-engine/KioskModalFrame';
 import { KioskFormSection } from './KioskFormSection';
 import type { KioskType } from './KioskTypeSelector';
 
@@ -79,7 +79,7 @@ export function CreateKioskModal({
   const canUseClosedAttendance = allowedKioskTypes.includes('business_unit');
 
   return (
-    <IndiceModalFrame
+    <KioskModalFrame
       busy={isSaving}
       closeLabel={copy.kiosk.form.closeAria}
       description={modalDescription}
@@ -96,9 +96,10 @@ export function CreateKioskModal({
       footerLeading={<Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>{copy.labels.cancel}</Button>}
       footerSummary={`${selectedScopeLabel} · ${selectedRadiusLabel}`}
       icon={<MonitorSmartphone className="h-5 w-5" />}
-      modalType="standard-form"
       onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}
       open={isOpen}
+      size="form"
+      surface="administration"
       title={modalTitle}
       tone="aqua"
     >
@@ -254,7 +255,7 @@ export function CreateKioskModal({
               </KioskFormSection>
             ) : null}
           </div>
-    </IndiceModalFrame>
+    </KioskModalFrame>
   );
 }
 

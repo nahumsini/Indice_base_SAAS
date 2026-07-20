@@ -1104,22 +1104,22 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       <TaskKioskConfirmationDialog
         open={Boolean(taskKioskPendingTransition)}
         title={taskKioskPendingTransition?.transition === 'revoke'
-          ? 'Revocar kiosko'
+          ? 'Cancelar acceso definitivamente'
           : taskKioskPendingTransition?.transition === 'rotate'
-            ? 'Rotar liga del kiosko'
-            : 'Desactivar kiosko'}
+            ? 'Reemplazar liga del kiosko'
+            : 'Pausar acceso al kiosko'}
         itemName={taskKioskPendingTransition?.kiosk.name}
         description={taskKioskPendingTransition?.transition === 'rotate'
           ? 'La liga actual dejará de funcionar y la nueva liga solo se mostrará durante esta sesión administrativa.'
           : taskKioskPendingTransition?.transition === 'revoke'
-            ? 'La revocación es definitiva. Para recuperar el acceso será necesario crear un kiosko nuevo.'
-            : 'El acceso quedará suspendido y las sesiones activas se cerrarán de inmediato.'}
+            ? 'La cancelación es definitiva. Para recuperar el acceso será necesario crear un kiosko nuevo.'
+            : 'El acceso quedará en pausa y las sesiones activas se cerrarán de inmediato. Podrás reactivarlo después.'}
         error={agendaError}
         confirmLabel={taskKioskPendingTransition?.transition === 'revoke'
-          ? 'Revocar definitivamente'
+          ? 'Cancelar definitivamente'
           : taskKioskPendingTransition?.transition === 'rotate'
-            ? 'Rotar y emitir una sola vez'
-            : 'Desactivar'}
+            ? 'Reemplazar y emitir una vez'
+            : 'Pausar acceso'}
         cancelLabel={agendaCopy.common.cancel}
         busy={isTaskKioskSaving}
         onCancel={handleCancelTaskKioskTransition}

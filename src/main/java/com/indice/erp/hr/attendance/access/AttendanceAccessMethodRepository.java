@@ -68,6 +68,19 @@ class AttendanceAccessMethodRepository {
         return count != null && count > 0;
     }
 
+    void updatePinCredentialReference(long companyId, long methodId, String credentialRef) {
+        jdbcTemplate.update(
+            """
+                UPDATE user_access_methods
+                SET credential_ref = ?
+                WHERE company_id = ? AND id = ? AND method_type = 'pin'
+                """,
+            credentialRef,
+            companyId,
+            methodId
+        );
+    }
+
     private String accessMethodsSql(String extraWhere) {
         return """
             SELECT m.id, m.company_id, m.access_profile_id, m.method_type,

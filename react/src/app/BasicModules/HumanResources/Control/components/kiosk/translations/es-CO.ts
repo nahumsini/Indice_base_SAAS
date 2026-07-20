@@ -3,7 +3,7 @@ import type { KioskTranslations } from './types';
 
 export const esCO = {
   ...esMX,
-  identifyDescription: 'Ingresa el PIN asignado por Talento Humano.',
+  identifyDescription: 'Ingresa tu PIN personal para acceder de forma segura.',
   waitingForPin: 'Esperando PIN del personal',
   identifiedTitle: 'Persona identificada',
   identifiedHint: 'Completa foto de verificacion y ubicacion GPS antes de registrar asistencia.',

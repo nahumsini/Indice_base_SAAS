@@ -1,5 +1,7 @@
 package com.indice.erp.kiosk.engine;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -9,9 +11,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class KioskEngineMaintenanceJob {
 
     private final JdbcTemplate jdbcTemplate;
+    private final int hrInactivityTimeoutSeconds;
+    private final int expensesInactivityTimeoutSeconds;
+    private final int pettyCashInactivityTimeoutSeconds;
+    private final int processTasksInactivityTimeoutSeconds;
 
-    public KioskEngineMaintenanceJob(JdbcTemplate jdbcTemplate) {
+    @Autowired
+    public KioskEngineMaintenanceJob(
+            JdbcTemplate jdbcTemplate,
+            @Value("${app.hr.kiosk.inactivity-timeout-seconds:180}") int hrInactivityTimeoutSeconds,
+            @Value("${app.expenses.kiosk.inactivity-timeout-seconds:300}") int expensesInactivityTimeoutSeconds,
+            @Value("${app.petty-cash.kiosk.inactivity-timeout-seconds:900}") int pettyCashInactivityTimeoutSeconds,
+            @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int processTasksInactivityTimeoutSeconds) {
         this.jdbcTemplate = jdbcTemplate;
+        this.hrInactivityTimeoutSeconds = timeoutSeconds(hrInactivityTimeoutSeconds, 180);
+        this.expensesInactivityTimeoutSeconds = timeoutSeconds(expensesInactivityTimeoutSeconds, 300);
+        this.pettyCashInactivityTimeoutSeconds = timeoutSeconds(pettyCashInactivityTimeoutSeconds, 900);
+        this.processTasksInactivityTimeoutSeconds = timeoutSeconds(processTasksInactivityTimeoutSeconds, 1800);
+    }
+
+    KioskEngineMaintenanceJob(JdbcTemplate jdbcTemplate) {
+        this(jdbcTemplate, 180, 300, 900, 1800);
     }
 
     @Scheduled(
@@ -75,6 +95,7 @@ public class KioskEngineMaintenanceJob {
             initialDelayString = "${app.kiosk-engine.session-cleanup-initial-delay-ms:30000}")
     @Transactional
     public int expireSessions() {
+        var inactivityExpired = inactivityExpiredPredicate();
         jdbcTemplate.update(
             """
                 INSERT INTO kiosk_audit_events (
@@ -90,13 +111,8 @@ public class KioskEngineMaintenanceJob {
                 JOIN kiosk_definitions definition ON definition.id = session.kiosk_definition_id
                 WHERE session.revoked_at IS NULL
                   AND (session.expires_at <= CURRENT_TIMESTAMP
-                       OR (definition.owner_module = 'PROCUREMENT'
-                           AND definition.kiosk_type = 'supplier_portal'
-                           AND session.last_activity_at < CURRENT_TIMESTAMP - INTERVAL 15 MINUTE)
-                       OR ((definition.owner_module <> 'PROCUREMENT'
-                            OR definition.kiosk_type <> 'supplier_portal')
-                           AND session.last_activity_at < CURRENT_TIMESTAMP - INTERVAL 3 MINUTE))
-                """
+                       OR %s)
+                """.formatted(inactivityExpired)
         );
         return jdbcTemplate.update(
             """
@@ -105,14 +121,34 @@ public class KioskEngineMaintenanceJob {
                 SET session.revoked_at = CURRENT_TIMESTAMP
                 WHERE session.revoked_at IS NULL
                   AND (session.expires_at <= CURRENT_TIMESTAMP
-                       OR (definition.owner_module = 'PROCUREMENT'
-                           AND definition.kiosk_type = 'supplier_portal'
-                           AND session.last_activity_at < CURRENT_TIMESTAMP - INTERVAL 15 MINUTE)
-                       OR ((definition.owner_module <> 'PROCUREMENT'
-                            OR definition.kiosk_type <> 'supplier_portal')
-                           AND session.last_activity_at < CURRENT_TIMESTAMP - INTERVAL 3 MINUTE))
-                """
+                       OR %s)
+                """.formatted(inactivityExpired)
         );
+    }
+
+    private String inactivityExpiredPredicate() {
+        return """
+            session.last_activity_at < TIMESTAMPADD(
+                SECOND,
+                -(CASE
+                    WHEN definition.owner_module = 'PROCUREMENT'
+                         AND definition.kiosk_type = 'supplier_portal' THEN 900
+                    WHEN definition.owner_module = 'HUMAN_RESOURCES' THEN %d
+                    WHEN definition.owner_module = 'EXPENSES' THEN %d
+                    WHEN definition.owner_module = 'PETTY_CASH' THEN %d
+                    WHEN definition.owner_module = 'PROCESS_TASKS' THEN %d
+                    ELSE 180
+                END),
+                CURRENT_TIMESTAMP)
+            """.formatted(
+                hrInactivityTimeoutSeconds,
+                expensesInactivityTimeoutSeconds,
+                pettyCashInactivityTimeoutSeconds,
+                processTasksInactivityTimeoutSeconds);
+    }
+
+    private static int timeoutSeconds(int configuredSeconds, int fallbackSeconds) {
+        return Math.max(30, configuredSeconds > 0 ? configuredSeconds : fallbackSeconds);
     }
 
     @Scheduled(

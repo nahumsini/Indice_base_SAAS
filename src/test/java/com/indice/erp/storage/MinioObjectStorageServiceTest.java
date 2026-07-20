@@ -50,14 +50,20 @@ class MinioObjectStorageServiceTest {
     @Test
     void presignUploadReturnsObjectKeyAndUrl() throws Exception {
         given(minioClient.getPresignedObjectUrl(any())).willReturn(
-            "http://minio:9000/indice-hr-attendance/upload-url?X-Amz-Signature=test"
+            "http://minio:9000/indice-hr-attendance/upload-url"
+                + "?X-Amz-Credential=minioadmin%2F20260720%2Fus-east-1%2Fs3%2Faws4_request"
+                + "&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost"
+                + "&X-Amz-Signature=test"
         );
 
         var upload = service.presignUpload("indice-hr-attendance", "hr/attendance/1/2/demo.jpg", "image/jpeg", 900);
 
         assertThat(upload.objectKey()).isEqualTo("hr/attendance/1/2/demo.jpg");
         assertThat(upload.uploadUrl()).isEqualTo(
-            "http://cdn.example.test:9000/indice-hr-attendance/upload-url?X-Amz-Signature=test"
+            "http://cdn.example.test:9000/indice-hr-attendance/upload-url"
+                + "?X-Amz-Credential=minioadmin%2F20260720%2Fus-east-1%2Fs3%2Faws4_request"
+                + "&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost"
+                + "&X-Amz-Signature=test"
         );
         assertThat(upload.uploadHeaders()).containsEntry("Content-Type", "image/jpeg");
         assertThat(upload.expiresAt()).isAfter(Instant.now());

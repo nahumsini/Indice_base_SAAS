@@ -123,11 +123,11 @@ export function KioskLanguageSelector({
 
 export function KioskFlowStepper({ stepLabel, steps }: { stepLabel: string; steps: KioskStepItem[] }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2">
       {steps.map(({ label, state, Icon }, index) => (
         <div
           key={label}
-          className={`relative overflow-hidden rounded-lg border px-4 py-3 transition ${
+          className={`relative overflow-hidden rounded-lg border px-3 py-3 transition ${
             state === 'done'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200'
               : state === 'active'
@@ -138,7 +138,7 @@ export function KioskFlowStepper({ stepLabel, steps }: { stepLabel: string; step
           {state === 'active' ? <div className="absolute inset-y-0 left-0 w-1 bg-[#59C3A5] dark:bg-[#8FE0CA]" /> : null}
           <div className="flex items-center gap-3">
             <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
                 state === 'done'
                   ? 'bg-emerald-500 text-white'
                   : state === 'active'

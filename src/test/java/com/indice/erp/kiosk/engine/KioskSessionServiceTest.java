@@ -156,6 +156,71 @@ class KioskSessionServiceTest {
             contains("last_activity_at = CURRENT_TIMESTAMP"), any(Object[].class));
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void processTasksKeepsAnActiveWorkSessionForThirtyMinutes() throws Exception {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        var rs = sessionRow(
+            "[\"process-tasks.tasks.read@1\"]",
+            Instant.now().minusSeconds(20 * 60), Instant.now().plusSeconds(60 * 60), null);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(rs, 0));
+            });
+        given(jdbcTemplate.queryForObject(
+            contains("FROM kiosk_grants"), org.mockito.ArgumentMatchers.eq(Integer.class),
+            any(Object[].class))).willReturn(1);
+
+        var session = service.requireSession(
+            definition(), capability(), Map.of("identification_token", "raw-token"), null);
+
+        assertThat(session.sessionId()).isEqualTo("session-1");
+        verify(jdbcTemplate).update(
+            contains("last_activity_at = CURRENT_TIMESTAMP"), any(Object[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void pettyCashKeepsAnActiveWorkSessionForFifteenMinutes() throws Exception {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        var rs = sessionRow(
+            "[\"process-tasks.tasks.read@1\"]",
+            Instant.now().minusSeconds(10 * 60), Instant.now().plusSeconds(60 * 60), null);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(rs, 0));
+            });
+        given(jdbcTemplate.queryForObject(
+            contains("FROM kiosk_grants"), org.mockito.ArgumentMatchers.eq(Integer.class),
+            any(Object[].class))).willReturn(1);
+
+        var session = service.requireSession(
+            pettyCashDefinition(), capability(), Map.of("identification_token", "raw-token"), null);
+
+        assertThat(session.sessionId()).isEqualTo("session-1");
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void expensesExpiresAfterFiveMinutesWithoutServerActivity() throws Exception {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        var rs = sessionRow(
+            "[\"process-tasks.tasks.read@1\"]",
+            Instant.now().minusSeconds((5 * 60) + 5), Instant.now().plusSeconds(60 * 60), null);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(rs, 0));
+            });
+
+        assertThatThrownBy(() -> service.requireSession(
+            expensesDefinition(), capability(), Map.of("identification_token", "raw-token"), null))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Kiosk session expired.");
+    }
+
     private ResultSet sessionRow(
             String capabilities,
             Instant lastActivity,
@@ -200,6 +265,22 @@ class KioskSessionServiceTest {
         return new KioskResolvedDefinition(
             18L, 7L, "PROCUREMENT", "supplier_portal", 32L,
             "SUPPLIER-PORTAL-32", "Supplier", KioskDefinitionStatus.ACTIVE,
+            2L, 3L, null, KioskAccessLevel.CONTROLLED,
+            null, "tokenhint", true, 1, 1);
+    }
+
+    private KioskResolvedDefinition pettyCashDefinition() {
+        return new KioskResolvedDefinition(
+            19L, 7L, "PETTY_CASH", "receipt_capture", 33L,
+            "PETTY-CASH-33", "Petty cash", KioskDefinitionStatus.ACTIVE,
+            2L, 3L, null, KioskAccessLevel.CONTROLLED,
+            null, "tokenhint", true, 1, 1);
+    }
+
+    private KioskResolvedDefinition expensesDefinition() {
+        return new KioskResolvedDefinition(
+            20L, 7L, "EXPENSES", "accounts_payable", 34L,
+            "EXPENSES-34", "Expenses", KioskDefinitionStatus.ACTIVE,
             2L, 3L, null, KioskAccessLevel.CONTROLLED,
             null, "tokenhint", true, 1, 1);
     }

@@ -32,11 +32,12 @@ export const koCA = {
     complete: '완료',
   },
   pin: {
-    title: 'PIN 입력',
-    description: '출근 기록에 사용하는 같은 PIN을 입력하세요.',
+    title: '계속하려면 본인을 확인하세요',
+    description: '안전하게 접속하려면 개인 PIN을 입력하세요.',
     placeholder: 'PIN',
     continue: '계속',
     deleteKey: '삭제',
+    privacy: 'PIN이 확인될 때까지 할당된 작업은 비공개로 유지됩니다.',
   },
   identity: {
     eyebrow: '직원 확인됨',
@@ -154,6 +155,8 @@ export const koCA = {
     unsupportedEvidence: (fileName: string) => `${fileName} 파일은 지원되는 증빙 형식이 아닙니다.`,
     uploadFailure: '작업 증빙 업로드에 실패했습니다.',
     partialUploadFailure: '일부 증빙만 업로드되었습니다. 다시 시도하기 전에 작업을 확인하세요.',
+    completionUploadFailure: '작업은 완료되었지만 증빙을 첨부하지 못했습니다.',
+    completionPartialUploadFailure: '작업은 완료되었고 일부 증빙이 첨부되었지만 몇몇 파일은 실패했습니다.',
     completeFailure: '이 작업을 완료할 수 없습니다.',
     createTitleRequired: '작업 제목은 필수입니다.',
     createFailure: '이 작업을 만들 수 없습니다.',

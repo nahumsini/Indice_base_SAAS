@@ -1,7 +1,15 @@
+import { Delete } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { MODULE_COLORS, type IndiceModuleTone } from '../../styles/moduleColors';
 
 export type KioskThemeTone = IndiceModuleTone;
+
+export interface KioskWorkspaceTabItem<Value extends string> {
+  badge?: number;
+  icon?: ReactNode;
+  label: string;
+  value: Value;
+}
 
 function kioskTone(tone: KioskThemeTone) {
   return MODULE_COLORS[tone];
@@ -95,6 +103,8 @@ export function KioskAccessPanel({
 }
 
 export function KioskPinKeypad({
+  backspaceLabel,
+  clearLabel,
   deleteLabel,
   disabled,
   maxLength,
@@ -102,6 +112,8 @@ export function KioskPinKeypad({
   tone,
   value,
 }: {
+  backspaceLabel?: string;
+  clearLabel?: string;
   deleteLabel: string;
   disabled: boolean;
   maxLength: number;
@@ -110,7 +122,9 @@ export function KioskPinKeypad({
   value: string;
 }) {
   const theme = kioskTone(tone);
-  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'backspace', '0'];
+  const keys = clearLabel
+    ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'backspace']
+    : ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'backspace', '0'];
 
   return (
     <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -119,7 +133,8 @@ export function KioskPinKeypad({
           key={key}
           type="button"
           disabled={disabled}
-          className={`flex h-14 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl font-bold text-slate-950 shadow-sm outline-none transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${theme.iconHover} ${key === '0' ? 'col-start-2' : ''}`}
+          aria-label={key === 'backspace' ? (backspaceLabel ?? deleteLabel) : key === 'clear' ? clearLabel : key}
+          className={`flex h-14 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl font-bold text-slate-950 shadow-[0_5px_12px_-9px_rgba(15,23,42,0.65)] outline-none transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${theme.iconHover} ${key === '0' && !clearLabel ? 'col-start-2' : ''}`}
           onFocus={event => { event.currentTarget.style.borderColor = theme.primary; }}
           onBlur={event => { event.currentTarget.style.borderColor = ''; }}
           onMouseEnter={event => { if (!disabled) event.currentTarget.style.borderColor = theme.primary; }}
@@ -129,13 +144,79 @@ export function KioskPinKeypad({
               onChange(value.slice(0, -1));
               return;
             }
+            if (key === 'clear') {
+              onChange('');
+              return;
+            }
             onChange(`${value}${key}`.replace(/\D/g, '').slice(0, maxLength));
           }}
         >
-          {key === 'backspace' ? deleteLabel : key}
+          {key === 'backspace'
+            ? <Delete aria-hidden="true" className="h-5 w-5" />
+            : key === 'clear'
+              ? <span className="text-xs font-black uppercase tracking-wide">{clearLabel}</span>
+              : key}
         </button>
       ))}
     </div>
+  );
+}
+
+/** Mobile-first kiosk navigation. Keep it immediately below the workspace title. */
+export function KioskWorkspaceTabs<Value extends string>({
+  activeBackgroundColor,
+  activeTextClassName,
+  activeValue,
+  ariaLabel,
+  items,
+  onChange,
+  sticky = true,
+  tone,
+}: {
+  activeBackgroundColor?: string;
+  activeTextClassName?: string;
+  activeValue: Value;
+  ariaLabel: string;
+  items: ReadonlyArray<KioskWorkspaceTabItem<Value>>;
+  onChange: (value: Value) => void;
+  sticky?: boolean;
+  tone: KioskThemeTone;
+}) {
+  const theme = kioskTone(tone);
+  const activeTextClass = activeTextClassName ?? (tone === 'aqua' || tone === 'yellow' || tone === 'gold'
+    ? 'text-slate-950'
+    : 'text-white');
+
+  return (
+    <nav
+      aria-label={ariaLabel}
+      className={`${sticky ? 'sticky top-0 z-20' : ''} grid gap-1.5 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/95`}
+      role="tablist"
+      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+    >
+      {items.map(item => {
+        const active = activeValue === item.value;
+        return (
+          <button
+            aria-selected={active}
+            className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-[11px] font-semibold leading-tight outline-none transition focus-visible:ring-4 focus-visible:ring-slate-400/25 ${active ? `${activeTextClass} shadow-sm` : `bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ${theme.iconHover}`}`}
+            key={item.value}
+            onClick={() => onChange(item.value)}
+            role="tab"
+            style={active ? { backgroundColor: activeBackgroundColor ?? theme.primary } : undefined}
+            type="button"
+          >
+            {item.icon ? <span aria-hidden="true">{item.icon}</span> : null}
+            <span className="w-full truncate text-center">{item.label}</span>
+            {typeof item.badge === 'number' ? (
+              <span className={`absolute right-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] leading-none ${active ? 'bg-white/20' : 'bg-white text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-300'}`}>
+                {item.badge}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -197,18 +278,18 @@ export function KioskIdentitySummary({
           {action}
         </div>
       </div>
-      <div className="flex flex-col gap-4 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-black text-slate-950 shadow-sm sm:h-16 sm:w-16 sm:text-xl" style={{ backgroundColor: theme.primary }}>
+      <div className="p-3 sm:p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-black text-slate-950 shadow-sm" style={{ backgroundColor: theme.primary }}>
             {initials}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">{verifiedLabel}</p>
-            <p className="mt-1 truncate text-xl font-black text-slate-950 dark:text-white sm:text-2xl">{name}</p>
-            <p className="mt-1 truncate text-sm text-slate-600 dark:text-slate-300">{detail}</p>
+            <p className="mt-1 line-clamp-2 break-words text-lg font-black leading-tight text-slate-950 dark:text-white">{name}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{detail}</p>
           </div>
         </div>
-        <div className={`rounded-lg border px-3 py-2 text-sm font-black ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder} ${theme.text} ${theme.darkText}`}>
+        <div className={`mt-3 w-full truncate rounded-lg border px-3 py-2 text-sm font-black ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder} ${theme.text} ${theme.darkText}`}>
           {scopeLabel}
         </div>
       </div>

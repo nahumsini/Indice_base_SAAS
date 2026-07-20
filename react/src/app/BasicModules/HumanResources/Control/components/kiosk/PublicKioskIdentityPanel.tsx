@@ -1,20 +1,16 @@
 import {
-  ArrowRight,
-  Camera,
-  CheckCircle2,
-  KeyRound,
+  Check,
   LocateFixed,
+  LogIn,
+  LogOut,
   MapPin,
   RefreshCw,
-  ScanFace,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { LiveFaceChallengeCapture } from '../../../../../components/LiveFaceChallenge';
+import { KioskIdentityGate } from '../../../../../components/kiosk-engine/KioskIdentityGate';
 import { Button } from '../../../../../components/ui/button';
-import { Input } from '../../../../../components/ui/input';
-import {
-  deriveInitials,
-  KioskPinKeypad,
-} from './PublicKioskComponents';
+import { deriveInitials, type KioskStepItem } from './PublicKioskComponents';
 import { PublicKioskActivityCard } from './PublicKioskActivityCard';
 import { PublicKioskVerificationSection } from './PublicKioskVerificationSection';
 import type { KioskTranslations } from './translations';
@@ -25,7 +21,6 @@ import type {
   KioskHrUser,
   KioskLocationState,
   KioskTodayActivity,
-  PublicKioskMethod,
 } from './publicKioskTypes';
 
 interface PublicKioskIdentityPanelProps {
@@ -35,29 +30,23 @@ interface PublicKioskIdentityPanelProps {
   busyState: 'idle' | 'identifying' | 'recording' | 'locating' | 'verifyingFace';
   canCheckIn: boolean;
   canCheckOut: boolean;
-  canIdentify: boolean;
   copy: KioskTranslations;
   credentialPlaceholder: string;
   credentialValue: string;
   errorMessage: string;
   evidenceMode: EvidenceMode;
-  expiresAt: string;
   faceErrorMessage: string;
   faceStatus: FaceStatus;
   faceVerificationSessionId: number | null;
   fallbackPhotoUpload: FallbackPhotoUploadState;
-  hasIdentityEvidence: boolean;
   identificationToken: string;
   identifiedHrUser: KioskHrUser | null;
   isLoading: boolean;
   kioskLocationLabel: string;
+  kioskSteps: KioskStepItem[];
   locationButtonLabel: string;
-  locationHelpText: string;
   locationState: KioskLocationState | null;
   nextActionLabel: string;
-  selectedLocale: string;
-  selectedMethod: PublicKioskMethod;
-  verificationLocationLabel: string;
   formatActivityDate: (dateValue: string) => string;
   formatActivityTime: (dateTimeValue?: string | null) => string;
   onCredentialChange: (nextValue: string) => void;
@@ -79,29 +68,23 @@ export function PublicKioskIdentityPanel({
   busyState,
   canCheckIn,
   canCheckOut,
-  canIdentify,
   copy,
   credentialPlaceholder,
   credentialValue,
   errorMessage,
   evidenceMode,
-  expiresAt,
   faceErrorMessage,
   faceStatus,
   faceVerificationSessionId,
   fallbackPhotoUpload,
-  hasIdentityEvidence,
   identificationToken,
   identifiedHrUser,
   isLoading,
   kioskLocationLabel,
+  kioskSteps,
   locationButtonLabel,
-  locationHelpText,
   locationState,
   nextActionLabel,
-  selectedLocale,
-  selectedMethod,
-  verificationLocationLabel,
   formatActivityDate,
   formatActivityTime,
   onCredentialChange,
@@ -115,142 +98,106 @@ export function PublicKioskIdentityPanel({
   onRequestLocation,
   onReset,
 }: PublicKioskIdentityPanelProps) {
-  return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-none border-0 bg-transparent p-0 shadow-none dark:bg-transparent sm:rounded-lg sm:border sm:border-slate-200 sm:bg-white sm:p-5 sm:shadow-sm sm:dark:border-slate-800 sm:dark:bg-slate-950">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-            {identifiedHrUser ? copy.identifiedTitle : copy.identifyTitle}
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white sm:text-2xl">
-            {identifiedHrUser ? identifiedHrUser.full_name : copy.waitingForPin}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            {identifiedHrUser ? nextActionLabel : copy.identifyDescription}
-          </p>
-        </div>
-        <Button type="button" variant="outline" className="h-10 shrink-0 rounded-lg gap-2 px-3 sm:h-11" onClick={onReset}>
-          <RefreshCw className="h-4 w-4" />
-          {copy.reset}
-        </Button>
-      </div>
+  const hasIdentityEvidence = evidenceMode === 'face'
+    ? faceVerificationSessionId !== null
+    : fallbackPhotoUpload.photo !== null;
+  const [verificationExpanded, setVerificationExpanded] = useState(true);
 
+  useEffect(() => {
+    setVerificationExpanded(true);
+  }, [identifiedHrUser?.id]);
+
+  useEffect(() => {
+    if (hasIdentityEvidence) {
+      setVerificationExpanded(false);
+    }
+  }, [hasIdentityEvidence]);
+
+  if (!identifiedHrUser) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {errorMessage ? (
+          <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-800/50 dark:bg-rose-950/50 dark:text-rose-200">
+            {errorMessage}
+          </div>
+        ) : null}
+        <KioskIdentityGate
+          backspaceLabel={copy.backspaceLabel}
+          clearLabel={copy.clearPinLabel}
+          description={copy.identifyDescription}
+          disabled={busyState !== 'idle' || isLoading}
+          isSubmitting={busyState === 'identifying'}
+          onPinChange={onCredentialChange}
+          onSubmit={onIdentify}
+          pinAriaLabel={credentialPlaceholder}
+          pinLength={5}
+          pinValue={credentialValue}
+          privacyMessage={copy.identityPrivacy}
+          submitClassName="!bg-[#177D66] !text-white hover:!bg-[#126553]"
+          submitLabel={copy.identify}
+          title={copy.identifyTitle}
+          tone="aqua"
+        />
+      </div>
+    );
+  }
+
+  const identityDetail = identifiedHrUser.position_title
+    || identifiedHrUser.department
+    || identifiedHrUser.user_code
+    || copy.pointReady;
+  const completedShift = Boolean(activeTodayActivity?.has_check_in && activeTodayActivity?.has_check_out);
+  const nextPunchType = completedShift
+    ? null
+    : activeTodayActivity?.has_check_in
+      ? 'check_out'
+      : 'check_in';
+  const nextPunchEnabled = nextPunchType === 'check_in' ? canCheckIn : canCheckOut;
+  const verificationLabel = evidenceMode === 'photo' ? copy.photoCaptured : copy.faceVerified;
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col bg-transparent p-0 dark:bg-transparent">
       {errorMessage ? (
-        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-800/50 dark:bg-rose-950/50 dark:text-rose-200">
+        <div role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-800/50 dark:bg-rose-950/50 dark:text-rose-200">
           {errorMessage}
         </div>
       ) : null}
 
-      {!identifiedHrUser ? (
-        <div className="mt-5 rounded-lg border border-[#59C3A5]/20 bg-[#59C3A5]/6 p-3 shadow-sm dark:border-[#8FE0CA]/20 dark:bg-[#8FE0CA]/10 sm:mt-7 sm:p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#59C3A5] dark:text-[#8FE0CA]">
-                {copy.steps.pin}
-              </p>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                {copy.methods[selectedMethod]}
-              </p>
+      <div className="space-y-3 pb-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_34px_-32px_rgba(15,23,42,0.8)] dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/14 text-base font-black text-[#177D66] dark:bg-[#8FE0CA]/12 dark:text-[#8FE0CA]">
+              {deriveInitials(identifiedHrUser.full_name)}
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#59C3A5] text-white shadow-sm dark:bg-[#8FE0CA] dark:text-slate-950">
-              <KeyRound className="h-6 w-6" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#177D66] dark:text-[#8FE0CA]">
+                {copy.identifiedTitle}
+              </p>
+              <h2 className="mt-1 line-clamp-2 text-lg font-black leading-tight tracking-tight text-slate-950 dark:text-white">
+                {identifiedHrUser.full_name}
+              </h2>
+              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{identityDetail}</p>
             </div>
-          </div>
-
-          <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {copy.credentialLabel}
-          </label>
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]">
-            <Input
-              type="password"
-              value={credentialValue}
-              onChange={(event) => onCredentialChange(event.target.value.replace(/\D/g, '').slice(0, 5))}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  onIdentify();
-                }
-              }}
-              placeholder={credentialPlaceholder}
-              inputMode="numeric"
-              maxLength={5}
-              autoFocus
-              autoComplete="off"
-              enterKeyHint="done"
-              className="h-16 rounded-lg border-[#59C3A5]/25 bg-white text-center text-2xl font-semibold tracking-[0.35em] text-slate-950 shadow-inner outline-none placeholder:tracking-normal dark:border-[#8FE0CA]/25 dark:bg-slate-950 dark:text-white sm:h-24 sm:text-4xl sm:tracking-[0.42em]"
-            />
             <Button
               type="button"
-              disabled={!canIdentify}
-              className="h-14 rounded-lg bg-[#59C3A5] px-6 text-base font-semibold text-white shadow-sm hover:bg-[#3AAE90] disabled:opacity-45 dark:bg-[#8FE0CA] dark:text-slate-950 dark:hover:bg-[#a9c7ff] sm:h-24"
-              onClick={onIdentify}
+              variant="outline"
+              aria-label={copy.reset}
+              className="h-10 shrink-0 gap-2 rounded-xl border-slate-200 bg-white px-3 text-xs font-black text-slate-600 hover:border-[#177D66]/30 hover:text-[#177D66] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+              onClick={onReset}
             >
-              <KeyRound className="h-5 w-5" />
-              {copy.identify}
-              <ArrowRight className="h-5 w-5" />
+              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+              <span className="hidden min-[390px]:inline">{copy.reset}</span>
             </Button>
           </div>
-          <div className="mt-4 max-w-none sm:max-w-xl">
-            <KioskPinKeypad
-              value={credentialValue}
-              disabled={busyState !== 'idle' || isLoading}
-              backspaceLabel={copy.backspaceLabel}
-              onChange={onCredentialChange}
-            />
+          <div className="mt-3 flex min-w-0 items-center gap-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">
+            <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-[#177D66] dark:text-[#8FE0CA]" />
+            <span className="truncate">{kioskLocationLabel}</span>
           </div>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-4 pb-28 sm:mt-6 sm:space-y-5 sm:pb-0">
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50/85 p-3 dark:border-emerald-800/50 dark:bg-emerald-950/35 sm:p-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#59C3A5] text-base font-semibold text-white shadow-sm dark:bg-[#8FE0CA] dark:text-slate-950 sm:h-16 sm:w-16 sm:text-xl">
-                  {deriveInitials(identifiedHrUser.full_name)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">
-                    {copy.identifiedTitle}
-                  </p>
-                  <p className="mt-1 truncate text-xl font-semibold text-slate-950 dark:text-white sm:text-2xl">{identifiedHrUser.full_name}</p>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    {identifiedHrUser.user_code || identifiedHrUser.position_title || identifiedHrUser.department || '—'}
-                  </p>
-                </div>
-              </div>
-              {expiresAt ? (
-                <div className="rounded-lg border border-emerald-200 bg-white/80 px-4 py-3 text-right text-xs text-slate-500 dark:border-emerald-800/50 dark:bg-slate-950/65 dark:text-slate-400">
-                  <p className="font-semibold uppercase tracking-[0.18em]">{copy.nextAction}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                    {new Date(expiresAt).toLocaleTimeString(selectedLocale, { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </div>
+        </section>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm dark:border-emerald-800/50 dark:bg-slate-950">
-              <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-300">
-                <CheckCircle2 className="h-5 w-5" />
-                {copy.identify}
-              </div>
-            </div>
-            <div className={`rounded-lg border px-4 py-3 text-sm ${hasIdentityEvidence ? 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-800/50 dark:bg-slate-950 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'}`}>
-              <div className="flex items-center gap-2 font-semibold">
-                {evidenceMode === 'face' ? <ScanFace className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
-                {hasIdentityEvidence
-                  ? evidenceMode === 'face' ? copy.faceVerified : copy.photoCaptured
-                  : evidenceMode === 'face' ? copy.faceRecognition : copy.photoVerification}
-              </div>
-            </div>
-            <div className={`rounded-lg border px-4 py-3 text-sm ${locationState ? 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-800/50 dark:bg-slate-950 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'}`}>
-              <div className="flex items-center gap-2 font-semibold">
-                <LocateFixed className="h-5 w-5" />
-                {verificationLocationLabel}
-              </div>
-            </div>
-          </div>
+        <KioskProgressRail nextActionLabel={nextActionLabel} stepLabel={copy.stepLabel} steps={kioskSteps} />
 
+        {!hasIdentityEvidence || verificationExpanded ? (
           <PublicKioskVerificationSection
             copy={copy}
             evidenceMode={evidenceMode}
@@ -266,57 +213,161 @@ export function PublicKioskIdentityPanel({
             onFaceVerification={onFaceVerification}
             onPhotoError={onPhotoError}
           />
+        ) : (
+          <section className="flex items-center gap-3 rounded-xl border border-[#59C3A5]/30 bg-white p-3 shadow-sm dark:border-[#8FE0CA]/25 dark:bg-slate-950">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/12 text-[#177D66] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
+              <Check aria-hidden="true" className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#177D66] dark:text-[#8FE0CA]">{copy.steps.identity}</p>
+              <p className="mt-0.5 truncate text-sm font-black text-slate-950 dark:text-white">{verificationLabel}</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 shrink-0 rounded-lg px-3 text-xs font-black text-[#177D66] hover:bg-[#59C3A5]/10 dark:text-[#8FE0CA]"
+              onClick={() => {
+                if (evidenceMode === 'face') {
+                  onFaceRestart();
+                }
+                setVerificationExpanded(true);
+              }}
+            >
+              {evidenceMode === 'photo' ? copy.retakePhoto : copy.retry}
+            </Button>
+          </section>
+        )}
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50/90 p-3 dark:border-slate-700 dark:bg-slate-900/70 sm:p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
-                  <MapPin className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{copy.location}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{kioskLocationLabel}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{locationHelpText}</p>
-                </div>
+        {hasIdentityEvidence ? (
+          <section className={`rounded-2xl border bg-white p-4 shadow-[0_14px_34px_-32px_rgba(15,23,42,0.8)] dark:bg-slate-950 ${locationState ? 'border-[#59C3A5]/30 dark:border-[#8FE0CA]/25' : 'border-slate-200 dark:border-slate-800'}`}>
+            <div className="flex min-w-0 items-start gap-3">
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${locationState ? 'bg-[#59C3A5]/12 text-[#177D66] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]' : 'bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400'}`}>
+                {locationState ? <Check aria-hidden="true" className="h-5 w-5" /> : <MapPin aria-hidden="true" className="h-5 w-5" />}
               </div>
-              <Button type="button" variant="outline" className="h-11 rounded-lg gap-2 sm:h-12 sm:min-w-[13rem]" onClick={onRequestLocation}>
-                <LocateFixed className="h-4 w-4" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#177D66] dark:text-[#8FE0CA]">{copy.stepLabel} 3</p>
+                <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950 dark:text-white">{copy.steps.location}</h2>
+                <p className="mt-1 text-sm font-medium leading-5 text-slate-500 dark:text-slate-400">
+                  {locationState ? copy.locationReady : copy.locationRequiredHint}
+                </p>
+              </div>
+            </div>
+            {locationState ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-3 h-10 w-full gap-2 rounded-xl border border-slate-200 text-sm font-black text-[#177D66] hover:bg-[#59C3A5]/8 dark:border-slate-700 dark:text-[#8FE0CA]"
+                disabled={busyState !== 'idle'}
+                onClick={onRequestLocation}
+              >
+                <LocateFixed aria-hidden="true" className="h-4 w-4" />
+                {copy.refreshLocation}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="mt-4 h-12 w-full gap-2 rounded-xl bg-[#177D66] text-sm font-black text-white shadow-sm hover:bg-[#126553]"
+                disabled={busyState !== 'idle'}
+                onClick={onRequestLocation}
+              >
+                <LocateFixed aria-hidden="true" className="h-4 w-4" />
                 {locationButtonLabel}
               </Button>
+            )}
+          </section>
+        ) : null}
+
+        {hasIdentityEvidence && locationState && activeTodayActivity ? (
+          <PublicKioskActivityCard
+            activeActivityLocation={activeActivityLocation}
+            activityStateLabel={activityStateLabel}
+            copy={copy}
+            todayActivity={activeTodayActivity}
+            formatActivityDate={formatActivityDate}
+            formatActivityTime={formatActivityTime}
+          />
+        ) : null}
+
+        <footer className="px-4 py-3 text-center text-[11px] font-medium tracking-wide text-slate-400 dark:text-slate-500">
+          Powered by{' '}
+          <a
+            className="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-[#177D66] dark:text-slate-400 dark:decoration-slate-700 dark:hover:text-[#8FE0CA]"
+            href="https://www.indiceapp.com"
+            rel="noreferrer"
+            target="_blank"
+          >
+            www.indiceapp.com
+          </a>
+        </footer>
+
+        {hasIdentityEvidence && locationState && nextPunchType ? (
+          <div className="sticky bottom-0 z-20 -mx-3 border-t border-slate-200 bg-white/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+            <Button
+              type="button"
+              disabled={!nextPunchEnabled}
+              className="h-14 w-full gap-2 rounded-xl bg-[#177D66] text-base font-black text-white shadow-[0_12px_24px_-16px_rgba(23,125,102,0.8)] hover:bg-[#126553] disabled:opacity-45"
+              onClick={() => onPunch(nextPunchType)}
+            >
+              {nextPunchType === 'check_in'
+                ? <LogIn aria-hidden="true" className="h-5 w-5" />
+                : <LogOut aria-hidden="true" className="h-5 w-5" />}
+              {nextPunchType === 'check_in' ? copy.checkIn : copy.checkOut}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function KioskProgressRail({
+  nextActionLabel,
+  stepLabel,
+  steps,
+}: {
+  nextActionLabel: string;
+  stepLabel: string;
+  steps: KioskStepItem[];
+}) {
+  const activeStepIndex = steps.findIndex((step) => step.state === 'active');
+  const lastCompletedStepIndex = steps.reduce(
+    (lastIndex, step, index) => step.state === 'done' ? index : lastIndex,
+    0,
+  );
+  const currentStepIndex = activeStepIndex >= 0
+    ? activeStepIndex
+    : lastCompletedStepIndex;
+
+  return (
+    <section
+      aria-label={`${stepLabel} ${currentStepIndex + 1}: ${steps[currentStepIndex]?.label ?? ''}`}
+      aria-valuemax={steps.length}
+      aria-valuemin={1}
+      aria-valuenow={currentStepIndex + 1}
+      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+      role="progressbar"
+    >
+      <div className="relative">
+        <div aria-hidden="true" className="absolute left-[12.5%] right-[12.5%] top-4 h-px bg-slate-200 dark:bg-slate-700" />
+        <div className="relative grid grid-cols-4 gap-2">
+          {steps.map((step, index) => (
+            <div className="flex justify-center" key={step.label}>
+              <span
+                aria-label={`${stepLabel} ${index + 1}: ${step.label}`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#020617] ${step.state === 'done' ? 'bg-[#177D66] text-white' : step.state === 'active' ? 'border-2 border-[#177D66] bg-white text-[#177D66] dark:bg-slate-950 dark:text-[#8FE0CA]' : 'border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500'}`}
+              >
+                {step.state === 'done' ? <Check aria-hidden="true" className="h-4 w-4" /> : index + 1}
+              </span>
             </div>
-          </div>
-
-          <div className="sticky bottom-0 z-10 -mx-3 grid gap-3 border-t border-slate-200 bg-white/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:static sm:mx-0 sm:grid-cols-2 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0 sm:backdrop-blur-0">
-            <Button
-              type="button"
-              disabled={!canCheckIn}
-              className="h-14 rounded-lg bg-[#59C3A5] text-base font-semibold text-white shadow-sm hover:bg-[#3AAE90] disabled:opacity-45 sm:h-16 sm:text-lg"
-              onClick={() => onPunch('check_in')}
-            >
-              {copy.checkIn}
-            </Button>
-            <Button
-              type="button"
-              disabled={!canCheckOut}
-              className="h-14 rounded-lg bg-emerald-600 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-45 sm:h-16 sm:text-lg"
-              onClick={() => onPunch('check_out')}
-            >
-              {copy.checkOut}
-            </Button>
-          </div>
-
-          {activeTodayActivity ? (
-            <PublicKioskActivityCard
-              activeActivityLocation={activeActivityLocation}
-              activityStateLabel={activityStateLabel}
-              copy={copy}
-              todayActivity={activeTodayActivity}
-              formatActivityDate={formatActivityDate}
-              formatActivityTime={formatActivityTime}
-            />
-          ) : null}
+          ))}
         </div>
-      )}
+      </div>
+      <div className="mt-3 text-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#177D66] dark:text-[#8FE0CA]">
+          {stepLabel} {currentStepIndex + 1} · {steps[currentStepIndex]?.label}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{nextActionLabel}</p>
+      </div>
     </section>
   );
 }

@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,8 @@ public class ProcessTaskKioskService {
     private final ProcessTaskKioskCommandService commands;
     private final ProcessTaskKioskFileService files;
     private final ProcessTaskKioskViewMapper views;
+    private final int inactivityTimeoutSeconds;
+    private final int sessionTtlSeconds;
 
     public ProcessTaskKioskService(
         JdbcTemplate jdbcTemplate,
@@ -45,7 +48,9 @@ public class ProcessTaskKioskService {
         ProcessTaskKioskQueryService queries,
         ProcessTaskKioskCommandService commands,
         ProcessTaskKioskFileService files,
-        ProcessTaskKioskViewMapper views
+        ProcessTaskKioskViewMapper views,
+        @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int inactivityTimeoutSeconds,
+        @Value("${app.process-tasks.kiosk.session-ttl-seconds:28800}") int sessionTtlSeconds
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
@@ -56,6 +61,8 @@ public class ProcessTaskKioskService {
         this.commands = commands;
         this.files = files;
         this.views = views;
+        this.inactivityTimeoutSeconds = Math.max(30, inactivityTimeoutSeconds);
+        this.sessionTtlSeconds = Math.max(this.inactivityTimeoutSeconds, sessionTtlSeconds);
     }
 
     public Map<String, Object> listKiosks(long companyId) {
@@ -216,7 +223,7 @@ public class ProcessTaskKioskService {
         body.put("kiosk", views.publicKiosk(kiosk));
         body.put("scope_label", views.scopeLabel(kiosk));
         body.put("auth_methods", List.of("pin"));
-        body.put("inactivity_timeout_seconds", 180);
+        body.put("inactivity_timeout_seconds", inactivityTimeoutSeconds);
         return body;
     }
 
@@ -236,7 +243,7 @@ public class ProcessTaskKioskService {
         }
 
         identityService.requirePublicScope(kiosk, employee);
-        var expiresAtEpochSeconds = tokenService.nextIdentificationExpiryEpochSeconds();
+        var expiresAtEpochSeconds = Instant.now().plusSeconds(sessionTtlSeconds).getEpochSecond();
         var identificationToken = tokenService.createIdentificationToken(
             deviceToken,
             employee.userCompanyId(),

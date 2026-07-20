@@ -4,6 +4,7 @@ import com.indice.erp.hr.attendance.models.AccessMethodRow;
 import com.indice.erp.hr.shared.HrPayloadUtils;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.indice.erp.hr.attendance.support.AttendanceInput.parseBoolean;
 import static com.indice.erp.hr.shared.HrPayloadUtils.parseInteger;
@@ -70,7 +71,15 @@ abstract class AttendanceAccessSupport {
         if (matches.size() > 1) {
             throw new IllegalArgumentException("PIN is assigned to more than one user.");
         }
-        return matches.isEmpty() ? null : matches.getFirst();
+        if (matches.isEmpty()) {
+            return null;
+        }
+        var match = matches.getFirst();
+        var currentReference = credentials.pinCredentialReference(companyId, credentialPayload);
+        if (!Objects.equals(match.credentialRef(), currentReference)) {
+            repository.updatePinCredentialReference(companyId, match.id(), currentReference);
+        }
+        return match;
     }
 
     protected AccessMethodRow loadExistingMethod(long companyId, Long methodId, long accessProfileId) {

@@ -15,17 +15,14 @@ export default function Kiosk() {
     busyState,
     canCheckIn,
     canCheckOut,
-    canIdentify,
     clearFailureToast,
     clearSuccessToast,
     copy,
     credentialPlaceholder,
     credentialValue,
     currentTime,
-    detectedLocale,
     errorMessage,
     evidenceMode,
-    expiresAt,
     faceErrorMessage,
     faceStatus,
     faceVerificationSessionId,
@@ -39,31 +36,24 @@ export default function Kiosk() {
     handleFaceVerification,
     handleIdentify,
     handlePunch,
-    hasIdentityEvidence,
     identificationToken,
     identifiedHrUser,
     isLoading,
     isOnline,
     isSessionExpiring,
-    kioskGreeting,
     kioskLocationLabel,
-    kioskMessage,
+    kioskSteps,
     loadingDescription,
     loadingTitle,
-    localeOptions,
     locationButtonLabel,
-    locationHelpText,
     locationState,
     nextActionLabel,
     requestLocation,
     resetFlow,
     selectedLocale,
-    selectedMethod,
     setCredentialValue,
-    setKioskLocale,
     showFailureToast,
     successMessage,
-    verificationLocationLabel,
   } = usePublicKioskController();
   return (
     <>
@@ -90,7 +80,8 @@ export default function Kiosk() {
       />
 
       <KioskPublicShell
-        maxWidthClassName="max-w-3xl"
+        maxWidthClassName="max-w-[480px]"
+        minimalContent={!identifiedHrUser}
         loadingOverlay={null}
         banners={(
           <>
@@ -115,12 +106,7 @@ export default function Kiosk() {
               bootstrap={bootstrap}
               copy={copy}
               currentTime={currentTime}
-              detectedLocale={detectedLocale}
-              kioskGreeting={kioskGreeting}
-              kioskMessage={kioskMessage}
-              localeOptions={localeOptions}
               selectedLocale={selectedLocale}
-              onLocaleChange={setKioskLocale}
           />
         )}
       >
@@ -131,29 +117,23 @@ export default function Kiosk() {
                 busyState={busyState}
                 canCheckIn={canCheckIn && isOnline}
                 canCheckOut={canCheckOut && isOnline}
-                canIdentify={canIdentify && isOnline}
                 copy={copy}
                 credentialPlaceholder={credentialPlaceholder}
                 credentialValue={credentialValue}
                 errorMessage={errorMessage}
                 evidenceMode={evidenceMode}
-                expiresAt={expiresAt}
                 faceErrorMessage={faceErrorMessage}
                 faceStatus={faceStatus}
                 faceVerificationSessionId={faceVerificationSessionId}
                 fallbackPhotoUpload={fallbackPhotoUpload}
-                hasIdentityEvidence={hasIdentityEvidence}
                 identificationToken={identificationToken}
                 identifiedHrUser={identifiedHrUser}
                 isLoading={isLoading}
                 kioskLocationLabel={kioskLocationLabel}
+                kioskSteps={kioskSteps}
                 locationButtonLabel={locationButtonLabel}
-                locationHelpText={locationHelpText}
                 locationState={locationState}
                 nextActionLabel={nextActionLabel}
-                selectedLocale={selectedLocale}
-                selectedMethod={selectedMethod}
-                verificationLocationLabel={verificationLocationLabel}
                 formatActivityDate={formatActivityDate}
                 formatActivityTime={formatActivityTime}
                 onCredentialChange={setCredentialValue}

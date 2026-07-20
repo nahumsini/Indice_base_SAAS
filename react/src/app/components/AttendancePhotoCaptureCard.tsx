@@ -19,12 +19,14 @@ interface AttendancePhotoCaptureCardProps {
   helperText: string;
   photo: AttendancePhotoSelection | null;
   disabled?: boolean;
+  showHeader?: boolean;
   showGalleryUpload?: boolean;
   className?: string;
   videoClassName?: string;
   photoClassName?: string;
   actionClassName?: string;
   primaryButtonClassName?: string;
+  triggerButtonClassName?: string;
   showEmptyPreview?: boolean;
   emptyPreviewLabel?: string;
   emptyPreviewClassName?: string;
@@ -48,12 +50,14 @@ export function AttendancePhotoCaptureCard({
   helperText,
   photo,
   disabled = false,
+  showHeader = true,
   showGalleryUpload = true,
   className,
   videoClassName,
   photoClassName,
   actionClassName,
   primaryButtonClassName,
+  triggerButtonClassName,
   showEmptyPreview = false,
   emptyPreviewLabel,
   emptyPreviewClassName,
@@ -205,17 +209,19 @@ export function AttendancePhotoCaptureCard({
 
   return (
     <div className={className ?? 'rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800'}>
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-[#8bb3ff]">
-            <Camera className="h-5 w-5" />
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-900 dark:text-white">{title}</h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{requiredText}</p>
+      {showHeader ? (
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#143675]/10 text-[#143675] dark:bg-[#143675]/20 dark:text-[#8bb3ff]">
+              <Camera className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white">{title}</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{requiredText}</p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       <canvas ref={canvasRef} className="hidden" />
       {showGalleryUpload ? (
@@ -252,7 +258,7 @@ export function AttendancePhotoCaptureCard({
             <Button
               type="button"
               variant="outline"
-              className="w-full gap-2"
+              className={`w-full gap-2 ${triggerButtonClassName ?? ''}`}
               disabled={disabled || isStartingCamera}
               onClick={() => {
                 void startCamera();

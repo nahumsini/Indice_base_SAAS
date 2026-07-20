@@ -1,28 +1,23 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
-  ArrowRight,
   Banknote,
-  CalendarDays,
-  CheckCircle2,
-  Globe2,
-  KeyRound,
-  Loader2,
+  Clock3,
+  MapPin,
   ReceiptText,
-  ShieldCheck,
-  Upload,
-  X,
 } from 'lucide-react';
 import { useParams } from 'react-router';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
+import { KioskIdentityGate } from '../../../components/kiosk-engine/KioskIdentityGate';
+import { KioskWorkspaceTabs } from '../../../components/kiosk-engine/KioskWorkspacePrimitives';
 import { useKioskSessionBoundary } from '../../../components/kiosk-engine/useKioskSessionBoundary';
 import {
   getDefaultBudgetTaxProfile,
   inferTaxCountryFromCurrency,
   taxRateToPercentInput,
 } from '../../Expenses/Budgets/budgetTaxCatalog';
-import { BudgetTaxControls, type TaxControlDraft } from '../../Expenses/components/modals/BudgetTaxControls';
+import type { TaxControlDraft } from '../../Expenses/components/modals/BudgetTaxControls';
 import {
   pettyCashKioskApi,
   uploadPublicPettyCashAttachment,
@@ -34,11 +29,17 @@ import {
   type PublicPettyCashReceipt,
 } from './pettyCashKioskApi';
 import { PettyCashKioskAttachmentsModal } from './components/PettyCashKioskAttachmentsModal';
-import { PettyCashKioskBalanceStrip } from './components/PettyCashKioskBalanceStrip';
 import { PettyCashKioskExpenseCard } from './components/PettyCashKioskExpenseCard';
 import { PettyCashKioskIncomeCard } from './components/PettyCashKioskIncomeCard';
-import { usePettyCashLocaleControls, usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
-import type { PettyCashLocale } from '../translations';
+import {
+  PettyCashKioskEmptyState,
+  PettyCashKioskIdentityCard,
+  PettyCashKioskSummaryStrip,
+  PettyCashKioskToolbar,
+  PettyCashReceiptModal,
+  type PettyCashReceiptDraft,
+} from './components/PettyCashKioskWorkspace';
+import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 
 const maxAttachmentSizeBytes = 10 * 1024 * 1024;
 const maxAttachments = 5;
@@ -49,13 +50,9 @@ const todayInputValue = () => {
   return today.toISOString().slice(0, 10);
 };
 
-type ReceiptFormState = TaxControlDraft & {
-  description: string;
-  expenseDate: string;
-  receiptReference: string;
-};
+type ReceiptFormState = PettyCashReceiptDraft;
 
-type KioskTab = 'upload' | 'expenses' | 'income';
+type KioskTab = 'expenses' | 'income';
 
 const createKioskTaxDraft = (currencyCode = 'MXN'): TaxControlDraft => {
   const country = inferTaxCountryFromCurrency(currencyCode);
@@ -84,7 +81,10 @@ const emptyReceiptForm = (currencyCode = 'MXN'): ReceiptFormState => ({
 });
 
 function normalizeError(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+  if (!(error instanceof Error) || !error.message) return fallback;
+  return /credential validation failed|invalid (?:employee )?pin|pin (?:is )?invalid|internal server|object storage|idempotency-key|upload failed|unable to/i.test(error.message)
+    ? fallback
+    : error.message;
 }
 
 function inferContentType(file: File) {
@@ -94,6 +94,8 @@ function inferContentType(file: File) {
   if (extension === 'png') return 'image/png';
   if (extension === 'jpg' || extension === 'jpeg') return 'image/jpeg';
   if (extension === 'webp') return 'image/webp';
+  if (extension === 'heic') return 'image/heic';
+  if (extension === 'heif') return 'image/heif';
   if (extension === 'doc') return 'application/msword';
   if (extension === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (extension === 'xls') return 'application/vnd.ms-excel';
@@ -101,6 +103,12 @@ function inferContentType(file: File) {
   if (extension === 'csv') return 'text/csv';
   if (extension === 'txt') return 'text/plain';
   return 'application/octet-stream';
+}
+
+function isSupportedAttachment(file: File) {
+  return file.size > 0
+    && file.size <= maxAttachmentSizeBytes
+    && inferContentType(file) !== 'application/octet-stream';
 }
 
 function parseAmount(value: string) {
@@ -122,12 +130,6 @@ function formatDate(value: string | null | undefined, emptyLabel: string, locale
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function formatBytes(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function periodKeyFromDate(value?: string | null) {
@@ -202,90 +204,16 @@ function getKioskTaxBreakdown(form: Pick<ReceiptFormState, 'amount' | 'taxes' | 
   };
 }
 
-function KioskTotalTile({ highlight = false, label, value }: { highlight?: boolean; label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <p className="truncate text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className={`mt-1 truncate text-sm font-black ${highlight ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p>
-    </div>
-  );
-}
-
-type PinKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'backspace';
-
-function PettyCashPinKeypad({ disabled, onChange, value }: { disabled: boolean; onChange: (nextValue: string) => void; value: string }) {
-  const keys: PinKey[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'backspace', '0'];
-  const handleKey = (key: PinKey) => {
-    if (disabled) return;
-    if (key === 'backspace') {
-      onChange(value.slice(0, -1));
-      return;
-    }
-    onChange(`${value}${key}`.replace(/\D/g, '').slice(0, 5));
-  };
-
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {keys.map(key => (
-        <button
-          key={key}
-          type="button"
-          disabled={disabled}
-          onClick={() => handleKey(key)}
-          className={`flex h-14 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl font-black text-slate-950 shadow-sm transition hover:border-[#147514]/30 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-emerald-400/35 dark:hover:bg-emerald-500/10 ${key === '0' ? 'col-start-2' : ''}`}
-        >
-          {key === 'backspace' ? <span className="text-xs font-black uppercase tracking-wide">Borrar</span> : key}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function KioskTabButton({ active, badge, icon, label, onClick }: { active: boolean; badge?: number; icon: ReactNode; label: string; onClick: () => void }) {
-  return (
-    <button
-      aria-selected={active}
-      className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#147514]/20 ${active ? 'bg-[#147514] text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-[#147514] dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-emerald-500/10'}`}
-      onClick={onClick}
-      role="tab"
-      type="button"
-    >
-      <span aria-hidden="true">{icon}</span>
-      <span className="truncate">{label}</span>
-      {typeof badge === 'number' ? (
-        <span className={`absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] ${active ? 'bg-white/20 text-white' : 'bg-white text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-300'}`}>{badge}</span>
-      ) : null}
-    </button>
-  );
-}
-
-function HistoryHeader({ count, description, icon, title }: { count: number; description: string; icon: ReactNode; title: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{icon}</span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">{title}</h2>
-            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{count}</span>
-          </div>
-          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{description}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function PublicPettyCashKioskPage() {
   const copy = usePettyCashTranslations();
-  const { localeOptions, selectedLocale, setPettyCashLocale } = usePettyCashLocaleControls();
   const { fundToken = '' } = useParams();
   const [bootstrap, setBootstrap] = useState<PublicPettyCashBootstrapResponse | null>(null);
   const [identity, setIdentity] = useState<PublicPettyCashIdentifyResponse | null>(null);
   const [pin, setPin] = useState('');
   const [form, setForm] = useState<ReceiptFormState>(() => emptyReceiptForm());
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [activeTab, setActiveTab] = useState<KioskTab>('upload');
+  const [activeTab, setActiveTab] = useState<KioskTab>('expenses');
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [periods, setPeriods] = useState<PublicPettyCashPeriod[]>([]);
   const [expenses, setExpenses] = useState<PublicPettyCashReceipt[]>([]);
   const [incomeMovements, setIncomeMovements] = useState<PublicPettyCashIncomeMovement[]>([]);
@@ -302,16 +230,18 @@ export default function PublicPettyCashKioskPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [sessionMessage, setSessionMessage] = useState('');
+  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   const expireSession = useCallback(() => {
     setIdentity(null);
     setPin('');
+    setIsReceiptModalOpen(false);
     setSessionMessage(copy.publicKiosk.session.expired);
   }, [copy.publicKiosk.session.expired]);
   const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
     active: Boolean(identity),
     expiresAt: identity?.expires_at,
-    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 180,
+    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 900,
     onExpire: expireSession,
   });
 
@@ -337,6 +267,11 @@ export default function PublicPettyCashKioskPage() {
   }, [copy.publicKiosk.errors.bootstrap, fundToken]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!identity) return;
     const nextExpenses = normalizeReceipts(identity.expenses ?? identity.recent_receipts ?? []);
     const nextIncomeMovements = identity.income_movements ?? [];
@@ -351,10 +286,8 @@ export default function PublicPettyCashKioskPage() {
   const currencyCode = fund?.currency_code ?? 'MXN';
   const totals = useMemo(() => getKioskTaxBreakdown(form), [form]);
   const amount = totals.totalAmount;
-  const isAuthenticated = Boolean(identity);
-  const canIdentify = pin.trim().length > 0 && !isIdentifying;
+  const canIdentify = pin.trim().length === 5 && !isIdentifying;
   const canSave = form.description.trim().length > 0 && amount > 0 && !isSaving && Boolean(identity?.identification_token);
-  const selectedPeriod = periods.find(period => period.period_key === selectedPeriodKey) ?? null;
   const filteredExpenses = useMemo(
     () => expenses.filter(item => item.period_key === selectedPeriodKey).sort((left, right) => `${right.expense_date}-${right.id}`.localeCompare(`${left.expense_date}-${left.id}`)),
     [expenses, selectedPeriodKey],
@@ -371,6 +304,20 @@ export default function PublicPettyCashKioskPage() {
     () => filteredExpenses.reduce((total, receipt) => total + getReceiptAmount(receipt), 0),
     [filteredExpenses],
   );
+  const currentBalance = Number(fund?.current_balance_amount ?? 0);
+  const fundLimit = Number(fund?.limit_amount ?? 0);
+  const utilizationPercent = fundLimit > 0 ? (currentBalance / fundLimit) * 100 : 0;
+  const identityInitials = identity?.user.full_name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('') || 'ID';
+  const scopeLabel = fund?.scope_label || bootstrap?.scope_label || copy.publicKiosk.header.defaultScope;
+  const currentTimeLabel = currentTime.toLocaleTimeString(copy.publicKiosk.date.locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   useEffect(() => {
     setForm(current => {
@@ -390,7 +337,7 @@ export default function PublicPettyCashKioskPage() {
       setIdentity(response);
       setSessionMessage('');
       setPin('');
-      setActiveTab('upload');
+      setActiveTab('expenses');
     } catch (error) {
       setErrorMessage(normalizeError(error, copy.publicKiosk.errors.identify));
     } finally {
@@ -402,31 +349,39 @@ export default function PublicPettyCashKioskPage() {
     const selectedFiles = Array.from(event.target.files ?? []);
     const availableSlots = Math.max(0, maxAttachments - attachments.length);
     const validFiles = selectedFiles
-      .filter(file => file.size <= maxAttachmentSizeBytes)
+      .filter(isSupportedAttachment)
       .slice(0, availableSlots);
     setAttachments(current => [...current, ...validFiles].slice(0, maxAttachments));
     event.target.value = '';
-    if (validFiles.length !== selectedFiles.length) setErrorMessage(copy.publicKiosk.errors.oversizedFiles);
+    if (validFiles.length !== selectedFiles.length) setErrorMessage(copy.publicKiosk.errors.invalidFiles);
   };
 
   const uploadAttachments = async (settlementLineId: number, identificationToken: string) => {
+    let registeredCount = 0;
+    let failedCount = 0;
     for (const file of attachments) {
-      const contentType = inferContentType(file);
-      const upload = await pettyCashKioskApi.presignPublicAttachmentUpload(fundToken, settlementLineId, {
-        content_type: contentType,
-        file_name: file.name,
-        identification_token: identificationToken,
-        size_bytes: file.size,
-      });
-      await uploadPublicPettyCashAttachment(upload.upload_url, file, contentType, upload.upload_headers);
-      await pettyCashKioskApi.registerPublicAttachment(fundToken, settlementLineId, {
-        identification_token: identificationToken,
-        mime_type: contentType,
-        object_key: upload.object_key,
-        original_filename: file.name,
-        size_bytes: file.size,
-      });
+      try {
+        const contentType = inferContentType(file);
+        const upload = await pettyCashKioskApi.presignPublicAttachmentUpload(fundToken, settlementLineId, {
+          content_type: contentType,
+          file_name: file.name,
+          identification_token: identificationToken,
+          size_bytes: file.size,
+        });
+        await uploadPublicPettyCashAttachment(upload.upload_url, file, contentType, upload.upload_headers);
+        await pettyCashKioskApi.registerPublicAttachment(fundToken, settlementLineId, {
+          identification_token: identificationToken,
+          mime_type: contentType,
+          object_key: upload.object_key,
+          original_filename: file.name,
+          size_bytes: file.size,
+        });
+        registeredCount += 1;
+      } catch {
+        failedCount += 1;
+      }
     }
+    return { failedCount, registeredCount };
   };
 
   const handleCreateReceipt = async () => {
@@ -448,7 +403,9 @@ export default function PublicPettyCashKioskPage() {
         total_amount: totals.totalAmount,
       });
       const settlementLineId = response.settlement_line.id;
-      if (attachments.length > 0) await uploadAttachments(settlementLineId, identity.identification_token);
+      const uploadResult = attachments.length > 0
+        ? await uploadAttachments(settlementLineId, identity.identification_token)
+        : { failedCount: 0, registeredCount: 0 };
 
       const statement = response.statement as { periodKey?: string; period_key?: string };
       const savedPeriodKey = statement.period_key ?? statement.periodKey ?? periodKeyFromDate(form.expenseDate);
@@ -461,12 +418,16 @@ export default function PublicPettyCashKioskPage() {
         total_amount: totals.totalAmount,
         currency_code: currencyCode,
         expense_date: form.expenseDate,
-        attachment_count: attachments.length,
-        status: attachments.length > 0 ? 'RECEIPT_ATTACHED' : 'DRAFT',
+        attachment_count: uploadResult.registeredCount,
+        status: uploadResult.registeredCount > 0 ? 'RECEIPT_ATTACHED' : 'DRAFT',
         can_delete: true,
       };
       const responseExpenses = response.expenses?.length
-        ? normalizeReceipts(response.expenses).map(item => item.id === settlementLineId ? { ...item, attachment_count: attachments.length } : item)
+        ? normalizeReceipts(response.expenses).map(item => item.id === settlementLineId ? {
+            ...item,
+            attachment_count: uploadResult.registeredCount,
+            status: uploadResult.registeredCount > 0 ? 'RECEIPT_ATTACHED' : item.status,
+          } : item)
         : [fallbackReceipt, ...expenses.filter(item => item.id !== settlementLineId)];
       const nextPeriods = buildPeriodOptions(response.periods ?? periods, responseExpenses, response.income_movements ?? incomeMovements);
 
@@ -482,13 +443,28 @@ export default function PublicPettyCashKioskPage() {
       setSelectedPeriodKey(savedPeriodKey || getDefaultPeriodKey(nextPeriods));
       setForm(emptyReceiptForm(currencyCode));
       setAttachments([]);
+      setIsReceiptModalOpen(false);
       setActiveTab('expenses');
-      setSuccessMessage(copy.publicKiosk.success.receipt);
+      setSuccessMessage(uploadResult.failedCount > 0
+        ? copy.publicKiosk.success.receiptPartial(uploadResult.failedCount)
+        : copy.publicKiosk.success.receipt);
     } catch (error) {
       setErrorMessage(normalizeError(error, copy.publicKiosk.errors.receipt));
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleResetSession = () => {
+    setIdentity(null);
+    setPin('');
+    setForm(emptyReceiptForm(currencyCode));
+    setAttachments([]);
+    setIsReceiptModalOpen(false);
+    setErrorMessage('');
+    setSuccessMessage('');
+    setSessionMessage('');
+    setActiveTab('expenses');
   };
 
   const handleViewAttachments = async (receipt: PublicPettyCashReceipt) => {
@@ -553,165 +529,99 @@ export default function PublicPettyCashKioskPage() {
     <>
       <KioskPublicShell
         banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900">{copy.publicKiosk.session.offline}</div> : null}
-        errorMessage={errorMessage}
-        header={(<header className="flex items-center justify-between gap-3 bg-[#147514] px-4 py-3 text-white sm:px-5">
-          <div className="flex min-w-0 items-center gap-2">
-            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-sm">🗃️</span>
-            <h1 className="truncate text-lg font-black tracking-tight">{copy.publicKiosk.header.eyebrow}</h1>
+        errorMessage={isReceiptModalOpen ? '' : errorMessage}
+        header={(<header className="border-b border-slate-200 bg-white px-4 py-3.5 dark:border-slate-800 dark:bg-slate-950">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
+          <h1 className="mt-1 line-clamp-2 break-words text-xl font-semibold leading-tight tracking-tight text-slate-950 dark:text-white">
+            {fund?.name ?? copy.publicKiosk.header.defaultFund}
+          </h1>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{scopeLabel}</span></span>
+            <span className="inline-flex items-center gap-1.5"><Clock3 aria-hidden="true" className="h-3.5 w-3.5" />{currentTimeLabel}</span>
           </div>
-          <label className="flex h-9 min-w-[108px] shrink-0 items-center gap-1.5 rounded-lg border border-white/25 bg-white/15 px-2.5 text-white shadow-sm backdrop-blur-sm transition hover:bg-white/20 focus-within:ring-2 focus-within:ring-white/55">
-            <Globe2 aria-hidden="true" className="h-4 w-4 shrink-0" />
-            <span className="sr-only">{copy.publicKiosk.header.language}</span>
-            <select
-              aria-label={copy.publicKiosk.header.language}
-              className="min-w-0 flex-1 cursor-pointer bg-transparent text-[11px] font-black uppercase outline-none [&>option]:bg-white [&>option]:text-slate-900"
-              onChange={(event) => setPettyCashLocale(event.target.value as PettyCashLocale)}
-              title={localeOptions.find(option => option.code === selectedLocale)?.name}
-              value={selectedLocale}
-            >
-              {localeOptions.map(option => (
-                <option key={option.code} value={option.code}>{option.label}</option>
-              ))}
-            </select>
-          </label>
         </header>)}
         loadingOverlay={<LoadingBarOverlay isVisible={isBootstrapping} title={copy.publicKiosk.loading.title} description={copy.publicKiosk.loading.description} />}
         maxWidthClassName="max-w-[480px]"
+        minimalContent={!identity}
         sessionExpiredMessage={sessionMessage || (isSessionExpiring ? copy.publicKiosk.session.expiring : null)}
         successMessage={successMessage}
       >
 
         {!identity ? (
-          <div className="bg-slate-50 p-4 sm:p-5 dark:bg-slate-950/40">
-            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300"><KeyRound className="h-5 w-5" /></span>
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white">{copy.publicKiosk.identify.title}</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-400">{copy.publicKiosk.identify.description}</p>
-                </div>
-              </div>
-              <div className="mt-6 rounded-[22px] border border-emerald-100 bg-emerald-50/55 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.24em] text-[#147514] dark:text-emerald-300">{copy.publicKiosk.identify.capture}</p>
-                    <p className="mt-1 text-sm font-black text-slate-700 dark:text-slate-200">{copy.publicKiosk.identify.pin}</p>
-                  </div>
-                  <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#147514] text-white shadow-sm"><KeyRound className="h-5 w-5" /></span>
-                </div>
-                <div className="grid gap-3">
-                  <input
-                    autoFocus
-                    autoComplete="off"
-                    aria-label={copy.publicKiosk.identify.pin}
-                    className="h-16 rounded-xl border border-[#147514]/25 bg-white px-4 text-center text-2xl font-black tracking-[0.42em] text-slate-950 shadow-inner outline-none transition placeholder:tracking-normal focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-emerald-400/25 dark:bg-slate-950 dark:text-white"
-                    inputMode="numeric"
-                    maxLength={5}
-                    onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 5))}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter') void handleIdentify();
-                    }}
-                    placeholder={copy.publicKiosk.identify.placeholder}
-                    type="password"
-                    value={pin}
-                  />
-                  <button className="inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-[#147514] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#0f5f0f] disabled:cursor-not-allowed disabled:opacity-45" disabled={!canIdentify} onClick={() => void handleIdentify()} type="button">
-                    {isIdentifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                    {copy.publicKiosk.identify.submit}
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="mt-4"><PettyCashPinKeypad disabled={isIdentifying} onChange={setPin} value={pin} /></div>
-              </div>
-              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#147514]" />
-                <p>{copy.publicKiosk.identify.privacy}</p>
-              </div>
-            </section>
-          </div>
+          <KioskIdentityGate
+            backspaceLabel={copy.publicKiosk.identify.backspace}
+            clearLabel={copy.common.clear}
+            description={copy.publicKiosk.identify.description}
+            disabled={!isOnline || isBootstrapping}
+            isSubmitting={isIdentifying}
+            onPinChange={setPin}
+            onSubmit={() => void handleIdentify()}
+            pinAriaLabel={copy.publicKiosk.identify.pin}
+            pinLength={5}
+            pinValue={pin}
+            privacyMessage={copy.publicKiosk.identify.privacy}
+            submitLabel={copy.publicKiosk.identify.submit}
+            title={copy.publicKiosk.identify.title}
+            tone="green"
+          />
         ) : (
-          <div className="bg-slate-50 p-3 sm:p-4 dark:bg-slate-950/40">
-            <PettyCashKioskBalanceStrip
-              currentBalance={{ label: copy.publicKiosk.metrics.currentBalance, tone: 'green', value: formatCurrency(Number(fund?.current_balance_amount ?? 0), currencyCode) }}
-              fundLimit={{ label: copy.publicKiosk.metrics.fundLimit, tone: 'slate', value: formatCurrency(Number(fund?.limit_amount ?? 0), currencyCode) }}
-              periodExpenses={{ label: copy.publicKiosk.metrics.periodExpenses, tone: 'orange', value: formatCurrency(periodExpenseTotal, currencyCode) }}
-              periodIncome={{ label: copy.publicKiosk.metrics.periodIncome, tone: 'blue', value: formatCurrency(periodIncomeTotal, currencyCode) }}
+          <div className="space-y-3 bg-slate-50 p-3 dark:bg-slate-950/40">
+            <KioskWorkspaceTabs<KioskTab>
+              activeValue={activeTab}
+              ariaLabel={copy.publicKiosk.tabs.label}
+              items={[
+                { badge: filteredExpenses.length, icon: <ReceiptText className="h-4 w-4" />, label: copy.publicKiosk.tabs.expenses, value: 'expenses' },
+                { badge: filteredIncomeMovements.length, icon: <Banknote className="h-4 w-4" />, label: copy.publicKiosk.tabs.income, value: 'income' },
+              ]}
+              onChange={setActiveTab}
+              tone="green"
             />
 
-            <nav aria-label={copy.publicKiosk.tabs.label} className="mt-3 grid grid-cols-3 gap-2 rounded-[22px] border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900" role="tablist">
-              <KioskTabButton active={activeTab === 'upload'} icon={<Upload className="h-4 w-4" />} label={copy.publicKiosk.tabs.upload} onClick={() => setActiveTab('upload')} />
-              <KioskTabButton active={activeTab === 'expenses'} badge={filteredExpenses.length} icon={<ReceiptText className="h-4 w-4" />} label={copy.publicKiosk.tabs.expenses} onClick={() => setActiveTab('expenses')} />
-              <KioskTabButton active={activeTab === 'income'} badge={filteredIncomeMovements.length} icon={<Banknote className="h-4 w-4" />} label={copy.publicKiosk.tabs.income} onClick={() => setActiveTab('income')} />
-            </nav>
+            <PettyCashKioskIdentityCard
+              balanceLabel={copy.publicKiosk.metrics.currentBalance}
+              balanceValue={formatCurrency(currentBalance, currencyCode)}
+              detail={identity.user.position_title || identity.user.department || copy.publicKiosk.header.secureAccess}
+              fundLimitLabel={copy.publicKiosk.metrics.fundLimit}
+              fundLimitValue={formatCurrency(fundLimit, currencyCode)}
+              initials={identityInitials}
+              name={identity.user.full_name}
+              onReset={handleResetSession}
+              resetLabel={copy.publicKiosk.workspace.reset}
+              scopeLabel={scopeLabel}
+              utilizationPercent={utilizationPercent}
+              verifiedLabel={copy.publicKiosk.workspace.identified}
+            />
 
-            {activeTab !== 'upload' ? (
-              <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="petty-cash-kiosk-period"><CalendarDays className="h-3.5 w-3.5 text-[#147514]" />{copy.publicKiosk.history.period}</label>
-                <select id="petty-cash-kiosk-period" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-800 outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setSelectedPeriodKey(event.target.value)} value={selectedPeriodKey}>
-                  {periods.length === 0 ? <option value="">{copy.publicKiosk.history.noPeriods}</option> : periods.map(period => <option key={period.id} value={period.period_key}>{formatPeriodLabel(period, copy.publicKiosk.date.locale)}</option>)}
-                </select>
-                {selectedPeriod ? <p className="mt-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{copy.publicKiosk.history.periodHint(selectedPeriod.period_key)}</p> : null}
-              </section>
-            ) : null}
+            <PettyCashKioskSummaryStrip
+              balanceLabel={copy.publicKiosk.metrics.currentBalance}
+              balanceValue={formatCurrency(currentBalance, currencyCode)}
+              expenseLabel={copy.publicKiosk.metrics.periodExpenses}
+              expenseValue={formatCurrency(periodExpenseTotal, currencyCode)}
+              incomeLabel={copy.publicKiosk.metrics.periodIncome}
+              incomeValue={formatCurrency(periodIncomeTotal, currencyCode)}
+            />
 
-            {activeTab === 'upload' ? (
-              <section className="mt-3 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" role="tabpanel">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300"><ReceiptText className="h-5 w-5" /></span>
-                    <div>
-                      <h2 className="text-xl font-black text-slate-900 dark:text-white">{copy.publicKiosk.receipt.title}</h2>
-                      <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-400">{copy.publicKiosk.receipt.description}</p>
-                    </div>
-                  </div>
-                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">{identity.user.full_name}</div>
-                </div>
-
-                <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
-                  <div className="grid gap-4">
-                    <label className="grid gap-2 text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.concept}<input className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-bold normal-case tracking-normal text-slate-900 outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setForm(current => ({ ...current, description: event.target.value }))} placeholder={copy.publicKiosk.receipt.conceptPlaceholder} value={form.description} /></label>
-                    <label className="grid gap-2 text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.amount}<input className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-bold normal-case tracking-normal text-slate-900 outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" inputMode="decimal" onChange={event => setForm(current => ({ ...current, amount: event.target.value }))} placeholder="0.00" value={form.amount} /></label>
-                    <label className="grid gap-2 text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.reference}<input className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-bold normal-case tracking-normal text-slate-900 outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setForm(current => ({ ...current, receiptReference: event.target.value }))} placeholder={copy.publicKiosk.receipt.referencePlaceholder} value={form.receiptReference} /></label>
-                    <label className="grid gap-2 text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.date}<input className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-bold normal-case tracking-normal text-slate-900 outline-none transition focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" onChange={event => setForm(current => ({ ...current, expenseDate: event.target.value }))} type="date" value={form.expenseDate} /></label>
-                  </div>
-
-                  <div className="mt-5"><BudgetTaxControls compact draft={form} onDraftChange={updates => setForm(current => ({ ...current, ...updates }))} /></div>
-                  <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                    <div className="grid grid-cols-3 gap-2">
-                      <KioskTotalTile label="Subtotal" value={formatCurrency(totals.subtotalAmount, currencyCode)} />
-                      <KioskTotalTile label="Impuestos" value={formatCurrency(totals.taxAmount, currencyCode)} />
-                      <KioskTotalTile highlight label="Total" value={formatCurrency(totals.totalAmount, currencyCode)} />
-                    </div>
-                    <div className="mt-3 rounded-full bg-white px-4 py-2 text-center text-sm font-black text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200">{copy.publicKiosk.receipt.currency(currencyCode)}</div>
-                  </div>
-
-                  <label className="mt-5 inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-[#147514]/35 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><Upload className="h-4 w-4 text-[#147514]" />{copy.publicKiosk.receipt.attach}<input accept="image/png,image/jpeg,image/webp,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" className="hidden" multiple onChange={handleAttachmentChange} type="file" /></label>
-                  {attachments.length > 0 ? (
-                    <div className="mt-3 grid gap-2">
-                      {attachments.map((file, index) => (
-                        <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
-                          <div className="min-w-0"><p className="truncate text-sm font-black text-slate-800 dark:text-white">{file.name}</p><p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{formatBytes(file.size)}</p></div>
-                          <button aria-label={copy.common.deleteAttachment} className="rounded-xl border border-red-100 bg-red-50 p-2 text-red-600 transition hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200" onClick={() => setAttachments(current => current.filter((_, fileIndex) => fileIndex !== index))} type="button"><X className="h-4 w-4" /></button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="-mx-5 mt-5 flex items-center gap-3 border-t border-slate-200 px-5 pt-4 dark:border-slate-700">
-                  <button className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200" onClick={() => { setForm(emptyReceiptForm(currencyCode)); setAttachments([]); }} type="button">{copy.publicKiosk.receipt.clear}</button>
-                  <button className="inline-flex min-h-12 flex-[1.4] items-center justify-center gap-2 rounded-2xl bg-[#147514] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#0f5f0f] disabled:cursor-not-allowed disabled:opacity-50" disabled={!canSave} onClick={() => void handleCreateReceipt()} type="button">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{copy.publicKiosk.receipt.submit}</button>
-                </div>
-              </section>
-            ) : null}
+            <PettyCashKioskToolbar
+              createLabel={copy.publicKiosk.receipt.title}
+              formatPeriod={period => formatPeriodLabel(period, copy.publicKiosk.date.locale)}
+              noPeriodsLabel={copy.publicKiosk.history.noPeriods}
+              onCreate={() => { setErrorMessage(''); setSuccessMessage(''); setIsReceiptModalOpen(true); }}
+              onPeriodChange={setSelectedPeriodKey}
+              periodLabel={copy.publicKiosk.history.period}
+              periods={periods}
+              selectedPeriodKey={selectedPeriodKey}
+            />
 
             {activeTab === 'expenses' ? (
-              <section className="mt-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900" role="tabpanel">
-                <HistoryHeader count={filteredExpenses.length} description={copy.publicKiosk.history.expensesDescription} icon={<ReceiptText className="h-5 w-5" />} title={copy.publicKiosk.history.expensesTitle} />
+              <section className="space-y-2" role="tabpanel" aria-label={copy.publicKiosk.history.expensesTitle}>
+                <div className="flex items-end justify-between gap-3 px-1">
+                  <div className="min-w-0"><h2 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.publicKiosk.history.expensesTitle}</h2><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.history.expensesDescription}</p></div>
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900">{filteredExpenses.length}</span>
+                </div>
                 {filteredExpenses.length === 0 ? (
-                  <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400">{copy.publicKiosk.history.emptyExpenses}</div>
+                  <PettyCashKioskEmptyState body={copy.publicKiosk.history.expensesDescription} icon={<ReceiptText className="h-6 w-6" />} title={copy.publicKiosk.history.emptyExpenses} />
                 ) : (
-                  <div className="mt-4 grid gap-3">
+                  <div className="grid gap-2">
                     {filteredExpenses.map(receipt => (
                       <PettyCashKioskExpenseCard
                         key={receipt.id}
@@ -734,12 +644,15 @@ export default function PublicPettyCashKioskPage() {
             ) : null}
 
             {activeTab === 'income' ? (
-              <section className="mt-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900" role="tabpanel">
-                <HistoryHeader count={filteredIncomeMovements.length} description={copy.publicKiosk.history.incomeDescription} icon={<Banknote className="h-5 w-5" />} title={copy.publicKiosk.history.incomeTitle} />
+              <section className="space-y-2" role="tabpanel" aria-label={copy.publicKiosk.history.incomeTitle}>
+                <div className="flex items-end justify-between gap-3 px-1">
+                  <div className="min-w-0"><h2 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.publicKiosk.history.incomeTitle}</h2><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.history.incomeDescription}</p></div>
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900">{filteredIncomeMovements.length}</span>
+                </div>
                 {filteredIncomeMovements.length === 0 ? (
-                  <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400">{copy.publicKiosk.history.emptyIncome}</div>
+                  <PettyCashKioskEmptyState body={copy.publicKiosk.history.incomeDescription} icon={<Banknote className="h-6 w-6" />} title={copy.publicKiosk.history.emptyIncome} />
                 ) : (
-                  <div className="mt-4 grid gap-3">
+                  <div className="grid gap-2">
                     {filteredIncomeMovements.map(movement => (
                       <PettyCashKioskIncomeCard
                         key={movement.id}
@@ -758,6 +671,28 @@ export default function PublicPettyCashKioskPage() {
           </div>
         )}
       </KioskPublicShell>
+
+      <PettyCashReceiptModal
+        attachments={attachments}
+        canSave={canSave}
+        copy={copy}
+        currencyCode={currencyCode}
+        errorMessage={errorMessage}
+        form={form}
+        isOpen={isReceiptModalOpen}
+        isSaving={isSaving}
+        onAttachmentChange={handleAttachmentChange}
+        onClear={() => { setForm(emptyReceiptForm(currencyCode)); setAttachments([]); setErrorMessage(''); }}
+        onClose={() => { if (!isSaving) { setIsReceiptModalOpen(false); setErrorMessage(''); } }}
+        onFormChange={updates => setForm(current => ({ ...current, ...updates }))}
+        onRemoveAttachment={index => setAttachments(current => current.filter((_, fileIndex) => fileIndex !== index))}
+        onSubmit={() => void handleCreateReceipt()}
+        totals={{
+          subtotal: formatCurrency(totals.subtotalAmount, currencyCode),
+          taxes: formatCurrency(totals.taxAmount, currencyCode),
+          total: formatCurrency(totals.totalAmount, currencyCode),
+        }}
+      />
 
       <PettyCashKioskAttachmentsModal
         attachments={receiptAttachments}

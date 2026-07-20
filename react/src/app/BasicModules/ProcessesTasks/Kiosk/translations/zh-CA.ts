@@ -32,11 +32,12 @@ export const zhCA = {
     complete: '完成',
   },
   pin: {
-    title: '输入 PIN',
-    description: '使用与考勤相同的 PIN。',
+    title: '验证身份以继续',
+    description: '输入您的个人 PIN 以安全访问。',
     placeholder: 'PIN',
     continue: '继续',
     deleteKey: '删除',
+    privacy: '验证 PIN 前，分配给您的任务将保持私密。',
   },
   identity: {
     eyebrow: '员工已识别',
@@ -154,6 +155,8 @@ export const zhCA = {
     unsupportedEvidence: (fileName: string) => `${fileName} 不是支持的凭证文件。`,
     uploadFailure: '任务凭证上传失败。',
     partialUploadFailure: '部分凭证已上传，但仍有文件失败。重试前请先检查任务。',
+    completionUploadFailure: '任务已完成，但无法附加凭证。',
+    completionPartialUploadFailure: '任务已完成并附加了部分凭证，但仍有文件失败。',
     completeFailure: '无法完成此任务。',
     createTitleRequired: '任务标题为必填项。',
     createFailure: '无法创建此任务。',

@@ -1,10 +1,14 @@
-import { MonitorSmartphone, Plus } from 'lucide-react';
+import { Copy, ExternalLink, Link2, MapPin, MonitorSmartphone, MoreHorizontal, Pencil, Plus, QrCode, RotateCw, Share2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import {
   type AttendanceControlLocation,
   type AttendanceKioskDevice,
 } from '../../../../../api/humanResources';
 import { Button } from '../../../../../components/ui/button';
-import { IndiceModalFrame } from '../../../../../components/indice-modal';
+import { KioskAdminPanelAction } from '../../../../../components/kiosk-engine/KioskAdminPrimitives';
+import { KioskModalFrame } from '../../../../../components/kiosk-engine/KioskModalFrame';
+import { useKioskQrCode } from '../../../../../components/kiosk-engine/useKioskQrCode';
+import { IndiceModalSummary, IndiceModalValidation } from '../../../../../components/indice-modal';
 import { type AttendanceControlCopy, statusClasses } from '../ControlAttendanceWidgets';
 import { KioskCard } from './KioskCard';
 
@@ -183,22 +187,44 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
     onRotate,
     onDelete,
   } = props;
+  const [shareDeviceId, setShareDeviceId] = useState<number | null>(null);
+  const [moreDeviceId, setMoreDeviceId] = useState<number | null>(null);
+  const [qrDeviceId, setQrDeviceId] = useState<number | null>(null);
+  const shareDevice = kioskDevices.find((device) => device.id === shareDeviceId) ?? null;
+  const moreDevice = kioskDevices.find((device) => device.id === moreDeviceId) ?? null;
+  const qrDevice = kioskDevices.find((device) => device.id === qrDeviceId) ?? null;
+  const qrLink = qrDevice?.public_access_token && typeof window !== 'undefined'
+    ? `${window.location.origin}/kiosk/${qrDevice.public_access_token}`
+    : '';
+  const qrDataUrl = useKioskQrCode(qrLink, '#3AAE90');
+  const activeCount = kioskDevices.filter((device) => device.status === 'active').length;
+  const readyCount = kioskDevices.filter((device) => Boolean(device.public_access_token)).length;
+  const childViewOpen = Boolean(shareDevice || moreDevice || qrDevice);
+  const closeAll = () => {
+    setShareDeviceId(null);
+    setMoreDeviceId(null);
+    setQrDeviceId(null);
+    onClose();
+  };
+
   return (
-    <IndiceModalFrame
-      busy={isSaving}
-      closeLabel={copy.kiosk.management.closeAria}
-      contentClassName="sm:max-w-5xl"
-      description={copy.kiosk.management.description}
-      footer={<Button type="button" onClick={onClose}>{copy.kiosk.management.closeButton}</Button>}
-      footerSummary={copy.kiosk.management.centerDescription}
-      icon={<MonitorSmartphone className="h-5 w-5" />}
-      modalType="operational-workspace"
-      onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}
-      open={isOpen}
-      title={copy.kiosk.management.title}
-      tone="aqua"
-    >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <>
+      <KioskModalFrame
+        busy={isSaving}
+        closeLabel={copy.kiosk.management.closeAria}
+        description={copy.kiosk.management.description}
+        footer={<Button type="button" variant="outline" onClick={closeAll}>{copy.kiosk.management.closeButton}</Button>}
+        footerSummary={`${activeCount} activos · ${readyCount} pantallas listas`}
+        icon={<MonitorSmartphone className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) closeAll(); }}
+        open={isOpen && !childViewOpen}
+        size="workspace"
+        surface="administration"
+        title={copy.kiosk.management.title}
+        tone="aqua"
+      >
+        <div className="space-y-4">
+          <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
             <div>
               <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.kiosk.management.centerTitle}</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -207,16 +233,25 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
             </div>
             <Button
               type="button"
-              className="h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#3AAE90] hover:shadow-md"
-              onClick={onNew}
+              className="h-10 gap-2 rounded-xl bg-[#59C3A5] px-4 text-white shadow-sm transition hover:bg-[#3AAE90]"
+              onClick={() => { onClose(); onNew(); }}
             >
               <Plus className="h-4 w-4" />
               {copy.kiosk.management.newButton}
             </Button>
-          </div>
+          </section>
+
+          <IndiceModalSummary
+            columns={3}
+            items={[
+              { label: copy.kiosk.management.totalPoints, value: kioskDevices.length, emphasized: true },
+              { label: copy.kiosk.management.activeToday, value: activeCount },
+              { label: copy.kiosk.management.accessScreensReady, value: readyCount },
+            ]}
+          />
 
           {kioskDevices.length > 0 ? (
-            <div className="mt-5 grid gap-4">
+            <div className="grid gap-3">
               {kioskDevices.map((device) => {
                 const hasPublicLink = Boolean(device.public_access_token);
                 return (
@@ -233,18 +268,16 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
                     statusClassName={statusClasses[device.status]}
                     statusLabel={copy.statuses[device.status]}
                     usageLabel={usageLabelForDevice(device, copy)}
-                    onCopy={() => onCopy(device)}
-                    onDelete={() => onDelete(device)}
-                    onEdit={() => onEdit(device)}
+                    onEdit={() => { onClose(); onEdit(device); }}
+                    onMore={() => setMoreDeviceId(device.id)}
                     onOpen={() => onOpen(device)}
-                    onRotate={() => onRotate(device)}
-                    onShowQr={() => onQr(device)}
+                    onShare={() => setShareDeviceId(device.id)}
                   />
                 );
               })}
             </div>
           ) : (
-            <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900/40">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
                 <MonitorSmartphone className="h-6 w-6" />
               </div>
@@ -255,13 +288,85 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               <Button
                 type="button"
                 className="mt-5 h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white hover:bg-[#3AAE90]"
-                onClick={onNew}
+                onClick={() => { onClose(); onNew(); }}
               >
                 <Plus className="h-4 w-4" />
                 {copy.kiosk.management.newButton}
               </Button>
             </div>
           )}
-    </IndiceModalFrame>
+        </div>
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel={copy.kiosk.management.closeAria}
+        description={shareDevice ? shareDevice.name : copy.kiosk.card.accessLabel}
+        footer={<Button type="button" variant="outline" onClick={() => setShareDeviceId(null)}>{copy.kiosk.management.closeButton}</Button>}
+        icon={<Share2 className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setShareDeviceId(null); }}
+        open={isOpen && Boolean(shareDevice)}
+        size="compact"
+        title={copy.kiosk.card.openAttendanceScreen}
+        tone="aqua"
+      >
+        {shareDevice ? (
+          <div className="space-y-4">
+            {shareDevice.public_access_token ? (
+              <>
+                <IndiceModalValidation tone="info" title={copy.kiosk.card.publicLinkReady} messages={[scopeDescriptionForDevice(shareDevice, copy)]} />
+                <div className="grid gap-2">
+                  <KioskAdminPanelAction accent="aqua" primary icon={<ExternalLink className="h-4 w-4" />} label={copy.kiosk.card.openAttendanceScreen} onClick={() => onOpen(shareDevice)} />
+                  <KioskAdminPanelAction accent="aqua" icon={<Copy className="h-4 w-4" />} label={copy.kiosk.actions.copyAccessLink} onClick={() => onCopy(shareDevice)} />
+                  <KioskAdminPanelAction accent="aqua" icon={<QrCode className="h-4 w-4" />} label={copy.kiosk.actions.showAttendanceQr} onClick={() => { setShareDeviceId(null); setQrDeviceId(shareDevice.id); }} />
+                  <KioskAdminPanelAction accent="aqua" icon={<RotateCw className="h-4 w-4" />} label={copy.kiosk.actions.resetAccessLink} onClick={() => { setShareDeviceId(null); onRotate(shareDevice); }} />
+                </div>
+              </>
+            ) : (
+              <>
+                <IndiceModalValidation tone="warning" title={copy.kiosk.card.publicLinkPending} messages={[copy.kiosk.card.noAccessLink]} />
+                <KioskAdminPanelAction accent="aqua" primary icon={<RotateCw className="h-4 w-4" />} label={copy.kiosk.actions.resetAccessLink} onClick={() => { setShareDeviceId(null); onRotate(shareDevice); }} />
+              </>
+            )}
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel={copy.kiosk.management.closeAria}
+        description={moreDevice ? moreDevice.name : copy.kiosk.actions.openActions}
+        footer={<Button type="button" variant="outline" onClick={() => setMoreDeviceId(null)}>{copy.kiosk.management.closeButton}</Button>}
+        icon={<MoreHorizontal className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setMoreDeviceId(null); }}
+        open={isOpen && Boolean(moreDevice)}
+        size="compact"
+        title={copy.kiosk.actions.openActions}
+        tone="aqua"
+      >
+        {moreDevice ? (
+          <div className="space-y-3">
+            <KioskAdminPanelAction accent="aqua" icon={<MapPin className="h-4 w-4" />} label={kioskTypeLabel(moreDevice, copy)} description={locationRuleForDevice(moreDevice, locations, copy)} onClick={() => undefined} disabled />
+            <KioskAdminPanelAction accent="aqua" primary icon={<Pencil className="h-4 w-4" />} label={copy.kiosk.actions.editAttendancePoint} onClick={() => { setMoreDeviceId(null); onClose(); onEdit(moreDevice); }} />
+            <KioskAdminPanelAction accent="aqua" danger icon={<Trash2 className="h-4 w-4" />} label={copy.kiosk.actions.deleteAttendancePoint} description={copy.kiosk.management.deleteDescription} onClick={() => { setMoreDeviceId(null); onClose(); onDelete(moreDevice); }} />
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel={copy.kiosk.management.closeAria}
+        description={qrDevice ? qrDevice.name : copy.kiosk.card.qrTitle}
+        footer={<Button type="button" variant="outline" onClick={() => setQrDeviceId(null)}>{copy.kiosk.management.closeButton}</Button>}
+        icon={<QrCode className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setQrDeviceId(null); }}
+        open={isOpen && Boolean(qrDevice)}
+        size="compact"
+        title={copy.kiosk.card.qrTitle}
+        tone="aqua"
+      >
+        <div className="flex flex-col items-center text-center">
+          {qrDataUrl ? <img src={qrDataUrl} alt={`${copy.kiosk.card.qrTitle}: ${qrDevice?.name ?? ''}`} className="h-56 w-56 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" /> : <p className="py-16 text-sm font-medium text-slate-600">{copy.loading}</p>}
+          {qrDevice ? <p className="mt-4 text-xs leading-5 text-slate-500">{scopeDescriptionForDevice(qrDevice, copy)}</p> : null}
+        </div>
+      </KioskModalFrame>
+    </>
   );
 }

@@ -42,6 +42,6 @@ class PettyCashKioskCapabilitiesTest {
             .containsEntry("purpose", "petty-cash-receipt");
         assertThat(upload.mutation()).isTrue();
         assertThat((List<String>) upload.filePolicy().get("mimeTypes"))
-            .contains("application/pdf", "image/jpeg", "image/png");
+            .contains("application/pdf", "image/jpeg", "image/png", "image/heic", "image/heif");
     }
 }

@@ -111,6 +111,10 @@ class AttendanceAccessRepository {
         return methodRepository.pinCredentialReferenceExists(companyId, credentialRef, excludedMethodId);
     }
 
+    void updatePinCredentialReference(long companyId, long methodId, String credentialRef) {
+        methodRepository.updatePinCredentialReference(companyId, methodId, credentialRef);
+    }
+
     AttendanceAccessUser loadAccessUser(long companyId, long userCompanyId) {
         return jdbcTemplate.query(
                 """

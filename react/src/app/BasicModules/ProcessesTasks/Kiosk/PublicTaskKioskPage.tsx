@@ -1,19 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   CheckCircle2,
-  ClipboardCheck,
-  Eye,
   ListChecks,
-  Plus,
-  RefreshCw,
 } from 'lucide-react';
 import { useParams } from 'react-router';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
+import { KioskIdentityGate } from '../../../components/kiosk-engine/KioskIdentityGate';
 import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
-import {
-  KioskIdentitySummary,
-  KioskMetricCard,
-} from '../../../components/kiosk-engine/KioskWorkspacePrimitives';
+import { KioskWorkspaceTabs } from '../../../components/kiosk-engine/KioskWorkspacePrimitives';
 import { Button } from '../../../components/ui/button';
 import {
   processTaskKioskApi,
@@ -26,9 +20,16 @@ import {
 } from './processTaskKioskApi';
 import { PublicTaskKioskDialogs } from './components/PublicTaskKioskDialogs';
 import {
+  PublicTaskKioskEmptyState,
+  PublicTaskKioskFiltersSheet,
   PublicTaskKioskHeader,
-  PublicTaskKioskPinAccess,
+  PublicTaskKioskIdentityCard,
   PublicTaskKioskSessionBanners,
+  PublicTaskKioskSummaryStrip,
+  PublicTaskKioskTaskCard,
+  PublicTaskKioskToolbar,
+  TaskKioskFilterField,
+  TaskKioskFilterSelect,
 } from './components/PublicTaskKioskWorkspaceSections';
 import { useTaskKioskLocaleControls, useTaskKioskTranslations } from './hooks/useTaskKioskTranslations';
 import type { TaskKioskLocale, TaskKioskTranslations } from './translations';
@@ -36,6 +37,7 @@ import type { AgendaFocusFilter, PeriodFilter } from '../Agenda/types';
 import { filterKioskTasks } from './taskKioskFilterEngine';
 import {
   normalizedTaskKioskEvidenceContentType,
+  runTaskCompletionWithBestEffortEvidence,
   taskKioskAcceptedEvidenceTypes,
   taskKioskFilesFromInput,
   taskKioskMaxEvidenceFiles,
@@ -43,6 +45,7 @@ import {
 } from './publicTaskKioskEvidence';
 import {
   completeKioskIdempotentOperation,
+  executeKioskMutationWithMismatchRecovery,
   kioskIdempotencyKeyFor,
 } from './kioskIdempotency';
 import { useKioskSessionBoundary } from './hooks/useKioskSessionBoundary';
@@ -59,10 +62,24 @@ class RequestTimeoutError extends Error {
   }
 }
 
+function publicTaskKioskErrorMessage(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) return fallback;
+  const message = error.message.trim();
+  if (/credential validation failed|invalid (?:employee )?pin|pin (?:is )?invalid/i.test(message)) {
+    return fallback;
+  }
+  if (!message || /internal server error|status\s*500|unexpected server error/i.test(message)) {
+    return fallback;
+  }
+  return message;
+}
+
 type TaskKioskTab = 'open' | 'resolved';
 
 type TaskCreateFormState = {
   title: string;
+  description: string;
+  priority: PublicTaskKioskCreateTaskPayload['priority'];
   unitId: string;
   businessId: string;
   assignedUserCompanyId: string;
@@ -73,6 +90,8 @@ type KioskCollaboratorOption = PublicTaskKioskAssignmentOption['collaborators'][
 
 const defaultCreateForm: TaskCreateFormState = {
   title: '',
+  description: '',
+  priority: 'medium',
   unitId: '',
   businessId: '',
   assignedUserCompanyId: '',
@@ -238,6 +257,16 @@ function filterLabels(locale: TaskKioskLocale) {
     createdEvidenceBody: isSpanish
       ? 'Adjunta fotos, PDF o archivos para que la tarea nazca con contexto.'
       : 'Attach photos, PDFs, or files so the task starts with context.',
+    filters: isSpanish ? 'Filtros' : 'Filters',
+    filtersDescription: isSpanish
+      ? 'Ajusta qué tareas quieres consultar. Los cambios se aplican al instante.'
+      : 'Choose which tasks you want to review. Changes apply immediately.',
+    applyFilters: isSpanish ? 'Ver tareas' : 'View tasks',
+    clearFilters: isSpanish ? 'Restablecer' : 'Reset',
+    takePhoto: isSpanish ? 'Tomar foto' : 'Take photo',
+    chooseFile: isSpanish ? 'Elegir archivo' : 'Choose file',
+    taskDetails: isSpanish ? 'Información de la tarea' : 'Task information',
+    close: isSpanish ? 'Cerrar' : 'Close',
   };
 }
 
@@ -260,6 +289,7 @@ export default function PublicTaskKioskPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [activeTaskTab, setActiveTaskTab] = useState<TaskKioskTab>('open');
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [createTaskForm, setCreateTaskForm] = useState<TaskCreateFormState>(defaultCreateForm);
   const [createEvidenceFiles, setCreateEvidenceFiles] = useState<File[]>([]);
@@ -289,6 +319,7 @@ export default function PublicTaskKioskPage() {
     setResponsibleTaskId(null);
     setIsTaskModalOpen(false);
     setIsCreateTaskModalOpen(false);
+    setIsFiltersOpen(false);
     setCompletionNotes('');
     setCompletionPercent('100');
     setEvidenceFiles([]);
@@ -319,7 +350,7 @@ export default function PublicTaskKioskPage() {
         }
       } catch (loadError) {
         if (isMounted) {
-          setError(loadError instanceof Error ? loadError.message : copy.errors.loadFailure);
+          setError(publicTaskKioskErrorMessage(loadError, copy.errors.loadFailure));
         }
       } finally {
         if (isMounted) {
@@ -337,7 +368,7 @@ export default function PublicTaskKioskPage() {
   const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
     active: Boolean(identity),
     expiresAt: identity?.expires_at,
-    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 180,
+    inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 1800,
     onExpire: expireKioskSession,
   });
 
@@ -434,6 +465,25 @@ export default function PublicTaskKioskPage() {
   const scopeLabel = bootstrap?.scope_label ?? copy.header.defaultScope;
   const currentTimeLabel = new Date().toLocaleTimeString(selectedLocale, { hour: '2-digit', minute: '2-digit' });
   const labels = useMemo(() => filterLabels(selectedLocale), [selectedLocale]);
+  const focusFilterLabel = focusFilter === 'mine'
+    ? labels.mine
+    : focusFilter === 'delegated'
+      ? labels.delegated
+      : labels.team;
+  const periodFilterLabel = {
+    all: labels.allPeriod,
+    today: labels.today,
+    tomorrow: labels.tomorrow,
+    yesterday: labels.yesterday,
+    week: labels.week,
+    month: labels.month,
+    custom: labels.allPeriod,
+  }[periodFilter];
+  const scopedFilterCount = Number(unitFilter !== allFilterValue) + Number(businessFilter !== allFilterValue);
+  const activeFilterCount = Number(focusFilter !== 'mine')
+    + Number(periodFilter !== 'today')
+    + scopedFilterCount;
+  const filterSummary = `${focusFilterLabel} · ${periodFilterLabel}${scopedFilterCount > 0 ? ` · +${scopedFilterCount}` : ''}`;
 
   useEffect(() => {
     if (!selectedTask) {
@@ -466,7 +516,7 @@ export default function PublicTaskKioskPage() {
       setError(copy.session.offline);
       return;
     }
-    if (!deviceToken || pin.length < 5) {
+    if (!deviceToken || pin.length !== 5) {
       return;
     }
     setIsSubmitting(true);
@@ -485,7 +535,7 @@ export default function PublicTaskKioskPage() {
       setPin('');
       setDidSessionExpire(false);
     } catch (identifyError) {
-      setError(identifyError instanceof Error ? identifyError.message : copy.errors.identifyFailure);
+      setError(publicTaskKioskErrorMessage(identifyError, copy.errors.identifyFailure));
     } finally {
       setIsSubmitting(false);
     }
@@ -509,20 +559,31 @@ export default function PublicTaskKioskPage() {
     setError(null);
     setSuccessMessage(null);
     try {
-      await uploadTaskEvidence(selectedTask.id, evidenceFiles);
-
       const completionPayload = {
         identification_token: identity.identification_token,
         completion_notes: completionNotes,
         completion_percent: parsedCompletion,
       };
       const operation = `process-tasks:complete:${selectedTask.id}`;
-      const response = await processTaskKioskApi.completePublicTask(
-        deviceToken,
-        selectedTask.id,
-        completionPayload,
-        kioskIdempotencyKeyFor(operation, completionPayload),
-      );
+      const completionResult = await runTaskCompletionWithBestEffortEvidence({
+        uploadEvidence: () => uploadTaskEvidence(selectedTask.id, evidenceFiles),
+        completeTask: () => executeKioskMutationWithMismatchRecovery({
+          operation,
+          payload: completionPayload,
+          request: (idempotencyKey) => processTaskKioskApi.completePublicTask(
+            deviceToken,
+            selectedTask.id,
+            completionPayload,
+            idempotencyKey,
+          ),
+        }),
+      });
+      const { response } = completionResult;
+      const evidenceWarning = completionResult.evidenceFailure === 'TASK_EVIDENCE_PARTIAL_FAILURE'
+        ? copy.errors.completionPartialUploadFailure
+        : completionResult.evidenceFailure === 'TASK_EVIDENCE_UPLOAD_FAILED'
+          ? copy.errors.completionUploadFailure
+          : null;
       completeKioskIdempotentOperation(operation);
       setTasks(response.items);
       setSelectedTaskId(null);
@@ -531,14 +592,9 @@ export default function PublicTaskKioskPage() {
       setCompletionPercent('100');
       setEvidenceFiles([]);
       setSuccessMessage(copy.success.completed(selectedTask.title));
+      setError(evidenceWarning);
     } catch (completeError) {
-      if (completeError instanceof Error && completeError.message === 'TASK_EVIDENCE_PARTIAL_FAILURE') {
-        setError(copy.errors.partialUploadFailure);
-      } else if (completeError instanceof Error && completeError.message === 'TASK_EVIDENCE_UPLOAD_FAILED') {
-        setError(copy.errors.uploadFailure);
-      } else {
-        setError(completeError instanceof Error ? completeError.message : copy.errors.completeFailure);
-      }
+      setError(publicTaskKioskErrorMessage(completeError, copy.errors.completeFailure));
     } finally {
       setIsUploadingEvidence(false);
       setIsSubmitting(false);
@@ -567,8 +623,8 @@ export default function PublicTaskKioskPage() {
       const createPayload: PublicTaskKioskCreateTaskPayload = {
         identification_token: identity.identification_token,
         title,
-        description: null,
-        priority: 'medium',
+        description: createTaskForm.description.trim() || null,
+        priority: createTaskForm.priority,
         startDate: null,
         dueDate: createTaskForm.dueDate || todayDateInputValue(),
         unitId: numericFormValue(createTaskForm.unitId),
@@ -580,14 +636,36 @@ export default function PublicTaskKioskPage() {
           )?.full_name ?? identity.user.full_name,
       };
       const operation = 'process-tasks:create';
-      const response = await processTaskKioskApi.createPublicTask(
-        deviceToken,
-        createPayload,
-        kioskIdempotencyKeyFor(operation, createPayload),
-      );
-      await uploadTaskEvidence(response.task.id, createEvidenceFiles);
+      const response = await executeKioskMutationWithMismatchRecovery({
+        operation,
+        payload: createPayload,
+        request: (idempotencyKey) => processTaskKioskApi.createPublicTask(
+          deviceToken,
+          createPayload,
+          idempotencyKey,
+        ),
+      });
       completeKioskIdempotentOperation(operation);
       setTasks(response.items);
+
+      let evidenceWarning: string | null = null;
+      if (createEvidenceFiles.length > 0) {
+        try {
+          await uploadTaskEvidence(response.task.id, createEvidenceFiles);
+          const refreshedTasks = await processTaskKioskApi.listPublicTasks(
+            deviceToken,
+            identity.identification_token,
+          );
+          setTasks(refreshedTasks.items);
+        } catch (uploadError) {
+          evidenceWarning = uploadError instanceof Error && uploadError.message === 'TASK_EVIDENCE_PARTIAL_FAILURE'
+            ? copy.errors.partialUploadFailure
+            : uploadError instanceof Error && uploadError.message === 'TASK_EVIDENCE_UPLOAD_FAILED'
+              ? copy.errors.uploadFailure
+              : publicTaskKioskErrorMessage(uploadError, copy.errors.uploadFailure);
+        }
+      }
+
       setIsCreateTaskModalOpen(false);
       setActiveTaskTab('open');
       setCreateTaskForm({
@@ -598,14 +676,9 @@ export default function PublicTaskKioskPage() {
       });
       setCreateEvidenceFiles([]);
       setSuccessMessage(copy.success.created(title));
+      setError(evidenceWarning);
     } catch (createError) {
-      if (createError instanceof Error && createError.message === 'TASK_EVIDENCE_PARTIAL_FAILURE') {
-        setError(copy.errors.partialUploadFailure);
-      } else if (createError instanceof Error && createError.message === 'TASK_EVIDENCE_UPLOAD_FAILED') {
-        setError(copy.errors.uploadFailure);
-      } else {
-        setError(createError instanceof Error ? createError.message : copy.errors.createFailure);
-      }
+      setError(publicTaskKioskErrorMessage(createError, copy.errors.createFailure));
     } finally {
       setIsUploadingEvidence(false);
       setIsSubmitting(false);
@@ -664,9 +737,7 @@ export default function PublicTaskKioskPage() {
     } catch (assignError) {
       const message = assignError instanceof Error && ['AbortError', 'RequestTimeoutError'].includes(assignError.name)
         ? copy.errors.responsibleTimeout
-        : assignError instanceof Error
-          ? assignError.message
-          : copy.errors.responsibleFailure;
+        : publicTaskKioskErrorMessage(assignError, copy.errors.responsibleFailure);
       setResponsibleError(message);
       setError(message);
     } finally {
@@ -795,260 +866,167 @@ export default function PublicTaskKioskPage() {
           scopeLabel={scopeLabel}
         />}
         errorMessage={error}
+        maxWidthClassName="max-w-[480px]"
+        minimalContent={!identity}
         successMessage={successMessage}
         sessionExpiredMessage={didSessionExpire ? copy.session.expired : null}
       >
         {!identity ? (
-              <PublicTaskKioskPinAccess
-                copy={copy}
-                isOnline={isOnline}
+              <KioskIdentityGate
+                backspaceLabel={copy.pin.deleteKey}
+                clearLabel={copy.pin.deleteKey}
+                description={copy.pin.description}
+                disabled={!isOnline || isLoading}
                 isSubmitting={isSubmitting}
-                onIdentify={() => void handleIdentify()}
-                pin={pin}
-                setPin={setPin}
+                onPinChange={(value) => {
+                  setPin(value);
+                  if (error) setError(null);
+                }}
+                onSubmit={() => void handleIdentify()}
+                pinAriaLabel={copy.pin.placeholder}
+                pinLength={5}
+                pinValue={pin}
+                privacyMessage={copy.pin.privacy}
+                submitLabel={copy.pin.continue}
+                title={copy.pin.title}
+                tone="yellow"
               />
             ) : (
-              <section className="mt-3 space-y-4 pb-28 sm:mt-0 sm:space-y-5 sm:pb-0">
-                <KioskIdentitySummary
+              <section className="space-y-3 pb-[env(safe-area-inset-bottom)]">
+                <KioskWorkspaceTabs<TaskKioskTab>
+                  activeBackgroundColor="#F4C84A"
+                  activeTextClassName="text-[#5F4003]"
+                  activeValue={activeTaskTab}
+                  ariaLabel={copy.header.badge}
+                  items={[
+                    { badge: openTasks.length, icon: <ListChecks className="h-4 w-4" />, label: copy.tabs.open(openTasks.length).replace(/\s*\([^)]*\)\s*$/, ''), value: 'open' },
+                    { badge: resolvedTasks.length, icon: <CheckCircle2 className="h-4 w-4" />, label: copy.tabs.resolved(resolvedTasks.length).replace(/\s*\([^)]*\)\s*$/, ''), value: 'resolved' },
+                  ]}
+                  onChange={setActiveTaskTab}
                   tone="yellow"
-                  kioskLabel={copy.header.badge}
+                />
+
+                <PublicTaskKioskIdentityCard
                   verifiedLabel={copy.identity.eyebrow}
                   name={identity.user.full_name}
                   detail={identity.user.position_title || identity.user.department || identity.user.user_code || copy.identity.fallbackStatus}
                   initials={identity.user.full_name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() ?? '').join('') || '??'}
                   scopeLabel={scopeLabel}
-                  action={(
-                    <Button type="button" variant="outline" className="h-10 shrink-0 gap-2 rounded-lg border-white/45 bg-white/45 px-3 text-slate-950 hover:bg-white/70" onClick={resetKioskSession}>
-                      <RefreshCw className="h-4 w-4" />
-                      {copy.identity.reset}
-                    </Button>
-                  )}
+                  resetLabel={copy.identity.reset}
+                  onReset={resetKioskSession}
                 />
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <KioskMetricCard label={copy.sidebar.openTasks} tone="yellow" value={openTasks.length} valueClassName="text-2xl" />
-                  <KioskMetricCard accent label={copy.task.overdue} tone="red" value={overdueTasksCount} valueClassName="text-2xl" />
-                  <KioskMetricCard label={copy.tabs.resolved(resolvedTasks.length).replace(/[()0-9]/g, '').trim()} tone="yellow" value={resolvedTasks.length} valueClassName="text-2xl" />
-                  <KioskMetricCard accent label={copy.header.scope} tone="yellow" value={scopeLabel} valueClassName="text-sm" />
-                </div>
+                <PublicTaskKioskSummaryStrip
+                  openLabel={copy.sidebar.openTasks}
+                  openValue={openTasks.length}
+                  overdueLabel={copy.task.overdue}
+                  overdueValue={overdueTasksCount}
+                  resolvedLabel={copy.tabs.resolved(resolvedTasks.length).replace(/[()0-9]/g, '').trim()}
+                  resolvedValue={resolvedTasks.length}
+                />
 
-                <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="grid gap-3 sm:grid-cols-2 lg:flex-1">
-                      <label className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{labels.focus}</span>
-                        <select
-                          value={focusFilter}
-                          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none transition focus:border-[#F4C84A] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          onChange={(event) => setFocusFilter(event.target.value as AgendaFocusFilter)}
-                        >
-                          <option value="mine">{labels.mine}</option>
-                          <option value="delegated">{labels.delegated}</option>
-                          <option value="team">{labels.team}</option>
-                        </select>
-                      </label>
-                      <label className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{labels.period}</span>
-                        <select
-                          value={periodFilter}
-                          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none transition focus:border-[#F4C84A] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          onChange={(event) => setPeriodFilter(event.target.value as PeriodFilter)}
-                        >
-                          <option value="all">{labels.allPeriod}</option>
-                          <option value="today">{labels.today}</option>
-                          <option value="tomorrow">{labels.tomorrow}</option>
-                          <option value="yesterday">{labels.yesterday}</option>
-                          <option value="week">{labels.week}</option>
-                          <option value="month">{labels.month}</option>
-                        </select>
-                      </label>
-                      <label className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{copy.filters.unit}</span>
-                        <select
-                          value={unitFilter}
-                          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none transition focus:border-[#F4C84A] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          onChange={(event) => handleUnitFilterChange(event.target.value)}
-                        >
-                          <option value={allFilterValue}>{copy.filters.allUnits}</option>
-                          {unitOptions.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{copy.filters.business}</span>
-                        <select
-                          value={businessFilter}
-                          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none transition focus:border-[#F4C84A] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          onChange={(event) => setBusinessFilter(event.target.value)}
-                        >
-                          <option value={allFilterValue}>{copy.filters.allBusinesses}</option>
-                          {businessOptions.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <Button
-                      type="button"
-                      className="h-11 rounded-lg bg-[#F4C84A] px-4 text-sm font-black text-slate-950 shadow-sm hover:bg-[#E5B835]"
-                      onClick={() => setIsCreateTaskModalOpen(true)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      {copy.actions.createTask}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:inline-grid sm:grid-cols-2">
-                  {([
-                    ['open', copy.tabs.open(openTasks.length)],
-                    ['resolved', copy.tabs.resolved(resolvedTasks.length)],
-                  ] as const).map(([tab, label]) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      className={`rounded-lg px-4 py-2 text-sm font-black transition ${
-                        activeTaskTab === tab
-                          ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                          : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
-                      }`}
-                      onClick={() => setActiveTaskTab(tab)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <PublicTaskKioskToolbar
+                  activeFilterCount={activeFilterCount}
+                  createLabel={copy.actions.createTask}
+                  filterLabel={labels.filters}
+                  filterSummary={filterSummary}
+                  onCreate={() => {
+                    setError(null);
+                    setIsCreateTaskModalOpen(true);
+                  }}
+                  onOpenFilters={() => setIsFiltersOpen(true)}
+                />
 
                 {tasks.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950">
-                    <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
-                    <h3 className="mt-4 text-xl font-black">{copy.empty.title}</h3>
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{copy.empty.body}</p>
-                  </div>
+                  <PublicTaskKioskEmptyState title={copy.empty.title} body={copy.empty.body} />
                 ) : visibleTasks.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950">
-                    <ListChecks className="mx-auto h-12 w-12 text-[#9A6B05]" />
-                    <h3 className="mt-4 text-xl font-black">{activeTaskTab === 'open' ? copy.empty.filteredTitle : copy.empty.resolvedTitle}</h3>
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                      {activeTaskTab === 'open' ? copy.empty.filteredBody : copy.empty.resolvedBody}
-                    </p>
+                  <div>
+                    <PublicTaskKioskEmptyState
+                      icon={<ListChecks className="h-7 w-7" />}
+                      title={activeTaskTab === 'open' ? copy.empty.filteredTitle : copy.empty.resolvedTitle}
+                      body={activeTaskTab === 'open' ? copy.empty.filteredBody : copy.empty.resolvedBody}
+                    />
                     <Button
                       type="button"
                       variant="outline"
-                      className="mt-5 h-10 rounded-lg border-[#F4C84A]/50 px-4 text-sm font-black text-[#7A5204] hover:bg-[#F4C84A]/10"
+                      className="mx-auto mt-3 flex h-11 rounded-xl border-[#F4C84A]/60 px-4 text-sm font-semibold text-[#7A5204] hover:bg-[#F4C84A]/10"
                       onClick={() => {
-                        setFocusFilter('team');
-                        setPeriodFilter('all');
+                        setFocusFilter('mine');
+                        setPeriodFilter('today');
                         setUnitFilter(allFilterValue);
                         setBusinessFilter(allFilterValue);
                       }}
                     >
-                      {labels.allPeriod}
+                      {labels.clearFilters}
                     </Button>
                   </div>
                 ) : (
                   <div className="grid gap-3">
                     {visibleTasks.map((task) => (
-                      <article
+                      <PublicTaskKioskTaskCard
                         key={task.id}
-                        className={`overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-md dark:bg-slate-950 ${
-                          task.is_overdue
-                            ? 'border-red-200 hover:border-red-300 dark:border-red-900/60'
-                            : 'border-slate-200 hover:border-[#F4C84A]/60 dark:border-slate-800'
-                        }`}
-                      >
-                        <div className="grid gap-0 sm:grid-cols-[minmax(0,1fr)_13rem]">
-                          <div className="min-w-0 p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                                  {task.unit_name || copy.filters.unassignedUnit}
-                                </p>
-                                <p className="mt-1 truncate text-sm font-bold text-[#9A6B05] dark:text-[#FDE68A]">
-                                  {task.business_name || copy.filters.unassignedBusiness}
-                                </p>
-                              </div>
-                              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
-                                task.is_overdue
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-200'
-                                  : 'bg-[#F4C84A]/15 text-[#9A6B05] dark:bg-[#F4C84A]/15 dark:text-[#FDE68A]'
-                              }`}>
-                                {task.is_overdue ? copy.task.overdue : taskTypeLabel(task.task_type, copy)}
-                              </span>
-                            </div>
-
-                            <h3 className="mt-3 text-lg font-black leading-6 text-slate-950 dark:text-white">{task.title}</h3>
-                            {task.description ? (
-                              <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-slate-300">{task.description}</p>
-                            ) : null}
-                          </div>
-
-                          <div className="border-t border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70 sm:border-l sm:border-t-0">
-                            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-1">
-                              <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-950">
-                                <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{copy.task.due}</dt>
-                                <dd className="mt-1 font-black">{formatDate(task.due_date, selectedLocale, copy.errors.noDate)}</dd>
-                              </div>
-                              <div className="rounded-lg bg-white px-3 py-2 dark:bg-slate-950">
-                                <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{copy.task.created}</dt>
-                                <dd className="mt-1 font-black">{formatDateTime(task.created_at, selectedLocale, copy.errors.noDate)}</dd>
-                              </div>
-                            </dl>
-
-                            <button
-                              type="button"
-                              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-900 transition hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                              onClick={() => openTaskCompletionModal(task)}
-                            >
-                              <Eye className="h-4 w-4" />
-                              {labels.view}
-                            </button>
-
-                            {openTaskStatuses.has(task.status) ? (
-                              <button
-                                type="button"
-                                className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm font-black text-slate-900 transition hover:border-[#F4C84A] hover:bg-[#F4C84A]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                                onClick={() => openResponsibleModal(task)}
-                              >
-                                <span className="min-w-0 truncate">{task.assigned_name || identity.user.full_name}</span>
-                                <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.12em] text-[#9A6B05] dark:text-[#FDE68A]">
-                                  {copy.task.changeResponsible}
-                                </span>
-                              </button>
-                            ) : (
-                              <div className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold dark:border-slate-800 dark:bg-slate-950">
-                                {task.assigned_name || identity.user.full_name}
-                              </div>
-                            )}
-
-                            {task.can_complete && openTaskStatuses.has(task.status) ? (
-                              <Button
-                                type="button"
-                                className="mt-2 h-11 w-full rounded-lg bg-emerald-600 text-sm font-black text-white hover:bg-emerald-700"
-                                onClick={() => openTaskCompletionModal(task)}
-                              >
-                                <ClipboardCheck className="mr-2 h-4 w-4" />
-                                {copy.task.closeTask}
-                              </Button>
-                            ) : (
-                              <div className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                                {task.status === 'completed'
-                                  ? copy.task.resolved
-                                  : task.is_created_by_current_user
-                                    ? copy.task.createdByYou
-                                    : copy.task.assignedElsewhere}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </article>
+                        attachmentsLabel={labels.attachments}
+                        copy={copy}
+                        dueLabel={copy.task.due}
+                        formattedDueDate={formatDate(task.due_date, selectedLocale, copy.errors.noDate)}
+                        onOpen={() => openTaskCompletionModal(task)}
+                        task={task}
+                        taskType={taskTypeLabel(task.task_type, copy)}
+                        viewLabel={labels.view}
+                      />
                     ))}
                   </div>
                 )}
               </section>
         )}
       </KioskPublicShell>
+
+      <PublicTaskKioskFiltersSheet
+        applyLabel={labels.applyFilters}
+        clearLabel={labels.clearFilters}
+        description={labels.filtersDescription}
+        isOpen={Boolean(identity) && isFiltersOpen}
+        onClear={() => {
+          setFocusFilter('mine');
+          setPeriodFilter('today');
+          setUnitFilter(allFilterValue);
+          setBusinessFilter(allFilterValue);
+        }}
+        onClose={() => setIsFiltersOpen(false)}
+        title={labels.filters}
+      >
+        <div className="grid gap-4">
+          <TaskKioskFilterField label={labels.focus}>
+            <TaskKioskFilterSelect value={focusFilter} onChange={(value) => setFocusFilter(value as AgendaFocusFilter)}>
+              <option value="mine">{labels.mine}</option>
+              <option value="delegated">{labels.delegated}</option>
+              <option value="team">{labels.team}</option>
+            </TaskKioskFilterSelect>
+          </TaskKioskFilterField>
+          <TaskKioskFilterField label={labels.period}>
+            <TaskKioskFilterSelect value={periodFilter} onChange={(value) => setPeriodFilter(value as PeriodFilter)}>
+              <option value="all">{labels.allPeriod}</option>
+              <option value="today">{labels.today}</option>
+              <option value="tomorrow">{labels.tomorrow}</option>
+              <option value="yesterday">{labels.yesterday}</option>
+              <option value="week">{labels.week}</option>
+              <option value="month">{labels.month}</option>
+            </TaskKioskFilterSelect>
+          </TaskKioskFilterField>
+          <TaskKioskFilterField label={copy.filters.unit}>
+            <TaskKioskFilterSelect value={unitFilter} onChange={handleUnitFilterChange}>
+              <option value={allFilterValue}>{copy.filters.allUnits}</option>
+              {unitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </TaskKioskFilterSelect>
+          </TaskKioskFilterField>
+          <TaskKioskFilterField label={copy.filters.business}>
+            <TaskKioskFilterSelect value={businessFilter} onChange={setBusinessFilter}>
+              <option value={allFilterValue}>{copy.filters.allBusinesses}</option>
+              {businessOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </TaskKioskFilterSelect>
+          </TaskKioskFilterField>
+        </div>
+      </PublicTaskKioskFiltersSheet>
 
       <PublicTaskKioskDialogs
         assignmentOptions={assignmentOptions}
@@ -1062,6 +1040,7 @@ export default function PublicTaskKioskPage() {
         createEvidenceFiles={createEvidenceFiles}
         createTaskForm={createTaskForm}
         evidenceFiles={evidenceFiles}
+        errorMessage={error}
         formatDate={formatDate}
         formatDateTime={formatDateTime}
         handleAssignResponsible={handleAssignResponsible}
@@ -1078,6 +1057,10 @@ export default function PublicTaskKioskPage() {
         isUploadingEvidence={isUploadingEvidence}
         labels={labels}
         openTaskStatuses={openTaskStatuses}
+        openResponsibleModal={(task) => {
+          closeTaskCompletionModal();
+          openResponsibleModal(task);
+        }}
         responsibleCollaboratorOptions={responsibleCollaboratorOptions}
         responsibleError={responsibleError}
         responsibleTask={responsibleTask}

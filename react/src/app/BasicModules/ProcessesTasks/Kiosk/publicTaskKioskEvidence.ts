@@ -1,6 +1,10 @@
 export const taskKioskMaxEvidenceSizeBytes = 10 * 1024 * 1024;
 export const taskKioskMaxEvidenceFiles = 5;
 
+export type RecoverableTaskKioskEvidenceFailure =
+  | 'TASK_EVIDENCE_PARTIAL_FAILURE'
+  | 'TASK_EVIDENCE_UPLOAD_FAILED';
+
 export const taskKioskAcceptedEvidenceTypes = new Set([
   'application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp',
   'image/heic', 'image/heif', 'application/msword',
@@ -40,4 +44,32 @@ export function normalizedTaskKioskEvidenceContentType(file: File) {
 
 export function taskKioskFilesFromInput(files: FileList | null) {
   return Array.from(files ?? []).slice(0, taskKioskMaxEvidenceFiles);
+}
+
+export async function runTaskCompletionWithBestEffortEvidence<T>({
+  uploadEvidence,
+  completeTask,
+}: {
+  uploadEvidence: () => Promise<void>;
+  completeTask: () => Promise<T>;
+}): Promise<{ response: T; evidenceFailure: RecoverableTaskKioskEvidenceFailure | null }> {
+  let evidenceFailure: RecoverableTaskKioskEvidenceFailure | null = null;
+
+  try {
+    await uploadEvidence();
+  } catch (error) {
+    if (
+      error instanceof Error
+      && (error.message === 'TASK_EVIDENCE_PARTIAL_FAILURE' || error.message === 'TASK_EVIDENCE_UPLOAD_FAILED')
+    ) {
+      evidenceFailure = error.message;
+    } else {
+      throw error;
+    }
+  }
+
+  return {
+    response: await completeTask(),
+    evidenceFailure,
+  };
 }

@@ -1,4 +1,4 @@
-import { Archive, Banknote, Coins, Copy, ExternalLink, Eye, Info, KeyRound, Landmark, Pencil, ReceiptText, RotateCw, Search, ShieldCheck, Trash2, UserRound, WalletCards, X } from 'lucide-react';
+import { Archive, Banknote, Coins, Copy, ExternalLink, Eye, Info, KeyRound, Landmark, Link2, MoreHorizontal, Pencil, QrCode, ReceiptText, RotateCw, Search, Share2, ShieldCheck, Trash2, UserRound, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { getCategoryById } from '../../Expenses/data/categories.data';
 import { useFinanceReferenceData } from '../../Expenses/hooks/useFinanceReferenceData';
@@ -11,7 +11,10 @@ import type { PettyCashCurrency, PettyCashFund, PettyCashFundStatus, PettyCashSt
 import { hasPettyCashBackendId, pettyCashService } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
-import { IndiceModalFrame, IndiceModalValidation } from '../../../components/indice-modal';
+import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../components/indice-modal';
+import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../components/kiosk-engine/KioskAdminPrimitives';
+import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
+import { useKioskQrCode } from '../../../components/kiosk-engine/useKioskQrCode';
 import {
   formatPettyCashNativeBreakdown,
   formatPettyCashCurrency,
@@ -1361,6 +1364,9 @@ function KioskModal({
   const [deletingKioskId, setDeletingKioskId] = useState('');
   const [pendingDeleteKioskId, setPendingDeleteKioskId] = useState('');
   const [rotatingFundId, setRotatingFundId] = useState('');
+  const [shareFundId, setShareFundId] = useState('');
+  const [optionsFundId, setOptionsFundId] = useState('');
+  const [qrFundId, setQrFundId] = useState('');
   const activeKiosks = funds.filter(fund => fund.kioskEnabled).length;
   const nextFundToConfigure = funds.find(fund => !fund.kioskEnabled) ?? funds[0];
   const unitChoices = useMemo(() => {
@@ -1382,6 +1388,11 @@ function KioskModal({
     const path = getKioskPath(fund);
     return path ? (path.startsWith('http') ? path : `${window.location.origin}${path}`) : '';
   };
+  const shareFund = funds.find(fund => fund.id === shareFundId);
+  const optionsFund = funds.find(fund => fund.id === optionsFundId);
+  const qrFund = funds.find(fund => fund.id === qrFundId);
+  const qrDataUrl = useKioskQrCode(getKioskUrl(qrFund), '#147514');
+  const hasChildView = Boolean(shareFund || optionsFund || qrFund || pendingDeleteKioskId);
 
   const openEditor = (fundId: string) => {
     const nextFund = funds.find(fund => fund.id === fundId);
@@ -1391,6 +1402,9 @@ function KioskModal({
     setCopiedFundId('');
     setOperationError('');
     setRotatingFundId('');
+    setShareFundId('');
+    setOptionsFundId('');
+    setQrFundId('');
   };
   const closeEditor = () => {
     setEditorFundId('');
@@ -1402,16 +1416,6 @@ function KioskModal({
     && draft.name.trim().length > 0
     && draft.unitId.length > 0
     && draft.businessId.length > 0;
-  const kioskActionButtonClass = (tone: 'blue' | 'emerald' | 'neutral' | 'red' | 'yellow') => {
-    const tones = {
-      blue: 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20',
-      emerald: 'border-emerald-200 bg-emerald-50 text-[#147514] hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20',
-      neutral: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800',
-      red: 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20',
-      yellow: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20',
-    };
-    return `inline-flex h-11 w-11 items-center justify-center rounded-xl border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${tones[tone]}`;
-  };
 
   const handleCopyLink = async (fund: PettyCashFund) => {
     const fundKioskUrl = getKioskUrl(fund);
@@ -1490,27 +1494,27 @@ function KioskModal({
 
   return (
     <>
-      <IndiceModalFrame
+      <KioskModalFrame
         busy={Boolean(deletingKioskId || rotatingFundId)}
-        contentClassName="sm:max-w-2xl"
         description={editorFundId ? 'Configura el portal móvil del fondo seleccionado.' : 'Administra portales móviles para ingresar dinero y subir comprobantes por fondo.'}
         footer={editorFundId ? (
-          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-            <button type="button" onClick={closeEditor} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20">{copy.common.cancel}</button>
-            <button type="button" disabled={!canSave} onClick={() => void handleSaveEditor()} className="h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50">{copy.funds.kiosk.save}</button>
-          </div>
+          <>
+            <button type="button" onClick={closeEditor} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">{copy.common.cancel}</button>
+            <button type="button" disabled={!canSave} onClick={() => void handleSaveEditor()} className="h-10 rounded-xl bg-[#147514] px-5 text-sm font-semibold text-white transition hover:bg-[#105F10] disabled:cursor-not-allowed disabled:opacity-50">{copy.funds.kiosk.save}</button>
+          </>
         ) : (
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20">{copy.common.cancel}</button>
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">{copy.common.cancel}</button>
         )}
         footerSummary={editorFundId ? (selectedFund?.name ?? 'Kiosco') : `${activeKiosks} activos de ${funds.length}`}
         icon={<KeyRound className="h-5 w-5" />}
-        modalType="standard-form"
         onOpenChange={(open) => {
           if (open) return;
           if (editorFundId) closeEditor();
           else onClose();
         }}
-        open
+        open={!hasChildView}
+        size={editorFundId ? 'form' : 'workspace'}
+        surface="administration"
         title={editorFundId ? (selectedFund?.kioskEnabled ? 'Editar kiosco' : 'Crear acceso de kiosco') : 'Kioscos de fondos'}
         tone="green"
       >
@@ -1588,6 +1592,17 @@ function KioskModal({
             </div>
           </section>
 
+          <div className="mt-4">
+            <IndiceModalSummary
+              columns={3}
+              items={[
+                { label: 'Total de fondos', value: funds.length, emphasized: true },
+                { label: 'Kioskos activos', value: activeKiosks },
+                { label: 'Ligas listas', value: funds.filter(fund => Boolean(getKioskUrl(fund))).length },
+              ]}
+            />
+          </div>
+
           <div className="mt-4 space-y-3">
             {funds.length === 0 ? (
               <div className="rounded-[22px] border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
@@ -1598,11 +1613,6 @@ function KioskModal({
               const fundKioskUrl = getKioskUrl(fund);
               const canOpenFundKiosk = Boolean(fundKioskUrl && fund.kioskEnabled);
               const canActivateAndOpen = !canOpenFundKiosk && hasPettyCashBackendId(fund.id);
-              const canGenerateKioskLink = fund.kioskEnabled && !fundKioskUrl && hasPettyCashBackendId(fund.id);
-              const hasKioskConfig = Boolean(fund.kioskEnabled || fundKioskUrl || fund.kioskPublicToken || fund.kioskAccessUrl);
-              const actionLabel = fund.kioskEnabled
-                ? (fundKioskUrl ? 'Desactivar' : (canGenerateKioskLink ? 'Generar link' : 'Guarda el fondo'))
-                : 'Activar';
               const openButtonLabel = canOpenFundKiosk ? 'Abrir' : (canActivateAndOpen ? 'Activar y abrir' : 'Guarda primero');
               const fundBusinessChoices = filterBusinessesByUnit(businessOptions, fund.unitId);
               const fundBusinessLabel = getOptionLabel(fundBusinessChoices, fund.businessId, fund.businessName);
@@ -1611,7 +1621,7 @@ function KioskModal({
               return (
                 <article key={fund.id} className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className="p-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div className="flex min-w-0 items-start gap-3">
                         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-[#147514] dark:bg-emerald-500/10">
                           <WalletCards className="h-5 w-5" />
@@ -1625,6 +1635,26 @@ function KioskModal({
                           </div>
                           <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Portal móvil de caja chica</p>
                         </div>
+                      </div>
+
+                      <div className="grid shrink-0 grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label={`Acciones de ${fund.name}`}>
+                        <KioskAdminActionButton accent="green" label="Editar kiosko" onClick={() => openEditor(fund.id)} tone="primary">
+                          <Pencil className="h-4 w-4" />
+                        </KioskAdminActionButton>
+                        <KioskAdminActionButton
+                          accent="green"
+                          disabled={!canOpenFundKiosk && !canActivateAndOpen}
+                          label={openButtonLabel}
+                          onClick={() => void handleOpenOrActivateLink(fund)}
+                        >
+                          {rotatingFundId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                        </KioskAdminActionButton>
+                        <KioskAdminActionButton accent="green" label="Compartir y administrar liga" onClick={() => setShareFundId(fund.id)}>
+                          <Share2 className="h-4 w-4" />
+                        </KioskAdminActionButton>
+                        <KioskAdminActionButton accent="green" label="Más opciones" onClick={() => setOptionsFundId(fund.id)}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </KioskAdminActionButton>
                       </div>
                     </div>
 
@@ -1658,71 +1688,10 @@ function KioskModal({
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/60 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
                     <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                       <ShieldCheck className={`h-4 w-4 ${canOpenFundKiosk ? 'text-[#147514]' : 'text-slate-400'}`} />
                       <span>{canOpenFundKiosk ? 'Link privado listo para compartir' : (fund.kioskEnabled ? 'Pendiente de generar acceso' : 'Kiosko desactivado')}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEditor(fund.id)}
-                        className={kioskActionButtonClass('yellow')}
-                        title="Editar kiosko"
-                        aria-label="Editar kiosko"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!fundKioskUrl}
-                        onClick={() => void handleCopyLink(fund)}
-                        className={kioskActionButtonClass('blue')}
-                        title={copiedFundId === fund.id ? copy.common.copied : copy.common.copyLink}
-                        aria-label={copiedFundId === fund.id ? copy.common.copied : copy.common.copyLink}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!canOpenFundKiosk && !canActivateAndOpen}
-                        onClick={() => void handleOpenOrActivateLink(fund)}
-                        className={kioskActionButtonClass('emerald')}
-                        title={openButtonLabel}
-                        aria-label={openButtonLabel}
-                      >
-                        {rotatingFundId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={fund.kioskEnabled && !fundKioskUrl && !canGenerateKioskLink}
-                        onClick={() => {
-                          if (canGenerateKioskLink) {
-                            void handleRotateLink(fund.id);
-                            return;
-                          }
-                          setOperationError('');
-                          void Promise.resolve(onSave(fund.id, { businessId: fund.businessId, kioskEnabled: !fund.kioskEnabled, name: fund.name, unitId: fund.unitId }))
-                            .catch(error => setOperationError(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed)));
-                        }}
-                        className={kioskActionButtonClass(fund.kioskEnabled && fundKioskUrl ? 'red' : 'emerald')}
-                        title={actionLabel}
-                        aria-label={actionLabel}
-                      >
-                        {rotatingFundId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : (
-                          fund.kioskEnabled && fundKioskUrl ? <X className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!hasKioskConfig || deletingKioskId === fund.id}
-                        onClick={() => setPendingDeleteKioskId(fund.id)}
-                        className={kioskActionButtonClass('red')}
-                        title="Eliminar kiosko"
-                        aria-label="Eliminar kiosko"
-                      >
-                        {deletingKioskId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                      </button>
                     </div>
                   </div>
                 </article>
@@ -1733,7 +1702,122 @@ function KioskModal({
 
           </>
         )}
-      </IndiceModalFrame>
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        busy={Boolean(rotatingFundId)}
+        closeLabel="Cerrar administración de liga"
+        description={shareFund ? `Administra el acceso público de ${shareFund.name}.` : 'Liga pública del kiosko.'}
+        footer={<button type="button" onClick={() => setShareFundId('')} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 hover:bg-slate-50">Cerrar</button>}
+        icon={<Share2 className="h-5 w-5" />}
+        onOpenChange={(open) => { if (!open) setShareFundId(''); }}
+        open={Boolean(shareFund)}
+        size="compact"
+        surface="administration"
+        title="Liga del kiosko"
+        tone="green"
+      >
+        {shareFund ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#147514]"><Link2 className="h-5 w-5" /></span>
+                <div className="min-w-0"><p className="text-sm font-semibold text-slate-950 dark:text-white">{shareFund.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{shareFund.responsibleName} · {shareFund.currencyCode}</p></div>
+              </div>
+            </div>
+            {getKioskUrl(shareFund) ? (
+              <>
+                <IndiceModalValidation tone="info" title="Liga disponible" messages={['Puedes abrir, copiar o convertir esta liga privada en código QR.']} />
+                <div className="grid gap-2">
+                  <KioskAdminPanelAction accent="green" primary icon={<ExternalLink className="h-4 w-4" />} label="Abrir kiosko" onClick={() => void handleOpenOrActivateLink(shareFund)} />
+                  <KioskAdminPanelAction accent="green" icon={<Copy className="h-4 w-4" />} label={copiedFundId === shareFund.id ? copy.common.copied : copy.common.copyLink} onClick={() => void handleCopyLink(shareFund)} />
+                  <KioskAdminPanelAction accent="green" icon={<QrCode className="h-4 w-4" />} label="Mostrar código QR" onClick={() => { setShareFundId(''); setQrFundId(shareFund.id); }} />
+                  <KioskAdminPanelAction accent="green" icon={<RotateCw className="h-4 w-4" />} label="Reemplazar liga" onClick={() => { setShareFundId(''); void handleRotateLink(shareFund.id); }} />
+                </div>
+              </>
+            ) : (
+              <>
+                <IndiceModalValidation tone="warning" title="Liga pendiente" messages={['Activa o genera una liga para poder compartir este kiosko.']} />
+                <KioskAdminPanelAction
+                  accent="green"
+                  primary
+                  icon={<RotateCw className="h-4 w-4" />}
+                  label={shareFund.kioskEnabled ? 'Generar liga' : 'Activar y abrir'}
+                  onClick={() => {
+                    setShareFundId('');
+                    if (shareFund.kioskEnabled) void handleRotateLink(shareFund.id);
+                    else void handleOpenOrActivateLink(shareFund);
+                  }}
+                />
+              </>
+            )}
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        busy={Boolean(deletingKioskId || rotatingFundId)}
+        closeLabel="Cerrar opciones"
+        description={optionsFund ? `Gestiona el acceso de ${optionsFund.name}.` : 'Opciones del kiosko.'}
+        footer={<button type="button" onClick={() => setOptionsFundId('')} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 hover:bg-slate-50">Cerrar</button>}
+        icon={<MoreHorizontal className="h-5 w-5" />}
+        onOpenChange={(open) => { if (!open) setOptionsFundId(''); }}
+        open={Boolean(optionsFund)}
+        size="compact"
+        surface="administration"
+        title="Opciones del kiosko"
+        tone="green"
+      >
+        {optionsFund ? (
+          <div className="space-y-3">
+            <KioskAdminPanelAction
+              accent="green"
+              primary={!optionsFund.kioskEnabled}
+              description={optionsFund.kioskEnabled ? 'Es reversible y conserva el fondo, movimientos y comprobantes.' : 'Permite utilizar nuevamente el portal móvil.'}
+              icon={optionsFund.kioskEnabled ? <X className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+              label={optionsFund.kioskEnabled ? 'Pausar acceso' : 'Reactivar acceso'}
+              onClick={() => {
+                setOptionsFundId('');
+                setOperationError('');
+                void Promise.resolve(onSave(optionsFund.id, {
+                  businessId: optionsFund.businessId,
+                  kioskEnabled: !optionsFund.kioskEnabled,
+                  name: optionsFund.name,
+                  unitId: optionsFund.unitId,
+                })).catch(error => setOperationError(toFinanceApiErrorMessage(error, copy.funds.notices.kioskSaveFailed)));
+              }}
+            />
+            <KioskAdminPanelAction
+              accent="green"
+              danger
+              description="El enlace dejará de funcionar; el fondo y sus movimientos se conservan."
+              disabled={deletingKioskId === optionsFund.id}
+              icon={<Trash2 className="h-4 w-4" />}
+              label="Eliminar acceso de kiosko"
+              onClick={() => { setOptionsFundId(''); setPendingDeleteKioskId(optionsFund.id); }}
+            />
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel="Cerrar código QR"
+        description={qrFund ? `Comparte el acceso autorizado de ${qrFund.name}.` : 'Código de acceso del kiosko.'}
+        footer={<button type="button" onClick={() => setQrFundId('')} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 hover:bg-slate-50">Cerrar</button>}
+        icon={<QrCode className="h-5 w-5" />}
+        onOpenChange={(open) => { if (!open) setQrFundId(''); }}
+        open={Boolean(qrFund)}
+        size="compact"
+        surface="administration"
+        title="Código QR del kiosko"
+        tone="green"
+      >
+        <div className="flex flex-col items-center text-center">
+          {qrDataUrl ? <img src={qrDataUrl} alt={`Código QR del kiosko ${qrFund?.name ?? ''}`} className="h-56 w-56 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" /> : <p className="py-16 text-sm font-medium text-slate-600">Generando código QR seguro...</p>}
+          <p className="mt-4 text-xs leading-5 text-slate-500">Compártelo únicamente con las personas autorizadas para operar este fondo.</p>
+        </div>
+      </KioskModalFrame>
+
       <ConfirmDeleteDialog
         cancelLabel={copy.common.cancel}
         confirmDisabled={Boolean(deletingKioskId)}

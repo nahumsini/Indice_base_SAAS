@@ -1,11 +1,31 @@
-import { Ban, Building2, Copy, ExternalLink, KeyRound, Link2, MonitorSmartphone, Pencil, Plus, Power, QrCode, Radio, RefreshCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  Ban,
+  Building2,
+  Copy,
+  ExternalLink,
+  KeyRound,
+  Link2,
+  MonitorSmartphone,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Power,
+  QrCode,
+  RefreshCw,
+  Save,
+  Share2,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
+import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
+import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../components/kiosk-engine/KioskAdminPrimitives';
+import { IndiceModalSummary, IndiceModalValidation } from '../../../components/indice-modal';
 import { Button } from '../../../components/ui/button';
-import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../components/indice-modal';
 import type { ProcessBusinessOption, ProcessUnitOption } from '../Processes/types';
-import type { ProcessTaskKiosk, ProcessTaskKioskPayload } from './processTaskKioskApi';
-import { useTaskKioskQrCode } from './hooks/useTaskKioskQrCode';
 import { TaskKioskSecurityPanel } from './components/TaskKioskSecurityPanel';
+import { useTaskKioskQrCode } from './hooks/useTaskKioskQrCode';
+import type { ProcessTaskKiosk, ProcessTaskKioskPayload } from './processTaskKioskApi';
 
 interface TaskKioskManagementModalProps {
   isOpen: boolean;
@@ -53,8 +73,18 @@ function kioskSaveErrorMessage(error: unknown) {
 }
 
 export function TaskKioskManagementModal({
-  isOpen, isSaving, kiosks, unitOptions, businessOptions, onClose, onSave, onDelete, onCopy, onOpen,
-  onRotate, onTransition,
+  isOpen,
+  isSaving,
+  kiosks,
+  unitOptions,
+  businessOptions,
+  onClose,
+  onSave,
+  onDelete,
+  onCopy,
+  onOpen,
+  onRotate,
+  onTransition,
 }: TaskKioskManagementModalProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingKioskId, setEditingKioskId] = useState<number | undefined>();
@@ -62,11 +92,17 @@ export function TaskKioskManagementModal({
   const [editorError, setEditorError] = useState<string | null>(null);
   const [qrKioskId, setQrKioskId] = useState<number | null>(null);
   const [securityKioskId, setSecurityKioskId] = useState<number | null>(null);
+  const [shareKioskId, setShareKioskId] = useState<number | null>(null);
+  const [optionsKioskId, setOptionsKioskId] = useState<number | null>(null);
 
   const activeCount = kiosks.filter((kiosk) => kiosk.engine_status === 'ACTIVE').length;
   const readyCount = kiosks.filter((kiosk) => Boolean(kiosk.public_token_hint)).length;
   const qrKiosk = kiosks.find((kiosk) => kiosk.id === qrKioskId) ?? null;
+  const securityKiosk = kiosks.find((kiosk) => kiosk.id === securityKioskId) ?? null;
+  const shareKiosk = kiosks.find((kiosk) => kiosk.id === shareKioskId) ?? null;
+  const optionsKiosk = kiosks.find((kiosk) => kiosk.id === optionsKioskId) ?? null;
   const qrDataUrl = useTaskKioskQrCode(qrKiosk?.public_access_token ?? '');
+  const childViewOpen = isEditorOpen || Boolean(qrKiosk) || Boolean(securityKiosk) || Boolean(shareKiosk) || Boolean(optionsKiosk);
   const availableBusinesses = useMemo(
     () => businessOptions.filter((business) => !form.unit_id || business.unitId === form.unit_id),
     [businessOptions, form.unit_id],
@@ -90,12 +126,20 @@ export function TaskKioskManagementModal({
     setForm(createDefaultForm());
   };
   const handleStartCreate = () => {
+    setQrKioskId(null);
+    setSecurityKioskId(null);
+    setShareKioskId(null);
+    setOptionsKioskId(null);
     setEditingKioskId(undefined);
     setEditorError(null);
     setForm({ ...createDefaultForm(), name: 'Acceso de tareas en campo', code: `acceso-tareas-${Math.random().toString(36).slice(2, 7)}` });
     setIsEditorOpen(true);
   };
   const handleStartEdit = (kiosk: ProcessTaskKiosk) => {
+    setQrKioskId(null);
+    setSecurityKioskId(null);
+    setShareKioskId(null);
+    setOptionsKioskId(null);
     setEditingKioskId(kiosk.id);
     setEditorError(null);
     setForm(formFromKiosk(kiosk));
@@ -133,38 +177,126 @@ export function TaskKioskManagementModal({
     closeEditor();
     setQrKioskId(null);
     setSecurityKioskId(null);
+    setShareKioskId(null);
+    setOptionsKioskId(null);
     onClose();
   };
   const canSave = Boolean(form.name.trim() && form.code.trim() && form.unit_id && form.business_id) && !isSaving;
 
   return (
-    <IndiceModalFrame
-      busy={isSaving}
-      closeLabel="Cerrar"
-      contentClassName="sm:!max-w-5xl"
-      description={isEditorOpen
-        ? 'Configura el punto de acceso que utilizará el equipo para consultar y cerrar sus tareas asignadas.'
-        : 'Administra accesos diarios para que el equipo cierre tareas asignadas desde celular.'}
-      footer={isEditorOpen ? (
-        <>
-          <Button type="button" variant="outline" disabled={isSaving} onClick={closeEditor}>Cancelar</Button>
-          <Button type="button" disabled={!canSave} onClick={() => void handleSubmit()}>
-            <Save className="h-4 w-4" />
-            {isSaving ? 'Guardando...' : editingKioskId ? 'Guardar cambios' : 'Crear kiosko'}
-          </Button>
-        </>
-      ) : (
-        <Button type="button" variant="outline" onClick={handleClose}>Cerrar</Button>
-      )}
-      footerSummary={isEditorOpen ? selectedContext : `${activeCount} activos · ${readyCount} enlaces listos`}
-      icon={<MonitorSmartphone className="h-5 w-5" />}
-      modalType="operational-workspace"
-      onOpenChange={(nextOpen) => { if (!nextOpen) handleClose(); }}
-      open={isOpen}
-      title={isEditorOpen ? (editingKioskId ? 'Editar kiosko' : 'Crear kiosko') : 'Centro de kioskos de tareas'}
-      tone="yellow"
-    >
-      {isEditorOpen ? (
+    <>
+      <KioskModalFrame
+        busy={isSaving}
+        closeLabel="Cerrar centro de kioskos"
+        description="Administra accesos diarios para que el equipo cierre tareas asignadas desde celular."
+        footer={<Button type="button" variant="outline" onClick={handleClose}>Cerrar</Button>}
+        footerSummary={`${activeCount} activos · ${readyCount} ligas emitidas`}
+        icon={<MonitorSmartphone className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) handleClose(); }}
+        open={isOpen && !childViewOpen}
+        size="workspace"
+        surface="administration"
+        title="Centro de kioskos de tareas"
+        tone="yellow"
+      >
+        <div className="space-y-4">
+          <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Puntos de acceso para trabajo en campo</h3>
+              <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">Cada enlace abre una pantalla pública con PIN, sin exponer el ERP completo.</p>
+            </div>
+            <Button type="button" className="h-10 rounded-xl bg-[#F4C84A] px-4 text-[#5F4500] hover:bg-[#E5B835]" onClick={handleStartCreate}>
+              <Plus className="h-4 w-4" />
+              Crear kiosko
+            </Button>
+          </section>
+
+          <IndiceModalSummary
+            columns={3}
+            items={[
+              { label: 'Total de kioskos', value: kiosks.length, emphasized: true },
+              { label: 'Activos', value: activeCount },
+              { label: 'Ligas emitidas', value: readyCount },
+            ]}
+          />
+
+          {kiosks.length ? (
+            <div className="grid gap-3">
+              {kiosks.map((kiosk) => {
+                const isTerminal = kiosk.engine_status === 'REVOKED' || kiosk.engine_status === 'EXPIRED' || kiosk.engine_status === 'DELETED';
+                return (
+                  <article key={kiosk.id} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#F4C84A]/60 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/18 text-[#8A6200]">
+                          <MonitorSmartphone className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <h3 className="min-w-0 truncate text-sm font-semibold text-slate-950 dark:text-white">{kiosk.name}</h3>
+                            <span className={kioskStatusClassName(kiosk.engine_status)}>{kioskStateLabel(kiosk.engine_status)}</span>
+                            {kiosk.expires_at ? <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">Expira {new Date(kiosk.expires_at).toLocaleString('es-MX')}</span> : null}
+                          </div>
+                          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-slate-500">
+                            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Building2 className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{kiosk.scope_label}</span></span>
+                            <span aria-hidden="true" className="text-slate-300">·</span>
+                            <span className="max-w-full truncate">{kiosk.code}</span>
+                            <span className={kiosk.public_access_token ? 'rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700' : kiosk.public_token_hint ? 'rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800' : 'rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500'}>
+                              {kiosk.public_access_token ? 'Liga disponible ahora' : kiosk.public_token_hint ? 'Liga protegida' : 'Liga no emitida'}
+                            </span>
+                            {kiosk.public_token_hint ? <Link2 className="h-3 w-3 text-slate-400" /> : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid shrink-0 grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end" aria-label={`Acciones de ${kiosk.name}`}>
+                        <KioskActionButton label="Editar" tone="primary" disabled={isTerminal} onClick={() => handleStartEdit(kiosk)}><Pencil className="h-4 w-4" /></KioskActionButton>
+                        <KioskActionButton label="Abrir kiosko" disabled={kiosk.engine_status !== 'ACTIVE'} onClick={() => kiosk.public_access_token ? onOpen(kiosk) : setShareKioskId(kiosk.id)}><ExternalLink className="h-4 w-4" /></KioskActionButton>
+                        <KioskActionButton label="Compartir y administrar liga" disabled={isTerminal && !kiosk.public_access_token} onClick={() => setShareKioskId(kiosk.id)}><Share2 className="h-4 w-4" /></KioskActionButton>
+                        <KioskActionButton label="Más opciones" onClick={() => setOptionsKioskId(kiosk.id)}><MoreHorizontal className="h-4 w-4" /></KioskActionButton>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex min-w-0 items-start gap-2 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500 dark:border-slate-800">
+                      <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      <span>Solo muestra tareas abiertas asignadas al colaborador identificado.</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
+              <MonitorSmartphone className="mx-auto h-10 w-10 text-[#9A6B05]" />
+              <p className="mt-4 font-medium">Aún no hay kioskos</p>
+              <p className="mt-2 text-sm text-slate-500">Crea un enlace para que el equipo cierre tareas asignadas desde campo.</p>
+            </div>
+          )}
+        </div>
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        busy={isSaving}
+        closeLabel="Cancelar edición"
+        description="Define el contexto y vigencia del punto de acceso."
+        footer={(
+          <>
+            <Button type="button" variant="outline" disabled={isSaving} onClick={closeEditor}>Cancelar</Button>
+            <Button type="button" disabled={!canSave} onClick={() => void handleSubmit()}>
+              <Save className="h-4 w-4" />
+              {isSaving ? 'Guardando...' : editingKioskId ? 'Guardar cambios' : 'Crear kiosko'}
+            </Button>
+          </>
+        )}
+        footerSummary={selectedContext}
+        icon={<MonitorSmartphone className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) closeEditor(); }}
+        open={isOpen && isEditorOpen}
+        size="form"
+        surface="administration"
+        title={editingKioskId ? 'Editar kiosko' : 'Crear kiosko'}
+        tone="yellow"
+      >
         <div className="mx-auto grid w-full max-w-2xl gap-4">
           <IndiceModalValidation messages={editorError ? [editorError] : []} />
           <Field label="Nombre">
@@ -187,79 +319,218 @@ export function TaskKioskManagementModal({
               </select>
             </Field>
           </div>
-          <Field label="Estado">
-            <select value={form.status} className={inputClassName} disabled={isSaving} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as ProcessTaskKioskPayload['status'] }))}>
-              <option value="active">Activo</option>
-              <option value="inactive">Inactivo</option>
-            </select>
-          </Field>
-          <Field label="Expiración opcional">
-            <input
-              type="datetime-local"
-              value={form.expires_at?.slice(0, 16) ?? ''}
-              className={inputClassName}
-              disabled={isSaving}
-              onChange={(event) => setForm((current) => ({ ...current, expires_at: event.target.value || null }))}
-            />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Estado">
+              <select value={form.status} className={inputClassName} disabled={isSaving} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as ProcessTaskKioskPayload['status'] }))}>
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+              </select>
+            </Field>
+            <Field label="Expiración opcional">
+              <input type="datetime-local" value={form.expires_at?.slice(0, 16) ?? ''} className={inputClassName} disabled={isSaving} onChange={(event) => setForm((current) => ({ ...current, expires_at: event.target.value || null }))} />
+            </Field>
+          </div>
           <IndiceModalValidation tone="info" title="Visibilidad segura" messages={[selectedContext]} />
         </div>
-      ) : (
-        <div className="space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">Cada kiosko abre una pantalla pública con PIN, sin exponer el ERP completo.</p>
-            <Button type="button" className="bg-[#F8C842] text-[#222831] hover:bg-[#E7B82F]" onClick={handleStartCreate}><Plus className="h-4 w-4" />Crear kiosko</Button>
-          </div>
-          <IndiceModalSummary columns={3} items={[
-            { label: 'Total de kioskos', value: kiosks.length, emphasized: true },
-            { label: 'Activos', value: activeCount },
-            { label: 'Enlaces listos', value: readyCount },
-          ]} />
-          {kiosks.length ? (
-            <div className="grid gap-4">
-              {kiosks.map((kiosk) => (
-                <article key={kiosk.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start gap-3">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/15 text-[#9A6B05]"><MonitorSmartphone className="h-5 w-5" /></span>
-                        <div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-950 dark:text-white">{kiosk.name}</h3><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">{kioskStateLabel(kiosk.engine_status)}</span>{kiosk.expires_at ? <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">Expira {new Date(kiosk.expires_at).toLocaleString('es-MX')}</span> : null}</div><p className="mt-1 text-sm text-slate-500">{kiosk.code}</p></div>
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <ContextCard icon={<Building2 className="h-4 w-4" />} label="Contexto" value={kiosk.scope_label} />
-                        <ContextCard icon={<ShieldCheck className="h-4 w-4" />} label="Visibilidad" value="Tareas abiertas asignadas al colaborador identificado." />
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium"><span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5"><Link2 className="h-3.5 w-3.5" />{kiosk.public_access_token ? 'Liga disponible ahora' : `Liga protegida · ${kiosk.public_token_hint || 'sin emitir'}`}</span><span className="inline-flex items-center gap-2 rounded-full bg-[#F4C84A]/15 px-3 py-1.5 text-[#9A6B05]"><Radio className="h-3.5 w-3.5" />Acceso por PIN</span></div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" disabled={!kiosk.public_access_token || kiosk.engine_status !== 'ACTIVE'} className="bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={() => onOpen(kiosk)}><ExternalLink className="h-4 w-4" />Abrir</Button>
-                      <Button type="button" variant="outline" disabled={!kiosk.public_access_token} onClick={() => onCopy(kiosk)}><Copy className="h-4 w-4" />Copiar</Button>
-                      <Button type="button" variant="outline" disabled={!kiosk.public_access_token} onClick={() => setQrKioskId((current) => current === kiosk.id ? null : kiosk.id)}><QrCode className="h-4 w-4" />QR</Button>
-                      <Button type="button" variant="outline" onClick={() => { setQrKioskId(null); setSecurityKioskId((current) => current === kiosk.id ? null : kiosk.id); }}><KeyRound className="h-4 w-4" />Seguridad</Button>
-                      <Button type="button" variant="outline" disabled={kiosk.engine_status === 'REVOKED'} onClick={() => void onRotate(kiosk)}><RefreshCw className="h-4 w-4" />Rotar liga</Button>
-                      {kiosk.engine_status === 'ACTIVE' ? <Button type="button" variant="outline" onClick={() => void onTransition(kiosk, 'disable')}><Power className="h-4 w-4" />Desactivar</Button> : null}
-                      {kiosk.engine_status === 'DISABLED' ? <Button type="button" variant="outline" onClick={() => void onTransition(kiosk, 'enable')}><Power className="h-4 w-4" />Activar</Button> : null}
-                      {kiosk.engine_status === 'ACTIVE' || kiosk.engine_status === 'DISABLED' ? <Button type="button" variant="outline" className="text-red-600" onClick={() => void onTransition(kiosk, 'revoke')}><Ban className="h-4 w-4" />Revocar</Button> : null}
-                      <Button type="button" variant="outline" disabled={kiosk.engine_status === 'REVOKED'} onClick={() => handleStartEdit(kiosk)}><Pencil className="h-4 w-4" />Editar</Button>
-                      <Button type="button" variant="outline" className="text-red-600" disabled={isSaving} onClick={() => onDelete(kiosk)}><Trash2 className="h-4 w-4" />Eliminar</Button>
-                    </div>
-                  </div>
-                  {qrKioskId === kiosk.id ? (
-                    <div className="mt-4 flex flex-col items-center rounded-2xl border border-[#F4C84A]/35 bg-[#F4C84A]/8 p-4 text-center">
-                      {qrDataUrl ? <img src={qrDataUrl} alt={`Código QR del kiosko ${kiosk.name}`} className="h-52 w-52 rounded-xl bg-white p-2" /> : <p className="text-sm font-medium text-slate-600">Generando código QR seguro...</p>}
-                      <p className="mt-3 text-xs text-slate-500">Este QR contiene la liga emitida. No lo publiques fuera del alcance autorizado.</p>
-                    </div>
-                  ) : null}
-                  {securityKioskId === kiosk.id ? <TaskKioskSecurityPanel kiosk={kiosk} onClose={() => setSecurityKioskId(null)} /> : null}
-                </article>
-              ))}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel="Cerrar administración de liga"
+        description={shareKiosk ? `Administra la liga pública de ${shareKiosk.name}.` : 'Liga pública del kiosko.'}
+        footer={<Button type="button" variant="outline" onClick={() => setShareKioskId(null)}>Cerrar</Button>}
+        icon={<Share2 className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setShareKioskId(null); }}
+        open={isOpen && Boolean(shareKiosk)}
+        size="compact"
+        surface="administration"
+        title="Liga del kiosko"
+        tone="yellow"
+      >
+        {shareKiosk ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F4C84A]/20 text-[#7A5700]">
+                  <Link2 className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-950 dark:text-white">{shareKiosk.name}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{shareKiosk.scope_label}</p>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900"><MonitorSmartphone className="mx-auto h-10 w-10 text-[#9A6B05]" /><p className="mt-4 font-medium">Aún no hay kioskos</p><p className="mt-2 text-sm text-slate-500">Crea un enlace para que el equipo cierre tareas asignadas desde campo.</p></div>
-          )}
+
+            {shareKiosk.public_access_token ? (
+              <>
+                <IndiceModalValidation
+                  tone="info"
+                  title="Liga disponible durante esta sesión"
+                  messages={['Puedes abrirla, copiarla o convertirla en código QR. Al cerrar este centro, el token completo se ocultará por seguridad.']}
+                />
+                <div className="grid gap-2">
+                  <KioskPanelAction icon={<ExternalLink className="h-4 w-4" />} label="Abrir kiosko" onClick={() => onOpen(shareKiosk)} primary />
+                  <KioskPanelAction icon={<Copy className="h-4 w-4" />} label="Copiar liga" onClick={() => onCopy(shareKiosk)} />
+                  <KioskPanelAction
+                    icon={<QrCode className="h-4 w-4" />}
+                    label="Mostrar código QR"
+                    onClick={() => {
+                      setShareKioskId(null);
+                      setQrKioskId(shareKiosk.id);
+                    }}
+                  />
+                  {!isTerminalKiosk(shareKiosk) ? (
+                    <KioskPanelAction
+                      icon={<RefreshCw className="h-4 w-4" />}
+                      label="Reemplazar liga"
+                      onClick={() => {
+                        setShareKioskId(null);
+                        void onRotate(shareKiosk);
+                      }}
+                    />
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <>
+                <IndiceModalValidation
+                  tone="warning"
+                  title={shareKiosk.public_token_hint ? 'La liga está protegida' : 'La liga no está disponible'}
+                  messages={[
+                    shareKiosk.public_token_hint
+                      ? 'La liga actual sigue existiendo, pero su token completo no se guarda ni puede recuperarse. Reemplázala para emitir una nueva.'
+                      : 'Emite una liga nueva para abrir, copiar o generar el código QR del kiosko.',
+                  ]}
+                />
+                {!isTerminalKiosk(shareKiosk) ? (
+                  <KioskPanelAction
+                    icon={<RefreshCw className="h-4 w-4" />}
+                    label={shareKiosk.public_token_hint ? 'Reemplazar y emitir liga' : 'Emitir liga nueva'}
+                    onClick={() => {
+                      setShareKioskId(null);
+                      void onRotate(shareKiosk);
+                    }}
+                    primary
+                  />
+                ) : (
+                  <p className="rounded-2xl bg-slate-100 p-4 text-sm leading-5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    Este kiosko ya no admite nuevas ligas porque su acceso fue cancelado o venció.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel="Cerrar opciones"
+        description={optionsKiosk ? `Gestiona el estado y el historial de ${optionsKiosk.name}.` : 'Opciones del kiosko.'}
+        footer={<Button type="button" variant="outline" onClick={() => setOptionsKioskId(null)}>Cerrar</Button>}
+        icon={<MoreHorizontal className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setOptionsKioskId(null); }}
+        open={isOpen && Boolean(optionsKiosk)}
+        size="compact"
+        surface="administration"
+        title="Opciones del kiosko"
+        tone="yellow"
+      >
+        {optionsKiosk ? (
+          <div className="space-y-3">
+            <KioskPanelAction
+              description="Consulta personas autorizadas y eventos de uso."
+              icon={<KeyRound className="h-4 w-4" />}
+              label="Accesos e historial"
+              onClick={() => {
+                setOptionsKioskId(null);
+                setSecurityKioskId(optionsKiosk.id);
+              }}
+            />
+
+            {optionsKiosk.engine_status === 'ACTIVE' ? (
+              <KioskPanelAction
+                description="Es reversible y cierra las sesiones activas."
+                icon={<Power className="h-4 w-4" />}
+                label="Pausar acceso"
+                onClick={() => {
+                  setOptionsKioskId(null);
+                  void onTransition(optionsKiosk, 'disable');
+                }}
+              />
+            ) : null}
+
+            {optionsKiosk.engine_status === 'DISABLED' ? (
+              <KioskPanelAction
+                description="Permite utilizar nuevamente la liga vigente."
+                icon={<Power className="h-4 w-4" />}
+                label="Reactivar acceso"
+                onClick={() => {
+                  setOptionsKioskId(null);
+                  void onTransition(optionsKiosk, 'enable');
+                }}
+                primary
+              />
+            ) : null}
+
+            {optionsKiosk.engine_status === 'ACTIVE' || optionsKiosk.engine_status === 'DISABLED' ? (
+              <KioskPanelAction
+                danger
+                description="Es definitivo; para recuperar el acceso tendrás que crear otro kiosko."
+                icon={<Ban className="h-4 w-4" />}
+                label="Cancelar acceso definitivamente"
+                onClick={() => {
+                  setOptionsKioskId(null);
+                  void onTransition(optionsKiosk, 'revoke');
+                }}
+              />
+            ) : null}
+
+            <KioskPanelAction
+              danger
+              description="Elimina este registro administrativo; no elimina tareas ni evidencias."
+              icon={<Trash2 className="h-4 w-4" />}
+              label="Eliminar registro"
+              onClick={() => {
+                setOptionsKioskId(null);
+                void onDelete(optionsKiosk);
+              }}
+            />
+          </div>
+        ) : null}
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel="Cerrar código QR"
+        description={qrKiosk ? `Comparte el acceso autorizado de ${qrKiosk.name}.` : 'Código de acceso del kiosko.'}
+        footer={<Button type="button" variant="outline" onClick={() => setQrKioskId(null)}>Cerrar</Button>}
+        icon={<QrCode className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setQrKioskId(null); }}
+        open={isOpen && Boolean(qrKiosk)}
+        size="compact"
+        surface="administration"
+        title="Código QR del kiosko"
+        tone="yellow"
+      >
+        <div className="flex flex-col items-center text-center">
+          {qrDataUrl ? <img src={qrDataUrl} alt={`Código QR del kiosko ${qrKiosk?.name ?? ''}`} className="h-56 w-56 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" /> : <p className="py-16 text-sm font-medium text-slate-600">Generando código QR seguro...</p>}
+          <p className="mt-4 text-xs leading-5 text-slate-500">Este QR contiene la liga emitida. Compártelo únicamente dentro del alcance autorizado.</p>
         </div>
-      )}
-    </IndiceModalFrame>
+      </KioskModalFrame>
+
+      <KioskModalFrame
+        closeLabel="Cerrar seguridad"
+        description={securityKiosk ? `Administra quién puede usar ${securityKiosk.name} y consulta su actividad.` : 'Accesos del kiosko.'}
+        footer={<Button type="button" variant="outline" onClick={() => setSecurityKioskId(null)}>Cerrar</Button>}
+        icon={<KeyRound className="h-5 w-5" />}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setSecurityKioskId(null); }}
+        open={isOpen && Boolean(securityKiosk)}
+        size="form"
+        surface="administration"
+        title="Accesos e historial"
+        tone="yellow"
+      >
+        {securityKiosk ? <TaskKioskSecurityPanel embedded kiosk={securityKiosk} onClose={() => setSecurityKioskId(null)} /> : null}
+      </KioskModalFrame>
+    </>
   );
 }
 
@@ -267,10 +538,54 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
   return <label className={labelClassName}>{label}{children}</label>;
 }
 
-function ContextCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-slate-800"><div className="flex items-center gap-2 text-xs font-medium text-slate-500">{icon}{label}</div><p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{value}</p></div>;
+function KioskActionButton({
+  children,
+  disabled,
+  label,
+  onClick,
+  tone = 'neutral',
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+  tone?: 'danger' | 'neutral' | 'primary';
+}) {
+  return (
+    <KioskAdminActionButton accent="yellow" disabled={disabled} label={label} onClick={onClick} tone={tone}>
+      {children}
+    </KioskAdminActionButton>
+  );
+}
+
+function KioskPanelAction({
+  danger = false,
+  description,
+  icon,
+  label,
+  onClick,
+  primary = false,
+}: {
+  danger?: boolean;
+  description?: string;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return <KioskAdminPanelAction accent="yellow" danger={danger} description={description} icon={icon} label={label} onClick={onClick} primary={primary} />;
+}
+
+function kioskStatusClassName(status: ProcessTaskKiosk['engine_status']) {
+  if (status === 'ACTIVE') return 'rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700';
+  if (status === 'DISABLED') return 'rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800';
+  return 'rounded-full bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700';
 }
 
 function kioskStateLabel(status: ProcessTaskKiosk['engine_status']) {
-  return ({ ACTIVE: 'Activo', DISABLED: 'Desactivado', EXPIRED: 'Expirado', REVOKED: 'Revocado', DELETED: 'Eliminado' })[status];
+  return ({ ACTIVE: 'Activo', DISABLED: 'En pausa', EXPIRED: 'Vencido', REVOKED: 'Cancelado', DELETED: 'Eliminado' })[status];
+}
+
+function isTerminalKiosk(kiosk: ProcessTaskKiosk) {
+  return kiosk.engine_status === 'REVOKED' || kiosk.engine_status === 'EXPIRED' || kiosk.engine_status === 'DELETED';
 }
