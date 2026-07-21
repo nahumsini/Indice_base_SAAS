@@ -4,10 +4,12 @@ import com.indice.erp.auth.SessionAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
+@ConditionalOnBean(CommercialLifecycleAccessService.class)
 public class CommercialLifecycleInterceptor implements HandlerInterceptor {
 
     private final SessionAuthService auth;

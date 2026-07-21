@@ -30,6 +30,9 @@ class CommercialLifecycleIntegrationTest {
     @Autowired
     private CommercialLifecycleService lifecycle;
 
+    @Autowired
+    private CommercialLifecycleInterceptor interceptor;
+
     @BeforeEach
     void cleanBefore() {
         cleanTestState();
@@ -42,6 +45,7 @@ class CommercialLifecycleIntegrationTest {
 
     @Test
     void paymentFailureStartsOneGraceWindowAndPaymentRecoveryRestoresAccess() {
+        assertThat(interceptor).isNotNull();
         var companyId = premiumCompany("recovery");
         var started = Instant.now().minus(1, ChronoUnit.HOURS);
         lifecycle.applySubscriptionEvent(companyId, "evt-active", started, "active", null);
