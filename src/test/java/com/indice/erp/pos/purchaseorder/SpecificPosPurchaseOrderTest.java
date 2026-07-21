@@ -106,7 +106,8 @@ class SpecificPosPurchaseOrderTest {
             objectStorageService,
             storageProperties,
             expenseService,
-            new ObjectMapper()
+            new ObjectMapper(),
+            org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
         );
     }
 

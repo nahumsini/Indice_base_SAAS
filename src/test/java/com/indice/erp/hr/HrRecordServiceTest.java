@@ -158,7 +158,8 @@ class HrRecordServiceTest {
             jdbcTemplate,
             hrRecordScopeAccess,
             objectStorageService,
-            objectStorageProperties
+            objectStorageProperties,
+            mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
         );
     }
 

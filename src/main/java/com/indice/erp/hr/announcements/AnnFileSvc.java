@@ -1,5 +1,6 @@
 package com.indice.erp.hr.announcements;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.hr.shared.HrPayloadUtils;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -21,6 +22,7 @@ public class AnnFileSvc {
     private final AnnVisSvc visSvc;
     private final HrAnnouncementQueryService queryService;
     private final HrAnnouncementScopeService scopeService;
+    private final CompanyStorageMeter storageMeter;
 
     public AnnFileSvc(
         JdbcTemplate jdbcTemplate,
@@ -28,7 +30,8 @@ public class AnnFileSvc {
         ObjectStorageProperties storageProperties,
         AnnVisSvc visSvc,
         HrAnnouncementQueryService queryService,
-        HrAnnouncementScopeService scopeService
+        HrAnnouncementScopeService scopeService,
+        CompanyStorageMeter storageMeter
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.storageService = storageService;
@@ -36,6 +39,7 @@ public class AnnFileSvc {
         this.visSvc = visSvc;
         this.queryService = queryService;
         this.scopeService = scopeService;
+        this.storageMeter = storageMeter;
     }
 
     public Map<String, Object> presign(HrAnnouncementActor actor, long announcementId, Map<String, Object> payload) {
@@ -44,7 +48,9 @@ public class AnnFileSvc {
         requireStorage();
         var draft = AnnFileSupport.draft(payload);
         var objectKey = AnnFileSupport.objectKey(actor.companyId(), announcementId, draft.fileName(), LocalDate.now());
-        var upload = storageService.presignUpload(bucket(), objectKey, draft.contentType(), expirySeconds());
+        var upload = storageMeter.presign(
+            actor.companyId(), "HUMAN_RESOURCES", bucket(), objectKey,
+            draft.contentType(), draft.sizeBytes(), expirySeconds());
         var body = new LinkedHashMap<String, Object>();
         body.put("object_key", upload.objectKey());
         body.put("upload_url", upload.uploadUrl());
@@ -67,6 +73,7 @@ public class AnnFileSvc {
         if (!storageService.objectExists(bucket(), objectKey)) {
             throw new IllegalArgumentException("object_key does not reference an existing uploaded attachment.");
         }
+        storageMeter.commit(actor.companyId(), bucket(), objectKey, draft.sizeBytes());
         insert(actor, announcementId, draft, objectKey);
         return queryService.loadOne(actor.companyId(), announcementId);
     }

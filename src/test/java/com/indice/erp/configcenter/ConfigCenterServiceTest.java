@@ -679,6 +679,7 @@ class ConfigCenterServiceTest {
             passwordEncoder,
             new DisabledObjectStorageService(),
             new ObjectStorageProperties(),
+            org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class),
             scopeAccess
         );
     }

@@ -2,6 +2,7 @@ package com.indice.erp.billing.signup;
 
 import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
+import com.indice.erp.billing.storage.StorageQuotaService;
 import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.sql.Statement;
@@ -29,6 +30,7 @@ public class BillingTenantProvisioningService {
     private final Clock clock;
     private final CompanyEntitlementProjectionService entitlementProjection;
     private final CommercialLifecycleService commercialLifecycle;
+    private final StorageQuotaService storageQuota;
 
     public BillingTenantProvisioningService(
         BillingProvisioningProperties properties,
@@ -37,7 +39,8 @@ public class BillingTenantProvisioningService {
         JdbcTemplate jdbcTemplate,
         Clock clock,
         CompanyEntitlementProjectionService entitlementProjection,
-        CommercialLifecycleService commercialLifecycle
+        CommercialLifecycleService commercialLifecycle,
+        StorageQuotaService storageQuota
     ) {
         this.properties = properties;
         this.signupIntents = signupIntents;
@@ -46,6 +49,7 @@ public class BillingTenantProvisioningService {
         this.clock = clock;
         this.entitlementProjection = entitlementProjection;
         this.commercialLifecycle = commercialLifecycle;
+        this.storageQuota = storageQuota;
     }
 
     @Transactional
@@ -107,6 +111,7 @@ public class BillingTenantProvisioningService {
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
         entitlementProjection.enrollPremiumSignup(companyId, intent.catalogVersionId(), ownerUserId);
         commercialLifecycle.initializeTrial(companyId, trial.endsAt());
+        storageQuota.initializeCompany(companyId);
         jdbcTemplate.update(
             """
                 INSERT INTO company_seat_states (company_id, included_seats, purchased_extra_seats)

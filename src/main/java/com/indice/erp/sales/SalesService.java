@@ -1,5 +1,6 @@
 package com.indice.erp.sales;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
@@ -34,17 +35,20 @@ public class SalesService {
     private final SalesReferenceService referenceService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
+    private final CompanyStorageMeter storageMeter;
     private final Map<String, SalesEntityDefinition> definitions = SalesDefinitions.definitions();
 
     public SalesService(
             SalesRepository salesRepository,
             SalesReferenceService referenceService,
             ObjectStorageService objectStorageService,
-            ObjectStorageProperties storageProperties) {
+            ObjectStorageProperties storageProperties,
+            CompanyStorageMeter storageMeter) {
         this.salesRepository = salesRepository;
         this.referenceService = referenceService;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
+        this.storageMeter = storageMeter;
     }
 
     public Map<String, Object> context(long companyId, long userId) {
@@ -138,10 +142,13 @@ public class SalesService {
                 fileName);
         var sizeBytes = requireProductImageSize(payload);
         var objectKey = buildProductImageObjectKey(companyId, fileName);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+                companyId,
+                "SALES",
                 productImagesBucket(),
                 objectKey,
                 contentType,
+                sizeBytes,
                 storageProperties.getMinio().getPresignExpirySeconds());
 
         var body = new LinkedHashMap<String, Object>();
@@ -184,10 +191,8 @@ public class SalesService {
                 SalesPayloadSupport.stringValue(payload, "file_name"),
                 objectKey.substring(objectKey.lastIndexOf('/') + 1));
         var contentType = requireProductImageContentType(SalesPayloadSupport.stringValue(payload, "contentType"), fileName);
-        var sizeBytes = SalesPayloadSupport.longValue(payload, "sizeBytes");
-        if (sizeBytes == null) {
-            sizeBytes = SalesPayloadSupport.longValue(payload, "size_bytes");
-        }
+        var sizeBytes = requireProductImageSize(payload);
+        storageMeter.commit(companyId, productImagesBucket(), objectKey, sizeBytes);
         var signedUrl = signedProductImageUrl(objectKey);
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("contentType", contentType);
@@ -226,6 +231,12 @@ public class SalesService {
 
     @Transactional
     public void deleteFile(long companyId, long fileId) {
+        var file = salesRepository.findFile(companyId, fileId);
+        var objectKey = file == null ? null : SalesPayloadSupport.stringValue(file, "objectKey");
+        if (objectKey != null && objectKey.startsWith(productImagePrefix(companyId))) {
+            objectStorageService.deleteObject(productImagesBucket(), objectKey);
+            storageMeter.release(companyId, objectKey, "sales_file_deleted");
+        }
         salesRepository.deleteFile(companyId, fileId);
     }
 

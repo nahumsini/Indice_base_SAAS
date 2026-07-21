@@ -1,6 +1,7 @@
 package com.indice.erp.configcenter.invitations;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessUseCases;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessAudit.Snapshot;
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessScope;
@@ -26,9 +27,10 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
-        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
+        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
     }
 
     public Map<String, Object> deleteInvitation(long companyId, long actorUserId, String actorRole, long invitationId) {

@@ -1,6 +1,7 @@
 package com.indice.erp.configcenter.structure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.company.ConfigCenterCompanyUseCases;
 import com.indice.erp.configcenter.support.BusinessInput;
 import com.indice.erp.configcenter.support.CoordinateInput;
@@ -29,9 +30,10 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
-        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
+        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
     }
 
     public Map<String, Object> saveStructure(long companyId, long userId, Map<String, Object> payload) {

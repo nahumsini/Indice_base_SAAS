@@ -6,6 +6,7 @@ import com.indice.erp.finance.expenses.ExpenseType;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
@@ -84,6 +85,7 @@ public class PurchaseOrderService {
     private final ObjectStorageProperties storageProperties;
     private final ExpenseService expenseService;
     private final ObjectMapper objectMapper;
+    private final CompanyStorageMeter storageMeter;
 
     public PurchaseOrderService(
             PurchaseOrderRepository repository,
@@ -91,13 +93,15 @@ public class PurchaseOrderService {
             ObjectStorageService objectStorageService,
             ObjectStorageProperties storageProperties,
             ExpenseService expenseService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            CompanyStorageMeter storageMeter) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
         this.expenseService = expenseService;
         this.objectMapper = objectMapper;
+        this.storageMeter = storageMeter;
     }
 
     @Transactional(readOnly = true)
@@ -312,7 +316,7 @@ public class PurchaseOrderService {
         return supplierPortalView(access);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SupplierPortalDocumentUploadResponse createPublicSupplierInvoiceUpload(
             String portalCode,
             SupplierPortalDocumentUploadRequest request) {
@@ -320,7 +324,7 @@ public class PurchaseOrderService {
         return createPublicSupplierInvoiceUpload(access, request);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SupplierPortalDocumentUploadResponse createPublicSupplierInvoiceUpload(
             PurchaseOrderRepository.SupplierPortalAccessRecord access,
             SupplierPortalDocumentUploadRequest request) {
@@ -330,7 +334,9 @@ public class PurchaseOrderService {
         var contentType = requireSupplierDocumentContentType(request.contentType(), fileName);
         var sizeBytes = requireSupplierDocumentSize(request.sizeBytes());
         var objectKey = buildSupplierInvoiceDocumentObjectKey(access.companyId(), access.id(), fileName);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+            access.companyId(),
+            "POS",
             supplierDocumentsBucket(),
             objectKey,
             contentType,
@@ -361,6 +367,7 @@ public class PurchaseOrderService {
         var contentType = requireSupplierDocumentContentType(request.contentType(), fileName);
         var sizeBytes = requireSupplierDocumentSize(request.sizeBytes());
         var objectKey = requirePublicSupplierDocumentReference(access, request.objectKey());
+        storageMeter.commit(access.companyId(), supplierDocumentsBucket(), objectKey, sizeBytes);
         var result = new java.util.LinkedHashMap<String, Object>();
         result.put("object_key", objectKey);
         result.put("objectKey", objectKey);
@@ -642,6 +649,7 @@ public class PurchaseOrderService {
                 throw PosApiException.badRequest("purchaseOrderId does not belong to providerId.");
             }
         }
+        commitSupplierDocumentIfManaged(context.companyId(), request.documentUrl());
         var invoiceId = repository.insertSupplierInvoice(context, request);
         createExpenseDraftFromSupplierInvoice(context, request, provider, order, invoiceId);
         return enrichSupplierInvoiceDocument(repository.findSupplierInvoice(context, invoiceId).orElseThrow());
@@ -736,7 +744,7 @@ public class PurchaseOrderService {
         return compact(description.toString(), 4000);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SupplierPortalDocumentUploadResponse createSupplierInvoiceUpload(
             PosContext context,
             SupplierInvoiceDocumentUploadRequest request) {
@@ -745,10 +753,13 @@ public class PurchaseOrderService {
         var contentType = requireSupplierDocumentContentType(request.contentType(), fileName);
         var sizeBytes = requireSupplierDocumentSize(request.sizeBytes());
         var objectKey = buildInternalSupplierInvoiceDocumentObjectKey(context.companyId(), context.userId(), fileName);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+            context.companyId(),
+            "POS",
             supplierDocumentsBucket(),
             objectKey,
             contentType,
+            sizeBytes,
             storageProperties.getMinio().getPresignExpirySeconds()
         );
         return new SupplierPortalDocumentUploadResponse(
@@ -1068,6 +1079,24 @@ public class PurchaseOrderService {
         } catch (RuntimeException ignored) {
             return null;
         }
+    }
+
+    private void commitSupplierDocumentIfManaged(long companyId, String documentReference) {
+        var objectKey = trimToNull(documentReference);
+        if (objectKey == null || objectKey.startsWith("http://") || objectKey.startsWith("https://")) {
+            return;
+        }
+        var internalPrefix = "pos/supplier-invoices/" + companyId + "/";
+        var publicPrefix = "pos/supplier-portal/" + companyId + "/";
+        if (!objectKey.startsWith(internalPrefix) && !objectKey.startsWith(publicPrefix)) {
+            return;
+        }
+        requireSupplierDocumentStorage();
+        if (!objectStorageService.objectExists(supplierDocumentsBucket(), objectKey)) {
+            throw PosApiException.badRequest("Uploaded supplier invoice document was not found in storage.");
+        }
+        var sizeBytes = objectStorageService.objectMetadata(supplierDocumentsBucket(), objectKey).sizeBytes();
+        storageMeter.commit(companyId, supplierDocumentsBucket(), objectKey, sizeBytes);
     }
 
     private String buildSupplierInvoiceDocumentObjectKey(long companyId, long accessId, String fileName) {

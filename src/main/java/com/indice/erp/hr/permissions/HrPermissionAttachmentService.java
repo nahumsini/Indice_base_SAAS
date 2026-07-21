@@ -1,5 +1,6 @@
 package com.indice.erp.hr.permissions;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.hr.permissions.HrPermissionAttachmentSupport.AttachmentDraft;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -19,19 +20,22 @@ public class HrPermissionAttachmentService {
     private final HrPermissionQueryService queryService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
+    private final CompanyStorageMeter storageMeter;
 
     public HrPermissionAttachmentService(
         HrPermissionCommandRepository commandRepository,
         HrPermissionAttachmentRepository attachmentRepository,
         HrPermissionQueryService queryService,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties storageProperties
+        ObjectStorageProperties storageProperties,
+        CompanyStorageMeter storageMeter
     ) {
         this.commandRepository = commandRepository;
         this.attachmentRepository = attachmentRepository;
         this.queryService = queryService;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
+        this.storageMeter = storageMeter;
     }
 
     public Map<String, Object> createOwnUpload(PermissionActor actor, long requestId, Map<String, Object> payload) {
@@ -39,7 +43,9 @@ public class HrPermissionAttachmentService {
         requireStorage();
         AttachmentDraft draft = HrPermissionAttachmentSupport.attachmentDraft(payload);
         var objectKey = HrPermissionAttachmentSupport.buildObjectKey(actor.companyId(), requestId, draft.fileName(), LocalDate.now());
-        var upload = objectStorageService.presignUpload(documentsBucket(), objectKey, draft.contentType(), storageProperties.getMinio().getPresignExpirySeconds());
+        var upload = storageMeter.presign(
+            actor.companyId(), "HUMAN_RESOURCES", documentsBucket(), objectKey,
+            draft.contentType(), draft.sizeBytes(), storageProperties.getMinio().getPresignExpirySeconds());
         var body = new LinkedHashMap<String, Object>();
         body.put("object_key", upload.objectKey());
         body.put("upload_url", upload.uploadUrl());
@@ -57,6 +63,7 @@ public class HrPermissionAttachmentService {
         if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
             throw new IllegalArgumentException("object_key does not reference an existing uploaded attachment.");
         }
+        storageMeter.commit(actor.companyId(), documentsBucket(), objectKey, draft.sizeBytes());
         attachmentRepository.insertAttachment(actor.companyId(), requestId, actor.userId(), draft.fileName(), draft.contentType(), draft.sizeBytes(), objectKey);
         return queryService.getOwn(actor, requestId);
     }

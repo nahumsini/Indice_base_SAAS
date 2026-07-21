@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 import com.indice.erp.finance.expenses.attachments.dto.ExpenseAttachmentUploadRequest;
 import com.indice.erp.finance.expenses.attachments.dto.RegisterExpenseAttachmentRequest;
@@ -38,7 +39,11 @@ class BudgetLineAttachmentServiceTest {
     void setUp() {
         properties = new ObjectStorageProperties();
         properties.getMinio().setBucketDocuments("documents");
-        service = new BudgetLineAttachmentService(repository, objectStorageService, properties);
+        service = new BudgetLineAttachmentService(
+                repository,
+                objectStorageService,
+                properties,
+                mock(com.indice.erp.billing.storage.CompanyStorageMeter.class));
     }
 
     @Test

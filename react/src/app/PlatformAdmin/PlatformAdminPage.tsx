@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   Building2,
   Gift,
+  HardDrive,
   LoaderCircle,
   Search,
   ShieldCheck,
@@ -195,6 +196,20 @@ export default function PlatformAdminPage() {
                 <SummaryCard label="Cortesía" value={selected.seat_usage.courtesy_extra ?? 0} />
               </div>
 
+              {selected.storage_usage?.metered ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-[#143675]"><HardDrive className="h-5 w-5" /></span>
+                    <div><h3 className="font-semibold">Almacenamiento</h3><p className="text-xs text-slate-500">Uso auditado por compañía.</p></div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                    <SummaryCard label="Usado GB" value={toGigabytes(selected.storage_usage.used_bytes + selected.storage_usage.reserved_bytes)} />
+                    <SummaryCard label="Límite GB" value={toGigabytes(selected.storage_usage.limit_bytes)} />
+                    <SummaryCard label="Bloques" value={selected.storage_usage.purchased_blocks + selected.storage_usage.benefit_blocks} />
+                  </div>
+                </div>
+              ) : null}
+
               {context?.can_manage_benefits ? (
                 <form onSubmit={submitBenefit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-center gap-3">
@@ -244,3 +259,4 @@ function Metric({ icon: Icon, label, value }: { icon: typeof Users; label: strin
 function Summary({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-medium text-slate-400">{label}</p><p className="mt-1 truncate text-sm font-semibold text-slate-700">{value}</p></div>; }
 function SummaryCard({ label, value }: { label: string; value: number }) { return <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm"><p className="text-2xl font-semibold">{value}</p><p className="mt-1 text-xs font-medium text-slate-500">{label}</p></div>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block space-y-1.5 text-sm font-medium text-slate-700"><span>{label}</span>{children}</label>; }
+function toGigabytes(bytes: number) { return Number((bytes / (1024 ** 3)).toFixed(1)); }

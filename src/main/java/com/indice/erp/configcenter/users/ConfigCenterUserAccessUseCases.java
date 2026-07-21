@@ -2,6 +2,7 @@ package com.indice.erp.configcenter.users;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.profile.ConfigCenterProfileUseCases;
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessScope;
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.ActorAccess;
@@ -35,9 +36,10 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
-        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
+        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
         this.tabPermissionAccess = new ConfigCenterTabPermissionAccess(jdbcTemplate);
         this.userMutationGuard = new ConfigCenterUserMutationGuard();
         this.userDeactivationGuard = new ConfigCenterUserDeactivationGuard();

@@ -1,5 +1,6 @@
 package com.indice.erp.hr.users;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.HrOperationalScopeService;
@@ -45,6 +46,7 @@ public class HrUserService {
     private final HrOperationalScopeService hrOperationalScopeService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final CompanyStorageMeter storageMeter;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public HrUserService(
@@ -52,13 +54,15 @@ public class HrUserService {
         HrAttendanceService hrAttendanceService,
         HrOperationalScopeService hrOperationalScopeService,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrAttendanceService = hrAttendanceService;
         this.hrOperationalScopeService = hrOperationalScopeService;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.storageMeter = storageMeter;
     }
 
     public Map<String, Object> listUsers(long companyId) {
@@ -364,10 +368,13 @@ public class HrUserService {
         }
 
         var objectKey = buildHrUserDocumentObjectKey(companyId, userCompanyId, documentType, originalFileName, contentType);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+            companyId,
+            "HUMAN_RESOURCES",
             documentsBucket(),
             objectKey,
             contentType,
+            sizeBytes,
             objectStorageProperties.getMinio().getPresignExpirySeconds()
         );
 
@@ -410,6 +417,7 @@ public class HrUserService {
         if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
             throw new IllegalArgumentException("object_key does not reference an existing uploaded document.");
         }
+        storageMeter.commit(companyId, documentsBucket(), objectKey, sizeBytes);
 
         var existingRows = jdbcTemplate.query(
             """
@@ -428,6 +436,7 @@ public class HrUserService {
             var existing = existingRows.getFirst();
             if (!existing.objectKey().equals(objectKey)) {
                 deleteUserDocumentObjectQuietly(existing.objectKey());
+                storageMeter.release(companyId, existing.objectKey(), "hr_user_document_replaced");
             }
         }
 
@@ -498,6 +507,7 @@ public class HrUserService {
         );
 
         deleteUserDocumentObjectQuietly(rows.getFirst());
+        storageMeter.release(companyId, rows.getFirst(), "hr_user_document_deleted");
     }
 
     @Transactional

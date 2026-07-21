@@ -86,7 +86,7 @@ public class MinioObjectStorageService implements ObjectStorageService {
                 objectKey,
                 rewritePublicUrl(uploadUrl),
                 Instant.now().plusSeconds(expirySeconds),
-                contentType == null || contentType.isBlank() ? Map.of() : Map.of("Content-Type", contentType)
+                Map.copyOf(signedHeaders)
             );
         } catch (Exception ex) {
             throw new ObjectStorageException("Unable to generate a MinIO upload URL.", ex);

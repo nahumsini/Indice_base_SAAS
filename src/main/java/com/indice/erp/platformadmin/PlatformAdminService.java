@@ -2,6 +2,7 @@ package com.indice.erp.platformadmin;
 
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
+import com.indice.erp.billing.storage.StorageQuotaService;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -26,6 +27,7 @@ public class PlatformAdminService {
     private final PlatformAdminAccessService accessService;
     private final PlatformAuditService audit;
     private final CompanyEntitlementProjectionService entitlementProjection;
+    private final StorageQuotaService storageQuota;
     private final Clock clock;
 
     public PlatformAdminService(
@@ -33,12 +35,14 @@ public class PlatformAdminService {
         PlatformAdminAccessService accessService,
         PlatformAuditService audit,
         CompanyEntitlementProjectionService entitlementProjection,
+        StorageQuotaService storageQuota,
         Clock clock
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.accessService = accessService;
         this.audit = audit;
         this.entitlementProjection = entitlementProjection;
+        this.storageQuota = storageQuota;
         this.clock = clock;
     }
 
@@ -169,6 +173,7 @@ public class PlatformAdminService {
         var body = new LinkedHashMap<>(companies.getFirst());
         body.put("benefits", listBenefits(companyId));
         body.put("seat_usage", seatUsage(companyId));
+        body.put("storage_usage", storageQuota.snapshot(companyId));
         return body;
     }
 

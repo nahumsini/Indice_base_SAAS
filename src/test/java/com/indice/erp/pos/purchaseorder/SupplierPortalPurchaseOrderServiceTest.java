@@ -131,7 +131,8 @@ class SupplierPortalPurchaseOrderServiceTest {
     private PurchaseOrderService service() {
         return new PurchaseOrderService(
             repository, passwordEncoder, objectStorageService, storageProperties,
-            expenseService, new ObjectMapper());
+            expenseService, new ObjectMapper(),
+            org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class));
     }
 
     private PosContext context() {

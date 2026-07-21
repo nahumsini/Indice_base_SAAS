@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,7 +41,7 @@ class HrPermissionSelfDeleteServiceTest {
 
     @Test
     void deleteOwnPendingRemovesRequestAndAttachments() {
-        var service = new HrPermissionSelfDeleteService(commandRepository, attachmentRepository, deleteRepository, objectStorageService, storageProperties);
+        var service = createService();
         var actor = new PermissionActor(7L, 1L, 12L, "Attendance User", "user", List.of());
         var minio = new ObjectStorageProperties.Minio();
         minio.setBucketDocuments("indice-hr-documents");
@@ -60,7 +61,7 @@ class HrPermissionSelfDeleteServiceTest {
 
     @Test
     void deleteOwnPendingRejectsApprovedRequests() {
-        var service = new HrPermissionSelfDeleteService(commandRepository, attachmentRepository, deleteRepository, objectStorageService, storageProperties);
+        var service = createService();
         var actor = new PermissionActor(7L, 1L, 12L, "Attendance User", "user", List.of());
 
         when(commandRepository.loadRequestState(1L, 9L)).thenReturn(new HrPermissionCommandRepository.PermissionRequestState(9L, 12L, "approved"));
@@ -73,12 +74,23 @@ class HrPermissionSelfDeleteServiceTest {
 
     @Test
     void deleteOwnPendingRejectsOtherUsersRequest() {
-        var service = new HrPermissionSelfDeleteService(commandRepository, attachmentRepository, deleteRepository, objectStorageService, storageProperties);
+        var service = createService();
         var actor = new PermissionActor(7L, 1L, 12L, "Attendance User", "user", List.of());
 
         when(commandRepository.loadRequestState(1L, 9L)).thenReturn(new HrPermissionCommandRepository.PermissionRequestState(9L, 44L, "pending"));
 
         assertThrows(NoSuchElementException.class, () -> service.deleteOwnPending(actor, 9L));
         verify(deleteRepository, never()).deletePendingOwnRequest(1L, 12L, 9L);
+    }
+
+    private HrPermissionSelfDeleteService createService() {
+        return new HrPermissionSelfDeleteService(
+            commandRepository,
+            attachmentRepository,
+            deleteRepository,
+            objectStorageService,
+            storageProperties,
+            mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
+        );
     }
 }

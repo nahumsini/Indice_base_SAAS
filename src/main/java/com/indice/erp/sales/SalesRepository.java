@@ -327,6 +327,13 @@ class SalesRepository {
         return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> fileRow(rs), params.toArray());
     }
 
+    Map<String, Object> findFile(long companyId, long fileId) {
+        return jdbcTemplate.query(
+            "SELECT * FROM sales_files WHERE company_id = ? AND id = ? AND deleted_at IS NULL",
+            (rs, rowNum) -> fileRow(rs), companyId, fileId
+        ).stream().findFirst().orElse(null);
+    }
+
     long createFile(long companyId, long userId, Map<String, Object> payload) {
         var entityType = requiredString(payload, "entityType");
         var entityId = SalesPayloadSupport.longValue(payload, "entityId");

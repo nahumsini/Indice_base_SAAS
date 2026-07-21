@@ -15,6 +15,9 @@ export const endpoints = {
     snapshot: '/api/v1/billing/recovery',
     portal: '/api/v1/billing/recovery/portal',
   },
+  billingStorage: {
+    snapshot: '/api/v1/billing/storage',
+  },
   platform: {
     context: '/api/v1/platform/context',
   },

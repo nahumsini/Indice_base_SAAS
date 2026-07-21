@@ -5,6 +5,7 @@ import static com.indice.erp.hr.shared.HrPayloadUtils.parseLong;
 import static com.indice.erp.hr.shared.HrPayloadUtils.safe;
 import static com.indice.erp.hr.shared.HrPayloadUtils.stringValue;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrOperationalScope;
@@ -46,17 +47,20 @@ public class HrRecordService {
     private final HrRecordScopeAccess hrRecordScopeAccess;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final CompanyStorageMeter storageMeter;
 
     public HrRecordService(
         JdbcTemplate jdbcTemplate,
         HrRecordScopeAccess hrRecordScopeAccess,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrRecordScopeAccess = hrRecordScopeAccess;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.storageMeter = storageMeter;
     }
 
     @Transactional(readOnly = true)
@@ -436,10 +440,13 @@ public class HrRecordService {
         }
 
         var objectKey = buildAttachmentObjectKey(companyId, recordId, fileName, contentType);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+            companyId,
+            "HUMAN_RESOURCES",
             documentsBucket(),
             objectKey,
             contentType,
+            sizeBytes,
             objectStorageProperties.getMinio().getPresignExpirySeconds()
         );
 
@@ -478,6 +485,7 @@ public class HrRecordService {
         if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
             throw new IllegalArgumentException("object_key does not reference an existing uploaded attachment.");
         }
+        storageMeter.commit(companyId, documentsBucket(), objectKey, sizeBytes);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -559,6 +567,7 @@ public class HrRecordService {
         );
 
         deleteAttachmentObjectQuietly(rows.getFirst().objectKey());
+        storageMeter.release(companyId, rows.getFirst().objectKey(), "hr_record_attachment_deleted");
         var actor = loadActorRef(actorUserId);
         insertActivity(companyId, recordId, "attachment_removed", null, null, rows.getFirst().fileName(), actorUserId, actor.actorName());
     }

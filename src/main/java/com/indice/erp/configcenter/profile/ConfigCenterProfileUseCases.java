@@ -1,6 +1,7 @@
 package com.indice.erp.configcenter.profile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.support.ConfigCenterSupport;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -18,9 +19,10 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
-        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
+        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
     }
 
     public Map<String, Object> getCurrentUser(long userId, String currentRole) {
@@ -92,10 +94,13 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
         }
 
         var objectKey = buildCurrentUserAvatarObjectKey(companyId, userId, contentType);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+            companyId,
+            "CONFIG_CENTER",
             documentsBucket(),
             objectKey,
             contentType,
+            sizeBytes,
             objectStorageProperties.getMinio().getPresignExpirySeconds()
         );
 
@@ -131,6 +136,10 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
                 : normalizeProfileAvatarContentType(value(payload, "avatar_content_type", "avatarContentType", "content_type"));
             if (!avatarObjectKey.isBlank() && !objectStorageService.objectExists(documentsBucket(), avatarObjectKey)) {
                 throw new IllegalArgumentException("avatar_object_key does not reference an existing uploaded profile photo.");
+            }
+            if (!avatarObjectKey.isBlank()) {
+                var metadata = objectStorageService.objectMetadata(documentsBucket(), avatarObjectKey);
+                storageMeter.commit(companyId, documentsBucket(), avatarObjectKey, metadata.sizeBytes());
             }
         }
         var newPassword = value(payload, "new_password");
@@ -187,7 +196,9 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
                 nullable(avatarContentType)
             );
             if (!previousAvatarObjectKey.isBlank() && !previousAvatarObjectKey.equals(avatarObjectKey)) {
-                deleteProfileAvatarObjectQuietly(previousAvatarObjectKey);
+                if (deleteProfileAvatarObjectQuietly(previousAvatarObjectKey)) {
+                    storageMeter.release(companyId, previousAvatarObjectKey, "profile_avatar_replaced");
+                }
             }
         } else {
             jdbcTemplate.update(

@@ -268,7 +268,8 @@ class HrUserServiceTest {
             hrAttendanceService,
             hrOperationalScopeService,
             objectStorageService,
-            objectStorageProperties
+            objectStorageProperties,
+            mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
         );
     }
 

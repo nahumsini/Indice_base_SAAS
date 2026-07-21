@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,7 +81,8 @@ class HrPermissionAttachmentServiceTest {
             attachmentRepository,
             queryService,
             objectStorageService,
-            properties
+            properties,
+            mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
         );
     }
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.indice.erp.access.ModuleSlugNormalizer;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.invitations.ConfigCenterInvitationUseCases;
 import com.indice.erp.configcenter.support.BusinessInput;
 import com.indice.erp.configcenter.support.CoordinateInput;
@@ -28,9 +29,10 @@ public abstract class ConfigCenterCompanyUseCases extends ConfigCenterInvitation
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
-        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
+        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
     }
 
     public Map<String, Object> getEmpresa(long companyId) {

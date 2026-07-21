@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CreditCard, Download, ExternalLink, FileText, LoaderCircle, Trash2 } from 'lucide-react';
+import { AlertTriangle, CreditCard, Download, ExternalLink, FileText, HardDrive, LoaderCircle, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { useLanguage } from '../../../shared/context';
 import { billingRecoveryApi, type BillingRecoverySnapshot } from '../../../api/billingRecovery';
+import { billingStorageApi, type BillingStorageSnapshot } from '../../../api/billingStorage';
 
 interface SavedCard {
   id: string;
@@ -94,6 +95,7 @@ export default function Billing() {
   const [recoveryLoading, setRecoveryLoading] = useState(true);
   const [recoveryError, setRecoveryError] = useState('');
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [storage, setStorage] = useState<BillingStorageSnapshot | null>(null);
 
   useEffect(() => {
     if (selectedCountry) {
@@ -119,7 +121,14 @@ export default function Billing() {
   useEffect(() => {
     let active = true;
     billingRecoveryApi.snapshot()
-      .then((snapshot) => { if (active) setRecovery(snapshot); })
+      .then(async (snapshot) => {
+        if (!active) return;
+        setRecovery(snapshot);
+        if (snapshot.can_manage_billing) {
+          const capacity = await billingStorageApi.snapshot();
+          if (active) setStorage(capacity);
+        }
+      })
       .catch((error) => { if (active) setRecoveryError(error instanceof Error ? error.message : 'No se pudo consultar la suscripción.'); })
       .finally(() => { if (active) setRecoveryLoading(false); });
     return () => { active = false; };
@@ -446,6 +455,27 @@ export default function Billing() {
       ) : null}
 
       {recoveryError ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{recoveryError}</div> : null}
+
+      {storage?.metered ? (
+        <div className={`rounded-2xl border bg-white p-4 sm:p-5 ${storage.alert_level === 'LIMIT' || storage.alert_level === 'CRITICAL' ? 'border-amber-300' : 'border-slate-200'}`}>
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#143675]"><HardDrive className="h-5 w-5" /></span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Almacenamiento de la cuenta</p>
+                  <h3 className="mt-1 font-semibold text-slate-950">{formatStorage(storage.used_bytes + storage.reserved_bytes)} de {formatStorage(storage.limit_bytes)}</h3>
+                </div>
+                <span className="text-xs font-medium text-slate-500">5 GB incluidos · {storage.purchased_blocks} comprado(s) · {storage.benefit_blocks} cortesía</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Uso de almacenamiento" aria-valuemin={0} aria-valuemax={100} aria-valuenow={storagePercent(storage)}>
+                <div className={`h-full rounded-full transition-all ${storage.alert_level === 'LIMIT' || storage.alert_level === 'CRITICAL' ? 'bg-amber-500' : 'bg-[#143675]'}`} style={{ width: `${storagePercent(storage)}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">Incluye archivos guardados y cargas reservadas. La compra de bloques se habilitará cuando el precio comercial quede aprobado.</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
           <span className="text-2xl">🧾</span>
@@ -844,4 +874,15 @@ export default function Billing() {
       </div>
     </div>
   );
+}
+
+function formatStorage(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 GB';
+  const gib = bytes / (1024 ** 3);
+  return `${gib >= 10 ? gib.toFixed(0) : gib.toFixed(1)} GB`;
+}
+
+function storagePercent(snapshot: BillingStorageSnapshot) {
+  if (snapshot.limit_bytes <= 0) return 0;
+  return Math.min(100, Math.round(((snapshot.used_bytes + snapshot.reserved_bytes) / snapshot.limit_bytes) * 100));
 }

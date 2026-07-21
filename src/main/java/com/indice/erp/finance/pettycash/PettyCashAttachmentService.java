@@ -1,5 +1,6 @@
 package com.indice.erp.finance.pettycash;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.storage.ObjectStorageDisabledException;
@@ -28,16 +29,19 @@ public class PettyCashAttachmentService {
     private final PettyCashRepository repository;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final CompanyStorageMeter storageMeter;
 
     public PettyCashAttachmentService(
             JdbcTemplate jdbcTemplate,
             PettyCashRepository repository,
             ObjectStorageService objectStorageService,
-            ObjectStorageProperties objectStorageProperties) {
+            ObjectStorageProperties objectStorageProperties,
+            CompanyStorageMeter storageMeter) {
         this.jdbcTemplate = jdbcTemplate;
         this.repository = repository;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.storageMeter = storageMeter;
     }
 
     @Transactional(readOnly = true)
@@ -68,10 +72,13 @@ public class PettyCashAttachmentService {
         validateAttachmentSize(sizeBytes);
 
         var objectKey = buildAttachmentObjectKey(context.companyId(), fundId, settlementLineId, fileName, contentType);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+                context.companyId(),
+                "PETTY_CASH",
                 documentsBucket(),
                 objectKey,
                 contentType,
+                sizeBytes,
                 objectStorageProperties.getMinio().getPresignExpirySeconds());
 
         var body = new LinkedHashMap<String, Object>();
@@ -108,6 +115,7 @@ public class PettyCashAttachmentService {
         if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
             throw new IllegalArgumentException("object_key does not reference an existing uploaded attachment.");
         }
+        storageMeter.commit(context.companyId(), documentsBucket(), objectKey, sizeBytes);
 
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -185,6 +193,7 @@ public class PettyCashAttachmentService {
                 attachmentId);
 
         deleteAttachmentObjectQuietly(rows.getFirst().objectKey());
+        storageMeter.release(context.companyId(), rows.getFirst().objectKey(), "petty_cash_attachment_deleted");
         refreshAttachmentCounts(context, line);
     }
 

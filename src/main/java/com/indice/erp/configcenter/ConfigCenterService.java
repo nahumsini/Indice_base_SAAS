@@ -2,6 +2,7 @@ package com.indice.erp.configcenter;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.structure.ConfigCenterBusinessStructureUseCases;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -23,9 +24,10 @@ public class ConfigCenterService extends ConfigCenterBusinessStructureUseCases {
         BCryptPasswordEncoder passwordEncoder,
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter,
         ConfigCenterScopeAccess scopeAccess
     ) {
-        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties);
+        super(jdbcTemplate, objectMapper, passwordEncoder, objectStorageService, objectStorageProperties, storageMeter);
         this.scopeAccess = scopeAccess;
     }
 

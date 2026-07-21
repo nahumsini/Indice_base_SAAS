@@ -53,6 +53,15 @@ export interface PlatformCompanyDetail extends PlatformCompanySummary {
     active?: number;
     reserved?: number;
   };
+  storage_usage?: {
+    enforced: boolean;
+    metered: boolean;
+    limit_bytes: number;
+    used_bytes: number;
+    reserved_bytes: number;
+    purchased_blocks: number;
+    benefit_blocks: number;
+  };
 }
 
 export interface PlatformOverview {

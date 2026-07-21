@@ -1,5 +1,6 @@
 package com.indice.erp.finance.expenses.attachments;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.expenses.attachments.dto.ExpenseAttachmentListResponse;
 import com.indice.erp.finance.expenses.attachments.dto.ExpenseAttachmentResponse;
@@ -20,14 +21,17 @@ public class BudgetLineAttachmentService {
     private final BudgetLineAttachmentRepository repository;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final CompanyStorageMeter storageMeter;
 
     public BudgetLineAttachmentService(
             BudgetLineAttachmentRepository repository,
             ObjectStorageService objectStorageService,
-            ObjectStorageProperties objectStorageProperties) {
+            ObjectStorageProperties objectStorageProperties,
+            CompanyStorageMeter storageMeter) {
         this.repository = repository;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.storageMeter = storageMeter;
     }
 
     @Transactional(readOnly = true)
@@ -51,10 +55,12 @@ public class BudgetLineAttachmentService {
         var fileName = ExpenseAttachmentRules.normalizeFileName(request.fileName());
         var objectKey = ExpenseAttachmentRules.buildBudgetLineObjectKey(
                 context.companyId(), budgetLineId, fileName, mimeType);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+                context.companyId(), "EXPENSES",
                 documentsBucket(),
                 objectKey,
                 mimeType,
+                request.sizeBytes(),
                 objectStorageProperties.getMinio().getPresignExpirySeconds());
         return new PresignedExpenseAttachmentResponse(
                 upload.objectKey(),
@@ -78,6 +84,7 @@ public class BudgetLineAttachmentService {
         if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
             throw FinanceApiException.badRequest("objectKey does not reference an uploaded budget line attachment.");
         }
+        storageMeter.commit(context.companyId(), documentsBucket(), objectKey, request.sizeBytes());
         var row = repository.insert(context, budgetLineId, fileName, mimeType, request.sizeBytes(), objectKey);
         return row.toResponse(signedUrl(row.objectKey()));
     }
@@ -91,6 +98,7 @@ public class BudgetLineAttachmentService {
             throw new NoSuchElementException("Attachment not found.");
         }
         deleteObjectQuietly(row.objectKey());
+        storageMeter.release(context.companyId(), row.objectKey(), "budget_attachment_deleted");
     }
 
     private void requireBudgetLine(FinanceContext context, long budgetLineId) {

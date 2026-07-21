@@ -1,5 +1,6 @@
 package com.indice.erp.hr.permissions;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.util.LinkedHashMap;
@@ -15,19 +16,22 @@ public class HrPermissionSelfDeleteService {
     private final HrPermissionDeleteRepository deleteRepository;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
+    private final CompanyStorageMeter storageMeter;
 
     public HrPermissionSelfDeleteService(
         HrPermissionCommandRepository commandRepository,
         HrPermissionAttachmentRepository attachmentRepository,
         HrPermissionDeleteRepository deleteRepository,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties storageProperties
+        ObjectStorageProperties storageProperties,
+        CompanyStorageMeter storageMeter
     ) {
         this.commandRepository = commandRepository;
         this.attachmentRepository = attachmentRepository;
         this.deleteRepository = deleteRepository;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
+        this.storageMeter = storageMeter;
     }
 
     @Transactional
@@ -44,7 +48,10 @@ public class HrPermissionSelfDeleteService {
             throw new IllegalArgumentException("Permission request status changed. Refresh and try again.");
         }
         if (objectStorageService.isEnabled()) {
-            objectKeys.forEach(this::deleteObjectQuietly);
+            objectKeys.forEach(key -> {
+                deleteObjectQuietly(key);
+                storageMeter.release(actor.companyId(), key, "permission_request_deleted");
+            });
         }
         var body = new LinkedHashMap<String, Object>();
         body.put("deleted", true);

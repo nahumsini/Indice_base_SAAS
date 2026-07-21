@@ -28,6 +28,8 @@ public class StripePhaseTwoProperties {
     private String priceBasicAllAnnual = "";
     private String priceExtraSeatMonthly = "";
     private String priceExtraSeatAnnual = "";
+    private String priceStorageBlockMonthly = "";
+    private String priceStorageBlockAnnual = "";
     private boolean processorEnabled;
     private long processorDelayMs = 5_000;
     private int batchSize = 25;
@@ -201,6 +203,18 @@ public class StripePhaseTwoProperties {
         this.priceExtraSeatAnnual = normalized(value);
     }
 
+    public String getPriceStorageBlockMonthly() { return priceStorageBlockMonthly; }
+
+    public void setPriceStorageBlockMonthly(String value) {
+        this.priceStorageBlockMonthly = normalized(value);
+    }
+
+    public String getPriceStorageBlockAnnual() { return priceStorageBlockAnnual; }
+
+    public void setPriceStorageBlockAnnual(String value) {
+        this.priceStorageBlockAnnual = normalized(value);
+    }
+
     public boolean isProcessorEnabled() {
         return processorEnabled;
     }
@@ -257,6 +271,7 @@ public class StripePhaseTwoProperties {
             case "basic_3" -> annual ? priceBasic3Annual : priceBasic3Monthly;
             case "basic_all" -> annual ? priceBasicAllAnnual : priceBasicAllMonthly;
             case "extra_seat" -> annual ? priceExtraSeatAnnual : priceExtraSeatMonthly;
+            case "storage_block" -> annual ? priceStorageBlockAnnual : priceStorageBlockMonthly;
             default -> "";
         };
     }

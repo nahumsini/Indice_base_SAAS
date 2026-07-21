@@ -52,7 +52,7 @@ class CommercialLifecycleIntegrationTest {
         );
 
         assertThat(failure.snapshot().state()).isEqualTo("GRACE");
-        assertThat(failure.snapshot().allows_operational_write()).isTrue();
+        assertThat(failure.snapshot().operational_write_allowed()).isTrue();
         assertThat(failure.snapshot().grace_ends_at())
             .isEqualTo(failedAt.plus(14, ChronoUnit.DAYS));
 
@@ -68,7 +68,7 @@ class CommercialLifecycleIntegrationTest {
         );
         assertThat(recovered.snapshot().state()).isEqualTo("ACTIVE");
         assertThat(recovered.snapshot().grace_ends_at()).isNull();
-        assertThat(recovered.snapshot().allows_operational_write()).isTrue();
+        assertThat(recovered.snapshot().operational_write_allowed()).isTrue();
     }
 
     @Test
@@ -101,7 +101,7 @@ class CommercialLifecycleIntegrationTest {
 
         assertThat(lifecycle.advanceDueStates()).isEqualTo(1);
         assertThat(lifecycle.snapshot(companyId).orElseThrow().state()).isEqualTo("READ_ONLY");
-        assertThat(lifecycle.snapshot(companyId).orElseThrow().allows_operational_write()).isFalse();
+        assertThat(lifecycle.snapshot(companyId).orElseThrow().operational_write_allowed()).isFalse();
 
         expire(companyId, "read_only_ends_at");
         assertThat(lifecycle.advanceDueStates()).isEqualTo(1);

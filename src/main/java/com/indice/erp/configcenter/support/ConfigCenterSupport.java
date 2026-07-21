@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.indice.erp.access.ModuleSlugNormalizer;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
@@ -45,19 +46,22 @@ public abstract class ConfigCenterSupport {
     protected final BCryptPasswordEncoder passwordEncoder;
     protected final ObjectStorageService objectStorageService;
     protected final ObjectStorageProperties objectStorageProperties;
+    protected final CompanyStorageMeter storageMeter;
 
     protected ConfigCenterSupport(
         JdbcTemplate jdbcTemplate,
         ObjectMapper objectMapper,
         BCryptPasswordEncoder passwordEncoder,
         ObjectStorageService objectStorageService,
-        ObjectStorageProperties objectStorageProperties
+        ObjectStorageProperties objectStorageProperties,
+        CompanyStorageMeter storageMeter
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.storageMeter = storageMeter;
     }
 
     protected int resolveCollaborators(long companyId, Integer storedCollaborators) {
@@ -207,15 +211,17 @@ public abstract class ConfigCenterSupport {
         }
     }
 
-    protected void deleteProfileAvatarObjectQuietly(String objectKey) {
+    protected boolean deleteProfileAvatarObjectQuietly(String objectKey) {
         if (objectKey == null || objectKey.isBlank() || !objectStorageService.isEnabled()) {
-            return;
+            return false;
         }
 
         try {
             objectStorageService.deleteObject(documentsBucket(), objectKey);
+            return true;
         } catch (RuntimeException ignored) {
             // Profile metadata should stay saved even if the replaced object is already gone.
+            return false;
         }
     }
 

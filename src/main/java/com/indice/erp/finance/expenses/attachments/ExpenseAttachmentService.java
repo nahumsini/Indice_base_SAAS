@@ -1,5 +1,6 @@
 package com.indice.erp.finance.expenses.attachments;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.expenses.attachments.dto.ExpenseAttachmentListResponse;
 import com.indice.erp.finance.expenses.attachments.dto.ExpenseAttachmentResponse;
@@ -20,14 +21,17 @@ public class ExpenseAttachmentService {
     private final ExpenseAttachmentRepository repository;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
+    private final CompanyStorageMeter storageMeter;
 
     public ExpenseAttachmentService(
             ExpenseAttachmentRepository repository,
             ObjectStorageService objectStorageService,
-            ObjectStorageProperties objectStorageProperties) {
+            ObjectStorageProperties objectStorageProperties,
+            CompanyStorageMeter storageMeter) {
         this.repository = repository;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
+        this.storageMeter = storageMeter;
     }
 
     @Transactional(readOnly = true)
@@ -51,10 +55,12 @@ public class ExpenseAttachmentService {
         var mimeType = ExpenseAttachmentRules.normalizeContentType(request.contentType());
         var fileName = ExpenseAttachmentRules.normalizeFileName(request.fileName());
         var objectKey = ExpenseAttachmentRules.buildObjectKey(context.companyId(), expenseId, fileName, mimeType);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+                context.companyId(), "EXPENSES",
                 documentsBucket(),
                 objectKey,
                 mimeType,
+                request.sizeBytes(),
                 objectStorageProperties.getMinio().getPresignExpirySeconds());
 
         return new PresignedExpenseAttachmentResponse(
@@ -79,6 +85,7 @@ public class ExpenseAttachmentService {
         if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
             throw FinanceApiException.badRequest("objectKey does not reference an uploaded expense attachment.");
         }
+        storageMeter.commit(context.companyId(), documentsBucket(), objectKey, request.sizeBytes());
 
         var row = repository.insert(context, expenseId, fileName, mimeType, request.sizeBytes(), objectKey);
         repository.refreshExpenseAttachmentCount(context, expenseId);
@@ -95,6 +102,7 @@ public class ExpenseAttachmentService {
         }
         if (!repository.objectKeyIsReferencedByPettyCash(context.companyId(), row.objectKey())) {
             deleteObjectQuietly(row.objectKey());
+            storageMeter.release(context.companyId(), row.objectKey(), "expense_attachment_deleted");
         }
         repository.refreshExpenseAttachmentCount(context, expenseId);
     }

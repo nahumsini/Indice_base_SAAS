@@ -15,6 +15,7 @@ import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toLocalD
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskJdbc.toTimeString;
 import static com.indice.erp.processTasks.tasks.support.ProcessTaskPresentation.fallback;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.notifications.AppNotificationEvent;
 import com.indice.erp.notifications.AppNotificationService;
 import com.indice.erp.processTasks.tasks.domain.TaskCommand;
@@ -86,6 +87,7 @@ public class ProcessTasksService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private final AppNotificationService appNotificationService;
+    private final CompanyStorageMeter storageMeter;
     private static final String TASK_SELECT_COLUMNS = """
             SELECT pt.id,
                    pt.company_id,
@@ -192,13 +194,15 @@ public class ProcessTasksService {
         ProcessTaskAssignmentScopeService assignmentScopeService,
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties,
-        AppNotificationService appNotificationService
+        AppNotificationService appNotificationService,
+        CompanyStorageMeter storageMeter
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.assignmentScopeService = assignmentScopeService;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
         this.appNotificationService = appNotificationService;
+        this.storageMeter = storageMeter;
     }
 
     public Map<String, Object> listTasks(long companyId, long userId) {
@@ -768,10 +772,13 @@ public class ProcessTasksService {
         validateAttachmentSize(sizeBytes);
 
         var objectKey = buildAttachmentObjectKey(companyId, taskId, fileName, contentType);
-        var upload = objectStorageService.presignUpload(
+        var upload = storageMeter.presign(
+                companyId,
+                "PROCESSES_TASKS",
                 documentsBucket(),
                 objectKey,
                 contentType,
+                sizeBytes,
                 objectStorageProperties.getMinio().getPresignExpirySeconds());
 
         var body = new LinkedHashMap<String, Object>();
@@ -804,6 +811,7 @@ public class ProcessTasksService {
         if (!objectStorageService.objectExists(documentsBucket(), objectKey)) {
             throw new IllegalArgumentException("object_key does not reference an existing uploaded attachment.");
         }
+        storageMeter.commit(companyId, documentsBucket(), objectKey, sizeBytes);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -873,6 +881,7 @@ public class ProcessTasksService {
                 attachmentId);
 
         deleteAttachmentObjectQuietly(rows.getFirst().objectKey());
+        storageMeter.release(companyId, rows.getFirst().objectKey(), "process_task_attachment_deleted");
     }
 
     public Map<String, Object> getTask(long companyId, long taskId) {

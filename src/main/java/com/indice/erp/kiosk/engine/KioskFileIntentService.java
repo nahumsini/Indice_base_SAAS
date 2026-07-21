@@ -1,5 +1,6 @@
 package com.indice.erp.kiosk.engine;
 
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.sql.Timestamp;
@@ -25,16 +26,19 @@ public class KioskFileIntentService {
     private final ObjectStorageService objectStorage;
     private final ObjectStorageProperties storageProperties;
     private final KioskFileRejectionService rejections;
+    private final CompanyStorageMeter storageMeter;
 
     public KioskFileIntentService(
             JdbcTemplate jdbcTemplate,
             ObjectStorageService objectStorage,
             ObjectStorageProperties storageProperties,
-            KioskFileRejectionService rejections) {
+            KioskFileRejectionService rejections,
+            CompanyStorageMeter storageMeter) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectStorage = objectStorage;
         this.storageProperties = storageProperties;
         this.rejections = rejections;
+        this.storageMeter = storageMeter;
     }
 
     public void validateTechnicalPolicy(
@@ -140,6 +144,9 @@ public class KioskFileIntentService {
         var bucketName = responseBucket.isBlank()
             ? storageProperties.getMinio().getBucketDocuments()
             : responseBucket;
+        var sizeBytes = number(request.payload(), "size_bytes", "sizeBytes");
+        storageMeter.reserve(
+            context.definition().companyId(), context.ownerModule(), bucketName, objectKey, sizeBytes);
         jdbcTemplate.update(
             """
                 INSERT INTO kiosk_file_intents (
@@ -153,7 +160,7 @@ public class KioskFileIntentService {
             moduleReference(request), bucketName, objectKey, objectKey,
             text(request.payload(), "original_filename", "originalFilename", "file_name", "fileName"),
             text(request.payload(), "mime_type", "mimeType", "content_type", "contentType").toLowerCase(),
-            number(request.payload(), "size_bytes", "sizeBytes"), Timestamp.from(expiresAt)
+            sizeBytes, Timestamp.from(expiresAt)
         );
         audit(context, capability, "KIOSK_FILE_PRESIGNED", "SUCCEEDED", objectKey);
     }
@@ -235,6 +242,11 @@ public class KioskFileIntentService {
             KioskCapabilityDescriptor capability,
             String acceptedObjectKey) {
         var stagedObjectKey = text(request.payload(), "object_key", "objectKey");
+        var intent = pendingIntent(
+            context, moduleReference(request), stagedObjectKey, "File intent could not be adopted.");
+        storageMeter.commitMoved(
+            context.definition().companyId(), intent.bucketName(), stagedObjectKey,
+            acceptedObjectKey, intent.sizeBytes());
         var updated = jdbcTemplate.update(
             """
                 UPDATE kiosk_file_intents
@@ -249,6 +261,31 @@ public class KioskFileIntentService {
             throw new SecurityException("File intent could not be adopted.");
         }
         audit(context, capability, "KIOSK_FILE_ADOPTED", "SUCCEEDED", acceptedObjectKey);
+    }
+
+    private PendingIntent pendingIntent(
+            KioskExecutionContext context,
+            String moduleReference,
+            String objectKey,
+            String missingMessage) {
+        var intents = jdbcTemplate.query(
+            """
+                SELECT bucket_name, original_filename, mime_type, size_bytes
+                FROM kiosk_file_intents
+                WHERE kiosk_definition_id = ? AND session_id = ? AND module_reference = ?
+                  AND object_key = ? AND status = 'PENDING' AND expires_at > CURRENT_TIMESTAMP
+                LIMIT 1
+                FOR UPDATE
+                """,
+            (rs, rowNum) -> new PendingIntent(
+                rs.getString("bucket_name"), rs.getString("original_filename"),
+                rs.getString("mime_type"), rs.getLong("size_bytes")),
+            context.definition().id(), context.session().sessionId(), moduleReference, objectKey
+        );
+        if (intents.isEmpty()) {
+            throw new SecurityException(missingMessage);
+        }
+        return intents.getFirst();
     }
 
     private void sealAndAdopt(
@@ -471,6 +508,7 @@ public class KioskFileIntentService {
                 intent.intentId()
             );
             if (updated == 1) {
+                storageMeter.release(intent.companyId(), intent.objectKey(), "kiosk_file_expired");
                 auditExpired(intent);
                 cleaned++;
             }
@@ -481,14 +519,14 @@ public class KioskFileIntentService {
     private void cleanupRejectedObjects() {
         var rejected = jdbcTemplate.query(
             """
-                SELECT intent_id, bucket_name, object_key, staging_object_key
+                SELECT intent_id, company_id, bucket_name, object_key, staging_object_key
                 FROM kiosk_file_intents
                 WHERE status = 'REJECTED' AND staging_object_key IS NOT NULL
                 LIMIT 200
                 FOR UPDATE SKIP LOCKED
                 """,
             (rs, rowNum) -> new RejectedStorage(
-                rs.getString("intent_id"), rs.getString("bucket_name"),
+                rs.getString("intent_id"), rs.getLong("company_id"), rs.getString("bucket_name"),
                 rs.getString("object_key"),
                 rs.getString("staging_object_key")));
         for (var intent : rejected) {
@@ -506,6 +544,8 @@ public class KioskFileIntentService {
                 "UPDATE kiosk_file_intents SET staging_object_key = NULL"
                     + " WHERE intent_id = ? AND status = 'REJECTED'",
                 intent.intentId());
+            storageMeter.release(
+                intent.companyId(), intent.intentObjectKey(), "kiosk_file_rejected");
         }
     }
 
@@ -776,6 +816,7 @@ public class KioskFileIntentService {
 
     private record RejectedStorage(
             String intentId,
+            long companyId,
             String bucketName,
             String intentObjectKey,
             String cleanupObjectKey) {

@@ -49,7 +49,13 @@ class KioskFileIntentServiceTest {
     void setUp() {
         var properties = new ObjectStorageProperties();
         properties.getMinio().setBucketDocuments("documents");
-        service = new KioskFileIntentService(jdbcTemplate, objectStorage, properties, rejections);
+        service = new KioskFileIntentService(
+            jdbcTemplate,
+            objectStorage,
+            properties,
+            rejections,
+            mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
+        );
         var definition = new KioskResolvedDefinition(
             17L, 7L, "PROCESS_TASKS", "task_access", 31L, "TASKS", "Tasks",
             KioskDefinitionStatus.ACTIVE, 2L, 3L, null, KioskAccessLevel.CONTROLLED,
