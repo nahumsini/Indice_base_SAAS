@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-final class ConfigCenterTabPermissionCatalog {
+public final class ConfigCenterTabPermissionCatalog {
 
     static final String CONFIG_CENTER_MODULE = "config_center";
     static final String HR_MODULE = "human_resources";
@@ -47,7 +47,7 @@ final class ConfigCenterTabPermissionCatalog {
         return rows;
     }
 
-    static List<String> permissionKeysForModuleSlugs(Set<String> moduleSlugs) {
+    public static List<String> permissionKeysForModuleSlugs(Set<String> moduleSlugs) {
         var keys = new ArrayList<String>();
         for (var tab : CATALOG) {
             if (moduleSlugs.contains(tab.moduleSlug())) {

@@ -1,5 +1,6 @@
 import { ArrowRight, Eye, EyeOff, KeyRound, LockKeyhole, Mail } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { Link } from 'react-router';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import type { LoginPageCopy } from './loginTypes';
@@ -121,6 +122,13 @@ export function LoginFormPanel({
             )}
           </Button>
         </form>
+
+        <p className="mt-5 text-center text-sm text-slate-600">
+          ¿Aún no tienes cuenta?{' '}
+          <Link to="/signup" className="font-bold text-[#155CFF] underline-offset-4 hover:underline">
+            Prueba Índice durante 30 días
+          </Link>
+        </p>
 
         <div className="mt-8 rounded-[24px] border border-slate-200 bg-slate-50/90 p-5">
           <p className="text-sm font-bold text-[#222831]">{copy.insideTitle}</p>

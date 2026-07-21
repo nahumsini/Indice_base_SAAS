@@ -137,6 +137,103 @@ public class BillingSignupIntentRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
+    public ProvisioningSpec lockProvisioningSpec(long intentId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT i.id, i.status, i.provisioning_status, i.catalog_version_id,
+                       i.full_name, i.email_normalized, i.password_hash, i.company_name,
+                       i.country_code, i.phone, i.stripe_customer_id,
+                       i.completed_at, i.company_id, i.owner_user_id, i.owner_user_company_id
+                FROM billing_signup_intents i
+                WHERE i.id = ?
+                FOR UPDATE
+                """,
+            (rs, rowNum) -> new ProvisioningSpec(
+                rs.getLong("id"),
+                rs.getString("status"),
+                rs.getString("provisioning_status"),
+                rs.getLong("catalog_version_id"),
+                rs.getString("full_name"),
+                rs.getString("email_normalized"),
+                rs.getString("password_hash"),
+                rs.getString("company_name"),
+                rs.getString("country_code"),
+                rs.getString("phone"),
+                rs.getString("stripe_customer_id"),
+                instant(rs.getTimestamp("completed_at")),
+                (Long) rs.getObject("company_id"),
+                (Long) rs.getObject("owner_user_id"),
+                (Long) rs.getObject("owner_user_company_id")
+            ),
+            intentId
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    public List<Long> findProvisionableIds(int limit) {
+        return jdbcTemplate.query(
+            """
+                SELECT id
+                FROM billing_signup_intents
+                WHERE status = 'CHECKOUT_COMPLETED'
+                  AND provisioning_status IN ('NOT_STARTED', 'IN_PROGRESS')
+                ORDER BY completed_at, id
+                LIMIT ?
+                """,
+            (rs, rowNum) -> rs.getLong(1),
+            Math.max(1, Math.min(limit, 100))
+        );
+    }
+
+    public void markProvisioningStarted(long intentId) {
+        jdbcTemplate.update(
+            """
+                UPDATE billing_signup_intents
+                SET provisioning_status = 'IN_PROGRESS',
+                    provisioning_attempt_count = provisioning_attempt_count + 1,
+                    provisioning_started_at = CURRENT_TIMESTAMP(6),
+                    provisioning_error_code = NULL,
+                    provisioning_error_message = NULL,
+                    version = version + 1
+                WHERE id = ?
+                  AND provisioning_status IN ('NOT_STARTED', 'IN_PROGRESS')
+                """,
+            intentId
+        );
+    }
+
+    public void markProvisioned(long intentId, long companyId, long ownerUserId, long ownerUserCompanyId) {
+        jdbcTemplate.update(
+            """
+                UPDATE billing_signup_intents
+                SET company_id = ?, owner_user_id = ?, owner_user_company_id = ?,
+                    provisioning_status = 'PROVISIONED', provisioned_at = CURRENT_TIMESTAMP(6),
+                    provisioning_error_code = NULL, provisioning_error_message = NULL,
+                    version = version + 1
+                WHERE id = ?
+                """,
+            companyId,
+            ownerUserId,
+            ownerUserCompanyId,
+            intentId
+        );
+    }
+
+    public void markProvisioningReview(long intentId, String code, String message) {
+        jdbcTemplate.update(
+            """
+                UPDATE billing_signup_intents
+                SET provisioning_status = 'REQUIRES_REVIEW',
+                    provisioning_error_code = ?, provisioning_error_message = ?,
+                    version = version + 1
+                WHERE id = ?
+                """,
+            code,
+            truncate(message, 500),
+            intentId
+        );
+    }
+
     public List<Long> productIds(long intentId) {
         return jdbcTemplate.query(
             "SELECT catalog_product_id FROM billing_signup_intent_products WHERE signup_intent_id = ? ORDER BY catalog_product_id",
@@ -320,14 +417,14 @@ public class BillingSignupIntentRepository {
         return """
             SELECT id, public_token_hash, request_idempotency_hash, request_fingerprint, status,
                    stripe_customer_id, stripe_checkout_session_id, stripe_subscription_id,
-                   checkout_url, checkout_expires_at
+                   checkout_url, checkout_expires_at, provisioning_status, company_id,
+                   owner_user_id, owner_user_company_id
             FROM billing_signup_intents
             WHERE %s
             """.formatted(where);
     }
 
     private BillingSignupIntent map(java.sql.ResultSet rs) throws java.sql.SQLException {
-        var expiresAt = rs.getTimestamp("checkout_expires_at");
         return new BillingSignupIntent(
             rs.getLong("id"),
             rs.getString("public_token_hash"),
@@ -338,8 +435,16 @@ public class BillingSignupIntentRepository {
             rs.getString("stripe_checkout_session_id"),
             rs.getString("stripe_subscription_id"),
             rs.getString("checkout_url"),
-            expiresAt == null ? null : expiresAt.toInstant()
+            instant(rs.getTimestamp("checkout_expires_at")),
+            rs.getString("provisioning_status"),
+            (Long) rs.getObject("company_id"),
+            (Long) rs.getObject("owner_user_id"),
+            (Long) rs.getObject("owner_user_company_id")
         );
+    }
+
+    private Instant instant(Timestamp value) {
+        return value == null ? null : value.toInstant();
     }
 
     private String blankToNull(String value) {
@@ -367,6 +472,25 @@ public class BillingSignupIntentRepository {
         String phone,
         String catalogVersion,
         List<String> productCodes
+    ) {
+    }
+
+    public record ProvisioningSpec(
+        long id,
+        String checkoutStatus,
+        String provisioningStatus,
+        long catalogVersionId,
+        String fullName,
+        String email,
+        String passwordHash,
+        String companyName,
+        String countryCode,
+        String phone,
+        String stripeCustomerId,
+        Instant completedAt,
+        Long companyId,
+        Long ownerUserId,
+        Long ownerUserCompanyId
     ) {
     }
 }

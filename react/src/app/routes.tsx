@@ -1,6 +1,6 @@
 import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react';
 import { createBrowserRouter, redirect, useRouteError } from 'react-router';
-import { InviteAcceptPage, LoginPage, ResetPasswordPage } from './Auth';
+import { InviteAcceptPage, LoginPage, ResetPasswordPage, SignupCompletePage, SignupPage } from './Auth';
 import { authApi } from './api/auth';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 
@@ -318,6 +318,16 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+    loader: redirectIfAuthenticated,
+  },
+  {
+    path: '/signup',
+    element: <SignupPage />,
+    loader: redirectIfAuthenticated,
+  },
+  {
+    path: '/signup/complete',
+    element: <SignupCompletePage />,
     loader: redirectIfAuthenticated,
   },
   {

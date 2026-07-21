@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.billing.signup.BillingSignupIntent;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
+import com.indice.erp.billing.signup.BillingTenantProvisioningService;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -17,17 +18,20 @@ public class StripeWebhookEventHandler {
     private final ObjectMapper objectMapper;
     private final BillingSignupIntentRepository signupIntents;
     private final BillingProjectionRepository projections;
+    private final BillingTenantProvisioningService provisioning;
     private final BillingAuditService audit;
 
     public StripeWebhookEventHandler(
         ObjectMapper objectMapper,
         BillingSignupIntentRepository signupIntents,
         BillingProjectionRepository projections,
+        BillingTenantProvisioningService provisioning,
         BillingAuditService audit
     ) {
         this.objectMapper = objectMapper;
         this.signupIntents = signupIntents;
         this.projections = projections;
+        this.provisioning = provisioning;
         this.audit = audit;
     }
 
@@ -74,13 +78,20 @@ public class StripeWebhookEventHandler {
             intent.id(), eventId, eventCreatedAt, customerId, sessionId, subscriptionId
         );
         var association = projections.associateSubscription(subscriptionId, intent.id());
+        var provisioningResult = provisioning.provisionIfEligible(intent.id());
+        var companyId = provisioningResult.companyId() == null && association != null
+            ? association.companyId()
+            : provisioningResult.companyId();
         audit.record(
             "STRIPE_WEBHOOK", "CHECKOUT_COMPLETED", "SUCCESS", null, eventId, sessionId,
-            association == null ? null : association.companyId(), intent.id(),
-            Map.of("phaseTwoProvisioned", false)
+            companyId, intent.id(),
+            Map.of(
+                "provisioningStatus", provisioningResult.status(),
+                "provisioned", provisioningResult.provisioned()
+            )
         );
         return StripeWebhookEventRepository.ProcessingResult.processed(
-            association == null ? null : association.companyId(), intent.id(), subscriptionId
+            companyId, intent.id(), subscriptionId
         );
     }
 

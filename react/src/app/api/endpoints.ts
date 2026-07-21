@@ -6,6 +6,11 @@ export const endpoints = {
     company: '/api/v1/auth/company',
     passwordReset: '/api/v1/auth/password-reset',
   },
+  billingSignup: {
+    config: '/api/v1/billing/signup/config',
+    checkout: '/api/v1/billing/signup/checkout',
+    status: '/api/v1/billing/signup/status',
+  },
   platform: {
     context: '/api/v1/platform/context',
   },

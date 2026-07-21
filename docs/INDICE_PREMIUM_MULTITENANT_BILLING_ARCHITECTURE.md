@@ -1,10 +1,10 @@
 # Índice Premium Multi-Tenant y Billing
 
-Estado: especificación arquitectónica para revisión
+Estado: arquitectura aprobada; Fases 1–3 implementadas detrás de feature flags
 
 Fecha de corte: 20 de julio de 2026
 
-Base técnica revisada: `main` en `62bce81`
+Base técnica de Fase 3: rama `nahum-mac-20-julio-premium-multitenant-billing`
 
 Rama de referencia Stripe: `review/ash-stripe` en `294f488`
 
@@ -530,6 +530,46 @@ Prices test reales, rotar las llaves expuestas y comenzar Fase 3.
 
 Criterio de salida: pruebas E2E completas en Stripe test clocks.
 
+#### Estado implementado de Fase 3 — 21 de julio de 2026
+
+La Fase 3 incorpora el alta premium y el aprovisionamiento durable sin encender todavía el
+enforcement comercial:
+
+- `V147__premium_signup_provisioning.sql` agrega estados de aprovisionamiento al intent, propiedad
+  corporativa exclusiva y grants temporales de todos los productos básicos. La migración es
+  expansiva y no elimina ni reinterpreta datos existentes.
+- El Checkout conserva una referencia opaca en las URLs de éxito y cancelación. La pantalla
+  pública `/signup` permite seleccionar 1, 2, 3 o todos los productos, mensual/anual y seats
+  adicionales; `basic_all` permanece no comprable mientras su precio esté pendiente.
+- `/signup/complete` consulta el estado local y solo habilita el login cuando el webhook firmado
+  ya dejó la cuenta lista. Recargar o recibir el mismo evento nuevamente no crea duplicados.
+- Después de `checkout.session.completed`, un servicio transaccional con bloqueo de fila crea una
+  sola `company_id`, usuario propietario, membresía `owner`, perfil `Corporate Office`, ownership,
+  roles de módulos, permisos de pestaña y grants de trial por 30 días.
+- El trial concede todos los productos básicos independientemente del paquete que se cobrará al
+  concluirlo. El núcleo permanece incluido por catálogo.
+- La reconciliación recupera intents completados cuyo webhook no pudo aprovisionar. Una falla de
+  un intent se aísla y no impide procesar los siguientes.
+- Si el correo ya pertenece a un usuario, no se altera su contraseña ni se crea una empresa
+  huérfana: el intent pasa a `REQUIRES_REVIEW` hasta construir el flujo verificado de vinculación.
+- Una restricción única impide que un mismo usuario sea propietario directo de dos compañías. Las
+  futuras transferencias o fusiones deberán pasar por un flujo explícito y auditado.
+- El aprovisionamiento inicia con `APP_BILLING_PROVISIONING_ENABLED=false`; Stripe y su procesador
+  mantienen sus propios kill switches. Ninguno de estos flags activa la Fase 4.
+
+Evidencia automatizada:
+
+- carrera concurrente de dos workers sobre el mismo intent;
+- creación exactamente una vez de compañía, usuario, ownership y membresía;
+- scope corporativo expresado con `unit_id` y `business_id` nulos;
+- trial de todos los productos básicos por 30 días;
+- conflicto de correo existente sin mutación del tenant;
+- compilación backend y typecheck frontend exitosos.
+
+La implementación local está lista para Stripe Test Mode. El cierre operativo del criterio E2E
+requiere configurar Prices y secretos test reales, ejecutar un Checkout con tarjeta de prueba y
+simular fin/cancelación del trial con Stripe Test Clocks según el runbook de Fase 3.
+
 ### Fase 4 — Entitlements por cohortes
 
 - Ejecutar primero en shadow mode y comparar contra acceso actual.
@@ -656,7 +696,7 @@ Un producto puede aparecer en Checkout únicamente cuando:
 5. Definir prorrateo al subir de paquete y fecha efectiva al bajarlo.
 6. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
 
-Estas decisiones no impidieron construir la infraestructura durable de Fases 1 y 2. Sí bloquean
+Estas decisiones no impidieron construir la infraestructura durable de Fases 1, 2 y 3. Sí bloquean
 la publicación completa de Prices, el encendido de Checkout para clientes y el enforcement.
 
 ## 18. Cuándo retirar `saas-multitenant/`
@@ -678,9 +718,8 @@ después eliminarla en una operación separada y verificable.
 
 ## 19. Próximo paso recomendado
 
-Iniciar Fase 3 sin encender producción: crear el signup premium y la pantalla de retorno;
-provisionar `company_id`, propietario y trial exactamente una vez; conectar Prices de Stripe test;
-y validar con Test Clocks cobro, cancelación y recuperación. Antes del primer Checkout deben
-rotarse las llaves Stripe expuestas históricamente y cerrarse, como mínimo, el precio de
-`basic_all`, el prorrateo y el día exacto de suspensión. El enforcement sigue reservado para Fase
-4 después de comparar decisiones en shadow mode.
+Completar la certificación externa de Fase 3 en Stripe Test Mode y comenzar Fase 4 por cohortes:
+proyectar grants/entitlements efectivos, comparar cada decisión contra el acceso heredado y
+habilitar primero una `company_id` interna. Antes de activar cobros públicos deben rotarse las
+llaves Stripe expuestas históricamente y cerrarse, como mínimo, el precio de `basic_all`, el
+prorrateo y el día exacto de suspensión. No se habilitará enforcement global como parte del alta.

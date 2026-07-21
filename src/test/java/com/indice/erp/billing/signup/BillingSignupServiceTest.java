@@ -54,10 +54,12 @@ class BillingSignupServiceTest {
         properties.setCancelUrl("https://apptest.indiceapp.com/signup");
         properties.setPriceBasic1Monthly("price_basic_1_month");
         var secrets = new StripeSecretProvider(properties);
+        var provisioningProperties = new BillingProvisioningProperties();
         service = new BillingSignupService(
             offers, repository, gateway, properties, secrets, audit,
             new BCryptPasswordEncoder(4), new ObjectMapper(),
-            Clock.fixed(Instant.parse("2026-07-21T12:00:00Z"), ZoneOffset.UTC)
+            Clock.fixed(Instant.parse("2026-07-21T12:00:00Z"), ZoneOffset.UTC),
+            provisioningProperties
         );
     }
 

@@ -41,17 +41,18 @@ public class BillingSignupController {
 
     @GetMapping("/config")
     public Map<String, Object> config(HttpSession session) {
-        return Map.of(
-            "csrfToken", csrf.ensureCsrf(session),
-            "checkoutEnabled", properties.isEnabled(),
-            "trialDays", 30,
-            "cardRequired", true,
-            "automaticCharge", true,
-            "includedSeats", 5,
-            "currency", "USD",
-            "launchCountries", java.util.List.of("MX", "CA"),
-            "products", offers.activeBasicProducts(),
-            "prices", offers.activePrices()
+        return Map.ofEntries(
+            Map.entry("csrfToken", csrf.ensureCsrf(session)),
+            Map.entry("checkoutEnabled", properties.isEnabled()),
+            Map.entry("provisioningEnabled", service.provisioningEnabled()),
+            Map.entry("trialDays", 30),
+            Map.entry("cardRequired", true),
+            Map.entry("automaticCharge", true),
+            Map.entry("includedSeats", 5),
+            Map.entry("currency", "USD"),
+            Map.entry("launchCountries", java.util.List.of("MX", "CA")),
+            Map.entry("products", offers.activeBasicProducts()),
+            Map.entry("prices", offers.activePrices())
         );
     }
 
@@ -76,9 +77,20 @@ public class BillingSignupController {
         if (intent == null) {
             return ResponseEntity.notFound().build();
         }
+        var provisioned = intent.provisioned();
+        var requiresReview = "REQUIRES_REVIEW".equals(intent.provisioningStatus());
+        var message = provisioned
+            ? "Tu cuenta está lista. Ya puedes iniciar sesión."
+            : requiresReview
+                ? "Tu pago fue confirmado, pero necesitamos verificar la vinculación de tu correo antes de crear la cuenta."
+                : "Estamos preparando tu cuenta. Esta página se actualizará automáticamente.";
         return ResponseEntity.ok(Map.of(
-            "status", intent.status(),
-            "provisioned", false
+            "checkoutStatus", intent.status(),
+            "provisioningStatus", intent.provisioningStatus(),
+            "provisioned", provisioned,
+            "loginReady", provisioned,
+            "requiresReview", requiresReview,
+            "message", message
         ));
     }
 }

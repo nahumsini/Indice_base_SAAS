@@ -36,6 +36,7 @@ public class BillingSignupService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final BillingProvisioningProperties provisioningProperties;
 
     public BillingSignupService(
         CommercialOfferSelectionService offerSelectionService,
@@ -46,7 +47,8 @@ public class BillingSignupService {
         BillingAuditService audit,
         BCryptPasswordEncoder passwordEncoder,
         ObjectMapper objectMapper,
-        Clock clock
+        Clock clock,
+        BillingProvisioningProperties provisioningProperties
     ) {
         this.offerSelectionService = offerSelectionService;
         this.repository = repository;
@@ -57,6 +59,11 @@ public class BillingSignupService {
         this.passwordEncoder = passwordEncoder;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.provisioningProperties = provisioningProperties;
+    }
+
+    public boolean provisioningEnabled() {
+        return provisioningProperties.isEnabled();
     }
 
     public SignupCheckoutResponse createCheckout(BillingSignupRequest request, String idempotencyKey) {
@@ -113,7 +120,7 @@ public class BillingSignupService {
                         spec.countryCode(),
                         Map.of(
                             "indice_signup_ref", spec.publicReference(),
-                            "indice_phase", "2"
+                            "indice_phase", "3"
                         )
                     ),
                     "indice-signup-customer-" + intent.id()
@@ -127,15 +134,15 @@ public class BillingSignupService {
             metadata.put("indice_offer_code", spec.offerCode());
             metadata.put("indice_product_codes", String.join(",", spec.productCodes()));
             metadata.put("indice_extra_seats", Integer.toString(spec.extraSeats()));
-            metadata.put("indice_phase", "2");
+            metadata.put("indice_phase", "3");
             // Stripe requires expires_at to be at least 30 minutes in the future.
             // One extra minute prevents network/clock drift from crossing that boundary.
             var requestedExpiry = clock.instant().plus(Duration.ofMinutes(31));
             var checkout = stripeGateway.createCheckout(
                 new StripeCheckoutGateway.CheckoutCommand(
                     customerId,
-                    properties.getSuccessUrl(),
-                    properties.getCancelUrl(),
+                    appendReference(properties.getSuccessUrl(), spec.publicReference()),
+                    appendReference(properties.getCancelUrl(), spec.publicReference()),
                     properties.isAutomaticTaxEnabled(),
                     properties.isTaxIdCollectionEnabled(),
                     30,
@@ -166,8 +173,13 @@ public class BillingSignupService {
             intent.checkoutUrl(),
             intent.checkoutExpiresAt(),
             replayed,
-            false
+            intent.provisioned()
         );
+    }
+
+    private String appendReference(String url, String reference) {
+        var separator = url.contains("?") ? "&" : "?";
+        return url + separator + "reference=" + reference;
     }
 
     private String requirePriceId(String offerCode, String interval) {
@@ -182,8 +194,8 @@ public class BillingSignupService {
         if (request == null) {
             throw new IllegalArgumentException("Signup request is required.");
         }
-        requireLength(request.fullName(), "Full name", 2, 160);
-        requireLength(request.companyName(), "Company name", 2, 160);
+        requireLength(request.fullName(), "Full name", 2, 100);
+        requireLength(request.companyName(), "Company name", 2, 120);
         var email = request.email() == null ? "" : request.email().trim().toLowerCase(Locale.ROOT);
         if (email.length() > 190 || !EMAIL.matcher(email).matches()) {
             throw new IllegalArgumentException("A valid email is required.");
