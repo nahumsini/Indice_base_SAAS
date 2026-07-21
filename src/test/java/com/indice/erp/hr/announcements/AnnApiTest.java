@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -104,7 +105,8 @@ class AnnApiTest {
         var session = fixtures.adminSession();
         var csrf = fixtures.csrf(session);
         when(objectStorageService.isEnabled()).thenReturn(true);
-        when(objectStorageService.presignUpload(anyString(), anyString(), anyString(), anyInt()))
+        when(objectStorageService.presignUpload(
+                anyString(), anyString(), anyString(), anyLong(), anyInt()))
             .thenReturn(new PresignedUpload(objectKey, "https://upload.example", Instant.now(), Map.of()));
         when(objectStorageService.objectExists(anyString(), anyString())).thenReturn(true);
         when(objectStorageService.presignDownload(anyString(), anyString(), anyInt()))

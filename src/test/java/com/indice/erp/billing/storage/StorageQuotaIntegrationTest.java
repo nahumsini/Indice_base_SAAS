@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -170,8 +171,8 @@ class StorageQuotaIntegrationTest {
     @Test
     void rejectsAnInconsistentStripeStorageResultWithoutChangingCapacity() {
         var tenant = premiumTenant("stripe-result");
-        when(stripe.setBlockQuantity(any(), anyString()))
-            .thenReturn(new StripeStorageGateway.Result("si_storage_test", 2));
+        doReturn(new StripeStorageGateway.Result("si_storage_test", 2))
+            .when(stripe).setBlockQuantity(any(), anyString());
 
         assertThatThrownBy(() -> purchases.setPurchasedBlocks(
             tenant.companyId(), tenant.userId(), 1, "inconsistent-stripe-result"))

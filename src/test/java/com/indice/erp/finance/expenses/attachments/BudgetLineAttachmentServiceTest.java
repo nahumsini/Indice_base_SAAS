@@ -6,12 +6,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mock;
 
 import com.indice.erp.finance.expenses.attachments.dto.ExpenseAttachmentUploadRequest;
 import com.indice.erp.finance.expenses.attachments.dto.RegisterExpenseAttachmentRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import com.indice.erp.storage.PresignedUpload;
@@ -32,6 +32,9 @@ class BudgetLineAttachmentServiceTest {
     @Mock
     private ObjectStorageService objectStorageService;
 
+    @Mock
+    private CompanyStorageMeter storageMeter;
+
     private BudgetLineAttachmentService service;
     private ObjectStorageProperties properties;
 
@@ -43,7 +46,7 @@ class BudgetLineAttachmentServiceTest {
                 repository,
                 objectStorageService,
                 properties,
-                mock(com.indice.erp.billing.storage.CompanyStorageMeter.class));
+                storageMeter);
     }
 
     @Test
@@ -51,9 +54,11 @@ class BudgetLineAttachmentServiceTest {
         var context = context();
         when(repository.budgetLineExists(context, 99L)).thenReturn(true);
         when(objectStorageService.isEnabled()).thenReturn(true);
-        when(objectStorageService.presignUpload(eq("documents"), anyString(), eq("application/pdf"), eq(900)))
+        when(storageMeter.presign(
+                eq(7L), eq("EXPENSES"), eq("documents"), anyString(),
+                eq("application/pdf"), eq(1024L), eq(900)))
                 .thenAnswer(invocation -> new PresignedUpload(
-                        invocation.getArgument(1),
+                        invocation.getArgument(3),
                         "https://storage.example/upload",
                         Instant.parse("2026-07-16T18:00:00Z"),
                         Map.of("Content-Type", "application/pdf")));

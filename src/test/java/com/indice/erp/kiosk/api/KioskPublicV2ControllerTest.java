@@ -163,6 +163,11 @@ class KioskPublicV2ControllerTest {
 
     @Test
     void actionResponseIncludesCanonicalSessionAndCapabilityMetadata() throws Exception {
+        var taskCapability = new KioskCapabilityDescriptor(
+            "process-tasks.task.complete", 1, "PROCESS_TASKS", KioskOperationPolicy.DIRECT,
+            KioskAccessLevel.CONTROLLED, true, true);
+        given(adapter.capabilities(any(KioskResolvedDefinition.class)))
+            .willReturn(Set.of(identityCapability, taskCapability));
         given(dispatcher.dispatchWithMetadata(any(), any(), any())).willReturn(
             new KioskDispatchResult(
                 Map.of("task", Map.of("id", 91L)),

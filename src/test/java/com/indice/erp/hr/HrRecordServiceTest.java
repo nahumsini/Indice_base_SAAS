@@ -1,6 +1,8 @@
 package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
+import com.indice.erp.billing.storage.StorageQuotaService;
 import com.indice.erp.hr.records.HrRecordScopeAccess;
 import com.indice.erp.hr.records.HrRecordService;
 import com.indice.erp.storage.DisabledObjectStorageService;
@@ -23,6 +25,7 @@ import org.springframework.jdbc.core.RowMapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -115,7 +118,8 @@ class HrRecordServiceTest {
     void createAttachmentUploadReturnsPresignedPayloadWhenStorageIsEnabled() {
         ObjectStorageService objectStorageService = mock(ObjectStorageService.class);
         when(objectStorageService.isEnabled()).thenReturn(true);
-        when(objectStorageService.presignUpload(anyString(), anyString(), anyString(), eq(900)))
+        when(objectStorageService.presignUpload(
+                anyString(), anyString(), anyString(), anyLong(), eq(900)))
             .thenReturn(new PresignedUpload(
                 "hr/records/1/2/attachments/example-upload.pdf",
                 "https://minio.example.test/upload",
@@ -159,7 +163,7 @@ class HrRecordServiceTest {
             hrRecordScopeAccess,
             objectStorageService,
             objectStorageProperties,
-            mock(com.indice.erp.billing.storage.CompanyStorageMeter.class)
+            new CompanyStorageMeter(mock(StorageQuotaService.class), objectStorageService)
         );
     }
 
