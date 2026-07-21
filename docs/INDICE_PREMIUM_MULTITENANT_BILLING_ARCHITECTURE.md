@@ -1,10 +1,10 @@
 # Índice Premium Multi-Tenant y Billing
 
-Estado: arquitectura aprobada; Fases 1–3 implementadas detrás de feature flags
+Estado: arquitectura aprobada; Fases 1–7 implementadas detrás de feature flags
 
-Fecha de corte: 20 de julio de 2026
+Fecha de corte: 21 de julio de 2026
 
-Base técnica de Fase 3: rama `nahum-mac-20-julio-premium-multitenant-billing`
+Base técnica de Fases 1–8: rama `nahum-mac-20-julio-premium-multitenant-billing`
 
 Rama de referencia Stripe: `review/ash-stripe` en `294f488`
 
@@ -216,7 +216,10 @@ siguiente número libre; con el corte actual comienzan después de `V143`.
 | `stripe_unmatched_events` | Eventos válidos pendientes de correlación |
 | `billing_audit_events` | Actor, before/after, request ID e idempotency key |
 | `billing_invoice_snapshots` | Lectura rápida de facturas y enlaces hospedados |
-| `company_storage_usage` | Uso medido y momento del último cálculo |
+| `company_storage_objects` | Ledger por objeto: reserva, commit, liberación y bytes reales |
+| `company_storage_states` | Uso, reservas, cuota incluida y bloques adicionales por company |
+| `company_storage_events` | Auditoría inmutable de cambios de almacenamiento |
+| `company_storage_mutations` | Cambios idempotentes de bloques facturables |
 | `company_ownership_history` | Transferencias de propiedad auditadas |
 
 No se guardan PAN, CVV ni fechas de expiración de tarjetas. Checkout y Customer Portal mantienen
@@ -629,6 +632,13 @@ pertenecen a la Fase 6.
 - Selector multi-company y ownership transfer auditado.
 - Concurrencia, downgrade y recuperación de invitaciones.
 
+Estado implementado: `V149` incorpora estados y reservas de seats, mutaciones Stripe idempotentes,
+transferencias de ownership con aceptación, administración exclusiva de plataforma, beneficios
+temporales o vitalicios y auditoría separada del tenant. Los beneficios `PRODUCT`, `SEAT` y
+`STORAGE` permiten cortesías, promociones, soporte y pruebas sin falsear una suscripción. Una
+cortesía local controla acceso real; un cupón Stripe controla el importe de la factura y ambos
+conceptos se mantienen separados aunque puedan correlacionarse.
+
 Criterio de salida: no se puede superar el límite con carreras ni cobrar dos veces por reintentos.
 
 ### Fase 6 — Cobranza, read-only y retención
@@ -638,6 +648,11 @@ Criterio de salida: no se puede superar el límite con carreras ni cobrar dos ve
 - Dar acceso permanente a billing, recuperación y exportación según política.
 - Implementar retención de 90 días y purga cancelable.
 
+Estado implementado: `V150` proyecta trial, active, grace, read-only, suspended, retention y
+purge-pending, conserva una bitácora de transiciones y agenda retención cancelable. El acceso
+operativo se aplica en backend y en adaptadores públicos de kiosko. Los flags de lifecycle y del
+scheduler se entregan apagados para certificar primero con Stripe Test Clocks.
+
 Criterio de salida: simulación completa de pago fallido a purga, sin pérdida prematura.
 
 ### Fase 7 — Almacenamiento y complementarios
@@ -645,6 +660,11 @@ Criterio de salida: simulación completa de pago fallido a purga, sin pérdida p
 - Medición de object storage por `company_id` y categoría.
 - Bloques de 5 GB, alertas y enforcement de nuevas cargas.
 - Incorporar módulos complementarios uno por uno usando el contrato de la sección 8.
+
+Estado implementado: `V151` agrega ledger transaccional por objeto, reservas concurrentes,
+liberación, expiración segura, bloques Stripe idempotentes y medición en las superficies de carga
+persistente conocidas. La cuota se entrega sin enforcement hasta reconciliar los objetos
+históricos cuyo tamaño no estaba disponible en el esquema anterior.
 
 Criterio de salida por módulo: backend real, aislamiento, permisos, entitlement, read-only,
 observabilidad, traducciones, accesibilidad, carga de archivos y pruebas E2E cuando apliquen.
@@ -655,6 +675,11 @@ observabilidad, traducciones, accesibilidad, carga de archivos y pruebas E2E cua
 - Reconciliación Stripe diaria y tablero de eventos fallidos.
 - Runbooks de soporte, reembolso, disputa, recuperación y cancelación.
 - Lanzamiento gradual por cohortes; no un switch global irreversible.
+
+Estado preparado, no activado: el procedimiento, evidencias, consultas de reconciliación,
+kill switches y barreras de lanzamiento están definidos en
+`INDICE_PREMIUM_MULTITENANT_PHASE_8_RUNBOOK.md`. Stripe Live continúa rechazado expresamente por
+el código hasta terminar la certificación y aprobar las decisiones comerciales pendientes.
 
 ## 13. Estrategia de migraciones y rollback
 
@@ -733,14 +758,15 @@ Un producto puede aparecer en Checkout únicamente cuando:
 ## 17. Decisiones pendientes antes de activar cobros
 
 1. Confirmar el precio mensual exacto del paquete de todos los productos básicos.
-2. Confirmar el día de suspensión posterior a los 14 días de gracia; se propone día 30.
+2. Confirmar la política instalada de 14 días con acceso completo más 14 días en solo lectura;
+   con esa configuración la suspensión ocurre al finalizar el día 28 de morosidad.
 3. Definir el precio comercial inicial del bloque de 5 GB después de elegir región y redondeo.
 4. Precisar si una identidad consolidada puede ser propietaria simultánea de dos `company_id` o si
    la consolidación obliga a transferir/fusionar primero la estructura comercial.
 5. Definir prorrateo al subir de paquete y fecha efectiva al bajarlo.
 6. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
 
-Estas decisiones no impidieron construir la infraestructura durable de Fases 1, 2 y 3. Sí bloquean
+Estas decisiones no impidieron construir la infraestructura durable de Fases 1–7. Sí bloquean
 la publicación completa de Prices, el encendido de Checkout para clientes y el enforcement.
 
 ## 18. Cuándo retirar `saas-multitenant/`
@@ -762,8 +788,9 @@ después eliminarla en una operación separada y verificable.
 
 ## 19. Próximo paso recomendado
 
-Completar la certificación externa de Fase 3 en Stripe Test Mode y comenzar Fase 4 por cohortes:
-proyectar grants/entitlements efectivos, comparar cada decisión contra el acceso heredado y
-habilitar primero una `company_id` interna. Antes de activar cobros públicos deben rotarse las
-llaves Stripe expuestas históricamente y cerrarse, como mínimo, el precio de `basic_all`, el
-prorrateo y el día exacto de suspensión. No se habilitará enforcement global como parte del alta.
+Ejecutar el runbook de Fase 8 exclusivamente en Stripe Test Mode: reconciliar una empresa interna,
+certificar cobro, seats, almacenamiento y morosidad con Test Clocks, y producir la evidencia de
+restauración y rollback. Antes de cobros públicos deben cerrarse los precios de `basic_all` y
+almacenamiento, prorrateo, suspensión y exportaciones; rotarse secretos; implementarse MFA real
+para plataforma; y realizarse una revisión explícita que retire los bloqueos de `sk_live_` y
+`livemode=true`. No se habilitará enforcement global como parte del alta.
