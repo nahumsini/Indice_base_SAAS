@@ -7,6 +7,7 @@ import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.billing.signup.BillingSignupIntent;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
 import com.indice.erp.billing.signup.BillingTenantProvisioningService;
+import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -20,19 +21,22 @@ public class StripeWebhookEventHandler {
     private final BillingProjectionRepository projections;
     private final BillingTenantProvisioningService provisioning;
     private final BillingAuditService audit;
+    private final CompanyEntitlementProjectionService entitlementProjection;
 
     public StripeWebhookEventHandler(
         ObjectMapper objectMapper,
         BillingSignupIntentRepository signupIntents,
         BillingProjectionRepository projections,
         BillingTenantProvisioningService provisioning,
-        BillingAuditService audit
+        BillingAuditService audit,
+        CompanyEntitlementProjectionService entitlementProjection
     ) {
         this.objectMapper = objectMapper;
         this.signupIntents = signupIntents;
         this.projections = projections;
         this.provisioning = provisioning;
         this.audit = audit;
+        this.entitlementProjection = entitlementProjection;
     }
 
     @Transactional
@@ -155,6 +159,9 @@ public class StripeWebhookEventHandler {
         );
         if (intent != null) {
             signupIntents.attachSubscription(intent.id(), subscriptionId, eventId, eventCreatedAt);
+        }
+        if (association.companyId() != null) {
+            entitlementProjection.refreshIfEnrolled(association.companyId());
         }
         audit.record(
             "STRIPE_WEBHOOK", "SUBSCRIPTION_PROJECTED", "SUCCESS", null, eventId, subscriptionId,

@@ -4,6 +4,7 @@ import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.tenant.TenantContextResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -21,26 +22,35 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
     private final ObjectProvider<SessionAuthService> sessionAuthService;
     private final ObjectProvider<TenantContextResolver> tenantContextResolver;
     private final ObjectProvider<CapabilityShadowDecisionService> decisionService;
+    private final ObjectProvider<EntitlementDecisionAuditService> auditService;
+    private final ObjectProvider<CapabilityRouteClassifier> routeClassifier;
     private final boolean shadowEnabled;
+    private final boolean enforcementEnabled;
 
     public EntitlementShadowInterceptor(
         ObjectProvider<SessionAuthService> sessionAuthService,
         ObjectProvider<TenantContextResolver> tenantContextResolver,
         ObjectProvider<CapabilityShadowDecisionService> decisionService,
-        @Value("${app.entitlements.shadow-enabled:true}") boolean shadowEnabled
+        ObjectProvider<EntitlementDecisionAuditService> auditService,
+        ObjectProvider<CapabilityRouteClassifier> routeClassifier,
+        @Value("${app.entitlements.shadow-enabled:true}") boolean shadowEnabled,
+        @Value("${app.entitlements.enforcement-enabled:false}") boolean enforcementEnabled
     ) {
         this.sessionAuthService = sessionAuthService;
         this.tenantContextResolver = tenantContextResolver;
         this.decisionService = decisionService;
+        this.auditService = auditService;
+        this.routeClassifier = routeClassifier;
         this.shadowEnabled = shadowEnabled;
+        this.enforcementEnabled = enforcementEnabled;
     }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        if (!shadowEnabled || !(handler instanceof HandlerMethod handlerMethod)) {
+        if ((!shadowEnabled && !enforcementEnabled) || !(handler instanceof HandlerMethod handlerMethod)) {
             return true;
         }
-        var requirement = findRequirement(handlerMethod);
+        var requirement = findRequirement(handlerMethod, request.getRequestURI());
         if (requirement == null) {
             return true;
         }
@@ -61,31 +71,94 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
         }
         var tenant = contextResolver.resolve(session.get());
         var operation = resolveOperation(requirement.operation(), request.getMethod());
-        var decision = shadowDecisionService.evaluate(tenant, session.get(), requirement.value(), operation);
+        CapabilityShadowDecision decision;
+        try {
+            decision = shadowDecisionService.evaluate(
+                tenant,
+                session.get(),
+                requirement.capability(),
+                operation
+            );
+        } catch (RuntimeException exception) {
+            // Phase 4 is deliberately fail-open: a catalog, projection, or telemetry
+            // incident must not interrupt the permission model that already protects
+            // production traffic.
+            LOGGER.error(
+                "entitlement_shadow_evaluation_failed companyId={} userId={} capability={} method={} path={}",
+                tenant.company_id(),
+                tenant.user_id(),
+                requirement.capability(),
+                request.getMethod(),
+                request.getRequestURI(),
+                exception
+            );
+            return true;
+        }
+        var enforceDecision = enforcementEnabled
+            && decision.policy_mode() == EntitlementPolicyMode.ENFORCE
+            && !decision.shadow_allowed();
+        var entitlementAudit = auditService.getIfAvailable();
+        if (entitlementAudit != null) {
+            try {
+                entitlementAudit.record(tenant, decision, request, enforceDecision);
+            } catch (RuntimeException exception) {
+                LOGGER.error(
+                    "entitlement_shadow_audit_failed companyId={} userId={} capability={} method={} path={}",
+                    tenant.company_id(),
+                    tenant.user_id(),
+                    decision.capability(),
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    exception
+                );
+            }
+        }
         LOGGER.info(
-            "entitlement_shadow companyId={} userId={} scope={} capability={} operation={} legacyAllowed={} shadowAllowed={} matched={} method={} path={}",
+            "entitlement_shadow companyId={} userId={} scope={} policyMode={} capability={} operation={} legacyAllowed={} companyAllowed={} shadowAllowed={} matched={} enforced={} source={} method={} path={}",
             tenant.company_id(),
             tenant.user_id(),
             tenant.scope().type(),
+            decision.policy_mode(),
             decision.capability(),
             decision.operation(),
             decision.legacy_allowed(),
+            decision.company_allowed(),
             decision.shadow_allowed(),
             decision.matched(),
+            enforceDecision,
+            decision.source(),
             request.getMethod(),
             request.getRequestURI()
         );
-        return true;
+        if (!enforceDecision) {
+            return true;
+        }
+        writeDenied(response);
+        return false;
     }
 
-    private RequiresCapability findRequirement(HandlerMethod handlerMethod) {
+    private CapabilityRequirement findRequirement(HandlerMethod handlerMethod, String requestPath) {
         var methodRequirement = AnnotatedElementUtils.findMergedAnnotation(
             handlerMethod.getMethod(),
             RequiresCapability.class
         );
-        return methodRequirement != null
-            ? methodRequirement
-            : AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequiresCapability.class);
+        if (methodRequirement != null) {
+            return new CapabilityRequirement(methodRequirement.value(), methodRequirement.operation());
+        }
+        var typeRequirement = AnnotatedElementUtils.findMergedAnnotation(
+            handlerMethod.getBeanType(),
+            RequiresCapability.class
+        );
+        if (typeRequirement != null) {
+            return new CapabilityRequirement(typeRequirement.value(), typeRequirement.operation());
+        }
+        var classifier = routeClassifier.getIfAvailable();
+        if (classifier == null) {
+            return null;
+        }
+        return classifier.classify(requestPath)
+            .map(capability -> new CapabilityRequirement(capability, CapabilityOperation.AUTO))
+            .orElse(null);
     }
 
     private CapabilityOperation resolveOperation(CapabilityOperation configured, String method) {
@@ -95,5 +168,21 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
         return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method)
             ? CapabilityOperation.READ
             : CapabilityOperation.WRITE;
+    }
+
+    private void writeDenied(HttpServletResponse response) {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json");
+        try {
+            response.getWriter().write(
+                "{\"error\":\"CAPABILITY_NOT_ENTITLED\",\"message\":\"This capability is not enabled for the active company.\"}"
+            );
+        } catch (IOException exception) {
+            LOGGER.warn("entitlement_denial_response_failed", exception);
+        }
+    }
+
+    private record CapabilityRequirement(String capability, CapabilityOperation operation) {
     }
 }

@@ -18,6 +18,12 @@ public class CapabilityShadowDecisionService {
         "billing"
     );
 
+    private final CompanyEntitlementService companyEntitlements;
+
+    public CapabilityShadowDecisionService(CompanyEntitlementService companyEntitlements) {
+        this.companyEntitlements = companyEntitlements;
+    }
+
     public CapabilityShadowDecision evaluate(
         TenantContext tenant,
         AuthSessionResponse session,
@@ -31,17 +37,36 @@ public class CapabilityShadowDecisionService {
             .map(CommercialCapabilityNormalizer::normalize)
             .anyMatch(capability::equals);
         var legacyAllowed = privileged || CORE_CAPABILITIES.contains(capability) || assigned;
+        var entitlement = companyEntitlements.resolve(tenant.company_id(), capability);
+        if (entitlement.policy_mode() == EntitlementPolicyMode.LEGACY
+            || entitlement.policy_mode() == EntitlementPolicyMode.DISABLED) {
+            return new CapabilityShadowDecision(
+                capability,
+                operation,
+                legacyAllowed,
+                legacyAllowed,
+                legacyAllowed,
+                true,
+                entitlement.policy_mode() == EntitlementPolicyMode.DISABLED
+                    ? "legacy-kill-switch"
+                    : "legacy-not-enrolled",
+                entitlement.policy_mode()
+            );
+        }
 
-        // Phase 1 deliberately mirrors current access. Company entitlements become
-        // authoritative only after shadow telemetry has been reviewed.
-        var shadowAllowed = legacyAllowed;
+        // A commercial product enables the company; it never grants a module to an
+        // unassigned user. Root/superadmin keep an explicit support bypass.
+        var companyAllowed = privileged || entitlement.allowed();
+        var shadowAllowed = companyAllowed && legacyAllowed;
         return new CapabilityShadowDecision(
             capability,
             operation,
             legacyAllowed,
+            companyAllowed,
             shadowAllowed,
             legacyAllowed == shadowAllowed,
-            "legacy-module-assignment"
+            privileged ? "platform-support-bypass" : entitlement.sourceSummary(),
+            entitlement.policy_mode()
         );
     }
 }

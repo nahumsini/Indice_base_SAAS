@@ -2,6 +2,7 @@ package com.indice.erp.billing.signup;
 
 import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
+import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -25,19 +26,22 @@ public class BillingTenantProvisioningService {
     private final BillingAuditService audit;
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
+    private final CompanyEntitlementProjectionService entitlementProjection;
 
     public BillingTenantProvisioningService(
         BillingProvisioningProperties properties,
         BillingSignupIntentRepository signupIntents,
         BillingAuditService audit,
         JdbcTemplate jdbcTemplate,
-        Clock clock
+        Clock clock,
+        CompanyEntitlementProjectionService entitlementProjection
     ) {
         this.properties = properties;
         this.signupIntents = signupIntents;
         this.audit = audit;
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
+        this.entitlementProjection = entitlementProjection;
     }
 
     @Transactional
@@ -97,6 +101,7 @@ public class BillingTenantProvisioningService {
         var trial = resolveTrialWindow(intent);
         provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial);
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
+        entitlementProjection.enrollPremiumSignup(companyId, intent.catalogVersionId(), ownerUserId);
         signupIntents.markProvisioned(intentId, companyId, ownerUserId, membershipId);
 
         audit.record(

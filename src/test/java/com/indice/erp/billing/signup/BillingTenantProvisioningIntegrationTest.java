@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.entitlement.CompanyEntitlementService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -36,6 +37,9 @@ class BillingTenantProvisioningIntegrationTest {
 
     @Autowired
     private BillingTenantProvisioningService provisioning;
+
+    @Autowired
+    private CompanyEntitlementService entitlements;
 
     @BeforeEach
     void cleanBefore() {
@@ -104,6 +108,18 @@ class BillingTenantProvisioningIntegrationTest {
             Integer.class,
             provisioned.ownerUserCompanyId()
         )).isGreaterThanOrEqualTo(expectedProducts);
+        assertThat(jdbc.queryForObject(
+            "SELECT mode FROM company_entitlement_policies WHERE company_id = ?",
+            String.class,
+            provisioned.companyId()
+        )).isEqualTo("SHADOW");
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(DISTINCT capability_code) FROM company_entitlements WHERE company_id = ?",
+            Integer.class,
+            provisioned.companyId()
+        )).isGreaterThanOrEqualTo(expectedProducts);
+        assertThat(entitlements.resolve(provisioned.companyId(), "human_resources").allowed()).isTrue();
+        assertThat(entitlements.resolve(provisioned.companyId(), "receivables").allowed()).isTrue();
     }
 
     @Test

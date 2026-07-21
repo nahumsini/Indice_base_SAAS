@@ -208,7 +208,9 @@ siguiente número libre; con el corte actual comienzan después de `V143`.
 | `company_billing_customers` | `company_id` ↔ Stripe Customer |
 | `company_billing_subscriptions` | Estado y periodos de la suscripción |
 | `company_billing_subscription_items` | Paquete, seats, complementarios y almacenamiento |
+| `company_entitlement_policies` | Cohorte y modo de evaluación comercial por `company_id` |
 | `company_entitlements` | Proyección efectiva y explicable de capabilities |
+| `entitlement_decision_events` | Diferencias shadow y bloqueos aplicados, con retención limitada |
 | `billing_signup_intents` | Alta previa a crear la company, sin duplicados |
 | `stripe_webhook_events` | Inbox idempotente, hash, estado, intentos y error |
 | `stripe_unmatched_events` | Eventos válidos pendientes de correlación |
@@ -578,6 +580,48 @@ simular fin/cancelación del trial con Stripe Test Clocks según el runbook de F
 - Mantener kill switch que restaure la política anterior sin revertir migraciones.
 
 Criterio de salida: cero fugas cross-tenant y cero bloqueos inesperados en la cohorte.
+
+#### Estado implementado de Fase 4 — 21 de julio de 2026
+
+La base técnica de Fase 4 quedó implementada con activación reversible por compañía:
+
+- La migración `V148__premium_company_entitlements.sql` agrega la política de cohorte,
+  la proyección explicable de capabilities y el registro de diferencias. No inscribe empresas
+  históricas: una empresa sin política continúa en modo `LEGACY`.
+- Las compañías creadas por el signup premium entran automáticamente en `SHADOW`, reciben una
+  proyección inicial y se actualizan después de cambios de suscripción y mediante un job por lotes.
+- `CompanyEntitlementService` resuelve por `company_id` las fuentes `CORE`, `TRIAL` y
+  `SUBSCRIPTION`. La consulta siempre filtra por empresa y por vigencia; un grant comercial de
+  otra compañía no puede habilitar la capability.
+- La habilitación comercial de la empresa se intersecta con los permisos vigentes del usuario.
+  Comprar un módulo nunca asigna ese módulo automáticamente a todas las personas.
+- La clasificación usa primero `@RequiresCapability` y después un mapa conservador de rutas
+  autenticadas. Las superficies públicas de kioskos, catálogos, signup y Stripe quedan fuera del
+  interceptor porque resuelven tenant e identidad mediante sus motores públicos propios.
+- Las diferencias se guardan en `entitlement_decision_events` por 90 días. Las coincidencias no
+  generan filas y permanecen disponibles en el log estructurado para no inflar la base.
+- El enforcement necesita dos condiciones simultáneas: el flag global
+  `APP_ENTITLEMENTS_ENFORCEMENT_ENABLED=true` y la política `ENFORCE` de la compañía. Se entrega
+  apagado; por tanto, instalar `V148` no bloquea solicitudes.
+- El modo `DISABLED` es el kill switch por tenant y restaura inmediatamente la decisión legacy.
+  Una falla del catálogo, proyección o auditoría también conserva el acceso legacy durante esta
+  etapa de adopción.
+
+Evidencia automatizada:
+
+- capabilities core disponibles y productos contratados aislados entre dos compañías;
+- suscripciones canceladas o vencidas sin grants comerciales;
+- trial premium de 30 días resolviendo RH y Cartera desde sus fuentes reales;
+- producto comprado sin elevar permisos de un usuario no asignado;
+- compañía en `DISABLED` restaurando el comportamiento anterior;
+- clasificación de rutas comerciales y exclusión de superficies públicas;
+- carrera de aprovisionamiento manteniendo una sola empresa, política y proyección.
+
+La operación y promoción de cohortes se define en
+`INDICE_PREMIUM_MULTITENANT_PHASE_4_RUNBOOK.md`. La recomendación de salida es mantener el
+enforcement global apagado hasta observar una compañía interna sin diferencias no explicadas.
+Las reglas de read-only por pago vencido y el enforcement dentro de acciones públicas de kiosko
+pertenecen a la Fase 6.
 
 ### Fase 5 — Seats, propiedad y multi-company
 
