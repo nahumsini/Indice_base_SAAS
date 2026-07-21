@@ -62,6 +62,8 @@ public class PlatformAdminService {
                 SELECT company.id, company.name,
                        policy.mode AS entitlement_mode,
                        subscription.status AS billing_status,
+                       lifecycle.state AS lifecycle_state,
+                       lifecycle.access_mode AS access_mode,
                        COALESCE(seats.included_seats, 0) AS included_seats,
                        COALESCE(seats.purchased_extra_seats, 0) AS purchased_extra_seats,
                        (SELECT COUNT(*) FROM user_companies membership
@@ -75,6 +77,7 @@ public class PlatformAdminService {
                 FROM companies company
                 LEFT JOIN company_entitlement_policies policy ON policy.company_id = company.id
                 LEFT JOIN company_seat_states seats ON seats.company_id = company.id
+                LEFT JOIN company_commercial_states lifecycle ON lifecycle.company_id = company.id
                 LEFT JOIN company_billing_subscriptions subscription
                   ON subscription.id = (
                       SELECT MAX(candidate.id)
@@ -91,6 +94,8 @@ public class PlatformAdminService {
                 row.put("name", rs.getString("name"));
                 row.put("entitlement_mode", nullable(rs.getString("entitlement_mode")));
                 row.put("billing_status", nullable(rs.getString("billing_status")));
+                row.put("lifecycle_state", nullable(rs.getString("lifecycle_state")));
+                row.put("access_mode", nullable(rs.getString("access_mode")));
                 row.put("included_seats", rs.getInt("included_seats"));
                 row.put("purchased_extra_seats", rs.getInt("purchased_extra_seats"));
                 row.put("active_members", rs.getInt("active_members"));
@@ -119,7 +124,12 @@ public class PlatformAdminService {
                        subscription.status AS billing_status,
                        subscription.offer_code, subscription.billing_interval,
                        subscription.included_seats, subscription.extra_seats,
-                       seats.reserved_seats
+                       seats.reserved_seats,
+                       lifecycle.state AS lifecycle_state,
+                       lifecycle.access_mode,
+                       lifecycle.grace_ends_at,
+                       lifecycle.read_only_ends_at,
+                       lifecycle.retention_until
                 FROM companies company
                 LEFT JOIN company_entitlement_policies policy ON policy.company_id = company.id
                 LEFT JOIN company_ownerships ownership
@@ -128,6 +138,7 @@ public class PlatformAdminService {
                 LEFT JOIN company_billing_subscriptions subscription
                   ON subscription.id = (SELECT MAX(candidate.id) FROM company_billing_subscriptions candidate WHERE candidate.company_id = company.id)
                 LEFT JOIN company_seat_states seats ON seats.company_id = company.id
+                LEFT JOIN company_commercial_states lifecycle ON lifecycle.company_id = company.id
                 WHERE company.id = ?
                 """,
             (rs, rowNum) -> {
@@ -143,6 +154,11 @@ public class PlatformAdminService {
                 row.put("included_seats", rs.getObject("included_seats"));
                 row.put("extra_seats", rs.getObject("extra_seats"));
                 row.put("reserved_seats", rs.getObject("reserved_seats"));
+                row.put("lifecycle_state", nullable(rs.getString("lifecycle_state")));
+                row.put("access_mode", nullable(rs.getString("access_mode")));
+                row.put("grace_ends_at", rs.getTimestamp("grace_ends_at"));
+                row.put("read_only_ends_at", rs.getTimestamp("read_only_ends_at"));
+                row.put("retention_until", rs.getTimestamp("retention_until"));
                 return row;
             },
             companyId

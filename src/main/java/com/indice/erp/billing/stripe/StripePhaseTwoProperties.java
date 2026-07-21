@@ -15,6 +15,7 @@ public class StripePhaseTwoProperties {
     private String webhookSecretFile = "";
     private String successUrl = "";
     private String cancelUrl = "";
+    private String portalReturnUrl = "";
     private boolean automaticTaxEnabled = true;
     private boolean taxIdCollectionEnabled = true;
     private String priceBasic1Monthly = "";
@@ -96,6 +97,12 @@ public class StripePhaseTwoProperties {
 
     public void setCancelUrl(String cancelUrl) {
         this.cancelUrl = normalized(cancelUrl);
+    }
+
+    public String getPortalReturnUrl() { return portalReturnUrl; }
+
+    public void setPortalReturnUrl(String portalReturnUrl) {
+        this.portalReturnUrl = normalized(portalReturnUrl);
     }
 
     public boolean isAutomaticTaxEnabled() {

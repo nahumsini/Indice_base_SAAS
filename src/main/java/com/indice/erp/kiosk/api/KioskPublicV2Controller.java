@@ -1,6 +1,7 @@
 package com.indice.erp.kiosk.api;
 
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.billing.lifecycle.CommercialLifecycleAccessService;
 import com.indice.erp.kiosk.engine.KioskActionDispatcher;
 import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskAdapterRegistry;
@@ -41,6 +42,7 @@ public class KioskPublicV2Controller {
     private final SessionCsrfService csrfService;
     private final KioskEngineFeatureFlags featureFlags;
     private final KioskV2ResponseFactory responses;
+    private final CommercialLifecycleAccessService commercialAccess;
 
     public KioskPublicV2Controller(
             KioskRegistryService kioskRegistry,
@@ -49,7 +51,8 @@ public class KioskPublicV2Controller {
             KioskRateLimitService rateLimitService,
             SessionCsrfService csrfService,
             KioskEngineFeatureFlags featureFlags,
-            KioskV2ResponseFactory responses) {
+            KioskV2ResponseFactory responses,
+            CommercialLifecycleAccessService commercialAccess) {
         this.kioskRegistry = kioskRegistry;
         this.adapterRegistry = adapterRegistry;
         this.dispatcher = dispatcher;
@@ -57,6 +60,7 @@ public class KioskPublicV2Controller {
         this.csrfService = csrfService;
         this.featureFlags = featureFlags;
         this.responses = responses;
+        this.commercialAccess = commercialAccess;
     }
 
     @GetMapping("/bootstrap")
@@ -65,6 +69,7 @@ public class KioskPublicV2Controller {
             HttpServletRequest request,
             HttpSession session) {
         var resolved = resolvedForBootstrap(token, request);
+        commercialAccess.requireRead(resolved.definition().companyId());
         rateLimitService.requireAllowed(KioskRateLimitType.BOOTSTRAP, resolved.context(), Map.of());
         var adapter = adapterRegistry.requireAdapter(resolved.definition().ownerModule());
         kioskRegistry.synchronizeCapabilities(
@@ -85,6 +90,7 @@ public class KioskPublicV2Controller {
             HttpSession session) {
         requireCsrf(session, csrfToken);
         var resolved = resolved(token, request);
+        commercialAccess.requireRead(resolved.definition().companyId());
         rateLimitService.requireAllowed(KioskRateLimitType.QUERY, resolved.context(), Map.of());
         var challengeId = UUID.randomUUID().toString();
         session.setAttribute(
@@ -118,6 +124,7 @@ public class KioskPublicV2Controller {
             HttpSession browserSession) {
         requireCsrf(browserSession, csrfToken);
         var resolved = resolved(token, request);
+        commercialAccess.requireRead(resolved.definition().companyId());
         requireChallenge(browserSession, sessionId, resolved.definition().id());
         var adapter = adapterRegistry.requireAdapter(resolved.definition().ownerModule());
         var capability = adapter.capabilities(resolved.definition()).stream()
@@ -154,6 +161,7 @@ public class KioskPublicV2Controller {
             HttpSession browserSession) {
         requireCsrf(browserSession, csrfToken);
         var resolved = resolved(token, request);
+        commercialAccess.requireRead(resolved.definition().companyId());
         var adapter = adapterRegistry.requireAdapter(resolved.definition().ownerModule());
         var capability = adapter.capabilities(resolved.definition()).stream()
             .filter(candidate -> candidate.key().endsWith(".face.verification.begin"))
@@ -177,6 +185,7 @@ public class KioskPublicV2Controller {
     @GetMapping("/capabilities")
     public Map<String, Object> capabilities(@PathVariable String token, HttpServletRequest request, HttpSession session) {
         var resolved = resolved(token, request);
+        commercialAccess.requireRead(resolved.definition().companyId());
         rateLimitService.requireAllowed(KioskRateLimitType.QUERY, resolved.context(), Map.of());
         var adapter = adapterRegistry.requireAdapter(resolved.definition().ownerModule());
         var definitionCapabilities = adapter.capabilities(resolved.definition());
@@ -200,6 +209,13 @@ public class KioskPublicV2Controller {
         requireCsrf(session, csrfToken);
         var resolved = resolved(token, request);
         var parsed = parseCapability(capabilityKey);
+        var descriptor = adapterRegistry.requireAdapter(resolved.definition().ownerModule())
+            .capabilities(resolved.definition()).stream()
+            .filter(candidate -> candidate.key().equals(parsed.key()) && candidate.version() == parsed.version())
+            .findFirst()
+            .orElseThrow(() -> new UnsupportedOperationException("Kiosk capability is not available."));
+        if (descriptor.mutation()) commercialAccess.requireWrite(resolved.definition().companyId());
+        else commercialAccess.requireRead(resolved.definition().companyId());
         var resourceId = number(payload == null ? null : payload.get("resource_id"));
         var result = dispatcher.dispatchWithMetadata(
             resolved.context(),
@@ -241,6 +257,7 @@ public class KioskPublicV2Controller {
             String capabilitySuffix) {
         requireCsrf(session, csrfToken);
         var resolved = resolved(token, request);
+        commercialAccess.requireWrite(resolved.definition().companyId());
         var adapter = adapterRegistry.requireAdapter(resolved.definition().ownerModule());
         var capability = adapter.capabilities(resolved.definition()).stream()
             .filter(candidate -> candidate.key().endsWith(capabilitySuffix))

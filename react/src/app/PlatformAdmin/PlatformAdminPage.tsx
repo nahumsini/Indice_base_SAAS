@@ -166,7 +166,7 @@ export default function PlatformAdminPage() {
                   <p className="truncate font-semibold">{company.name}</p>
                   <p className="mt-1 text-xs text-slate-500">Company #{company.id} · {company.entitlement_mode || 'Legacy'}</p>
                 </div>
-                <Summary label="Facturación" value={company.billing_status || 'Sin suscripción'} />
+                <Summary label="Ciclo comercial" value={company.lifecycle_state || company.billing_status || 'Legacy'} />
                 <Summary label="Asientos" value={`${company.active_members} / ${company.included_seats + company.purchased_extra_seats}`} />
                 <Summary label="Beneficios" value={String(company.active_benefits)} />
               </button>
@@ -183,6 +183,7 @@ export default function PlatformAdminPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#143675]">Company #{selected.id}</p>
                 <h2 className="mt-1 text-2xl font-semibold tracking-tight">{selected.name}</h2>
                 <p className="mt-1 text-sm text-slate-500">{selected.owner_email || 'Propietario pendiente'} · {selected.billing_status || 'Sin suscripción'}</p>
+                <p className="mt-1 text-xs font-semibold text-[#143675]">{selected.lifecycle_state || 'Legacy'} · {selected.access_mode || 'Sin control comercial'}</p>
               </div>
               <button type="button" onClick={() => setSelected(null)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50" aria-label="Cerrar"><X className="h-5 w-5" /></button>
             </div>

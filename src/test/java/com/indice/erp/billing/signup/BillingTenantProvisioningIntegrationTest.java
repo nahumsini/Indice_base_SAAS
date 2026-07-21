@@ -124,6 +124,10 @@ class BillingTenantProvisioningIntegrationTest {
         )).containsEntry("included_seats", 5)
             .containsEntry("purchased_extra_seats", 0)
             .containsEntry("reserved_seats", 0);
+        assertThat(jdbc.queryForMap(
+            "SELECT state, access_mode FROM company_commercial_states WHERE company_id = ?",
+            provisioned.companyId()
+        )).containsEntry("state", "TRIAL").containsEntry("access_mode", "FULL");
         assertThat(entitlements.resolve(provisioned.companyId(), "human_resources").allowed()).isTrue();
         assertThat(entitlements.resolve(provisioned.companyId(), "receivables").allowed()).isTrue();
     }

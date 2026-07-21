@@ -13,6 +13,8 @@ export interface PlatformCompanySummary {
   name: string;
   entitlement_mode?: string | null;
   billing_status?: string | null;
+  lifecycle_state?: string | null;
+  access_mode?: string | null;
   included_seats: number;
   purchased_extra_seats: number;
   active_members: number;
@@ -39,6 +41,9 @@ export interface PlatformCompanyDetail extends PlatformCompanySummary {
   billing_interval?: string | null;
   extra_seats?: number | null;
   reserved_seats?: number | null;
+  grace_ends_at?: string | null;
+  read_only_ends_at?: string | null;
+  retention_until?: string | null;
   benefits: PlatformBenefit[];
   seat_usage: {
     enforced: boolean;

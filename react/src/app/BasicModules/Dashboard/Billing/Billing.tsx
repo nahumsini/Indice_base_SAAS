@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { CreditCard, Download, FileText, Trash2 } from 'lucide-react';
+import { AlertTriangle, CreditCard, Download, ExternalLink, FileText, LoaderCircle, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { useLanguage } from '../../../shared/context';
+import { billingRecoveryApi, type BillingRecoverySnapshot } from '../../../api/billingRecovery';
 
 interface SavedCard {
   id: string;
@@ -89,6 +90,10 @@ export default function Billing() {
   const [billingFrequency, setBillingFrequency] = useState('monthly');
   const [billingDay, setBillingDay] = useState('1');
   const [invoiceEmail, setInvoiceEmail] = useState('factura@empresa.com');
+  const [recovery, setRecovery] = useState<BillingRecoverySnapshot | null>(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(true);
+  const [recoveryError, setRecoveryError] = useState('');
+  const [openingPortal, setOpeningPortal] = useState(false);
 
   useEffect(() => {
     if (selectedCountry) {
@@ -110,6 +115,29 @@ export default function Billing() {
       setSelectedCountry(currentLanguage.code as CountryCode);
     }
   }, [currentLanguage.code, selectedCountry]);
+
+  useEffect(() => {
+    let active = true;
+    billingRecoveryApi.snapshot()
+      .then((snapshot) => { if (active) setRecovery(snapshot); })
+      .catch((error) => { if (active) setRecoveryError(error instanceof Error ? error.message : 'No se pudo consultar la suscripción.'); })
+      .finally(() => { if (active) setRecoveryLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const openBillingPortal = async () => {
+    if (openingPortal) return;
+    setOpeningPortal(true);
+    setRecoveryError('');
+    try {
+      const result = await billingRecoveryApi.portal();
+      window.location.assign(result.url);
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : 'No se pudo abrir el portal de facturación.');
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
 
   const getNoInvoiceLabel = () => {
     switch (currentLanguage.code) {
@@ -390,6 +418,34 @@ export default function Billing() {
 
   return (
     <div className="space-y-6">
+      {recoveryLoading ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+          <LoaderCircle className="h-4 w-4 animate-spin" /> Consultando el estado comercial real...
+        </div>
+      ) : null}
+
+      {recovery?.enrolled ? (
+        <div className={`rounded-2xl border p-4 sm:p-5 ${recovery.lifecycle?.allows_operational_write ? 'border-emerald-200 bg-emerald-50/70' : 'border-amber-300 bg-amber-50'}`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-700 shadow-sm"><AlertTriangle className="h-5 w-5" /></span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Estado comercial</p>
+                <h3 className="mt-1 font-semibold text-slate-950">{recovery.lifecycle?.state || 'Sincronizando'}</h3>
+                <p className="mt-1 text-sm text-slate-600">{recovery.lifecycle?.allows_operational_write ? 'La operación de la cuenta está habilitada.' : 'Regulariza la facturación para restaurar la operación completa.'}</p>
+              </div>
+            </div>
+            {recovery.can_manage_billing && recovery.portal_available ? (
+              <Button type="button" onClick={() => void openBillingPortal()} disabled={openingPortal} className="gap-2 bg-[#143675] hover:bg-[#102d63]">
+                {openingPortal ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                Administrar en Stripe
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {recoveryError ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{recoveryError}</div> : null}
       <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
           <span className="text-2xl">🧾</span>

@@ -1,6 +1,7 @@
 package com.indice.erp.config;
 
 import com.indice.erp.entitlement.EntitlementShadowInterceptor;
+import com.indice.erp.billing.lifecycle.CommercialLifecycleInterceptor;
 import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -17,17 +18,24 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final AppWebProperties appWebProperties;
     private final ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor;
+    private final ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor;
 
     public WebConfig(
         AppWebProperties appWebProperties,
-        ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor
+        ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor,
+        ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor
     ) {
         this.appWebProperties = appWebProperties;
         this.entitlementShadowInterceptor = entitlementShadowInterceptor;
+        this.commercialLifecycleInterceptor = commercialLifecycleInterceptor;
     }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        var commercial = commercialLifecycleInterceptor.getIfAvailable();
+        if (commercial != null) {
+            registry.addInterceptor(commercial).addPathPatterns("/api/**").order(-100);
+        }
         var interceptor = entitlementShadowInterceptor.getIfAvailable();
         if (interceptor != null) {
             registry.addInterceptor(interceptor).addPathPatterns("/api/**");

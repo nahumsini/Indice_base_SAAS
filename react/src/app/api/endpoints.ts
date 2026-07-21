@@ -11,6 +11,10 @@ export const endpoints = {
     checkout: '/api/v1/billing/signup/checkout',
     status: '/api/v1/billing/signup/status',
   },
+  billingRecovery: {
+    snapshot: '/api/v1/billing/recovery',
+    portal: '/api/v1/billing/recovery/portal',
+  },
   platform: {
     context: '/api/v1/platform/context',
   },

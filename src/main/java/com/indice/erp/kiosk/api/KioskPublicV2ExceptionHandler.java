@@ -3,6 +3,7 @@ package com.indice.erp.kiosk.api;
 import com.indice.erp.kiosk.engine.KioskRateLimitExceededException;
 import com.indice.erp.kiosk.engine.KioskEngineDisabledException;
 import com.indice.erp.kiosk.engine.KioskUnavailableException;
+import com.indice.erp.billing.lifecycle.CommercialAccessRestrictedException;
 import com.indice.erp.hr.attendance.kiosk.api.PublicKioskAttendanceApiController;
 import com.indice.erp.pos.PosApiException;
 import java.util.NoSuchElementException;
@@ -49,6 +50,18 @@ public class KioskPublicV2ExceptionHandler {
             headers,
             HttpStatus.TOO_MANY_REQUESTS
         );
+    }
+
+    @ExceptionHandler(CommercialAccessRestrictedException.class)
+    public ResponseEntity<?> commercialRestriction(CommercialAccessRestrictedException failure) {
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(
+            responses.error(
+                "KIOSK_COMMERCIAL_ACCESS_RESTRICTED",
+                failure.writeOnly()
+                    ? "Este kiosko está temporalmente disponible solo para consulta."
+                    : "Este kiosko requiere que la empresa regularice su facturación.",
+                true
+            ));
     }
 
     @ExceptionHandler(KioskEngineDisabledException.class)

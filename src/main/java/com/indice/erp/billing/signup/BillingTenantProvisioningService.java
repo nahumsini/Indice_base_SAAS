@@ -1,6 +1,7 @@
 package com.indice.erp.billing.signup;
 
 import com.indice.erp.billing.audit.BillingAuditService;
+import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
 import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.sql.Statement;
@@ -27,6 +28,7 @@ public class BillingTenantProvisioningService {
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
     private final CompanyEntitlementProjectionService entitlementProjection;
+    private final CommercialLifecycleService commercialLifecycle;
 
     public BillingTenantProvisioningService(
         BillingProvisioningProperties properties,
@@ -34,7 +36,8 @@ public class BillingTenantProvisioningService {
         BillingAuditService audit,
         JdbcTemplate jdbcTemplate,
         Clock clock,
-        CompanyEntitlementProjectionService entitlementProjection
+        CompanyEntitlementProjectionService entitlementProjection,
+        CommercialLifecycleService commercialLifecycle
     ) {
         this.properties = properties;
         this.signupIntents = signupIntents;
@@ -42,6 +45,7 @@ public class BillingTenantProvisioningService {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
         this.entitlementProjection = entitlementProjection;
+        this.commercialLifecycle = commercialLifecycle;
     }
 
     @Transactional
@@ -102,6 +106,7 @@ public class BillingTenantProvisioningService {
         provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial);
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
         entitlementProjection.enrollPremiumSignup(companyId, intent.catalogVersionId(), ownerUserId);
+        commercialLifecycle.initializeTrial(companyId, trial.endsAt());
         jdbcTemplate.update(
             """
                 INSERT INTO company_seat_states (company_id, included_seats, purchased_extra_seats)

@@ -1,6 +1,7 @@
 package com.indice.erp.kiosk.api;
 
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.billing.lifecycle.CommercialLifecycleAccessService;
 import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskActionDispatcher;
 import com.indice.erp.kiosk.engine.KioskAdapterRegistry;
@@ -62,6 +63,9 @@ class KioskPublicV2ControllerTest {
 
     @MockBean
     private KioskEngineFeatureFlags featureFlags;
+
+    @MockBean
+    private CommercialLifecycleAccessService commercialAccess;
 
     @MockBean
     private KioskModuleAdapter adapter;

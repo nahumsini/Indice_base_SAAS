@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.billing.audit.BillingAuditService;
+import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
 import com.indice.erp.billing.signup.BillingSignupIntent;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
 import com.indice.erp.billing.signup.BillingTenantProvisioningService;
@@ -22,6 +23,7 @@ public class StripeWebhookEventHandler {
     private final BillingTenantProvisioningService provisioning;
     private final BillingAuditService audit;
     private final CompanyEntitlementProjectionService entitlementProjection;
+    private final CommercialLifecycleService commercialLifecycle;
 
     public StripeWebhookEventHandler(
         ObjectMapper objectMapper,
@@ -29,7 +31,8 @@ public class StripeWebhookEventHandler {
         BillingProjectionRepository projections,
         BillingTenantProvisioningService provisioning,
         BillingAuditService audit,
-        CompanyEntitlementProjectionService entitlementProjection
+        CompanyEntitlementProjectionService entitlementProjection,
+        CommercialLifecycleService commercialLifecycle
     ) {
         this.objectMapper = objectMapper;
         this.signupIntents = signupIntents;
@@ -37,6 +40,7 @@ public class StripeWebhookEventHandler {
         this.provisioning = provisioning;
         this.audit = audit;
         this.entitlementProjection = entitlementProjection;
+        this.commercialLifecycle = commercialLifecycle;
     }
 
     @Transactional
@@ -162,6 +166,10 @@ public class StripeWebhookEventHandler {
         }
         if (association.companyId() != null) {
             entitlementProjection.refreshIfEnrolled(association.companyId());
+            commercialLifecycle.applySubscriptionEvent(
+                association.companyId(), eventId, eventCreatedAt, status,
+                nullableInstant(object.path("trial_end"))
+            );
         }
         audit.record(
             "STRIPE_WEBHOOK", "SUBSCRIPTION_PROJECTED", "SUCCESS", null, eventId, subscriptionId,
@@ -200,6 +208,14 @@ public class StripeWebhookEventHandler {
             ),
             association
         );
+        if (association != null && association.companyId() != null
+            && ("invoice.payment_failed".equals(eventType)
+                || "invoice.paid".equals(eventType)
+                || "invoice.payment_succeeded".equals(eventType))) {
+            commercialLifecycle.applyInvoiceEvent(
+                association.companyId(), eventId, eventCreatedAt, eventType, text(object, "status")
+            );
+        }
         audit.record(
             "STRIPE_WEBHOOK", "INVOICE_PROJECTED", "SUCCESS", null, eventId, invoiceId,
             association == null ? null : association.companyId(),
