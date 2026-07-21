@@ -118,6 +118,12 @@ class BillingTenantProvisioningIntegrationTest {
             Integer.class,
             provisioned.companyId()
         )).isGreaterThanOrEqualTo(expectedProducts);
+        assertThat(jdbc.queryForMap(
+            "SELECT included_seats, purchased_extra_seats, reserved_seats FROM company_seat_states WHERE company_id = ?",
+            provisioned.companyId()
+        )).containsEntry("included_seats", 5)
+            .containsEntry("purchased_extra_seats", 0)
+            .containsEntry("reserved_seats", 0);
         assertThat(entitlements.resolve(provisioned.companyId(), "human_resources").allowed()).isTrue();
         assertThat(entitlements.resolve(provisioned.companyId(), "receivables").allowed()).isTrue();
     }

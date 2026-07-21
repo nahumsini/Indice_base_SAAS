@@ -378,6 +378,12 @@ public abstract class ConfigCenterSupport {
         body.put("company_name", invitation.companyName());
         body.put("status", invitationStatus(invitation));
         body.put("expires_at", invitation.expiresAt() == null ? null : invitation.expiresAt().toString());
+        var existingUser = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM users WHERE LOWER(email) = ?",
+            Integer.class,
+            invitation.email()
+        );
+        body.put("existing_user", existingUser != null && existingUser > 0);
         return body;
     }
 
@@ -432,7 +438,6 @@ public abstract class ConfigCenterSupport {
 
     protected void ensureInvitationEmailCanBeAccepted(long companyId, String email, long invitationIdToIgnore) {
         ensureEmailNotUsedInCompany(companyId, email, invitationIdToIgnore);
-        ensureEmailNotRegistered(email);
     }
 
     protected void ensureEmailNotRegistered(String email) {

@@ -100,7 +100,6 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         }
 
         ensureEmailNotUsedInCompany(companyId, email, null);
-        ensureEmailNotRegistered(email);
 
         var token = UUID.randomUUID().toString().replace("-", "");
         var expiresAt = LocalDateTime.now().plusDays(7);
@@ -142,6 +141,7 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         result.put("email", email);
         result.put("full_name", fullName);
         result.put("token", token);
+        result.put("invitation_id", invitationId);
         return result;
     }
 
@@ -170,34 +170,45 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         if (!password.equals(confirmPassword)) {
             throw new IllegalArgumentException("Password and confirmation must match.");
         }
-        if (password.length() < 8) {
-            throw new IllegalArgumentException("Password must be at least 8 characters long.");
-        }
-
         ensureInvitationEmailCanBeAccepted(invitation.companyId(), invitation.email(), invitation.id());
-
-        jdbcTemplate.update(
-            "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)",
-            invitation.email(),
-            passwordEncoder.encode(password),
-            nullable(invitation.fullName())
+        var existingUsers = jdbcTemplate.query(
+            "SELECT id, password_hash FROM users WHERE LOWER(email) = ? LIMIT 1 FOR UPDATE",
+            (rs, rowNum) -> new ExistingUser(rs.getLong("id"), rs.getString("password_hash")),
+            invitation.email()
         );
-        var userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-        if (userId == null) {
-            throw new IllegalStateException("Unable to create invited user.");
+        final long userId;
+        if (existingUsers.isEmpty()) {
+            if (password.length() < 8) {
+                throw new IllegalArgumentException("Password must be at least 8 characters long.");
+            }
+            jdbcTemplate.update(
+                "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)",
+                invitation.email(),
+                passwordEncoder.encode(password),
+                nullable(invitation.fullName())
+            );
+            var insertedUserId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            if (insertedUserId == null) {
+                throw new IllegalStateException("Unable to create invited user.");
+            }
+            userId = insertedUserId;
+            jdbcTemplate.update(
+                """
+                    INSERT INTO user_profiles (user_id, full_name, preferred_language)
+                    VALUES (?, ?, 'es-419')
+                    ON DUPLICATE KEY UPDATE
+                        full_name = COALESCE(NULLIF(user_profiles.full_name, ''), VALUES(full_name))
+                    """,
+                userId,
+                nullable(invitation.fullName())
+            );
+        } else {
+            var existing = existingUsers.getFirst();
+            if (!passwordEncoder.matches(password, existing.passwordHash())) {
+                throw new IllegalArgumentException("The existing account password is incorrect.");
+            }
+            userId = existing.id();
         }
-
-        jdbcTemplate.update(
-            """
-                INSERT INTO user_profiles (user_id, full_name, preferred_language)
-                VALUES (?, ?, 'es-419')
-                ON DUPLICATE KEY UPDATE
-                    full_name = VALUES(full_name),
-                    preferred_language = VALUES(preferred_language)
-                """,
-            userId,
-            nullable(invitation.fullName())
-        );
 
         jdbcTemplate.update(
             """
@@ -240,6 +251,8 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var result = new LinkedHashMap<String, Object>();
         result.put("accepted", true);
         result.put("user_id", userId);
+        result.put("user_company_id", userCompanyId);
+        result.put("invitation_id", invitation.id());
         result.put("email", invitation.email());
         result.put("full_name", invitation.fullName());
         result.put("company_id", invitation.companyId());
@@ -300,7 +313,6 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var finalEmail = newEmail.isBlank() ? String.valueOf(stored.get("email")) : newEmail;
 
         ensureEmailNotUsedInCompany(companyId, finalEmail, invitationId);
-        ensureEmailNotRegistered(finalEmail);
 
         var token = UUID.randomUUID().toString().replace("-", "");
         var expiresAt = LocalDateTime.now().plusDays(7);
@@ -369,5 +381,8 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
             new AccessScope(snapshot.unitId(), snapshot.businessId())
         );
         return snapshot;
+    }
+
+    private record ExistingUser(long id, String passwordHash) {
     }
 }

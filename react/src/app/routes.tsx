@@ -13,6 +13,7 @@ const PublicCatalogPage = lazy(() => import('./BasicModules/Sales/Productos/publ
 const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDisplay'));
 const SupplierPortal = lazy(() => import('./BasicModules/PointOfSale/SupplierPortal'));
 const SelfServiceKiosk = lazy(() => import('./BasicModules/PointOfSale/SelfServiceKiosk'));
+const PlatformAdminPage = lazy(() => import('./PlatformAdmin/PlatformAdminPage'));
 
 const chunkReloadStorageKey = 'indice:route-chunk-reload-attempted';
 const renderChunkReloadStorageKey = 'indice:render-chunk-reload-attempted';
@@ -283,6 +284,14 @@ function PrivateAppRoute() {
   );
 }
 
+function PlatformAdminRoute() {
+  return (
+    <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando plataforma" description="Validando autoridad operativa." />}>
+      <PlatformAdminPage />
+    </Suspense>
+  );
+}
+
 const redirectToLanding = async () => {
   const session = await getRouteSessionOrNull();
   return redirect(session ? '/dashboard' : '/login');
@@ -306,6 +315,18 @@ const requireAuthenticatedSession = async () => {
   }
 
   return null;
+};
+
+const requirePlatformAdminSession = async () => {
+  const session = await getRouteSessionOrNull();
+  if (!session) return redirect('/login');
+  const { platformAdminApi } = await import('./api/platformAdmin');
+  try {
+    await platformAdminApi.getContext();
+    return null;
+  } catch {
+    return redirect('/dashboard');
+  }
 };
 
 const getRouteSessionOrNull = () => authApi.getSessionOrNull().catch(() => null);
@@ -380,6 +401,11 @@ export const router = createBrowserRouter([
   {
     path: '/pos-self-service/:publicAccessToken',
     element: <SelfServiceKioskRoute />,
+  },
+  {
+    path: '/platform-admin',
+    element: <PlatformAdminRoute />,
+    loader: requirePlatformAdminSession,
   },
   {
     path: '/:pageId/*',

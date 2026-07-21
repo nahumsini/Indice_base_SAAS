@@ -102,6 +102,19 @@ public class BillingTenantProvisioningService {
         provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial);
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
         entitlementProjection.enrollPremiumSignup(companyId, intent.catalogVersionId(), ownerUserId);
+        jdbcTemplate.update(
+            """
+                INSERT INTO company_seat_states (company_id, included_seats, purchased_extra_seats)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    included_seats = VALUES(included_seats),
+                    purchased_extra_seats = VALUES(purchased_extra_seats),
+                    version = version + 1
+                """,
+            companyId,
+            Math.max(5, intent.includedSeats()),
+            Math.max(0, intent.requestedExtraSeats())
+        );
         signupIntents.markProvisioned(intentId, companyId, ownerUserId, membershipId);
 
         audit.record(

@@ -2,6 +2,7 @@ package com.indice.erp.configcenter;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.billing.seats.SeatCapacityExceededException;
 import com.indice.erp.config.AppWebProperties;
 import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
 import com.indice.erp.hr.HrAccessDeniedException;
@@ -37,6 +38,7 @@ public class ConfigCenterApiController {
     private final GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor;
     private final InvitationEmailService invitationEmailService;
     private final AppWebProperties appWebProperties;
+    private final InvitationSeatCoordinator invitationSeatCoordinator;
 
     public ConfigCenterApiController(
         SessionAuthService sessionAuthService,
@@ -45,7 +47,8 @@ public class ConfigCenterApiController {
         ConfigCenterService configCenterService,
         GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
         InvitationEmailService invitationEmailService,
-        AppWebProperties appWebProperties
+        AppWebProperties appWebProperties,
+        InvitationSeatCoordinator invitationSeatCoordinator
     ) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
@@ -54,6 +57,7 @@ public class ConfigCenterApiController {
         this.googleMapsCoordinateExtractor = googleMapsCoordinateExtractor;
         this.invitationEmailService = invitationEmailService;
         this.appWebProperties = appWebProperties;
+        this.invitationSeatCoordinator = invitationSeatCoordinator;
     }
 
     @GetMapping("/current-user")
@@ -234,7 +238,7 @@ public class ConfigCenterApiController {
         }
 
         try {
-            var result = configCenterService.inviteUser(
+            var result = invitationSeatCoordinator.invite(
                 current.get().companyId(),
                 current.get().userId(),
                 current.get().role(),
@@ -247,6 +251,8 @@ public class ConfigCenterApiController {
                 inviteLink
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(invitationResponse(result, inviteLink, emailResult));
+        } catch (SeatCapacityExceededException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
         }
@@ -274,7 +280,7 @@ public class ConfigCenterApiController {
         }
 
         try {
-            return ResponseEntity.ok(configCenterService.deleteInvitation(
+            return ResponseEntity.ok(invitationSeatCoordinator.delete(
                 current.get().companyId(),
                 current.get().userId(),
                 current.get().role(),
@@ -312,7 +318,7 @@ public class ConfigCenterApiController {
 
         try {
             var requestPayload = payload == null ? java.util.Collections.<String, Object>emptyMap() : payload;
-            var result = configCenterService.resendInvitation(
+            var result = invitationSeatCoordinator.resend(
                 current.get().companyId(),
                 current.get().userId(),
                 current.get().role(),
@@ -326,6 +332,8 @@ public class ConfigCenterApiController {
                 inviteLink
             );
             return ResponseEntity.ok(invitationResponse(result, inviteLink, emailResult));
+        } catch (SeatCapacityExceededException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -534,6 +542,19 @@ public class ConfigCenterApiController {
     private Map<String, Object> messageBody(String message) {
         var body = new LinkedHashMap<String, Object>();
         body.put("message", message);
+        return body;
+    }
+
+    private Map<String, Object> seatCapacityBody(SeatCapacityExceededException exception) {
+        var body = new LinkedHashMap<String, Object>();
+        body.put("message", exception.getMessage());
+        body.put("code", "SEAT_CAPACITY_EXCEEDED");
+        body.put("seats", Map.of(
+            "limit", exception.snapshot().limit(),
+            "active", exception.snapshot().active(),
+            "reserved", exception.snapshot().reserved(),
+            "available", exception.snapshot().available()
+        ));
         return body;
     }
 

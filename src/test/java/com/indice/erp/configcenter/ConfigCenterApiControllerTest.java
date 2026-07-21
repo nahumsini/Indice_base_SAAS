@@ -55,6 +55,9 @@ class ConfigCenterApiControllerTest {
     private InvitationEmailService invitationEmailService;
 
     @MockBean
+    private InvitationSeatCoordinator invitationSeatCoordinator;
+
+    @MockBean
     private AppWebProperties appWebProperties;
 
     @BeforeEach
@@ -325,7 +328,7 @@ class ConfigCenterApiControllerTest {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(appWebProperties.resolveInvitationBaseUrl()).willReturn("");
         given(appWebProperties.getAllowedOrigins()).willReturn(List.of("http://localhost:5173"));
-        given(configCenterService.inviteUser(
+        given(invitationSeatCoordinator.invite(
             org.mockito.ArgumentMatchers.eq(7L),
             org.mockito.ArgumentMatchers.eq(1L),
             org.mockito.ArgumentMatchers.eq("admin"),
@@ -487,7 +490,7 @@ class ConfigCenterApiControllerTest {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(configCenterService.deleteInvitation(7L, 1L, "admin", 12L))
+        given(invitationSeatCoordinator.delete(7L, 1L, "admin", 12L))
             .willReturn(Map.of("success", true, "deleted", true));
 
         mockMvc.perform(delete("/api/v1/config-center/users/invitations/12"))

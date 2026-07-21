@@ -14,6 +14,11 @@ export const endpoints = {
   platform: {
     context: '/api/v1/platform/context',
   },
+  platformAdmin: {
+    context: '/api/v1/platform-admin/context',
+    overview: '/api/v1/platform-admin/overview',
+    companies: '/api/v1/platform-admin/companies',
+  },
   notifications: {
     list: '/api/v1/notifications',
     readAll: '/api/v1/notifications/read-all',

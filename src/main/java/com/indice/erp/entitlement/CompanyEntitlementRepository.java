@@ -83,6 +83,21 @@ public class CompanyEntitlementRepository {
                     WHERE s.company_id = ?
                       AND LOWER(s.status) IN (?, ?, ?)
                       AND (s.current_period_ends_at IS NULL OR s.current_period_ends_at > CURRENT_TIMESTAMP(6))
+
+                    UNION ALL
+
+                    SELECT 'BENEFIT' AS source_type,
+                           CONCAT('benefit:', benefit.public_reference) AS source_reference,
+                           pc.capability_code
+                    FROM company_benefit_grants benefit
+                    JOIN billing_catalog_products p
+                      ON p.id = benefit.catalog_product_id AND p.active = 1
+                    JOIN billing_product_capabilities pc ON pc.product_id = p.id
+                    WHERE benefit.company_id = ?
+                      AND benefit.benefit_type = 'PRODUCT'
+                      AND benefit.status = 'ACTIVE'
+                      AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                      AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
                 ) effective
                 WHERE capability_code = ?
                 ORDER BY source_type, source_reference
@@ -96,6 +111,7 @@ public class CompanyEntitlementRepository {
             ENTITLED_SUBSCRIPTION_STATUSES.get(0),
             ENTITLED_SUBSCRIPTION_STATUSES.get(1),
             ENTITLED_SUBSCRIPTION_STATUSES.get(2),
+            companyId,
             capability
         );
     }
@@ -198,6 +214,27 @@ public class CompanyEntitlementRepository {
             ENTITLED_SUBSCRIPTION_STATUSES.get(0),
             ENTITLED_SUBSCRIPTION_STATUSES.get(1),
             ENTITLED_SUBSCRIPTION_STATUSES.get(2)
+        );
+        jdbcTemplate.update(
+            """
+                INSERT IGNORE INTO company_entitlements (
+                    company_id, capability_code, source_type, source_reference,
+                    catalog_version_id, valid_from, valid_until, projected_at
+                )
+                SELECT benefit.company_id, pc.capability_code, 'BENEFIT',
+                       CONCAT('benefit:', benefit.public_reference), product.catalog_version_id,
+                       benefit.starts_at, benefit.ends_at, ?
+                FROM company_benefit_grants benefit
+                JOIN billing_catalog_products product
+                  ON product.id = benefit.catalog_product_id AND product.active = 1
+                JOIN billing_product_capabilities pc ON pc.product_id = product.id
+                WHERE benefit.company_id = ?
+                  AND benefit.benefit_type = 'PRODUCT'
+                  AND benefit.status = 'ACTIVE'
+                  AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                  AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                """,
+            at, companyId
         );
     }
 

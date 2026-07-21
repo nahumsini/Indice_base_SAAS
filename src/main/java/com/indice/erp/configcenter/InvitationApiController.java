@@ -1,5 +1,6 @@
 package com.indice.erp.configcenter;
 
+import com.indice.erp.billing.seats.SeatCapacityExceededException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -17,9 +18,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class InvitationApiController {
 
     private final ConfigCenterService configCenterService;
+    private final InvitationSeatCoordinator invitationSeatCoordinator;
 
-    public InvitationApiController(ConfigCenterService configCenterService) {
+    public InvitationApiController(
+        ConfigCenterService configCenterService,
+        InvitationSeatCoordinator invitationSeatCoordinator
+    ) {
         this.configCenterService = configCenterService;
+        this.invitationSeatCoordinator = invitationSeatCoordinator;
     }
 
     @GetMapping("/{token}")
@@ -37,7 +43,12 @@ public class InvitationApiController {
         @RequestBody Map<String, Object> payload
     ) {
         try {
-            return ResponseEntity.ok(configCenterService.acceptInvitation(token, payload));
+            return ResponseEntity.ok(invitationSeatCoordinator.accept(token, payload));
+        } catch (SeatCapacityExceededException ex) {
+            var body = messageBody(ex.getMessage());
+            body.put("code", "SEAT_CAPACITY_EXCEEDED");
+            body.put("limit", ex.snapshot().limit());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {

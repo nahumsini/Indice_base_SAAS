@@ -117,6 +117,7 @@ export interface InvitationDetails {
   company_name: string;
   status: 'pending' | 'accepted' | 'expired' | string;
   expires_at?: string | null;
+  existing_user?: boolean;
 }
 
 export interface AcceptInvitationPayload {

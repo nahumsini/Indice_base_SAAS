@@ -104,24 +104,28 @@ export default function InviteAcceptPage() {
   };
 
   const title = pageState === 'complete'
-    ? 'Your account is ready'
+    ? (invitation?.existing_user ? 'Workspace connected' : 'Your account is ready')
     : pageState === 'accepted'
       ? 'Invitation already accepted'
       : pageState === 'expired'
         ? 'Invitation expired'
         : pageState === 'invalid'
           ? 'Invitation unavailable'
-          : 'Accept your Indice invitation';
+          : (invitation?.existing_user ? 'Connect another workspace' : 'Accept your Indice invitation');
 
   const description = pageState === 'complete'
-    ? 'You can now sign in with your email and the password you just created.'
+    ? (invitation?.existing_user
+      ? 'This company is now available from your existing Indice account.'
+      : 'You can now sign in with your email and the password you just created.')
     : pageState === 'accepted'
       ? 'This invite link was already used. Sign in with the account created from this invitation.'
       : pageState === 'expired'
         ? 'Ask an administrator to resend your invitation so you can create your account.'
         : pageState === 'invalid'
           ? (errorMessage || 'This invite link is invalid or no longer available.')
-          : 'Create your password to join the company workspace.';
+          : (invitation?.existing_user
+            ? 'Confirm your current password to add this company to your existing account.'
+            : 'Create your password to join the company workspace.');
 
   return (
     <main className="min-h-screen bg-[#f6f8fb] px-4 py-8 text-slate-900">
@@ -142,7 +146,7 @@ export default function InviteAcceptPage() {
               </div>
 
               <div className="rounded-xl border border-white/15 bg-white/8 p-4 text-sm leading-6 text-blue-50">
-                Invitations are single-use and expire automatically. Your password is created only after the invite is accepted.
+                Invitations are single-use and expire automatically. Existing accounts keep the same password across every company.
               </div>
             </div>
           </div>
@@ -173,18 +177,20 @@ export default function InviteAcceptPage() {
                 </div>
 
                 <PasswordField
-                  label="Password"
+                  label={invitation.existing_user ? 'Current password' : 'Create password'}
                   value={password}
                   onChange={setPassword}
                   show={showPassword}
                   onToggleShow={() => setShowPassword((current) => !current)}
+                  autoComplete={invitation.existing_user ? 'current-password' : 'new-password'}
                 />
                 <PasswordField
-                  label="Confirm password"
+                  label={invitation.existing_user ? 'Confirm current password' : 'Confirm password'}
                   value={confirmPassword}
                   onChange={setConfirmPassword}
                   show={showConfirmPassword}
                   onToggleShow={() => setShowConfirmPassword((current) => !current)}
+                  autoComplete={invitation.existing_user ? 'current-password' : 'new-password'}
                 />
 
                 {errorMessage ? (
@@ -199,9 +205,9 @@ export default function InviteAcceptPage() {
                   disabled={!canSubmit}
                   className="h-12 w-full rounded-xl bg-[#143675] text-white hover:bg-[#0f2855]"
                 >
-                  {isSubmitting ? 'Creating account...' : (
+                  {isSubmitting ? (invitation.existing_user ? 'Connecting workspace...' : 'Creating account...') : (
                     <>
-                      Accept invitation
+                      {invitation.existing_user ? 'Connect workspace' : 'Accept invitation'}
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -257,12 +263,14 @@ function PasswordField({
   onChange,
   show,
   onToggleShow,
+  autoComplete = 'new-password',
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   show: boolean;
   onToggleShow: () => void;
+  autoComplete?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -274,7 +282,7 @@ function PasswordField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className="h-12 rounded-xl border-slate-200 bg-white pl-10 pr-12 text-sm shadow-sm"
-          autoComplete="new-password"
+          autoComplete={autoComplete}
         />
         <button
           type="button"

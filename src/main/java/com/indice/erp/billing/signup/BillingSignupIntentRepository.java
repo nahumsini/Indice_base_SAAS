@@ -142,7 +142,8 @@ public class BillingSignupIntentRepository {
             """
                 SELECT i.id, i.status, i.provisioning_status, i.catalog_version_id,
                        i.full_name, i.email_normalized, i.password_hash, i.company_name,
-                       i.country_code, i.phone, i.stripe_customer_id,
+                       i.country_code, i.phone, i.included_seats, i.requested_extra_seats,
+                       i.stripe_customer_id,
                        i.completed_at, i.company_id, i.owner_user_id, i.owner_user_company_id
                 FROM billing_signup_intents i
                 WHERE i.id = ?
@@ -159,6 +160,8 @@ public class BillingSignupIntentRepository {
                 rs.getString("company_name"),
                 rs.getString("country_code"),
                 rs.getString("phone"),
+                rs.getInt("included_seats"),
+                rs.getInt("requested_extra_seats"),
                 rs.getString("stripe_customer_id"),
                 instant(rs.getTimestamp("completed_at")),
                 (Long) rs.getObject("company_id"),
@@ -486,6 +489,8 @@ public class BillingSignupIntentRepository {
         String companyName,
         String countryCode,
         String phone,
+        int includedSeats,
+        int requestedExtraSeats,
         String stripeCustomerId,
         Instant completedAt,
         Long companyId,

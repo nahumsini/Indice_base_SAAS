@@ -518,7 +518,7 @@ class ConfigCenterServiceTest {
     }
 
     @Test
-    void inviteUserRejectsGloballyRegisteredEmailBeforeCreatingInvitation() {
+    void inviteUserAllowsGloballyRegisteredEmailForAnotherCompany() {
         var service = newService();
 
         when(jdbcTemplate.query(
@@ -600,15 +600,9 @@ class ConfigCenterServiceTest {
             org.mockito.ArgumentMatchers.isNull(),
             org.mockito.ArgumentMatchers.isNull()
         )).thenReturn(0);
-        when(jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM users WHERE LOWER(email) = ?",
-            Integer.class,
-            "taken@example.com"
-        )).thenReturn(1);
+        when(jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class)).thenReturn(81L);
 
-        var error = assertThrows(
-            IllegalArgumentException.class,
-            () -> service.inviteUser(1L, 1L, "admin", Map.of(
+        var invitation = service.inviteUser(1L, 1L, "admin", Map.of(
                 "name", "Taken User",
                 "email", "Taken@example.com",
                 "role", "User",
@@ -616,10 +610,10 @@ class ConfigCenterServiceTest {
                 "business_id", 9L,
                 "module_slugs", List.of("config_center"),
                 "tab_permission_keys", List.of("config_center.profile")
-            ))
-        );
+            ));
 
-        assertEquals("That email is already registered.", error.getMessage());
+        assertEquals("taken@example.com", invitation.get("email"));
+        assertEquals(81L, invitation.get("invitation_id"));
     }
 
     @Test

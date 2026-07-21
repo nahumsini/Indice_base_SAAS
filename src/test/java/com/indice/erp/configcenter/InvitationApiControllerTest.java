@@ -24,6 +24,9 @@ class InvitationApiControllerTest {
     @MockBean
     private ConfigCenterService configCenterService;
 
+    @MockBean
+    private InvitationSeatCoordinator invitationSeatCoordinator;
+
     @Test
     void getInvitationReturnsPublicInvitationDetails() throws Exception {
         given(configCenterService.getInvitation("abc123"))
@@ -56,7 +59,7 @@ class InvitationApiControllerTest {
 
     @Test
     void acceptInvitationReturnsCreatedUserAccess() throws Exception {
-        given(configCenterService.acceptInvitation(org.mockito.ArgumentMatchers.eq("abc123"), org.mockito.ArgumentMatchers.anyMap()))
+        given(invitationSeatCoordinator.accept(org.mockito.ArgumentMatchers.eq("abc123"), org.mockito.ArgumentMatchers.anyMap()))
             .willReturn(Map.of(
                 "accepted", true,
                 "user_id", 42L,
@@ -84,7 +87,7 @@ class InvitationApiControllerTest {
 
     @Test
     void acceptInvitationReturnsBadRequestForInvalidPayload() throws Exception {
-        given(configCenterService.acceptInvitation(org.mockito.ArgumentMatchers.eq("abc123"), org.mockito.ArgumentMatchers.anyMap()))
+        given(invitationSeatCoordinator.accept(org.mockito.ArgumentMatchers.eq("abc123"), org.mockito.ArgumentMatchers.anyMap()))
             .willThrow(new IllegalArgumentException("Password and confirmation must match."));
 
         mockMvc.perform(post("/api/v1/invitations/abc123/accept")
