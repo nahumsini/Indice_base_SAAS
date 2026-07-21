@@ -469,6 +469,58 @@ como autoridad.
 Criterio de salida: eventos duplicados, fuera de orden o temporalmente no asociados convergen al
 mismo estado sin duplicar empresas, usuarios ni cobros.
 
+#### Estado implementado de Fase 2 — 21 de julio de 2026
+
+La Fase 2 quedó implementada como una capa de cobro durable, deliberadamente apagada y sin
+provisionar tenants ni modificar permisos:
+
+- `V145__premium_billing_event_inbox.sql` agrega precios versionados, intents de alta, productos
+  seleccionados, clientes/suscripciones/facturas proyectadas, inbox Stripe y auditoría append-only.
+- `V146__premium_launch_price_catalog.sql` publica las ofertas mensuales/anuales confirmadas:
+  1, 2 y 3 básicos, seat adicional de USD 12 y descuento anual de 20 %. `basic_all` permanece en
+  `PENDING_PRICE`; no se puede vender hasta decidir su importe exacto.
+- Checkout exige sesión CSRF e `Idempotency-Key`, guarda solamente hash BCrypt de la contraseña,
+  fija la versión del catálogo y usa llaves de idempotencia estables para Customer y Session.
+- El Checkout hospedado exige tarjeta aun durante el trial, activa 30 días de prueba, cobro
+  automático, Stripe Tax y captura de Tax ID. Si falta el método de pago al terminar el trial,
+  Stripe cancela la suscripción.
+- El webhook verifica `Stripe-Signature` sobre el cuerpo crudo antes de persistir. Solo acepta
+  eventos test; un evento repetido con el mismo hash incrementa su contador y uno con contenido
+  distinto se rechaza como violación de integridad.
+- El procesador usa lease, reintentos, backoff y estado terminal. Proyecta Checkout,
+  suscripciones e invoices respetando orden por fecha e ID del evento.
+- La reconciliación asocia suscripciones que llegaron antes que el Checkout y copia su selección
+  comercial sin crear empresas o usuarios. También expira Checkout abandonado y purga el payload
+  crudo después de 90 días sin borrar la trazabilidad mínima.
+- Todos los secretos se reciben por variable o archivo montado; el archivo tiene precedencia. El
+  runtime rechaza configuración live y llaves `sk_live_` en esta fase.
+- La integración se inicia con `APP_BILLING_STRIPE_ENABLED=false` y el procesador con
+  `APP_BILLING_STRIPE_PROCESSOR_ENABLED=false`. Ninguna suscripción concede capabilities ni
+  cambia acceso todavía.
+- La auditoría de seguridad retiró credenciales Stripe históricas de un panel PHP legacy. Dichas
+  credenciales deben rotarse en Stripe porque permanecen comprometidas por el historial Git.
+
+Superficies preparadas:
+
+- `GET /api/v1/billing/signup/config`
+- `POST /api/v1/billing/signup/checkout`
+- `GET /api/v1/billing/signup/status?reference=...`
+- `POST /api/v1/billing/stripe/webhook`
+
+Evidencia de cierre:
+
+- Flyway validó 146 migraciones sobre MySQL 8 real.
+- Backend completo: 809 pruebas, 0 fallas y 0 errores.
+- Pruebas específicas cubren firma válida/inválida, duplicados, conflicto de hash, eventos fuera
+  de orden, asociación tardía, ausencia de altas de empresa/usuario, selección/precio e
+  idempotencia de Checkout.
+- Frontend pasó typecheck y build de producción.
+- El runbook de configuración, activación controlada y rollback está en
+  `INDICE_PREMIUM_MULTITENANT_PHASE_2_RUNBOOK.md`.
+
+El criterio técnico de salida está cumplido. La integración permanece apagada hasta configurar
+Prices test reales, rotar las llaves expuestas y comenzar Fase 3.
+
 ### Fase 3 — Trial, alta y facturación de prueba
 
 - Construir signup premium y retorno de Checkout.
@@ -594,7 +646,7 @@ Un producto puede aparecer en Checkout únicamente cuando:
 - cuenta con UI premium responsive, accesible y traducida;
 - puede activarse y desactivarse con feature flag sin despliegue destructivo.
 
-## 17. Decisiones pendientes antes de codificar billing
+## 17. Decisiones pendientes antes de activar cobros
 
 1. Confirmar el precio mensual exacto del paquete de todos los productos básicos.
 2. Confirmar el día de suspensión posterior a los 14 días de gracia; se propone día 30.
@@ -604,8 +656,8 @@ Un producto puede aparecer en Checkout únicamente cuando:
 5. Definir prorrateo al subir de paquete y fecha efectiva al bajarlo.
 6. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
 
-Estas decisiones no impiden construir Fase 0 y Fase 1, pero deben cerrarse antes de crear Prices en
-Stripe o activar cobros.
+Estas decisiones no impidieron construir la infraestructura durable de Fases 1 y 2. Sí bloquean
+la publicación completa de Prices, el encendido de Checkout para clientes y el enforcement.
 
 ## 18. Cuándo retirar `saas-multitenant/`
 
@@ -626,8 +678,9 @@ después eliminarla en una operación separada y verificable.
 
 ## 19. Próximo paso recomendado
 
-Cerrar las seis decisiones comerciales de la sección 17 y completar la deuda de red de seguridad
-de Fase 0: prueba cross-tenant general, flags de billing/read-only y baseline formal de despliegue.
-Después se inicia Fase 2 con el primer port selectivo de Ash: inbox de webhooks firmado e
-idempotente, auditoría y reconciliación, todavía sin modificar el acceso de ningún cliente. Ese
-slice entrega valor técnico inmediato y mantiene separado el estado facturado del enforcement.
+Iniciar Fase 3 sin encender producción: crear el signup premium y la pantalla de retorno;
+provisionar `company_id`, propietario y trial exactamente una vez; conectar Prices de Stripe test;
+y validar con Test Clocks cobro, cancelación y recuperación. Antes del primer Checkout deben
+rotarse las llaves Stripe expuestas históricamente y cerrarse, como mínimo, el precio de
+`basic_all`, el prorrateo y el día exacto de suspensión. El enforcement sigue reservado para Fase
+4 después de comparar decisiones en shadow mode.

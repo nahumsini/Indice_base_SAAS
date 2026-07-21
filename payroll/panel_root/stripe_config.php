@@ -1,10 +1,15 @@
 <?php
-// Stripe Configuration - Auto-generated
-// WARNING: These are live API keys. Revoke and rotate them immediately if this file is exposed.
-return array (
-  'secret_key_test' => 'sk_test_51PgW2pKMn99fd1U3hUY97vaLpwBggj4NNC4yjAG86jSRs7WaiBNleyi9orDIoCkel0JVI6NquOOBaANkYAWQxJpZ00e3ebQU93',
-  'secret_key_live' => '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',
-  'publishable_key_test' => 'pk_test_51PgW2pKMn99fd1U3hSA2w08v0ESmeWhTjfWDefyL6eOzR7cjdd6d7jNeeIkWptfllHGalFrNgbcfhqZcxqeYkkZ900ulqc7TJ0',
-  'publishable_key_live' => 'pk_live_51PgW2pKMn99fd1U3QZl4cgI2idOQReEtD0RbHXgQ3FTpAbnTMtIonrBORrLfVCKP5yUhrruKIlWogzQfzxLjgYnO00ikmXwoGs',
-  'mode' => 'live',
-);
+// Legacy payroll compatibility only. Stripe credentials must come from the
+// deployment secret store and must never be written to the repository.
+$mode = strtolower(trim((string) (getenv('PAYROLL_STRIPE_MODE') ?: 'test')));
+if ($mode !== 'test' && $mode !== 'live') {
+    $mode = 'test';
+}
+
+return [
+    'secret_key_test' => (string) (getenv('PAYROLL_STRIPE_SECRET_KEY_TEST') ?: ''),
+    'secret_key_live' => (string) (getenv('PAYROLL_STRIPE_SECRET_KEY_LIVE') ?: ''),
+    'publishable_key_test' => (string) (getenv('PAYROLL_STRIPE_PUBLISHABLE_KEY_TEST') ?: ''),
+    'publishable_key_live' => (string) (getenv('PAYROLL_STRIPE_PUBLISHABLE_KEY_LIVE') ?: ''),
+    'mode' => $mode,
+];

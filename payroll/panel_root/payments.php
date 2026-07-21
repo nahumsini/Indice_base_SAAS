@@ -38,18 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $gateway = $_POST['gateway'] ?? '';
     
     if ($gateway === 'stripe') {
-        $newConfig = [
-            'secret_key_test' => trim($_POST['stripe_secret_test'] ?? ''),
-            'secret_key_live' => trim($_POST['stripe_secret_live'] ?? ''),
-            'publishable_key_test' => trim($_POST['stripe_pk_test'] ?? ''),
-            'publishable_key_live' => trim($_POST['stripe_pk_live'] ?? ''),
-            'mode' => $_POST['stripe_mode'] ?? 'test'
-        ];
-        
-        $code = "<?php\n// Stripe Configuration - Auto-generated\nreturn " . var_export($newConfig, true) . ";\n";
-        file_put_contents($stripeConfigPath, $code);
-        $stripeConfig = $newConfig;
-        $message = "Stripe configuration saved";
+        $message = 'Stripe credentials are managed by deployment secrets and cannot be saved here.';
+        $messageType = 'warning';
         
     } elseif ($gateway === 'mercadopago') {
         $newConfig = [
@@ -125,13 +115,13 @@ include __DIR__ . '/_root_nav.php';
                         <div class="mb-3">
                             <label class="form-label">Secret Key (Test)</label>
                             <input type="password" name="stripe_secret_test" class="form-control root-input" placeholder="sk_test_..."
-                                   value="<?= htmlspecialchars($stripeConfig['secret_key_test'] ?? ''); ?>">
+                                   value="" autocomplete="new-password">
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Publishable Key (Test)</label>
                             <input type="text" name="stripe_pk_test" class="form-control root-input" placeholder="pk_test_..."
-                                   value="<?= htmlspecialchars($stripeConfig['publishable_key_test'] ?? ''); ?>">
+                                   value="">
                         </div>
                         
                         <hr>
@@ -140,17 +130,17 @@ include __DIR__ . '/_root_nav.php';
                         <div class="mb-3">
                             <label class="form-label">Secret Key (Live)</label>
                             <input type="password" name="stripe_secret_live" class="form-control root-input" placeholder="sk_live_..."
-                                   value="<?= htmlspecialchars($stripeConfig['secret_key_live'] ?? ''); ?>">
+                                   value="" autocomplete="new-password">
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Publishable Key (Live)</label>
                             <input type="text" name="stripe_pk_live" class="form-control root-input" placeholder="pk_live_..."
-                                   value="<?= htmlspecialchars($stripeConfig['publishable_key_live'] ?? ''); ?>">
+                                   value="">
                         </div>
                         
                         <button type="submit" class="btn btn-root-primary w-100">
-                            <i class="bi bi-save me-2"></i>Save Stripe
+                            <i class="bi bi-shield-lock me-2"></i>Managed by deployment secrets
                         </button>
                     </form>
                 </div>
