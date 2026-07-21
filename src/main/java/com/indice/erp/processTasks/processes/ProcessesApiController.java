@@ -1,5 +1,6 @@
 package com.indice.erp.processTasks.processes;
 
+import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.processTasks.ProcessTasksRequestGuard;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/processes")
+@RequiresCapability("processes")
 public class ProcessesApiController {
 
     private final ProcessTasksRequestGuard guard;

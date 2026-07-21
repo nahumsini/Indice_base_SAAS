@@ -1,5 +1,6 @@
 package com.indice.erp.finance.receivables;
 
+import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.receivables.ReceivablesDtos.CreateCreditPolicyRequest;
 import com.indice.erp.finance.receivables.ReceivablesDtos.CreateCreditSaleRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/finance/receivables")
+@RequiresCapability("receivables")
 public class FinanceReceivablesController {
 
     private final FinanceRequestGuard guard;

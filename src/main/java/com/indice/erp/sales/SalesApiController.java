@@ -2,6 +2,7 @@ package com.indice.erp.sales;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/sales")
+@RequiresCapability("sales")
 public class SalesApiController {
 
     private final SessionAuthService sessionAuthService;

@@ -1,10 +1,13 @@
 package com.indice.erp.config;
 
+import com.indice.erp.entitlement.EntitlementShadowInterceptor;
 import java.time.Clock;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -13,9 +16,22 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private final AppWebProperties appWebProperties;
+    private final ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor;
 
-    public WebConfig(AppWebProperties appWebProperties) {
+    public WebConfig(
+        AppWebProperties appWebProperties,
+        ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor
+    ) {
         this.appWebProperties = appWebProperties;
+        this.entitlementShadowInterceptor = entitlementShadowInterceptor;
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        var interceptor = entitlementShadowInterceptor.getIfAvailable();
+        if (interceptor != null) {
+            registry.addInterceptor(interceptor).addPathPatterns("/api/**");
+        }
     }
 
     @Override

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -67,9 +68,44 @@ public class AuthApiController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    @PostMapping("/company")
+    public ResponseEntity<?> switchCompany(
+        @RequestBody SwitchCompanyRequest request,
+        HttpSession session,
+        HttpServletRequest servletRequest,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
+        if (request == null || request.company_id() == null || request.company_id() <= 0) {
+            return ResponseEntity.badRequest().body(Map.of("message", "A valid company_id is required."));
+        }
+        if (!sessionAuthService.switchActiveCompany(session, request.company_id())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "message", "The requested company is not available for this session."
+            ));
+        }
+
+        servletRequest.changeSessionId();
+        sessionCsrfService.rotateCsrf(session);
+        return sessionAuthService.currentSession(session)
+            .<ResponseEntity<?>>map(body -> ResponseEntity.ok(sessionBody(body, session)))
+            .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "message", "The active company changed but the session could not be loaded."
+            )));
+    }
+
     public record LoginRequest(
         String email,
         String password
+    ) {
+    }
+
+    public record SwitchCompanyRequest(
+        Long company_id
     ) {
     }
 
@@ -77,6 +113,7 @@ public class AuthApiController {
         return Map.of(
             "user", body.user(),
             "company", body.company(),
+            "companies", body.companies(),
             "csrfToken", sessionCsrfService.ensureCsrf(session)
         );
     }

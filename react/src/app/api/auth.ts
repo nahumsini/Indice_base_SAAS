@@ -111,6 +111,15 @@ export const authApi = {
     }
   },
 
+  async switchCompany(companyId: number) {
+    const session = await apiClient<AuthSessionResponse>(endpoints.auth.company, {
+      method: 'POST',
+      body: JSON.stringify({ company_id: companyId }),
+    });
+    cacheSession(session);
+    return session;
+  },
+
   requestPasswordReset({ email }: PasswordResetRequestPayload) {
     return apiClient<PasswordResetMessageResponse>(`${endpoints.auth.passwordReset}/request`, {
       method: 'POST',

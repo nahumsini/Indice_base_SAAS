@@ -1,4 +1,4 @@
-import { Check, Globe, GraduationCap, User, Sun, Moon, Sunrise, Settings, MonitorCog } from 'lucide-react';
+import { Building2, Check, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, MonitorCog } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -12,6 +12,7 @@ import { useLanguage, languages } from '../shared/context';
 import { NotificationCenter } from './NotificationCenter';
 import { useEffect, useState } from 'react';
 import { authApi } from '../api/auth';
+import type { AuthSessionResponse } from '../api/auth.types';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCenter';
 import type { AppNotification } from '../api/notifications';
 import { NotificationMenu } from './notifications/NotificationMenu';
@@ -53,6 +54,9 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState('');
   const [canAccessKioskCenter, setCanAccessKioskCenter] = useState(false);
+  const [authSession, setAuthSession] = useState<AuthSessionResponse | null>(null);
+  const [switchingCompanyId, setSwitchingCompanyId] = useState<number | null>(null);
+  const [companySwitchError, setCompanySwitchError] = useState('');
   const notifications = useNotifications();
 
   useEffect(() => {
@@ -72,6 +76,16 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     };
 
     window.addEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
+
+    authApi.getSessionOrNull()
+      .then((session) => {
+        if (active) {
+          setAuthSession(session);
+        }
+      })
+      .catch(() => {
+        // Profile loading still provides a safe header fallback.
+      });
 
     configCenterApi.getCurrentUser()
       .then((user) => {
@@ -158,6 +172,22 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     }
   };
 
+  const handleCompanySwitch = async (companyId: number) => {
+    if (switchingCompanyId || companyId === authSession?.company.id) {
+      return;
+    }
+    setSwitchingCompanyId(companyId);
+    setCompanySwitchError('');
+    try {
+      const nextSession = await authApi.switchCompany(companyId);
+      setAuthSession(nextSession);
+      window.location.reload();
+    } catch {
+      setCompanySwitchError(copy.actions.companySwitchError);
+      setSwitchingCompanyId(null);
+    }
+  };
+
   const openNotificationCenter = () => {
     setIsNotificationMenuOpen(false);
     setIsNotificationCenterOpen(true);
@@ -225,6 +255,52 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
 
           {/* Sección derecha - Acciones */}
           <div className="flex flex-shrink-0 items-center gap-2">
+            {(authSession?.companies?.length ?? 0) > 1 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-10 max-w-48 gap-2 rounded-full border border-[#59C3A5]/30 bg-white/65 px-3 text-[#334155] hover:bg-white dark:bg-white/10 dark:text-gray-100"
+                    aria-label={`${copy.actions.company}: ${authSession?.company.name ?? ''}`}
+                    title={copy.actions.switchCompany}
+                    disabled={switchingCompanyId !== null}
+                  >
+                    {switchingCompanyId !== null ? (
+                      <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+                    ) : (
+                      <Building2 className="h-4 w-4 shrink-0 text-[#3AAE90]" />
+                    )}
+                    <span className="hidden max-w-32 truncate text-sm font-medium xl:inline">
+                      {switchingCompanyId !== null ? copy.actions.switchingCompany : authSession?.company.name}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 rounded-2xl p-2">
+                  <div className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                    {copy.actions.switchCompany}
+                  </div>
+                  {authSession?.companies?.map((company) => (
+                    <DropdownMenuItem
+                      key={company.user_company_id}
+                      className="cursor-pointer gap-3 rounded-xl px-3 py-3"
+                      disabled={switchingCompanyId !== null}
+                      onClick={() => void handleCompanySwitch(company.id)}
+                    >
+                      <Building2 className="h-4 w-4 shrink-0 text-[#3AAE90]" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold">{company.name}</div>
+                        <div className="truncate text-xs text-gray-500">{company.role}</div>
+                      </div>
+                      {company.active ? <Check className="h-4 w-4 shrink-0 text-[#3AAE90]" /> : null}
+                    </DropdownMenuItem>
+                  ))}
+                  {companySwitchError ? (
+                    <p className="px-3 py-2 text-xs font-medium text-red-600">{companySwitchError}</p>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+
             <PreferredCurrencyControl />
 
             {/* Notificaciones */}

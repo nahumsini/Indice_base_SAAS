@@ -2,6 +2,7 @@ package com.indice.erp.hr.users;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.HrAccessService.HrTab;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/hr/users")
+@RequiresCapability("human_resources")
 public class HrUserApiController {
 
     private final SessionAuthService sessionAuthService;

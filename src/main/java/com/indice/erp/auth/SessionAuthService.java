@@ -1,6 +1,7 @@
 package com.indice.erp.auth;
 
 import com.indice.erp.access.ModuleSlugNormalizer;
+import com.indice.erp.tenant.TenantScope;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -186,6 +187,13 @@ public class SessionAuthService {
     public Optional<AuthSessionResponse> currentSession(HttpSession session) {
         return currentUser(session).map(user -> {
             var access = loadSessionAccess(user.userId(), user.companyId());
+            var memberships = loadActiveCompanyMemberships(user.userId()).stream()
+                .map(membership -> toCompanyInfo(membership, membership.companyId() == user.companyId()))
+                .toList();
+            var activeCompany = memberships.stream()
+                .filter(AuthSessionResponse.CompanyInfo::active)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("The active company membership could not be loaded."));
             return new AuthSessionResponse(
                 new AuthSessionResponse.UserInfo(
                     user.userId(),
@@ -195,9 +203,29 @@ public class SessionAuthService {
                     access.tabPermissionKeys(),
                     access.tabPermissionsConfigured()
                 ),
-                new AuthSessionResponse.CompanyInfo(user.companyId())
+                activeCompany,
+                memberships
             );
         });
+    }
+
+    public boolean switchActiveCompany(HttpSession session, long companyId) {
+        var userId = session.getAttribute(SESSION_USER_ID);
+        if (!(userId instanceof Number userIdNumber)) {
+            return false;
+        }
+
+        var membership = loadActiveCompanyMemberships(userIdNumber.longValue()).stream()
+            .filter(candidate -> candidate.companyId() == companyId)
+            .findFirst();
+        if (membership.isEmpty()) {
+            return false;
+        }
+
+        session.setAttribute(SESSION_COMPANY_ID, membership.get().companyId());
+        session.setAttribute(SESSION_USER_COMPANY_ID, membership.get().userCompanyId());
+        session.setAttribute(SESSION_ROLE, normalizeRole(membership.get().role()));
+        return true;
     }
 
     public void logout(HttpSession session) {
@@ -238,6 +266,63 @@ public class SessionAuthService {
             userId,
             companyId
         ).stream().findFirst();
+    }
+
+    private List<CompanyMembership> loadActiveCompanyMemberships(long userId) {
+        return jdbcTemplate.query(
+            """
+                SELECT
+                    uc.id AS user_company_id,
+                    uc.company_id,
+                    COALESCE(c.name, CONCAT('Company #', uc.company_id)) AS company_name,
+                    COALESCE(uc.role, 'user') AS role,
+                    wp.unit_id,
+                    wp.business_id
+                FROM user_companies uc
+                JOIN companies c ON c.id = uc.company_id
+                LEFT JOIN user_work_profiles wp
+                  ON wp.company_id = uc.company_id
+                 AND wp.user_company_id = uc.id
+                WHERE uc.user_id = ?
+                  AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
+                ORDER BY CASE LOWER(COALESCE(uc.role, 'user'))
+                    WHEN 'root' THEN 1
+                    WHEN 'superadmin' THEN 2
+                    WHEN 'owner' THEN 3
+                    WHEN 'dueno' THEN 4
+                    WHEN 'admin' THEN 5
+                    WHEN 'manager' THEN 6
+                    WHEN 'approver' THEN 7
+                    WHEN 'contributor' THEN 8
+                    WHEN 'viewer' THEN 9
+                    WHEN 'user' THEN 10
+                    ELSE 99
+                END,
+                c.name ASC,
+                uc.id ASC
+                """,
+            (rs, rowNum) -> new CompanyMembership(
+                rs.getLong("user_company_id"),
+                rs.getLong("company_id"),
+                rs.getString("company_name"),
+                rs.getString("role"),
+                rs.getObject("unit_id", Long.class),
+                rs.getObject("business_id", Long.class)
+            ),
+            userId
+        );
+    }
+
+    private AuthSessionResponse.CompanyInfo toCompanyInfo(CompanyMembership membership, boolean active) {
+        var scope = TenantScope.from(membership.unitId(), membership.businessId());
+        return new AuthSessionResponse.CompanyInfo(
+            membership.companyId(),
+            membership.companyName(),
+            membership.userCompanyId(),
+            normalizeRole(membership.role()),
+            new AuthSessionResponse.ScopeInfo(scope.type(), scope.unit_id(), scope.business_id()),
+            active
+        );
     }
 
     private void recordLogin(
@@ -318,6 +403,16 @@ public class SessionAuthService {
         Long userCompanyId,
         Long companyId,
         String role
+    ) {
+    }
+
+    private record CompanyMembership(
+        long userCompanyId,
+        long companyId,
+        String companyName,
+        String role,
+        Long unitId,
+        Long businessId
     ) {
     }
 

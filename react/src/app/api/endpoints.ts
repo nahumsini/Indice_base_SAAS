@@ -3,7 +3,11 @@ export const endpoints = {
     login: '/api/v1/auth/login',
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',
+    company: '/api/v1/auth/company',
     passwordReset: '/api/v1/auth/password-reset',
+  },
+  platform: {
+    context: '/api/v1/platform/context',
   },
   notifications: {
     list: '/api/v1/notifications',

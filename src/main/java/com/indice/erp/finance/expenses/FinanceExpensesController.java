@@ -1,5 +1,6 @@
 package com.indice.erp.finance.expenses;
 
+import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/finance/expenses")
+@RequiresCapability("expenses")
 public class FinanceExpensesController {
 
     private final FinanceRequestGuard guard;

@@ -1,6 +1,7 @@
 package com.indice.erp.dashboard;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.entitlement.RequiresCapability;
 import jakarta.servlet.http.HttpSession;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,6 +27,7 @@ public class OrganizationApiController {
     }
 
     @GetMapping("/modules")
+    @RequiresCapability("dashboard")
     public ResponseEntity<?> listModules(HttpSession session) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
@@ -37,6 +39,7 @@ public class OrganizationApiController {
     }
 
     @GetMapping("/org/units")
+    @RequiresCapability("config_center")
     public ResponseEntity<?> listUnits(HttpSession session) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
@@ -52,6 +55,7 @@ public class OrganizationApiController {
     }
 
     @GetMapping("/org/businesses")
+    @RequiresCapability("config_center")
     public ResponseEntity<?> listBusinesses(HttpSession session) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {

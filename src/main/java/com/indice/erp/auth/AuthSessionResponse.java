@@ -2,7 +2,8 @@ package com.indice.erp.auth;
 
 public record AuthSessionResponse(
     UserInfo user,
-    CompanyInfo company
+    CompanyInfo company,
+    java.util.List<CompanyInfo> companies
 ) {
 
     public record UserInfo(
@@ -16,7 +17,19 @@ public record AuthSessionResponse(
     }
 
     public record CompanyInfo(
-        Long id
+        Long id,
+        String name,
+        Long user_company_id,
+        String role,
+        ScopeInfo scope,
+        boolean active
+    ) {
+    }
+
+    public record ScopeInfo(
+        String type,
+        Long unit_id,
+        Long business_id
     ) {
     }
 }

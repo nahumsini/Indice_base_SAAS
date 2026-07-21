@@ -1,5 +1,6 @@
 package com.indice.erp.finance.pettycash;
 
+import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.pettycash.dto.ClosePettyCashStatementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashFundRequest;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/finance/petty-cash")
+@RequiresCapability("petty_cash")
 public class FinancePettyCashController {
 
     private final FinanceRequestGuard guard;

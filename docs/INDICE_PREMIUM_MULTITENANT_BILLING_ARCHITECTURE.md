@@ -421,6 +421,43 @@ Criterio de salida: ninguna integración Stripe todavía; baseline completamente
 
 Criterio de salida: las decisiones shadow coinciden con permisos actuales sin afectar usuarios.
 
+#### Estado implementado de Fase 1 — 21 de julio de 2026
+
+La Fase 1 quedó incorporada con compatibilidad hacia atrás y sin activar bloqueos comerciales:
+
+- `TenantContext` resuelve `user_id`, `company_id`, `user_company_id`, rol y scope organizacional
+  desde la sesión autenticada. `Corporate Office`, `Unit Headquarters` y `Business Office` se
+  representan como alcance de pertenencia, nunca como roles.
+- `GET /api/v1/auth/me` entrega la empresa activa y todas las membresías activas del usuario.
+- `POST /api/v1/auth/company` cambia la empresa activa únicamente después de validar CSRF y una
+  membresía real del usuario. Al cambiar, rota el identificador de sesión y el token CSRF.
+- El header muestra un selector corporativo solo cuando existen dos o más empresas disponibles.
+  Después del cambio se recarga la aplicación para vaciar estado y cachés del tenant anterior.
+- La migración `V144__premium_commercial_capability_catalog.sql` crea el catálogo
+  `2026.07-premium-v1`: 1 producto core, 6 productos básicos, 14 mappings de capability y 17
+  aliases explícitos de compatibilidad.
+- `GET /api/v1/platform/context` expone el tenant activo, la versión del catálogo, productos,
+  aliases, capabilities core y capabilities efectivas heredadas durante la transición.
+- `@RequiresCapability` y `CapabilityOperation` clasifican una primera cohorte de rutas de RH,
+  Tareas y Procesos, Expenses, Caja Chica, POS, Ventas y Cartera.
+- El interceptor registra eventos estructurados `entitlement_shadow` con empresa, usuario,
+  scope, capability, operación y comparación contra el permiso vigente. Siempre permite la
+  solicitud; en esta fase no existe una variable de enforcement para evitar una falsa sensación
+  de protección.
+- `APP_ENTITLEMENTS_SHADOW_ENABLED=false` funciona como kill switch de la telemetría.
+
+Evidencia de cierre:
+
+- Flyway validó 144 migraciones y dejó `V144` en estado exitoso.
+- El catálogo activo se verifica mediante prueba de integración contra MySQL real.
+- La regresión backend completa pasó con 803 pruebas, incluida la prueba de integración del
+  catálogo comercial sobre MySQL real.
+- Frontend pasó typecheck, pruebas de kioskos, regresión telefónica y build de producción.
+
+El enforcement comercial, los estados de suscripción y Stripe permanecen deliberadamente fuera
+de esta fase. Su implementación inicia en Fase 2 y no debe reutilizar los permisos de frontend
+como autoridad.
+
 ### Fase 2 — Esquema de billing y port selectivo de Ash
 
 - Crear migraciones expansivas posteriores al último número real.
@@ -589,7 +626,8 @@ después eliminarla en una operación separada y verificable.
 
 ## 19. Próximo paso recomendado
 
-Aprobar o corregir las seis decisiones de la sección 17. Después se ejecuta Fase 0 y se porta el
-primer slice de Ash: inbox de webhooks firmado e idempotente, auditoría y reconciliación, todavía
-sin modificar el acceso de ningún cliente. Ese slice entrega valor técnico inmediato y tiene el
-menor riesgo de romper módulos existentes.
+Cerrar las seis decisiones comerciales de la sección 17 y completar la deuda de red de seguridad
+de Fase 0: prueba cross-tenant general, flags de billing/read-only y baseline formal de despliegue.
+Después se inicia Fase 2 con el primer port selectivo de Ash: inbox de webhooks firmado e
+idempotente, auditoría y reconciliación, todavía sin modificar el acceso de ningún cliente. Ese
+slice entrega valor técnico inmediato y mantiene separado el estado facturado del enforcement.

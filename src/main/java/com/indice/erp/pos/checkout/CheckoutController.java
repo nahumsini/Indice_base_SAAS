@@ -1,5 +1,6 @@
 package com.indice.erp.pos.checkout;
 
+import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.pos.PosRequestGuard;
 import com.indice.erp.pos.checkout.dto.PosCheckoutRequest;
 import jakarta.servlet.http.HttpSession;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/pos/sales")
+@RequiresCapability("pos")
 public class CheckoutController {
 
     private final PosRequestGuard guard;

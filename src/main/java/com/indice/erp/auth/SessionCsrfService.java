@@ -17,6 +17,12 @@ public class SessionCsrfService {
         return token;
     }
 
+    public String rotateCsrf(HttpSession session) {
+        var token = UUID.randomUUID().toString().replace("-", "");
+        session.setAttribute(SessionAuthService.SESSION_LOGIN_CSRF, token);
+        return token;
+    }
+
     public void requireCsrf(HttpSession session, String csrfToken) {
         var sessionCsrf = ensureCsrf(session);
         var providedToken = csrfToken == null ? "" : csrfToken.trim();

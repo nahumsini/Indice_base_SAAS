@@ -1,6 +1,7 @@
 package com.indice.erp.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -86,6 +87,14 @@ class SessionAuthServiceTest {
             eq(Long.class),
             eq(11L)
         )).thenReturn(12L);
+        stubCompanyMemberships(5L, List.of(new MembershipRow(
+            11L,
+            7L,
+            "Corazón del Caribe",
+            "admin",
+            null,
+            null
+        )));
 
         var current = service.currentSession(session);
 
@@ -93,7 +102,42 @@ class SessionAuthServiceTest {
         assertEquals(List.of("config_center", "human_resources"), current.get().user().module_slugs());
         assertEquals(List.of("config_center.profile", "human_resources.attendance"), current.get().user().tab_permission_keys());
         assertTrue(current.get().user().tab_permissions_configured());
+        assertEquals("Corazón del Caribe", current.get().company().name());
+        assertEquals("corporate_office", current.get().company().scope().type());
+        assertEquals(1, current.get().companies().size());
         assertEquals(11L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
+    }
+
+    @Test
+    void switchActiveCompanyOnlyAcceptsAnActiveMembership() {
+        var service = new SessionAuthService(jdbcTemplate, passwordEncoder);
+        var session = new MockHttpSession();
+        session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
+        session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
+        session.setAttribute(SessionAuthService.SESSION_ROLE, "admin");
+        stubCompanyMemberships(5L, List.of(
+            new MembershipRow(11L, 7L, "Empresa Uno", "admin", null, null),
+            new MembershipRow(12L, 9L, "Empresa Dos", "user", 20L, 30L)
+        ));
+
+        assertTrue(service.switchActiveCompany(session, 9L));
+        assertEquals(9L, session.getAttribute(SessionAuthService.SESSION_COMPANY_ID));
+        assertEquals(12L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
+        assertEquals("user", session.getAttribute(SessionAuthService.SESSION_ROLE));
+    }
+
+    @Test
+    void switchActiveCompanyRejectsACompanyOutsideTheUserMemberships() {
+        var service = new SessionAuthService(jdbcTemplate, passwordEncoder);
+        var session = new MockHttpSession();
+        session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
+        session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
+        stubCompanyMemberships(5L, List.of(
+            new MembershipRow(11L, 7L, "Empresa Uno", "admin", null, null)
+        ));
+
+        assertFalse(service.switchActiveCompany(session, 99L));
+        assertEquals(7L, session.getAttribute(SessionAuthService.SESSION_COMPANY_ID));
     }
 
     @Test
@@ -127,5 +171,38 @@ class SessionAuthServiceTest {
         when(rs.getString("module_slug")).thenReturn(moduleSlug);
         when(rs.getString("tab_key")).thenReturn(tabKey);
         return rowMapper.mapRow(rs, 0);
+    }
+
+    private void stubCompanyMemberships(long userId, List<MembershipRow> memberships) {
+        when(jdbcTemplate.query(
+            contains("FROM user_companies uc"),
+            ArgumentMatchers.any(RowMapper.class),
+            eq(userId)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            var rows = new ArrayList<Object>();
+            for (var membership : memberships) {
+                ResultSet rs = mock(ResultSet.class);
+                when(rs.getLong("user_company_id")).thenReturn(membership.userCompanyId());
+                when(rs.getLong("company_id")).thenReturn(membership.companyId());
+                when(rs.getString("company_name")).thenReturn(membership.companyName());
+                when(rs.getString("role")).thenReturn(membership.role());
+                when(rs.getObject("unit_id", Long.class)).thenReturn(membership.unitId());
+                when(rs.getObject("business_id", Long.class)).thenReturn(membership.businessId());
+                rows.add(rowMapper.mapRow(rs, rows.size()));
+            }
+            return rows;
+        });
+    }
+
+    private record MembershipRow(
+        long userCompanyId,
+        long companyId,
+        String companyName,
+        String role,
+        Long unitId,
+        Long businessId
+    ) {
     }
 }

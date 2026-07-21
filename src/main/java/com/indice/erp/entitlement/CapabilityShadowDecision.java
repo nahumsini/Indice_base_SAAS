@@ -1,0 +1,11 @@
+package com.indice.erp.entitlement;
+
+public record CapabilityShadowDecision(
+    String capability,
+    CapabilityOperation operation,
+    boolean legacy_allowed,
+    boolean shadow_allowed,
+    boolean matched,
+    String source
+) {
+}
