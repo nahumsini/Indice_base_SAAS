@@ -20,12 +20,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -84,6 +86,59 @@ class ExpenseServiceTest {
         assertEquals(1L, command.getValue().requestedByUserId());
         assertEquals(1L, command.getValue().createdByUserId());
         verify(referenceValidator).validateCreate(eq(context), any(ExpenseScopedAssignment.class), eq(request));
+    }
+
+    @Test
+    void createDraftGeneratesCompanyWideFolioWhenRequested() {
+        var service = service();
+        var context = context();
+        var request = createRequest(null, null, "AUTO-EXP");
+        var command = ArgumentCaptor.forClass(ExpenseDraftCommand.class);
+
+        when(accessService.containsAssignment(context, null, null)).thenReturn(true);
+        when(repository.nextFolio(eq(7L), eq("EXP"), anyInt(), eq(0))).thenReturn("EXP-2026-028");
+        when(repository.insert(eq(context), command.capture()))
+            .thenReturn(record(10L, ExpenseStatus.DRAFT, "Office supplies"));
+
+        service.createDraft(context, request);
+
+        assertEquals("EXP-2026-028", command.getValue().folio());
+    }
+
+    @Test
+    void createDraftRetriesWhenConcurrentRequestClaimsGeneratedFolio() {
+        var service = service();
+        var context = context();
+        var request = createRequest(null, null, "AUTO-CXP");
+        var command = ArgumentCaptor.forClass(ExpenseDraftCommand.class);
+
+        when(accessService.containsAssignment(context, null, null)).thenReturn(true);
+        when(repository.nextFolio(eq(7L), eq("CXP"), anyInt(), anyInt()))
+            .thenReturn("CXP-2026-009", "CXP-2026-010");
+        when(repository.insert(eq(context), command.capture()))
+            .thenThrow(new DuplicateKeyException("duplicate folio"))
+            .thenReturn(record(10L, ExpenseStatus.DRAFT, "Office supplies"));
+
+        service.createDraft(context, request);
+
+        assertEquals(2, command.getAllValues().size());
+        assertEquals("CXP-2026-009", command.getAllValues().get(0).folio());
+        assertEquals("CXP-2026-010", command.getAllValues().get(1).folio());
+    }
+
+    @Test
+    void createDraftReturnsSpecificConflictForDuplicateManualFolio() {
+        var service = service();
+        var context = context();
+        var request = createRequest(null, null, "EXP-2026-001");
+
+        when(accessService.containsAssignment(context, null, null)).thenReturn(true);
+        when(repository.insert(eq(context), any())).thenThrow(new DuplicateKeyException("duplicate folio"));
+
+        var error = assertThrows(FinanceApiException.class, () -> service.createDraft(context, request));
+
+        assertEquals(HttpStatus.CONFLICT, error.status());
+        assertEquals("An expense with this folio already exists.", error.getMessage());
     }
 
     @Test

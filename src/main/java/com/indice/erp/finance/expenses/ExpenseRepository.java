@@ -12,6 +12,7 @@ import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -91,6 +92,27 @@ class ExpenseRepository {
 
         var expenseId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
         return findById(context, expenseId).orElseThrow();
+    }
+
+    String nextFolio(long companyId, String documentPrefix, int year, int collisionOffset) {
+        var normalizedPrefix = documentPrefix.trim().toUpperCase(Locale.ROOT);
+        var folioPrefix = normalizedPrefix + "-" + year + "-";
+        var sequenceStart = folioPrefix.length() + 1;
+        var nextSequence = jdbcTemplate.queryForObject(
+            """
+            SELECT COALESCE(MAX(CAST(SUBSTRING(folio, ?) AS UNSIGNED)), 0) + 1 + ?
+            FROM finance_expenses
+            WHERE company_id = ?
+              AND folio LIKE ?
+            """,
+            Integer.class,
+            sequenceStart,
+            collisionOffset,
+            companyId,
+            folioPrefix + "%"
+        );
+        var sequence = nextSequence == null ? 1 : nextSequence;
+        return folioPrefix + String.format(Locale.ROOT, "%03d", sequence);
     }
 
     boolean update(FinanceContext context, long expenseId, ExpenseDraftCommand command) {

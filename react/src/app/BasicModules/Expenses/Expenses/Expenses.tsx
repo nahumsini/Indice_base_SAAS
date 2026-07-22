@@ -53,17 +53,8 @@ const defaultFilters: ExpenseListFilters = {
 const toFallbackOptions = (values: string[]): FinanceReferenceOption[] =>
   Array.from(new Set(values.filter(Boolean))).map(value => ({ value, label: value }));
 
-const createExpenseFolio = (currentExpenses: Expense[]) => {
-  const year = new Date().getFullYear();
-  const prefix = `EXP-${year}-`;
-  const nextSequence = currentExpenses.reduce((highest, expense) => {
-    if (!expense.folio.startsWith(prefix)) return highest;
-    const sequence = Number(expense.folio.slice(prefix.length));
-    return Number.isFinite(sequence) ? Math.max(highest, sequence) : highest;
-  }, 0) + 1;
-
-  return `${prefix}${String(nextSequence).padStart(3, '0')}`;
-};
+const AUTO_EXPENSE_FOLIO = 'AUTO-EXP';
+const AUTO_PAYABLE_FOLIO = 'AUTO-CXP';
 
 export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useExpensesTranslations();
@@ -225,7 +216,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       const now = new Date();
       const draftExpense: Expense = {
         id: `expense-${Date.now()}`,
-        folio: createExpenseFolio(expenses),
+        folio: AUTO_EXPENSE_FOLIO,
         businessUnit,
         business,
         concept,
@@ -348,7 +339,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     const draftExpense: Expense = {
       ...(sourceExpense ?? {}),
       id: editingExpense?.id ?? `expense-${Date.now()}`,
-      folio: sourceExpense?.folio ?? createExpenseFolio(expenses),
+      folio: sourceExpense?.folio ?? AUTO_EXPENSE_FOLIO,
       businessUnit: values.businessUnit,
       business: values.business,
       concept: values.concept,
@@ -414,7 +405,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : now;
     const payableExpense: Expense = {
       id: `payable-${Date.now()}`,
-      folio: createExpenseFolio(expenses).replace('EXP-', 'CXP-'),
+      folio: AUTO_PAYABLE_FOLIO,
       businessUnit: '',
       business: '',
       concept: values.concept,

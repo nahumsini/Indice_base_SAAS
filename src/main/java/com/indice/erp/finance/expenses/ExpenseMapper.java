@@ -82,8 +82,16 @@ public class ExpenseMapper {
             FinanceContext context,
             CreateExpenseRequest request,
             ExpenseScopedAssignment assignment) {
+        return toCreateCommand(context, request, assignment, request.folio());
+    }
+
+    public ExpenseDraftCommand toCreateCommand(
+            FinanceContext context,
+            CreateExpenseRequest request,
+            ExpenseScopedAssignment assignment,
+            String folio) {
         return newCommand(context, assignment, request.providerId(), request.budgetLineId(),
-            request.accountingAccountId(), request.paymentAccountId(), request.purchaseOrderId(), request.folio(), request.concept(),
+            request.accountingAccountId(), request.paymentAccountId(), request.purchaseOrderId(), folio, request.concept(),
             request.description(), request.expenseType(), request.subtotalAmount(), request.taxAmount(),
             request.totalAmount(), request.currencyCode(), request.expenseDate(), request.dueDate(),
             defaultUserId(request.requestedByUserId(), context.userId()), request.approvedByUserId(),

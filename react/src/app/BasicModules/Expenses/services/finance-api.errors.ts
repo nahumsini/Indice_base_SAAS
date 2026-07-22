@@ -9,6 +9,7 @@ const statusMessages: Record<number, string> = {
 };
 
 const backendMessageTranslations: Record<string, string> = {
+  'An expense with this folio already exists.': 'Ya existe un gasto con este folio.',
   'Cancelled or rejected expenses cannot change status.': 'Los gastos cancelados o rechazados no pueden cambiar de estado.',
   'Expense is already paid.': 'Este gasto ya esta pagado.',
   'Expense payment could not be recorded.': 'No se pudo registrar el abono. Actualiza la lista e intenta de nuevo.',
@@ -19,6 +20,7 @@ const backendMessageTranslations: Record<string, string> = {
   'Payment account not found.': 'No se encontro la cuenta de pago seleccionada.',
   'Payment amount cannot exceed balanceAmount.': 'El abono no puede exceder el saldo pendiente.',
   'Payment amount must be greater than zero.': 'El abono debe ser mayor que cero.',
+  'The expense number could not be assigned. Try again.': 'No se pudo asignar el folio del gasto. Intenta nuevamente.',
 };
 
 const messageFromPayload = (payload: unknown) => (

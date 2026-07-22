@@ -18,11 +18,16 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExpenseService {
+
+    private static final String AUTO_EXPENSE_FOLIO = "AUTO-EXP";
+    private static final String AUTO_PAYABLE_FOLIO = "AUTO-CXP";
+    private static final int AUTO_FOLIO_ATTEMPTS = 10;
 
     private final ExpenseRepository repository;
     private final ExpenseWorkflowRepository workflowRepository;
@@ -65,8 +70,25 @@ public class ExpenseService {
     public ExpenseResponse createDraft(FinanceContext context, CreateExpenseRequest request) {
         var assignment = validator.validateCreate(context, request);
         referenceValidator.validateCreate(context, assignment, request);
-        var command = mapper.toCreateCommand(context, request, assignment);
-        return mapper.toResponse(repository.insert(context, command));
+        var autoPrefix = automaticFolioPrefix(request.folio());
+        if (autoPrefix == null) {
+            try {
+                return mapper.toResponse(repository.insert(context, mapper.toCreateCommand(context, request, assignment)));
+            } catch (DuplicateKeyException exception) {
+                throw FinanceApiException.conflict("An expense with this folio already exists.");
+            }
+        }
+
+        for (var attempt = 0; attempt < AUTO_FOLIO_ATTEMPTS; attempt++) {
+            var folio = repository.nextFolio(context.companyId(), autoPrefix, LocalDate.now().getYear(), attempt);
+            try {
+                var command = mapper.toCreateCommand(context, request, assignment, folio);
+                return mapper.toResponse(repository.insert(context, command));
+            } catch (DuplicateKeyException exception) {
+                // Another request may have reserved the same sequence. Re-read and retry.
+            }
+        }
+        throw FinanceApiException.conflict("The expense number could not be assigned. Try again.");
     }
 
     @Transactional
@@ -306,5 +328,16 @@ public class ExpenseService {
 
     private boolean isPositiveBelowTotal(BigDecimal amount, BigDecimal total) {
         return amount != null && amount.compareTo(BigDecimal.ZERO) > 0 && amount.compareTo(total) < 0;
+    }
+
+    private String automaticFolioPrefix(String folio) {
+        if (folio == null) {
+            return null;
+        }
+        return switch (folio.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case AUTO_EXPENSE_FOLIO -> "EXP";
+            case AUTO_PAYABLE_FOLIO -> "CXP";
+            default -> null;
+        };
     }
 }
