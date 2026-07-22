@@ -51,6 +51,7 @@ class CommercialLifecycleIntegrationTest {
         lifecycle.applySubscriptionEvent(companyId, "evt-active", started, "active", null);
 
         var failedAt = started.plus(10, ChronoUnit.MINUTES);
+        var expectedGraceEnd = failedAt.plus(14, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MICROS);
         var failure = lifecycle.applyInvoiceEvent(
             companyId, "evt-failed-1", failedAt, "invoice.payment_failed", "open"
         );
@@ -58,14 +59,14 @@ class CommercialLifecycleIntegrationTest {
         assertThat(failure.snapshot().state()).isEqualTo("GRACE");
         assertThat(failure.snapshot().operational_write_allowed()).isTrue();
         assertThat(failure.snapshot().grace_ends_at())
-            .isEqualTo(failedAt.plus(14, ChronoUnit.DAYS));
+            .isEqualTo(expectedGraceEnd);
 
         var repeated = lifecycle.applyInvoiceEvent(
             companyId, "evt-failed-2", failedAt.plus(1, ChronoUnit.DAYS),
             "invoice.payment_failed", "open"
         );
         assertThat(repeated.snapshot().grace_ends_at())
-            .isEqualTo(failedAt.plus(14, ChronoUnit.DAYS));
+            .isEqualTo(expectedGraceEnd);
 
         var recovered = lifecycle.applyInvoiceEvent(
             companyId, "evt-paid", failedAt.plus(2, ChronoUnit.DAYS), "invoice.paid", "paid"
