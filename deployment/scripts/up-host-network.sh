@@ -59,6 +59,7 @@ BACKEND_IMAGE="${BACKEND_IMAGE:-indice-erp-backend:latest}"
 MINIO_IMAGE="${MINIO_IMAGE:-minio/minio:latest}"
 MINIO_DATA_VOLUME="${MINIO_DATA_VOLUME:-indice-erp_minio-data}"
 WEB_NGINX_HOST_CONFIG="${WEB_NGINX_HOST_CONFIG:-/home/corazon/apps/indice-erp-docker/current/deployment/docker/web/nginx-host.conf}"
+PUBLISH_LOCAL_FRONTEND_DIST="${PUBLISH_LOCAL_FRONTEND_DIST:-false}"
 
 require_env() {
   local key="$1"
@@ -177,7 +178,12 @@ docker run -d \
   -v "${WEB_NGINX_HOST_CONFIG}:/etc/nginx/conf.d/default.conf:ro" \
   "${WEB_IMAGE}" >/dev/null
 
-if [[ -f "${APP_DIR}/react/dist/index.html" ]]; then
+if [[ "${PUBLISH_LOCAL_FRONTEND_DIST}" == "true" ]]; then
+  if [[ ! -f "${APP_DIR}/react/dist/index.html" ]]; then
+    echo "PUBLISH_LOCAL_FRONTEND_DIST=true but ${APP_DIR}/react/dist/index.html is missing." >&2
+    exit 1
+  fi
+  echo "Publishing explicitly requested local frontend dist into ${WEB_CONTAINER}."
   docker cp "${APP_DIR}/react/dist/." "${WEB_CONTAINER}:/usr/share/nginx/html/"
 fi
 
