@@ -7,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
@@ -74,6 +73,7 @@ public class KioskSessionService {
         var effectiveExpiry = expiresAt == null
             ? Instant.now().plus(Duration.ofHours(8))
             : expiresAt;
+        var lifetimeSeconds = remainingLifetimeSeconds(effectiveExpiry);
         jdbcTemplate.update(
             """
                 INSERT INTO kiosk_sessions (
@@ -81,7 +81,8 @@ public class KioskSessionService {
                     identity_type, identity_id, access_token_hash, browser_session_hash,
                     verified_factors_json, granted_capabilities_json, scope_snapshot_json,
                     expires_at
-                ) VALUES (?, ?, ?, 'PUBLIC_LINK', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, 'PUBLIC_LINK', ?, ?, ?, ?, ?, ?, ?, ?,
+                          TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP))
                 """,
             sessionId, definition.id(), definition.companyId(), definition.accessLevel().name(),
             identityType, identityId, sha256(accessToken), hashNullable(browserSessionReference),
@@ -91,7 +92,7 @@ public class KioskSessionService {
                 "unit_id", definition.unitId() == null ? "" : definition.unitId(),
                 "business_id", definition.businessId() == null ? "" : definition.businessId()
             )),
-            Timestamp.from(effectiveExpiry)
+            lifetimeSeconds
         );
         auditSession(definition, sessionId, identityType, identityId, "KIOSK_SESSION_CREATED", "SUCCEEDED");
         return new KioskSessionPrincipal(
@@ -134,6 +135,7 @@ public class KioskSessionService {
         var rawToken = randomToken();
         var sessionId = UUID.randomUUID().toString();
         var expiresAt = Instant.now().plus(Duration.ofHours(8));
+        var lifetimeSeconds = remainingLifetimeSeconds(expiresAt);
         jdbcTemplate.update(
             """
                 INSERT INTO kiosk_sessions (
@@ -141,7 +143,8 @@ public class KioskSessionService {
                     identity_type, identity_id, access_token_hash, browser_session_hash,
                     verified_factors_json, granted_capabilities_json, scope_snapshot_json,
                     expires_at
-                ) VALUES (?, ?, ?, 'AUTHENTICATED_WEB', 'CONTROLLED', 'USER', ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, 'AUTHENTICATED_WEB', 'CONTROLLED', 'USER', ?, ?, ?, ?, ?, ?,
+                          TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP))
                 """,
             sessionId, definition.id(), definition.companyId(), userIdentityId, sha256(rawToken),
             hashNullable(browserSessionReference), json(List.of("INDEX_SESSION")),
@@ -151,7 +154,7 @@ public class KioskSessionService {
                 "unit_id", definition.unitId() == null ? "" : definition.unitId(),
                 "business_id", definition.businessId() == null ? "" : definition.businessId()
             )),
-            Timestamp.from(expiresAt)
+            lifetimeSeconds
         );
         auditSession(definition, sessionId, "USER", userIdentityId,
             "KIOSK_SESSION_CREATED", "SUCCEEDED");
@@ -174,24 +177,22 @@ public class KioskSessionService {
         var rows = jdbcTemplate.query(
             """
                 SELECT session_id, kiosk_definition_id, company_id, identity_type, identity_id,
-                       granted_capabilities_json, last_activity_at, expires_at, revoked_at,
-                       browser_session_hash
+                       granted_capabilities_json, browser_session_hash,
+                       GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at))
+                           AS expires_in_seconds
                 FROM kiosk_sessions
                 WHERE kiosk_definition_id = ? AND access_token_hash = ?
+                  AND revoked_at IS NULL
+                  AND expires_at > CURRENT_TIMESTAMP
+                  AND last_activity_at >= TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)
                 LIMIT 1
                 """,
             (rs, rowNum) -> {
-                var lastActivity = rs.getTimestamp("last_activity_at").toInstant();
-                var expiresAt = rs.getTimestamp("expires_at").toInstant();
-                var revokedAt = rs.getTimestamp("revoked_at");
                 var browserHash = rs.getString("browser_session_hash");
-                if (revokedAt != null || !expiresAt.isAfter(Instant.now())
-                        || lastActivity.plus(inactivityTimeout(definition)).isBefore(Instant.now())) {
-                    throw new SecurityException("Kiosk session expired.");
-                }
                 if (browserHash != null && !browserHash.equals(hashNullable(browserSessionReference))) {
                     throw new SecurityException("Kiosk session does not belong to this browser.");
                 }
+                var expiresAt = Instant.now().plusSeconds(rs.getLong("expires_in_seconds"));
                 return new KioskSessionPrincipal(
                     rs.getString("session_id"), rs.getLong("kiosk_definition_id"),
                     rs.getLong("company_id"), rs.getString("identity_type"),
@@ -199,7 +200,7 @@ public class KioskSessionService {
                     expiresAt
                 );
             },
-            definition.id(), sha256(accessToken)
+            definition.id(), sha256(accessToken), -inactivityTimeout(definition).getSeconds()
         );
         if (rows.isEmpty()) {
             throw new SecurityException("Kiosk authentication is required.");
@@ -345,6 +346,10 @@ public class KioskSessionService {
         return Duration.ofSeconds(Math.max(30, configuredSeconds > 0 ? configuredSeconds : fallbackSeconds));
     }
 
+    private static long remainingLifetimeSeconds(Instant expiresAt) {
+        return Math.max(1L, Duration.between(Instant.now(), expiresAt).getSeconds());
+    }
+
     private void auditSession(
             KioskResolvedDefinition definition,
             String sessionId,
@@ -357,11 +362,11 @@ public class KioskSessionService {
                 INSERT INTO kiosk_audit_events (
                     event_id, session_id, kiosk_definition_id, historical_kiosk_id, company_id,
                     owner_module, event_type, outcome, actor_type, actor_id, retain_until
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                          TIMESTAMPADD(DAY, 365, CURRENT_TIMESTAMP))
                 """,
             UUID.randomUUID().toString(), sessionId, definition.id(), definition.id(),
-            definition.companyId(), definition.ownerModule(), eventType, outcome, actorType, actorId,
-            Timestamp.from(Instant.now().plus(Duration.ofDays(365)))
+            definition.companyId(), definition.ownerModule(), eventType, outcome, actorType, actorId
         );
     }
 

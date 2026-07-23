@@ -2,7 +2,6 @@ package com.indice.erp.kiosk.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +49,7 @@ class KioskSessionServiceTest {
         assertThat(session.expiresAt()).isEqualTo(expiresAt);
         assertThat(wasUpdateCalled("INSERT IGNORE INTO kiosk_grants")).isTrue();
         assertThat(wasUpdateCalled("INSERT INTO kiosk_sessions")).isTrue();
+        assertThat(wasUpdateCalled("TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)")).isTrue();
         assertThat(wasUpdateCalled("INSERT INTO kiosk_audit_events")).isTrue();
     }
 
@@ -105,22 +105,18 @@ class KioskSessionServiceTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
-    void rejectsAnExpiredSessionBeforeRefreshingItsActivity() throws Exception {
+    void rejectsASessionExcludedByTheDatabaseTemporalGuardsBeforeRefreshingItsActivity() {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
-        var rs = sessionRow(
-            "[\"process-tasks.tasks.read@1\"]",
-            Instant.now().minusSeconds(30), Instant.now().minusSeconds(1), null);
         given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
-            .willAnswer(invocation -> {
-                var mapper = (RowMapper) invocation.getArgument(1);
-                return List.of(mapper.mapRow(rs, 0));
-            });
+            .willReturn(List.of());
 
         assertThatThrownBy(() -> service.requireSession(
             definition(), capability(), Map.of("identification_token", "raw-token"), null))
             .isInstanceOf(SecurityException.class)
-            .hasMessage("Kiosk session expired.");
+            .hasMessage("Kiosk authentication is required.");
 
+        assertThat(wasQueryCalled("expires_at > CURRENT_TIMESTAMP")).isTrue();
+        assertThat(wasQueryCalled("last_activity_at >= TIMESTAMPADD")).isTrue();
         verify(jdbcTemplate, never()).update(
             contains("last_activity_at = CURRENT_TIMESTAMP"), any(Object[].class));
     }
@@ -129,9 +125,7 @@ class KioskSessionServiceTest {
     @SuppressWarnings({"rawtypes", "unchecked"})
     void rejectsCapabilityThatWasNotFrozenIntoTheSession() throws Exception {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
-        var rs = sessionRow(
-            "[\"process-tasks.task.create@1\"]",
-            Instant.now(), Instant.now().plusSeconds(300), null);
+        var rs = sessionRow("[\"process-tasks.task.create@1\"]", 300);
         given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
             .willAnswer(invocation -> {
                 var mapper = (RowMapper) invocation.getArgument(1);
@@ -152,9 +146,7 @@ class KioskSessionServiceTest {
     @SuppressWarnings({"rawtypes", "unchecked"})
     void supplierPortalKeepsSessionAliveWithinItsFifteenMinuteWindow() throws Exception {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
-        var rs = sessionRow(
-            "[\"procurement.catalog.read@1\"]",
-            Instant.now().minusSeconds(10 * 60), Instant.now().plusSeconds(300), null);
+        var rs = sessionRow("[\"procurement.catalog.read@1\"]", 300);
         given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
             .willAnswer(invocation -> {
                 var mapper = (RowMapper) invocation.getArgument(1);
@@ -177,9 +169,7 @@ class KioskSessionServiceTest {
     @SuppressWarnings({"rawtypes", "unchecked"})
     void processTasksKeepsAnActiveWorkSessionForThirtyMinutes() throws Exception {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
-        var rs = sessionRow(
-            "[\"process-tasks.tasks.read@1\"]",
-            Instant.now().minusSeconds(20 * 60), Instant.now().plusSeconds(60 * 60), null);
+        var rs = sessionRow("[\"process-tasks.tasks.read@1\"]", 60 * 60);
         given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
             .willAnswer(invocation -> {
                 var mapper = (RowMapper) invocation.getArgument(1);
@@ -201,9 +191,7 @@ class KioskSessionServiceTest {
     @SuppressWarnings({"rawtypes", "unchecked"})
     void pettyCashKeepsAnActiveWorkSessionForFifteenMinutes() throws Exception {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
-        var rs = sessionRow(
-            "[\"process-tasks.tasks.read@1\"]",
-            Instant.now().minusSeconds(10 * 60), Instant.now().plusSeconds(60 * 60), null);
+        var rs = sessionRow("[\"process-tasks.tasks.read@1\"]", 60 * 60);
         given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
             .willAnswer(invocation -> {
                 var mapper = (RowMapper) invocation.getArgument(1);
@@ -221,28 +209,21 @@ class KioskSessionServiceTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
-    void expensesExpiresAfterFiveMinutesWithoutServerActivity() throws Exception {
+    void expensesUsesDatabaseTimeToEnforceItsFiveMinuteInactivityWindow() {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
-        var rs = sessionRow(
-            "[\"process-tasks.tasks.read@1\"]",
-            Instant.now().minusSeconds((5 * 60) + 5), Instant.now().plusSeconds(60 * 60), null);
         given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
-            .willAnswer(invocation -> {
-                var mapper = (RowMapper) invocation.getArgument(1);
-                return List.of(mapper.mapRow(rs, 0));
-            });
+            .willReturn(List.of());
 
         assertThatThrownBy(() -> service.requireSession(
             expensesDefinition(), capability(), Map.of("identification_token", "raw-token"), null))
             .isInstanceOf(SecurityException.class)
-            .hasMessage("Kiosk session expired.");
+            .hasMessage("Kiosk authentication is required.");
+
+        assertThat(wasQueryCalled("last_activity_at >= TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)"))
+            .isTrue();
     }
 
-    private ResultSet sessionRow(
-            String capabilities,
-            Instant lastActivity,
-            Instant expiresAt,
-            Timestamp revokedAt) throws Exception {
+    private ResultSet sessionRow(String capabilities, long expiresInSeconds) throws Exception {
         var rs = mock(ResultSet.class);
         lenient().when(rs.getString("session_id")).thenReturn("session-1");
         lenient().when(rs.getLong("kiosk_definition_id")).thenReturn(17L);
@@ -250,9 +231,7 @@ class KioskSessionServiceTest {
         lenient().when(rs.getString("identity_type")).thenReturn("EMPLOYEE");
         lenient().when(rs.getLong("identity_id")).thenReturn(81L);
         lenient().when(rs.getString("granted_capabilities_json")).thenReturn(capabilities);
-        given(rs.getTimestamp("last_activity_at")).willReturn(Timestamp.from(lastActivity));
-        given(rs.getTimestamp("expires_at")).willReturn(Timestamp.from(expiresAt));
-        given(rs.getTimestamp("revoked_at")).willReturn(revokedAt);
+        given(rs.getLong("expires_in_seconds")).willReturn(expiresInSeconds);
         given(rs.getString("browser_session_hash")).willReturn(null);
         return rs;
     }
@@ -305,6 +284,13 @@ class KioskSessionServiceTest {
     private boolean wasUpdateCalled(String sqlFragment) {
         return org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
             .filter(invocation -> "update".equals(invocation.getMethod().getName()))
+            .map(invocation -> String.valueOf((Object) invocation.getArgument(0)))
+            .anyMatch(sql -> sql.contains(sqlFragment));
+    }
+
+    private boolean wasQueryCalled(String sqlFragment) {
+        return org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(invocation -> "query".equals(invocation.getMethod().getName()))
             .map(invocation -> String.valueOf((Object) invocation.getArgument(0)))
             .anyMatch(sql -> sql.contains(sqlFragment));
     }
