@@ -89,6 +89,45 @@ class ExpenseServiceTest {
     }
 
     @Test
+    void createDraftCanSettleOperationalExpenseAtomically() {
+        var service = service();
+        var context = context();
+        var request = createRequest(null, null, "AUTO-EXP", true);
+        var created = record(10L, ExpenseStatus.DRAFT, "Office supplies");
+        var paid = recordWithPaymentStatus(
+            10L,
+            ExpenseStatus.PAID,
+            PaymentStatus.PAID,
+            "Office supplies",
+            new BigDecimal("116.00"),
+            BigDecimal.ZERO
+        );
+
+        when(accessService.containsAssignment(context, null, null)).thenReturn(true);
+        when(repository.nextFolio(eq(7L), eq("EXP"), anyInt(), eq(0))).thenReturn("EXP-2026-028");
+        when(repository.insert(eq(context), any())).thenReturn(created);
+        when(workflowRepository.applyManualStatus(
+            eq(context),
+            eq(10L),
+            eq(new BigDecimal("116.00")),
+            eq(BigDecimal.ZERO),
+            eq(ExpenseStatus.PAID),
+            eq(PaymentStatus.PAID),
+            any(LocalDate.class),
+            eq(null),
+            eq(null)
+        )).thenReturn(true);
+        when(repository.findById(context, 10L)).thenReturn(Optional.of(paid));
+
+        var response = service.createDraft(context, request);
+
+        assertEquals(ExpenseStatus.PAID, response.status());
+        assertEquals(PaymentStatus.PAID, response.paymentStatus());
+        assertEquals(new BigDecimal("116.00"), response.paidAmount());
+        assertEquals(BigDecimal.ZERO, response.balanceAmount());
+    }
+
+    @Test
     void createDraftGeneratesCompanyWideFolioWhenRequested() {
         var service = service();
         var context = context();
@@ -422,6 +461,10 @@ class ExpenseServiceTest {
     }
 
     private CreateExpenseRequest createRequest(Long unitId, Long businessId, String folio) {
+        return createRequest(unitId, businessId, folio, null);
+    }
+
+    private CreateExpenseRequest createRequest(Long unitId, Long businessId, String folio, Boolean settleOnCreate) {
         return new CreateExpenseRequest(
             unitId,
             businessId,
@@ -443,6 +486,7 @@ class ExpenseServiceTest {
             null,
             null,
             null,
+            settleOnCreate,
             null,
             null
         );

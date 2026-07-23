@@ -231,7 +231,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         paymentDate: now,
         date: now,
         paymentMethod: 'transfer',
-        status: 'pending',
+        status: 'paid',
         requestedByUserId: currentUser?.id,
         attachments: [],
         taxCountry,
@@ -245,8 +245,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         createdAt: now,
         updatedAt: now,
       };
-      const createdExpense = await expensesService.createExpense(draftExpense, providers);
-      const paidExpense = await expensesService.updateExpenseStatus(createdExpense.id, 'paid', providers, total, now);
+      const paidExpense = await expensesService.createExpense(draftExpense, providers);
       const uploadedAttachments = [];
       for (const file of attachmentFiles) {
         uploadedAttachments.push(await expenseAttachmentsService.upload(paidExpense.id, file));
@@ -327,13 +326,14 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     const inputPaymentDate = values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined;
     const inputDueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : undefined;
     const sourceExpense = editingExpense ?? initialExpense;
+    const effectiveStatus = editingExpense ? values.status : 'paid';
     const paymentDate = inputPaymentDate ?? sourceExpense?.paymentDate;
     const recordDate = sourceExpense?.date ?? inputPaymentDate ?? now;
     const dueDate = inputDueDate ?? sourceExpense?.dueDate ?? now;
     const previousAmountPaid = sourceExpense?.amountPaid ?? 0;
-    const amountPaid = values.status === 'paid' || values.status === 'audited'
+    const amountPaid = effectiveStatus === 'paid' || effectiveStatus === 'audited'
       ? values.total
-      : values.status === 'partial' || values.status === 'overdue'
+      : effectiveStatus === 'partial' || effectiveStatus === 'overdue'
         ? Math.min(previousAmountPaid, values.total)
         : 0;
     const draftExpense: Expense = {
@@ -369,7 +369,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       date: recordDate,
       paymentMethod: values.paymentMethod,
       accountingAccount: values.accountingAccount,
-      status: values.status,
+      status: effectiveStatus,
       attachments: values.attachments ?? sourceExpense?.attachments ?? [],
       type: sourceExpense?.type ?? 'real',
       createdAt: sourceExpense?.createdAt ?? now,
@@ -386,15 +386,17 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
             : await expensesService.createExpense(draftExpense, providers);
 
       if (
+        editingExpense
+        &&
         draftExpense.type !== 'budget'
         && draftExpense.type !== 'payable'
         && isBackendId(savedExpense.id)
       ) {
         savedExpense = await expensesService.updateExpenseStatus(
           savedExpense.id,
-          values.status,
+          effectiveStatus,
           providers,
-          values.status === 'partial' && amountPaid > 0 ? amountPaid : undefined,
+          effectiveStatus === 'partial' && amountPaid > 0 ? amountPaid : undefined,
           paymentDate ?? now,
         );
       }

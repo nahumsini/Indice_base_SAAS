@@ -73,7 +73,8 @@ public class ExpenseService {
         var autoPrefix = automaticFolioPrefix(request.folio());
         if (autoPrefix == null) {
             try {
-                return mapper.toResponse(repository.insert(context, mapper.toCreateCommand(context, request, assignment)));
+                var created = repository.insert(context, mapper.toCreateCommand(context, request, assignment));
+                return finalizeCreatedExpense(context, request, created);
             } catch (DuplicateKeyException exception) {
                 throw FinanceApiException.conflict("An expense with this folio already exists.");
             }
@@ -83,12 +84,36 @@ public class ExpenseService {
             var folio = repository.nextFolio(context.companyId(), autoPrefix, LocalDate.now().getYear(), attempt);
             try {
                 var command = mapper.toCreateCommand(context, request, assignment, folio);
-                return mapper.toResponse(repository.insert(context, command));
+                var created = repository.insert(context, command);
+                return finalizeCreatedExpense(context, request, created);
             } catch (DuplicateKeyException exception) {
                 // Another request may have reserved the same sequence. Re-read and retry.
             }
         }
         throw FinanceApiException.conflict("The expense number could not be assigned. Try again.");
+    }
+
+    private ExpenseResponse finalizeCreatedExpense(
+            FinanceContext context,
+            CreateExpenseRequest request,
+            ExpenseRecord created) {
+        if (!Boolean.TRUE.equals(request.settleOnCreate())) {
+            return mapper.toResponse(created);
+        }
+        if (!workflowRepository.applyManualStatus(
+                context,
+                created.id(),
+                created.totalAmount(),
+                BigDecimal.ZERO,
+                ExpenseStatus.PAID,
+                PaymentStatus.PAID,
+                LocalDate.now(),
+                null,
+                null)) {
+            throw FinanceApiException.conflict("Expense could not be marked as paid.");
+        }
+        refreshBudgetLine(context, created.budgetLineId());
+        return get(context, created.id());
     }
 
     @Transactional

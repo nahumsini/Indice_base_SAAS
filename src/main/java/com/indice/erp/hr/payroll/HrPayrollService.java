@@ -3526,6 +3526,7 @@ public class HrPayrollService {
                 userId,
                 userId,
                 null,
+                null,
                 metadata
             );
 

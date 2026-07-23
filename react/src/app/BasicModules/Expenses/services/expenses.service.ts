@@ -36,9 +36,13 @@ export const expensesService = {
   },
 
   async createExpense(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const request = toExpenseApiRequest(expense);
     const response = await apiClient<ExpenseApiDto>(
       expensesPath,
-      jsonMutation('POST', toExpenseApiRequest(expense)),
+      jsonMutation('POST', {
+        ...request,
+        settleOnCreate: expense.type === 'real' && expense.status === 'paid',
+      }),
     );
     return toExpense(response, providers);
   },

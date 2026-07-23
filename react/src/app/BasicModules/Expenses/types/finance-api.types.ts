@@ -187,6 +187,7 @@ export interface ExpenseApiRequest {
   requestedByUserId?: number | null;
   approvedByUserId?: number | null;
   performedByUserId?: number | null;
+  settleOnCreate?: boolean;
   customFields?: FinanceJson;
   metadata?: FinanceJson;
 }

@@ -30,6 +30,7 @@ public record CreateExpenseRequest(
     Long requestedByUserId,
     Long approvedByUserId,
     Long performedByUserId,
+    Boolean settleOnCreate,
     JsonNode customFields,
     JsonNode metadata
 ) {
