@@ -54,6 +54,23 @@ class KioskSessionServiceTest {
     }
 
     @Test
+    void createsAnEngineOwnedTokenForAControlledSessionLaunch() {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        given(jdbcTemplate.queryForObject(
+            contains("FROM kiosk_grants"), org.mockito.ArgumentMatchers.eq(Integer.class),
+            any(Object[].class))).willReturn(1);
+
+        var launch = service.createControlledSessionLaunch(
+            definition(), "EMPLOYEE", 81L, "attendance-tab-1234567890-1234567890",
+            Set.of("process-tasks.tasks.read@1"), Instant.now().plusSeconds(120));
+
+        assertThat(launch.session().identityId()).isEqualTo(81L);
+        assertThat(launch.accessToken()).isNotBlank().hasSizeGreaterThanOrEqualTo(32);
+        assertThat(launch.accessToken()).doesNotContain("81", "attendance-tab");
+        assertThat(wasUpdateCalled("INSERT INTO kiosk_sessions")).isTrue();
+    }
+
+    @Test
     void doesNotReactivateARevokedPersonalGrantWhenCreatingANewSession() {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
         given(jdbcTemplate.queryForObject(

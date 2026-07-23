@@ -111,7 +111,7 @@ public class AttendancePublicKioskEngineGateway {
         var networkSignal = KioskClientNetworkSignal.from(request);
         return KioskExecutionContext.publicLink(
             AttendanceKioskCapabilities.OWNER_MODULE, token, networkSignal,
-            browserSessionReference.resolve(browserSession));
+            browserSessionReference.resolve(request, browserSession));
     }
 
     private void requireCsrf(HttpSession session, String value) {

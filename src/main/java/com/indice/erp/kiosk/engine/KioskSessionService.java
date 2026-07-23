@@ -99,6 +99,28 @@ public class KioskSessionService {
             Set.copyOf(grantedCapabilities), effectiveExpiry);
     }
 
+    /**
+     * Creates a controlled session with an Engine-owned token.
+     *
+     * <p>The module identification token remains private to the module workflow. Keeping both
+     * tokens separate prevents legacy token refresh or expiry rules from changing the Engine
+     * session identity midway through a public kiosk flow.
+     */
+    @Transactional
+    public KioskSessionLaunch createControlledSessionLaunch(
+            KioskResolvedDefinition definition,
+            String identityType,
+            long identityId,
+            String browserSessionReference,
+            Set<String> grantedCapabilities,
+            Instant expiresAt) {
+        var accessToken = randomToken();
+        var session = createControlledSession(
+            definition, identityType, identityId, accessToken, browserSessionReference,
+            grantedCapabilities, expiresAt);
+        return new KioskSessionLaunch(session, accessToken);
+    }
+
     @Transactional
     public KioskSessionLaunch createAuthenticatedIndexSession(
             KioskResolvedDefinition definition,

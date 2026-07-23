@@ -1234,6 +1234,7 @@ export interface PublicKioskIdentifyResponse {
 
 export interface PublicKioskPunchRequest {
   identification_token: string;
+  kiosk_session_token: string;
   event_type: "check_in" | "check_out";
   event_timestamp?: string;
   latitude?: number;
@@ -1241,6 +1242,12 @@ export interface PublicKioskPunchRequest {
   face_verification_session_id?: number;
   photo_url?: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface PublicKioskSessionCredentials {
+  identificationToken: string;
+  kioskSessionToken: string;
+  browserSessionReference: string;
 }
 
 export interface PublicKioskPunchResponse {
@@ -1951,31 +1958,43 @@ export const humanResourcesApi = {
     );
   },
 
-  getPublicKioskBootstrap(deviceToken: string) {
+  getPublicKioskBootstrap(deviceToken: string, browserSessionReference: string) {
     return apiClient<PublicKioskBootstrapResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/bootstrap`,
+      {
+        headers: { "X-Kiosk-Browser-Session": browserSessionReference },
+      },
     );
   },
 
   identifyPublicKioskHrUser(
     deviceToken: string,
     payload: PublicKioskIdentifyRequest,
+    browserSessionReference: string,
   ) {
     return apiClient<PublicKioskIdentifyResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/identify`,
       {
         method: "POST",
+        headers: { "X-Kiosk-Browser-Session": browserSessionReference },
         body: JSON.stringify(payload),
       },
     );
   },
 
-  punchPublicKiosk(deviceToken: string, payload: PublicKioskPunchRequest) {
+  punchPublicKiosk(
+    deviceToken: string,
+    payload: PublicKioskPunchRequest,
+    browserSessionReference: string,
+  ) {
     return apiClient<PublicKioskPunchResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/punch`,
       {
         method: "POST",
-        headers: { "Idempotency-Key": kioskIdempotencyKey() },
+        headers: {
+          "Idempotency-Key": kioskIdempotencyKey(),
+          "X-Kiosk-Browser-Session": browserSessionReference,
+        },
         body: JSON.stringify(payload),
       },
     );
@@ -1985,13 +2004,18 @@ export const humanResourcesApi = {
     deviceToken: string,
     payload: Omit<AttendanceMediaPresignRequest, "user_company_id"> & {
       identification_token: string;
+      kiosk_session_token: string;
     },
+    browserSessionReference: string,
   ) {
     return apiClient<AttendanceMediaPresignResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/media/presign-upload`,
       {
         method: "POST",
-        headers: { "Idempotency-Key": kioskIdempotencyKey() },
+        headers: {
+          "Idempotency-Key": kioskIdempotencyKey(),
+          "X-Kiosk-Browser-Session": browserSessionReference,
+        },
         body: JSON.stringify(payload),
       },
     );
@@ -1999,14 +2023,20 @@ export const humanResourcesApi = {
 
   createPublicKioskFaceVerificationSession(
     deviceToken: string,
-    identificationToken: string,
+    credentials: PublicKioskSessionCredentials,
   ) {
     return apiClient<FaceVerificationSessionResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions`,
       {
         method: "POST",
-        headers: { "Idempotency-Key": kioskIdempotencyKey() },
-        body: JSON.stringify({ identification_token: identificationToken }),
+        headers: {
+          "Idempotency-Key": kioskIdempotencyKey(),
+          "X-Kiosk-Browser-Session": credentials.browserSessionReference,
+        },
+        body: JSON.stringify({
+          identification_token: credentials.identificationToken,
+          kiosk_session_token: credentials.kioskSessionToken,
+        }),
       },
     );
   },
@@ -2014,7 +2044,7 @@ export const humanResourcesApi = {
   presignPublicKioskFaceVerificationCapture(
     deviceToken: string,
     sessionId: number,
-    identificationToken: string,
+    credentials: PublicKioskSessionCredentials,
     step: string,
     contentType: string,
   ) {
@@ -2022,9 +2052,13 @@ export const humanResourcesApi = {
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/captures/presign-upload`,
       {
         method: "POST",
-        headers: { "Idempotency-Key": kioskIdempotencyKey() },
+        headers: {
+          "Idempotency-Key": kioskIdempotencyKey(),
+          "X-Kiosk-Browser-Session": credentials.browserSessionReference,
+        },
         body: JSON.stringify({
-          identification_token: identificationToken,
+          identification_token: credentials.identificationToken,
+          kiosk_session_token: credentials.kioskSessionToken,
           step,
           content_type: contentType,
         }),
@@ -2035,14 +2069,20 @@ export const humanResourcesApi = {
   completePublicKioskFaceVerificationSession(
     deviceToken: string,
     sessionId: number,
-    identificationToken: string,
+    credentials: PublicKioskSessionCredentials,
   ) {
     return apiClient<FaceVerificationResultResponse>(
       `${endpoints.humanResources.attendancePublicKiosk}/${deviceToken}/face-verification-sessions/${sessionId}/complete`,
       {
         method: "POST",
-        headers: { "Idempotency-Key": kioskIdempotencyKey() },
-        body: JSON.stringify({ identification_token: identificationToken }),
+        headers: {
+          "Idempotency-Key": kioskIdempotencyKey(),
+          "X-Kiosk-Browser-Session": credentials.browserSessionReference,
+        },
+        body: JSON.stringify({
+          identification_token: credentials.identificationToken,
+          kiosk_session_token: credentials.kioskSessionToken,
+        }),
       },
     );
   },

@@ -14,6 +14,8 @@ interface UsePublicKioskFaceVerificationInput {
   copy: KioskTranslations;
   deviceToken?: string;
   identificationToken: string;
+  kioskSessionToken: string;
+  browserSessionReference: string;
   isOnline: boolean;
   setBusyState: Dispatch<SetStateAction<PublicKioskBusyState>>;
   setErrorMessage: Dispatch<SetStateAction<string>>;
@@ -29,6 +31,8 @@ export function usePublicKioskFaceVerification({
   copy,
   deviceToken,
   identificationToken,
+  kioskSessionToken,
+  browserSessionReference,
   isOnline,
   setBusyState,
   setErrorMessage,
@@ -50,7 +54,7 @@ export function usePublicKioskFaceVerification({
   }, [setFaceErrorMessage, setFaceStatus]);
 
   const handleFaceVerification = useCallback(async (captures: LiveFaceChallengeCapture[]) => {
-    if (!deviceToken || !identificationToken) {
+    if (!deviceToken || !identificationToken || !kioskSessionToken) {
       showFailureToast(copy.timeout);
       throw new Error(copy.timeout);
     }
@@ -66,12 +70,20 @@ export function usePublicKioskFaceVerification({
     try {
       const sessionId = await runWithMinimumDuration(
         (async () => {
-          const session = await humanResourcesApi.createPublicKioskFaceVerificationSession(deviceToken, identificationToken);
+          const credentials = {
+            identificationToken,
+            kioskSessionToken,
+            browserSessionReference,
+          };
+          const session = await humanResourcesApi.createPublicKioskFaceVerificationSession(
+            deviceToken,
+            credentials,
+          );
           for (const capture of captures) {
             const presigned = await humanResourcesApi.presignPublicKioskFaceVerificationCapture(
               deviceToken,
               session.session_id,
-              identificationToken,
+              credentials,
               capture.step,
               capture.photo.contentType,
             );
@@ -86,7 +98,7 @@ export function usePublicKioskFaceVerification({
           const result = await humanResourcesApi.completePublicKioskFaceVerificationSession(
             deviceToken,
             session.session_id,
-            identificationToken,
+            credentials,
           );
 
           if (!result.matched || !result.liveness_passed) {
@@ -117,8 +129,10 @@ export function usePublicKioskFaceVerification({
     copy.faceFailed,
     copy.faceVerified,
     copy.timeout,
+    browserSessionReference,
     deviceToken,
     identificationToken,
+    kioskSessionToken,
     isOnline,
     setBusyState,
     setErrorMessage,

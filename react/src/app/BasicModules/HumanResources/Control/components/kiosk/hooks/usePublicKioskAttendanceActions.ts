@@ -26,6 +26,8 @@ interface UsePublicKioskAttendanceActionsInput {
   fallbackPhotoUpload: FallbackPhotoUploadState;
   hasIdentityEvidence: boolean;
   identificationToken: string;
+  kioskSessionToken: string;
+  browserSessionReference: string;
   isOnline: boolean;
   locationState: KioskLocationState | null;
   resetFlow: (options?: { reason?: string; keepError?: boolean }) => void;
@@ -45,6 +47,8 @@ export function usePublicKioskAttendanceActions({
   fallbackPhotoUpload,
   hasIdentityEvidence,
   identificationToken,
+  kioskSessionToken,
+  browserSessionReference,
   isOnline,
   locationState,
   resetFlow,
@@ -58,17 +62,19 @@ export function usePublicKioskAttendanceActions({
     eventType: 'check_in' | 'check_out',
     eventTimestamp: string,
   ): Promise<FallbackPhotoUploadResult | null> => {
-    if (!deviceToken || !identificationToken || !fallbackPhotoUpload.photo) {
+    if (!deviceToken || !identificationToken || !kioskSessionToken
+        || !fallbackPhotoUpload.photo) {
       return null;
     }
 
     try {
       const presigned = await humanResourcesApi.presignPublicKioskAttendancePhotoUpload(deviceToken, {
         identification_token: identificationToken,
+        kiosk_session_token: kioskSessionToken,
         event_type: eventType,
         event_timestamp: eventTimestamp,
         content_type: fallbackPhotoUpload.photo.contentType,
-      });
+      }, browserSessionReference);
       await humanResourcesApi.uploadAttendancePhoto(
         presigned.upload_url,
         fallbackPhotoUpload.photo.file,
@@ -89,10 +95,16 @@ export function usePublicKioskAttendanceActions({
       }
       throw error;
     }
-  }, [deviceToken, fallbackPhotoUpload.photo, identificationToken]);
+  }, [
+    browserSessionReference,
+    deviceToken,
+    fallbackPhotoUpload.photo,
+    identificationToken,
+    kioskSessionToken,
+  ]);
 
   const handlePunch = useCallback(async (eventType: 'check_in' | 'check_out') => {
-    if (!deviceToken || !identificationToken) {
+    if (!deviceToken || !identificationToken || !kioskSessionToken) {
       return;
     }
     if (!isOnline) {
@@ -121,6 +133,7 @@ export function usePublicKioskAttendanceActions({
 
           return humanResourcesApi.punchPublicKiosk(deviceToken, {
             identification_token: identificationToken,
+            kiosk_session_token: kioskSessionToken,
             event_type: eventType,
             event_timestamp: eventTimestamp,
             ...(locationState
@@ -145,7 +158,7 @@ export function usePublicKioskAttendanceActions({
                   : 'unavailable'
                 : undefined,
             },
-          });
+          }, browserSessionReference);
         })(),
         publicKioskMinimumLoadingMs,
       );
@@ -185,11 +198,13 @@ export function usePublicKioskAttendanceActions({
     copy.success.checkIn,
     copy.success.checkOut,
     copy.timeout,
+    browserSessionReference,
     deviceToken,
     evidenceMode,
     faceVerificationSessionId,
     hasIdentityEvidence,
     identificationToken,
+    kioskSessionToken,
     isOnline,
     locationState,
     resetFlow,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { runWithMinimumDuration } from '../../../../../../components/LoadingBarOverlay';
 import { useKioskSessionBoundary } from '../../../../../../components/kiosk-engine/useKioskSessionBoundary';
@@ -17,6 +17,7 @@ import type {
   PublicKioskMethod,
 } from '../publicKioskTypes';
 import {
+  publicKioskBrowserSessionReference,
   publicKioskMinimumLoadingMs,
 } from '../utils/publicKioskUtils';
 import { useKioskLocaleControls, useKioskTranslations } from './useKioskTranslations';
@@ -53,6 +54,7 @@ export function usePublicKioskController() {
   const [identifiedHrUser, setIdentifiedHrUser] = useState<KioskHrUser | null>(null);
   const [todayActivity, setTodayActivity] = useState<KioskTodayActivity | null>(null);
   const [identificationToken, setIdentificationToken] = useState('');
+  const [kioskSessionToken, setKioskSessionToken] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [locationState, setLocationState] = useState<KioskLocationState | null>(null);
   const [evidenceMode, setEvidenceMode] = useState<EvidenceMode>('photo');
@@ -64,6 +66,10 @@ export function usePublicKioskController() {
   const [busyState, setBusyState] = useState<PublicKioskBusyState>('idle');
   const fallbackPhotoUpload = useAttendancePhotoUpload();
   const resetTimeoutRef = useRef<number | null>(null);
+  const browserSessionReference = useMemo(
+    () => publicKioskBrowserSessionReference(deviceToken),
+    [deviceToken],
+  );
   const {
     clearFailureToast,
     clearFailureToastState,
@@ -79,6 +85,7 @@ export function usePublicKioskController() {
     setIdentifiedHrUser(null);
     setTodayActivity(null);
     setIdentificationToken('');
+    setKioskSessionToken('');
     setExpiresAt('');
     setLocationState(null);
     setEvidenceMode('photo');
@@ -102,7 +109,7 @@ export function usePublicKioskController() {
     resetFlowRef.current({ reason: timeoutCopyRef.current, keepError: true });
   }, []);
   const { isOnline, isSessionExpiring } = useKioskSessionBoundary({
-    active: Boolean(identificationToken),
+    active: Boolean(identificationToken && kioskSessionToken),
     expiresAt,
     inactivityTimeoutSeconds: bootstrap?.inactivity_timeout_seconds ?? 180,
     onExpire: expireSession,
@@ -137,7 +144,7 @@ export function usePublicKioskController() {
 
     try {
       const response = await runWithMinimumDuration(
-        humanResourcesApi.getPublicKioskBootstrap(deviceToken),
+        humanResourcesApi.getPublicKioskBootstrap(deviceToken, browserSessionReference),
         publicKioskMinimumLoadingMs,
       );
       setBootstrap(response);
@@ -155,7 +162,7 @@ export function usePublicKioskController() {
 
   useEffect(() => {
     void loadBootstrap();
-  }, [deviceToken]);
+  }, [browserSessionReference, deviceToken]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 1000);
@@ -224,6 +231,8 @@ export function usePublicKioskController() {
     copy,
     deviceToken,
     identificationToken,
+    kioskSessionToken,
+    browserSessionReference,
     isOnline,
     setBusyState,
     setErrorMessage,
@@ -242,6 +251,8 @@ export function usePublicKioskController() {
     fallbackPhotoUpload,
     hasIdentityEvidence,
     identificationToken,
+    kioskSessionToken,
+    browserSessionReference,
     isOnline,
     locationState,
     resetFlow,
@@ -335,15 +346,22 @@ export function usePublicKioskController() {
 
     try {
       const response = await runWithMinimumDuration(
-        humanResourcesApi.identifyPublicKioskHrUser(deviceToken, {
-          auth_method: 'pin',
-          credential_payload: credentialValue.trim(),
-        }),
+        humanResourcesApi.identifyPublicKioskHrUser(
+          deviceToken,
+          {
+            auth_method: 'pin',
+            credential_payload: credentialValue.trim(),
+          },
+          browserSessionReference,
+        ),
         publicKioskMinimumLoadingMs,
       );
       setIdentifiedHrUser(response.user);
       setTodayActivity(response.today_activity ?? null);
       setIdentificationToken(response.identification_token);
+      setKioskSessionToken(
+        response.kiosk_session_token || response.identification_token,
+      );
       setExpiresAt(response.expires_at);
       setCredentialValue('');
       setLocationState(null);

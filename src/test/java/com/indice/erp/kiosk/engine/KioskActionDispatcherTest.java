@@ -71,17 +71,17 @@ class KioskActionDispatcherTest {
             new KioskPayloadProtectionService(
                 "dispatcher-kiosk-payload-test-secret-1234"));
         context = KioskExecutionContext.publicLink("PROCESS_TASKS", "secret-device-token");
-        given(registry.requireAdapter("PROCESS_TASKS")).willReturn(adapter);
+        lenient().when(registry.requireAdapter("PROCESS_TASKS")).thenReturn(adapter);
         given(featureFlags.registryEnabled()).willReturn(true);
         given(featureFlags.sessionsEnabled()).willReturn(true);
         given(featureFlags.auditEnabled()).willReturn(true);
-        given(featureFlags.adapterEnabled("PROCESS_TASKS")).willReturn(true);
+        lenient().when(featureFlags.adapterEnabled("PROCESS_TASKS")).thenReturn(true);
         var definition = new KioskResolvedDefinition(
             17L, 7L, "PROCESS_TASKS", "task_access", 31L, "TASKS", "Tasks",
             KioskDefinitionStatus.ACTIVE, 2L, 3L, null, KioskAccessLevel.CONTROLLED,
             null, "tokenhint", false, 1, 1);
-        given(definitionRegistry.resolvePublic("PROCESS_TASKS", "secret-device-token"))
-            .willReturn(definition);
+        lenient().when(definitionRegistry.resolvePublic("PROCESS_TASKS", "secret-device-token"))
+            .thenReturn(definition);
         lenient().when(definitionRegistry.capabilityEnabled(
             org.mockito.ArgumentMatchers.eq(17L), any()))
             .thenReturn(true);
@@ -309,6 +309,58 @@ class KioskActionDispatcherTest {
         then(rateLimitService).should().requireStablePersonalPinAllowed(any());
         then(rateLimitService).should(never()).requireStablePinAllowed(any());
         then(adapter).should(never()).execute(any(), any());
+    }
+
+    @Test
+    void humanResourcesIdentityKeepsTheModuleTokenSeparateFromTheEngineSessionToken() {
+        var browserReference = "attendance-browser-reference-1234567890";
+        var hrContext = KioskExecutionContext.publicLink(
+            "HUMAN_RESOURCES", "attendance-device-token", "network", browserReference);
+        var definition = new KioskResolvedDefinition(
+            23L, 7L, "HUMAN_RESOURCES", "attendance", 31L, "ATTENDANCE", "Attendance",
+            KioskDefinitionStatus.ACTIVE, 2L, 3L, null, KioskAccessLevel.CONTROLLED,
+            null, "attendance", false, 1, 1);
+        var capability = new KioskCapabilityDescriptor(
+            "attendance.identity.verify", 1, "HUMAN_RESOURCES",
+            KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED,
+            false, true);
+        var request = KioskActionRequest.of(
+            "attendance.identity.verify", Map.of("credential_payload", "12345"));
+        var expiresAt = Instant.now().plusSeconds(180);
+        var moduleToken = "attendance-module-identification-token";
+        var engineToken = "attendance-engine-session-token";
+        var principal = new KioskSessionPrincipal(
+            "attendance-session", 23L, 7L, "EMPLOYEE", 19L,
+            java.util.Set.of(capability.versionedKey()), expiresAt);
+        var moduleResponse = Map.<String, Object>of(
+            "identification_token", moduleToken,
+            "expires_at", expiresAt.toString(),
+            "user", Map.of("id", 19L));
+
+        given(registry.requireAdapter("HUMAN_RESOURCES")).willReturn(adapter);
+        given(featureFlags.adapterEnabled("HUMAN_RESOURCES")).willReturn(true);
+        given(definitionRegistry.resolvePublic(
+            "HUMAN_RESOURCES", "attendance-device-token")).willReturn(definition);
+        given(definitionRegistry.capabilityEnabled(23L, capability)).willReturn(true);
+        given(registry.requireCapability(capability.versionedKey())).willReturn(capability);
+        given(adapter.capabilities(definition)).willReturn(java.util.Set.of(capability));
+        given(adapter.execute(any(), org.mockito.ArgumentMatchers.same(request)))
+            .willReturn(moduleResponse);
+        given(sessionService.createControlledSessionLaunch(
+            eq(definition), eq("EMPLOYEE"), eq(19L), eq(browserReference),
+            eq(java.util.Set.of(capability.versionedKey())), eq(expiresAt)))
+            .willReturn(new KioskSessionLaunch(principal, engineToken));
+
+        var response = dispatcher.dispatch(hrContext, request, null);
+
+        assertThat(response)
+            .containsEntry("identification_token", moduleToken)
+            .containsEntry("kiosk_session_token", engineToken)
+            .containsEntry("kiosk_session_id", "attendance-session")
+            .doesNotContainKeys("engine_session", "engine_identity");
+        then(sessionService).should(never()).createControlledSession(
+            any(), anyString(), org.mockito.ArgumentMatchers.anyLong(), anyString(),
+            anyString(), any(), any());
     }
 
     private KioskCapabilityDescriptor capability(String key, boolean mutation) {

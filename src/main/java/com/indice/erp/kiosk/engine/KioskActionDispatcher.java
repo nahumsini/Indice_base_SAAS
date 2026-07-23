@@ -233,12 +233,23 @@ public class KioskActionDispatcher {
         var granted = definitionCapabilities.stream()
             .map(KioskCapabilityDescriptor::versionedKey)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        var session = sessionService.createControlledSession(
-            context.definition(), identityType, identityId, identificationToken,
-            context.browserSessionReference(), granted, expiresAt);
+        KioskSessionPrincipal session;
+        String engineAccessToken;
+        if ("HUMAN_RESOURCES".equals(context.definition().ownerModule())) {
+            var launch = sessionService.createControlledSessionLaunch(
+                context.definition(), identityType, identityId,
+                context.browserSessionReference(), granted, expiresAt);
+            session = launch.session();
+            engineAccessToken = launch.accessToken();
+        } else {
+            session = sessionService.createControlledSession(
+                context.definition(), identityType, identityId, identificationToken,
+                context.browserSessionReference(), granted, expiresAt);
+            engineAccessToken = identificationToken;
+        }
         var enriched = new LinkedHashMap<>(response);
         enriched.put("kiosk_session_id", session.sessionId());
-        enriched.put("kiosk_session_token", identificationToken);
+        enriched.put("kiosk_session_token", engineAccessToken);
         enriched.put("engine_session", session);
         return enriched;
     }
