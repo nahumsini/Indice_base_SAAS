@@ -3,6 +3,7 @@ package com.indice.erp.hr.attendance.kiosk;
 import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.kiosk.engine.KioskActionDispatcher;
 import com.indice.erp.kiosk.engine.KioskActionRequest;
+import com.indice.erp.kiosk.engine.KioskBrowserSessionReference;
 import com.indice.erp.kiosk.engine.KioskClientNetworkSignal;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
@@ -25,6 +26,7 @@ public class AttendancePublicKioskEngineGateway {
     private final KioskActionDispatcher dispatcher;
     private final KioskRegistryService registry;
     private final KioskRateLimitService rateLimit;
+    private final KioskBrowserSessionReference browserSessionReference;
     private final SessionCsrfService csrf;
     private final KioskEngineFeatureFlags flags;
 
@@ -33,12 +35,14 @@ public class AttendancePublicKioskEngineGateway {
             KioskActionDispatcher dispatcher,
             KioskRegistryService registry,
             KioskRateLimitService rateLimit,
+            KioskBrowserSessionReference browserSessionReference,
             SessionCsrfService csrf,
             KioskEngineFeatureFlags flags) {
         this.adapter = adapter;
         this.dispatcher = dispatcher;
         this.registry = registry;
         this.rateLimit = rateLimit;
+        this.browserSessionReference = browserSessionReference;
         this.csrf = csrf;
         this.flags = flags;
     }
@@ -106,7 +110,8 @@ public class AttendancePublicKioskEngineGateway {
             String token, HttpServletRequest request, HttpSession browserSession) {
         var networkSignal = KioskClientNetworkSignal.from(request);
         return KioskExecutionContext.publicLink(
-            AttendanceKioskCapabilities.OWNER_MODULE, token, networkSignal, browserSession.getId());
+            AttendanceKioskCapabilities.OWNER_MODULE, token, networkSignal,
+            browserSessionReference.resolve(browserSession));
     }
 
     private void requireCsrf(HttpSession session, String value) {
