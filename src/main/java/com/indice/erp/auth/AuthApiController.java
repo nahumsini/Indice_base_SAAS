@@ -8,8 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,10 +18,16 @@ public class AuthApiController {
 
     private final SessionAuthService sessionAuthService;
     private final SessionCsrfService sessionCsrfService;
+    private final LoginAuditService loginAuditService;
 
-    public AuthApiController(SessionAuthService sessionAuthService, SessionCsrfService sessionCsrfService) {
+    public AuthApiController(
+        SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
+        LoginAuditService loginAuditService
+    ) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
+        this.loginAuditService = loginAuditService;
     }
 
     @GetMapping("/me")
@@ -33,9 +39,34 @@ public class AuthApiController {
             )));
     }
 
+    @GetMapping("/csrf")
+    public ResponseEntity<?> csrf(HttpSession session) {
+        return ResponseEntity.ok(Map.of("csrfToken", sessionCsrfService.ensureCsrf(session)));
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpSession session, HttpServletRequest servletRequest) {
+    public ResponseEntity<?> login(
+        @RequestBody LoginRequest request,
+        HttpSession session,
+        HttpServletRequest servletRequest,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+        } catch (IllegalArgumentException ex) {
+            loginAuditService.record(
+                request == null ? "" : request.email(),
+                null,
+                null,
+                null,
+                false,
+                ex.getMessage(),
+                LoginAuditContext.from(servletRequest, session)
+            );
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
         var attempt = sessionAuthService.loginJson(
+            request.companyName(),
             request.email(),
             request.password(),
             session,
@@ -54,10 +85,17 @@ public class AuthApiController {
             )));
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody SignupRequest request, HttpSession session) {
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of(
+            "message", "Create account is completed through the signup trial flow."
+        ));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logout(
         HttpSession session,
-        @org.springframework.web.bind.annotation.RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
     ) {
         try {
             sessionCsrfService.requireCsrf(session, csrfToken);
@@ -99,6 +137,7 @@ public class AuthApiController {
     }
 
     public record LoginRequest(
+        String companyName,
         String email,
         String password
     ) {

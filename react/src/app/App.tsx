@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react';
-import { Settings } from 'lucide-react';
+import { CreditCard, Settings } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Header } from './components/Header';
 import { KPICard } from './components/KPICard';
@@ -65,9 +65,15 @@ const AgenteVentas = lazy(() => import('./AIModules/SalesAgent'));
 const Analitica = lazy(() => import('./AIModules/Analytics'));
 const Capacitacion = lazy(() => import('./AIModules/Training'));
 const Coach = lazy(() => import('./AIModules/Coach'));
-const KioskCenter = lazy(() => import('./KioskCenter'));
+const SubscriptionManagementPage = lazy(() => import('./Billing/SubscriptionManagementPage'));
 
 type StandaloneModuleComponent = ComponentType | LazyExoticComponent<ComponentType>;
+type SubscriptionSessionInfo = {
+  status: string;
+  access_allowed: boolean;
+  lock_reason?: string;
+  trial_end_at?: string;
+} | null;
 
 function StandaloneModuleShell({
   children,
@@ -91,6 +97,36 @@ function StandaloneModuleShell({
       </div>
       {children}
     </div>
+  );
+}
+
+function SubscriptionRequiredScreen({
+  subscription,
+  onManageBilling,
+}: {
+  subscription: SubscriptionSessionInfo;
+  onManageBilling: () => void;
+}) {
+  return (
+    <main className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-3xl items-center px-6 py-12">
+      <section className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex items-start gap-4">
+          <div className="rounded-lg bg-[#155CFF]/10 p-3 text-[#155CFF]">
+            <CreditCard className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Subscription required</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Access is paused for this company. Status: {subscription?.status || 'inactive'}
+              {subscription?.lock_reason ? ` (${subscription.lock_reason})` : ''}.
+            </p>
+            <Button className="mt-5 bg-[#155CFF] hover:bg-[#0B45CC]" onClick={onManageBilling}>
+              Manage billing
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -259,10 +295,9 @@ function Dashboard({
       {/* Sección Favoritos - Solo visible cuando Modo Aprendiz está desactivado */}
       {!isGuidedLearningVisible && favoriteModules.length > 0 && (
         <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-              <span className="text-lg leading-none" aria-hidden="true">⭐</span>
-              <span>{t.sections.favorites}</span>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              ⭐ {t.sections.favorites}
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.quickAccess}</span>
           </div>
@@ -283,10 +318,9 @@ function Dashboard({
 
       {/* Sección Módulos Principales */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-            <span className="text-lg leading-none" aria-hidden="true">⚙️</span>
-            <span>{t.sections.basicModules}</span>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            🏢 {t.sections.basicModules}
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.main}</span>
         </div>
@@ -308,10 +342,9 @@ function Dashboard({
 
       {/* Sección Módulos Complementarios */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-            <span className="text-lg leading-none" aria-hidden="true">🧰</span>
-            <span>{t.sections.complementaryModules}</span>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            🔧 {t.sections.complementaryModules}
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.additional}</span>
         </div>
@@ -331,10 +364,9 @@ function Dashboard({
 
       {/* Sección Módulos de IA */}
       <section className="pb-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-            <span className="text-lg leading-none" aria-hidden="true">🤖</span>
-            <span>{t.sections.aiModules}</span>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            🤖 {t.sections.aiModules}
           </h2>
           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t.sections.aiLabel}</span>
         </div>
@@ -369,19 +401,23 @@ export default function App() {
   const [isModuleNavigationLoading, setIsModuleNavigationLoading] = useState(false);
   const [allowedModuleRoutes, setAllowedModuleRoutes] = useState<Set<PageId> | null>(null);
   const [isModuleAccessLoaded, setIsModuleAccessLoaded] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionSessionInfo>(null);
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
   const moduleNavigationStartedAtRef = useRef(0);
   const moduleNavigationTargetPathRef = useRef<string | null>(null);
   const currentPage = resolvePageId(pageId);
   const needsPageRedirect = Boolean(pageId && currentPage && pageId !== currentPage);
-  const isModuleAccessPending = Boolean(currentPage && currentPage !== 'dashboard' && !isModuleAccessLoaded);
+  const isBillingPage = currentPage === 'billing';
+  const isModuleAccessPending = Boolean(currentPage && currentPage !== 'dashboard' && !isBillingPage && !isModuleAccessLoaded);
   const isDeniedModulePage = Boolean(
     currentPage
     && currentPage !== 'dashboard'
+    && !isBillingPage
     && isModuleAccessLoaded
     && !canAccessModulePage(currentPage, allowedModuleRoutes),
   );
+  const isSubscriptionBlocked = Boolean(subscriptionInfo && !subscriptionInfo.access_allowed && !isBillingPage);
 
   const clearModuleNavigationTimeout = () => {
     if (moduleNavigationTimeoutRef.current !== null) {
@@ -463,6 +499,9 @@ export default function App() {
 
     const loadAllowedModuleRoutes = async () => {
       const session = await authApi.getSessionOrNull().catch(() => null);
+      if (active) {
+        setSubscriptionInfo(session?.company.subscription ?? null);
+      }
 
       try {
         const backendModules = await dashboardApi.listModules();
@@ -588,7 +627,6 @@ export default function App() {
   };
 
   const standaloneModulePages: Partial<Record<PageId, StandaloneModuleComponent>> = {
-    'kiosk-center': KioskCenter,
     maintenance: Mantenimiento,
     inventory: Inventarios,
     'minutes-control': ControlMinutas,
@@ -611,7 +649,9 @@ export default function App() {
   const StandaloneModuleComponent = standaloneModuleComponent;
 
   const pageContent =
-    currentPage === 'dashboard' ? (
+    currentPage === 'billing' ? (
+      <SubscriptionManagementPage />
+    ) : currentPage === 'dashboard' ? (
       <MainDashboard
         learningModeActive={learningModeActive}
         learningModeVisible={learningModeVisible}
@@ -621,29 +661,25 @@ export default function App() {
         onNavigate={(page) => handleModuleNavigation(page)}
       />
     ) : currentPage === 'human-resources' ? (
-      <HumanResources learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <HumanResources onNavigate={handleModuleNavigation} />
     ) : currentPage === 'processes-tasks' ? (
-      <ProcessesTasks learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <ProcessesTasks onNavigate={handleModuleNavigation} />
     ) : currentPage === 'home-panel' ? (
-      <PanelInicial learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <PanelInicial onNavigate={handleModuleNavigation} />
     ) : currentPage === 'expenses' ? (
-      <Gastos learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <Gastos onNavigate={handleModuleNavigation} />
     ) : currentPage === 'petty-cash' ? (
-      <CajaChica learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <CajaChica onNavigate={handleModuleNavigation} />
     ) : currentPage === 'point-of-sale' ? (
-      <PuntoVenta learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <PuntoVenta onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales' ? (
       <Ventas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'receivables' ? (
-      <Cartera learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <Cartera onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
-      <Kpis learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      <Kpis onNavigate={handleModuleNavigation} />
     ) : currentPage === 'affiliate-management' ? (
       <Afiliados onNavigate={handleModuleNavigation} />
-    ) : currentPage === 'inventory' ? (
-      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
-        <Inventarios learningModeActive={learningModeActive} />
-      </StandaloneModuleShell>
     ) : StandaloneModuleComponent && currentPage ? (
       <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
         <StandaloneModuleComponent />
@@ -653,6 +689,13 @@ export default function App() {
   if (!currentPage || needsPageRedirect || isModuleAccessPending || isDeniedModulePage) {
     return null;
   }
+
+  const renderedPageContent = isSubscriptionBlocked ? (
+    <SubscriptionRequiredScreen
+      subscription={subscriptionInfo}
+      onManageBilling={() => navigate('/billing')}
+    />
+  ) : pageContent;
 
   return (
     <div
@@ -682,7 +725,7 @@ export default function App() {
             />
           )}
         >
-          {pageContent}
+          {renderedPageContent}
         </Suspense>
         <SuccessToast
           isVisible={Boolean(successToastMessage)}

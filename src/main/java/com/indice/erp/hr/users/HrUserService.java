@@ -1,7 +1,9 @@
 package com.indice.erp.hr.users;
 
-import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.billing.seats.SeatCapacityExceededException;
+import com.indice.erp.billing.seats.SeatService;
+import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.hr.HrOperationalScope;
 import com.indice.erp.hr.HrOperationalScopeService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -47,6 +49,7 @@ public class HrUserService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private final CompanyStorageMeter storageMeter;
+    private final SeatService seatService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public HrUserService(
@@ -55,7 +58,8 @@ public class HrUserService {
         HrOperationalScopeService hrOperationalScopeService,
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties,
-        CompanyStorageMeter storageMeter
+        CompanyStorageMeter storageMeter,
+        SeatService seatService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrAttendanceService = hrAttendanceService;
@@ -63,6 +67,7 @@ public class HrUserService {
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
         this.storageMeter = storageMeter;
+        this.seatService = seatService;
     }
 
     public Map<String, Object> listUsers(long companyId) {
@@ -211,6 +216,7 @@ public class HrUserService {
         var profileDraft = buildProfileDraft(profilePayload, ProfileDraft.empty());
         var userRole = normalizeUserRole(stringValue(userPayload, "role", "user_role", "access_role"));
 
+        requireAvailableSeatForActiveAccess(companyId);
         var userIdentity = mirrorHrUserIdentity(companyId, createdBy, 0L, hrUserDraft, profileDraft, userRole);
         ensureDefaultUserAccessProfile(companyId, userIdentity, createdBy);
         return hrUserDetails(userIdentity.userCompanyId(), companyId);
@@ -730,20 +736,24 @@ public class HrUserService {
     private long findOrCreateUserCompany(long companyId, long userId, String workStatus, String requestedRole) {
         var existingRows = jdbcTemplate.query(
             """
-                SELECT id
+                SELECT id, COALESCE(status, 'active') AS status
                 FROM user_companies
                 WHERE company_id = ? AND user_id = ?
                 ORDER BY id ASC
                 LIMIT 1
                 """,
-            (rs, rowNum) -> rs.getLong("id"),
+            (rs, rowNum) -> new ExistingCompanyAccess(rs.getLong("id"), rs.getString("status")),
             companyId,
             userId
         );
 
         var accessStatus = userCompanyStatusForWorkStatus(workStatus);
         if (!existingRows.isEmpty()) {
-            var userCompanyId = existingRows.getFirst();
+            var existing = existingRows.getFirst();
+            var userCompanyId = existing.id();
+            if (!isActiveAccess(existing.status()) && isActiveAccess(accessStatus)) {
+                requireAvailableSeatForActiveAccess(companyId);
+            }
             if (requestedRole == null) {
                 jdbcTemplate.update(
                     "UPDATE user_companies SET status = ?, visibility = COALESCE(NULLIF(visibility, ''), 'all') WHERE id = ?",
@@ -759,6 +769,10 @@ public class HrUserService {
                 );
             }
             return userCompanyId;
+        }
+
+        if (isActiveAccess(accessStatus)) {
+            requireAvailableSeatForActiveAccess(companyId);
         }
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -781,6 +795,21 @@ public class HrUserService {
             throw new IllegalStateException("Unable to create company access for Human Resources user.");
         }
         return keyHolder.getKey().longValue();
+    }
+
+    private void requireAvailableSeatForActiveAccess(long companyId) {
+        var snapshot = seatService.snapshot(companyId);
+        if (snapshot.enforced() && snapshot.usedAndReserved() >= snapshot.limit()) {
+            throw new SeatCapacityExceededException(
+                "The company has reached its seat limit. Purchase another seat before adding this user.",
+                snapshot
+            );
+        }
+    }
+
+    private boolean isActiveAccess(String status) {
+        var normalized = safe(status).toLowerCase(Locale.ROOT);
+        return normalized.isBlank() || "active".equals(normalized) || "activo".equals(normalized);
     }
 
     private void updateUserCompany(long companyId, long userCompanyId, String workStatus, String requestedRole) {
@@ -1963,6 +1992,12 @@ public class HrUserService {
     private record UserWorkIdentity(
         long userCompanyId,
         long userId
+    ) {
+    }
+
+    private record ExistingCompanyAccess(
+        long id,
+        String status
     ) {
     }
 

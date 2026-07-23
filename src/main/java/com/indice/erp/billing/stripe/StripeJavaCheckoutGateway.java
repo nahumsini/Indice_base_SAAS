@@ -2,11 +2,14 @@ package com.indice.erp.billing.stripe;
 
 import com.stripe.exception.StripeException;
 import com.stripe.model.Customer;
+import com.stripe.model.Subscription;
+import com.stripe.model.SubscriptionItem;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -76,10 +79,67 @@ public class StripeJavaCheckoutGateway implements StripeCheckoutGateway {
         }
     }
 
+    @Override
+    public CheckoutSessionSnapshot retrieveCheckoutSession(String sessionId) {
+        try {
+            var params = new LinkedHashMap<String, Object>();
+            params.put("expand", List.of("subscription"));
+            var session = Session.retrieve(sessionId, params, requestOptions());
+            var subscription = session.getSubscriptionObject();
+            return new CheckoutSessionSnapshot(
+                session.getId(),
+                session.getStatus(),
+                session.getPaymentStatus(),
+                session.getCustomer(),
+                session.getSubscription(),
+                instant(session.getCreated()),
+                subscription == null ? null : subscriptionSnapshot(subscription)
+            );
+        } catch (StripeException exception) {
+            throw new StripeGatewayException("Stripe checkout session retrieval failed.", exception);
+        }
+    }
+
     private RequestOptions requestOptions(String idempotencyKey) {
         return RequestOptions.builder()
             .setApiKey(secrets.secretKey())
             .setIdempotencyKey(idempotencyKey)
             .build();
+    }
+
+    private RequestOptions requestOptions() {
+        return RequestOptions.builder()
+            .setApiKey(secrets.secretKey())
+            .build();
+    }
+
+    private SubscriptionSnapshot subscriptionSnapshot(Subscription subscription) {
+        var firstItem = firstItem(subscription);
+        return new SubscriptionSnapshot(
+            subscription.getId(),
+            subscription.getCustomer(),
+            subscription.getStatus(),
+            subscription.getCollectionMethod(),
+            subscription.getCurrency(),
+            Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()),
+            instant(subscription.getTrialStart()),
+            instant(subscription.getTrialEnd()),
+            firstItem == null ? null : instant(firstItem.getCurrentPeriodStart()),
+            firstItem == null ? null : instant(firstItem.getCurrentPeriodEnd()),
+            instant(subscription.getCanceledAt()),
+            subscription.getLatestInvoice()
+        );
+    }
+
+    private SubscriptionItem firstItem(Subscription subscription) {
+        var items = subscription.getItems();
+        if (items == null || items.getData() == null || items.getData().isEmpty()) {
+            return null;
+        }
+        return items.getData().getFirst();
+    }
+
+    private Instant instant(Long epochSeconds) {
+        return epochSeconds == null ? null : Instant.ofEpochSecond(epochSeconds);
     }
 }

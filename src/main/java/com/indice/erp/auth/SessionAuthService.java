@@ -1,6 +1,8 @@
 package com.indice.erp.auth;
 
 import com.indice.erp.access.ModuleSlugNormalizer;
+import com.indice.erp.billing.subscription.CompanySubscriptionStatus;
+import com.indice.erp.billing.subscription.CompanySubscriptionStatusProvider;
 import com.indice.erp.tenant.TenantScope;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
@@ -26,20 +28,23 @@ public class SessionAuthService {
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder;
     private final LoginAuditService loginAuditService;
+    private final CompanySubscriptionStatusProvider subscriptionStatusProvider;
 
     @Autowired
     public SessionAuthService(
         JdbcTemplate jdbcTemplate,
         BCryptPasswordEncoder passwordEncoder,
-        LoginAuditService loginAuditService
+        LoginAuditService loginAuditService,
+        CompanySubscriptionStatusProvider subscriptionStatusProvider
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
         this.loginAuditService = loginAuditService;
+        this.subscriptionStatusProvider = subscriptionStatusProvider;
     }
 
     SessionAuthService(JdbcTemplate jdbcTemplate, BCryptPasswordEncoder passwordEncoder) {
-        this(jdbcTemplate, passwordEncoder, LoginAuditService.noop());
+        this(jdbcTemplate, passwordEncoder, LoginAuditService.noop(), (companyId) -> CompanySubscriptionStatus.activeLegacy());
     }
 
     public String ensureLoginCsrf(HttpSession session) {
@@ -53,24 +58,26 @@ public class SessionAuthService {
         return token;
     }
 
-    public LoginAttemptResult login(String email, String password, String csrf, HttpSession session) {
-        var sessionCsrf = String.valueOf(session.getAttribute(SESSION_LOGIN_CSRF));
-        if (sessionCsrf == null || sessionCsrf.isBlank() || !sessionCsrf.equals(csrf)) {
+    public LoginAttemptResult login(String companyName, String email, String password, String csrf, HttpSession session) {
+        var sessionToken = session.getAttribute(SESSION_LOGIN_CSRF);
+        var sessionCsrf = sessionToken instanceof String value ? value : "";
+        if (sessionCsrf.isBlank() || !sessionCsrf.equals(csrf)) {
             return new LoginAttemptResult(false, "Invalid session. Refresh and try again.");
         }
 
-        return authenticateAndStoreSession(email, password, session, LoginAuditContext.empty());
+        return authenticateAndStoreSession(companyName, email, password, session, LoginAuditContext.empty());
     }
 
-    public LoginAttemptResult loginJson(String email, String password, HttpSession session) {
-        return loginJson(email, password, session, LoginAuditContext.empty());
+    public LoginAttemptResult loginJson(String companyName, String email, String password, HttpSession session) {
+        return loginJson(companyName, email, password, session, LoginAuditContext.empty());
     }
 
-    public LoginAttemptResult loginJson(String email, String password, HttpSession session, LoginAuditContext auditContext) {
-        return authenticateAndStoreSession(email, password, session, auditContext);
+    public LoginAttemptResult loginJson(String companyName, String email, String password, HttpSession session, LoginAuditContext auditContext) {
+        return authenticateAndStoreSession(companyName, email, password, session, auditContext);
     }
 
     private LoginAttemptResult authenticateAndStoreSession(
+        String companyName,
         String email,
         String password,
         HttpSession session,
@@ -78,9 +85,14 @@ public class SessionAuthService {
     ) {
 
         var normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+        var normalizedCompanyName = companyName == null ? "" : companyName.trim().toLowerCase();
+        if (normalizedCompanyName.isBlank()) {
+            recordLogin(normalizedEmail, null, null, null, false, "Company name is required.", auditContext);
+            return new LoginAttemptResult(false, "Company name is required.");
+        }
         if (normalizedEmail.isBlank() || password == null || password.isBlank()) {
-            recordLogin(normalizedEmail, null, null, null, false, "Invalid email or password.", auditContext);
-            return new LoginAttemptResult(false, "Invalid email or password.");
+            recordLogin(normalizedEmail, null, null, null, false, "Invalid company, email, or password.", auditContext);
+            return new LoginAttemptResult(false, "Invalid company, email, or password.");
         }
 
         var users = jdbcTemplate.query(
@@ -100,23 +112,25 @@ public class SessionAuthService {
         );
 
         if (users.isEmpty()) {
-            recordLogin(normalizedEmail, null, null, null, false, "Invalid email or password.", auditContext);
-            return new LoginAttemptResult(false, "Invalid email or password.");
+            recordLogin(normalizedEmail, null, null, null, false, "Invalid company, email, or password.", auditContext);
+            return new LoginAttemptResult(false, "Invalid company, email, or password.");
         }
 
         var user = users.getFirst();
         if (!matchesPassword(password, user.passwordHash())) {
-            recordLogin(normalizedEmail, user.id(), null, null, false, "Invalid email or password.", auditContext);
-            return new LoginAttemptResult(false, "Invalid email or password.");
+            recordLogin(normalizedEmail, user.id(), null, null, false, "Invalid company, email, or password.", auditContext);
+            return new LoginAttemptResult(false, "Invalid company, email, or password.");
         }
 
         var companies = jdbcTemplate.query(
             """
-                SELECT id, company_id, role
-                FROM user_companies
-                WHERE user_id = ?
-                  AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
-                ORDER BY CASE LOWER(COALESCE(role, 'user'))
+                SELECT uc.id, uc.company_id, uc.role
+                FROM user_companies uc
+                JOIN companies c ON c.id = uc.company_id
+                WHERE uc.user_id = ?
+                  AND LOWER(TRIM(c.name)) = ?
+                  AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
+                ORDER BY CASE LOWER(COALESCE(uc.role, 'user'))
                     WHEN 'root' THEN 1
                     WHEN 'superadmin' THEN 2
                     WHEN 'owner' THEN 3
@@ -129,7 +143,7 @@ public class SessionAuthService {
                     WHEN 'user' THEN 10
                     ELSE 99
                 END,
-                id DESC
+                uc.id DESC
                 LIMIT 1
                 """,
             (rs, rowNum) -> new CompanyRole(
@@ -137,12 +151,13 @@ public class SessionAuthService {
                 rs.getLong("company_id"),
                 rs.getString("role")
             ),
-            user.id()
+            user.id(),
+            normalizedCompanyName
         );
 
         if (companies.isEmpty()) {
-            recordLogin(normalizedEmail, user.id(), null, null, false, "No active company is assigned to this user.", auditContext);
-            return new LoginAttemptResult(false, "No active company is assigned to this user.");
+            recordLogin(normalizedEmail, user.id(), null, null, false, "Invalid company, email, or password.", auditContext);
+            return new LoginAttemptResult(false, "Invalid company, email, or password.");
         }
 
         var companyRole = companies.getFirst();
@@ -321,7 +336,8 @@ public class SessionAuthService {
             membership.userCompanyId(),
             normalizeRole(membership.role()),
             new AuthSessionResponse.ScopeInfo(scope.type(), scope.unit_id(), scope.business_id()),
-            active
+            active,
+            subscriptionInfo(subscriptionStatusProvider.currentStatus(membership.companyId()))
         );
     }
 
@@ -357,6 +373,17 @@ public class SessionAuthService {
         }
 
         var userCompanyId = userCompanyIds.getFirst();
+        var entitledModules = new LinkedHashSet<>(jdbcTemplate.query(
+            """
+                SELECT DISTINCT module_slug
+                FROM company_module_entitlements
+                WHERE company_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                ORDER BY module_slug ASC
+                """,
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
+            companyId
+        ));
         var moduleSlugs = new ArrayList<>(new LinkedHashSet<>(jdbcTemplate.query(
             """
                 SELECT DISTINCT module_slug
@@ -367,6 +394,7 @@ public class SessionAuthService {
             (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
             userCompanyId
         )));
+        moduleSlugs.removeIf((moduleSlug) -> !entitledModules.contains(moduleSlug));
         var tabPermissionKeys = new ArrayList<>(new LinkedHashSet<>(jdbcTemplate.query(
             """
                 SELECT module_slug, tab_key
@@ -388,6 +416,30 @@ public class SessionAuthService {
             moduleSlugs,
             tabPermissionKeys,
             tabPermissionRowCount != null && tabPermissionRowCount > 0
+        );
+    }
+
+    private String loadCompanyName(long companyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT name
+                FROM companies
+                WHERE id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getString("name"),
+            companyId
+        );
+        return rows.isEmpty() ? "" : rows.getFirst();
+    }
+
+    private AuthSessionResponse.SubscriptionInfo subscriptionInfo(CompanySubscriptionStatus status) {
+        return new AuthSessionResponse.SubscriptionInfo(
+            status.status(),
+            status.planId(),
+            status.trialEndAt() == null ? "" : status.trialEndAt().toString(),
+            status.accessAllowed(),
+            status.lockReason()
         );
     }
 

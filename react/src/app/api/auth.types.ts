@@ -18,6 +18,13 @@ export interface AuthSessionResponse {
       business_id: number | null;
     };
     active: boolean;
+    subscription?: {
+      status: string;
+      plan_id: string;
+      trial_end_at: string;
+      access_allowed: boolean;
+      lock_reason: string;
+    };
   };
   companies: Array<AuthSessionResponse['company']>;
   csrfToken: string;

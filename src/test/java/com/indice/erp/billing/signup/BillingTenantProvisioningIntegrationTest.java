@@ -86,7 +86,7 @@ class BillingTenantProvisioningIntegrationTest {
         assertThat(jdbc.queryForMap(
             "SELECT role, status, visibility FROM user_companies WHERE id = ?",
             provisioned.ownerUserCompanyId()
-        )).containsEntry("role", "owner").containsEntry("status", "active").containsEntry("visibility", "all");
+        )).containsEntry("role", "superadmin").containsEntry("status", "active").containsEntry("visibility", "all");
         assertThat(jdbc.queryForMap(
             "SELECT unit_id, business_id, department FROM user_work_profiles WHERE user_company_id = ?",
             provisioned.ownerUserCompanyId()

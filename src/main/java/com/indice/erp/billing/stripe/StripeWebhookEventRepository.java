@@ -1,5 +1,6 @@
 package com.indice.erp.billing.stripe;
 
+import com.indice.erp.billing.BillingHashing;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -168,6 +169,37 @@ public class StripeWebhookEventRepository {
                   AND status IN ('PROCESSED', 'IGNORED', 'DEAD')
                 """
         );
+    }
+
+    boolean alreadyProcessed(String eventId) {
+        var count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM stripe_webhook_events WHERE stripe_event_id = ?",
+            Long.class,
+            eventId
+        );
+        return count != null && count > 0;
+    }
+
+    void recordProcessed(String eventId, String eventType, String payload) {
+        recordProcessedHash(eventId, eventType, BillingHashing.sha256(payload == null ? "" : payload));
+    }
+
+    void recordProcessedHash(String eventId, String eventType, String payloadSha256) {
+        try {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO stripe_webhook_events (
+                        stripe_event_id, event_type, payload_sha256, raw_payload, status,
+                        event_created_at, processed_at, payload_retention_until
+                    ) VALUES (?, ?, ?, NULL, 'PROCESSED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6),
+                        TIMESTAMPADD(DAY, 30, CURRENT_TIMESTAMP(6)))
+                    """,
+                eventId,
+                eventType,
+                payloadSha256
+            );
+        } catch (DuplicateKeyException ignored) {
+        }
     }
 
     public List<EventStatus> statuses() {

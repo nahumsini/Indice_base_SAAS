@@ -109,7 +109,8 @@ class CapabilityShadowDecisionServiceTest {
             3L,
             role,
             new AuthSessionResponse.ScopeInfo("corporate_office", null, null),
-            true
+            true,
+            new AuthSessionResponse.SubscriptionInfo("active", "legacy", "", true, "")
         );
         return new AuthSessionResponse(
             new AuthSessionResponse.UserInfo(1L, "Usuario", role, modules, List.of(), false),

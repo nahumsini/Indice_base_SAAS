@@ -10,6 +10,8 @@ public interface StripeCheckoutGateway {
 
     CheckoutResult createCheckout(CheckoutCommand command, String idempotencyKey);
 
+    CheckoutSessionSnapshot retrieveCheckoutSession(String sessionId);
+
     record CustomerCommand(
         String email,
         String name,
@@ -39,5 +41,32 @@ public interface StripeCheckoutGateway {
     }
 
     record CheckoutResult(String id, String url, Instant expiresAt) {
+    }
+
+    record CheckoutSessionSnapshot(
+        String id,
+        String status,
+        String paymentStatus,
+        String customerId,
+        String subscriptionId,
+        Instant createdAt,
+        SubscriptionSnapshot subscription
+    ) {
+    }
+
+    record SubscriptionSnapshot(
+        String id,
+        String customerId,
+        String status,
+        String collectionMethod,
+        String currency,
+        boolean cancelAtPeriodEnd,
+        Instant trialStartsAt,
+        Instant trialEndsAt,
+        Instant currentPeriodStartsAt,
+        Instant currentPeriodEndsAt,
+        Instant canceledAt,
+        String latestInvoiceId
+    ) {
     }
 }

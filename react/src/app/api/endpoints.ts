@@ -1,6 +1,11 @@
 export const endpoints = {
   auth: {
     login: '/api/v1/auth/login',
+    register: '/api/v1/auth/register',
+    csrf: '/api/v1/auth/csrf',
+    signupCheckout: '/api/v1/auth/signup/checkout',
+    signupCheckoutStatus: '/api/v1/auth/signup/checkout-status',
+    signupTrial: '/api/v1/auth/signup/trial',
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',
     company: '/api/v1/auth/company',
@@ -30,6 +35,18 @@ export const endpoints = {
     list: '/api/v1/notifications',
     readAll: '/api/v1/notifications/read-all',
   },
+  billing: {
+    subscription: '/api/v1/billing/subscription',
+    cancelSubscription: '/api/v1/billing/subscription/cancel',
+    resumeSubscription: '/api/v1/billing/subscription/resume',
+    portal: '/api/v1/billing/subscription/portal',
+  },
+  kioskCenter: {
+    kiosks: '/api/v2/kiosk-center/kiosks',
+  },
+  kpis: {
+    executivePanel: '/api/v1/kpis/executive-panel',
+  },
   invitations: {
     base: '/api/v1/invitations',
   },
@@ -37,9 +54,6 @@ export const endpoints = {
     modules: '/api/v1/modules',
     units: '/api/v1/org/units',
     businesses: '/api/v1/org/businesses',
-  },
-  kioskCenter: {
-    kiosks: '/api/v2/kiosk-center/kiosks',
   },
   configCenter: {
     currentUser: '/api/v1/config-center/current-user',
@@ -121,8 +135,5 @@ export const endpoints = {
     base: '/api/v1/sales',
     context: '/api/v1/sales/context',
     kpis: '/api/v1/sales/kpis',
-  },
-  kpis: {
-    executivePanel: '/api/v1/kpis/executive-panel',
   },
 } as const;

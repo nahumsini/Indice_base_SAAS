@@ -6,8 +6,47 @@ import { endpoints } from './endpoints';
 export type { AuthSessionResponse } from './auth.types';
 
 export interface LoginCredentials {
+  companyName: string;
   email: string;
   password: string;
+}
+
+export interface AccountSignupPayload {
+  fullName: string;
+  email: string;
+  password: string;
+  companyName: string;
+  industry: string;
+  companySize: string;
+  country: string;
+  phone: string;
+}
+
+export interface AccountSignupCheckoutPayload extends AccountSignupPayload {
+  planId: string;
+  moduleCount: number;
+  extraCollaborators: number;
+  selectedModuleSlugs: string[];
+}
+
+export interface CsrfTokenResponse {
+  csrfToken: string;
+}
+
+export interface SignupCheckoutResponse {
+  checkoutUrl: string;
+  checkoutSessionId: string;
+  csrfToken?: string;
+}
+
+export type SignupCheckoutStatus = 'pending' | 'completed' | 'expired' | 'failed' | 'superseded' | 'not_found';
+
+export interface SignupCheckoutStatusResponse {
+  status: SignupCheckoutStatus;
+  message: string;
+  companyId?: number | null;
+  canRestart: boolean;
+  canLogin: boolean;
 }
 
 export interface PasswordResetRequestPayload {
@@ -80,15 +119,16 @@ export const authApi = {
     return sessionRequest;
   },
 
-  async login({ email, password }: LoginCredentials) {
+  async login({ companyName, email, password }: LoginCredentials) {
     setCachedAuthSession(undefined);
     setCachedCsrfToken(null);
     clearPendingSessionRequest();
-
+    await this.csrf();
     try {
       const session = await apiClient<AuthSessionResponse>(endpoints.auth.login, {
         method: 'POST',
         body: JSON.stringify({
+          companyName,
           email,
           password,
         }),
@@ -99,12 +139,80 @@ export const authApi = {
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401) {
         cacheSession(null);
-        throw new Error('Correo o contraseña incorrectos. Usa demo@example.com / demo123 para el demo.');
+        throw new Error(error.message || 'Invalid company, email, or password.');
       }
 
-      if (error instanceof ApiClientError && error.status === 403) {
-        cacheSession(null);
-        throw new Error('El backend rechazo el origen de este puerto de desarrollo. Recarga el servidor local y vuelve a intentar.');
+      throw error;
+    }
+  },
+
+  async register(payload: AccountSignupPayload) {
+    setCachedAuthSession(undefined);
+    setCachedCsrfToken(null);
+    clearPendingSessionRequest();
+
+    try {
+      const session = await apiClient<AuthSessionResponse>(endpoints.auth.register, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      cacheSession(session);
+      return session;
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 400) {
+        throw new Error(error.message || 'Account could not be created.');
+      }
+
+      throw error;
+    }
+  },
+
+  csrf() {
+    return apiClient<CsrfTokenResponse>(endpoints.auth.csrf);
+  },
+
+  async startSignupCheckout(payload: AccountSignupCheckoutPayload) {
+    setCachedAuthSession(undefined);
+    setCachedCsrfToken(null);
+    clearPendingSessionRequest();
+    await this.csrf();
+
+    try {
+      return await apiClient<SignupCheckoutResponse>(endpoints.auth.signupCheckout, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      if (error instanceof ApiClientError && [400, 402, 403, 503].includes(error.status)) {
+        throw new Error(error.message || 'Secure payment checkout could not be started.');
+      }
+
+      throw error;
+    }
+  },
+
+  signupCheckoutStatus(sessionId: string) {
+    const params = new URLSearchParams({ session_id: sessionId });
+    return apiClient<SignupCheckoutStatusResponse>(`${endpoints.auth.signupCheckoutStatus}?${params.toString()}`);
+  },
+
+  async startSignupTrial(payload: AccountSignupCheckoutPayload) {
+    setCachedAuthSession(undefined);
+    setCachedCsrfToken(null);
+    clearPendingSessionRequest();
+    await this.csrf();
+
+    try {
+      const session = await apiClient<AuthSessionResponse>(endpoints.auth.signupTrial, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      cacheSession(session);
+      return session;
+    } catch (error) {
+      if (error instanceof ApiClientError && [400, 403].includes(error.status)) {
+        throw new Error(error.message || 'Trial account could not be created.');
       }
 
       throw error;
@@ -150,6 +258,7 @@ export const authApi = {
       });
     } finally {
       cacheSession(null);
+      setCachedCsrfToken(null);
       clearPendingSessionRequest();
     }
   },

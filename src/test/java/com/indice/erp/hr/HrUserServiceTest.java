@@ -1,6 +1,7 @@
 package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.billing.seats.SeatService;
 import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.billing.storage.StorageQuotaService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -46,6 +47,9 @@ class HrUserServiceTest {
 
     @Mock
     private HrOperationalScopeService hrOperationalScopeService;
+
+    @Mock
+    private SeatService seatService;
 
     @Test
     void listUsersAllowsNullOptionalColumns() throws Exception {
@@ -273,7 +277,8 @@ class HrUserServiceTest {
             hrOperationalScopeService,
             objectStorageService,
             objectStorageProperties,
-            new CompanyStorageMeter(mock(StorageQuotaService.class), objectStorageService)
+            new CompanyStorageMeter(mock(StorageQuotaService.class), objectStorageService),
+            seatService
         );
     }
 

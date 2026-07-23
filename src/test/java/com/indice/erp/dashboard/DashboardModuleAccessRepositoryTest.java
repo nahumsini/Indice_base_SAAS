@@ -2,7 +2,6 @@ package com.indice.erp.dashboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -28,18 +27,20 @@ class DashboardModuleAccessRepositoryTest {
     void normalUserGetsOnlyAssignedModules() {
         var repository = new DashboardModuleAccessRepository(jdbcTemplate);
         mockUserCompanyAccess(9L, 1L, 20L, "user");
+        mockCompanyEntitlements(1L, "expenses");
         mockModuleSlugs(20L, "expenses", "human_resources");
 
         var access = repository.loadAccess(9L, 1L, "user");
 
         assertFalse(access.allModules());
-        assertEquals(Set.of("expenses", "human_resources"), access.moduleSlugs());
+        assertEquals(Set.of("expenses"), access.moduleSlugs());
     }
 
     @Test
     void adminWithoutAssignmentsGetsNoModules() {
         var repository = new DashboardModuleAccessRepository(jdbcTemplate);
         mockUserCompanyAccess(9L, 1L, 20L, "admin");
+        mockCompanyEntitlements(1L, "expenses", "human_resources");
         mockModuleSlugs(20L);
 
         var access = repository.loadAccess(9L, 1L, "admin");
@@ -49,20 +50,22 @@ class DashboardModuleAccessRepositoryTest {
     }
 
     @Test
-    void rootGetsFullAccess() {
+    void rootGetsCompanyEntitledModules() {
         var repository = new DashboardModuleAccessRepository(jdbcTemplate);
         mockUserCompanyAccess(9L, 1L, 20L, "root");
+        mockCompanyEntitlements(1L, "expenses", "human_resources");
 
         var access = repository.loadAccess(9L, 1L, "root");
 
-        assertTrue(access.allModules());
+        assertFalse(access.allModules());
+        assertEquals(Set.of("expenses", "human_resources"), access.moduleSlugs());
     }
 
     @Test
     void missingCompanyAccessGetsNoModules() {
         var repository = new DashboardModuleAccessRepository(jdbcTemplate);
         when(jdbcTemplate.query(
-            argThat((String sql) -> sql.contains("FROM user_companies")),
+            argThat((String sql) -> containsSql(sql, "FROM user_companies")),
             org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
             eq(9L),
             eq(1L)
@@ -76,7 +79,7 @@ class DashboardModuleAccessRepositoryTest {
 
     private void mockUserCompanyAccess(long userId, long companyId, long userCompanyId, String role) {
         when(jdbcTemplate.query(
-            argThat((String sql) -> sql.contains("FROM user_companies")),
+            argThat((String sql) -> containsSql(sql, "FROM user_companies")),
             org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
             eq(userId),
             eq(companyId)
@@ -92,7 +95,7 @@ class DashboardModuleAccessRepositoryTest {
 
     private void mockModuleSlugs(long userCompanyId, String... slugs) {
         when(jdbcTemplate.query(
-            argThat((String sql) -> sql.contains("FROM user_company_module_roles")),
+            argThat((String sql) -> containsSql(sql, "FROM user_company_module_roles")),
             org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
             eq(userCompanyId)
         )).thenAnswer(invocation -> {
@@ -106,5 +109,27 @@ class DashboardModuleAccessRepositoryTest {
             }
             return rows;
         });
+    }
+
+    private void mockCompanyEntitlements(long companyId, String... slugs) {
+        when(jdbcTemplate.query(
+            argThat((String sql) -> containsSql(sql, "FROM company_module_entitlements")),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(companyId)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            var rows = new java.util.ArrayList<Object>();
+            for (var index = 0; index < slugs.length; index++) {
+                ResultSet rs = mock(ResultSet.class);
+                when(rs.getString("module_slug")).thenReturn(slugs[index]);
+                rows.add(rowMapper.mapRow(rs, index));
+            }
+            return rows;
+        });
+    }
+
+    private boolean containsSql(String sql, String expected) {
+        return sql != null && sql.contains(expected);
     }
 }

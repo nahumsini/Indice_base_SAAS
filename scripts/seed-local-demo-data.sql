@@ -136,7 +136,7 @@ INSERT INTO user_companies (user_id, company_id, role, status, visibility)
 SELECT
   u.user_id,
   @primary_company_id,
-  CASE WHEN u.seed_no = 1 THEN 'admin' ELSE 'user' END,
+  CASE WHEN u.seed_no = 1 THEN 'superadmin' ELSE 'user' END,
   'active',
   'all'
 FROM tmp_local_seed_user_ids u
@@ -496,17 +496,54 @@ ON DUPLICATE KEY UPDATE
   business_id = VALUES(business_id),
   status = VALUES(status);
 
-INSERT IGNORE INTO user_company_module_roles (user_company_id, module_slug, role, skill_level)
-SELECT uc.user_company_id, module_slug, 'user', 1
+INSERT INTO user_company_module_roles (user_company_id, module_slug, role, skill_level)
+SELECT uc.user_company_id, module_row.slug, 'admin', 100
+FROM tmp_local_seed_user_company_ids uc
+JOIN modules module_row ON module_row.is_active = 1
+WHERE uc.seed_no = 1
+ON DUPLICATE KEY UPDATE
+  role = VALUES(role),
+  skill_level = VALUES(skill_level);
+
+INSERT INTO user_company_module_roles (user_company_id, module_slug, role, skill_level)
+SELECT uc.user_company_id, module_seed.module_slug, 'user', 1
 FROM tmp_local_seed_user_company_ids uc
 JOIN (
   SELECT 1 AS seed_no, 'human_resources' AS module_slug UNION ALL
   SELECT 2, 'crm' UNION ALL
   SELECT 3, 'processes' UNION ALL
   SELECT 4, 'config_center'
-) module_seed ON module_seed.seed_no = uc.seed_no;
+) module_seed ON module_seed.seed_no = uc.seed_no
+WHERE uc.seed_no <> 1
+ON DUPLICATE KEY UPDATE
+  role = VALUES(role),
+  skill_level = VALUES(skill_level);
 
-INSERT IGNORE INTO user_company_tab_permissions (user_company_id, module_slug, tab_key, can_view)
+INSERT INTO user_company_tab_permissions (user_company_id, module_slug, tab_key, can_view)
+SELECT uc.user_company_id, tab_seed.module_slug, tab_seed.tab_key, 1
+FROM tmp_local_seed_user_company_ids uc
+CROSS JOIN (
+  SELECT 'config_center' AS module_slug, 'profile' AS tab_key UNION ALL
+  SELECT 'config_center', 'business-structure' UNION ALL
+  SELECT 'config_center', 'business-profile' UNION ALL
+  SELECT 'config_center', 'personal-performance' UNION ALL
+  SELECT 'config_center', 'users' UNION ALL
+  SELECT 'human_resources', 'collaborators' UNION ALL
+  SELECT 'human_resources', 'attendance' UNION ALL
+  SELECT 'human_resources', 'control' UNION ALL
+  SELECT 'human_resources', 'payroll' UNION ALL
+  SELECT 'human_resources', 'announcements' UNION ALL
+  SELECT 'human_resources', 'assets' UNION ALL
+  SELECT 'human_resources', 'records' UNION ALL
+  SELECT 'human_resources', 'permissions' UNION ALL
+  SELECT 'human_resources', 'incentives' UNION ALL
+  SELECT 'human_resources', 'kpis'
+) tab_seed
+WHERE uc.seed_no = 1
+ON DUPLICATE KEY UPDATE
+  can_view = VALUES(can_view);
+
+INSERT INTO user_company_tab_permissions (user_company_id, module_slug, tab_key, can_view)
 SELECT uc.user_company_id, module_seed.module_slug, module_seed.tab_key, 1
 FROM tmp_local_seed_user_company_ids uc
 JOIN (
@@ -514,7 +551,10 @@ JOIN (
   SELECT 2, 'crm', 'contacts' UNION ALL
   SELECT 3, 'processes', 'tasks' UNION ALL
   SELECT 4, 'config_center', 'users'
-) module_seed ON module_seed.seed_no = uc.seed_no;
+) module_seed ON module_seed.seed_no = uc.seed_no
+WHERE uc.seed_no <> 1
+ON DUPLICATE KEY UPDATE
+  can_view = VALUES(can_view);
 
 INSERT IGNORE INTO user_module_favorites (user_id, module_slug)
 SELECT u.user_id, favorite_seed.module_slug

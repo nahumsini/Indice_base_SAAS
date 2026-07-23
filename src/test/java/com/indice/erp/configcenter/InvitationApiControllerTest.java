@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.indice.erp.billing.seats.SeatCapacityExceededException;
+import com.indice.erp.billing.seats.SeatService.SeatSnapshot;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Test;
@@ -100,5 +102,30 @@ class InvitationApiControllerTest {
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Password and confirmation must match."));
+    }
+
+    @Test
+    void acceptInvitationReturnsConflictWhenSeatsAreFull() throws Exception {
+        given(invitationSeatCoordinator.accept(org.mockito.ArgumentMatchers.eq("abc123"), org.mockito.ArgumentMatchers.anyMap()))
+            .willThrow(seatCapacityExceeded());
+
+        mockMvc.perform(post("/api/v1/invitations/abc123/accept")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "password": "secure-pass",
+                      "confirm_password": "secure-pass"
+                    }
+                    """))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("SEAT_CAPACITY_EXCEEDED"))
+            .andExpect(jsonPath("$.limit").value(5));
+    }
+
+    private SeatCapacityExceededException seatCapacityExceeded() {
+        return new SeatCapacityExceededException(
+            "The company has reached its seat limit. Purchase another seat before accepting this invitation.",
+            new SeatSnapshot(7L, true, 5, 0, 0, 5, 0)
+        );
     }
 }

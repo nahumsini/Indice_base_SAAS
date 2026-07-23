@@ -2,8 +2,11 @@ package com.indice.erp.auth;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AuthApiController.class)
 class AuthApiControllerTest {
@@ -31,6 +34,9 @@ class AuthApiControllerTest {
     @MockBean
     private SessionCsrfService sessionCsrfService;
 
+    @MockBean
+    private LoginAuditService loginAuditService;
+
     @Test
     void meReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
         given(sessionAuthService.currentSession(any())).willReturn(Optional.empty());
@@ -41,22 +47,34 @@ class AuthApiControllerTest {
     }
 
     @Test
-    void loginReturnsSessionPayloadWhenCredentialsAreValid() throws Exception {
-        var session = sessionResponse(1L, "Empresa Demo");
+    void loginRejectsMissingCsrfToken() throws Exception {
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService).requireCsrf(any(), eq(null));
 
-        given(sessionAuthService.loginJson(eq("demo@example.com"), eq("demo123"), any(), any(LoginAuditContext.class)))
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+
+        verify(loginAuditService).record(eq("demo@example.com"), isNull(), isNull(), isNull(), eq(false),
+            eq("Invalid CSRF token."), any(LoginAuditContext.class));
+        verifyNoInteractions(sessionAuthService);
+    }
+
+    @Test
+    void loginReturnsSessionPayloadWhenCredentialsAreValid() throws Exception {
+        var session = sessionResponse(1L, "Empresa Demo Spring");
+
+        given(sessionAuthService.loginJson(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123"), any(), any(LoginAuditContext.class)))
             .willReturn(new LoginAttemptResult(true, ""));
         given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
         given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");
 
         mockMvc.perform(post("/api/v1/auth/login")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(APPLICATION_JSON)
-                .content("""
-                    {
-                      "email": "demo@example.com",
-                      "password": "demo123"
-                    }
-                    """))
+                .content(loginPayload()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.user.id").value(1))
             .andExpect(jsonPath("$.user.name").value("Usuario Demo"))
@@ -65,7 +83,9 @@ class AuthApiControllerTest {
             .andExpect(jsonPath("$.user.tab_permission_keys[0]").value("config_center.users"))
             .andExpect(jsonPath("$.user.tab_permissions_configured").value(true))
             .andExpect(jsonPath("$.company.id").value(1))
-            .andExpect(jsonPath("$.company.name").value("Empresa Demo"))
+            .andExpect(jsonPath("$.company.name").value("Empresa Demo Spring"))
+            .andExpect(jsonPath("$.company.scope.type").value("corporate_office"))
+            .andExpect(jsonPath("$.company.subscription.access_allowed").value(true))
             .andExpect(jsonPath("$.companies[0].scope.type").value("corporate_office"))
             .andExpect(jsonPath("$.csrfToken").value("csrf-token"));
     }
@@ -108,6 +128,54 @@ class AuthApiControllerTest {
             .andExpect(jsonPath("$.message").value("The requested company is not available for this session."));
     }
 
+    @Test
+    void csrfReturnsPublicToken() throws Exception {
+        given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");
+
+        mockMvc.perform(get("/api/v1/auth/csrf"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.csrfToken").value("csrf-token"));
+    }
+
+    @Test
+    void registerRequiresSecurePaymentCheckout() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "fullName": "Ada Owner",
+                      "email": "ada@example.com",
+                      "password": "securePass123",
+                      "companyName": "Ada Studio"
+                    }
+                    """))
+            .andExpect(status().isPaymentRequired())
+            .andExpect(jsonPath("$.message").value("Create account is completed through the signup trial flow."));
+    }
+
+    @Test
+    void logoutRejectsMissingCsrfToken() throws Exception {
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService).requireCsrf(any(), eq(null));
+
+        mockMvc.perform(post("/api/v1/auth/logout"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+
+        verifyNoInteractions(sessionAuthService);
+    }
+
+    @Test
+    void logoutWithValidCsrfClearsSession() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout")
+                .header("X-CSRF-Token", "csrf-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
+        verify(sessionAuthService).logout(any());
+    }
+
     private AuthSessionResponse sessionResponse(long companyId, String companyName) {
         var company = new AuthSessionResponse.CompanyInfo(
             companyId,
@@ -115,7 +183,8 @@ class AuthApiControllerTest {
             10L,
             "admin",
             new AuthSessionResponse.ScopeInfo("corporate_office", null, null),
-            true
+            true,
+            new AuthSessionResponse.SubscriptionInfo("active", "legacy", "", true, "")
         );
         return new AuthSessionResponse(
             new AuthSessionResponse.UserInfo(
@@ -129,5 +198,15 @@ class AuthApiControllerTest {
             company,
             List.of(company)
         );
+    }
+
+    private String loginPayload() {
+        return """
+            {
+              "companyName": "Empresa Demo Spring",
+              "email": "demo@example.com",
+              "password": "demo123"
+            }
+            """;
     }
 }

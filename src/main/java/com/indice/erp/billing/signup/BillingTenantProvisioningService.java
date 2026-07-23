@@ -104,7 +104,7 @@ public class BillingTenantProvisioningService {
             intentId
         );
 
-        var moduleSlugs = provisionOwnerModules(intent.catalogVersionId(), membershipId);
+        var moduleSlugs = provisionOwnerModules(intent.catalogVersionId(), companyId, membershipId);
         provisionOwnerTabs(membershipId, moduleSlugs);
         var trial = resolveTrialWindow(intent);
         provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial);
@@ -131,7 +131,7 @@ public class BillingTenantProvisioningService {
             "PROVISIONING", "TENANT_PROVISIONED", "SUCCESS", null, null,
             intent.stripeCustomerId(), companyId, intentId,
             Map.of(
-                "ownerRole", "owner",
+                "ownerRole", "superadmin",
                 "scope", "corporate_office",
                 "trialEndsAt", trial.endsAt().toString(),
                 "moduleCount", moduleSlugs.size()
@@ -191,7 +191,7 @@ public class BillingTenantProvisioningService {
             var statement = connection.prepareStatement(
                 """
                     INSERT INTO user_companies (user_id, company_id, role, status, visibility)
-                    VALUES (?, ?, 'owner', 'active', 'all')
+                    VALUES (?, ?, 'superadmin', 'active', 'all')
                     """,
                 Statement.RETURN_GENERATED_KEYS
             );
@@ -225,7 +225,7 @@ public class BillingTenantProvisioningService {
         );
     }
 
-    private Set<String> provisionOwnerModules(long catalogVersionId, long membershipId) {
+    private Set<String> provisionOwnerModules(long catalogVersionId, long companyId, long membershipId) {
         var moduleSlugs = new LinkedHashSet<>(jdbcTemplate.query(
             """
                 SELECT DISTINCT m.slug
@@ -251,6 +251,17 @@ public class BillingTenantProvisioningService {
                     VALUES (?, ?, 'admin', 100)
                     """,
                 membershipId,
+                moduleSlug
+            );
+            jdbcTemplate.update(
+                """
+                    INSERT INTO company_module_entitlements (company_id, module_slug, status, source)
+                    VALUES (?, ?, 'active', 'premium_signup')
+                    ON DUPLICATE KEY UPDATE
+                        status = VALUES(status),
+                        source = VALUES(source)
+                    """,
+                companyId,
                 moduleSlug
             );
         }

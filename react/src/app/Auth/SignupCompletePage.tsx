@@ -4,6 +4,8 @@ import { Link, useSearchParams } from 'react-router';
 import { billingSignupApi, type BillingSignupStatus } from '../api/billingSignup';
 import { Button } from '../components/ui/button';
 
+const LOGIN_SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
+
 export default function SignupCompletePage() {
   const [searchParams] = useSearchParams();
   const reference = searchParams.get('reference')
@@ -43,6 +45,14 @@ export default function SignupCompletePage() {
   const ready = status?.loginReady;
   const review = status?.requiresReview;
 
+  useEffect(() => {
+    if (!ready || typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.removeItem(LOGIN_SIGNUP_DRAFT_STORAGE_KEY);
+    window.sessionStorage.removeItem(LOGIN_SIGNUP_DRAFT_STORAGE_KEY);
+  }, [ready]);
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(21,92,255,0.11),_transparent_38%),linear-gradient(135deg,_#F8FAFC,_#EEF3F8)] px-4 py-10 text-[#222831]">
       <section className="w-full max-w-xl rounded-[32px] border border-white/80 bg-white/95 p-7 text-center shadow-[0_30px_90px_-50px_rgba(34,40,49,0.5)] sm:p-10">
@@ -71,10 +81,10 @@ export default function SignupCompletePage() {
 
         {ready ? (
           <Button asChild className="mt-8 h-12 w-full rounded-xl bg-[#155CFF] text-white hover:bg-[#0B45CC]">
-            <Link to="/login"><LogIn className="h-5 w-5" /> Iniciar sesión</Link>
+            <Link to="/login?mode=login"><LogIn className="h-5 w-5" /> Iniciar sesión</Link>
           </Button>
         ) : (
-          <Link to="/login" className="mt-8 inline-block text-sm font-bold text-[#155CFF] underline-offset-4 hover:underline">Ir al inicio de sesión</Link>
+          <Link to="/login?mode=login" className="mt-8 inline-block text-sm font-bold text-[#155CFF] underline-offset-4 hover:underline">Ir al inicio de sesión</Link>
         )}
       </section>
     </main>

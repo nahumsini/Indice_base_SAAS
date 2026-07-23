@@ -2,6 +2,9 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.billing.seats.SeatCapacityExceededException;
+import com.indice.erp.billing.seats.SeatService.SeatSnapshot;
 import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.users.HrUserApiController;
 import com.indice.erp.hr.users.HrUserService;
@@ -19,10 +22,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -38,6 +47,9 @@ class HrUserApiControllerTest {
 
     @MockitoBean
     private SessionAuthService sessionAuthService;
+
+    @MockitoBean
+    private SessionCsrfService sessionCsrfService;
 
     @MockitoBean
     private HrUserService hrUserService;
@@ -106,6 +118,77 @@ class HrUserApiControllerTest {
 
 
     @Test
+    void writeEndpointsRejectMissingCsrfToken() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser()));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService).requireCsrf(any(), eq(null));
+
+        for (var request : employeeWriteRequests()) {
+            mockMvc.perform(request)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+        }
+
+        verifyNoInteractions(hrUserService);
+    }
+
+    @Test
+    void writeEndpointsRejectInvalidCsrfToken() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser()));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService).requireCsrf(any(), eq("bad-token"));
+
+        for (var request : employeeWriteRequests()) {
+            mockMvc.perform(request.header("X-CSRF-Token", "bad-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+        }
+
+        verifyNoInteractions(hrUserService);
+    }
+
+    @Test
+    void createWithValidCsrfCallsService() throws Exception {
+        var currentUser = currentUser();
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrUserService.createUser(any(AuthSessionUser.class), any(Map.class)))
+            .willReturn(Map.of("user", Map.of("id", 21L, "full_name", "Ada Owner")));
+
+        mockMvc.perform(post("/api/v1/hr/users")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "first_name": "Ada",
+                      "last_name": "Owner",
+                      "email": "ada@example.com"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(21))
+            .andExpect(jsonPath("$.full_name").value("Ada Owner"));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
+        verify(hrUserService).createUser(eq(currentUser), any(Map.class));
+    }
+
+    @Test
+    void createReturnsConflictWhenSeatsAreFull() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser()));
+        given(hrUserService.createUser(any(AuthSessionUser.class), any(Map.class)))
+            .willThrow(seatCapacityExceeded());
+
+        mockMvc.perform(post("/api/v1/hr/users")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"first_name\":\"Ada\",\"email\":\"ada@example.com\"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("SEAT_CAPACITY_EXCEEDED"))
+            .andExpect(jsonPath("$.seat_limit").value(5))
+            .andExpect(jsonPath("$.seat_usage").value(5));
+    }
+
+    @Test
     void updateReturnsNotFoundWhenHrUserIsMissing() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
 
@@ -114,6 +197,7 @@ class HrUserApiControllerTest {
             .willThrow(new NoSuchElementException("HR user not found."));
 
         mockMvc.perform(put("/api/v1/hr/users/999")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -161,6 +245,7 @@ class HrUserApiControllerTest {
             .willThrow(new ObjectStorageDisabledException("Object storage is not enabled."));
 
         mockMvc.perform(post("/api/v1/hr/users/12/documents/presign-upload")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -185,5 +270,38 @@ class HrUserApiControllerTest {
         mockMvc.perform(get("/api/v1/hr/users/77"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    private AuthSessionUser currentUser() {
+        return new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+    }
+
+    private SeatCapacityExceededException seatCapacityExceeded() {
+        return new SeatCapacityExceededException(
+            "The company has reached its seat limit. Purchase another seat before adding this user.",
+            new SeatSnapshot(1L, true, 5, 0, 0, 5, 0)
+        );
+    }
+
+    private List<MockHttpServletRequestBuilder> employeeWriteRequests() {
+        return List.of(
+            post("/api/v1/hr/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/users/12")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/users/12/documents/presign-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/users/12/documents")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            delete("/api/v1/hr/users/12/documents/99"),
+            post("/api/v1/hr/users/12/terminate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            delete("/api/v1/hr/users/12")
+        );
     }
 }

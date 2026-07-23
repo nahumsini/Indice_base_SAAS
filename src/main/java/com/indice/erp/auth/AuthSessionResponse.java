@@ -22,7 +22,8 @@ public record AuthSessionResponse(
         Long user_company_id,
         String role,
         ScopeInfo scope,
-        boolean active
+        boolean active,
+        SubscriptionInfo subscription
     ) {
     }
 
@@ -30,6 +31,15 @@ public record AuthSessionResponse(
         String type,
         Long unit_id,
         Long business_id
+    ) {
+    }
+
+    public record SubscriptionInfo(
+        String status,
+        String plan_id,
+        String trial_end_at,
+        boolean access_allowed,
+        String lock_reason
     ) {
     }
 }

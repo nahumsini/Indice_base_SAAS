@@ -23,7 +23,8 @@ class CommercialCatalogIntegrationTest {
             81L,
             "admin",
             new AuthSessionResponse.ScopeInfo("corporate_office", null, null),
-            true
+            true,
+            new AuthSessionResponse.SubscriptionInfo("active", "legacy", "", true, "")
         );
         var session = new AuthSessionResponse(
             new AuthSessionResponse.UserInfo(

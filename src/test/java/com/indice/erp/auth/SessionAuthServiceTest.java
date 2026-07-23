@@ -31,6 +31,51 @@ class SessionAuthServiceTest {
     private BCryptPasswordEncoder passwordEncoder;
 
     @Test
+    void loginJsonSelectsCompanyByEnteredCompanyName() throws Exception {
+        var service = new SessionAuthService(jdbcTemplate, passwordEncoder);
+        var session = new MockHttpSession();
+
+        when(jdbcTemplate.query(
+            contains("FROM users"),
+            ArgumentMatchers.any(RowMapper.class),
+            eq("demo@example.com")
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(5L);
+            when(rs.getString("email")).thenReturn("demo@example.com");
+            when(rs.getString("password_hash")).thenReturn("hash");
+            when(rs.getString("full_name")).thenReturn("Demo User");
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        when(passwordEncoder.matches("demo123", "hash")).thenReturn(true);
+        when(jdbcTemplate.query(
+            contains("JOIN companies"),
+            ArgumentMatchers.any(RowMapper.class),
+            eq(5L),
+            eq("empresa demo spring")
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(11L);
+            when(rs.getLong("company_id")).thenReturn(7L);
+            when(rs.getString("role")).thenReturn("admin");
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var result = service.loginJson(" Empresa Demo Spring ", "DEMO@example.com", "demo123", session);
+
+        assertTrue(result.success());
+        assertEquals(5L, session.getAttribute(SessionAuthService.SESSION_USER_ID));
+        assertEquals(7L, session.getAttribute(SessionAuthService.SESSION_COMPANY_ID));
+        assertEquals(11L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
+        assertEquals("Demo User", session.getAttribute(SessionAuthService.SESSION_USER_NAME));
+        assertEquals("admin", session.getAttribute(SessionAuthService.SESSION_ROLE));
+    }
+
+    @Test
     void currentSessionIncludesModuleAndTabAccess() {
         var service = new SessionAuthService(jdbcTemplate, passwordEncoder);
         var session = new MockHttpSession();
@@ -53,11 +98,26 @@ class SessionAuthServiceTest {
             return List.of(rowMapper.mapRow(rs, 0));
         });
         when(jdbcTemplate.query(
-            contains("SELECT id\nFROM user_companies"),
+            ArgumentMatchers.argThat((String sql) ->
+                sql != null && sql.contains("SELECT id") && sql.contains("FROM user_companies")
+                    && !sql.contains("COALESCE(role")
+            ),
             ArgumentMatchers.<RowMapper<Long>>any(),
             eq(5L),
             eq(7L)
         )).thenReturn(List.of(11L));
+        when(jdbcTemplate.query(
+            contains("FROM company_module_entitlements"),
+            ArgumentMatchers.<RowMapper<String>>any(),
+            eq(7L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<String>) invocation.getArgument(1);
+            var rows = new ArrayList<String>();
+            rows.add(mapStringRow(rowMapper, "home-panel"));
+            rows.add(mapStringRow(rowMapper, "human-resources"));
+            return rows;
+        });
         when(jdbcTemplate.query(
             contains("FROM user_company_module_roles"),
             ArgumentMatchers.<RowMapper<String>>any(),
@@ -104,6 +164,7 @@ class SessionAuthServiceTest {
         assertTrue(current.get().user().tab_permissions_configured());
         assertEquals("Corazón del Caribe", current.get().company().name());
         assertEquals("corporate_office", current.get().company().scope().type());
+        assertTrue(current.get().company().subscription().access_allowed());
         assertEquals(1, current.get().companies().size());
         assertEquals(11L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
     }

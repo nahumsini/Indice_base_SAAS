@@ -2,6 +2,8 @@ package com.indice.erp.hr.users;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.billing.seats.SeatCapacityExceededException;
 import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,15 +31,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class HrUserApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final SessionCsrfService sessionCsrfService;
     private final HrUserService hrUserService;
     private final HrAccessService hrAccessService;
 
     public HrUserApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrUserService hrUserService,
         HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
+        this.sessionCsrfService = sessionCsrfService;
         this.hrUserService = hrUserService;
         this.hrAccessService = hrAccessService;
     }
@@ -79,13 +85,21 @@ public class HrUserApiController {
     }
 
     @PostMapping
-    public ResponseEntity<?> create(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> create(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessCollaborators(user.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -95,19 +109,30 @@ public class HrUserApiController {
             return forbidden();
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (SeatCapacityExceededException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 
     @PutMapping("/{userCompanyId}")
-    public ResponseEntity<?> update(HttpSession session, @PathVariable long userCompanyId, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> update(
+        HttpSession session,
+        @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessCollaborators(user.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -126,6 +151,7 @@ public class HrUserApiController {
     public ResponseEntity<?> createDocumentUpload(
         HttpSession session,
         @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
@@ -134,6 +160,10 @@ public class HrUserApiController {
         }
         if (!canAccessCollaborators(user.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -155,6 +185,7 @@ public class HrUserApiController {
     public ResponseEntity<?> registerDocument(
         HttpSession session,
         @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
@@ -163,6 +194,10 @@ public class HrUserApiController {
         }
         if (!canAccessCollaborators(user.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -188,6 +223,7 @@ public class HrUserApiController {
     public ResponseEntity<?> deleteDocument(
         HttpSession session,
         @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @PathVariable long documentId
     ) {
         var user = sessionAuthService.currentUser(session);
@@ -196,6 +232,10 @@ public class HrUserApiController {
         }
         if (!canAccessCollaborators(user.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -212,6 +252,7 @@ public class HrUserApiController {
     public ResponseEntity<?> terminate(
         HttpSession session,
         @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody(required = false) Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
@@ -220,6 +261,10 @@ public class HrUserApiController {
         }
         if (!canAccessCollaborators(user.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -239,13 +284,21 @@ public class HrUserApiController {
     }
 
     @DeleteMapping("/{userCompanyId}")
-    public ResponseEntity<?> delete(HttpSession session, @PathVariable long userCompanyId) {
+    public ResponseEntity<?> delete(
+        HttpSession session,
+        @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessCollaborators(user.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -264,5 +317,23 @@ public class HrUserApiController {
 
     private ResponseEntity<?> forbidden() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+    }
+
+    private ResponseEntity<?> requireCsrf(HttpSession session, String csrfToken) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    private Map<String, Object> seatCapacityBody(SeatCapacityExceededException exception) {
+        return Map.of(
+            "message", exception.getMessage(),
+            "code", "SEAT_CAPACITY_EXCEEDED",
+            "seat_limit", exception.snapshot().limit(),
+            "seat_usage", exception.snapshot().usedAndReserved()
+        );
     }
 }

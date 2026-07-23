@@ -16,6 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.billing.seats.SeatCapacityExceededException;
+import com.indice.erp.billing.seats.SeatService.SeatSnapshot;
 import com.indice.erp.config.AppWebProperties;
 import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
 import com.indice.erp.hr.HrAccessDeniedException;
@@ -360,6 +362,27 @@ class ConfigCenterApiControllerTest {
     }
 
     @Test
+    void inviteUserReturnsConflictWhenSeatsAreFull() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(invitationSeatCoordinator.invite(
+            org.mockito.ArgumentMatchers.eq(7L),
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq("admin"),
+            anyMap()
+        )).willThrow(seatLimitError());
+
+        mockMvc.perform(post("/api/v1/config-center/users/invite")
+                .contentType(APPLICATION_JSON)
+                .content("{\"name\":\"Pending\",\"email\":\"pending@example.com\"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("SEAT_CAPACITY_EXCEEDED"))
+            .andExpect(jsonPath("$.seats.limit").value(5))
+            .andExpect(jsonPath("$.seats.available").value(0));
+    }
+
+    @Test
     void inviteUserReturnsForbiddenForNormalUser() throws Exception {
         var currentUser = new AuthSessionUser(2L, 7L, "Usuario Demo", "user");
 
@@ -496,5 +519,12 @@ class ConfigCenterApiControllerTest {
         mockMvc.perform(delete("/api/v1/config-center/users/invitations/12"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.deleted").value(true));
+    }
+
+    private SeatCapacityExceededException seatLimitError() {
+        return new SeatCapacityExceededException(
+            "The company has reached its seat limit. Purchase another seat before inviting this user.",
+            new SeatSnapshot(7L, true, 5, 0, 0, 5, 0)
+        );
     }
 }

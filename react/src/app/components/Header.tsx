@@ -1,4 +1,4 @@
-import { Building2, Check, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, MonitorCog } from 'lucide-react';
+import { Building2, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, MonitorCog } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -301,6 +301,15 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               </DropdownMenu>
             ) : null}
 
+            <Button
+              variant="ghost"
+              className="hidden rounded-full px-3 text-[#4B5563] transition-all hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white sm:flex"
+              onClick={() => navigate('/billing')}
+            >
+              <CreditCard className="h-4 w-4" />
+              <span className="ml-2 text-sm font-medium">Billing</span>
+            </Button>
+
             <PreferredCurrencyControl />
 
             {/* Notificaciones */}
@@ -448,6 +457,11 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                     <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
+                  <DropdownMenuItem onClick={() => navigate('/billing')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                    <CreditCard className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">Billing</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
                   {/* Operational journey on mobile - menu only */}

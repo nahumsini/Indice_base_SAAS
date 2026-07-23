@@ -8,7 +8,6 @@
     "calibrate:business-diagnosis": "node scripts/business-diagnosis-engine-calibration.mjs",
     "calibrate:personal-performance": "node scripts/personal-performance-engine-calibration.mjs",
     "dev": "vite",
-    "test:kiosks": "node --test tests/kiosk-frontend-regression.test.mjs",
     "test:phone-validation": "node scripts/phone-validation-regression.mjs",
     "typecheck": "tsc --noEmit"
   },
@@ -45,6 +44,7 @@
     "@radix-ui/react-toggle": "1.1.2",
     "@radix-ui/react-toggle-group": "1.1.2",
     "@radix-ui/react-tooltip": "1.1.8",
+    "@stripe/stripe-js": "^9.8.0",
     "@types/qrcode": "^1.5.6",
     "canvas-confetti": "1.9.4",
     "class-variance-authority": "0.7.1",

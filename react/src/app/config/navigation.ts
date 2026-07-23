@@ -1,6 +1,6 @@
 const canonicalPageIds = [
   'dashboard',
-  'kiosk-center',
+  'billing',
   'home-panel',
   'human-resources',
   'processes-tasks',
@@ -27,14 +27,15 @@ const canonicalPageIds = [
   'analytics',
   'training',
   'coach',
+  'kiosk-center',
 ] as const;
 
 export type PageId = (typeof canonicalPageIds)[number];
 
 export const legacyPageAliases: Record<string, PageId> = {
-  kiosks: 'kiosk-center',
-  kioskos: 'kiosk-center',
-  kiosk_center: 'kiosk-center',
+  subscription: 'billing',
+  subscriptions: 'billing',
+  billing: 'billing',
   'panel-inicial': 'home-panel',
   config_center: 'home-panel',
   'recursos-humanos': 'human-resources',
@@ -86,6 +87,8 @@ export const legacyPageAliases: Record<string, PageId> = {
   'indice-coach': 'coach',
   coach: 'coach',
   kpis: 'kpis',
+  'kiosk-center': 'kiosk-center',
+  kiosk_center: 'kiosk-center',
 };
 
 export const moduleRoutes: Record<string, PageId> = {

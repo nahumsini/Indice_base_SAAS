@@ -43,12 +43,32 @@ class DashboardModuleAccessRepository {
         }
 
         var access = accessRows.getFirst();
+        var entitlements = listCompanyEntitlements(companyId);
+        if (entitlements.isEmpty()) {
+            return DashboardModuleAccess.none();
+        }
         var role = firstNonBlank(access.role(), normalizeRole(sessionRole));
         if (FULL_ACCESS_ROLES.contains(role)) {
-            return DashboardModuleAccess.all();
+            return DashboardModuleAccess.only(entitlements);
         }
 
-        return DashboardModuleAccess.only(listModuleSlugs(access.userCompanyId()));
+        var moduleSlugs = listModuleSlugs(access.userCompanyId());
+        moduleSlugs.retainAll(entitlements);
+        return DashboardModuleAccess.only(moduleSlugs);
+    }
+
+    private Set<String> listCompanyEntitlements(long companyId) {
+        return new LinkedHashSet<>(jdbcTemplate.query(
+            """
+                SELECT DISTINCT module_slug
+                FROM company_module_entitlements
+                WHERE company_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                ORDER BY module_slug ASC
+                """,
+            (rs, rowNum) -> normalizeModuleSlug(rs.getString("module_slug")),
+            companyId
+        ));
     }
 
     private Set<String> listModuleSlugs(long userCompanyId) {
