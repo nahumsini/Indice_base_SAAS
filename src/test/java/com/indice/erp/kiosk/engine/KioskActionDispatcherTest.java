@@ -312,7 +312,7 @@ class KioskActionDispatcherTest {
     }
 
     @Test
-    void humanResourcesIdentityKeepsTheModuleTokenSeparateFromTheEngineSessionToken() {
+    void humanResourcesIdentityUsesTheModuleTokenForTheEngineSession() {
         var browserReference = "attendance-browser-reference-1234567890";
         var hrContext = KioskExecutionContext.publicLink(
             "HUMAN_RESOURCES", "attendance-device-token", "network", browserReference);
@@ -328,7 +328,6 @@ class KioskActionDispatcherTest {
             "attendance.identity.verify", Map.of("credential_payload", "12345"));
         var expiresAt = Instant.now().plusSeconds(180);
         var moduleToken = "attendance-module-identification-token";
-        var engineToken = "attendance-engine-session-token";
         var principal = new KioskSessionPrincipal(
             "attendance-session", 23L, 7L, "EMPLOYEE", 19L,
             java.util.Set.of(capability.versionedKey()), expiresAt);
@@ -346,21 +345,22 @@ class KioskActionDispatcherTest {
         given(adapter.capabilities(definition)).willReturn(java.util.Set.of(capability));
         given(adapter.execute(any(), org.mockito.ArgumentMatchers.same(request)))
             .willReturn(moduleResponse);
-        given(sessionService.createControlledSessionLaunch(
-            eq(definition), eq("EMPLOYEE"), eq(19L), eq(browserReference),
-            eq(java.util.Set.of(capability.versionedKey())), eq(expiresAt)))
-            .willReturn(new KioskSessionLaunch(principal, engineToken));
+        given(sessionService.createControlledSession(
+            eq(definition), eq("EMPLOYEE"), eq(19L), eq(moduleToken),
+            eq(browserReference), eq(java.util.Set.of(capability.versionedKey())),
+            eq(expiresAt)))
+            .willReturn(principal);
 
         var response = dispatcher.dispatch(hrContext, request, null);
 
         assertThat(response)
             .containsEntry("identification_token", moduleToken)
-            .containsEntry("kiosk_session_token", engineToken)
+            .containsEntry("kiosk_session_token", moduleToken)
             .containsEntry("kiosk_session_id", "attendance-session")
             .doesNotContainKeys("engine_session", "engine_identity");
-        then(sessionService).should(never()).createControlledSession(
+        then(sessionService).should(never()).createControlledSessionLaunch(
             any(), anyString(), org.mockito.ArgumentMatchers.anyLong(), anyString(),
-            anyString(), any(), any());
+            any(), any());
     }
 
     private KioskCapabilityDescriptor capability(String key, boolean mutation) {

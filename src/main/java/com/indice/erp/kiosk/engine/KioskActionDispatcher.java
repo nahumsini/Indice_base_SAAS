@@ -233,23 +233,19 @@ public class KioskActionDispatcher {
         var granted = definitionCapabilities.stream()
             .map(KioskCapabilityDescriptor::versionedKey)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        KioskSessionPrincipal session;
-        String engineAccessToken;
-        if ("HUMAN_RESOURCES".equals(context.definition().ownerModule())) {
-            var launch = sessionService.createControlledSessionLaunch(
-                context.definition(), identityType, identityId,
-                context.browserSessionReference(), granted, expiresAt);
-            session = launch.session();
-            engineAccessToken = launch.accessToken();
-        } else {
-            session = sessionService.createControlledSession(
-                context.definition(), identityType, identityId, identificationToken,
-                context.browserSessionReference(), granted, expiresAt);
-            engineAccessToken = identificationToken;
-        }
+        /*
+         * The module identification token is also the controlled Engine session token.
+         * Besides avoiding two independent credentials for the same public interaction,
+         * this keeps kiosk tabs opened before a deployment compatible with the backend
+         * after a deployment. The Engine still binds the token to the definition,
+         * browser reference, expiry and granted capabilities.
+         */
+        var session = sessionService.createControlledSession(
+            context.definition(), identityType, identityId, identificationToken,
+            context.browserSessionReference(), granted, expiresAt);
         var enriched = new LinkedHashMap<>(response);
         enriched.put("kiosk_session_id", session.sessionId());
-        enriched.put("kiosk_session_token", engineAccessToken);
+        enriched.put("kiosk_session_token", identificationToken);
         enriched.put("engine_session", session);
         return enriched;
     }
