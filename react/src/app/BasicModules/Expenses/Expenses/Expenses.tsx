@@ -437,23 +437,40 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     setIsPayableAccountSubmitting(true);
     try {
       const savedExpense = await expensesService.createPayableAccount(payableExpense, providers);
-      const uploadedAttachments = [];
-      for (const file of values.attachmentFiles) {
-        uploadedAttachments.push(await expenseAttachmentsService.upload(savedExpense.id, file));
+      const attachmentResults = await Promise.allSettled(
+        values.attachmentFiles.map(file => expenseAttachmentsService.upload(savedExpense.id, file)),
+      );
+      const uploadedAttachments = attachmentResults.flatMap(result => (
+        result.status === 'fulfilled' ? [result.value] : []
+      ));
+      const attachmentUploadFailed = attachmentResults.some(result => result.status === 'rejected');
+      let refreshedExpense: Expense | null = null;
+      let refreshFailed = false;
+      if (isBackendId(savedExpense.id)) {
+        try {
+          refreshedExpense = await expensesService.getExpenseById(savedExpense.id, providers);
+        } catch {
+          refreshFailed = true;
+        }
       }
-      const refreshedExpense = isBackendId(savedExpense.id)
-        ? await expensesService.getExpenseById(savedExpense.id, providers)
-        : null;
       const savedExpenseWithAttachments = refreshedExpense ?? {
         ...savedExpense,
         attachments: uploadedAttachments.map(file => file.originalFilename),
         attachmentCount: uploadedAttachments.length,
       };
-      setExpenses(currentExpenses => [savedExpenseWithAttachments, ...currentExpenses]);
-      setSuccessToastMessage(t.expenses.messages.payableCreated);
+      setExpenses(currentExpenses => [
+        savedExpenseWithAttachments,
+        ...currentExpenses.filter(expense => expense.id !== savedExpenseWithAttachments.id),
+      ]);
       setIsPayableAccountModalOpen(false);
+      if (attachmentUploadFailed || refreshFailed) {
+        setFailureToastMessage(
+          `${t.expenses.messages.payableCreated} ${t.expenses.attachments.operationFailed}`,
+        );
+      } else {
+        setSuccessToastMessage(t.expenses.messages.payableCreated);
+      }
     } catch (error) {
-      setExpenses(currentExpenses => [payableExpense, ...currentExpenses]);
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
     } finally {
       setIsPayableAccountSubmitting(false);

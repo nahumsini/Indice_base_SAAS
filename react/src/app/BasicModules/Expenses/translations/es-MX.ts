@@ -143,7 +143,7 @@ export const esMX = mergeFinanceTranslations('es-MX', {
     messages: {
       accountLoadFailed: 'No se pudieron cargar las cuentas contables activas.',
       created: 'Gasto creado en Finance.',
-      createFailed: 'No se pudo crear el gasto en Finance. Se agregó como dato local.',
+      createFailed: 'No se pudo crear el gasto en Finance.',
       deleted: 'Gasto eliminado de Finance.',
       deleteFailed: 'No se pudo eliminar el gasto en Finance.',
       duplicated: 'Gasto duplicado en Finance.',

@@ -1,4 +1,9 @@
-import { getCachedCsrfToken, setCachedAuthSession, setCachedCsrfToken } from '../api/authSessionStore';
+import {
+  expireCachedAuthSession,
+  getCachedCsrfToken,
+  setCachedAuthSession,
+  setCachedCsrfToken,
+} from '../api/authSessionStore';
 import type { AuthSessionResponse } from '../api/auth.types';
 
 export class ApiClientError extends Error {
@@ -117,7 +122,7 @@ const refreshAuthSession = async () => {
   }
 
   if (response.status === 401) {
-    setCachedAuthSession(null);
+    expireCachedAuthSession();
   }
 
   return null;
@@ -146,7 +151,7 @@ export async function apiClient<T = unknown>(
   }
 
   if (response.status === 401) {
-    setCachedAuthSession(null);
+    expireCachedAuthSession();
   }
 
   if (!response.ok) {
@@ -173,7 +178,7 @@ export async function requestText(path: string, init: RequestInit = {}) {
 
   if (!response.ok) {
     if (response.status === 401) {
-      setCachedAuthSession(null);
+      expireCachedAuthSession();
     }
     throw new ApiClientError(response.statusText || 'Request failed', response.status, undefined, text);
   }

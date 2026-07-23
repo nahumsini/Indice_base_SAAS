@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Globe } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { authApi } from '../api/auth';
 import {
   LoadingBarOverlay,
@@ -23,6 +23,7 @@ const LOGIN_MINIMUM_LOADING_MS = 2500;
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentLanguage, setCurrentLanguage, t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +38,14 @@ export default function LoginPage() {
   const [resetErrorMessage, setResetErrorMessage] = useState('');
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const copy = t.loginPage;
+  const locationState = location.state as {
+    authenticationExpired?: boolean;
+    returnTo?: string;
+  } | null;
+  const safeReturnTo = locationState?.returnTo?.startsWith('/')
+    && !locationState.returnTo.startsWith('//')
+    ? locationState.returnTo
+    : '/dashboard';
 
   const normalizedEmail = normalizeEmail(email);
   const normalizedPassword = password.trim();
@@ -78,7 +87,7 @@ export default function LoginPage() {
       );
 
       setIsSubmitting(false);
-      navigate('/dashboard', {
+      navigate(safeReturnTo, {
         replace: true,
         state: {
           successToast: copy.successToast,
@@ -175,6 +184,7 @@ export default function LoginPage() {
             canSubmit={canSubmit}
             showEmailError={showEmailError}
             errorMessage={errorMessage}
+            sessionMessage={locationState?.authenticationExpired ? copy.sessionExpired : ''}
             onEmailChange={updateEmail}
             onEmailBlur={() => setEmailTouched(true)}
             onPasswordChange={updatePassword}

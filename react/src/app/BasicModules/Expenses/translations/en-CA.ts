@@ -144,7 +144,7 @@ export const enCA: FinanceTranslations = {
     messages: {
       accountLoadFailed: 'Active accounting accounts could not be loaded.',
       created: 'Expense created in Finance.',
-      createFailed: 'The expense could not be created in Finance. It was added as local data.',
+      createFailed: 'The expense could not be created in Finance.',
       deleted: 'Expense deleted from Finance.',
       deleteFailed: 'The expense could not be deleted from Finance.',
       duplicated: 'Expense duplicated in Finance.',

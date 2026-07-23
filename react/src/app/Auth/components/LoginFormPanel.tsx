@@ -14,6 +14,7 @@ type LoginFormPanelProps = {
   canSubmit: boolean;
   showEmailError: boolean;
   errorMessage: string;
+  sessionMessage: string;
   onEmailChange: (value: string) => void;
   onEmailBlur: () => void;
   onPasswordChange: (value: string) => void;
@@ -31,6 +32,7 @@ export function LoginFormPanel({
   canSubmit,
   showEmailError,
   errorMessage,
+  sessionMessage,
   onEmailChange,
   onEmailBlur,
   onPasswordChange,
@@ -51,6 +53,12 @@ export function LoginFormPanel({
         </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
+          {sessionMessage ? (
+            <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              {sessionMessage}
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">{copy.emailLabel}</label>
             <div className="relative">
