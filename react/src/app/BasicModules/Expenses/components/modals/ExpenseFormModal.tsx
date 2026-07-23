@@ -148,7 +148,7 @@ export function ExpenseFormModal({
         paymentDate: draft.paymentDate,
         paymentMethod: draft.paymentMethod,
         providerId: draft.providerId,
-        status: draft.status,
+        status: isEditMode ? draft.status : 'paid',
         taxes,
         taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
         taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
@@ -193,7 +193,14 @@ export function ExpenseFormModal({
         <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
         <FinanceModalSection title={t.expenses.modal.mainTitle} description={t.expenses.modal.description}>
           <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
-          <SelectInput label={t.expenses.columns.status?.label ?? t.filters.status} value={draft.status} onChange={(status) => updateDraft({ status: status as ExpenseStatus })} options={createStatusOptions(t.expenses.table.statuses)} />
+          {isEditMode ? (
+            <SelectInput label={t.expenses.columns.status?.label ?? t.filters.status} value={draft.status} onChange={(status) => updateDraft({ status: status as ExpenseStatus })} options={createStatusOptions(t.expenses.table.statuses)} />
+          ) : (
+            <ReadOnlyInput
+              label={t.expenses.columns.status?.label ?? t.filters.status}
+              value={t.expenses.table.statuses.paid}
+            />
+          )}
           <DateInput label={t.expenses.columns.dueDate?.label ?? 'Fecha de vencimiento'} value={draft.dueDate} onChange={(dueDate) => updateDraft({ dueDate })} />
           <SelectInput label={t.expenses.columns.paymentMethod?.label ?? 'Método de pago'} value={draft.paymentMethod} onChange={(paymentMethod) => updateDraft({ paymentMethod: paymentMethod as PaymentMethod })} options={createPaymentMethodOptions(t.expenses.table.paymentMethods)} />
           <div className="md:col-span-2">
@@ -259,6 +266,17 @@ function DateInput({ label, onChange, value }: { label: string; onChange: (value
   );
 }
 
+function ReadOnlyInput({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <FieldLabel label={label} />
+      <div className={`${financeModalInputClass} flex items-center bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function TextareaInput({ label, onChange, placeholder, value }: { label: string; onChange: (value: string) => void; placeholder?: string; value: string }) {
   return (
     <label>
@@ -310,7 +328,7 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
     paymentDate: formatDateInputValue(expense?.paymentDate),
     paymentMethod: expense?.paymentMethod ?? 'transfer',
     providerId: expense?.providerId ?? '',
-    status: expense?.status ?? 'pending',
+    status: expense?.status ?? 'paid',
     taxes: expense ? String(expense.taxes ?? '') : '',
     taxCountry,
     taxEnabled: hasTaxMetadata || hasTaxAmount,

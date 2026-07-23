@@ -13,6 +13,7 @@ type ExpenseBulkActionsBarProps = {
   accountingAccountOptions: SelectOption[];
   businessOptions: SelectOption[];
   isDisabled?: boolean;
+  showDelete?: boolean;
   showMarkPaid?: boolean;
   onAccountingAccountChange: (value: string) => void;
   onAuthorizerChange: (value: string) => void;
@@ -39,6 +40,7 @@ export function ExpenseBulkActionsBar({
   accountingAccountOptions,
   businessOptions,
   isDisabled = false,
+  showDelete = true,
   showMarkPaid = true,
   onAccountingAccountChange,
   onAuthorizerChange,
@@ -98,16 +100,18 @@ export function ExpenseBulkActionsBar({
               {t.expenses.rowActions.markPaid}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
-            disabled={isDisabled}
-            onClick={onDeleteSelected}
-          >
-            <Trash2 className="h-4 w-4" />
-            {t.common.delete}
-          </Button>
+          {showDelete ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
+              disabled={isDisabled}
+              onClick={onDeleteSelected}
+            >
+              <Trash2 className="h-4 w-4" />
+              {t.expenses.rowActions.deleteExpense}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"

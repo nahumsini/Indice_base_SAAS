@@ -1,7 +1,8 @@
 import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react';
-import { createBrowserRouter, redirect, useRouteError } from 'react-router';
+import { createBrowserRouter, redirect, useLocation, useNavigate, useRouteError } from 'react-router';
 import { InviteAcceptPage, LoginPage, ResetPasswordPage, SignupCompletePage, SignupPage } from './Auth';
 import { authApi } from './api/auth';
+import { subscribeToAuthenticationExpired } from './api/authSessionStore';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 
 const App = lazy(() => import('./App'));
@@ -267,6 +268,19 @@ function SelfServiceKioskRoute() {
 }
 
 function PrivateAppRoute() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => subscribeToAuthenticationExpired(() => {
+    navigate('/login', {
+      replace: true,
+      state: {
+        authenticationExpired: true,
+        returnTo: `${location.pathname}${location.search}${location.hash}`,
+      },
+    });
+  }), [location.hash, location.pathname, location.search, navigate]);
+
   return (
     <WorkspaceRenderErrorBoundary>
       <Suspense

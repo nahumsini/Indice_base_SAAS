@@ -20,6 +20,12 @@ MINIO_SERVICE_PUBLIC_ENDPOINT ?= http://host.docker.internal:$(MINIO_API_HOST_PO
 VITE_BACKEND_URL ?= http://127.0.0.1:8082
 VITE_API_BASE_URL ?=
 
+# Local-only kiosk secrets. Production must continue providing its own secrets
+# through the deployment environment.
+LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET ?= indice-local-hr-identification-secret-2026
+LOCAL_KIOSK_TOKEN_PROTECTION_SECRET ?= indice-local-kiosk-protection-secret-2026
+LOCAL_BACKEND_JVM_ARGUMENTS ?= -Dspring.devtools.restart.enabled=false -Dapp.kiosk.secret-protection.enabled=false
+
 export MINIO_API_HOST_PORT
 export MINIO_CONSOLE_HOST_PORT
 
@@ -43,7 +49,10 @@ dev: prepare ## Start the full local dev stack
 	echo "Starting backend on http://127.0.0.1:8082"; \
 	APP_STORAGE_MINIO_PUBLIC_ENDPOINT="$(MINIO_PUBLIC_ENDPOINT)" \
 	APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT="$(MINIO_SERVICE_PUBLIC_ENDPOINT)" \
-	./mvnw spring-boot:run -P$(SPRING_PROFILE) & backend_pid=$$!; \
+	APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" \
+	APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)" \
+	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
+		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)" & backend_pid=$$!; \
 	echo "Starting frontend with Vite on http://$(FRONTEND_HOST):$(FRONTEND_PORT)"; \
 	VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \
 	VITE_API_BASE_URL="$(VITE_API_BASE_URL)" \
@@ -97,7 +106,10 @@ frontend-install: ## Install frontend dependencies
 backend: ## Run only the Spring Boot backend with the MinIO profile
 	APP_STORAGE_MINIO_PUBLIC_ENDPOINT="$(MINIO_PUBLIC_ENDPOINT)" \
 	APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT="$(MINIO_SERVICE_PUBLIC_ENDPOINT)" \
-	./mvnw spring-boot:run -P$(SPRING_PROFILE)
+	APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" \
+	APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)" \
+	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
+		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)"
 
 frontend: ## Run only the React/Vite frontend
 	VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \

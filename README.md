@@ -19,11 +19,15 @@ Full-stack Indice SAAS workspace with:
 ## Run
 
 ```bash
-cd ~/Documents/Indice/Indice_base_SAAS
-./mvnw spring-boot:run
+cd ~/Documents/GitHub/Indice_base_SAAS
+make backend
 ```
 
-Spring Boot DevTools is enabled for local runs. Backend changes restart automatically after the changed Java classes are recompiled by your IDE or by running Maven compile.
+`make backend` supplies development-only kiosk secrets and disables the legacy
+kiosk-secret sentinel check for the existing local database. It also disables
+Spring Boot DevTools automatic restart so file watchers cannot accumulate during
+long development sessions. Production still requires its own secrets through
+the deployment environment and keeps kiosk-secret protection enabled.
 
 Default URL:
 
@@ -34,9 +38,9 @@ Default URL:
 Reset the local MySQL database that this backend uses before starting Spring:
 
 ```bash
-cd ~/Documents/Indice/Indice_base_SAAS
+cd ~/Documents/GitHub/Indice_base_SAAS
 ./scripts/reset-local-db.sh
-./mvnw spring-boot:run
+make backend
 ```
 
 The reset script:

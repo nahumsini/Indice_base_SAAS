@@ -143,9 +143,10 @@ export const esMX = mergeFinanceTranslations('es-MX', {
     messages: {
       accountLoadFailed: 'No se pudieron cargar las cuentas contables activas.',
       created: 'Gasto creado en Finance.',
-      createFailed: 'No se pudo crear el gasto en Finance. Se agregó como dato local.',
+      createFailed: 'No se pudo crear el gasto en Finance.',
       deleted: 'Gasto eliminado de Finance.',
       deleteFailed: 'No se pudo eliminar el gasto en Finance.',
+      deleteDraftOnly: 'Los gastos registrados se conservan por control contable. Solo puedes eliminar borradores.',
       duplicated: 'Gasto duplicado en Finance.',
       duplicateFailed: 'No se pudo duplicar el gasto en Finance. Se agregó como dato local.',
       payableCreated: 'Cuenta por pagar registrada.',
@@ -334,6 +335,7 @@ export const esMX = mergeFinanceTranslations('es-MX', {
     },
     rowActions: {
       createPayable: 'Crear CxP',
+      deleteExpense: 'Eliminar gasto',
       markPaid: 'Pagar',
     },
     table: {

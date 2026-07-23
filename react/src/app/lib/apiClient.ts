@@ -1,4 +1,10 @@
-import { getCachedCsrfToken, setCachedAuthSession, setCachedCsrfToken } from '../api/authSessionStore';
+import {
+  expireCachedAuthSession,
+  getCachedCsrfToken,
+  setCachedAuthSession,
+  setCachedCsrfToken,
+} from '../api/authSessionStore';
+import type { AuthSessionResponse } from '../api/auth.types';
 
 export class ApiClientError extends Error {
   status: number;
@@ -20,7 +26,6 @@ const normalizeEnvUrl = (value: unknown) => (
 
 const apiBaseUrl = normalizeEnvUrl(import.meta.env.VITE_API_BASE_URL);
 const AUTH_ME_PATH = '/api/v1/auth/me';
-const CSRF_PATH = '/api/v1/auth/csrf';
 const mutationMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const buildApiUrl = (path: string) => {
@@ -32,6 +37,10 @@ export const buildApiUrl = (path: string) => {
 };
 
 const normalizeMethod = (method?: string) => (method ?? 'GET').toUpperCase();
+
+const defaultRequestCache = (method: string): RequestCache | undefined => (
+  method === 'GET' || method === 'HEAD' ? 'no-store' : undefined
+);
 
 const buildHeaders = (
   method: string,
@@ -99,28 +108,21 @@ const isInvalidCsrfError = (status: number, payload: unknown) => (
   status === 403 && /csrf/i.test(messageFromPayload(payload))
 );
 
-const userMessageForFailure = (status: number, payload: unknown, fallback: string) => {
-  if (isInvalidCsrfError(status, payload)) {
-    return 'Your secure session expired. Refresh the page and try again.';
-  }
-
-  return messageFromPayload(payload) || fallback;
-};
-
-const refreshCsrfToken = async () => {
-  const response = await fetch(buildApiUrl(CSRF_PATH), {
+const refreshAuthSession = async () => {
+  const response = await fetch(buildApiUrl(AUTH_ME_PATH), {
+    cache: 'no-store',
     credentials: 'include',
     headers: { Accept: 'application/json' },
   });
   const payload = await parsePayload(response);
 
   if (response.ok) {
-    cacheCsrfTokenFromPayload(payload);
-    return getCachedCsrfToken();
+    setCachedAuthSession(payload as AuthSessionResponse);
+    return payload as AuthSessionResponse;
   }
 
   if (response.status === 401) {
-    setCachedAuthSession(null);
+    expireCachedAuthSession();
   }
 
   return null;
@@ -133,6 +135,7 @@ export async function apiClient<T = unknown>(
   const method = normalizeMethod(init.method);
   const execute = () => fetch(buildApiUrl(path), {
     credentials: 'include',
+    cache: defaultRequestCache(method),
     ...init,
     headers: buildHeaders(method, init.headers, init.body),
   });
@@ -140,19 +143,19 @@ export async function apiClient<T = unknown>(
   let payload = await parsePayload(response);
 
   if (!response.ok && isInvalidCsrfError(response.status, payload) && mutationMethods.has(method)) {
-    const csrfToken = await refreshCsrfToken();
-    if (csrfToken) {
+    const session = await refreshAuthSession();
+    if (session?.csrfToken) {
       response = await execute();
       payload = await parsePayload(response);
     }
   }
 
   if (response.status === 401) {
-    setCachedAuthSession(null);
+    expireCachedAuthSession();
   }
 
   if (!response.ok) {
-    const message = userMessageForFailure(response.status, payload, response.statusText);
+    const message = messageFromPayload(payload) || response.statusText;
     const code = codeFromPayload(payload);
 
     throw new ApiClientError(message || 'Request failed', response.status, code, payload);
@@ -166,6 +169,7 @@ export async function requestText(path: string, init: RequestInit = {}) {
   const method = normalizeMethod(init.method);
   const response = await fetch(buildApiUrl(path), {
     credentials: 'include',
+    cache: defaultRequestCache(method),
     ...init,
     headers: buildHeaders(method, init.headers, init.body),
   });
@@ -174,7 +178,7 @@ export async function requestText(path: string, init: RequestInit = {}) {
 
   if (!response.ok) {
     if (response.status === 401) {
-      setCachedAuthSession(null);
+      expireCachedAuthSession();
     }
     throw new ApiClientError(response.statusText || 'Request failed', response.status, undefined, text);
   }

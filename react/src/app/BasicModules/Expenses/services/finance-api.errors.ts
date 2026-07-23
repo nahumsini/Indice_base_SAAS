@@ -9,16 +9,19 @@ const statusMessages: Record<number, string> = {
 };
 
 const backendMessageTranslations: Record<string, string> = {
+  'An expense with this folio already exists.': 'Ya existe un gasto con este folio.',
   'Cancelled or rejected expenses cannot change status.': 'Los gastos cancelados o rechazados no pueden cambiar de estado.',
   'Expense is already paid.': 'Este gasto ya esta pagado.',
   'Expense payment could not be recorded.': 'No se pudo registrar el abono. Actualiza la lista e intenta de nuevo.',
   'Expense status could not be updated.': 'No se pudo actualizar el estado del gasto. Actualiza la lista e intenta de nuevo.',
   'Invalid request.': 'La solicitud no es valida. Revisa los campos e intenta de nuevo.',
+  'Only draft expenses can be deleted.': 'Los gastos registrados se conservan por control contable. Solo puedes eliminar borradores.',
   'Payment account balance could not be updated.': 'No se pudo actualizar el saldo de la cuenta de pago. Revisa que la cuenta este activa.',
   'Payment account currency does not match expense currency.': 'La moneda de la cuenta de pago no coincide con la moneda del gasto.',
   'Payment account not found.': 'No se encontro la cuenta de pago seleccionada.',
   'Payment amount cannot exceed balanceAmount.': 'El abono no puede exceder el saldo pendiente.',
   'Payment amount must be greater than zero.': 'El abono debe ser mayor que cero.',
+  'The expense number could not be assigned. Try again.': 'No se pudo asignar el folio del gasto. Intenta nuevamente.',
 };
 
 const messageFromPayload = (payload: unknown) => (

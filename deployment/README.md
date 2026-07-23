@@ -138,7 +138,9 @@ PUBLIC_URL=https://apptest.indiceapp.com \
 ./deployment/scripts/up-host-network.sh
 ```
 
-The script preserves the datasource from the `.env`, forces only host-network runtime bindings, keeps MinIO data mounted, prepares `nginx.host.conf`, copies `react/dist` into the web container when it exists, and validates local plus public health checks.
+The script preserves the datasource from the `.env`, forces only host-network runtime bindings, keeps MinIO data mounted, prepares `nginx.host.conf`, uses the frontend bundled in `WEB_IMAGE`, and validates local plus public health checks. This prevents a stale host-side `react/dist` from overwriting a freshly built web image.
+
+To intentionally publish a locally built frontend over the image, opt in explicitly with `PUBLISH_LOCAL_FRONTEND_DIST=true` after running `npm run build`. The script fails if that flag is set and `react/dist/index.html` is missing.
 
 ## Frontend Container Publish
 

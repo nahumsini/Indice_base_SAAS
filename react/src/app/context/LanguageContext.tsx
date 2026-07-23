@@ -323,6 +323,7 @@ type TranslationDictionary = {
 	      signingIn: string;
 	      successToast: string;
 	      errorFallback: string;
+	      sessionExpired: string;
 	      insideTitle: string;
 	      insideItems: string[];
 	      resetBadge: string;
@@ -1863,6 +1864,7 @@ const translations: Translations = {
 	      signingIn: 'Ingresando...',
 	      successToast: 'Sesión iniciada correctamente.',
 	      errorFallback: 'No fue posible iniciar sesión.',
+	      sessionExpired: 'Tu sesión expiró. Inicia sesión nuevamente para continuar.',
 	      insideTitle: 'Lo que tendrás disponible',
 	      insideItems: ['Visibilidad operativa', 'Actividad del equipo', 'Control financiero', 'Desempeño del negocio'],
 	      resetBadge: 'Recuperación de acceso',
@@ -2740,6 +2742,7 @@ const translations: Translations = {
 	      signingIn: 'Ingresando...',
 	      successToast: 'Sesión iniciada correctamente.',
 	      errorFallback: 'No fue posible iniciar sesión.',
+	      sessionExpired: 'Tu sesión expiró. Inicia sesión nuevamente para continuar.',
 	      insideTitle: 'Lo que tendrás disponible',
 	      insideItems: ['Visibilidad operativa', 'Actividad del equipo', 'Control financiero', 'Desempeño del negocio'],
 	      resetBadge: 'Recuperación de acceso',
@@ -3617,6 +3620,7 @@ const translations: Translations = {
 	      signingIn: 'Signing in...',
 	      successToast: 'Signed in successfully.',
 	      errorFallback: 'Unable to sign in.',
+	      sessionExpired: 'Your session expired. Sign in again to continue.',
 	      insideTitle: "What you'll access",
 	      insideItems: ['Operational visibility', 'Team activity', 'Financial control', 'Business performance'],
 	      resetBadge: 'Access recovery',
@@ -4494,6 +4498,7 @@ const translations: Translations = {
 	      signingIn: 'Signing in...',
 	      successToast: 'Signed in successfully.',
 	      errorFallback: 'Unable to sign in.',
+	      sessionExpired: 'Your session expired. Sign in again to continue.',
 	      insideTitle: "What you'll access",
 	      insideItems: ['Operational visibility', 'Team activity', 'Financial control', 'Business performance'],
 	      resetBadge: 'Access recovery',
@@ -5371,6 +5376,7 @@ const translations: Translations = {
 	      signingIn: 'Connexion en cours...',
 	      successToast: 'Connexion réussie.',
 	      errorFallback: 'Impossible de se connecter.',
+	      sessionExpired: 'Votre session a expiré. Reconnectez-vous pour continuer.',
 	      insideTitle: 'Ce que vous pourrez consulter',
 	      insideItems: ['Visibilité opérationnelle', 'Activité des équipes', 'Contrôle financier', 'Performance d’affaires'],
 	      resetBadge: 'Récupération d’accès',
@@ -6248,6 +6254,7 @@ const translations: Translations = {
 	      signingIn: 'Entrando...',
 	      successToast: 'Login realizado com sucesso.',
 	      errorFallback: 'Não foi possível entrar.',
+	      sessionExpired: 'Sua sessão expirou. Entre novamente para continuar.',
 	      insideTitle: 'O que você acessa',
 	      insideItems: ['Visibilidade operacional', 'Atividade da equipe', 'Controle financeiro', 'Desempenho do negócio'],
 	      resetBadge: 'Recuperação de acesso',
@@ -7125,6 +7132,7 @@ const translations: Translations = {
 	      signingIn: '로그인 중...',
 	      successToast: '로그인에 성공했습니다.',
 	      errorFallback: '로그인할 수 없습니다.',
+	      sessionExpired: '세션이 만료되었습니다. 계속하려면 다시 로그인하세요.',
 	      insideTitle: '접속 후 볼 수 있는 것',
 	      insideItems: ['운영 가시성', '팀 활동', '재무 통제', '비즈니스 성과'],
 	      resetBadge: '접속 복구',
@@ -8002,6 +8010,7 @@ const translations: Translations = {
 	      signingIn: '登录中...',
 	      successToast: '登录成功。',
 	      errorFallback: '无法登录。',
+	      sessionExpired: '会话已过期。请重新登录以继续。',
 	      insideTitle: '你将访问',
 	      insideItems: ['运营可见性', '团队活动', '财务控制', '业务表现'],
 	      resetBadge: '访问恢复',

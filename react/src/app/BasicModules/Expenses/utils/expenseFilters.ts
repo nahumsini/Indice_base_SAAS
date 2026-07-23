@@ -20,6 +20,12 @@ export const getExpensePaidAmount = (expense: Expense) => Math.max(expense.amoun
 
 export const getExpenseBalance = (expense: Expense) => Math.max(expense.total - getExpensePaidAmount(expense), 0);
 
+export const canDeleteExpense = (expense: Expense) => (
+  expense.type === 'budget'
+  || !expense.backendStatus
+  || expense.backendStatus.toUpperCase() === 'DRAFT'
+);
+
 const convertExpenseAmount = (
   amount: number,
   expense: Expense,

@@ -49,6 +49,7 @@ type LoginFormPanelProps = {
   signupErrorMessage: string;
   signupNoticeMessage: string;
   signupCheckoutReturn: SignupCheckoutReturn;
+  sessionMessage: string;
   onCompanyNameChange: (value: string) => void;
   onCompanyNameBlur: () => void;
   onEmailChange: (value: string) => void;
@@ -162,6 +163,7 @@ export function LoginFormPanel({
   signupErrorMessage,
   signupNoticeMessage,
   signupCheckoutReturn,
+  sessionMessage,
   onCompanyNameChange,
   onCompanyNameBlur,
   onEmailChange,
@@ -311,6 +313,11 @@ export function LoginFormPanel({
           </form>
         ) : (
           <form onSubmit={onSubmit} className="space-y-5">
+            {sessionMessage ? (
+              <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                {sessionMessage}
+              </div>
+            ) : null}
             <IconInput
               icon={Building2}
               label="Company name"

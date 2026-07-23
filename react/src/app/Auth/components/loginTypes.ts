@@ -38,6 +38,7 @@ export type LoginPageCopy = {
   signingIn: string;
   successToast: string;
   errorFallback: string;
+  sessionExpired: string;
   insideTitle: string;
   insideItems: string[];
   resetBadge: string;

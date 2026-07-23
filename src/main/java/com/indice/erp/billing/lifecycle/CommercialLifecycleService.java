@@ -72,7 +72,7 @@ public class CommercialLifecycleService {
 
     @Transactional
     public int advanceDueStates() {
-        var now = clock.instant();
+        var now = databaseInstant(clock.instant());
         var companyIds = jdbc.query(
             """
                 SELECT company_id
@@ -130,12 +130,13 @@ public class CommercialLifecycleService {
         if (!enrolled(companyId)) return new TransitionResult(false, false, null);
         ensureState(companyId);
         var current = rows(companyId, true).getFirst();
-        var occurredAt = eventCreatedAt == null ? clock.instant() : eventCreatedAt;
+        var occurredAt = databaseInstant(eventCreatedAt == null ? clock.instant() : eventCreatedAt);
+        var persistedTrialEndsAt = databaseInstant(trialEndsAt);
         if (!isNewer(occurredAt, eventId, current.lastEventCreatedAt(), current.lastEventId())) {
             return new TransitionResult(true, false, snapshot(current));
         }
 
-        var next = resolve(current, subscriptionStatus, paymentStatus, trialEndsAt, occurredAt, reason);
+        var next = resolve(current, subscriptionStatus, paymentStatus, persistedTrialEndsAt, occurredAt, reason);
         next = next.withSource(eventId, occurredAt,
             subscriptionStatus == null ? current.subscriptionStatus() : normalizedValue(subscriptionStatus),
             paymentStatus == null ? current.paymentStatus() : normalizedValue(paymentStatus));
@@ -319,6 +320,9 @@ public class CommercialLifecycleService {
 
     private Timestamp ts(Instant value) { return value == null ? null : Timestamp.from(value); }
     private Instant instant(Timestamp value) { return value == null ? null : value.toInstant(); }
+    private Instant databaseInstant(Instant value) {
+        return value == null ? null : value.truncatedTo(ChronoUnit.MICROS);
+    }
 
     public record TransitionResult(boolean enrolled, boolean state_changed, CommercialLifecycleSnapshot snapshot) {}
 

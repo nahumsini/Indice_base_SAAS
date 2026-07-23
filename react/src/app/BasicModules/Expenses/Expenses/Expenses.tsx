@@ -15,7 +15,7 @@ import type { ExpenseListFilters } from '../types/expenseView.types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { createQuickProviderRecord } from '../Providers/providerRecordFactory';
-import { calculateExpenseTotals, filterExpenses } from '../utils/expenseFilters';
+import { calculateExpenseTotals, canDeleteExpense, filterExpenses } from '../utils/expenseFilters';
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -53,17 +53,8 @@ const defaultFilters: ExpenseListFilters = {
 const toFallbackOptions = (values: string[]): FinanceReferenceOption[] =>
   Array.from(new Set(values.filter(Boolean))).map(value => ({ value, label: value }));
 
-const createExpenseFolio = (currentExpenses: Expense[]) => {
-  const year = new Date().getFullYear();
-  const prefix = `EXP-${year}-`;
-  const nextSequence = currentExpenses.reduce((highest, expense) => {
-    if (!expense.folio.startsWith(prefix)) return highest;
-    const sequence = Number(expense.folio.slice(prefix.length));
-    return Number.isFinite(sequence) ? Math.max(highest, sequence) : highest;
-  }, 0) + 1;
-
-  return `${prefix}${String(nextSequence).padStart(3, '0')}`;
-};
+const AUTO_EXPENSE_FOLIO = 'AUTO-EXP';
+const AUTO_PAYABLE_FOLIO = 'AUTO-CXP';
 
 export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useExpensesTranslations();
@@ -225,7 +216,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       const now = new Date();
       const draftExpense: Expense = {
         id: `expense-${Date.now()}`,
-        folio: createExpenseFolio(expenses),
+        folio: AUTO_EXPENSE_FOLIO,
         businessUnit,
         business,
         concept,
@@ -240,7 +231,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         paymentDate: now,
         date: now,
         paymentMethod: 'transfer',
-        status: 'pending',
+        status: 'paid',
         requestedByUserId: currentUser?.id,
         attachments: [],
         taxCountry,
@@ -254,8 +245,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         createdAt: now,
         updatedAt: now,
       };
-      const createdExpense = await expensesService.createExpense(draftExpense, providers);
-      const paidExpense = await expensesService.updateExpenseStatus(createdExpense.id, 'paid', providers, total, now);
+      const paidExpense = await expensesService.createExpense(draftExpense, providers);
       const uploadedAttachments = [];
       for (const file of attachmentFiles) {
         uploadedAttachments.push(await expenseAttachmentsService.upload(paidExpense.id, file));
@@ -336,19 +326,20 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     const inputPaymentDate = values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined;
     const inputDueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : undefined;
     const sourceExpense = editingExpense ?? initialExpense;
+    const effectiveStatus = editingExpense ? values.status : 'paid';
     const paymentDate = inputPaymentDate ?? sourceExpense?.paymentDate;
     const recordDate = sourceExpense?.date ?? inputPaymentDate ?? now;
     const dueDate = inputDueDate ?? sourceExpense?.dueDate ?? now;
     const previousAmountPaid = sourceExpense?.amountPaid ?? 0;
-    const amountPaid = values.status === 'paid' || values.status === 'audited'
+    const amountPaid = effectiveStatus === 'paid' || effectiveStatus === 'audited'
       ? values.total
-      : values.status === 'partial' || values.status === 'overdue'
+      : effectiveStatus === 'partial' || effectiveStatus === 'overdue'
         ? Math.min(previousAmountPaid, values.total)
         : 0;
     const draftExpense: Expense = {
       ...(sourceExpense ?? {}),
       id: editingExpense?.id ?? `expense-${Date.now()}`,
-      folio: sourceExpense?.folio ?? createExpenseFolio(expenses),
+      folio: sourceExpense?.folio ?? AUTO_EXPENSE_FOLIO,
       businessUnit: values.businessUnit,
       business: values.business,
       concept: values.concept,
@@ -378,7 +369,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       date: recordDate,
       paymentMethod: values.paymentMethod,
       accountingAccount: values.accountingAccount,
-      status: values.status,
+      status: effectiveStatus,
       attachments: values.attachments ?? sourceExpense?.attachments ?? [],
       type: sourceExpense?.type ?? 'real',
       createdAt: sourceExpense?.createdAt ?? now,
@@ -386,13 +377,29 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     };
 
     try {
-      const savedExpense = editingExpense?.type === 'budget'
+      let savedExpense = editingExpense?.type === 'budget'
         ? await budgetLinesService.updateBudgetLineFromExpense(draftExpense)
         : editingExpense && isBackendId(editingExpense.id)
           ? await expensesService.updateExpense(draftExpense, providers)
           : draftExpense.type === 'payable'
             ? await createPayableExpense(draftExpense)
             : await expensesService.createExpense(draftExpense, providers);
+
+      if (
+        editingExpense
+        &&
+        draftExpense.type !== 'budget'
+        && draftExpense.type !== 'payable'
+        && isBackendId(savedExpense.id)
+      ) {
+        savedExpense = await expensesService.updateExpenseStatus(
+          savedExpense.id,
+          effectiveStatus,
+          providers,
+          effectiveStatus === 'partial' && amountPaid > 0 ? amountPaid : undefined,
+          paymentDate ?? now,
+        );
+      }
       const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
 
       setExpenses(currentExpenses => (
@@ -414,7 +421,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : now;
     const payableExpense: Expense = {
       id: `payable-${Date.now()}`,
-      folio: createExpenseFolio(expenses).replace('EXP-', 'CXP-'),
+      folio: AUTO_PAYABLE_FOLIO,
       businessUnit: '',
       business: '',
       concept: values.concept,
@@ -446,23 +453,40 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     setIsPayableAccountSubmitting(true);
     try {
       const savedExpense = await expensesService.createPayableAccount(payableExpense, providers);
-      const uploadedAttachments = [];
-      for (const file of values.attachmentFiles) {
-        uploadedAttachments.push(await expenseAttachmentsService.upload(savedExpense.id, file));
+      const attachmentResults = await Promise.allSettled(
+        values.attachmentFiles.map(file => expenseAttachmentsService.upload(savedExpense.id, file)),
+      );
+      const uploadedAttachments = attachmentResults.flatMap(result => (
+        result.status === 'fulfilled' ? [result.value] : []
+      ));
+      const attachmentUploadFailed = attachmentResults.some(result => result.status === 'rejected');
+      let refreshedExpense: Expense | null = null;
+      let refreshFailed = false;
+      if (isBackendId(savedExpense.id)) {
+        try {
+          refreshedExpense = await expensesService.getExpenseById(savedExpense.id, providers);
+        } catch {
+          refreshFailed = true;
+        }
       }
-      const refreshedExpense = isBackendId(savedExpense.id)
-        ? await expensesService.getExpenseById(savedExpense.id, providers)
-        : null;
       const savedExpenseWithAttachments = refreshedExpense ?? {
         ...savedExpense,
         attachments: uploadedAttachments.map(file => file.originalFilename),
         attachmentCount: uploadedAttachments.length,
       };
-      setExpenses(currentExpenses => [savedExpenseWithAttachments, ...currentExpenses]);
-      setSuccessToastMessage(t.expenses.messages.payableCreated);
+      setExpenses(currentExpenses => [
+        savedExpenseWithAttachments,
+        ...currentExpenses.filter(expense => expense.id !== savedExpenseWithAttachments.id),
+      ]);
       setIsPayableAccountModalOpen(false);
+      if (attachmentUploadFailed || refreshFailed) {
+        setFailureToastMessage(
+          `${t.expenses.messages.payableCreated} ${t.expenses.attachments.operationFailed}`,
+        );
+      } else {
+        setSuccessToastMessage(t.expenses.messages.payableCreated);
+      }
     } catch (error) {
-      setExpenses(currentExpenses => [payableExpense, ...currentExpenses]);
       setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.createFailed));
     } finally {
       setIsPayableAccountSubmitting(false);
@@ -502,6 +526,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     if (deletingExpenseIdsRef.current.has(id)) return;
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
+    if (!canDeleteExpense(expense)) {
+      setFailureToastMessage(t.expenses.messages.deleteDraftOnly);
+      return;
+    }
 
     if (expense.type === 'budget') {
       setExpenseDeleting(id, true);
@@ -536,10 +564,22 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   };
 
   const requestDeleteExpense = (id: string) => {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense || !canDeleteExpense(expense)) {
+      setFailureToastMessage(t.expenses.messages.deleteDraftOnly);
+      return;
+    }
     setPendingDeleteExpenseIds([id]);
   };
 
   const requestDeleteExpenses = (ids: string[]) => {
+    const selectedExpenses = ids
+      .map(id => expenses.find(expense => expense.id === id))
+      .filter((expense): expense is Expense => Boolean(expense));
+    if (selectedExpenses.length !== ids.length || !selectedExpenses.every(canDeleteExpense)) {
+      setFailureToastMessage(t.expenses.messages.deleteDraftOnly);
+      return;
+    }
     setPendingDeleteExpenseIds(ids);
   };
 

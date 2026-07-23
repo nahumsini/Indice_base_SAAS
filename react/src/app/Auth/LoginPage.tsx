@@ -264,9 +264,18 @@ export default function LoginPage() {
     ],
     [t.panelInicial.structure.fields.selectIndustry, t.panelInicial.structure.options.businessIdentityIndustries],
   );
+  const locationState = location.state as {
+    authenticationExpired?: boolean;
+    returnTo?: string;
+  } | null;
+  const safeReturnTo = locationState?.returnTo?.startsWith('/')
+    && !locationState.returnTo.startsWith('//')
+    ? locationState.returnTo
+    : '/dashboard';
 
   const normalizedEmail = normalizeEmail(email);
   const normalizedCompanyName = companyName.trim();
+  const normalizedPassword = password.trim();
   const emailIsValid = isValidEmail(normalizedEmail);
   const normalizedSignupEmail = normalizeEmail(signupValues.email);
   const signupEmailIsValid = isValidEmail(normalizedSignupEmail);
@@ -380,8 +389,8 @@ export default function LoginPage() {
   }, [signupCheckoutReturn?.sessionId, signupCheckoutReturn?.status]);
 
   const canSubmit = useMemo(
-    () => normalizedCompanyName.length > 1 && normalizedEmail.length > 0 && emailIsValid && password.trim().length > 0 && !isSubmitting,
-    [emailIsValid, isSubmitting, normalizedCompanyName, normalizedEmail, password],
+    () => normalizedCompanyName.length > 1 && normalizedEmail.length > 0 && emailIsValid && normalizedPassword.length > 0 && !isSubmitting,
+    [emailIsValid, isSubmitting, normalizedCompanyName, normalizedEmail, normalizedPassword],
   );
 
   const canSubmitReset = useMemo(
@@ -482,13 +491,13 @@ export default function LoginPage() {
         authApi.login({
           companyName: normalizedCompanyName,
           email: normalizedEmail,
-          password,
+          password: normalizedPassword,
         }),
         LOGIN_MINIMUM_LOADING_MS,
       );
 
       setIsSubmitting(false);
-      navigate('/dashboard', {
+      navigate(safeReturnTo, {
         replace: true,
         state: {
           successToast: copy.successToast,
@@ -498,6 +507,16 @@ export default function LoginPage() {
       setErrorMessage(error instanceof Error ? error.message : copy.errorFallback);
       setIsSubmitting(false);
     }
+  };
+
+  const updateEmail = (value: string) => {
+    setEmail(value);
+    setErrorMessage('');
+  };
+
+  const updatePassword = (value: string) => {
+    setPassword(value);
+    setErrorMessage('');
   };
 
   const openResetModal = () => {
@@ -694,11 +713,12 @@ export default function LoginPage() {
             signupErrorMessage={signupErrorMessage}
             signupNoticeMessage={signupNoticeMessage}
             signupCheckoutReturn={signupCheckoutReturn}
+            sessionMessage={locationState?.authenticationExpired ? copy.sessionExpired : ''}
             onCompanyNameChange={setCompanyName}
             onCompanyNameBlur={() => setCompanyNameTouched(true)}
-            onEmailChange={setEmail}
+            onEmailChange={updateEmail}
             onEmailBlur={() => setEmailTouched(true)}
-            onPasswordChange={setPassword}
+            onPasswordChange={updatePassword}
             onSignupValueChange={updateSignupValue}
             onSignupPlanChange={updateSignupPlan}
             onTogglePassword={() => setShowPassword((current) => !current)}

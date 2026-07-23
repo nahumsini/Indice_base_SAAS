@@ -165,6 +165,7 @@ export type FinanceTranslations = {
       createFailed: string;
       deleted: string;
       deleteFailed: string;
+      deleteDraftOnly: string;
       duplicated: string;
       duplicateFailed: string;
       saved: string;
@@ -439,6 +440,7 @@ export type FinanceTranslations = {
     };
     rowActions: {
       createPayable: string;
+      deleteExpense: string;
       markPaid: string;
     };
     table: {

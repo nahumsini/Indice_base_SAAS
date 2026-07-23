@@ -5,7 +5,7 @@ import { getStatusBadgeColor, type SelectOption } from '../../components/table/E
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense } from '../../types/expenses.types';
 import { formatCurrency, formatDate } from '../../utils/expenses.utils';
-import { getEffectiveExpenseStatus, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
+import { canDeleteExpense, getEffectiveExpenseStatus, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
 import type { EditableExpenseRowOptions, ExpenseRowActionVisibility } from './EditableExpenseRow';
 import { printExpenseVoucher } from '../../utils/expensePrintDocument';
 
@@ -216,6 +216,7 @@ function ExpenseMobileCard({
             onStartEdit={onEdit}
             isDeletePending={isDeletePending}
             showAudit={actionVisibility?.showAudit}
+            showDelete={canDeleteExpense(expense)}
             showMarkPaid={canMarkPaid && (actionVisibility?.showMarkPaid ?? true)}
             showRecordPayment={canRecordPayment && (actionVisibility?.showRecordPayment ?? true)}
           />
