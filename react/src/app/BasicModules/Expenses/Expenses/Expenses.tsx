@@ -15,7 +15,7 @@ import type { ExpenseListFilters } from '../types/expenseView.types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { createQuickProviderRecord } from '../Providers/providerRecordFactory';
-import { calculateExpenseTotals, filterExpenses } from '../utils/expenseFilters';
+import { calculateExpenseTotals, canDeleteExpense, filterExpenses } from '../utils/expenseFilters';
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -510,6 +510,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     if (deletingExpenseIdsRef.current.has(id)) return;
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
+    if (!canDeleteExpense(expense)) {
+      setFailureToastMessage(t.expenses.messages.deleteDraftOnly);
+      return;
+    }
 
     if (expense.type === 'budget') {
       setExpenseDeleting(id, true);
@@ -544,10 +548,22 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   };
 
   const requestDeleteExpense = (id: string) => {
+    const expense = expenses.find(item => item.id === id);
+    if (!expense || !canDeleteExpense(expense)) {
+      setFailureToastMessage(t.expenses.messages.deleteDraftOnly);
+      return;
+    }
     setPendingDeleteExpenseIds([id]);
   };
 
   const requestDeleteExpenses = (ids: string[]) => {
+    const selectedExpenses = ids
+      .map(id => expenses.find(expense => expense.id === id))
+      .filter((expense): expense is Expense => Boolean(expense));
+    if (selectedExpenses.length !== ids.length || !selectedExpenses.every(canDeleteExpense)) {
+      setFailureToastMessage(t.expenses.messages.deleteDraftOnly);
+      return;
+    }
     setPendingDeleteExpenseIds(ids);
   };
 

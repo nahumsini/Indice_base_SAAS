@@ -147,6 +147,7 @@ export const enCA: FinanceTranslations = {
       createFailed: 'The expense could not be created in Finance.',
       deleted: 'Expense deleted from Finance.',
       deleteFailed: 'The expense could not be deleted from Finance.',
+      deleteDraftOnly: 'Posted expenses are retained for accounting control. Only drafts can be deleted.',
       duplicated: 'Expense duplicated in Finance.',
       duplicateFailed: 'The expense could not be duplicated in Finance. It was added as local data.',
       payableCreated: 'Payable account registered.',
@@ -335,6 +336,7 @@ export const enCA: FinanceTranslations = {
     },
     rowActions: {
       createPayable: 'Create payable',
+      deleteExpense: 'Delete expense',
       markPaid: 'Pay',
     },
     table: {

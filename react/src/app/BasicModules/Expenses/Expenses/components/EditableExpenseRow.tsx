@@ -18,6 +18,7 @@ import {
 import { ExpenseAmountCells } from '../../components/table/ExpenseAmountCells';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
 import {
+  canDeleteExpense,
   getEffectiveExpenseStatus,
   getExpenseBalance,
   isExpenseEffectivelyOverdue,
@@ -379,6 +380,7 @@ export function EditableExpenseRow({
           onStartEdit={startActionEdit}
           isDeletePending={isDeletePending}
           showAudit={actionVisibility?.showAudit}
+          showDelete={canDeleteExpense(expense)}
           showMarkPaid={canMarkPaid && (actionVisibility?.showMarkPaid ?? true)}
           showRecordPayment={canRecordPayment && (actionVisibility?.showRecordPayment ?? true)}
         />

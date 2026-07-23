@@ -13,6 +13,7 @@ type ExpenseRowActionsProps = {
   onStartEdit: () => void;
   isDeletePending?: boolean;
   showAudit?: boolean;
+  showDelete?: boolean;
   showMarkPaid?: boolean;
   showRecordPayment?: boolean;
 };
@@ -31,6 +32,7 @@ export function ExpenseRowActions({
   onStartEdit,
   isDeletePending = false,
   showAudit = true,
+  showDelete = true,
   showMarkPaid = true,
   showRecordPayment = true,
 }: ExpenseRowActionsProps) {
@@ -44,14 +46,16 @@ export function ExpenseRowActions({
       <ActionButton label={t.common.duplicate} colorClass="border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300" onClick={() => onDuplicate(expenseId)}>
         <Copy className="h-4 w-4 text-blue-600" />
       </ActionButton>
-      <ActionButton
-        label={t.common.delete}
-        colorClass="border-rose-100 bg-rose-50/60 text-rose-600 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20"
-        disabled={isDeletePending}
-        onClick={() => onDelete(expenseId)}
-      >
-        {isDeletePending ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <Trash2 className="h-4 w-4 text-red-600" />}
-      </ActionButton>
+      {showDelete ? (
+        <ActionButton
+          label={t.expenses.rowActions.deleteExpense}
+          colorClass="border-rose-100 bg-rose-50/60 text-rose-600 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20"
+          disabled={isDeletePending}
+          onClick={() => onDelete(expenseId)}
+        >
+          {isDeletePending ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <Trash2 className="h-4 w-4 text-red-600" />}
+        </ActionButton>
+      ) : null}
       <ActionButton label={t.common.edit} colorClass="border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300" onClick={onStartEdit}>
         <Pencil className="h-4 w-4 text-amber-600" />
       </ActionButton>

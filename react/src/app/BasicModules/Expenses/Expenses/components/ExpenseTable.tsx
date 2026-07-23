@@ -21,7 +21,7 @@ import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeader
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
 import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
-import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { canDeleteExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import {
@@ -137,6 +137,10 @@ export function ExpenseTable({
     [rowSelection.selectedIds, sortedExpenses],
   );
   const selectedMoneySummaries = useMemo(() => getMoneySummaries(selectedExpenses, columns), [columns, selectedExpenses]);
+  const canDeleteAllSelected = useMemo(
+    () => selectedExpenses.length > 0 && selectedExpenses.every(canDeleteExpense),
+    [selectedExpenses],
+  );
   const paymentExpense = useMemo(
     () => expenses.find(expense => expense.id === paymentExpenseId) ?? null,
     [expenses, paymentExpenseId],
@@ -317,6 +321,8 @@ export function ExpenseTable({
 
   const handleDelete = (id: string) => {
     if (deletingExpenseIds.has(id)) return;
+    const expense = expenses.find(item => item.id === id);
+    if (!expense || !canDeleteExpense(expense)) return;
     if (onDeleteExpense) {
       onDeleteExpense(id);
       return;
@@ -325,6 +331,7 @@ export function ExpenseTable({
   };
 
   const handleDeleteSelected = () => {
+    if (!canDeleteAllSelected) return;
     if (onDeleteExpenses) {
       onDeleteExpenses(rowSelection.selectedIdList);
       rowSelection.clearSelection();
@@ -409,6 +416,7 @@ export function ExpenseTable({
         <ExpenseBulkActionsBar
           accountingAccountOptions={editableRowOptions.accountingAccounts}
           businessOptions={editableRowOptions.businesses}
+          showDelete={canDeleteAllSelected}
           showMarkPaid={showMarkPaidAction}
           onAccountingAccountChange={handleBulkAccountingAccountChange}
           onAuthorizerChange={handleBulkAuthorizerChange}

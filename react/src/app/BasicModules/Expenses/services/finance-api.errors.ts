@@ -15,6 +15,7 @@ const backendMessageTranslations: Record<string, string> = {
   'Expense payment could not be recorded.': 'No se pudo registrar el abono. Actualiza la lista e intenta de nuevo.',
   'Expense status could not be updated.': 'No se pudo actualizar el estado del gasto. Actualiza la lista e intenta de nuevo.',
   'Invalid request.': 'La solicitud no es valida. Revisa los campos e intenta de nuevo.',
+  'Only draft expenses can be deleted.': 'Los gastos registrados se conservan por control contable. Solo puedes eliminar borradores.',
   'Payment account balance could not be updated.': 'No se pudo actualizar el saldo de la cuenta de pago. Revisa que la cuenta este activa.',
   'Payment account currency does not match expense currency.': 'La moneda de la cuenta de pago no coincide con la moneda del gasto.',
   'Payment account not found.': 'No se encontro la cuenta de pago seleccionada.',
