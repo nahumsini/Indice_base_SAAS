@@ -377,13 +377,27 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     };
 
     try {
-      const savedExpense = editingExpense?.type === 'budget'
+      let savedExpense = editingExpense?.type === 'budget'
         ? await budgetLinesService.updateBudgetLineFromExpense(draftExpense)
         : editingExpense && isBackendId(editingExpense.id)
           ? await expensesService.updateExpense(draftExpense, providers)
           : draftExpense.type === 'payable'
             ? await createPayableExpense(draftExpense)
             : await expensesService.createExpense(draftExpense, providers);
+
+      if (
+        draftExpense.type !== 'budget'
+        && draftExpense.type !== 'payable'
+        && isBackendId(savedExpense.id)
+      ) {
+        savedExpense = await expensesService.updateExpenseStatus(
+          savedExpense.id,
+          values.status,
+          providers,
+          values.status === 'partial' && amountPaid > 0 ? amountPaid : undefined,
+          paymentDate ?? now,
+        );
+      }
       const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
 
       setExpenses(currentExpenses => (

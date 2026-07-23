@@ -10,6 +10,7 @@
     "dev": "vite",
     "test:kiosks": "node --test tests/kiosk-frontend-regression.test.mjs",
     "test:auth": "node --test tests/auth-session-regression.test.mjs",
+    "test:expenses": "node --test tests/expenses-workflow-regression.test.mjs",
     "test:phone-validation": "node scripts/phone-validation-regression.mjs",
     "typecheck": "tsc --noEmit"
   },

@@ -310,7 +310,7 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
     paymentDate: formatDateInputValue(expense?.paymentDate),
     paymentMethod: expense?.paymentMethod ?? 'transfer',
     providerId: expense?.providerId ?? '',
-    status: expense?.status ?? 'pending',
+    status: expense?.status ?? 'paid',
     taxes: expense ? String(expense.taxes ?? '') : '',
     taxCountry,
     taxEnabled: hasTaxMetadata || hasTaxAmount,
