@@ -38,6 +38,7 @@ export const endpoints = {
     cancelSubscription: '/api/v1/billing/subscription/cancel',
     resumeSubscription: '/api/v1/billing/subscription/resume',
     portal: '/api/v1/billing/subscription/portal',
+    seats: '/api/v1/billing/seats',
   },
   kioskCenter: {
     kiosks: '/api/v2/kiosk-center/kiosks',

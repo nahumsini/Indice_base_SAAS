@@ -123,7 +123,7 @@ class BillingSubscriptionApiControllerTest {
 
     private BillingSubscriptionResponse response() {
         return new BillingSubscriptionResponse("trialing", "all-modules", 7, 5, 0, 5, 1, 4, 19_900,
-            "usd", "", "", "", "", true, "", "", "", "", "", "", "stripe", true, "", true,
+            19_900, 1_200, "MONTH", "usd", "", "", "", "", true, "", "", "", "", "", "", "stripe", true, "", true,
             List.of("crm"), 1, 1, 0, 4, true);
     }
 }

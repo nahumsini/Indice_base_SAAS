@@ -11,6 +11,9 @@ export interface BillingSubscriptionResponse {
   used_collaborators: number;
   remaining_collaborators: number;
   monthly_amount_cents: number;
+  recurring_amount_cents: number;
+  extra_seat_unit_amount_cents: number;
+  billing_interval: 'MONTH' | 'YEAR' | string;
   currency: string;
   trial_start_at: string;
   trial_end_at: string;
@@ -39,6 +42,20 @@ export interface BillingPortalResponse {
   url: string;
 }
 
+export interface BillingSeatSnapshot {
+  company_id: number;
+  enforced: boolean;
+  included: number;
+  purchased_extra: number;
+  benefit_extra: number;
+  limit: number;
+  active: number;
+  reserved: number;
+  available: number;
+  mutation_reference?: string;
+  idempotent_replay?: boolean;
+}
+
 const billingAction = async <T>(path: string) => {
   try {
     return await apiClient<T>(path, { method: 'POST' });
@@ -65,5 +82,13 @@ export const billingApi = {
 
   openPortal() {
     return billingAction<BillingPortalResponse>(endpoints.billing.portal);
+  },
+
+  updateExtraSeats(extraSeats: number, idempotencyKey: string) {
+    return apiClient<BillingSeatSnapshot>(endpoints.billing.seats, {
+      method: 'PUT',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({ extra_seats: extraSeats }),
+    });
   },
 };

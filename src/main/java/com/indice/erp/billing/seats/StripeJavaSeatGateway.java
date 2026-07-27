@@ -34,7 +34,7 @@ public class StripeJavaSeatGateway implements StripeSeatGateway {
             }
             var params = new LinkedHashMap<String, Object>();
             params.put("quantity", command.quantity());
-            params.put("proration_behavior", "create_prorations");
+            params.put("proration_behavior", "always_invoice");
             params.put("metadata", Map.of("indice_billable_code", "extra_seat"));
             SubscriptionItem item;
             if (blank(command.subscriptionItemId())) {
