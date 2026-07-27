@@ -152,6 +152,44 @@ class StripePhaseTwoIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM users", Integer.class)).isEqualTo(usersBefore);
     }
 
+    @Test
+    void recordsPaymentRiskAndStripeEntitlementEventsInsteadOfIgnoringThem() {
+        var dispute = event("evt_dispute_created", "charge.dispute.created", 4_000, """
+            {"id":"dp_test","object":"dispute","status":"needs_response","charge":"ch_test"}
+            """);
+        events.ingest(envelope(dispute, "evt_dispute_created", "charge.dispute.created", 4_000, "dp_test"));
+
+        var entitlement = event("evt_entitlement_summary", "entitlements.active_entitlement_summary.updated", 4_001, """
+            {"object":"entitlements.active_entitlement_summary","customer":"cus_entitlement"}
+            """);
+        events.ingest(envelope(
+            entitlement,
+            "evt_entitlement_summary",
+            "entitlements.active_entitlement_summary.updated",
+            4_001,
+            "cus_entitlement"
+        ));
+
+        processor.processBatch();
+        processor.processBatch();
+
+        assertThat(events.statuses())
+            .filteredOn(status -> status.eventId().equals("evt_dispute_created")
+                || status.eventId().equals("evt_entitlement_summary"))
+            .allSatisfy(status -> assertThat(status.status()).isEqualTo("PROCESSED"));
+        assertThat(jdbc.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM billing_audit_events
+                WHERE action_code IN (
+                    'PAYMENT_RISK_EVENT_RECORDED',
+                    'STRIPE_ENTITLEMENT_SUMMARY_RECORDED'
+                )
+                """,
+            Integer.class
+        )).isEqualTo(2);
+    }
+
     private com.indice.erp.billing.signup.BillingSignupIntent createIntent(String customerId, String idempotency) {
         var product = offers.activeBasicProducts().getFirst();
         var selection = offers.select(List.of(product.code()), "MONTH", 0);

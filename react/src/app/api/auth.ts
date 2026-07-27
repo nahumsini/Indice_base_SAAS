@@ -33,22 +33,6 @@ export interface CsrfTokenResponse {
   csrfToken: string;
 }
 
-export interface SignupCheckoutResponse {
-  checkoutUrl: string;
-  checkoutSessionId: string;
-  csrfToken?: string;
-}
-
-export type SignupCheckoutStatus = 'pending' | 'completed' | 'expired' | 'failed' | 'superseded' | 'not_found';
-
-export interface SignupCheckoutStatusResponse {
-  status: SignupCheckoutStatus;
-  message: string;
-  companyId?: number | null;
-  canRestart: boolean;
-  canLogin: boolean;
-}
-
 export interface PasswordResetRequestPayload {
   email: string;
 }
@@ -170,31 +154,6 @@ export const authApi = {
 
   csrf() {
     return apiClient<CsrfTokenResponse>(endpoints.auth.csrf);
-  },
-
-  async startSignupCheckout(payload: AccountSignupCheckoutPayload) {
-    setCachedAuthSession(undefined);
-    setCachedCsrfToken(null);
-    clearPendingSessionRequest();
-    await this.csrf();
-
-    try {
-      return await apiClient<SignupCheckoutResponse>(endpoints.auth.signupCheckout, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch (error) {
-      if (error instanceof ApiClientError && [400, 402, 403, 503].includes(error.status)) {
-        throw new Error(error.message || 'Secure payment checkout could not be started.');
-      }
-
-      throw error;
-    }
-  },
-
-  signupCheckoutStatus(sessionId: string) {
-    const params = new URLSearchParams({ session_id: sessionId });
-    return apiClient<SignupCheckoutStatusResponse>(`${endpoints.auth.signupCheckoutStatus}?${params.toString()}`);
   },
 
   async startSignupTrial(payload: AccountSignupCheckoutPayload) {

@@ -10,6 +10,7 @@ import com.indice.erp.billing.signup.BillingSignupIntentRepository;
 import com.indice.erp.billing.signup.BillingTenantProvisioningService;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +60,9 @@ public class StripeWebhookEventHandler {
                  "customer.subscription.resumed" -> subscriptionChanged(eventId, eventCreatedAt, eventType, object);
             case "invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed",
                  "invoice.finalized", "invoice.voided" -> invoiceChanged(eventId, eventCreatedAt, eventType, object);
+            case "charge.refunded", "refund.updated", "charge.dispute.created",
+                 "charge.dispute.updated", "charge.dispute.closed" -> paymentRiskChanged(eventId, eventCreatedAt, eventType, object);
+            case "entitlements.active_entitlement_summary.updated" -> stripeEntitlementSummaryChanged(eventId, eventType, object);
             default -> ignored(eventId, eventType, text(object, "id"));
         };
     }
@@ -229,12 +233,101 @@ public class StripeWebhookEventHandler {
         );
     }
 
+    private StripeWebhookEventRepository.ProcessingResult paymentRiskChanged(
+        String eventId,
+        Instant eventCreatedAt,
+        String eventType,
+        JsonNode object
+    ) {
+        var objectId = requiredText(object, "id");
+        var association = associationForObject(object);
+        if (association != null && association.companyId() != null) {
+            commercialLifecycle.applyInvoiceEvent(
+                association.companyId(),
+                eventId,
+                eventCreatedAt,
+                eventType,
+                clean(text(object, "status"), eventType)
+            );
+        }
+        audit.record(
+            "STRIPE_WEBHOOK", "PAYMENT_RISK_EVENT_RECORDED", "SUCCESS", null, eventId, objectId,
+            association == null ? null : association.companyId(),
+            association == null ? null : association.signupIntentId(),
+            details(
+                "eventType", eventType,
+                "stripeStatus", clean(text(object, "status"), ""),
+                "invoiceId", clean(objectId(object.path("invoice")), ""),
+                "customerId", clean(objectId(object.path("customer")), "")
+            )
+        );
+        return StripeWebhookEventRepository.ProcessingResult.processed(
+            association == null ? null : association.companyId(),
+            association == null ? null : association.signupIntentId(),
+            null
+        );
+    }
+
+    private StripeWebhookEventRepository.ProcessingResult stripeEntitlementSummaryChanged(
+        String eventId,
+        String eventType,
+        JsonNode object
+    ) {
+        var objectId = clean(text(object, "id"), clean(objectId(object.path("customer")), eventType));
+        var association = associationForObject(object);
+        var refreshed = association != null
+            && association.companyId() != null
+            && entitlementProjection.refreshIfEnrolled(association.companyId());
+        audit.record(
+            "STRIPE_WEBHOOK", "STRIPE_ENTITLEMENT_SUMMARY_RECORDED", "SUCCESS", null, eventId, objectId,
+            association == null ? null : association.companyId(),
+            association == null ? null : association.signupIntentId(),
+            details(
+                "eventType", eventType,
+                "customerId", clean(objectId(object.path("customer")), ""),
+                "internalProjectionRefreshed", Boolean.toString(refreshed)
+            )
+        );
+        return StripeWebhookEventRepository.ProcessingResult.processed(
+            association == null ? null : association.companyId(),
+            association == null ? null : association.signupIntentId(),
+            null
+        );
+    }
+
     private StripeWebhookEventRepository.ProcessingResult ignored(String eventId, String eventType, String objectId) {
         audit.record(
             "STRIPE_WEBHOOK", "EVENT_IGNORED", "SUCCESS", null, eventId, objectId,
             null, null, Map.of("eventType", eventType)
         );
         return StripeWebhookEventRepository.ProcessingResult.ignoredResult();
+    }
+
+    private BillingProjectionRepository.ProjectionAssociation associationForObject(JsonNode object) {
+        var subscriptionId = objectId(object.path("subscription"));
+        if (subscriptionId != null) {
+            var association = projections.associationForSubscription(subscriptionId);
+            if (association != null) {
+                return association;
+            }
+        }
+        var invoiceId = objectId(object.path("invoice"));
+        if (invoiceId != null) {
+            var association = projections.associationForInvoice(invoiceId);
+            if (association != null) {
+                return association;
+            }
+        }
+        var customerId = objectId(object.path("customer"));
+        return customerId == null ? null : projections.associationForCustomer(customerId);
+    }
+
+    private Map<String, String> details(String... pairs) {
+        var detail = new LinkedHashMap<String, String>();
+        for (var index = 0; index + 1 < pairs.length; index += 2) {
+            detail.put(pairs[index], pairs[index + 1] == null ? "" : pairs[index + 1]);
+        }
+        return detail;
     }
 
     private BillingSignupIntent resolveIntent(JsonNode object) {
@@ -331,5 +424,9 @@ public class StripeWebhookEventHandler {
 
     private Long nullableLong(JsonNode node) {
         return node == null || node.isMissingNode() || node.isNull() || !node.isNumber() ? null : node.longValue();
+    }
+
+    private String clean(String preferred, String fallback) {
+        return preferred == null || preferred.isBlank() ? fallback : preferred.trim();
     }
 }

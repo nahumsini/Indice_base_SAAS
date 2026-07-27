@@ -77,6 +77,42 @@ class CommercialLifecycleIntegrationTest {
     }
 
     @Test
+    void disputeOpensGraceWindowAndWonDisputeRestoresAccess() {
+        var companyId = premiumCompany("dispute");
+        var started = Instant.now().minus(1, ChronoUnit.HOURS);
+        lifecycle.applySubscriptionEvent(companyId, "evt-dispute-active", started, "active", null);
+
+        var disputedAt = started.plus(5, ChronoUnit.MINUTES);
+        var disputed = lifecycle.applyInvoiceEvent(
+            companyId, "evt-dispute-created", disputedAt, "charge.dispute.created", "needs_response"
+        );
+
+        assertThat(disputed.snapshot().state()).isEqualTo("GRACE");
+        assertThat(disputed.snapshot().reason_code()).isEqualTo("PAYMENT_DISPUTED");
+
+        var recovered = lifecycle.applyInvoiceEvent(
+            companyId, "evt-dispute-won", disputedAt.plus(1, ChronoUnit.DAYS), "charge.dispute.closed", "won"
+        );
+        assertThat(recovered.snapshot().state()).isEqualTo("ACTIVE");
+        assertThat(recovered.snapshot().operational_write_allowed()).isTrue();
+    }
+
+    @Test
+    void refundEventIsRecordedWithoutAutomaticallyRestrictingAccess() {
+        var companyId = premiumCompany("refund");
+        var started = Instant.now().minus(1, ChronoUnit.HOURS);
+        lifecycle.applySubscriptionEvent(companyId, "evt-refund-active", started, "active", null);
+
+        var refunded = lifecycle.applyInvoiceEvent(
+            companyId, "evt-refunded", started.plus(10, ChronoUnit.MINUTES), "charge.refunded", "succeeded"
+        );
+
+        assertThat(refunded.snapshot().state()).isEqualTo("ACTIVE");
+        assertThat(refunded.snapshot().reason_code()).isEqualTo("PAYMENT_REFUNDED");
+        assertThat(refunded.snapshot().operational_write_allowed()).isTrue();
+    }
+
+    @Test
     void ignoresOlderStripeEventsAndDoesNotRegressAnActiveCompany() {
         var companyId = premiumCompany("ordering");
         var newer = Instant.now();

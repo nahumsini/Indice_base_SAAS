@@ -176,6 +176,56 @@ public class BillingProjectionRepository {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
+    public ProjectionAssociation associationForInvoice(String stripeInvoiceId) {
+        if (stripeInvoiceId == null || stripeInvoiceId.isBlank()) {
+            return null;
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT COALESCE(subscription.id, 0) AS subscription_id,
+                       COALESCE(invoice.company_id, subscription.company_id) AS company_id,
+                       subscription.signup_intent_id
+                FROM billing_invoice_snapshots invoice
+                LEFT JOIN company_billing_subscriptions subscription
+                  ON subscription.stripe_subscription_id = invoice.stripe_subscription_id
+                WHERE invoice.stripe_invoice_id = ?
+                ORDER BY invoice.id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new ProjectionAssociation(
+                rs.getLong("subscription_id"),
+                (Long) rs.getObject("company_id"),
+                (Long) rs.getObject("signup_intent_id"),
+                false
+            ),
+            stripeInvoiceId.trim()
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    public ProjectionAssociation associationForCustomer(String stripeCustomerId) {
+        if (stripeCustomerId == null || stripeCustomerId.isBlank()) {
+            return null;
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT id, company_id, signup_intent_id
+                FROM company_billing_subscriptions
+                WHERE stripe_customer_id = ?
+                ORDER BY last_event_created_at DESC, id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new ProjectionAssociation(
+                rs.getLong("id"),
+                (Long) rs.getObject("company_id"),
+                (Long) rs.getObject("signup_intent_id"),
+                false
+            ),
+            stripeCustomerId.trim()
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
     public void upsertInvoice(InvoiceSnapshot incoming, ProjectionAssociation association) {
         var existing = jdbcTemplate.query(
             """

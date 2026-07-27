@@ -5,11 +5,12 @@ import { billingSignupApi, type BillingSignupStatus } from '../api/billingSignup
 import { Button } from '../components/ui/button';
 
 const LOGIN_SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
+const BILLING_SIGNUP_REFERENCE_STORAGE_KEY = 'indice:billing-signup-reference';
 
 export default function SignupCompletePage() {
   const [searchParams] = useSearchParams();
   const reference = searchParams.get('reference')
-    ?? sessionStorage.getItem('indice:billing-signup-reference')
+    ?? sessionStorage.getItem(BILLING_SIGNUP_REFERENCE_STORAGE_KEY)
     ?? '';
   const [status, setStatus] = useState<BillingSignupStatus | null>(null);
   const [error, setError] = useState(reference ? '' : 'No encontramos la referencia segura de este registro.');
@@ -51,6 +52,7 @@ export default function SignupCompletePage() {
     }
     window.localStorage.removeItem(LOGIN_SIGNUP_DRAFT_STORAGE_KEY);
     window.sessionStorage.removeItem(LOGIN_SIGNUP_DRAFT_STORAGE_KEY);
+    window.sessionStorage.removeItem(BILLING_SIGNUP_REFERENCE_STORAGE_KEY);
   }, [ready]);
 
   return (
@@ -81,10 +83,10 @@ export default function SignupCompletePage() {
 
         {ready ? (
           <Button asChild className="mt-8 h-12 w-full rounded-xl bg-[#155CFF] text-white hover:bg-[#0B45CC]">
-            <Link to="/login?mode=login"><LogIn className="h-5 w-5" /> Iniciar sesión</Link>
+            <Link to="/login"><LogIn className="h-5 w-5" /> Iniciar sesión</Link>
           </Button>
         ) : (
-          <Link to="/login?mode=login" className="mt-8 inline-block text-sm font-bold text-[#155CFF] underline-offset-4 hover:underline">Ir al inicio de sesión</Link>
+          <Link to="/login" className="mt-8 inline-block text-sm font-bold text-[#155CFF] underline-offset-4 hover:underline">Ir al inicio de sesión</Link>
         )}
       </section>
     </main>

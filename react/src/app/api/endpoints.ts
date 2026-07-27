@@ -3,8 +3,6 @@ export const endpoints = {
     login: '/api/v1/auth/login',
     register: '/api/v1/auth/register',
     csrf: '/api/v1/auth/csrf',
-    signupCheckout: '/api/v1/auth/signup/checkout',
-    signupCheckoutStatus: '/api/v1/auth/signup/checkout-status',
     signupTrial: '/api/v1/auth/signup/trial',
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',

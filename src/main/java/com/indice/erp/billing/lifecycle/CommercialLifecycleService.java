@@ -59,7 +59,9 @@ public class CommercialLifecycleService {
         var effectivePayment = normalizedType.contains("PAYMENT_FAILED")
             || normalizedType.contains("PAYMENT_SUCCEEDED")
             || normalizedType.equals("INVOICE_PAID")
-                ? normalizedType
+            || normalizedType.contains("DISPUTE")
+            || normalizedType.contains("REFUND")
+                ? normalizedType + (paymentStatus == null || paymentStatus.isBlank() ? "" : ":" + normalized(paymentStatus))
                 : paymentStatus;
         return apply(companyId, "STRIPE_INVOICE", eventId, eventCreatedAt,
             null, effectivePayment, null, normalizedType);
@@ -168,6 +170,20 @@ public class CommercialLifecycleService {
                 return current.withReason("PAYMENT_RECEIVED_AFTER_CANCELLATION");
             }
             return active(current, "PAYMENT_RECOVERED", trialEndsAt);
+        }
+        if (payment.contains("DISPUTE")) {
+            if (payment.contains("WON") || payment.contains("WARNING_CLOSED")) {
+                return active(current, "DISPUTE_RESOLVED", trialEndsAt);
+            }
+            var graceStarted = current.state() == CommercialLifecycleState.GRACE && current.graceStartedAt() != null
+                ? current.graceStartedAt() : occurredAt;
+            var graceEnds = current.state() == CommercialLifecycleState.GRACE && current.graceEndsAt() != null
+                ? current.graceEndsAt() : graceStarted.plus(properties.getGraceDays(), ChronoUnit.DAYS);
+            return current.withState(CommercialLifecycleState.GRACE, "FULL", "PAYMENT_DISPUTED",
+                graceStarted, graceEnds, null, null, null, null, null);
+        }
+        if (payment.contains("REFUND")) {
+            return current.withReason("PAYMENT_REFUNDED");
         }
         if (subscription.equals("CANCELED") || subscription.equals("DELETED")) {
             return current.withState(CommercialLifecycleState.RETENTION, "BILLING_ONLY", "SUBSCRIPTION_CANCELED",
