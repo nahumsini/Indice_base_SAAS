@@ -361,6 +361,11 @@ export const router = createBrowserRouter([
     loader: redirectIfAuthenticated,
   },
   {
+    path: '/signup/billing',
+    element: <SignupPage />,
+    loader: redirectIfAuthenticated,
+  },
+  {
     path: '/signup/complete',
     element: <SignupCompletePage />,
     loader: redirectIfAuthenticated,

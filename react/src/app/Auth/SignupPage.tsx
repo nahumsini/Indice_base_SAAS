@@ -1,22 +1,36 @@
 import {
+  ArrowLeft,
   ArrowRight,
   Building2,
   Check,
+  CheckCircle2,
   CreditCard,
+  Globe,
+  Layers3,
   Loader2,
   ShieldCheck,
   Sparkles,
   Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import {
   billingSignupApi,
   type BillingSignupConfig,
   type BillingSignupRequest,
 } from '../api/billingSignup';
 import { Button } from '../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { Input } from '../components/ui/input';
+import { languages, useLanguage } from '../shared/context';
+
+const SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
+const BILLING_SIGNUP_REFERENCE_STORAGE_KEY = 'indice:billing-signup-reference';
 
 const emptyForm: BillingSignupRequest = {
   fullName: '',
@@ -32,24 +46,959 @@ const emptyForm: BillingSignupRequest = {
   selectedProductCodes: [],
 };
 
+type SignupCopy = {
+  locale: string;
+  back: string;
+  accountDetailsBack: string;
+  login: string;
+  languageLabel: string;
+  loadPlansError: string;
+  accountIncompleteError: string;
+  paymentAccountIncompleteError: string;
+  checkoutIncompleteError: string;
+  checkoutError: string;
+  premiumBadge: string;
+  heroTitle: string;
+  heroDescription: string;
+  ownerBullet: string;
+  usersBullet: string;
+  stripeBullet: string;
+  afterTrial: string;
+  annualSavings: string;
+  monthSuffix: string;
+  yearSuffix: string;
+  accountBadge: string;
+  accountTitle: string;
+  accountSubtitle: string;
+  billingBadge: string;
+  billingTitle: string;
+  billingSubtitle: string;
+  loadingOffer: string;
+  unnamedCompany: string;
+  pendingOwner: string;
+  pendingEmail: string;
+  chooseProductsTitle: string;
+  trialAccess: string;
+  invalidSelection: string;
+  pendingCompletePrice: string;
+  frequencyTitle: string;
+  monthly: string;
+  annual: string;
+  extraUsersLabel: string;
+  platformNotReady: string;
+  accountDetailsButton: string;
+  preparingStripe: string;
+  continuePayment: string;
+  legalText: string;
+  accountFieldsetTitle: string;
+  companyLabel: string;
+  companyPlaceholder: string;
+  ownerLabel: string;
+  ownerPlaceholder: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  countryLabel: string;
+  phoneLabel: string;
+  optional: string;
+  phonePlaceholder: string;
+  industryLabel: string;
+  industryPlaceholder: string;
+  companySizeLabel: string;
+  companySizePlaceholder: string;
+  continueToBilling: string;
+  draftNote: string;
+  countryLabels: Record<string, string>;
+  industryLabels: Record<string, string>;
+  productLabels: Record<string, string>;
+};
+
+const industryValues = [
+  'restaurant_hospitality',
+  'retail_ecommerce',
+  'professional_services',
+  'construction_real_estate',
+  'manufacturing',
+  'logistics_transportation',
+  'healthcare_wellness',
+  'education_training',
+  'finance_accounting',
+  'technology_software',
+  'agriculture_food',
+  'nonprofit',
+  'other',
+] as const;
+
+const esSignupCopy: SignupCopy = {
+  locale: 'es-MX',
+  back: 'Volver',
+  accountDetailsBack: 'Datos de cuenta',
+  login: 'Ya tengo una cuenta',
+  languageLabel: 'Idioma',
+  loadPlansError: 'No pudimos cargar los planes disponibles.',
+  accountIncompleteError: 'Completa nombre, empresa, correo y contraseña antes de continuar.',
+  paymentAccountIncompleteError: 'Regresa y completa los datos de la cuenta antes del pago.',
+  checkoutIncompleteError: 'Completa tus datos y elige 1, 2, 3 o todos los productos disponibles.',
+  checkoutError: 'No pudimos iniciar el pago seguro. Intenta nuevamente.',
+  premiumBadge: 'Prueba premium',
+  heroTitle: 'Crea tu cuenta sin perder tus datos.',
+  heroDescription: 'Primero capturamos la cuenta propietaria. Después eliges paquete y pago; si regresas, tus datos se conservan.',
+  ownerBullet: 'La cuenta se crea para el propietario/super admin.',
+  usersBullet: '5 usuarios incluidos; puedes agregar usuarios extra en el paso de pago.',
+  stripeBullet: 'Stripe procesa la tarjeta después de confirmar el paquete.',
+  afterTrial: 'Después de la prueba',
+  annualSavings: '20% de ahorro anual incluido.',
+  monthSuffix: 'mes',
+  yearSuffix: 'año',
+  accountBadge: 'Crea tu cuenta corporativa',
+  accountTitle: 'Datos de cuenta',
+  accountSubtitle: 'Agrega los datos principales del propietario y la empresa.',
+  billingBadge: 'Paquete y pago',
+  billingTitle: 'Confirma el plan de tu empresa',
+  billingSubtitle: 'Tus datos ya están guardados para este registro.',
+  loadingOffer: 'Cargando oferta vigente...',
+  unnamedCompany: 'Empresa sin nombre',
+  pendingOwner: 'Propietario pendiente',
+  pendingEmail: 'Correo pendiente',
+  chooseProductsTitle: '1. Elige los productos que conservarás',
+  trialAccess: 'Durante la prueba tendrás acceso a todos, sin importar tu selección.',
+  invalidSelection: 'Elige 1, 2, 3 o todos los productos.',
+  pendingCompletePrice: 'El precio del paquete completo aún está pendiente de publicación.',
+  frequencyTitle: '2. Frecuencia y equipo',
+  monthly: 'Mensual',
+  annual: 'Anual -20%',
+  extraUsersLabel: 'Usuarios adicionales a los 5 incluidos',
+  platformNotReady: 'El registro premium está visible, pero el cobro y aprovisionamiento todavía no están habilitados en este ambiente.',
+  accountDetailsButton: 'Datos de cuenta',
+  preparingStripe: 'Preparando Stripe...',
+  continuePayment: 'Continuar al pago seguro',
+  legalText: 'Al continuar aceptas iniciar una suscripción con 30 días de prueba. Stripe solicitará una tarjeta y cobrará automáticamente al finalizar.',
+  accountFieldsetTitle: '1. Datos corporativos y del propietario',
+  companyLabel: 'Marca corporativa',
+  companyPlaceholder: 'Nombre de tu empresa',
+  ownerLabel: 'Nombre del propietario',
+  ownerPlaceholder: 'Nombre completo',
+  emailLabel: 'Correo principal',
+  emailPlaceholder: 'tu@empresa.com',
+  passwordLabel: 'Contraseña',
+  passwordPlaceholder: 'Mínimo 10 caracteres',
+  countryLabel: 'País de lanzamiento',
+  phoneLabel: 'Teléfono',
+  optional: 'opcional',
+  phonePlaceholder: 'Solo números',
+  industryLabel: 'Industria',
+  industryPlaceholder: 'Restaurante, retail, servicios...',
+  companySizeLabel: 'Tamaño de empresa',
+  companySizePlaceholder: '1-10, 11-50, 51-200...',
+  continueToBilling: 'Continuar a paquete y pago',
+  draftNote: 'Tus datos se guardan en este navegador mientras terminas el registro.',
+  countryLabels: {
+    MX: 'México',
+    CA: 'Canadá',
+  },
+  industryLabels: {
+    restaurant_hospitality: 'Restaurantes y hospitalidad',
+    retail_ecommerce: 'Retail y comercio electrónico',
+    professional_services: 'Servicios profesionales',
+    construction_real_estate: 'Construcción e inmobiliaria',
+    manufacturing: 'Manufactura',
+    logistics_transportation: 'Logística y transporte',
+    healthcare_wellness: 'Salud y bienestar',
+    education_training: 'Educación y capacitación',
+    finance_accounting: 'Finanzas y contabilidad',
+    technology_software: 'Tecnología y software',
+    agriculture_food: 'Agricultura y alimentos',
+    nonprofit: 'Organización sin fines de lucro',
+    other: 'Otra industria',
+  },
+  productLabels: {
+    core_platform: 'Núcleo Índice',
+    basic_hr: 'Recursos Humanos',
+    basic_process_tasks: 'Tareas y Procesos',
+    basic_expenses: 'Gastos + Caja Chica',
+    basic_pos_inventory: 'Punto de Venta + Inventarios',
+    basic_sales_inventory: 'Ventas + Inventarios',
+    basic_receivables: 'Cartera',
+  },
+};
+
+const enSignupCopy: SignupCopy = {
+  locale: 'en-US',
+  back: 'Back',
+  accountDetailsBack: 'Account details',
+  login: 'I already have an account',
+  languageLabel: 'Language',
+  loadPlansError: 'We could not load the available plans.',
+  accountIncompleteError: 'Complete name, company, email, and password before continuing.',
+  paymentAccountIncompleteError: 'Go back and complete the account details before payment.',
+  checkoutIncompleteError: 'Complete your details and choose 1, 2, 3, or all available products.',
+  checkoutError: 'We could not start secure payment. Try again.',
+  premiumBadge: 'Premium trial',
+  heroTitle: 'Create your account without losing your details.',
+  heroDescription: 'First we capture the owner account. Then you choose package and payment; if you go back, your details stay saved.',
+  ownerBullet: 'The account is created for the owner/super admin.',
+  usersBullet: '5 users included; you can add extra users during payment.',
+  stripeBullet: 'Stripe processes the card after you confirm the package.',
+  afterTrial: 'After the trial',
+  annualSavings: '20% annual savings included.',
+  monthSuffix: 'month',
+  yearSuffix: 'year',
+  accountBadge: 'Create your company account',
+  accountTitle: 'Account details',
+  accountSubtitle: 'Add the main owner and company details.',
+  billingBadge: 'Package and payment',
+  billingTitle: 'Confirm your company plan',
+  billingSubtitle: 'Your details are already saved for this signup.',
+  loadingOffer: 'Loading current offer...',
+  unnamedCompany: 'Unnamed company',
+  pendingOwner: 'Owner pending',
+  pendingEmail: 'Email pending',
+  chooseProductsTitle: '1. Choose the products you will keep',
+  trialAccess: 'During the trial you get access to everything, regardless of this selection.',
+  invalidSelection: 'Choose 1, 2, 3, or all products.',
+  pendingCompletePrice: 'The full package price is still pending publication.',
+  frequencyTitle: '2. Billing frequency and team',
+  monthly: 'Monthly',
+  annual: 'Annual -20%',
+  extraUsersLabel: 'Additional users beyond the 5 included',
+  platformNotReady: 'Premium signup is visible, but payment and provisioning are not enabled in this environment yet.',
+  accountDetailsButton: 'Account details',
+  preparingStripe: 'Preparing Stripe...',
+  continuePayment: 'Continue to secure payment',
+  legalText: 'By continuing, you agree to start a subscription with a 30-day trial. Stripe will request a card and bill automatically when the trial ends.',
+  accountFieldsetTitle: '1. Company and owner details',
+  companyLabel: 'Company brand',
+  companyPlaceholder: 'Your company name',
+  ownerLabel: 'Owner name',
+  ownerPlaceholder: 'Full name',
+  emailLabel: 'Primary email',
+  emailPlaceholder: 'you@company.com',
+  passwordLabel: 'Password',
+  passwordPlaceholder: 'Minimum 10 characters',
+  countryLabel: 'Launch country',
+  phoneLabel: 'Phone',
+  optional: 'optional',
+  phonePlaceholder: 'Numbers only',
+  industryLabel: 'Industry',
+  industryPlaceholder: 'Restaurant, retail, services...',
+  companySizeLabel: 'Company size',
+  companySizePlaceholder: '1-10, 11-50, 51-200...',
+  continueToBilling: 'Continue to package and payment',
+  draftNote: 'Your details are saved in this browser while you finish signup.',
+  countryLabels: {
+    MX: 'Mexico',
+    CA: 'Canada',
+  },
+  industryLabels: {
+    restaurant_hospitality: 'Restaurants and hospitality',
+    retail_ecommerce: 'Retail and e-commerce',
+    professional_services: 'Professional services',
+    construction_real_estate: 'Construction and real estate',
+    manufacturing: 'Manufacturing',
+    logistics_transportation: 'Logistics and transportation',
+    healthcare_wellness: 'Healthcare and wellness',
+    education_training: 'Education and training',
+    finance_accounting: 'Finance and accounting',
+    technology_software: 'Technology and software',
+    agriculture_food: 'Agriculture and food',
+    nonprofit: 'Nonprofit',
+    other: 'Other industry',
+  },
+  productLabels: {
+    core_platform: 'Indice Core',
+    basic_hr: 'Human Resources',
+    basic_process_tasks: 'Tasks and Processes',
+    basic_expenses: 'Expenses + Petty Cash',
+    basic_pos_inventory: 'Point of Sale + Inventory',
+    basic_sales_inventory: 'Sales + Inventory',
+    basic_receivables: 'Receivables',
+  },
+};
+
+const signupCopies: Record<string, SignupCopy> = {
+  'es-MX': esSignupCopy,
+  'es-CO': esSignupCopy,
+  'en-US': enSignupCopy,
+  'en-CA': {
+    ...enSignupCopy,
+    locale: 'en-CA',
+  },
+  'fr-CA': {
+    ...enSignupCopy,
+    locale: 'fr-CA',
+    back: 'Retour',
+    accountDetailsBack: 'Détails du compte',
+    login: "J'ai déjà un compte",
+    languageLabel: 'Langue',
+    loadPlansError: "Impossible de charger les forfaits disponibles.",
+    accountIncompleteError: "Complétez le nom, l'entreprise, le courriel et le mot de passe avant de continuer.",
+    paymentAccountIncompleteError: 'Retournez compléter les détails du compte avant le paiement.',
+    checkoutIncompleteError: 'Complétez vos informations et choisissez 1, 2, 3 ou tous les produits disponibles.',
+    checkoutError: "Impossible de lancer le paiement sécurisé. Réessayez.",
+    premiumBadge: 'Essai premium',
+    heroTitle: 'Créez votre compte sans perdre vos informations.',
+    heroDescription: "Nous enregistrons d'abord le compte propriétaire. Ensuite vous choisissez le forfait et le paiement; si vous revenez, vos informations restent sauvegardées.",
+    ownerBullet: 'Le compte est créé pour le propriétaire/super administrateur.',
+    usersBullet: '5 utilisateurs inclus; vous pouvez ajouter des utilisateurs au paiement.',
+    stripeBullet: 'Stripe traite la carte après la confirmation du forfait.',
+    afterTrial: "Après l'essai",
+    annualSavings: 'Économie annuelle de 20% incluse.',
+    monthSuffix: 'mois',
+    yearSuffix: 'an',
+    accountBadge: "Créez votre compte d'entreprise",
+    accountTitle: 'Détails du compte',
+    accountSubtitle: "Ajoutez les informations principales du propriétaire et de l'entreprise.",
+    billingBadge: 'Forfait et paiement',
+    billingTitle: "Confirmez le forfait de votre entreprise",
+    billingSubtitle: 'Vos informations sont déjà sauvegardées pour cette inscription.',
+    loadingOffer: "Chargement de l'offre actuelle...",
+    unnamedCompany: 'Entreprise sans nom',
+    pendingOwner: 'Propriétaire en attente',
+    pendingEmail: 'Courriel en attente',
+    chooseProductsTitle: '1. Choisissez les produits à conserver',
+    trialAccess: "Pendant l'essai, vous avez accès à tout, peu importe votre sélection.",
+    invalidSelection: 'Choisissez 1, 2, 3 ou tous les produits.',
+    pendingCompletePrice: "Le prix du forfait complet n'est pas encore publié.",
+    frequencyTitle: '2. Fréquence de facturation et équipe',
+    monthly: 'Mensuel',
+    annual: 'Annuel -20%',
+    extraUsersLabel: 'Utilisateurs additionnels après les 5 inclus',
+    platformNotReady: "L'inscription premium est visible, mais le paiement et l'approvisionnement ne sont pas encore activés dans cet environnement.",
+    accountDetailsButton: 'Détails du compte',
+    preparingStripe: 'Préparation de Stripe...',
+    continuePayment: 'Continuer au paiement sécurisé',
+    legalText: "En continuant, vous acceptez de commencer un abonnement avec 30 jours d'essai. Stripe demandera une carte et facturera automatiquement à la fin.",
+    accountFieldsetTitle: "1. Informations sur l'entreprise et le propriétaire",
+    companyLabel: "Marque de l'entreprise",
+    companyPlaceholder: 'Nom de votre entreprise',
+    ownerLabel: 'Nom du propriétaire',
+    ownerPlaceholder: 'Nom complet',
+    emailLabel: 'Courriel principal',
+    emailPlaceholder: 'vous@entreprise.com',
+    passwordLabel: 'Mot de passe',
+    passwordPlaceholder: 'Minimum 10 caractères',
+    countryLabel: 'Pays de lancement',
+    phoneLabel: 'Téléphone',
+    optional: 'optionnel',
+    phonePlaceholder: 'Chiffres seulement',
+    industryLabel: 'Industrie',
+    industryPlaceholder: 'Restaurant, détail, services...',
+    companySizeLabel: "Taille de l'entreprise",
+    continueToBilling: 'Continuer au forfait et paiement',
+    draftNote: 'Vos informations sont sauvegardées dans ce navigateur pendant que vous terminez l’inscription.',
+    countryLabels: {
+      MX: 'Mexique',
+      CA: 'Canada',
+    },
+    industryLabels: {
+      restaurant_hospitality: 'Restaurants et hôtellerie',
+      retail_ecommerce: 'Commerce de détail et commerce électronique',
+      professional_services: 'Services professionnels',
+      construction_real_estate: 'Construction et immobilier',
+      manufacturing: 'Fabrication',
+      logistics_transportation: 'Logistique et transport',
+      healthcare_wellness: 'Santé et bien-être',
+      education_training: 'Éducation et formation',
+      finance_accounting: 'Finance et comptabilité',
+      technology_software: 'Technologie et logiciels',
+      agriculture_food: 'Agriculture et alimentation',
+      nonprofit: 'Organisme sans but lucratif',
+      other: 'Autre industrie',
+    },
+    productLabels: {
+      core_platform: 'Noyau Indice',
+      basic_hr: 'Ressources humaines',
+      basic_process_tasks: 'Tâches et processus',
+      basic_expenses: 'Dépenses + petite caisse',
+      basic_pos_inventory: 'Point de vente + inventaire',
+      basic_sales_inventory: 'Ventes + inventaire',
+      basic_receivables: 'Comptes clients',
+    },
+  },
+  'pt-BR': {
+    ...enSignupCopy,
+    locale: 'pt-BR',
+    back: 'Voltar',
+    accountDetailsBack: 'Dados da conta',
+    login: 'Já tenho uma conta',
+    languageLabel: 'Idioma',
+    loadPlansError: 'Não foi possível carregar os planos disponíveis.',
+    accountIncompleteError: 'Complete nome, empresa, e-mail e senha antes de continuar.',
+    paymentAccountIncompleteError: 'Volte e complete os dados da conta antes do pagamento.',
+    checkoutIncompleteError: 'Complete seus dados e escolha 1, 2, 3 ou todos os produtos disponíveis.',
+    checkoutError: 'Não foi possível iniciar o pagamento seguro. Tente novamente.',
+    premiumBadge: 'Teste premium',
+    heroTitle: 'Crie sua conta sem perder seus dados.',
+    heroDescription: 'Primeiro capturamos a conta proprietária. Depois você escolhe pacote e pagamento; se voltar, seus dados continuam salvos.',
+    ownerBullet: 'A conta é criada para o proprietário/super admin.',
+    usersBullet: '5 usuários incluídos; você pode adicionar usuários extras no pagamento.',
+    stripeBullet: 'A Stripe processa o cartão depois que você confirma o pacote.',
+    afterTrial: 'Depois do teste',
+    annualSavings: '20% de economia anual incluída.',
+    monthSuffix: 'mês',
+    yearSuffix: 'ano',
+    accountBadge: 'Crie sua conta corporativa',
+    accountTitle: 'Dados da conta',
+    accountSubtitle: 'Adicione os principais dados do proprietário e da empresa.',
+    billingBadge: 'Pacote e pagamento',
+    billingTitle: 'Confirme o plano da sua empresa',
+    billingSubtitle: 'Seus dados já estão salvos para este cadastro.',
+    loadingOffer: 'Carregando oferta atual...',
+    unnamedCompany: 'Empresa sem nome',
+    pendingOwner: 'Proprietário pendente',
+    pendingEmail: 'E-mail pendente',
+    chooseProductsTitle: '1. Escolha os produtos que você manterá',
+    trialAccess: 'Durante o teste você terá acesso a tudo, independentemente da seleção.',
+    invalidSelection: 'Escolha 1, 2, 3 ou todos os produtos.',
+    pendingCompletePrice: 'O preço do pacote completo ainda está pendente de publicação.',
+    frequencyTitle: '2. Frequência de cobrança e equipe',
+    monthly: 'Mensal',
+    annual: 'Anual -20%',
+    extraUsersLabel: 'Usuários adicionais além dos 5 incluídos',
+    platformNotReady: 'O cadastro premium está visível, mas pagamento e provisionamento ainda não estão habilitados neste ambiente.',
+    accountDetailsButton: 'Dados da conta',
+    preparingStripe: 'Preparando Stripe...',
+    continuePayment: 'Continuar para pagamento seguro',
+    legalText: 'Ao continuar, você aceita iniciar uma assinatura com 30 dias de teste. A Stripe solicitará um cartão e cobrará automaticamente ao final.',
+    accountFieldsetTitle: '1. Dados corporativos e do proprietário',
+    companyLabel: 'Marca corporativa',
+    companyPlaceholder: 'Nome da sua empresa',
+    ownerLabel: 'Nome do proprietário',
+    ownerPlaceholder: 'Nome completo',
+    emailLabel: 'E-mail principal',
+    emailPlaceholder: 'voce@empresa.com',
+    passwordLabel: 'Senha',
+    passwordPlaceholder: 'Mínimo de 10 caracteres',
+    countryLabel: 'País de lançamento',
+    phoneLabel: 'Telefone',
+    optional: 'opcional',
+    phonePlaceholder: 'Somente números',
+    industryLabel: 'Setor',
+    industryPlaceholder: 'Restaurante, varejo, serviços...',
+    companySizeLabel: 'Tamanho da empresa',
+    continueToBilling: 'Continuar para pacote e pagamento',
+    draftNote: 'Seus dados são salvos neste navegador enquanto você termina o cadastro.',
+    countryLabels: {
+      MX: 'México',
+      CA: 'Canadá',
+    },
+    industryLabels: {
+      restaurant_hospitality: 'Restaurantes e hospitalidade',
+      retail_ecommerce: 'Varejo e comércio eletrônico',
+      professional_services: 'Serviços profissionais',
+      construction_real_estate: 'Construção e imóveis',
+      manufacturing: 'Manufatura',
+      logistics_transportation: 'Logística e transporte',
+      healthcare_wellness: 'Saúde e bem-estar',
+      education_training: 'Educação e treinamento',
+      finance_accounting: 'Finanças e contabilidade',
+      technology_software: 'Tecnologia e software',
+      agriculture_food: 'Agricultura e alimentos',
+      nonprofit: 'Organização sem fins lucrativos',
+      other: 'Outro setor',
+    },
+    productLabels: {
+      core_platform: 'Núcleo Indice',
+      basic_hr: 'Recursos humanos',
+      basic_process_tasks: 'Tarefas e processos',
+      basic_expenses: 'Despesas + caixa pequeno',
+      basic_pos_inventory: 'Ponto de venda + estoque',
+      basic_sales_inventory: 'Vendas + estoque',
+      basic_receivables: 'Contas a receber',
+    },
+  },
+  'ko-CA': {
+    ...enSignupCopy,
+    locale: 'ko-CA',
+    back: '뒤로',
+    accountDetailsBack: '계정 정보',
+    login: '이미 계정이 있습니다',
+    languageLabel: '언어',
+    loadPlansError: '사용 가능한 요금제를 불러오지 못했습니다.',
+    accountIncompleteError: '계속하기 전에 이름, 회사, 이메일, 비밀번호를 입력하세요.',
+    paymentAccountIncompleteError: '결제 전에 계정 정보를 완료하세요.',
+    checkoutIncompleteError: '정보를 입력하고 1개, 2개, 3개 또는 모든 제품을 선택하세요.',
+    checkoutError: '보안 결제를 시작하지 못했습니다. 다시 시도하세요.',
+    premiumBadge: '프리미엄 체험',
+    heroTitle: '입력한 정보를 잃지 않고 계정을 만드세요.',
+    heroDescription: '먼저 소유자 계정을 입력합니다. 다음 단계에서 패키지와 결제를 선택하며, 돌아와도 정보가 저장됩니다.',
+    ownerBullet: '계정은 소유자/슈퍼 관리자로 생성됩니다.',
+    usersBullet: '사용자 5명이 포함되며 결제 단계에서 추가 사용자를 더할 수 있습니다.',
+    stripeBullet: '패키지를 확인한 뒤 Stripe가 카드를 처리합니다.',
+    afterTrial: '체험 후',
+    annualSavings: '연간 20% 할인이 포함됩니다.',
+    monthSuffix: '월',
+    yearSuffix: '년',
+    accountBadge: '회사 계정 만들기',
+    accountTitle: '계정 정보',
+    accountSubtitle: '소유자와 회사의 기본 정보를 입력하세요.',
+    billingBadge: '패키지 및 결제',
+    billingTitle: '회사 요금제 확인',
+    billingSubtitle: '이 가입을 위한 정보가 이미 저장되었습니다.',
+    loadingOffer: '현재 상품을 불러오는 중...',
+    unnamedCompany: '이름 없는 회사',
+    pendingOwner: '소유자 미입력',
+    pendingEmail: '이메일 미입력',
+    chooseProductsTitle: '1. 유지할 제품 선택',
+    trialAccess: '체험 기간에는 선택과 관계없이 모든 제품을 사용할 수 있습니다.',
+    invalidSelection: '1개, 2개, 3개 또는 모든 제품을 선택하세요.',
+    pendingCompletePrice: '전체 패키지 가격이 아직 게시되지 않았습니다.',
+    frequencyTitle: '2. 결제 주기 및 팀',
+    monthly: '월간',
+    annual: '연간 -20%',
+    extraUsersLabel: '포함된 5명 외 추가 사용자',
+    platformNotReady: '프리미엄 가입은 표시되지만 이 환경에서는 결제와 프로비저닝이 아직 활성화되지 않았습니다.',
+    accountDetailsButton: '계정 정보',
+    preparingStripe: 'Stripe 준비 중...',
+    continuePayment: '보안 결제로 계속',
+    legalText: '계속하면 30일 체험 구독 시작에 동의합니다. Stripe가 카드를 요청하고 체험 종료 후 자동 결제합니다.',
+    accountFieldsetTitle: '1. 회사 및 소유자 정보',
+    companyLabel: '회사 브랜드',
+    companyPlaceholder: '회사 이름',
+    ownerLabel: '소유자 이름',
+    ownerPlaceholder: '전체 이름',
+    emailLabel: '기본 이메일',
+    emailPlaceholder: 'you@company.com',
+    passwordLabel: '비밀번호',
+    passwordPlaceholder: '최소 10자',
+    countryLabel: '출시 국가',
+    phoneLabel: '전화번호',
+    optional: '선택 사항',
+    phonePlaceholder: '숫자만',
+    industryLabel: '업종',
+    industryPlaceholder: '레스토랑, 리테일, 서비스...',
+    companySizeLabel: '회사 규모',
+    continueToBilling: '패키지 및 결제로 계속',
+    draftNote: '가입을 완료하는 동안 이 브라우저에 정보가 저장됩니다.',
+    countryLabels: {
+      MX: '멕시코',
+      CA: '캐나다',
+    },
+    industryLabels: {
+      restaurant_hospitality: '레스토랑 및 접객',
+      retail_ecommerce: '리테일 및 전자상거래',
+      professional_services: '전문 서비스',
+      construction_real_estate: '건설 및 부동산',
+      manufacturing: '제조',
+      logistics_transportation: '물류 및 운송',
+      healthcare_wellness: '헬스케어 및 웰니스',
+      education_training: '교육 및 훈련',
+      finance_accounting: '금융 및 회계',
+      technology_software: '기술 및 소프트웨어',
+      agriculture_food: '농업 및 식품',
+      nonprofit: '비영리 단체',
+      other: '기타 업종',
+    },
+    productLabels: {
+      core_platform: 'Indice 코어',
+      basic_hr: '인사 관리',
+      basic_process_tasks: '작업 및 프로세스',
+      basic_expenses: '비용 + 소액 현금',
+      basic_pos_inventory: '판매 시점 + 재고',
+      basic_sales_inventory: '영업 + 재고',
+      basic_receivables: '미수금',
+    },
+  },
+  'zh-CA': {
+    ...enSignupCopy,
+    locale: 'zh-CA',
+    back: '返回',
+    accountDetailsBack: '账户信息',
+    login: '我已有账户',
+    languageLabel: '语言',
+    loadPlansError: '无法加载可用套餐。',
+    accountIncompleteError: '继续前请填写姓名、公司、邮箱和密码。',
+    paymentAccountIncompleteError: '付款前请返回并完成账户信息。',
+    checkoutIncompleteError: '请填写信息，并选择 1、2、3 个或全部可用产品。',
+    checkoutError: '无法启动安全付款。请重试。',
+    premiumBadge: '高级试用',
+    heroTitle: '创建账户，同时保留你的信息。',
+    heroDescription: '我们先保存所有者账户。然后你选择套餐和付款；返回时信息仍会保留。',
+    ownerBullet: '账户会创建为所有者/超级管理员。',
+    usersBullet: '包含 5 位用户；可在付款步骤添加额外用户。',
+    stripeBullet: '确认套餐后由 Stripe 处理银行卡。',
+    afterTrial: '试用结束后',
+    annualSavings: '已包含年度 20% 优惠。',
+    monthSuffix: '月',
+    yearSuffix: '年',
+    accountBadge: '创建企业账户',
+    accountTitle: '账户信息',
+    accountSubtitle: '添加所有者和公司的主要信息。',
+    billingBadge: '套餐和付款',
+    billingTitle: '确认你的企业套餐',
+    billingSubtitle: '此注册的信息已保存。',
+    loadingOffer: '正在加载当前优惠...',
+    unnamedCompany: '未命名公司',
+    pendingOwner: '所有者待填写',
+    pendingEmail: '邮箱待填写',
+    chooseProductsTitle: '1. 选择要保留的产品',
+    trialAccess: '试用期间无论如何选择，都可以访问全部产品。',
+    invalidSelection: '请选择 1、2、3 个或全部产品。',
+    pendingCompletePrice: '完整套餐价格尚未发布。',
+    frequencyTitle: '2. 账单周期和团队',
+    monthly: '按月',
+    annual: '按年 -20%',
+    extraUsersLabel: '超过已含 5 位的额外用户',
+    platformNotReady: '高级注册页面已显示，但此环境尚未启用付款和开通。',
+    accountDetailsButton: '账户信息',
+    preparingStripe: '正在准备 Stripe...',
+    continuePayment: '继续安全付款',
+    legalText: '继续即表示你同意开始包含 30 天试用的订阅。Stripe 会要求提供银行卡，并在试用结束后自动扣费。',
+    accountFieldsetTitle: '1. 企业和所有者信息',
+    companyLabel: '企业品牌',
+    companyPlaceholder: '你的公司名称',
+    ownerLabel: '所有者姓名',
+    ownerPlaceholder: '全名',
+    emailLabel: '主要邮箱',
+    emailPlaceholder: 'you@company.com',
+    passwordLabel: '密码',
+    passwordPlaceholder: '至少 10 个字符',
+    countryLabel: '上线国家',
+    phoneLabel: '电话',
+    optional: '可选',
+    phonePlaceholder: '仅限数字',
+    industryLabel: '行业',
+    industryPlaceholder: '餐饮、零售、服务...',
+    companySizeLabel: '公司规模',
+    continueToBilling: '继续到套餐和付款',
+    draftNote: '注册完成前，你的信息会保存在此浏览器中。',
+    countryLabels: {
+      MX: '墨西哥',
+      CA: '加拿大',
+    },
+    industryLabels: {
+      restaurant_hospitality: '餐饮与酒店',
+      retail_ecommerce: '零售与电子商务',
+      professional_services: '专业服务',
+      construction_real_estate: '建筑与房地产',
+      manufacturing: '制造业',
+      logistics_transportation: '物流与运输',
+      healthcare_wellness: '医疗与健康',
+      education_training: '教育与培训',
+      finance_accounting: '金融与会计',
+      technology_software: '技术与软件',
+      agriculture_food: '农业与食品',
+      nonprofit: '非营利组织',
+      other: '其他行业',
+    },
+    productLabels: {
+      core_platform: 'Indice 核心',
+      basic_hr: '人力资源',
+      basic_process_tasks: '任务与流程',
+      basic_expenses: '费用 + 备用金',
+      basic_pos_inventory: '销售点 + 库存',
+      basic_sales_inventory: '销售 + 库存',
+      basic_receivables: '应收账款',
+    },
+  },
+};
+
+type SignupPlanTier = 'basic_1' | 'basic_2' | 'basic_3' | 'basic_all';
+
+type ModulePlanCopy = {
+  trialTitle: string;
+  trialBody: (includedSeats: number, extraSeatPrice: string) => string;
+  oneTitle: string;
+  oneDescription: (includedSeats: number) => string;
+  twoTitle: string;
+  twoDescription: (includedSeats: number) => string;
+  additionalTitle: string;
+  additionalDescription: (basePrice: string, additionalPrice: string, includedSeats: number) => string;
+  allTitle: string;
+  allDescription: (includedSeats: number) => string;
+  launchOffer: string;
+  additionalSuffix: string;
+  moduleSelectionTitle: string;
+  moduleInstruction: (targetCount: number, allSelected: boolean) => string;
+};
+
+const enModulePlanCopy: ModulePlanCopy = {
+  trialTitle: '30-day free trial before billing',
+  trialBody: (includedSeats, extraSeatPrice) => (
+    `Every plan includes ${includedSeats} users. Extra users are ${extraSeatPrice} each. The first 30 days include all Basic modules, no matter which paid plan you choose. Prices exclude taxes.`
+  ),
+  oneTitle: 'One module',
+  oneDescription: (includedSeats) => `Start with one selected module after checkout. Includes ${includedSeats} users.`,
+  twoTitle: 'Two modules',
+  twoDescription: (includedSeats) => `Two selected modules with the same trial rules. Includes ${includedSeats} users.`,
+  additionalTitle: 'Additional modules',
+  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
+    `${basePrice} plus ${additionalPrice} for the third module. Includes ${includedSeats} users.`
+  ),
+  allTitle: 'All Basic modules',
+  allDescription: (includedSeats) => `Launch offer package with the full Basic module suite and ${includedSeats} users.`,
+  launchOffer: 'Launch offer',
+  additionalSuffix: 'additional',
+  moduleSelectionTitle: 'Module selection',
+  moduleInstruction: (targetCount, allSelected) => {
+    if (allSelected) return 'All paid modules are included. Config Center is included automatically.';
+    if (targetCount === 1) return 'Choose one paid module. Config Center is included automatically.';
+    return `Choose ${targetCount} paid modules. Config Center is included automatically.`;
+  },
+};
+
+const esModulePlanCopy: ModulePlanCopy = {
+  trialTitle: '30 días de prueba antes del cobro',
+  trialBody: (includedSeats, extraSeatPrice) => (
+    `Cada plan incluye ${includedSeats} usuarios. Los usuarios extra cuestan ${extraSeatPrice} cada uno. Los primeros 30 días incluyen todos los módulos Basic, sin importar el plan pagado que elijas. Precios sin impuestos.`
+  ),
+  oneTitle: 'Un módulo',
+  oneDescription: (includedSeats) => `Comienza con un módulo seleccionado después del pago. Incluye ${includedSeats} usuarios.`,
+  twoTitle: 'Dos módulos',
+  twoDescription: (includedSeats) => `Dos módulos seleccionados con las mismas reglas de prueba. Incluye ${includedSeats} usuarios.`,
+  additionalTitle: 'Módulos adicionales',
+  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
+    `${basePrice} más ${additionalPrice} por el tercer módulo. Incluye ${includedSeats} usuarios.`
+  ),
+  allTitle: 'Todos los módulos Basic',
+  allDescription: (includedSeats) => `Paquete de lanzamiento con toda la suite Basic y ${includedSeats} usuarios.`,
+  launchOffer: 'Oferta de lanzamiento',
+  additionalSuffix: 'adicional',
+  moduleSelectionTitle: 'Selección de módulos',
+  moduleInstruction: (targetCount, allSelected) => {
+    if (allSelected) return 'Todos los módulos pagados están incluidos. Config Center se incluye automáticamente.';
+    if (targetCount === 1) return 'Elige un módulo pagado. Config Center se incluye automáticamente.';
+    return `Elige ${targetCount} módulos pagados. Config Center se incluye automáticamente.`;
+  },
+};
+
+const frModulePlanCopy: ModulePlanCopy = {
+  trialTitle: 'Essai gratuit de 30 jours avant facturation',
+  trialBody: (includedSeats, extraSeatPrice) => (
+    `Chaque forfait inclut ${includedSeats} utilisateurs. Les utilisateurs supplémentaires coûtent ${extraSeatPrice} chacun. Les 30 premiers jours incluent tous les modules Basic, peu importe le forfait choisi. Taxes exclues.`
+  ),
+  oneTitle: 'Un module',
+  oneDescription: (includedSeats) => `Commencez avec un module sélectionné après le paiement. Inclut ${includedSeats} utilisateurs.`,
+  twoTitle: 'Deux modules',
+  twoDescription: (includedSeats) => `Deux modules sélectionnés avec les mêmes règles d'essai. Inclut ${includedSeats} utilisateurs.`,
+  additionalTitle: 'Modules additionnels',
+  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
+    `${basePrice} plus ${additionalPrice} pour le troisième module. Inclut ${includedSeats} utilisateurs.`
+  ),
+  allTitle: 'Tous les modules Basic',
+  allDescription: (includedSeats) => `Offre de lancement avec toute la suite Basic et ${includedSeats} utilisateurs.`,
+  launchOffer: 'Offre de lancement',
+  additionalSuffix: 'additionnel',
+  moduleSelectionTitle: 'Sélection des modules',
+  moduleInstruction: (targetCount, allSelected) => {
+    if (allSelected) return 'Tous les modules payants sont inclus. Config Center est inclus automatiquement.';
+    if (targetCount === 1) return 'Choisissez un module payant. Config Center est inclus automatiquement.';
+    return `Choisissez ${targetCount} modules payants. Config Center est inclus automatiquement.`;
+  },
+};
+
+const ptModulePlanCopy: ModulePlanCopy = {
+  trialTitle: 'Teste grátis de 30 dias antes da cobrança',
+  trialBody: (includedSeats, extraSeatPrice) => (
+    `Cada plano inclui ${includedSeats} usuários. Usuários extras custam ${extraSeatPrice} cada. Os primeiros 30 dias incluem todos os módulos Basic, independentemente do plano pago escolhido. Preços sem impostos.`
+  ),
+  oneTitle: 'Um módulo',
+  oneDescription: (includedSeats) => `Comece com um módulo selecionado após o pagamento. Inclui ${includedSeats} usuários.`,
+  twoTitle: 'Dois módulos',
+  twoDescription: (includedSeats) => `Dois módulos selecionados com as mesmas regras de teste. Inclui ${includedSeats} usuários.`,
+  additionalTitle: 'Módulos adicionais',
+  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
+    `${basePrice} mais ${additionalPrice} pelo terceiro módulo. Inclui ${includedSeats} usuários.`
+  ),
+  allTitle: 'Todos os módulos Basic',
+  allDescription: (includedSeats) => `Oferta de lançamento com toda a suíte Basic e ${includedSeats} usuários.`,
+  launchOffer: 'Oferta de lançamento',
+  additionalSuffix: 'adicional',
+  moduleSelectionTitle: 'Seleção de módulos',
+  moduleInstruction: (targetCount, allSelected) => {
+    if (allSelected) return 'Todos os módulos pagos estão incluídos. Config Center é incluído automaticamente.';
+    if (targetCount === 1) return 'Escolha um módulo pago. Config Center é incluído automaticamente.';
+    return `Escolha ${targetCount} módulos pagos. Config Center é incluído automaticamente.`;
+  },
+};
+
+const koModulePlanCopy: ModulePlanCopy = {
+  trialTitle: '결제 전 30일 무료 체험',
+  trialBody: (includedSeats, extraSeatPrice) => (
+    `모든 플랜에는 사용자 ${includedSeats}명이 포함됩니다. 추가 사용자는 각각 ${extraSeatPrice}입니다. 첫 30일 동안은 선택한 유료 플랜과 관계없이 모든 Basic 모듈을 사용할 수 있습니다. 세금은 별도입니다.`
+  ),
+  oneTitle: '모듈 1개',
+  oneDescription: (includedSeats) => `결제 후 선택한 모듈 1개로 시작합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
+  twoTitle: '모듈 2개',
+  twoDescription: (includedSeats) => `같은 체험 규칙으로 모듈 2개를 선택합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
+  additionalTitle: '추가 모듈',
+  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
+    `${basePrice}에 세 번째 모듈 ${additionalPrice}가 추가됩니다. 사용자 ${includedSeats}명이 포함됩니다.`
+  ),
+  allTitle: '모든 Basic 모듈',
+  allDescription: (includedSeats) => `전체 Basic 모듈 제품군과 사용자 ${includedSeats}명이 포함된 출시 혜택입니다.`,
+  launchOffer: '출시 혜택',
+  additionalSuffix: '추가',
+  moduleSelectionTitle: '모듈 선택',
+  moduleInstruction: (targetCount, allSelected) => {
+    if (allSelected) return '모든 유료 모듈이 포함됩니다. Config Center는 자동으로 포함됩니다.';
+    if (targetCount === 1) return '유료 모듈 1개를 선택하세요. Config Center는 자동으로 포함됩니다.';
+    return `유료 모듈 ${targetCount}개를 선택하세요. Config Center는 자동으로 포함됩니다.`;
+  },
+};
+
+const zhModulePlanCopy: ModulePlanCopy = {
+  trialTitle: '计费前 30 天免费试用',
+  trialBody: (includedSeats, extraSeatPrice) => (
+    `每个套餐包含 ${includedSeats} 位用户。额外用户每位 ${extraSeatPrice}。前 30 天包含所有 Basic 模块，无论你选择哪个付费套餐。价格不含税。`
+  ),
+  oneTitle: '一个模块',
+  oneDescription: (includedSeats) => `结账后从一个已选模块开始。包含 ${includedSeats} 位用户。`,
+  twoTitle: '两个模块',
+  twoDescription: (includedSeats) => `选择两个模块，试用规则相同。包含 ${includedSeats} 位用户。`,
+  additionalTitle: '额外模块',
+  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
+    `${basePrice} 加第三个模块 ${additionalPrice}。包含 ${includedSeats} 位用户。`
+  ),
+  allTitle: '所有 Basic 模块',
+  allDescription: (includedSeats) => `发布优惠套餐，包含完整 Basic 模块套件和 ${includedSeats} 位用户。`,
+  launchOffer: '发布优惠',
+  additionalSuffix: '额外',
+  moduleSelectionTitle: '模块选择',
+  moduleInstruction: (targetCount, allSelected) => {
+    if (allSelected) return '所有付费模块均已包含。Config Center 会自动包含。';
+    if (targetCount === 1) return '选择一个付费模块。Config Center 会自动包含。';
+    return `选择 ${targetCount} 个付费模块。Config Center 会自动包含。`;
+  },
+};
+
+const modulePlanCopies: Record<string, ModulePlanCopy> = {
+  'es-MX': esModulePlanCopy,
+  'es-CO': esModulePlanCopy,
+  'en-US': enModulePlanCopy,
+  'en-CA': enModulePlanCopy,
+  'fr-CA': frModulePlanCopy,
+  'pt-BR': ptModulePlanCopy,
+  'ko-CA': koModulePlanCopy,
+  'zh-CA': zhModulePlanCopy,
+};
+
+const planTiers: SignupPlanTier[] = ['basic_1', 'basic_2', 'basic_3', 'basic_all'];
+
 const newIdempotencyKey = () => (
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? `signup-${crypto.randomUUID()}`
     : `signup-${Date.now()}-${Math.random().toString(16).slice(2)}`
 );
 
-const currency = (amountCents: number, interval: 'MONTH' | 'YEAR') => {
-  const value = new Intl.NumberFormat('en-US', {
+const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 20);
+
+const currency = (amountCents: number, interval: 'MONTH' | 'YEAR', copy: SignupCopy) => {
+  const value = new Intl.NumberFormat(copy.locale, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(amountCents / 100);
-  return `${value} USD/${interval === 'YEAR' ? 'año' : 'mes'}`;
+  return `${value} USD/${interval === 'YEAR' ? copy.yearSuffix : copy.monthSuffix}`;
+};
+
+const moneyOnly = (amountCents: number, copy: SignupCopy) => (
+  new Intl.NumberFormat(copy.locale, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(amountCents / 100)
+);
+
+const signupMonthlyPrice = (amountCents: number, copy: SignupCopy) => `${moneyOnly(amountCents, copy)}/mo`;
+
+const signupBaseAmount = (tier: SignupPlanTier) => {
+  if (tier === 'basic_1') return 5900;
+  if (tier === 'basic_2') return 9900;
+  if (tier === 'basic_all') return 19900;
+  return 14800;
+};
+
+const signupEstimatedAmount = (
+  tier: SignupPlanTier,
+  extraSeats: number,
+  interval: 'MONTH' | 'YEAR',
+) => {
+  const monthlyAmount = signupBaseAmount(tier) + Math.max(0, extraSeats) * 1000;
+  return interval === 'YEAR' ? Math.round(monthlyAmount * 12 * 0.8) : monthlyAmount;
+};
+
+const planTargetCount = (tier: SignupPlanTier, availableCount: number) => {
+  if (tier === 'basic_all') return availableCount;
+  if (tier === 'basic_3') return Math.min(3, availableCount);
+  if (tier === 'basic_2') return Math.min(2, availableCount);
+  return Math.min(1, availableCount);
+};
+
+const tierForSelection = (selectedCount: number, availableCount: number): SignupPlanTier => {
+  if (availableCount > 0 && selectedCount === availableCount) return 'basic_all';
+  if (selectedCount >= 3) return 'basic_3';
+  if (selectedCount === 2) return 'basic_2';
+  return 'basic_1';
+};
+
+const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
+  if (!value || typeof value !== 'object') return null;
+  const draft = value as Partial<BillingSignupRequest>;
+  return {
+    ...emptyForm,
+    fullName: typeof draft.fullName === 'string' ? draft.fullName : emptyForm.fullName,
+    email: typeof draft.email === 'string' ? draft.email : emptyForm.email,
+    password: typeof draft.password === 'string' ? draft.password : emptyForm.password,
+    companyName: typeof draft.companyName === 'string' ? draft.companyName : emptyForm.companyName,
+    countryCode: typeof draft.countryCode === 'string' ? draft.countryCode : emptyForm.countryCode,
+    phone: typeof draft.phone === 'string' ? phoneDigitsOnly(draft.phone) : emptyForm.phone,
+    industry: typeof draft.industry === 'string' ? draft.industry : emptyForm.industry,
+    companySize: typeof draft.companySize === 'string' ? draft.companySize : emptyForm.companySize,
+    billingInterval: draft.billingInterval === 'YEAR' ? 'YEAR' : 'MONTH',
+    extraSeats: Math.max(0, Number(draft.extraSeats) || 0),
+    selectedProductCodes: Array.isArray(draft.selectedProductCodes)
+      ? draft.selectedProductCodes.filter((code): code is string => typeof code === 'string')
+      : [],
+  };
+};
+
+const readDraft = (storage: Storage | undefined) => {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(SIGNUP_DRAFT_STORAGE_KEY);
+    return raw ? normalizeDraft(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStoredSignupDraft = () => {
+  if (typeof window === 'undefined') return emptyForm;
+  return {
+    ...emptyForm,
+    ...(readDraft(window.localStorage) ?? {}),
+    ...(readDraft(window.sessionStorage) ?? {}),
+  };
+};
+
+const saveSignupDraft = (form: BillingSignupRequest) => {
+  if (typeof window === 'undefined') return;
+  const sanitizedForm = {
+    ...form,
+    phone: phoneDigitsOnly(form.phone),
+  };
+  window.sessionStorage.setItem(SIGNUP_DRAFT_STORAGE_KEY, JSON.stringify(sanitizedForm));
+  window.localStorage.setItem(SIGNUP_DRAFT_STORAGE_KEY, JSON.stringify({
+    ...sanitizedForm,
+    password: '',
+  }));
+};
+
+const productLabel = (code: string, fallback: string, copy: SignupCopy) => {
+  return copy.productLabels[code] ?? fallback;
 };
 
 export default function SignupPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { currentLanguage, setCurrentLanguage } = useLanguage();
+  const copy = signupCopies[currentLanguage.code] ?? esSignupCopy;
+  const modulePlanCopy = modulePlanCopies[currentLanguage.code] ?? enModulePlanCopy;
+  const billingStep = location.pathname.endsWith('/billing');
   const [config, setConfig] = useState<BillingSignupConfig | null>(null);
-  const [form, setForm] = useState<BillingSignupRequest>(emptyForm);
+  const [form, setForm] = useState<BillingSignupRequest>(() => loadStoredSignupDraft());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -59,14 +1008,22 @@ export default function SignupPage() {
     let active = true;
     billingSignupApi.config()
       .then((value) => {
-        if (active) {
-          setConfig(value);
-          setLoading(false);
-        }
+        if (!active) return;
+        setConfig(value);
+        setForm((current) => {
+          if (current.selectedProductCodes.length || !value.products.length) return current;
+          const next = {
+            ...current,
+            selectedProductCodes: value.products.map((product) => product.code),
+          };
+          saveSignupDraft(next);
+          return next;
+        });
+        setLoading(false);
       })
       .catch((reason) => {
         if (active) {
-          setError(reason instanceof Error ? reason.message : 'No pudimos cargar los planes disponibles.');
+          setError(reason instanceof Error ? reason.message : copy.loadPlansError);
           setLoading(false);
         }
       });
@@ -74,6 +1031,10 @@ export default function SignupPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    saveSignupDraft(form);
+  }, [form]);
 
   const selectedCount = form.selectedProductCodes.length;
   const offerCode = config && selectedCount === config.products.length
@@ -97,35 +1058,83 @@ export default function SignupPage() {
     || selectedCount === 3
     || selectedCount === config?.products.length;
   const platformReady = Boolean(config?.checkoutEnabled && config?.provisioningEnabled);
-  const canSubmit = useMemo(() => (
-    platformReady
-    && validSelection
-    && estimatedAmount !== null
-    && form.fullName.trim().length >= 2
+  const accountDetailsComplete = useMemo(() => (
+    form.fullName.trim().length >= 2
     && form.companyName.trim().length >= 2
     && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
     && form.password.length >= 10
-    && !submitting
-  ), [estimatedAmount, form, platformReady, submitting, validSelection]);
+  ), [form.companyName, form.email, form.fullName, form.password]);
+  const canSubmit = platformReady
+    && accountDetailsComplete
+    && validSelection
+    && estimatedAmount !== null
+    && !submitting;
+  const knownIndustry = !form.industry
+    || industryValues.includes(form.industry as (typeof industryValues)[number]);
+  const availableProductCodes = useMemo(() => config?.products.map((product) => product.code) ?? [], [config]);
+  const selectedTier = tierForSelection(selectedCount, availableProductCodes.length);
+  const selectedTargetCount = planTargetCount(selectedTier, availableProductCodes.length);
+  const includedSeats = config?.includedSeats ?? 5;
+  const visibleSignupEstimate = signupEstimatedAmount(selectedTier, form.extraSeats, form.billingInterval);
 
   const update = <K extends keyof BillingSignupRequest>(key: K, value: BillingSignupRequest[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError('');
   };
 
+  const selectPlanTier = (tier: SignupPlanTier) => {
+    if (!availableProductCodes.length) return;
+    const targetCount = planTargetCount(tier, availableProductCodes.length);
+    const currentSelection = form.selectedProductCodes.filter((code) => availableProductCodes.includes(code));
+    const nextSelection = tier === 'basic_all'
+      ? availableProductCodes
+      : [
+        ...currentSelection,
+        ...availableProductCodes.filter((code) => !currentSelection.includes(code)),
+      ].slice(0, targetCount);
+    update('selectedProductCodes', nextSelection);
+  };
+
   const toggleProduct = (code: string) => {
+    if (!availableProductCodes.includes(code)) return;
+    if (selectedTier === 'basic_all') {
+      update('selectedProductCodes', availableProductCodes.filter((productCode) => productCode !== code).slice(0, 3));
+      return;
+    }
+    const targetCount = selectedTargetCount || 1;
+    const currentSelection = form.selectedProductCodes.filter((productCode) => availableProductCodes.includes(productCode));
+    if (currentSelection.includes(code)) {
+      if (currentSelection.length <= 1) return;
+      update('selectedProductCodes', currentSelection.filter((current) => current !== code));
+      return;
+    }
+    const nextSelection = currentSelection.length >= targetCount
+      ? [...currentSelection.slice(1), code]
+      : [...currentSelection, code];
     update(
       'selectedProductCodes',
-      form.selectedProductCodes.includes(code)
-        ? form.selectedProductCodes.filter((current) => current !== code)
-        : [...form.selectedProductCodes, code],
+      nextSelection,
     );
+  };
+
+  const continueToBilling = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accountDetailsComplete) {
+      setError(copy.accountIncompleteError);
+      return;
+    }
+    saveSignupDraft(form);
+    navigate('/signup/billing');
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!accountDetailsComplete) {
+      setError(copy.accountIncompleteError);
+      return;
+    }
     if (!canSubmit) {
-      setError('Completa tus datos y elige 1, 2, 3 o todos los productos disponibles.');
+      setError(copy.checkoutIncompleteError);
       return;
     }
     try {
@@ -136,48 +1145,112 @@ export default function SignupPage() {
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
         companyName: form.companyName.trim(),
-        phone: form.phone.trim(),
+        phone: phoneDigitsOnly(form.phone),
         industry: form.industry.trim(),
         companySize: form.companySize.trim(),
       }, idempotencyKey.current);
-      sessionStorage.setItem('indice:billing-signup-reference', checkout.signupReference);
+      sessionStorage.setItem(BILLING_SIGNUP_REFERENCE_STORAGE_KEY, checkout.signupReference);
       window.location.assign(checkout.checkoutUrl);
     } catch (reason) {
       idempotencyKey.current = newIdempotencyKey();
-      setError(reason instanceof Error ? reason.message : 'No pudimos iniciar el pago seguro. Intenta nuevamente.');
+      setError(reason instanceof Error ? reason.message : copy.checkoutError);
       setSubmitting(false);
     }
   };
 
+  const oneModulePriceLabel = signupMonthlyPrice(5900, copy);
+  const twoModulePriceLabel = signupMonthlyPrice(9900, copy);
+  const additionalModulePriceLabel = `${moneyOnly(4900, copy)}/${modulePlanCopy.additionalSuffix}`;
+  const allModulesPriceLabel = signupMonthlyPrice(19900, copy);
+  const extraSeatPriceLabel = signupMonthlyPrice(1000, copy);
+  const planCards = [
+    {
+      tier: 'basic_1' as const,
+      title: modulePlanCopy.oneTitle,
+      price: oneModulePriceLabel,
+      description: modulePlanCopy.oneDescription(includedSeats),
+    },
+    {
+      tier: 'basic_2' as const,
+      title: modulePlanCopy.twoTitle,
+      price: twoModulePriceLabel,
+      description: modulePlanCopy.twoDescription(includedSeats),
+    },
+    {
+      tier: 'basic_3' as const,
+      title: modulePlanCopy.additionalTitle,
+      price: additionalModulePriceLabel,
+      description: modulePlanCopy.additionalDescription(twoModulePriceLabel, additionalModulePriceLabel, includedSeats),
+    },
+    {
+      tier: 'basic_all' as const,
+      title: modulePlanCopy.allTitle,
+      price: allModulesPriceLabel,
+      description: modulePlanCopy.allDescription(includedSeats),
+      badge: modulePlanCopy.launchOffer,
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(21,92,255,0.10),_transparent_34%),linear-gradient(135deg,_#F8FAFC_0%,_#EEF3F8_55%,_#F8FAFC_100%)] px-4 py-6 text-[#222831] sm:px-6 lg:py-10">
       <div className="mx-auto max-w-6xl">
-        <nav className="mb-6 flex items-center justify-between gap-4">
-          <Link to="/login" className="text-xl font-black tracking-tight text-[#155CFF]">Índice</Link>
-          <Link to="/login" className="text-sm font-bold text-slate-600 transition hover:text-[#155CFF]">
-            Ya tengo una cuenta
-          </Link>
+        <nav className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Link to="/login" className="text-xl font-black tracking-tight text-[#155CFF]">Índice</Link>
+            <Button asChild variant="ghost" className="h-10 rounded-full px-3 text-sm font-bold text-slate-600 hover:bg-white/80 hover:text-[#155CFF]">
+              <Link to={billingStep ? '/signup' : '/login'}>
+                <ArrowLeft className="h-4 w-4" />
+                {billingStep ? copy.accountDetailsBack : copy.back}
+              </Link>
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-label={copy.languageLabel} variant="outline" className="h-10 gap-2 rounded-full border-slate-200 bg-white/90 px-4 text-[#155CFF] shadow-sm">
+                  <Globe className="h-4 w-4" />
+                  <span className="text-base">{currentLanguage.flag}</span>
+                  <span className="max-w-36 truncate">{currentLanguage.name}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                {languages.map((language) => (
+                  <DropdownMenuItem
+                    key={language.code}
+                    onClick={() => setCurrentLanguage(language)}
+                    className={currentLanguage.code === language.code ? 'bg-gray-100' : ''}
+                  >
+                    <span className="mr-2 text-xl">{language.flag}</span>
+                    {language.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button asChild variant="outline" className="h-10 rounded-full border-slate-200 bg-white/90 px-4 text-sm font-bold text-slate-700 shadow-sm hover:border-[#155CFF]/30 hover:bg-white hover:text-[#155CFF]">
+              <Link to="/login">{copy.login}</Link>
+            </Button>
+          </div>
         </nav>
 
         <div className="grid gap-6 lg:grid-cols-[0.78fr_1.22fr]">
           <aside className="rounded-[32px] bg-[#155CFF] p-7 text-white shadow-[0_30px_80px_-42px_rgba(21,92,255,0.65)] lg:sticky lg:top-10 lg:self-start lg:p-9">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em]">
-              <Sparkles className="h-4 w-4" /> Prueba premium
+              <Sparkles className="h-4 w-4" /> {copy.premiumBadge}
             </div>
-            <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight">Opera tu empresa con claridad.</h1>
+            <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight">{copy.heroTitle}</h1>
             <p className="mt-4 text-base leading-7 text-blue-100">
-              Prueba todos los productos durante 30 días. Al terminar, conservarás el paquete que elijas hoy.
+              {copy.heroDescription}
             </p>
             <div className="mt-8 space-y-4 text-sm font-semibold">
-              <div className="flex gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5]" /><span>Tarjeta requerida y cobro automático al terminar la prueba.</span></div>
-              <div className="flex gap-3"><Users className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5]" /><span>5 usuarios incluidos; agrega los que tu operación necesite.</span></div>
-              <div className="flex gap-3"><CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5]" /><span>Precios en USD antes de impuestos. Stripe procesa tus datos de pago.</span></div>
+              <div className="flex gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5]" /><span>{copy.ownerBullet}</span></div>
+              <div className="flex gap-3"><Users className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5]" /><span>{copy.usersBullet}</span></div>
+              <div className="flex gap-3"><CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5]" /><span>{copy.stripeBullet}</span></div>
             </div>
-            {estimatedAmount !== null ? (
+            {billingStep ? (
               <div className="mt-9 rounded-2xl border border-white/15 bg-white/10 p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-100">Después de la prueba</p>
-                <p className="mt-2 text-3xl font-black">{currency(estimatedAmount, form.billingInterval)}</p>
-                {form.billingInterval === 'YEAR' ? <p className="mt-1 text-sm text-blue-100">20% de ahorro anual incluido.</p> : null}
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-100">{copy.afterTrial}</p>
+                <p className="mt-2 text-3xl font-black">{currency(visibleSignupEstimate, form.billingInterval, copy)}</p>
+                {form.billingInterval === 'YEAR' ? <p className="mt-1 text-sm text-blue-100">{copy.annualSavings}</p> : null}
               </div>
             ) : null}
           </aside>
@@ -186,91 +1259,198 @@ export default function SignupPage() {
             <div className="flex items-start gap-4 border-b border-slate-100 pb-6">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#155CFF]/10 text-[#155CFF]"><Building2 className="h-6 w-6" /></span>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#155CFF]">Crea tu cuenta corporativa</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">Comienza tus 30 días</h2>
-                <p className="mt-1 text-sm text-slate-600">Sin configurar unidades todavía; primero aseguramos la cuenta propietaria.</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#155CFF]">{billingStep ? copy.billingBadge : copy.accountBadge}</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">{billingStep ? copy.billingTitle : copy.accountTitle}</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {billingStep ? copy.billingSubtitle : copy.accountSubtitle}
+                </p>
               </div>
             </div>
 
             {loading ? (
-              <div className="flex min-h-64 items-center justify-center gap-3 text-sm font-bold text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Cargando oferta vigente…</div>
-            ) : (
-              <form className="mt-6 space-y-7" onSubmit={submit}>
-                <fieldset>
-                  <legend className="text-sm font-black text-slate-800">1. Elige los productos que conservarás</legend>
-                  <p className="mt-1 text-sm text-slate-500">Durante la prueba tendrás acceso a todos, sin importar tu selección.</p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {config?.products.map((product) => {
-                      const selected = form.selectedProductCodes.includes(product.code);
+              <div className="flex min-h-64 items-center justify-center gap-3 text-sm font-bold text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> {copy.loadingOffer}</div>
+            ) : billingStep ? (
+              accountDetailsComplete ? (
+                <form className="mt-6 space-y-7" onSubmit={submit}>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    <p className="font-bold text-slate-800">{form.companyName || copy.unnamedCompany}</p>
+                    <p>{form.fullName || copy.pendingOwner} · {form.email || copy.pendingEmail}{form.phone ? ` · ${form.phone}` : ''}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#B9CBFF] bg-[#F2F6FF] px-4 py-4 text-slate-700 sm:px-5">
+                    <div className="flex gap-4">
+                      <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-[#155CFF]" />
+                      <div>
+                        <h3 className="text-lg font-black tracking-tight text-slate-900">{modulePlanCopy.trialTitle}</h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          {modulePlanCopy.trialBody(includedSeats, extraSeatPriceLabel)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {planCards.map((card) => {
+                      const selected = selectedTier === card.tier;
                       return (
                         <button
-                          key={product.code}
+                          key={card.tier}
                           type="button"
-                          onClick={() => toggleProduct(product.code)}
-                          className={`flex min-h-14 items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selected ? 'border-[#155CFF] bg-[#155CFF]/6 text-[#155CFF] shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
+                          onClick={() => selectPlanTier(card.tier)}
+                          className={`min-h-40 rounded-2xl border bg-white p-4 text-left transition ${selected ? 'border-[#155CFF] bg-[#F2F6FF] shadow-sm' : 'border-slate-200 hover:border-[#155CFF]/40 hover:bg-slate-50'}`}
                         >
-                          {product.displayName}
-                          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${selected ? 'border-[#155CFF] bg-[#155CFF] text-white' : 'border-slate-300 text-transparent'}`}><Check className="h-4 w-4" /></span>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <Layers3 className={`h-5 w-5 ${selected ? 'text-[#155CFF]' : 'text-slate-400'}`} />
+                              <h3 className="text-lg font-black tracking-tight text-slate-900">{card.title}</h3>
+                            </div>
+                            {selected ? <CheckCircle2 className="h-5 w-5 shrink-0 text-[#155CFF]" /> : null}
+                          </div>
+                          <p className="mt-5 text-3xl font-black tracking-tight text-slate-900">{card.price}</p>
+                          <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{card.description}</p>
+                          {card.badge ? (
+                            <span className="mt-4 inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700">
+                              {card.badge}
+                            </span>
+                          ) : null}
                         </button>
                       );
                     })}
                   </div>
-                  {!validSelection && selectedCount > 0 ? <p className="mt-3 text-sm font-semibold text-amber-700">Elige 1, 2, 3 o todos los productos.</p> : null}
-                  {basePrice?.status === 'PENDING_PRICE' ? <p className="mt-3 text-sm font-semibold text-amber-700">El precio del paquete completo aún está pendiente de publicación.</p> : null}
-                </fieldset>
 
+                  <fieldset className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                    <div className="flex items-start gap-4">
+                      <Layers3 className="mt-1 h-6 w-6 shrink-0 text-[#155CFF]" />
+                      <div>
+                        <legend className="text-lg font-black tracking-tight text-slate-900">{modulePlanCopy.moduleSelectionTitle}</legend>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          {modulePlanCopy.moduleInstruction(selectedTargetCount, selectedTier === 'basic_all')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {config?.products.map((product) => {
+                        const selected = form.selectedProductCodes.includes(product.code);
+                        return (
+                          <button
+                            key={product.code}
+                            type="button"
+                            onClick={() => toggleProduct(product.code)}
+                            className={`flex min-h-[52px] items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-base font-black transition ${selected ? 'border-[#155CFF] bg-[#F2F6FF] text-slate-900 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#155CFF]/40 hover:bg-slate-50'}`}
+                          >
+                            {productLabel(product.code, product.displayName, copy)}
+                            {selected ? (
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#155CFF] text-[#155CFF]"><Check className="h-3.5 w-3.5" /></span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {!validSelection && selectedCount > 0 ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.invalidSelection}</p> : null}
+                    {basePrice?.status === 'PENDING_PRICE' ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
+                  </fieldset>
+
+                  <fieldset>
+                    <legend className="text-sm font-black text-slate-800">{copy.frequencyTitle}</legend>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+                        {(['MONTH', 'YEAR'] as const).map((interval) => (
+                          <button key={interval} type="button" onClick={() => update('billingInterval', interval)} className={`h-11 rounded-xl text-sm font-bold transition ${form.billingInterval === interval ? 'bg-white text-[#155CFF] shadow-sm' : 'text-slate-500'}`}>
+                            {interval === 'MONTH' ? copy.monthly : copy.annual}
+                          </button>
+                        ))}
+                      </div>
+                      <label className="space-y-2 text-sm font-bold text-slate-700">{copy.extraUsersLabel}
+                        <Input type="number" min={0} max={500} value={form.extraSeats} onChange={(event) => update('extraSeats', Math.max(0, Number(event.target.value) || 0))} className="h-12 rounded-xl" />
+                      </label>
+                    </div>
+                  </fieldset>
+
+                  {!platformReady ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                      {copy.platformNotReady}
+                    </div>
+                  ) : null}
+                  {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div> : null}
+
+                  <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
+                    <Button type="button" variant="outline" onClick={() => navigate('/signup')} className="h-13 rounded-xl border-slate-200 bg-white text-base font-black text-slate-700">
+                      <ArrowLeft className="h-5 w-5" /> {copy.accountDetailsButton}
+                    </Button>
+                    <Button type="submit" disabled={!canSubmit} className="h-13 rounded-xl bg-[#155CFF] text-base font-black text-white hover:bg-[#0B45CC]">
+                      {submitting ? <><Loader2 className="h-5 w-5 animate-spin" /> {copy.preparingStripe}</> : <>{copy.continuePayment} <ArrowRight className="h-5 w-5" /></>}
+                    </Button>
+                  </div>
+                  <p className="text-center text-xs leading-5 text-slate-500">{copy.legalText}</p>
+                </form>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                    {copy.paymentAccountIncompleteError}
+                  </div>
+                  <Button type="button" onClick={() => navigate('/signup')} className="h-13 w-full rounded-xl bg-[#155CFF] text-base font-black text-white hover:bg-[#0B45CC]">
+                    <ArrowLeft className="h-5 w-5" /> {copy.accountDetailsButton}
+                  </Button>
+                </div>
+              )
+            ) : (
+              <form className="mt-6 space-y-7" onSubmit={continueToBilling}>
                 <fieldset className="grid gap-4 sm:grid-cols-2">
-                  <legend className="col-span-full text-sm font-black text-slate-800">2. Datos corporativos y del propietario</legend>
-                  <label className="space-y-2 text-sm font-bold text-slate-700">Marca corporativa
-                    <Input value={form.companyName} onChange={(event) => update('companyName', event.target.value)} maxLength={120} className="h-12 rounded-xl" placeholder="Nombre de tu empresa" autoComplete="organization" />
+                  <legend className="col-span-full text-sm font-black text-slate-800">{copy.accountFieldsetTitle}</legend>
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.companyLabel}
+                    <Input value={form.companyName} onChange={(event) => update('companyName', event.target.value)} maxLength={120} className="h-12 rounded-xl" placeholder={copy.companyPlaceholder} autoComplete="organization" />
                   </label>
-                  <label className="space-y-2 text-sm font-bold text-slate-700">Nombre del propietario
-                    <Input value={form.fullName} onChange={(event) => update('fullName', event.target.value)} maxLength={100} className="h-12 rounded-xl" placeholder="Nombre completo" autoComplete="name" />
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.ownerLabel}
+                    <Input value={form.fullName} onChange={(event) => update('fullName', event.target.value)} maxLength={100} className="h-12 rounded-xl" placeholder={copy.ownerPlaceholder} autoComplete="name" />
                   </label>
-                  <label className="space-y-2 text-sm font-bold text-slate-700">Correo principal
-                    <Input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength={190} className="h-12 rounded-xl" placeholder="tu@empresa.com" autoComplete="email" />
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.emailLabel}
+                    <Input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength={190} className="h-12 rounded-xl" placeholder={copy.emailPlaceholder} autoComplete="email" />
                   </label>
-                  <label className="space-y-2 text-sm font-bold text-slate-700">Contraseña
-                    <Input type="password" value={form.password} onChange={(event) => update('password', event.target.value)} className="h-12 rounded-xl" placeholder="Mínimo 10 caracteres" autoComplete="new-password" />
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.passwordLabel}
+                    <Input type="password" value={form.password} onChange={(event) => update('password', event.target.value)} className="h-12 rounded-xl" placeholder={copy.passwordPlaceholder} autoComplete="new-password" />
                   </label>
-                  <label className="space-y-2 text-sm font-bold text-slate-700">País de lanzamiento
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.countryLabel}
                     <select value={form.countryCode} onChange={(event) => update('countryCode', event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#155CFF] focus:ring-2 focus:ring-[#155CFF]/20">
-                      <option value="MX">México</option>
-                      <option value="CA">Canadá</option>
+                      {(config?.launchCountries.length ? config.launchCountries : ['MX', 'CA']).map((countryCode) => (
+                        <option key={countryCode} value={countryCode}>{copy.countryLabels[countryCode] ?? countryCode}</option>
+                      ))}
                     </select>
                   </label>
-                  <label className="space-y-2 text-sm font-bold text-slate-700">Teléfono <span className="font-medium text-slate-400">(opcional)</span>
-                    <Input value={form.phone} onChange={(event) => update('phone', event.target.value)} maxLength={40} className="h-12 rounded-xl" placeholder="+52…" autoComplete="tel" />
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.phoneLabel} <span className="font-medium text-slate-400">({copy.optional})</span>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={form.phone}
+                      onChange={(event) => update('phone', phoneDigitsOnly(event.target.value))}
+                      maxLength={20}
+                      className="h-12 rounded-xl"
+                      placeholder={copy.phonePlaceholder}
+                      autoComplete="tel"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.industryLabel} <span className="font-medium text-slate-400">({copy.optional})</span>
+                    <select value={form.industry} onChange={(event) => update('industry', event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-[#155CFF] focus:ring-2 focus:ring-[#155CFF]/20">
+                      <option value="">{copy.industryPlaceholder}</option>
+                      {!knownIndustry ? <option value={form.industry}>{form.industry}</option> : null}
+                      {industryValues.map((industry) => (
+                        <option key={industry} value={industry}>
+                          {copy.industryLabels[industry]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-2 text-sm font-bold text-slate-700">{copy.companySizeLabel} <span className="font-medium text-slate-400">({copy.optional})</span>
+                    <Input value={form.companySize} onChange={(event) => update('companySize', event.target.value)} maxLength={80} className="h-12 rounded-xl" placeholder={copy.companySizePlaceholder} />
                   </label>
                 </fieldset>
 
-                <fieldset>
-                  <legend className="text-sm font-black text-slate-800">3. Frecuencia y equipo</legend>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                      {(['MONTH', 'YEAR'] as const).map((interval) => (
-                        <button key={interval} type="button" onClick={() => update('billingInterval', interval)} className={`h-11 rounded-xl text-sm font-bold transition ${form.billingInterval === interval ? 'bg-white text-[#155CFF] shadow-sm' : 'text-slate-500'}`}>
-                          {interval === 'MONTH' ? 'Mensual' : 'Anual -20%'}
-                        </button>
-                      ))}
-                    </div>
-                    <label className="space-y-2 text-sm font-bold text-slate-700">Usuarios adicionales a los 5 incluidos
-                      <Input type="number" min={0} max={500} value={form.extraSeats} onChange={(event) => update('extraSeats', Math.max(0, Number(event.target.value) || 0))} className="h-12 rounded-xl" />
-                    </label>
-                  </div>
-                </fieldset>
-
-                {!platformReady ? (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-                    El registro premium está visible, pero el cobro y aprovisionamiento todavía no están habilitados en este ambiente.
-                  </div>
-                ) : null}
                 {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div> : null}
 
-                <Button type="submit" disabled={!canSubmit} className="h-13 w-full rounded-xl bg-[#155CFF] text-base font-black text-white hover:bg-[#0B45CC]">
-                  {submitting ? <><Loader2 className="h-5 w-5 animate-spin" /> Preparando Stripe…</> : <>Continuar al pago seguro <ArrowRight className="h-5 w-5" /></>}
+                <Button type="submit" className="h-13 w-full rounded-xl bg-[#155CFF] text-base font-black text-white hover:bg-[#0B45CC]">
+                  {copy.continueToBilling} <ArrowRight className="h-5 w-5" />
                 </Button>
-                <p className="text-center text-xs leading-5 text-slate-500">Al continuar aceptas iniciar una suscripción con 30 días de prueba. Stripe solicitará una tarjeta y cobrará automáticamente al finalizar.</p>
+                <p className="text-center text-xs leading-5 text-slate-500">{copy.draftNote}</p>
               </form>
             )}
           </section>
