@@ -280,8 +280,26 @@ Color depends on category:
 - Thermal documents are monochrome-first.
 - Semantic colors are reserved for real status, risk, warning, and success.
 
-Blue is an approved Indice editorial accent, not a mandatory replacement for
-module, client, legal, or thermal requirements.
+All Indice-owned documents must follow the brand hierarchy defined in
+`Indice Frontend Operating System v2.0`, section 8.1:
+
+- aqua `#59C3A5` is the primary distinctive brand signature
+- dark aqua `#177D66` is the accessible aqua action color for white text
+- blue `#2563EB` is the structural and analytical color
+- deep blue `#143675` is the institutional and executive color
+- coral `#FF6B5E` and yellow `#F4C84A` are supporting accents
+- graphite `#222831` is the primary text color
+
+Use aqua sparingly for brand recognition, soft highlights, small dividers, and
+identity details. Do not use white text on `#59C3A5` or `#3AAE90`. Use graphite
+text on light aqua or white text on dark aqua `#177D66`.
+
+Blue remains an approved Indice editorial accent for analytics, executive
+reporting, functional navigation, and institutional authority. It is not a
+mandatory replacement for aqua, module, client, legal, or thermal requirements.
+
+Customer-facing and white-label documents continue to prioritize the client
+identity over the Indice palette.
 
 Never rely on color alone to communicate meaning.
 

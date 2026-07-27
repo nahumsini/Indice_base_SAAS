@@ -311,6 +311,9 @@ type TranslationDictionary = {
 	      visualSignalLabel: string;
 	      welcomeTitle: string;
 	      welcomeText: string;
+	      companyLabel: string;
+	      companyPlaceholder: string;
+	      companyError: string;
 	      emailLabel: string;
 	      emailPlaceholder: string;
 	      emailError: string;
@@ -324,6 +327,8 @@ type TranslationDictionary = {
 	      successToast: string;
 	      errorFallback: string;
 	      sessionExpired: string;
+	      newAccountPrompt: string;
+	      createAccount: string;
 	      insideTitle: string;
 	      insideItems: string[];
 	      resetBadge: string;
@@ -1852,6 +1857,9 @@ const translations: Translations = {
 	      welcomeTitle: 'Accede a tu espacio operativo',
 	      welcomeText:
 	        'Continúa la ejecución diaria con visibilidad, control y contexto de negocio.',
+	      companyLabel: 'Empresa o espacio',
+	      companyPlaceholder: 'Escribe el nombre de tu empresa',
+	      companyError: 'Ingresa el nombre de tu empresa.',
 	      emailLabel: 'Correo electrónico',
 	      emailPlaceholder: 'tu@empresa.com',
 	      emailError: 'Ingresa un correo electrónico válido.',
@@ -1865,6 +1873,8 @@ const translations: Translations = {
 	      successToast: 'Sesión iniciada correctamente.',
 	      errorFallback: 'No fue posible iniciar sesión.',
 	      sessionExpired: 'Tu sesión expiró. Inicia sesión nuevamente para continuar.',
+	      newAccountPrompt: '¿Primera vez en Indice?',
+	      createAccount: 'Crear una cuenta',
 	      insideTitle: 'Lo que tendrás disponible',
 	      insideItems: ['Visibilidad operativa', 'Actividad del equipo', 'Control financiero', 'Desempeño del negocio'],
 	      resetBadge: 'Recuperación de acceso',
@@ -2730,6 +2740,9 @@ const translations: Translations = {
 	      welcomeTitle: 'Accede a tu espacio operativo',
 	      welcomeText:
 	        'Continúa la ejecución diaria con visibilidad, control y contexto de negocio.',
+	      companyLabel: 'Empresa o espacio',
+	      companyPlaceholder: 'Escribe el nombre de tu empresa',
+	      companyError: 'Ingresa el nombre de tu empresa.',
 	      emailLabel: 'Correo electrónico',
 	      emailPlaceholder: 'tu@empresa.com',
 	      emailError: 'Ingresa un correo electrónico válido.',
@@ -2743,6 +2756,8 @@ const translations: Translations = {
 	      successToast: 'Sesión iniciada correctamente.',
 	      errorFallback: 'No fue posible iniciar sesión.',
 	      sessionExpired: 'Tu sesión expiró. Inicia sesión nuevamente para continuar.',
+	      newAccountPrompt: '¿Primera vez en Indice?',
+	      createAccount: 'Crear una cuenta',
 	      insideTitle: 'Lo que tendrás disponible',
 	      insideItems: ['Visibilidad operativa', 'Actividad del equipo', 'Control financiero', 'Desempeño del negocio'],
 	      resetBadge: 'Recuperación de acceso',
@@ -3608,6 +3623,9 @@ const translations: Translations = {
 	      welcomeTitle: 'Access your workspace',
 	      welcomeText:
 	        'Continue daily execution with visibility, control, and business context.',
+	      companyLabel: 'Company or workspace',
+	      companyPlaceholder: 'Enter your company name',
+	      companyError: 'Enter your company name.',
 	      emailLabel: 'Email',
 	      emailPlaceholder: 'you@company.com',
 	      emailError: 'Enter a valid email address.',
@@ -3621,6 +3639,8 @@ const translations: Translations = {
 	      successToast: 'Signed in successfully.',
 	      errorFallback: 'Unable to sign in.',
 	      sessionExpired: 'Your session expired. Sign in again to continue.',
+	      newAccountPrompt: 'New to Indice?',
+	      createAccount: 'Create an account',
 	      insideTitle: "What you'll access",
 	      insideItems: ['Operational visibility', 'Team activity', 'Financial control', 'Business performance'],
 	      resetBadge: 'Access recovery',
@@ -4486,6 +4506,9 @@ const translations: Translations = {
 	      welcomeTitle: 'Access your workspace',
 	      welcomeText:
 	        'Continue daily execution with visibility, control, and business context.',
+	      companyLabel: 'Company or workspace',
+	      companyPlaceholder: 'Enter your company name',
+	      companyError: 'Enter your company name.',
 	      emailLabel: 'Email',
 	      emailPlaceholder: 'you@company.com',
 	      emailError: 'Enter a valid email address.',
@@ -4499,6 +4522,8 @@ const translations: Translations = {
 	      successToast: 'Signed in successfully.',
 	      errorFallback: 'Unable to sign in.',
 	      sessionExpired: 'Your session expired. Sign in again to continue.',
+	      newAccountPrompt: 'New to Indice?',
+	      createAccount: 'Create an account',
 	      insideTitle: "What you'll access",
 	      insideItems: ['Operational visibility', 'Team activity', 'Financial control', 'Business performance'],
 	      resetBadge: 'Access recovery',
@@ -5364,6 +5389,9 @@ const translations: Translations = {
 	      welcomeTitle: 'Accédez à votre espace de travail',
 	      welcomeText:
 	        'Poursuivez l’exécution quotidienne avec visibilité, contrôle et contexte d’affaires.',
+	      companyLabel: 'Entreprise ou espace',
+	      companyPlaceholder: 'Entrez le nom de votre entreprise',
+	      companyError: 'Entrez le nom de votre entreprise.',
 	      emailLabel: 'Courriel',
 	      emailPlaceholder: 'vous@entreprise.com',
 	      emailError: 'Entrez une adresse courriel valide.',
@@ -5377,6 +5405,8 @@ const translations: Translations = {
 	      successToast: 'Connexion réussie.',
 	      errorFallback: 'Impossible de se connecter.',
 	      sessionExpired: 'Votre session a expiré. Reconnectez-vous pour continuer.',
+	      newAccountPrompt: 'Vous découvrez Indice?',
+	      createAccount: 'Créer un compte',
 	      insideTitle: 'Ce que vous pourrez consulter',
 	      insideItems: ['Visibilité opérationnelle', 'Activité des équipes', 'Contrôle financier', 'Performance d’affaires'],
 	      resetBadge: 'Récupération d’accès',
@@ -6242,6 +6272,9 @@ const translations: Translations = {
 	      welcomeTitle: 'Acesse seu espaço operacional',
 	      welcomeText:
 	        'Continue a execução diária com visibilidade, controle e contexto de negócio.',
+	      companyLabel: 'Empresa ou espaço',
+	      companyPlaceholder: 'Digite o nome da sua empresa',
+	      companyError: 'Digite o nome da sua empresa.',
 	      emailLabel: 'E-mail',
 	      emailPlaceholder: 'voce@empresa.com',
 	      emailError: 'Digite um endereço de e-mail válido.',
@@ -6255,6 +6288,8 @@ const translations: Translations = {
 	      successToast: 'Login realizado com sucesso.',
 	      errorFallback: 'Não foi possível entrar.',
 	      sessionExpired: 'Sua sessão expirou. Entre novamente para continuar.',
+	      newAccountPrompt: 'Primeira vez no Indice?',
+	      createAccount: 'Criar uma conta',
 	      insideTitle: 'O que você acessa',
 	      insideItems: ['Visibilidade operacional', 'Atividade da equipe', 'Controle financeiro', 'Desempenho do negócio'],
 	      resetBadge: 'Recuperação de acesso',
@@ -7120,6 +7155,9 @@ const translations: Translations = {
 	      welcomeTitle: '워크스페이스에 접속하세요',
 	      welcomeText:
 	        '가시성, 통제, 비즈니스 맥락을 가지고 일상 실행을 이어가세요.',
+	      companyLabel: '회사 또는 워크스페이스',
+	      companyPlaceholder: '회사 이름을 입력하세요',
+	      companyError: '회사 이름을 입력하세요.',
 	      emailLabel: '이메일',
 	      emailPlaceholder: 'you@company.com',
 	      emailError: '올바른 이메일 주소를 입력하세요.',
@@ -7133,6 +7171,8 @@ const translations: Translations = {
 	      successToast: '로그인에 성공했습니다.',
 	      errorFallback: '로그인할 수 없습니다.',
 	      sessionExpired: '세션이 만료되었습니다. 계속하려면 다시 로그인하세요.',
+	      newAccountPrompt: 'Indice가 처음이신가요?',
+	      createAccount: '계정 만들기',
 	      insideTitle: '접속 후 볼 수 있는 것',
 	      insideItems: ['운영 가시성', '팀 활동', '재무 통제', '비즈니스 성과'],
 	      resetBadge: '접속 복구',
@@ -7998,6 +8038,9 @@ const translations: Translations = {
 	      welcomeTitle: '访问你的工作区',
 	      welcomeText:
 	        '带着可见性、控制力和业务上下文继续日常执行。',
+	      companyLabel: '公司或工作区',
+	      companyPlaceholder: '输入公司名称',
+	      companyError: '请输入公司名称。',
 	      emailLabel: '邮箱',
 	      emailPlaceholder: 'you@company.com',
 	      emailError: '请输入有效的邮箱地址。',
@@ -8011,6 +8054,8 @@ const translations: Translations = {
 	      successToast: '登录成功。',
 	      errorFallback: '无法登录。',
 	      sessionExpired: '会话已过期。请重新登录以继续。',
+	      newAccountPrompt: '第一次使用 Indice？',
+	      createAccount: '创建账户',
 	      insideTitle: '你将访问',
 	      insideItems: ['运营可见性', '团队活动', '财务控制', '业务表现'],
 	      resetBadge: '访问恢复',

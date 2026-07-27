@@ -4,7 +4,7 @@ const brandBars = [
   { color: '#FF6B5E', height: '42%' },
   { color: '#F4C84A', height: '58%' },
   { color: '#59C3A5', height: '74%' },
-  { color: '#155CFF', height: '92%' },
+  { color: '#2563EB', height: '92%' },
 ] as const;
 
 export function LoginIllustration({ copy }: { copy: LoginPageCopy }) {
@@ -17,8 +17,8 @@ export function LoginIllustration({ copy }: { copy: LoginPageCopy }) {
           </p>
           <h2 className="mt-2 text-lg font-semibold text-[#222831]">{copy.visualTitle}</h2>
         </div>
-        <div className="rounded-2xl border border-[#155CFF]/15 bg-[#155CFF]/8 px-4 py-2 text-right">
-          <p className="text-xl font-bold text-[#155CFF]">{copy.visualMetricValue}</p>
+        <div className="rounded-2xl border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-4 py-2 text-right">
+          <p className="text-xl font-bold text-[var(--indice-brand-action)]">{copy.visualMetricValue}</p>
           <p className="text-xs font-semibold text-slate-500">{copy.visualMetricLabel}</p>
         </div>
       </div>
@@ -51,7 +51,7 @@ export function LoginIllustration({ copy }: { copy: LoginPageCopy }) {
                 <div className="flex items-center gap-2">
                   <span
                     className="flex h-8 w-8 items-center justify-center rounded-xl text-base"
-                    style={{ backgroundColor: `${brandBars[index]?.color ?? '#155CFF'}18` }}
+                    style={{ backgroundColor: `${brandBars[index]?.color ?? '#59C3A5'}18` }}
                     aria-hidden="true"
                   >
                     {pillar.icon}

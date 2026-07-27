@@ -18,6 +18,7 @@ import { isValidEmail, normalizeEmail } from '../shared/validation/email';
 import { LoginBrandPanel } from './components/LoginBrandPanel';
 import { LoginFormPanel } from './components/LoginFormPanel';
 import { PasswordResetModal } from './components/PasswordResetModal';
+import indiceLogoUrl from '../../assets/indice-logo.png';
 
 const LOGIN_MINIMUM_LOADING_MS = 2500;
 
@@ -161,14 +162,21 @@ export default function LoginPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-[linear-gradient(135deg,_#F7F8FA_0%,_#EEF3F8_48%,_#F8FAFC_100%)] px-4 py-5 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto mb-4 flex max-w-[1420px] justify-end">
+      <main className="flex min-h-screen flex-col bg-[linear-gradient(135deg,_#F8FAFC_0%,_#EEF4FA_52%,_#F8FAFC_100%)] px-3 py-3 text-slate-900 sm:px-6 sm:py-5 lg:px-8">
+        <div className="mx-auto mb-3 flex w-full max-w-[1420px] items-center justify-between lg:mb-4 lg:justify-end">
+          <div className="relative h-12 w-36 overflow-hidden lg:hidden">
+            <img
+              src={indiceLogoUrl}
+              alt={copy.logoAlt}
+              className="absolute left-1/2 top-1/2 w-44 max-w-none -translate-x-1/2 -translate-y-[45%]"
+            />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 rounded-full border-slate-200 bg-white/90 px-4 text-[#155CFF] shadow-sm">
+              <Button variant="outline" className="h-10 gap-2 rounded-full border-slate-200 bg-white/90 px-3 text-[var(--indice-structural-blue)] shadow-sm hover:text-[var(--indice-structural-blue-hover)] sm:px-4">
                 <Globe className="h-4 w-4" />
                 <span className="text-base">{currentLanguage.flag}</span>
-                <span>{currentLanguage.name}</span>
+                <span className="hidden sm:inline">{currentLanguage.name}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
@@ -186,7 +194,7 @@ export default function LoginPage() {
           </DropdownMenu>
         </div>
 
-        <div className="mx-auto grid min-h-[calc(100vh-4.5rem)] max-w-[1420px] gap-6 lg:grid-cols-[1.18fr_0.82fr] xl:gap-8">
+        <div className="mx-auto grid w-full max-w-[1280px] flex-1 gap-4 lg:flex-none lg:grid-cols-[1.06fr_0.94fr] lg:items-center lg:gap-6 lg:pb-6 xl:gap-7">
           <LoginBrandPanel copy={copy} />
           <LoginFormPanel
             copy={copy}

@@ -56,12 +56,12 @@ export default function SignupCompletePage() {
   }, [ready]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(21,92,255,0.11),_transparent_38%),linear-gradient(135deg,_#F8FAFC,_#EEF3F8)] px-4 py-10 text-[#222831]">
+    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(89,195,165,0.16),_transparent_38%),linear-gradient(135deg,_#F8FAFC,_#EEF3F8)] px-4 py-10 text-[#222831]">
       <section className="w-full max-w-xl rounded-[32px] border border-white/80 bg-white/95 p-7 text-center shadow-[0_30px_90px_-50px_rgba(34,40,49,0.5)] sm:p-10">
-        <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${ready ? 'bg-emerald-50 text-emerald-600' : review || error ? 'bg-amber-50 text-amber-600' : 'bg-[#155CFF]/10 text-[#155CFF]'}`}>
+        <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${ready ? 'bg-emerald-50 text-emerald-600' : review || error ? 'bg-amber-50 text-amber-600' : 'bg-[var(--indice-brand-soft)] text-[var(--indice-brand-action)]'}`}>
           {ready ? <CheckCircle2 className="h-8 w-8" /> : review || error ? <CircleAlert className="h-8 w-8" /> : <Loader2 className="h-8 w-8 animate-spin" />}
         </div>
-        <p className="mt-6 text-xs font-black uppercase tracking-[0.16em] text-[#155CFF]">Registro Índice</p>
+        <p className="mt-6 text-xs font-black uppercase tracking-[0.16em] text-[var(--indice-brand-action)]">Registro Índice</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight">
           {ready ? 'Tu espacio está listo' : review ? 'Necesitamos verificar tu correo' : 'Estamos preparando tu cuenta'}
         </h1>
@@ -82,11 +82,11 @@ export default function SignupCompletePage() {
         ) : null}
 
         {ready ? (
-          <Button asChild className="mt-8 h-12 w-full rounded-xl bg-[#155CFF] text-white hover:bg-[#0B45CC]">
+          <Button asChild className="mt-8 h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-white hover:bg-[var(--indice-brand-action-hover)]">
             <Link to="/login"><LogIn className="h-5 w-5" /> Iniciar sesión</Link>
           </Button>
         ) : (
-          <Link to="/login" className="mt-8 inline-block text-sm font-bold text-[#155CFF] underline-offset-4 hover:underline">Ir al inicio de sesión</Link>
+          <Link to="/login" className="mt-8 inline-block text-sm font-bold text-[var(--indice-structural-blue)] underline-offset-4 hover:text-[var(--indice-structural-blue-hover)] hover:underline">Ir al inicio de sesión</Link>
         )}
       </section>
     </main>

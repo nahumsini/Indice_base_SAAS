@@ -111,7 +111,7 @@ function SubscriptionRequiredScreen({
     <main className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-3xl items-center px-6 py-12">
       <section className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-start gap-4">
-          <div className="rounded-lg bg-[#155CFF]/10 p-3 text-[#155CFF]">
+          <div className="rounded-lg bg-blue-50 p-3 text-[var(--indice-structural-blue)]">
             <CreditCard className="h-6 w-6" />
           </div>
           <div>
@@ -120,7 +120,7 @@ function SubscriptionRequiredScreen({
               Access is paused for this company. Status: {subscription?.status || 'inactive'}
               {subscription?.lock_reason ? ` (${subscription.lock_reason})` : ''}.
             </p>
-            <Button className="mt-5 bg-[#155CFF] hover:bg-[#0B45CC]" onClick={onManageBilling}>
+            <Button className="mt-5 bg-[var(--indice-structural-blue)] hover:bg-[var(--indice-structural-blue-hover)]" onClick={onManageBilling}>
               Manage billing
             </Button>
           </div>
@@ -628,7 +628,6 @@ export default function App() {
 
   const standaloneModulePages: Partial<Record<PageId, StandaloneModuleComponent>> = {
     maintenance: Mantenimiento,
-    inventory: Inventarios,
     'minutes-control': ControlMinutas,
     cleaning: Limpieza,
     laundry: Lavanderia,
@@ -638,7 +637,6 @@ export default function App() {
     forms: Formularios,
     invoicing: FacturacionComplementaria,
     email: CorreoElectronico,
-    'work-climate': ClimaLaboral,
     'sales-agent': AgenteVentas,
     analytics: Analitica,
     training: Capacitacion,
@@ -661,23 +659,31 @@ export default function App() {
         onNavigate={(page) => handleModuleNavigation(page)}
       />
     ) : currentPage === 'human-resources' ? (
-      <HumanResources onNavigate={handleModuleNavigation} />
+      <HumanResources learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'processes-tasks' ? (
-      <ProcessesTasks onNavigate={handleModuleNavigation} />
+      <ProcessesTasks learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'home-panel' ? (
-      <PanelInicial onNavigate={handleModuleNavigation} />
+      <PanelInicial learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'expenses' ? (
-      <Gastos onNavigate={handleModuleNavigation} />
+      <Gastos learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'petty-cash' ? (
-      <CajaChica onNavigate={handleModuleNavigation} />
+      <CajaChica learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'point-of-sale' ? (
-      <PuntoVenta onNavigate={handleModuleNavigation} />
+      <PuntoVenta learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'sales' ? (
       <Ventas learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'receivables' ? (
-      <Cartera onNavigate={handleModuleNavigation} />
+      <Cartera learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
-      <Kpis onNavigate={handleModuleNavigation} />
+      <Kpis learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'inventory' ? (
+      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
+        <Inventarios learningModeActive={learningModeActive} />
+      </StandaloneModuleShell>
+    ) : currentPage === 'work-climate' ? (
+      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
+        <ClimaLaboral learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+      </StandaloneModuleShell>
     ) : currentPage === 'affiliate-management' ? (
       <Afiliados onNavigate={handleModuleNavigation} />
     ) : StandaloneModuleComponent && currentPage ? (

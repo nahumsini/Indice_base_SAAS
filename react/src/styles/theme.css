@@ -2,15 +2,25 @@
 
 :root {
   --font-size: 16px;
+  /* Índice brand hierarchy: explicit roles; do not repurpose --primary globally. */
+  --indice-brand-aqua: #59C3A5;
+  --indice-brand-aqua-hover: #3AAE90;
+  --indice-brand-action: #177D66;
+  --indice-brand-action-hover: #126553;
+  --indice-brand-soft: #E7F3F2;
+  --indice-brand-border: #B9E5D9;
+  --indice-structural-blue: #2563EB;
+  --indice-structural-blue-hover: #1D4ED8;
+  --indice-institutional-blue: #143675;
   --indice-coral: #FF6B5E;
   --indice-coral-hover: #E8564B;
   --indice-yellow: #F4C84A;
   --indice-yellow-hover: #E5B835;
-  --indice-aqua: #59C3A5;
-  --indice-aqua-hover: #3AAE90;
-  --indice-blue: #2563EB;
-  --indice-blue-hover: #1D4ED8;
-  --indice-blue-deep: #143675;
+  --indice-aqua: var(--indice-brand-aqua);
+  --indice-aqua-hover: var(--indice-brand-aqua-hover);
+  --indice-blue: var(--indice-structural-blue);
+  --indice-blue-hover: var(--indice-structural-blue-hover);
+  --indice-blue-deep: var(--indice-institutional-blue);
   --indice-graphite: #222831;
   --indice-background: #F7F8FA;
   --indice-border: #D8DCE3;

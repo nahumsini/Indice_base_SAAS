@@ -26,6 +26,9 @@ export type LoginPageCopy = {
   visualSignalLabel: string;
   welcomeTitle: string;
   welcomeText: string;
+  companyLabel: string;
+  companyPlaceholder: string;
+  companyError: string;
   emailLabel: string;
   emailPlaceholder: string;
   emailError: string;
@@ -39,6 +42,8 @@ export type LoginPageCopy = {
   successToast: string;
   errorFallback: string;
   sessionExpired: string;
+  newAccountPrompt: string;
+  createAccount: string;
   insideTitle: string;
   insideItems: string[];
   resetBadge: string;

@@ -444,6 +444,222 @@ Use module colors for:
 
 Do not invent random shades per screen.
 
+### 8.1 Indice Brand Color Hierarchy
+
+The product-wide brand hierarchy is distinct from the module color system.
+
+Indice uses aqua as its primary distinctive brand color and blue as its
+structural, analytical, and institutional color. They are not interchangeable
+defaults.
+
+#### Primary brand signature
+
+- Indice aqua: `#59C3A5`
+- Indice aqua hover for dark text contexts: `#3AAE90`
+- Accessible dark aqua action: `#177D66`
+- Accessible dark aqua action hover: `#126553`
+
+Use aqua to create product recognition in:
+
+- global brand surfaces
+- welcoming and educational experiences
+- brand-level navigation cues
+- selected brand states that are not owned by a module
+- illustrations and identity details
+- soft backgrounds, borders, and low-emphasis highlights
+
+Aqua should make Indice recognizable without filling every surface. Prefer
+white, graphite, and neutral backgrounds for the majority of the interface.
+
+Do not place white text on `#59C3A5` or `#3AAE90`. These combinations do not
+provide sufficient contrast for normal text. Use graphite `#222831` on the
+light aqua tones, or use dark aqua `#177D66` with white text for primary
+actions.
+
+#### Structural and analytical color
+
+- Indice blue: `#2563EB`
+- Indice blue hover: `#1D4ED8`
+- Indice deep blue: `#143675`
+
+Use blue for:
+
+- Dashboard module identity
+- analytical and data-oriented interfaces
+- charts and executive reporting
+- links and functional navigation where a module accent does not apply
+- institutional authority and high-trust communication
+- deep-blue editorial covers and formal brand surfaces
+
+Blue supports the Indice brand but must not replace aqua as the product's
+distinctive signature.
+
+#### Supporting brand accents
+
+- Coral `#FF6B5E` and yellow `#F4C84A` are supporting identity accents.
+- Graphite `#222831` is the default primary text color.
+- Semantic success, warning, and error colors remain reserved for their actual
+  meanings and must not be substituted by brand colors.
+
+#### Decision order
+
+When selecting a color, apply this order:
+
+1. Use the client identity for customer-facing or white-label content.
+2. Use the approved module color when the element belongs to a module.
+3. Use aqua when the element represents Indice at the product or brand level.
+4. Use blue when the element represents analytics, technology, functional
+   navigation, or institutional authority.
+5. Use semantic colors only for real status, risk, warning, success, or error.
+
+Do not change the global `primary` token from blue to aqua without auditing
+buttons, focus states, selected states, dark mode, and text contrast. Brand
+migration must be intentional and component-specific.
+
+### 8.2 Indice Product Typography System
+
+Indice uses a restrained enterprise typography system. The interface should
+feel calm, precise, contemporary, and easy to scan. Hierarchy comes primarily
+from scale, spacing, alignment, color, and dividers, not from repeatedly
+increasing font weight.
+
+The approved product model combines:
+
+- the editorial restraint of the Indice Document Print Standard
+- the mobile clarity, spacing, focus, and touch hierarchy of the Kiosk
+  experience
+
+Kiosk structure is an approved product reference. Existing heavy typography in
+individual kiosk implementations is not a typography precedent.
+
+#### Font family
+
+Use the approved Indice sans-serif stack. Until a dedicated brand font is
+formally selected, licensed, loaded, and verified across all supported scripts,
+use an explicit platform-safe system stack:
+
+```css
+system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+```
+
+Do not introduce a new web font in an isolated module. A future font-family
+change requires product-wide performance, localization, glyph, PDF, kiosk, and
+accessibility review.
+
+#### Approved weights
+
+- Regular `400`: default for body copy, descriptions, table cells, form help,
+  metadata, and secondary information.
+- Medium `500`: titles, record names, button labels, active navigation,
+  important labels, and primary values.
+- Semibold `600`: exceptional emphasis only, such as a critical total, a
+  decisive KPI, or a safety-critical action whose hierarchy cannot be achieved
+  through position, scale, or color.
+- Bold `700`, Extra Bold `800`, and Black `900`: prohibited in the operational
+  product interface.
+
+Marketing artwork or an approved campaign surface may request a documented
+exception. That exception does not become a product precedent.
+
+Do not use weight `600` merely because a component is clickable, selected, or
+inside a header. Most primary actions remain weight `500`.
+
+#### Product type scale
+
+Use the following default ranges. Responsive adjustments may change size
+without changing the semantic level.
+
+| Role | Default size | Weight | Line height |
+|---|---:|---:|---:|
+| Page or module title | 26–30 px | 500 | 1.15–1.25 |
+| Workspace or kiosk title | 22–24 px | 500 | 1.2–1.3 |
+| Section title | 18–20 px | 500 | 1.25–1.35 |
+| Card or record title | 15–16 px | 500 | 1.3–1.4 |
+| Primary KPI or critical value | 20–28 px | 500; 600 by exception | 1.1–1.2 |
+| Body and form input | 14–16 px | 400 | 1.45–1.65 |
+| Button label | 14–16 px | 500 | 1.2–1.4 |
+| Form or table label | 12–14 px | 400 or 500 | 1.35–1.5 |
+| Supporting metadata | 11–12 px | 400 | 1.4–1.6 |
+
+Do not reduce important operational copy below 12 px to force content into a
+layout. Use wrapping, spacing, responsive structure, or progressive disclosure.
+
+Public kiosk controls should normally use at least 14 px text, with 16 px for a
+dominant action. Large-text accessibility mode may increase the scale while
+preserving the same semantic hierarchy.
+
+#### Hierarchy rules
+
+- Use sentence case for titles, labels, tabs, buttons, and table headers.
+- Do not force uppercase for routine labels, status names, navigation, or
+  section headings.
+- Small uppercase overlines are allowed only for rare editorial or legal
+  context and must remain readable in every supported locale.
+- Avoid wide letter spacing on ordinary interface copy.
+- Use one dominant title per surface.
+- A normal card should expose no more than two emphasized text levels.
+- Use whitespace, alignment, neutral color, and dividers before adding weight.
+- Do not bold complete paragraphs, help text, descriptions, or table rows.
+- Numeric columns should use tabular numerals when the active font supports
+  them.
+- Critical information must not rely on weight alone.
+
+#### Component defaults
+
+- Page and module headers: title `500`; subtitle `400`.
+- Tabs: active and inactive labels `500`; selection is expressed through
+  background, border, indicator, and color.
+- Buttons: `500`, including the primary action.
+- Form labels: `400` by default and `500` only when the label carries necessary
+  hierarchy.
+- Inputs and selected values: `400`.
+- Table headers: `500`; table cells `400`.
+- Card titles and record names: `500`; descriptions `400`.
+- KPI labels: `400`; KPI values `500`, or `600` only for a documented critical
+  value.
+- Badges and statuses: `500` maximum; semantic meaning comes from text, icon,
+  border, and color.
+- Modal title: `500`; description and body `400`; actions `500`.
+- Kiosk title, identity name, and dominant action: `500`.
+
+#### New work and migration
+
+All new or substantially refactored product components must follow this system.
+Do not add `font-bold`, `font-extrabold`, or `font-black` to operational
+frontend code.
+
+Existing screens are migrated incrementally through shared primitives first,
+then module-owned components. Do not perform an unreviewed global replacement
+of font classes. Every migration must preserve:
+
+- semantic hierarchy
+- responsive wrapping
+- localization and long strings
+- light and dark mode
+- large-text accessibility mode
+- touch target size
+- financial and safety-critical emphasis
+- print and PDF behavior when shared content is exported
+
+The first governed migration target is the shared Kiosk Engine presentation
+layer. Later migrations should prioritize shared modal, header, title bar, KPI,
+table, and form primitives before editing individual screens.
+
+#### Typography acceptance checklist
+
+- [ ] Body copy and descriptions use weight `400`.
+- [ ] Titles, names, navigation, and actions normally use weight `500`.
+- [ ] Every use of weight `600` has a specific hierarchy justification.
+- [ ] No operational component introduces weight `700`, `800`, or `900`.
+- [ ] Routine labels are not forced to uppercase.
+- [ ] Hierarchy remains clear without bolding complete blocks.
+- [ ] Mobile, desktop, dark mode, and large-text mode remain legible.
+- [ ] Spanish, English, French, Portuguese, Korean, and Chinese content can
+      wrap without clipping where those locales are supported.
+- [ ] TypeScript, tests, and the production build pass.
+- [ ] Representative before-and-after visual evidence is reviewed before a
+      shared typography migration is closed.
+
 ---
 
 ## 9. Page And Module Header Standard

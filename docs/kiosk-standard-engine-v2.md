@@ -918,6 +918,58 @@ KioskWorkspace
 - session-expired;
 - offline/no-network informativo, sin operación offline.
 
+### 20.6 Tipografía y jerarquía visual
+
+Los kioskos siguen el `Indice Product Typography System` definido en la sección
+8.2 de [`Indice Frontend Operating System v2`](./indice-frontend-operating-system-v2.md).
+
+La referencia visual de Caja Chica y las primitives compartidas de Kiosk Engine
+se conservan por su estructura, claridad móvil, espaciado, foco operativo,
+targets táctiles y jerarquía de acciones. El uso histórico de pesos tipográficos
+altos en una implementación existente no constituye una regla de diseño.
+
+Reglas obligatorias:
+
+- peso `400` para texto, descripciones, ayuda, metadata y valores secundarios;
+- peso `500` para título del kiosko, nombre de identidad, títulos de etapa,
+  navegación, labels importantes y acción primaria;
+- peso `600` únicamente para un total, KPI o advertencia realmente crítica;
+- pesos `700`, `800` y `900` prohibidos en la experiencia operativa;
+- sentence case para navegación, botones, títulos y labels;
+- no usar uppercase ni tracking amplio como sustituto de jerarquía;
+- conservar los tamaños, espacios, colores, radios, sombras y targets táctiles
+  aprobados cuando no exista una razón funcional para modificarlos;
+- mantener al menos 14 px en controles públicos y normalmente 16 px en la
+  acción dominante;
+- mantener soporte para modo de texto grande sin introducir una segunda
+  jerarquía tipográfica.
+
+La jerarquía del kiosko se construye en este orden:
+
+1. posición y secuencia del flujo;
+2. tamaño;
+3. espacio y agrupación;
+4. color, borde o fondo del módulo;
+5. peso tipográfico.
+
+Una pantalla debe tener una sola acción dominante y un solo título dominante.
+Cards, filas, tabs, KPIs y estados no deben competir mediante negritas
+simultáneas.
+
+La migración comienza en:
+
+```text
+react/src/app/components/kiosk-engine/KioskPublicShell.tsx
+react/src/app/components/kiosk-engine/KioskIdentityGate.tsx
+react/src/app/components/kiosk-engine/KioskWorkspacePrimitives.tsx
+react/src/app/components/kiosk-engine/KioskAdminPrimitives.tsx
+react/src/app/components/kiosk-engine/KioskModalFrame.tsx
+```
+
+No se autoriza un reemplazo global sin revisión. Antes de cerrar una migración
+compartida deben verificarse todos los consumidores representativos en móvil,
+desktop, light mode, dark mode, texto grande y locales soportados.
+
 ---
 
 ## 21. Relación con Modal Engine

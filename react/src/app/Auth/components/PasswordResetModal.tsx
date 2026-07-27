@@ -34,7 +34,7 @@ export function PasswordResetModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
       <section className="w-full max-w-md overflow-hidden rounded-[28px] border border-slate-200 bg-white text-slate-900 shadow-[0_28px_90px_-44px_rgba(15,23,42,0.55)]">
-        <div className="bg-[#155CFF] px-6 py-5 text-white">
+        <div className="bg-[var(--indice-brand-action)] px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-bold">
@@ -67,7 +67,7 @@ export function PasswordResetModal({
                 onChange={(event) => onEmailChange(event.target.value)}
                 onBlur={onEmailBlur}
                 placeholder={copy.emailPlaceholder}
-                className="h-12 rounded-xl border-slate-200 bg-white pl-10 text-sm shadow-sm focus-visible:ring-[#155CFF]/30"
+                className="h-12 rounded-xl border-slate-200 bg-white pl-10 text-sm shadow-sm focus-visible:border-[var(--indice-brand-aqua)] focus-visible:ring-[var(--indice-brand-aqua)]/25"
                 autoComplete="email"
                 aria-invalid={showResetEmailError}
                 autoFocus
@@ -105,7 +105,7 @@ export function PasswordResetModal({
             <Button
               type="submit"
               disabled={!canSubmitReset}
-              className="h-11 rounded-xl bg-[#155CFF] text-white hover:bg-[#0B45CC]"
+              className="h-11 rounded-xl bg-[var(--indice-brand-action)] text-white hover:bg-[var(--indice-brand-action-hover)]"
             >
               {isResetSubmitting ? copy.resetSubmitting : copy.resetSubmit}
             </Button>

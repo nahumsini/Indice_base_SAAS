@@ -46,7 +46,11 @@ export function useAccessibleModuleCatalog(t: Translator) {
         ));
 
         setAvailableModules(mergeDashboardModules([...mappedModules, ...frontendOwnedModules], defaultModules, {
-          includeMissingFallbacks: false,
+          // Administrators must be able to use the complete frontend catalog
+          // while a legacy/local database is still catching up with module
+          // entitlement migrations. Regular users remain restricted to the
+          // modules explicitly returned by the backend.
+          includeMissingFallbacks: canUseDefaultCatalogFallback(session),
         }));
       } catch {
         if (active) {

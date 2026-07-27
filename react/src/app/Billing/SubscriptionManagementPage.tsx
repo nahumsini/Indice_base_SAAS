@@ -134,7 +134,7 @@ export default function SubscriptionManagementPage() {
                     {formatMoney(subscription.monthly_amount_cents, subscription.currency)} per month, taxes excluded.
                   </p>
                 </div>
-                <CreditCard className="h-9 w-9 text-[#155CFF]" />
+                <CreditCard className="h-9 w-9 text-[var(--indice-structural-blue)]" />
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -168,7 +168,7 @@ export default function SubscriptionManagementPage() {
                 Update payment details, invoices, and subscription settings in Stripe.
               </p>
               <div className="mt-4 grid gap-3">
-                <Button onClick={openPortal} disabled={Boolean(action)} className="justify-between bg-[#155CFF] hover:bg-[#0B45CC]">
+                <Button onClick={openPortal} disabled={Boolean(action)} className="justify-between bg-[var(--indice-structural-blue)] hover:bg-[var(--indice-structural-blue-hover)]">
                   {action === 'portal' ? 'Opening...' : 'Open Stripe portal'}
                   <ExternalLink className="h-4 w-4" />
                 </Button>
@@ -186,7 +186,7 @@ export default function SubscriptionManagementPage() {
                 <p className="text-sm font-bold">Selected paid modules</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedModules.map((label) => (
-                    <span key={label} className="rounded-full bg-[#155CFF]/10 px-3 py-1 text-xs font-bold text-[#155CFF]">
+                    <span key={label} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[var(--indice-structural-blue)]">
                       {label}
                     </span>
                   ))}
@@ -254,13 +254,13 @@ function Signal({ icon: Icon, label, tone }: { icon: LucideIcon; label: string; 
 
 function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-    <Icon className="h-4 w-4 text-[#155CFF]" />
+    <Icon className="h-4 w-4 text-[var(--indice-structural-blue)]" />
     <p className="mt-3 text-xs font-semibold uppercase text-slate-500">{label}</p>
     <p className="mt-1 text-sm font-bold">{value}</p>
   </div>;
 }
 
 function Alert({ tone, message }: { tone: 'error' | 'info'; message: string }) {
-  const classes = tone === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-[#155CFF]/20 bg-[#155CFF]/5 text-[#0B45CC]';
+  const classes = tone === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-blue-200 bg-blue-50 text-[var(--indice-structural-blue-hover)]';
   return <div className={`my-4 rounded-lg border px-4 py-3 text-sm ${classes}`}>{message}</div>;
 }

@@ -402,7 +402,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs font-semibold text-[#2563EB] dark:text-blue-300">
+                    <span className="text-xs font-semibold text-[var(--indice-brand-action)] dark:text-emerald-300">
                       {currentUserInitials}
                     </span>
                   )}
@@ -413,7 +413,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 className="w-64 overflow-hidden rounded-2xl border border-[#59C3A5]/35 bg-white p-0 shadow-[0_24px_60px_rgba(34,40,49,0.18)] dark:border-[#59C3A5]/30 dark:bg-[#222831]"
               >
                 {/* Profile header */}
-                <div className="border-b border-[#3AAE90] bg-[#59C3A5] p-4">
+                <div className="border-b border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] p-4">
                   <div className="flex items-center gap-3">
                     {currentUserAvatarUrl ? (
                       <img
@@ -423,15 +423,15 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                         className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white bg-white/20 text-sm font-semibold text-white shadow-sm">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white bg-white/70 text-sm font-semibold text-[var(--indice-brand-action)] shadow-sm">
                         {currentUserInitials}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base text-white truncate">
+                      <h3 className="truncate text-base font-semibold text-[#222831]">
                         {currentUserName}
                       </h3>
-                      <p className="text-xs text-white/80 truncate">
+                      <p className="truncate text-xs text-slate-600">
                         {currentUserEmail}
                       </p>
                     </div>

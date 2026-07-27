@@ -12,6 +12,7 @@ const KPIs = lazy(() => import('./KPIs'));
 const OrgChart = lazy(() => import('./OrgChart'));
 
 interface ProcessesTasksProps {
+  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -32,7 +33,10 @@ const legacyProcessTaskTabAliases: Partial<Record<string, ProcessTaskTabId>> = {
   organigrama: 'org-chart',
 };
 
-export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
+export default function ProcessesTasks({
+  learningModeActive = false,
+  onNavigate,
+}: ProcessesTasksProps) {
   const t = useProcessesTasksTranslations();
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<ProcessTaskTabId>(
     'calendar',
@@ -120,7 +124,11 @@ export default function ProcessesTasks({ onNavigate }: ProcessesTasksProps) {
             />
           )}
         >
-          <ActiveComponent />
+          {activeTab === 'calendar' ? (
+            <Agenda learningModeActive={learningModeActive} />
+          ) : (
+            <ActiveComponent />
+          )}
         </Suspense>
       </div>
     </div>
