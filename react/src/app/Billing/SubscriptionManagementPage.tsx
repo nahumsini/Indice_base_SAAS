@@ -7,6 +7,8 @@ import {
   CreditCard,
   ExternalLink,
   Layers3,
+  Minus,
+  Plus,
   RotateCcw,
   ShieldCheck,
   Users,
@@ -17,15 +19,26 @@ import { billingApi, type BillingSubscriptionResponse } from '../api/billing';
 import { Button } from '../components/ui/button';
 import { formatDate, formatMoney, planLabel, selectedModuleLabels } from './subscriptionFormat';
 
+const newBillingMutationKey = () => (
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? `billing-seats-${crypto.randomUUID()}`
+    : `billing-seats-${Date.now()}-${Math.random().toString(16).slice(2)}`
+);
+
 export default function SubscriptionManagementPage() {
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<BillingSubscriptionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState('');
   const [error, setError] = useState('');
+  const [extraSeatDraft, setExtraSeatDraft] = useState(0);
 
   const selectedModules = useMemo(() => selectedModuleLabels(subscription), [subscription]);
-  const monthlyTotal = subscription ? formatMoney(subscription.monthly_amount_cents, subscription.currency) : '$0';
+  const recurringTotal = subscription ? formatMoney(recurringAmount(subscription), subscription.currency) : '$0';
+  const seatEditor = useMemo(
+    () => (subscription ? seatEditorSummary(subscription, extraSeatDraft) : null),
+    [extraSeatDraft, subscription],
+  );
 
   const loadSubscription = async () => {
     setLoading(true);
@@ -42,6 +55,12 @@ export default function SubscriptionManagementPage() {
   useEffect(() => {
     void loadSubscription();
   }, []);
+
+  useEffect(() => {
+    if (subscription) {
+      setExtraSeatDraft(Math.max(0, subscription.extra_collaborators || 0));
+    }
+  }, [subscription?.extra_collaborators]);
 
   const runAction = async (name: string, callback: () => Promise<BillingSubscriptionResponse | void>) => {
     setAction(name);
@@ -62,6 +81,20 @@ export default function SubscriptionManagementPage() {
     const response = await billingApi.openPortal();
     window.location.assign(response.url);
   });
+
+  const updateExtraSeats = () => runAction('seats', async () => {
+    if (!subscription || !seatEditor?.canSave) {
+      return undefined;
+    }
+    await billingApi.updateExtraSeats(seatEditor.targetExtraSeats, newBillingMutationKey());
+    return billingApi.subscription();
+  });
+
+  const setExtraSeats = (value: number) => {
+    const minimum = seatEditor?.minimumExtraSeats ?? 0;
+    const normalized = Number.isFinite(value) ? Math.trunc(value) : minimum;
+    setExtraSeatDraft(Math.min(100_000, Math.max(minimum, normalized)));
+  };
 
   const goBack = () => {
     if (window.history.length > 1) {
@@ -109,8 +142,8 @@ export default function SubscriptionManagementPage() {
               </div>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white shadow-sm dark:border-slate-700">
-              <p className="text-xs font-semibold uppercase text-slate-300">Monthly estimate</p>
-              <p className="mt-3 text-3xl font-bold">{monthlyTotal}</p>
+              <p className="text-xs font-semibold uppercase text-slate-300">{billingIntervalTitle(subscription)}</p>
+              <p className="mt-3 text-3xl font-bold">{recurringTotal}</p>
               <p className="mt-2 text-sm text-slate-300">Taxes excluded. Stripe handles secure billing.</p>
               <div className="mt-5 flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm">
                 <CheckCircle2 className="h-4 w-4 text-emerald-300" />
@@ -131,7 +164,7 @@ export default function SubscriptionManagementPage() {
                   <p className="text-xs font-semibold uppercase text-slate-500">Current plan</p>
                   <h2 className="mt-2 text-xl font-bold">{planLabel(subscription.plan_id)}</h2>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
-                    {formatMoney(subscription.monthly_amount_cents, subscription.currency)} per month, taxes excluded.
+                    {formatMoney(recurringAmount(subscription), subscription.currency)} {billingPeriodText(subscription)}, taxes excluded.
                   </p>
                 </div>
                 <CreditCard className="h-9 w-9 text-[var(--indice-structural-blue)]" />
@@ -160,6 +193,116 @@ export default function SubscriptionManagementPage() {
                     : ' Seat limits are not enforced for this legacy subscription.'}
                 </p>
               </div>
+
+              {seatEditor ? (
+                <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-500">Paid extra users</p>
+                      <h3 className="mt-1 text-lg font-bold">Add capacity before inviting more people</h3>
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-300">
+                        Your limit updates after Stripe accepts the subscription change. Current active users and pending invitations are protected.
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                      {seatEditor.usedSeats}/{seatEditor.projectedLimit} used
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[14rem_1fr]">
+                    <div className="grid grid-cols-[3rem_1fr_3rem] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                      <button
+                        type="button"
+                        onClick={() => setExtraSeats(seatEditor.targetExtraSeats - 1)}
+                        disabled={Boolean(action) || seatEditor.targetExtraSeats <= seatEditor.minimumExtraSeats}
+                        className="flex h-12 items-center justify-center text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-slate-800 dark:hover:text-white"
+                        aria-label="Remove one paid extra user"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <input
+                        type="number"
+                        min={seatEditor.minimumExtraSeats}
+                        max={100000}
+                        value={seatEditor.targetExtraSeats}
+                        onChange={(event) => setExtraSeats(Number(event.target.value))}
+                        disabled={Boolean(action)}
+                        className="h-12 border-x border-slate-200 bg-transparent text-center text-lg font-bold outline-none dark:border-slate-700"
+                        aria-label="Paid extra users"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setExtraSeats(seatEditor.targetExtraSeats + 1)}
+                        disabled={Boolean(action)}
+                        className="flex h-12 items-center justify-center text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-slate-800 dark:hover:text-white"
+                        aria-label="Add one paid extra user"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <MiniMetric label="Included" value={`${seatEditor.includedSeats}`} />
+                      <MiniMetric label="Paid extra" value={`${seatEditor.targetExtraSeats}`} />
+                      <MiniMetric label="Available after change" value={`${seatEditor.projectedAvailable}`} />
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
+                    <div className="grid gap-3 text-sm sm:grid-cols-3">
+                      <div>
+                        <p className="font-semibold text-slate-500">Extra user price</p>
+                        <p className="mt-1 font-bold text-slate-900 dark:text-white">
+                          {formatMoney(seatEditor.extraSeatUnitAmountCents, subscription.currency)} {billingPeriodText(subscription)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-500">Change</p>
+                        <p className={`mt-1 font-bold ${seatEditor.deltaExtraSeats >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                          {seatEditor.deltaExtraSeats > 0 ? '+' : ''}{seatEditor.deltaExtraSeats} paid users
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-500">Projected total</p>
+                        <p className="mt-1 font-bold text-slate-900 dark:text-white">
+                          {formatMoney(seatEditor.projectedRecurringAmountCents, subscription.currency)} {billingPeriodText(subscription)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      {seatEditor.deltaExtraSeats > 0
+                        ? 'Stripe will update the subscription and invoice the prorated change using the payment method on file.'
+                        : seatEditor.deltaExtraSeats < 0
+                          ? 'Stripe will reduce the paid seat quantity. Any credit is handled by your Stripe billing settings.'
+                          : 'Choose a new paid-user quantity to preview the billing impact.'}
+                    </p>
+                  </div>
+
+                  {seatEditor.targetExtraSeats === seatEditor.minimumExtraSeats && seatEditor.minimumExtraSeats > 0 ? (
+                    <p className="mt-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                      You cannot go below {seatEditor.minimumExtraSeats} paid extra users because {seatEditor.usedSeats} users or invitations are already consuming seats.
+                    </p>
+                  ) : null}
+
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                    <Button
+                      onClick={() => void updateExtraSeats()}
+                      disabled={!seatEditor.canSave || Boolean(action)}
+                      className="bg-[#155CFF] hover:bg-[#0B45CC]"
+                    >
+                      {action === 'seats' ? 'Updating paid users...' : 'Confirm paid users'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setExtraSeats(subscription.extra_collaborators || 0)}
+                      disabled={!seatEditor.hasChanges || Boolean(action)}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </section>
 
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -258,6 +401,76 @@ function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
     <p className="mt-3 text-xs font-semibold uppercase text-slate-500">{label}</p>
     <p className="mt-1 text-sm font-bold">{value}</p>
   </div>;
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+      <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">{value}</p>
+    </div>
+  );
+}
+
+function recurringAmount(subscription: BillingSubscriptionResponse) {
+  return subscription.recurring_amount_cents ?? subscription.monthly_amount_cents ?? 0;
+}
+
+function normalizedBillingInterval(subscription: BillingSubscriptionResponse | null) {
+  return subscription?.billing_interval?.toUpperCase() === 'YEAR' ? 'YEAR' : 'MONTH';
+}
+
+function billingPeriodText(subscription: BillingSubscriptionResponse | null) {
+  return normalizedBillingInterval(subscription) === 'YEAR' ? 'per year' : 'per month';
+}
+
+function billingIntervalTitle(subscription: BillingSubscriptionResponse | null) {
+  return normalizedBillingInterval(subscription) === 'YEAR' ? 'Annual estimate' : 'Monthly estimate';
+}
+
+function seatEditorSummary(subscription: BillingSubscriptionResponse, extraSeatDraft: number) {
+  const includedSeats = Math.max(0, subscription.included_collaborators || 0);
+  const currentExtraSeats = Math.max(0, subscription.extra_collaborators || 0);
+  const allowedSeats = Math.max(0, subscription.allowed_collaborators || includedSeats + currentExtraSeats);
+  const benefitSeats = Math.max(0, allowedSeats - includedSeats - currentExtraSeats);
+  const usedSeats = Math.max(
+    0,
+    subscription.used_collaborators || 0,
+    (subscription.active_seats || 0) + (subscription.pending_invitations || 0),
+    subscription.used_seats || 0,
+  );
+  const minimumExtraSeats = Math.max(0, usedSeats - includedSeats - benefitSeats);
+  const targetExtraSeats = Math.max(minimumExtraSeats, Math.max(0, Math.trunc(extraSeatDraft || 0)));
+  const deltaExtraSeats = targetExtraSeats - currentExtraSeats;
+  const extraSeatUnitAmountCents = Math.max(0, subscription.extra_seat_unit_amount_cents || 0);
+  const projectedLimit = includedSeats + benefitSeats + targetExtraSeats;
+  const projectedAvailable = Math.max(0, projectedLimit - usedSeats);
+  const projectedRecurringAmountCents = Math.max(
+    0,
+    recurringAmount(subscription) + deltaExtraSeats * extraSeatUnitAmountCents,
+  );
+  const hasChanges = targetExtraSeats !== currentExtraSeats;
+  const canSave = hasChanges
+    && subscription.seat_limit_enforced
+    && !subscription.cancel_at_period_end
+    && targetExtraSeats >= minimumExtraSeats
+    && extraSeatUnitAmountCents > 0;
+
+  return {
+    includedSeats,
+    currentExtraSeats,
+    benefitSeats,
+    usedSeats,
+    minimumExtraSeats,
+    targetExtraSeats,
+    deltaExtraSeats,
+    extraSeatUnitAmountCents,
+    projectedLimit,
+    projectedAvailable,
+    projectedRecurringAmountCents,
+    hasChanges,
+    canSave,
+  };
 }
 
 function Alert({ tone, message }: { tone: 'error' | 'info'; message: string }) {

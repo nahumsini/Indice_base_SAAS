@@ -85,7 +85,7 @@ class BillingSubscriptionManagementServiceTest {
     private BillingSubscriptionRecord record(boolean cancelAtPeriodEnd) {
         var now = Instant.parse("2026-07-08T12:00:00Z");
         return new BillingSubscriptionRecord(7L, "cus_test", "sub_test", "trialing", "all-modules", 7,
-            5, 0, 19_900, "usd", now, now.plusSeconds(30 * 86_400L), now, now.plusSeconds(30 * 86_400L),
+            5, 0, 19_900, 1_200, "MONTH", "usd", now, now.plusSeconds(30 * 86_400L), now, now.plusSeconds(30 * 86_400L),
             cancelAtPeriodEnd, null, null, null, null, "", "", "stripe", null, "", true, now);
     }
 }

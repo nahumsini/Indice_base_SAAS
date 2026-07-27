@@ -36,6 +36,18 @@ class BillingSubscriptionRepository {
                     ) AS module_count,
                     subscription.included_seats,
                     subscription.extra_seats,
+                    COALESCE(subscription.billing_interval, 'MONTH') AS billing_interval,
+                    COALESCE((
+                        SELECT price.unit_amount_cents
+                        FROM billing_catalog_prices price
+                        WHERE price.catalog_version_id = subscription.catalog_version_id
+                          AND price.billable_code = 'extra_seat'
+                          AND price.billing_interval = subscription.billing_interval
+                          AND price.currency = subscription.currency
+                          AND price.price_type = 'ADDON'
+                        ORDER BY price.effective_from DESC, price.id DESC
+                        LIMIT 1
+                    ), 0) AS extra_seat_unit_amount_cents,
                     (
                         COALESCE((
                             SELECT price.unit_amount_cents
@@ -101,6 +113,8 @@ class BillingSubscriptionRepository {
                 rs.getInt("included_seats"),
                 rs.getInt("extra_seats"),
                 rs.getInt("monthly_amount_cents"),
+                rs.getInt("extra_seat_unit_amount_cents"),
+                text(rs.getString("billing_interval")),
                 text(rs.getString("currency")),
                 instant(rs.getTimestamp("trial_starts_at")),
                 instant(rs.getTimestamp("trial_ends_at")),
