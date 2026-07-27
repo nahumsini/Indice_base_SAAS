@@ -1,5 +1,5 @@
-import { Check, Pencil, Plus } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { Camera, Check, File, Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
 import {
   getBudgetTaxProfile,
@@ -25,10 +25,12 @@ import {
   financeModalPrimaryButtonClass,
   financeModalSecondaryButtonClass,
 } from './FinanceModalPrimitives';
+import { QuickProviderField } from './QuickProviderField';
 
 export type ExpenseFormValues = {
   accountingAccount: string;
   amount: number;
+  attachmentFiles: File[];
   attachments?: string[];
   business: string;
   businessUnit: string;
@@ -58,6 +60,7 @@ type ExpenseFormModalProps = {
   editingExpense: Expense | null;
   initialExpense?: Expense | null;
   onClose: () => void;
+  onCreateProvider?: (name: string) => Promise<Provider>;
   preferredCurrency?: string;
   providers?: Provider[];
   unitOptions?: FinanceReferenceOption[];
@@ -83,12 +86,17 @@ export function ExpenseFormModal({
   editingExpense,
   initialExpense = null,
   onClose,
+  onCreateProvider,
   preferredCurrency = DEFAULT_FINANCE_CURRENCY,
   providers = [],
   unitOptions = [],
   onSubmitExpense,
 }: ExpenseFormModalProps) {
   const t = useExpensesTranslations();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
@@ -97,11 +105,17 @@ export function ExpenseFormModal({
   const taxes = draft.taxEnabled ? toMoneyNumber(draft.taxes) : 0;
   const subtotal = draft.taxEnabled && draft.taxIncluded ? Math.max(amount - taxes, 0) : amount;
   const total = draft.taxEnabled && draft.taxIncluded ? amount : amount + taxes;
-  const canSubmit = draft.concept.trim().length > 0 && amount > 0 && draft.budgetCurrencyCode.trim().length > 0 && !isSaving;
+  const existingAttachmentCount = Math.max(
+    editingExpense?.attachmentCount ?? 0,
+    editingExpense?.attachments?.length ?? 0,
+  );
+  const canAttachMoreFiles = existingAttachmentCount + attachmentFiles.length < MAX_EXPENSE_ATTACHMENTS;
+  const canSubmit = draft.concept.trim().length > 0
+    && amount > 0
+    && draft.budgetCurrencyCode.trim().length > 0
+    && !attachmentError
+    && !isSaving;
   const scopedBusinessOptions = filterBusinessesForUnit(businessOptions, draft.businessUnit);
-  const providerOptions = providers
-    .filter(provider => provider.status !== 'inactive')
-    .map(provider => ({ value: provider.id, label: provider.name }));
   const accountingOptions = accountingAccountOptions.length > 0
     ? accountingAccountOptions
     : createFallbackAccountingOptions(editingExpense?.accountingAccount);
@@ -127,6 +141,45 @@ export function ExpenseFormModal({
     updateDraft({ businessUnit, business: keepBusiness ? draft.business : '' });
   };
 
+  const addAttachments = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const uniqueFiles = Array.from(files).filter(file => (
+      !attachmentFiles.some(current => (
+        current.name === file.name
+        && current.size === file.size
+        && current.lastModified === file.lastModified
+      ))
+    ));
+    const oversizedFile = uniqueFiles.find(file => file.size > MAX_EXPENSE_ATTACHMENT_BYTES);
+    if (oversizedFile) {
+      setAttachmentError(`El archivo "${oversizedFile.name}" supera el límite de 10 MB.`);
+      return;
+    }
+
+    const availableSlots = Math.max(
+      MAX_EXPENSE_ATTACHMENTS - existingAttachmentCount - attachmentFiles.length,
+      0,
+    );
+    if (uniqueFiles.length > availableSlots) {
+      setAttachmentError(`Puedes guardar hasta ${MAX_EXPENSE_ATTACHMENTS} evidencias por gasto.`);
+      return;
+    }
+
+    setAttachmentError('');
+    setAttachmentFiles(current => [...current, ...uniqueFiles]);
+  };
+
+  const handleAttachmentSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    addAttachments(event.target.files);
+    event.target.value = '';
+  };
+
+  const removeAttachment = (fileToRemove: File) => {
+    setAttachmentError('');
+    setAttachmentFiles(current => current.filter(file => file !== fileToRemove));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
@@ -138,6 +191,7 @@ export function ExpenseFormModal({
       await onSubmitExpense({
         accountingAccount: draft.accountingAccount,
         amount: subtotal,
+        attachmentFiles,
         attachments: editingExpense?.attachments ?? [],
         business: draft.business,
         businessUnit: draft.businessUnit,
@@ -208,10 +262,17 @@ export function ExpenseFormModal({
           </div>
         </FinanceModalSection>
 
-        <FinanceModalSection title={t.filters.title} description={t.expenses.headerSubtitle}>
+        <FinanceModalSection title="Contexto del gasto" description="Asigna dónde se registra y quién provee el producto o servicio.">
           <SelectInput label={t.filters.unit} value={draft.businessUnit} onChange={updateBusinessUnit} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
           <SelectInput label={t.filters.business} value={draft.business} onChange={(business) => updateDraft({ business })} options={[{ value: '', label: t.common.unassigned }, ...scopedBusinessOptions]} />
-          <SelectInput label={t.filters.provider} value={draft.providerId} onChange={(providerId) => updateDraft({ providerId })} options={[{ value: '', label: t.common.unassigned }, ...providerOptions]} />
+          <QuickProviderField
+            emptyLabel={t.common.unassigned}
+            label={t.filters.provider}
+            onChange={(providerId) => updateDraft({ providerId })}
+            onCreateProvider={onCreateProvider}
+            providers={providers}
+            value={draft.providerId}
+          />
           <SelectInput label={t.expenses.columns.accountingAccount?.label ?? 'Cuenta contable'} value={draft.accountingAccount} onChange={(accountingAccount) => updateDraft({ accountingAccount })} options={[{ value: '', label: t.common.unassigned }, ...accountingOptions]} />
         </FinanceModalSection>
 
@@ -229,6 +290,92 @@ export function ExpenseFormModal({
             ]}
             variant="success"
           />
+        </FinanceModalSection>
+
+        <FinanceModalSection
+          title="Evidencia"
+          description={`Toma una foto o adjunta archivos de soporte. Máximo ${MAX_EXPENSE_ATTACHMENTS} archivos de 10 MB.`}
+        >
+          <div className="md:col-span-2">
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              disabled={!canAttachMoreFiles}
+              onChange={handleAttachmentSelection}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ACCEPTED_EXPENSE_ATTACHMENTS}
+              className="hidden"
+              disabled={!canAttachMoreFiles}
+              onChange={handleAttachmentSelection}
+            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={!canAttachMoreFiles}
+                onClick={() => cameraInputRef.current?.click()}
+                className={attachmentActionClass}
+              >
+                <Camera className="h-5 w-5" />
+                <span>
+                  <strong className="block text-sm">Tomar foto</strong>
+                  <span className="mt-0.5 block text-xs font-medium text-slate-500">Usa la cámara del dispositivo</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={!canAttachMoreFiles}
+                onClick={() => fileInputRef.current?.click()}
+                className={attachmentActionClass}
+              >
+                <Upload className="h-5 w-5" />
+                <span>
+                  <strong className="block text-sm">Elegir archivo</strong>
+                  <span className="mt-0.5 block text-xs font-medium text-slate-500">Imagen, PDF, Office, CSV o texto</span>
+                </span>
+              </button>
+            </div>
+
+            {existingAttachmentCount > 0 ? (
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                {existingAttachmentCount} {existingAttachmentCount === 1 ? 'archivo guardado' : 'archivos guardados'} en este gasto.
+              </p>
+            ) : null}
+
+            {attachmentFiles.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {attachmentFiles.map(file => (
+                  <div
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#147514] dark:bg-emerald-950/40">
+                      <File className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{file.name}</p>
+                      <p className="text-xs font-medium text-slate-500">{formatFileSize(file.size)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(file)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100"
+                      aria-label={`Quitar ${file.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {attachmentError ? <p className="mt-3 text-sm font-semibold text-red-600">{attachmentError}</p> : null}
+          </div>
         </FinanceModalSection>
       </form>
     </IndiceModalFrame>
@@ -378,4 +525,15 @@ function formatDateInputValue(value?: Date) {
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+const MAX_EXPENSE_ATTACHMENTS = 5;
+const MAX_EXPENSE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const ACCEPTED_EXPENSE_ATTACHMENTS = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt';
+const attachmentActionClass = 'flex min-h-20 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-slate-900 transition hover:border-[#147514]/35 hover:bg-[#147514]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white';
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
