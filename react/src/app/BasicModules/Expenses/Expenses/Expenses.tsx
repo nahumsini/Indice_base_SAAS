@@ -8,7 +8,16 @@ import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyConte
 import { isBackendId } from '../adapters/adapter.utils';
 import { providerRecordsToExpenseProviders, toExpenseProvider } from '../adapters/provider.adapter';
 import { mockExpenses, mockProviders } from '../data/expenses.mock';
-import { accountingAccountsService, expenseAttachmentsService, expensesService, paymentAccountsService, providersService, toFinanceApiErrorMessage } from '../services';
+import {
+  accountingAccountsService,
+  budgetLineAttachmentsService,
+  expenseAttachmentsService,
+  expensesService,
+  paymentAccountsService,
+  providersService,
+  toFinanceApiErrorMessage,
+  type AttachmentService,
+} from '../services';
 import { budgetLinesService } from '../services/budget-lines.service';
 import type { Expense, ExpenseStatus, Provider } from '../types/expenses.types';
 import type { ExpenseListFilters } from '../types/expenseView.types';
@@ -55,6 +64,25 @@ const toFallbackOptions = (values: string[]): FinanceReferenceOption[] =>
 
 const AUTO_EXPENSE_FOLIO = 'AUTO-EXP';
 const AUTO_PAYABLE_FOLIO = 'AUTO-CXP';
+
+type ExpenseAttachmentOwner = {
+  id: string;
+  kind: 'budget-line' | 'expense';
+  service: AttachmentService;
+};
+
+const resolveExpenseAttachmentOwner = (expenseId: string): ExpenseAttachmentOwner | null => {
+  if (/^\d+$/.test(expenseId)) {
+    return { id: expenseId, kind: 'expense', service: expenseAttachmentsService };
+  }
+
+  const budgetLineMatch = /^budget-line-(\d+)$/.exec(expenseId);
+  if (budgetLineMatch) {
+    return { id: budgetLineMatch[1], kind: 'budget-line', service: budgetLineAttachmentsService };
+  }
+
+  return null;
+};
 
 export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useExpensesTranslations();
@@ -400,6 +428,43 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
           paymentDate ?? now,
         );
       }
+
+      const attachmentOwner = resolveExpenseAttachmentOwner(savedExpense.id);
+      const attachmentResults = attachmentOwner
+        ? await Promise.allSettled(
+          values.attachmentFiles.map(file => attachmentOwner.service.upload(attachmentOwner.id, file)),
+        )
+        : [];
+      const uploadedAttachments = attachmentResults.flatMap(result => (
+        result.status === 'fulfilled' ? [result.value] : []
+      ));
+      const attachmentUploadFailed = values.attachmentFiles.length > 0 && (
+        !attachmentOwner || attachmentResults.some(result => result.status === 'rejected')
+      );
+      let attachmentRefreshFailed = false;
+
+      if (attachmentOwner && values.attachmentFiles.length > 0) {
+        try {
+          savedExpense = attachmentOwner.kind === 'budget-line'
+            ? await budgetLinesService.getBudgetExpense(savedExpense.id)
+            : await expensesService.getExpenseById(savedExpense.id, providers) ?? savedExpense;
+        } catch {
+          attachmentRefreshFailed = true;
+          const existingAttachmentNames = savedExpense.attachments ?? [];
+          savedExpense = {
+            ...savedExpense,
+            attachments: [
+              ...existingAttachmentNames,
+              ...uploadedAttachments.map(attachment => attachment.originalFilename),
+            ],
+            attachmentCount: Math.max(
+              savedExpense.attachmentCount ?? 0,
+              existingAttachmentNames.length,
+            ) + uploadedAttachments.length,
+          };
+        }
+      }
+
       const updatedBudgetExpense = await getUpdatedBudgetExpense(savedExpense.budgetLineId);
 
       setExpenses(currentExpenses => (
@@ -407,8 +472,14 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
           ? replaceBudgetExpense(currentExpenses.map(item => (item.id === editingExpense.id ? savedExpense : item)), updatedBudgetExpense)
           : [savedExpense, ...replaceBudgetExpense(currentExpenses, updatedBudgetExpense)]
       ));
-      setSuccessToastMessage(editingExpense ? t.expenses.messages.saved : t.expenses.messages.created);
       closeExpenseModal();
+      if (attachmentUploadFailed || attachmentRefreshFailed) {
+        setFailureToastMessage(
+          `${editingExpense ? t.expenses.messages.saved : t.expenses.messages.created} ${t.expenses.attachments.operationFailed}`,
+        );
+      } else {
+        setSuccessToastMessage(editingExpense ? t.expenses.messages.saved : t.expenses.messages.created);
+      }
     } catch (error) {
       setFailureToastMessage(toFinanceApiErrorMessage(error, editingExpense ? t.expenses.messages.updateFailed : t.expenses.messages.createFailed));
       throw error;
@@ -788,6 +859,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
           editingExpense={editingExpense}
           initialExpense={initialExpense}
           onClose={closeExpenseModal}
+          onCreateProvider={onProvidersChange ? handleQuickProviderCreate : undefined}
           preferredCurrency={preferredCurrency}
           providers={providers}
           unitOptions={unitOptions}

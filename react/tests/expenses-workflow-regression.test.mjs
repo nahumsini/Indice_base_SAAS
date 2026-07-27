@@ -38,3 +38,22 @@ test('the expense creation request settles paid operational expenses atomically'
 
   assert.match(source, /settleOnCreate:\s*expense\.type === 'real' && expense\.status === 'paid'/);
 });
+
+test('the full expense form supports quick providers and persisted evidence', async () => {
+  const [formSource, pageSource] = await Promise.all([
+    readFile(
+      new URL('../src/app/BasicModules/Expenses/components/modals/ExpenseFormModal.tsx', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../src/app/BasicModules/Expenses/Expenses/Expenses.tsx', import.meta.url),
+      'utf8',
+    ),
+  ]);
+
+  assert.match(formSource, /<QuickProviderField/);
+  assert.match(formSource, /capture="environment"/);
+  assert.match(formSource, /attachmentFiles/);
+  assert.match(pageSource, /values\.attachmentFiles\.map\(file => attachmentOwner\.service\.upload/);
+  assert.match(pageSource, /onCreateProvider=\{onProvidersChange \? handleQuickProviderCreate : undefined\}/);
+});
