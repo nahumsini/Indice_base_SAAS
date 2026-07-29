@@ -706,12 +706,11 @@ type ModulePlanCopy = {
   oneDescription: (includedSeats: number) => string;
   twoTitle: string;
   twoDescription: (includedSeats: number) => string;
-  additionalTitle: string;
-  additionalDescription: (basePrice: string, additionalPrice: string, includedSeats: number) => string;
+  threeTitle: string;
+  threeDescription: (includedSeats: number) => string;
   allTitle: string;
   allDescription: (includedSeats: number) => string;
   launchOffer: string;
-  additionalSuffix: string;
   moduleSelectionTitle: string;
   moduleInstruction: (targetCount: number, allSelected: boolean) => string;
 };
@@ -725,14 +724,11 @@ const enModulePlanCopy: ModulePlanCopy = {
   oneDescription: (includedSeats) => `Start with one selected module after checkout. Includes ${includedSeats} users.`,
   twoTitle: 'Two modules',
   twoDescription: (includedSeats) => `Two selected modules with the same trial rules. Includes ${includedSeats} users.`,
-  additionalTitle: 'Additional modules',
-  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
-    `${basePrice} plus ${additionalPrice} for the third module. Includes ${includedSeats} users.`
-  ),
+  threeTitle: 'Three modules',
+  threeDescription: (includedSeats) => `Three selected modules with the same trial rules. Includes ${includedSeats} users.`,
   allTitle: 'All Basic modules',
   allDescription: (includedSeats) => `Launch offer package with the full Basic module suite and ${includedSeats} users.`,
   launchOffer: 'Launch offer',
-  additionalSuffix: 'additional',
   moduleSelectionTitle: 'Module selection',
   moduleInstruction: (targetCount, allSelected) => {
     if (allSelected) return 'All paid modules are included. Config Center is included automatically.';
@@ -750,14 +746,11 @@ const esModulePlanCopy: ModulePlanCopy = {
   oneDescription: (includedSeats) => `Comienza con un módulo seleccionado después del pago. Incluye ${includedSeats} usuarios.`,
   twoTitle: 'Dos módulos',
   twoDescription: (includedSeats) => `Dos módulos seleccionados con las mismas reglas de prueba. Incluye ${includedSeats} usuarios.`,
-  additionalTitle: 'Módulos adicionales',
-  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
-    `${basePrice} más ${additionalPrice} por el tercer módulo. Incluye ${includedSeats} usuarios.`
-  ),
+  threeTitle: 'Tres módulos',
+  threeDescription: (includedSeats) => `Tres módulos seleccionados con las mismas reglas de prueba. Incluye ${includedSeats} usuarios.`,
   allTitle: 'Todos los módulos Basic',
   allDescription: (includedSeats) => `Paquete de lanzamiento con toda la suite Basic y ${includedSeats} usuarios.`,
   launchOffer: 'Oferta de lanzamiento',
-  additionalSuffix: 'adicional',
   moduleSelectionTitle: 'Selección de módulos',
   moduleInstruction: (targetCount, allSelected) => {
     if (allSelected) return 'Todos los módulos pagados están incluidos. Config Center se incluye automáticamente.';
@@ -775,14 +768,11 @@ const frModulePlanCopy: ModulePlanCopy = {
   oneDescription: (includedSeats) => `Commencez avec un module sélectionné après le paiement. Inclut ${includedSeats} utilisateurs.`,
   twoTitle: 'Deux modules',
   twoDescription: (includedSeats) => `Deux modules sélectionnés avec les mêmes règles d'essai. Inclut ${includedSeats} utilisateurs.`,
-  additionalTitle: 'Modules additionnels',
-  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
-    `${basePrice} plus ${additionalPrice} pour le troisième module. Inclut ${includedSeats} utilisateurs.`
-  ),
+  threeTitle: 'Trois modules',
+  threeDescription: (includedSeats) => `Trois modules sélectionnés avec les mêmes règles d'essai. Inclut ${includedSeats} utilisateurs.`,
   allTitle: 'Tous les modules Basic',
   allDescription: (includedSeats) => `Offre de lancement avec toute la suite Basic et ${includedSeats} utilisateurs.`,
   launchOffer: 'Offre de lancement',
-  additionalSuffix: 'additionnel',
   moduleSelectionTitle: 'Sélection des modules',
   moduleInstruction: (targetCount, allSelected) => {
     if (allSelected) return 'Tous les modules payants sont inclus. Config Center est inclus automatiquement.';
@@ -800,14 +790,11 @@ const ptModulePlanCopy: ModulePlanCopy = {
   oneDescription: (includedSeats) => `Comece com um módulo selecionado após o pagamento. Inclui ${includedSeats} usuários.`,
   twoTitle: 'Dois módulos',
   twoDescription: (includedSeats) => `Dois módulos selecionados com as mesmas regras de teste. Inclui ${includedSeats} usuários.`,
-  additionalTitle: 'Módulos adicionais',
-  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
-    `${basePrice} mais ${additionalPrice} pelo terceiro módulo. Inclui ${includedSeats} usuários.`
-  ),
+  threeTitle: 'Três módulos',
+  threeDescription: (includedSeats) => `Três módulos selecionados com as mesmas regras de teste. Inclui ${includedSeats} usuários.`,
   allTitle: 'Todos os módulos Basic',
   allDescription: (includedSeats) => `Oferta de lançamento com toda a suíte Basic e ${includedSeats} usuários.`,
   launchOffer: 'Oferta de lançamento',
-  additionalSuffix: 'adicional',
   moduleSelectionTitle: 'Seleção de módulos',
   moduleInstruction: (targetCount, allSelected) => {
     if (allSelected) return 'Todos os módulos pagos estão incluídos. Config Center é incluído automaticamente.';
@@ -825,14 +812,11 @@ const koModulePlanCopy: ModulePlanCopy = {
   oneDescription: (includedSeats) => `결제 후 선택한 모듈 1개로 시작합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
   twoTitle: '모듈 2개',
   twoDescription: (includedSeats) => `같은 체험 규칙으로 모듈 2개를 선택합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
-  additionalTitle: '추가 모듈',
-  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
-    `${basePrice}에 세 번째 모듈 ${additionalPrice}가 추가됩니다. 사용자 ${includedSeats}명이 포함됩니다.`
-  ),
+  threeTitle: '모듈 3개',
+  threeDescription: (includedSeats) => `같은 체험 규칙으로 모듈 3개를 선택합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
   allTitle: '모든 Basic 모듈',
   allDescription: (includedSeats) => `전체 Basic 모듈 제품군과 사용자 ${includedSeats}명이 포함된 출시 혜택입니다.`,
   launchOffer: '출시 혜택',
-  additionalSuffix: '추가',
   moduleSelectionTitle: '모듈 선택',
   moduleInstruction: (targetCount, allSelected) => {
     if (allSelected) return '모든 유료 모듈이 포함됩니다. Config Center는 자동으로 포함됩니다.';
@@ -850,14 +834,11 @@ const zhModulePlanCopy: ModulePlanCopy = {
   oneDescription: (includedSeats) => `结账后从一个已选模块开始。包含 ${includedSeats} 位用户。`,
   twoTitle: '两个模块',
   twoDescription: (includedSeats) => `选择两个模块，试用规则相同。包含 ${includedSeats} 位用户。`,
-  additionalTitle: '额外模块',
-  additionalDescription: (basePrice, additionalPrice, includedSeats) => (
-    `${basePrice} 加第三个模块 ${additionalPrice}。包含 ${includedSeats} 位用户。`
-  ),
+  threeTitle: '三个模块',
+  threeDescription: (includedSeats) => `选择三个模块，试用规则相同。包含 ${includedSeats} 位用户。`,
   allTitle: '所有 Basic 模块',
   allDescription: (includedSeats) => `发布优惠套餐，包含完整 Basic 模块套件和 ${includedSeats} 位用户。`,
   launchOffer: '发布优惠',
-  additionalSuffix: '额外',
   moduleSelectionTitle: '模块选择',
   moduleInstruction: (targetCount, allSelected) => {
     if (allSelected) return '所有付费模块均已包含。Config Center 会自动包含。';
@@ -907,10 +888,10 @@ const moneyOnly = (amountCents: number, copy: SignupCopy) => (
 const signupMonthlyPrice = (amountCents: number, copy: SignupCopy) => `${moneyOnly(amountCents, copy)}/mo`;
 
 const signupBaseAmount = (tier: SignupPlanTier) => {
-  if (tier === 'basic_1') return 5900;
-  if (tier === 'basic_2') return 9900;
+  if (tier === 'basic_1') return 6900;
+  if (tier === 'basic_2') return 10900;
   if (tier === 'basic_all') return 19900;
-  return 14800;
+  return 14900;
 };
 
 const signupEstimatedAmount = (
@@ -918,7 +899,7 @@ const signupEstimatedAmount = (
   extraSeats: number,
   interval: 'MONTH' | 'YEAR',
 ) => {
-  const monthlyAmount = signupBaseAmount(tier) + Math.max(0, extraSeats) * 1000;
+  const monthlyAmount = signupBaseAmount(tier) + Math.max(0, extraSeats) * 1200;
   return interval === 'YEAR' ? Math.round(monthlyAmount * 12 * 0.8) : monthlyAmount;
 };
 
@@ -1161,11 +1142,11 @@ export default function SignupPage() {
     }
   };
 
-  const oneModulePriceLabel = signupMonthlyPrice(5900, copy);
-  const twoModulePriceLabel = signupMonthlyPrice(9900, copy);
-  const additionalModulePriceLabel = `${moneyOnly(4900, copy)}/${modulePlanCopy.additionalSuffix}`;
+  const oneModulePriceLabel = signupMonthlyPrice(6900, copy);
+  const twoModulePriceLabel = signupMonthlyPrice(10900, copy);
+  const threeModulePriceLabel = signupMonthlyPrice(14900, copy);
   const allModulesPriceLabel = signupMonthlyPrice(19900, copy);
-  const extraSeatPriceLabel = signupMonthlyPrice(1000, copy);
+  const extraSeatPriceLabel = signupMonthlyPrice(1200, copy);
   const planCards = [
     {
       tier: 'basic_1' as const,
@@ -1181,9 +1162,9 @@ export default function SignupPage() {
     },
     {
       tier: 'basic_3' as const,
-      title: modulePlanCopy.additionalTitle,
-      price: additionalModulePriceLabel,
-      description: modulePlanCopy.additionalDescription(twoModulePriceLabel, additionalModulePriceLabel, includedSeats),
+      title: modulePlanCopy.threeTitle,
+      price: threeModulePriceLabel,
+      description: modulePlanCopy.threeDescription(includedSeats),
     },
     {
       tier: 'basic_all' as const,

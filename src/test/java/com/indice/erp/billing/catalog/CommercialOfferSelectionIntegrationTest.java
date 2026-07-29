@@ -15,7 +15,7 @@ class CommercialOfferSelectionIntegrationTest {
     private CommercialOfferSelectionService service;
 
     @Test
-    void buildsLaunchOffersFromTheVersionedCatalogWithoutInventingTheAllBasicPrice() {
+    void buildsLaunchOffersFromTheVersionedCatalogUsingPublicPlanPrices() {
         var products = service.activeBasicProducts();
         assertThat(products).hasSize(6);
 
@@ -24,7 +24,7 @@ class CommercialOfferSelectionIntegrationTest {
         assertThat(oneMonthly.offerCode()).isEqualTo("basic_1");
         assertThat(oneMonthly.includedSeats()).isEqualTo(5);
         assertThat(oneMonthly.extraSeatUnitAmountCents()).isEqualTo(1_200);
-        assertThat(oneMonthly.estimatedAmountCents()).isEqualTo(8_300);
+        assertThat(oneMonthly.estimatedAmountCents()).isEqualTo(9_300);
 
         var threeAnnual = service.select(products.subList(0, 3).stream().map(p -> p.code()).toList(), "YEAR", 1);
         assertThat(threeAnnual.offerCode()).isEqualTo("basic_3");
@@ -32,8 +32,8 @@ class CommercialOfferSelectionIntegrationTest {
 
         var all = service.select(products.stream().map(p -> p.code()).toList(), "MONTH", 0);
         assertThat(all.offerCode()).isEqualTo("basic_all");
-        assertThat(all.baseAmountCents()).isNull();
-        assertThat(all.estimatedAmountCents()).isNull();
+        assertThat(all.baseAmountCents()).isEqualTo(19_900);
+        assertThat(all.estimatedAmountCents()).isEqualTo(19_900);
 
         assertThatThrownBy(() -> service.select(
             products.subList(0, 4).stream().map(p -> p.code()).toList(), "MONTH", 0

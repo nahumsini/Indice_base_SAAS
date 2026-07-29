@@ -61,6 +61,8 @@ react/.env.local
 
 ### Local handoff helpers ###
 handoff/
+output/pdf/
+tmp/pdfs/
 
 ### Figma prototype exports ###
 figma_prototype/*
