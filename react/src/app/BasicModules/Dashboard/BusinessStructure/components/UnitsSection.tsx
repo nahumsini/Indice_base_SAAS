@@ -58,7 +58,7 @@ export function UnitsSection({
       <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {structure.units.title}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -94,7 +94,7 @@ export function UnitsSection({
                 <div className="flex items-center gap-3">
                   <Building2 className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                    <h4 className="font-medium text-gray-900 dark:text-white">
                       {unidad.name}
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400">

@@ -52,8 +52,8 @@ function WorkingGrid({
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.eyebrow}</p>
-          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.workdays.title}</h3>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.schedule.workdays.eyebrow}</p>
+          <h3 className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.workdays.title}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {copy.schedule.workdays.description}
           </p>
@@ -87,8 +87,8 @@ function WorkingGrid({
                     onCheckedChange={(checked) => onWorkingDayChange(index, checked === true)}
                   />
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-slate-950 dark:text-white">{dayName(horario.dia, copy.schedule)}</span>
-                    <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    <span className="block text-sm font-medium text-slate-950 dark:text-white">{dayName(horario.dia, copy.schedule)}</span>
+                    <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
                       isWorkingDay
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
                         : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
@@ -102,7 +102,7 @@ function WorkingGrid({
                 {!isOpenSchedule && isWorkingDay ? (
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:w-64">
                     <label>
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.start}</span>
+                      <span className="mb-1 block text-[11px] font-medium text-slate-500 dark:text-slate-400">{copy.schedule.workdays.start}</span>
                       <input
                         type="time"
                         value={horario.entrada}
@@ -110,9 +110,9 @@ function WorkingGrid({
                         className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition-colors focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                       />
                     </label>
-                    <span className="mt-6 text-sm font-semibold text-slate-400">{copy.schedule.workdays.to}</span>
+                    <span className="mt-6 text-sm font-medium text-slate-400">{copy.schedule.workdays.to}</span>
                     <label>
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{copy.schedule.workdays.end}</span>
+                      <span className="mb-1 block text-[11px] font-medium text-slate-500 dark:text-slate-400">{copy.schedule.workdays.end}</span>
                       <input
                         type="time"
                         value={horario.salida}
@@ -163,8 +163,8 @@ function BreakConfigurationCard({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.breaks.eyebrow}</p>
-        <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.title}</h3>
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.schedule.breaks.eyebrow}</p>
+        <h3 className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.breaks.title}</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {copy.schedule.breaks.description}
         </p>
@@ -174,7 +174,7 @@ function BreakConfigurationCard({
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
           <label className="flex items-center justify-between gap-3">
             <span>
-              <span className="block text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.mealTitle}</span>
+              <span className="block text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.breaks.mealTitle}</span>
               <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{copy.schedule.breaks.mealDescription}</span>
             </span>
             <Checkbox
@@ -199,7 +199,7 @@ function BreakConfigurationCard({
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
           <label className="flex items-center justify-between gap-3">
             <span>
-              <span className="block text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.breaks.shortTitle}</span>
+              <span className="block text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.breaks.shortTitle}</span>
               <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{copy.schedule.breaks.shortDescription}</span>
             </span>
             <Checkbox

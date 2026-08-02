@@ -11,7 +11,7 @@ interface ReceivablesStatusBadgeProps {
 
 export function ReceivablesStatusBadge({ copy, status }: ReceivablesStatusBadgeProps) {
   return (
-    <Badge variant="outline" className={cn('rounded-full border px-3 py-1 text-xs font-bold', statusClasses[status])}>
+    <Badge variant="outline" className={cn('rounded-full border px-3 py-1 text-xs font-medium', statusClasses[status])}>
       {copy.status[status]}
     </Badge>
   );

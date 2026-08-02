@@ -481,7 +481,7 @@ export default function Postventa() {
               return <div key={status} className={cn('h-full', statusProgressClasses[status])} style={{ width: `${width}%` }} aria-hidden="true" />;
             })}
           </div>
-          <div className="flex flex-wrap gap-3 text-sm font-semibold text-slate-500">
+          <div className="flex flex-wrap gap-3 text-sm font-medium text-slate-500">
             {postSaleStatuses.map((status) => (
               <span key={status} className="inline-flex items-center gap-2">
                 <span className={cn('h-2.5 w-2.5 rounded-full', statusProgressClasses[status])} />
@@ -490,7 +490,7 @@ export default function Postventa() {
             ))}
           </div>
         </div>
-        <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-semibold leading-6 text-[#B63B32]">
+        <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-4 py-3 text-sm font-medium leading-6 text-[#B63B32]">
           {t.insight.summary(recurringRevenueDisplay, atRiskClients, renewalsSoon)}
         </div>
       </section>
@@ -501,7 +501,7 @@ export default function Postventa() {
             key={view}
             type="button"
             variant={viewMode === view ? 'default' : 'ghost'}
-            className={cn('h-10 rounded-lg px-4', viewMode === view && 'bg-[#FF6B5E] text-white hover:bg-[#E8564B]')}
+            className={cn('h-10 rounded-lg px-4', viewMode === view && 'bg-[#FF6B5E] text-[#222831] hover:bg-[#E8564B]')}
             onClick={() => setViewMode(view)}
           >
             {view === 'table' ? <UsersRound className="h-4 w-4" /> : <CalendarClock className="h-4 w-4" />}
@@ -531,23 +531,23 @@ export default function Postventa() {
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
-                  <TableHead className="min-w-[280px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.client}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.customerHealth}</TableHead>
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.salesHistory}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.lastPurchase}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.lifetimeValue}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.revenueAtRisk}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.nextFollowUp}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.futureOpportunities}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.status}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.owner}</TableHead>
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
+                  <TableHead className="min-w-[280px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.client}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.customerHealth}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.salesHistory}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.lastPurchase}</TableHead>
+                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.lifetimeValue}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.revenueAtRisk}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.nextFollowUp}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.futureOpportunities}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.status}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.owner}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCustomerHistories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
+                    <TableCell colSpan={11} className="px-5 py-10 text-center text-sm font-medium text-slate-500">
                       {t.table.empty}
                     </TableCell>
                   </TableRow>
@@ -577,13 +577,13 @@ export default function Postventa() {
                               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             </button>
                             <div>
-                              <p className="font-black text-slate-950 dark:text-white">{history.clientName}</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{history.contactPerson}</p>
+                              <p className="font-medium text-slate-950 dark:text-white">{history.clientName}</p>
+                              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-300">{history.contactPerson}</p>
                               <div className="mt-2 flex flex-wrap gap-2">
-                                <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', relationClasses[history.relationType])}>
+                                <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', relationClasses[history.relationType])}>
                                   {t.relationTypeLabels[history.relationType]}
                                 </Badge>
-                                <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', riskClasses[history.riskLevel])}>
+                                <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', riskClasses[history.riskLevel])}>
                                   {t.riskLabels[history.riskLevel]}
                                 </Badge>
                               </div>
@@ -592,42 +592,42 @@ export default function Postventa() {
                         </TableCell>
                         <TableCell className="px-5 py-4">
                           <div className="space-y-2">
-                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', healthClasses[health])}>
+                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', healthClasses[health])}>
                               {t.lifecycle.health[health]}
                             </Badge>
-                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', relationshipClasses[relationship])}>
+                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', relationshipClasses[relationship])}>
                               {t.lifecycle.relationship[relationship]}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell className="px-5 py-4">
-                          <p className="text-sm font-black text-slate-950 dark:text-white">{history.sales.length} {history.sales.length === 1 ? t.saleHistory.sale : t.saleHistory.sales}</p>
+                          <p className="text-sm font-medium text-slate-950 dark:text-white">{history.sales.length} {history.sales.length === 1 ? t.saleHistory.sale : t.saleHistory.sales}</p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {history.sales.slice(0, 3).map((sale) => (
                               <button
                                 key={sale.id}
                                 type="button"
-                                className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-2 py-1 text-xs font-black text-[#B63B32] hover:bg-[#FF6B5E]/15"
+                                className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-2 py-1 text-xs font-medium text-[#B63B32] hover:bg-[#FF6B5E]/15"
                                 onClick={() => setSelectedSale(sale)}
                               >
                                 {sale.saleNumber}
                               </button>
                             ))}
-                            {history.sales.length > 3 ? <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-600">+{history.sales.length - 3}</Badge> : null}
+                            {history.sales.length > 3 ? <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">+{history.sales.length - 3}</Badge> : null}
                           </div>
                         </TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-600 dark:text-slate-300">{history.lastPurchaseDate ?? t.common.notAvailable}</TableCell>
-                        <TableCell className="px-5 py-4 font-black text-slate-950 dark:text-white">{formatCurrency(history.lifetimeValue, getHistoryCurrency(history))}</TableCell>
-                        <TableCell className="px-5 py-4 font-black text-[#B63B32]">
+                        <TableCell className="px-5 py-4 font-medium text-slate-600 dark:text-slate-300">{history.lastPurchaseDate ?? t.common.notAvailable}</TableCell>
+                        <TableCell className="px-5 py-4 font-medium text-slate-950 dark:text-white">{formatCurrency(history.lifetimeValue, getHistoryCurrency(history))}</TableCell>
+                        <TableCell className="px-5 py-4 font-medium text-[#B63B32]">
                           {revenueAtRiskAmount > 0 ? formatCurrency(revenueAtRiskAmount, getHistoryCurrency(history)) : t.common.notAvailable}
                         </TableCell>
                         <TableCell className="px-5 py-4">
-                          <p className="font-black text-slate-950 dark:text-white">{history.nextFollowUpDate ?? t.common.notAvailable}</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">{history.renewalDate ? `${t.table.columns.renewalDate}: ${history.renewalDate}` : t.filters.renewalMissing}</p>
+                          <p className="font-medium text-slate-950 dark:text-white">{history.nextFollowUpDate ?? t.common.notAvailable}</p>
+                          <p className="mt-1 text-xs font-medium text-slate-500">{history.renewalDate ? `${t.table.columns.renewalDate}: ${history.renewalDate}` : t.filters.renewalMissing}</p>
                         </TableCell>
                         <TableCell className="px-5 py-4">
                           <Badge className={cn(
-                            'rounded-full border px-2 py-1 text-xs font-bold',
+                            'rounded-full border px-2 py-1 text-xs font-medium',
                             hasFutureOpportunity
                               ? 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]'
                               : 'border-slate-200 bg-slate-50 text-slate-500',
@@ -638,7 +638,7 @@ export default function Postventa() {
                         <TableCell className="px-5 py-4">
                           {history.postSaleCase ? (
                             <Select value={history.status} onValueChange={(value) => updatePostSaleCaseStatus(history.postSaleCase?.id ?? '', value as PostSaleStatus)}>
-                              <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-black shadow-none', statusClasses[history.status])}>
+                              <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-medium shadow-none', statusClasses[history.status])}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -650,12 +650,12 @@ export default function Postventa() {
                               </SelectContent>
                             </Select>
                           ) : (
-                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', statusClasses[history.status])}>
+                            <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', statusClasses[history.status])}>
                               {t.statusLabels[history.status]}
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300">{history.owner}</TableCell>
+                        <TableCell className="px-5 py-4 font-medium text-slate-700 dark:text-slate-300">{history.owner}</TableCell>
                         <TableCell className="px-5 py-4">
                           <div className="mx-auto grid w-fit grid-cols-[repeat(5,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                             <ActionButton label={t.actions.call} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" disabled={!history.phone} onClick={() => openPhoneCall(history.phone)} />
@@ -671,8 +671,8 @@ export default function Postventa() {
                           <TableCell colSpan={11} className="px-8 py-5">
                             <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
                               <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
-                                <p className="text-sm font-black uppercase tracking-normal text-slate-500">{t.saleHistory.title}</p>
-                                <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{t.saleHistory.description}</p>
+                                <p className="text-sm font-medium tracking-normal text-slate-500">{t.saleHistory.title}</p>
+                                <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{t.saleHistory.description}</p>
                               </div>
                               {history.sales.length ? (
                                 <div className="divide-y divide-slate-100">
@@ -684,22 +684,22 @@ export default function Postventa() {
                                       onClick={() => setSelectedSale(sale)}
                                     >
                                       <div>
-                                        <p className="font-black text-slate-950 dark:text-white">{sale.saleNumber}</p>
-                                        <p className="mt-1 text-xs font-semibold text-slate-500">{sale.quoteReference}</p>
+                                        <p className="font-medium text-slate-950 dark:text-white">{sale.saleNumber}</p>
+                                        <p className="mt-1 text-xs font-medium text-slate-500">{sale.quoteReference}</p>
                                       </div>
                                       <div>
-                                        <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.saleHistory.date}</p>
-                                        <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{sale.saleDate}</p>
+                                        <p className="text-xs font-medium tracking-normal text-slate-400">{t.saleHistory.date}</p>
+                                        <p className="mt-1 font-medium text-slate-700 dark:text-slate-300">{sale.saleDate}</p>
                                       </div>
                                       <div>
-                                        <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.saleHistory.total}</p>
-                                        <p className="mt-1 font-black text-slate-950 dark:text-white">{formatCurrency(sale.totalAmount, sale.currency)}</p>
+                                        <p className="text-xs font-medium tracking-normal text-slate-400">{t.saleHistory.total}</p>
+                                        <p className="mt-1 font-medium text-slate-950 dark:text-white">{formatCurrency(sale.totalAmount, sale.currency)}</p>
                                       </div>
                                       <div>
-                                        <p className="text-xs font-black uppercase tracking-normal text-slate-400">{t.saleHistory.products}</p>
-                                        <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">{sale.saleLines.length}</p>
+                                        <p className="text-xs font-medium tracking-normal text-slate-400">{t.saleHistory.products}</p>
+                                        <p className="mt-1 font-medium text-slate-700 dark:text-slate-300">{sale.saleLines.length}</p>
                                       </div>
-                                      <span className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-3 text-sm font-black text-[#B63B32]">
+                                      <span className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-3 text-sm font-medium text-[#B63B32]">
                                         <Eye className="h-4 w-4" />
                                         {t.actions.viewSale}
                                       </span>
@@ -707,7 +707,7 @@ export default function Postventa() {
                                   ))}
                                 </div>
                               ) : (
-                                <div className="px-5 py-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-300">{t.saleHistory.empty}</div>
+                                <div className="px-5 py-8 text-center text-sm font-medium text-slate-500 dark:text-slate-300">{t.saleHistory.empty}</div>
                               )}
                             </div>
                           </TableCell>
@@ -736,7 +736,7 @@ export default function Postventa() {
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="text-xl font-black text-slate-950">{t.sections.followUpTitle}</h3>
+            <h3 className="text-xl font-medium text-slate-950">{t.sections.followUpTitle}</h3>
           </div>
           <p className="mt-2 text-sm leading-6 text-slate-500">{t.sections.followUpDescription}</p>
           <div className="mt-5 grid gap-4 lg:grid-cols-5">
@@ -777,48 +777,48 @@ export default function Postventa() {
       >
         <section className="grid gap-3 md:grid-cols-3">
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold text-slate-500">{t.saleDetail.saleReference}</p>
-            <p className="mt-2 font-bold text-slate-950">{selectedSale?.saleNumber}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.quoteReference}</p>
+            <p className="text-xs font-medium text-slate-500">{t.saleDetail.saleReference}</p>
+            <p className="mt-2 font-medium text-slate-950">{selectedSale?.saleNumber}</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{selectedSale?.quoteReference}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold text-slate-500">{t.saleDetail.total}</p>
-            <p className="mt-2 font-bold text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0, selectedSale?.currency)}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.currency}</p>
+            <p className="text-xs font-medium text-slate-500">{t.saleDetail.total}</p>
+            <p className="mt-2 font-medium text-slate-950">{formatCurrency(selectedSale?.totalAmount ?? 0, selectedSale?.currency)}</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{selectedSale?.currency}</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold text-slate-500">{t.saleDetail.status}</p>
-            <p className="mt-2 font-bold text-slate-950">{selectedSale?.commercialStatus}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale?.financeStatus} · {selectedSale?.inventoryStatus}</p>
+            <p className="text-xs font-medium text-slate-500">{t.saleDetail.status}</p>
+            <p className="mt-2 font-medium text-slate-950">{selectedSale?.commercialStatus}</p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{selectedSale?.financeStatus} · {selectedSale?.inventoryStatus}</p>
           </div>
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white">
           <div className="border-b border-slate-100 px-5 py-4">
-            <p className="text-sm font-semibold text-slate-500">{t.saleDetail.lines}</p>
+            <p className="text-sm font-medium text-slate-500">{t.saleDetail.lines}</p>
           </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.product}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.quantity}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.unitPrice}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.margin}</TableHead>
-                  <TableHead className="px-5 py-3 text-xs font-semibold text-slate-500">{t.saleDetail.warehouse}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-medium text-slate-500">{t.saleDetail.product}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-medium text-slate-500">{t.saleDetail.quantity}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-medium text-slate-500">{t.saleDetail.unitPrice}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-medium text-slate-500">{t.saleDetail.margin}</TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-medium text-slate-500">{t.saleDetail.warehouse}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {selectedSale?.saleLines.map((line) => (
                   <TableRow key={line.id}>
                     <TableCell className="px-5 py-4">
-                      <p className="font-bold text-slate-950">{line.productName}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{line.sku}</p>
+                      <p className="font-medium text-slate-950">{line.productName}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500">{line.sku}</p>
                     </TableCell>
-                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.quantity}</TableCell>
-                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.unitPrice, selectedSale?.currency)}</TableCell>
-                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{formatCurrency(line.marginAmount, selectedSale?.currency)}</TableCell>
-                    <TableCell className="px-5 py-4 font-semibold text-slate-700">{line.warehouseId}</TableCell>
+                    <TableCell className="px-5 py-4 font-medium text-slate-700">{line.quantity}</TableCell>
+                    <TableCell className="px-5 py-4 font-medium text-slate-700">{formatCurrency(line.unitPrice, selectedSale?.currency)}</TableCell>
+                    <TableCell className="px-5 py-4 font-medium text-slate-700">{formatCurrency(line.marginAmount, selectedSale?.currency)}</TableCell>
+                    <TableCell className="px-5 py-4 font-medium text-slate-700">{line.warehouseId}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -826,7 +826,7 @@ export default function Postventa() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4 text-sm font-semibold leading-6 text-[#B63B32]">
+        <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4 text-sm font-medium leading-6 text-[#B63B32]">
           {selectedSale?.notes || t.common.notAvailable}
         </section>
       </SalesModalFrame>
@@ -857,31 +857,31 @@ export default function Postventa() {
         <FilterSelect label={t.forms.postSale.status} value={caseForm.status} onValueChange={(value) => setCaseForm((current) => ({ ...current, status: value as PostSaleStatus }))} options={postSaleStatuses.map((status) => ({ value: status, label: t.statusLabels[status] }))} />
         <FilterSelect label={t.forms.postSale.owner} value={caseForm.owner} onValueChange={(value) => setCaseForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.lifetimeValue}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.postSale.lifetimeValue}</label>
           <Input type="number" value={caseForm.lifetimeValue} onChange={(event) => setCaseForm((current) => ({ ...current, lifetimeValue: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.lastPurchaseDate}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.postSale.lastPurchaseDate}</label>
           <Input type="date" value={caseForm.lastPurchaseDate} onChange={(event) => setCaseForm((current) => ({ ...current, lastPurchaseDate: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.nextFollowUpDate}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.postSale.nextFollowUpDate}</label>
           <Input type="date" value={caseForm.nextFollowUpDate} onChange={(event) => setCaseForm((current) => ({ ...current, nextFollowUpDate: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.renewalDate}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.postSale.renewalDate}</label>
           <Input type="date" value={caseForm.renewalDate} onChange={(event) => setCaseForm((current) => ({ ...current, renewalDate: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.nextAction}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.postSale.nextAction}</label>
           <Input value={caseForm.nextAction} onChange={(event) => setCaseForm((current) => ({ ...current, nextAction: event.target.value }))} placeholder={t.forms.postSale.nextActionPlaceholder} />
         </div>
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.notes}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.postSale.notes}</label>
           <Textarea value={caseForm.notes} onChange={(event) => setCaseForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.postSale.notesPlaceholder} />
         </div>
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.postSale.files}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.postSale.files}</label>
           <Input value={caseForm.files} onChange={(event) => setCaseForm((current) => ({ ...current, files: event.target.value }))} placeholder={t.forms.postSale.filesPlaceholder} />
         </div>
       </SalesModalFrame>
@@ -905,22 +905,22 @@ export default function Postventa() {
         }
       >
         <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
-          <p className="text-xs font-semibold text-[#B63B32]">{t.forms.lost.contextTitle}</p>
+          <p className="text-xs font-medium text-[#B63B32]">{t.forms.lost.contextTitle}</p>
           <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
             <div>
-              <p className="font-bold text-slate-950">{automationCase?.clientName}</p>
-              <p className="mt-1 font-semibold text-slate-500">{automationCase?.contactPerson}</p>
+              <p className="font-medium text-slate-950">{automationCase?.clientName}</p>
+              <p className="mt-1 font-medium text-slate-500">{automationCase?.contactPerson}</p>
             </div>
             <div>
-              <p className="font-bold text-slate-950">{automationCase?.lastPurchaseDate ?? t.common.notAvailable}</p>
-              <p className="mt-1 font-semibold text-slate-500">{t.table.columns.lastPurchase}</p>
+              <p className="font-medium text-slate-950">{automationCase?.lastPurchaseDate ?? t.common.notAvailable}</p>
+              <p className="mt-1 font-medium text-slate-500">{t.table.columns.lastPurchase}</p>
             </div>
             <div>
-              <p className="font-bold text-slate-950">{formatCurrency(automationCase?.sales[0]?.totalAmount ?? 0, automationCase?.sales[0]?.currency ?? getHistoryCurrency(automationCase))}</p>
-              <p className="mt-1 font-semibold text-slate-500">{automationCase?.sales[0]?.saleNumber ?? t.common.notAvailable}</p>
+              <p className="font-medium text-slate-950">{formatCurrency(automationCase?.sales[0]?.totalAmount ?? 0, automationCase?.sales[0]?.currency ?? getHistoryCurrency(automationCase))}</p>
+              <p className="mt-1 font-medium text-slate-500">{automationCase?.sales[0]?.saleNumber ?? t.common.notAvailable}</p>
             </div>
           </div>
-          <p className="mt-3 text-sm font-semibold leading-6 text-[#B63B32]">{t.forms.lost.contextDescription}</p>
+          <p className="mt-3 text-sm font-medium leading-6 text-[#B63B32]">{t.forms.lost.contextDescription}</p>
         </section>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -933,24 +933,24 @@ export default function Postventa() {
           ]} />
           <FilterSelect label={t.forms.lost.owner} value={automationForm.owner} onValueChange={(value) => setAutomationForm((current) => ({ ...current, owner: value }))} options={salesOwners.map((owner) => ({ value: owner, label: owner }))} />
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.scheduledDate}</label>
+            <label className="text-sm font-medium text-slate-700">{t.forms.lost.scheduledDate}</label>
             <Input type="date" value={automationForm.scheduledDate} onChange={(event) => setAutomationForm((current) => ({ ...current, delay: 'custom', scheduledDate: event.target.value }))} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.expectedCloseDate}</label>
+            <label className="text-sm font-medium text-slate-700">{t.forms.lost.expectedCloseDate}</label>
             <Input type="date" value={automationForm.expectedCloseDate} onChange={(event) => setAutomationForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.opportunityName}</label>
+            <label className="text-sm font-medium text-slate-700">{t.forms.lost.opportunityName}</label>
             <Input value={automationForm.opportunityName} onChange={(event) => setAutomationForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.lost.opportunityNamePlaceholder} />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-semibold text-slate-700">{t.forms.lost.notes}</label>
+            <label className="text-sm font-medium text-slate-700">{t.forms.lost.notes}</label>
             <Textarea value={automationForm.notes} onChange={(event) => setAutomationForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.lost.notesPlaceholder} />
           </div>
         </div>
         <div className="space-y-2">
-          <p className="rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 p-3 text-sm font-semibold leading-6 text-[#177d66]">
+          <p className="rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 p-3 text-sm font-medium leading-6 text-[#177d66]">
             {t.forms.lost.backendReadyNote}
           </p>
         </div>
@@ -966,14 +966,14 @@ export default function Postventa() {
         icon={<FileText className={salesModalIconClassName} />}
         footer={<Button className={postSaleModalActions.primary} onClick={() => setSelectedFilesCase(null)}>{t.common.close}</Button>}
       >
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{selectedFilesCase?.clientName}</p>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{selectedFilesCase?.clientName}</p>
         {selectedFilesCase?.files.length ? selectedFilesCase.files.map((file) => (
           <div key={file} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
             <FileText className="h-4 w-4 text-[#B63B32] dark:text-[#FFB0AA]" />
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{file}</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{file}</span>
           </div>
         )) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
             {t.filesModal.empty}
           </div>
         )}
@@ -999,21 +999,21 @@ export default function Postventa() {
         }
       >
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.opportunityName}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.opportunity.opportunityName}</label>
           <Input value={futureForm.opportunityName} onChange={(event) => setFutureForm((current) => ({ ...current, opportunityName: event.target.value }))} placeholder={t.forms.opportunity.opportunityNamePlaceholder} />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.expectedCloseDate}</label>
+            <label className="text-sm font-medium text-slate-700">{t.forms.opportunity.expectedCloseDate}</label>
             <Input type="date" value={futureForm.expectedCloseDate} onChange={(event) => setFutureForm((current) => ({ ...current, expectedCloseDate: event.target.value }))} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.nextActionDate}</label>
+            <label className="text-sm font-medium text-slate-700">{t.forms.opportunity.nextActionDate}</label>
             <Input type="date" value={futureForm.nextActionDate} onChange={(event) => setFutureForm((current) => ({ ...current, nextActionDate: event.target.value }))} />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700">{t.forms.opportunity.notes}</label>
+          <label className="text-sm font-medium text-slate-700">{t.forms.opportunity.notes}</label>
           <Textarea value={futureForm.notes} onChange={(event) => setFutureForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.opportunity.notesPlaceholder} />
         </div>
       </SalesModalFrame>

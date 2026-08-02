@@ -47,7 +47,7 @@ const actionToneStyles: Record<IndiceModalFooterTone, string> = {
 const summaryToneStyles: Record<IndiceModalFooterTone, string> = {
   aqua: 'text-white/85',
   blue: 'text-white/85',
-  coral: 'text-white/85',
+  coral: 'text-[#222831]/75 dark:text-white/85',
   green: 'text-white/85',
   yellow: 'text-[#222831]/75',
 };
@@ -73,7 +73,7 @@ export function IndiceModalFooter({
       ) : null}
       {actions ? (
         <div className={cn(
-          'flex w-full flex-col-reverse gap-2 [&>button]:h-11 [&>button]:w-full [&>button]:rounded-xl [&>button]:px-5 [&>button]:text-sm [&>button]:font-semibold [&>button[data-modal-destructive=true]]:!border-red-600 [&>button[data-modal-destructive=true]]:!bg-red-600 [&>button[data-modal-destructive=true]]:!text-white [&>button[data-modal-destructive=true]:hover]:!bg-red-700 sm:ml-auto sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:[&>button]:w-auto',
+          'flex w-full flex-col-reverse gap-2 [&>button]:h-11 [&>button]:w-full [&>button]:rounded-xl [&>button]:px-5 [&>button]:text-sm [&>button]:font-medium [&>button[data-modal-destructive=true]]:!border-red-600 [&>button[data-modal-destructive=true]]:!bg-red-600 [&>button[data-modal-destructive=true]]:!text-white [&>button[data-modal-destructive=true]:hover]:!bg-red-700 sm:ml-auto sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:[&>button]:w-auto',
           actionToneStyles[tone],
         )}>
           {actions}

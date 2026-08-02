@@ -187,7 +187,7 @@ export function AgendaScheduleView({
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div
-          className="grid border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400"
+          className="grid border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400"
           style={{ gridTemplateColumns: 'minmax(76px, 120px) minmax(0, 1fr)' }}
         >
           <div className="px-3 py-3 sm:px-4">{scheduleCopy.hourColumn}</div>
@@ -205,7 +205,7 @@ export function AgendaScheduleView({
               className="grid min-h-[104px] border-b border-slate-100 transition-colors last:border-b-0 hover:bg-[#F4C84A]/5 dark:border-slate-700 dark:hover:bg-[#F4C84A]/10"
               style={{ gridTemplateColumns: 'minmax(76px, 120px) minmax(0, 1fr)' }}
             >
-              <div className="border-r border-slate-100 bg-slate-50/60 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300 sm:px-4">
+              <div className="border-r border-slate-100 bg-slate-50/60 px-3 py-4 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300 sm:px-4">
                 {hour}
               </div>
               <div className="min-w-0 space-y-3 px-3 py-4 sm:px-4">
@@ -228,7 +228,7 @@ export function AgendaScheduleView({
         onDrop={(event) => onScheduleDrop(event, selectedScheduleDate, null)}
       >
         <div className="mb-4">
-          <h4 className="text-base font-bold text-slate-950 dark:text-white">{scheduleCopy.unscheduledTitle}</h4>
+          <h4 className="text-base font-medium text-slate-950 dark:text-white">{scheduleCopy.unscheduledTitle}</h4>
           <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-400">
             {scheduleCopy.unscheduledDescription}
           </p>
@@ -250,7 +250,7 @@ export function AgendaScheduleView({
   const renderWeekView = () => (
     <section className="overflow-x-auto overflow-y-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div
-        className="grid min-w-[1120px] border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400"
+        className="grid min-w-[1120px] border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400"
         style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
       >
         <div className="border-r border-slate-200 px-3 py-3 dark:border-slate-700">{scheduleCopy.hourColumn}</div>
@@ -270,15 +270,15 @@ export function AgendaScheduleView({
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold capitalize tracking-normal text-slate-950 dark:text-white">
+                  <p className="truncate text-sm font-medium capitalize tracking-normal text-slate-950 dark:text-white">
                     {formatScheduleDayLabel(dateKey)}
                   </p>
-                  <p className="mt-1 text-[11px] font-semibold normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-[11px] font-medium normal-case tracking-normal text-slate-500 dark:text-slate-400">
                     {scheduleCopy.tasksCount(dateTasks.length)}
                   </p>
                 </div>
                 {isToday ? (
-                  <span className="shrink-0 rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-[#2563EB]">
+                  <span className="shrink-0 rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-[11px] font-medium normal-case tracking-normal text-[#2563EB]">
                     {scheduleCopy.today}
                   </span>
                 ) : null}
@@ -295,7 +295,7 @@ export function AgendaScheduleView({
             className="grid min-h-[118px] border-b border-slate-100 last:border-b-0 dark:border-slate-700"
             style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}
           >
-            <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+            <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
               {hour}
             </div>
             {weekDateKeys.map((dateKey) => {
@@ -311,7 +311,7 @@ export function AgendaScheduleView({
                   {cellTasks.length > 0 ? (
                     cellTasks.map((task) => renderScheduleTaskCard(task, { compact: true, dateKey }))
                   ) : (
-                    <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-600">
+                    <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-medium text-slate-300 dark:border-slate-700 dark:text-slate-600">
                       {scheduleCopy.emptySlot}
                     </div>
                   )}
@@ -323,7 +323,7 @@ export function AgendaScheduleView({
 
         {visibleScheduleTasks.some((task) => !taskScheduleMap.get(task.taskId)?.hour) ? (
           <div className="grid min-h-[118px]" style={{ gridTemplateColumns: '84px repeat(7, minmax(148px, 1fr))' }}>
-            <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+            <div className="border-r border-slate-100 bg-slate-50/70 px-3 py-4 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
               {scheduleCopy.noHourLabel}
             </div>
             {weekDateKeys.map((dateKey) => {
@@ -341,7 +341,7 @@ export function AgendaScheduleView({
                   {dateTasksWithoutTime.length > 0 ? (
                     dateTasksWithoutTime.map((task) => renderScheduleTaskCard(task, { compact: true, dateKey }))
                   ) : (
-                    <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-semibold text-slate-300 dark:border-slate-700 dark:text-slate-600">
+                    <div className="flex h-full min-h-[82px] items-center justify-center rounded-lg border border-dashed border-slate-200 px-2 text-center text-[11px] font-medium text-slate-300 dark:border-slate-700 dark:text-slate-600">
                       {scheduleCopy.noHourLabel}
                     </div>
                   )}
@@ -367,12 +367,12 @@ export function AgendaScheduleView({
             className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/45"
           >
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-bold capitalize text-slate-950 dark:text-white">
+              <p className="text-sm font-medium capitalize text-slate-950 dark:text-white">
                 {formatScheduleDayLabel(dateKey, 'long')}
               </p>
               <Badge
                 variant="outline"
-                className="rounded-full border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="rounded-full border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
                 {scheduleCopy.tasksCount(dateTasks.length)}
               </Badge>

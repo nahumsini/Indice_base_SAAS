@@ -66,7 +66,7 @@ export function PaymentAccountsTable({
               {tableColumns.map(header => (
                 <SortableHeader key={header.key} field={header.sortField} label={header.label} width={defaultPaymentColumnWidths[header.key]} sortIcon={getSortIcon(header.sortField)} onSort={onSort} />
               ))}
-              <th className="px-5 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>{t.common.actions}</th>
+              <th className="px-5 py-4 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>{t.common.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -146,7 +146,7 @@ function PaymentAccountRow({
       <td className="px-6 py-4 text-center align-middle" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>
         {account.source === 'petty_cash' ? (
           <div className="mx-auto inline-flex items-center justify-center rounded-[22px] border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <button type="button" onClick={() => onNavigate?.('petty-cash')} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 text-sm font-semibold text-[#147514] transition hover:-translate-y-0.5 hover:bg-[#147514]/12 hover:shadow-sm" title={t.paymentAccounts.table.openPettyCash}>
+            <button type="button" onClick={() => onNavigate?.('petty-cash')} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 text-sm font-medium text-[#147514] transition hover:-translate-y-0.5 hover:bg-[#147514]/12 hover:shadow-sm" title={t.paymentAccounts.table.openPettyCash}>
               <ExternalLink className="h-4 w-4" />
               {t.paymentAccounts.table.open}
             </button>
@@ -176,12 +176,12 @@ function renderPaymentCell(
   locale: ReturnType<typeof usePaymentAccountsResolvedLocale>,
 ) {
   if (columnKey === 'name') return <NameCell account={account} t={t} />;
-  if (columnKey === 'type') return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getTypeBadgeColor(account.type)}`}>{t.paymentAccounts.types[account.type] ?? getTypeLabel(account.type)}</span>;
+  if (columnKey === 'type') return <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getTypeBadgeColor(account.type)}`}>{t.paymentAccounts.types[account.type] ?? getTypeLabel(account.type)}</span>;
   if (columnKey === 'unitId') return <ReferencePill value={getReferenceLabel(unitOptions, account.unitId)} />;
   if (columnKey === 'businessId') return <ReferencePill value={getReferenceLabel(businessOptions, account.businessId)} />;
   if (columnKey === 'bank') return account.source === 'petty_cash' ? <ReferencePill value={account.custodian ?? '-'} /> : <span>{account.bank || '-'}</span>;
-  if (columnKey === 'accountNumber') return <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">{account.accountNumber || '-'}</span>;
-  if (columnKey === 'balance') return <span className="font-semibold text-slate-900 dark:text-slate-100">{formatPaymentCurrency(account.balance, account.currency, locale)}</span>;
+  if (columnKey === 'accountNumber') return <span className="font-mono font-medium text-slate-900 dark:text-slate-100">{account.accountNumber || '-'}</span>;
+  if (columnKey === 'balance') return <span className="font-medium text-slate-900 dark:text-slate-100">{formatPaymentCurrency(account.balance, account.currency, locale)}</span>;
   if (columnKey === 'currency') return <ReferencePill value={account.currency} />;
   if (columnKey === 'lastTransaction') return <span>{account.lastTransaction ? formatPaymentDate(account.lastTransaction, locale) : '-'}</span>;
   return <StatusBadge isActive={account.isActive} t={t} />;
@@ -192,8 +192,8 @@ function NameCell({ account, t }: { account: PaymentAccount; t: FinanceTranslati
     <div className="flex items-start gap-2">
       <span className="mt-0.5 text-[#147514]">{getTypeIcon(account.type)}</span>
       <div className="min-w-0">
-        <p className="truncate font-semibold text-slate-900 dark:text-slate-100">{account.name}</p>
-        {account.source === 'petty_cash' ? <p className="mt-1 text-xs font-semibold text-[#147514]">{t.paymentAccounts.table.pettyCashDetail(account.custodian ?? t.paymentAccounts.table.noCustodian)}</p> : null}
+        <p className="truncate font-medium text-slate-900 dark:text-slate-100">{account.name}</p>
+        {account.source === 'petty_cash' ? <p className="mt-1 text-xs font-medium text-[#147514]">{t.paymentAccounts.table.pettyCashDetail(account.custodian ?? t.paymentAccounts.table.noCustodian)}</p> : null}
       </div>
     </div>
   );
@@ -208,11 +208,11 @@ function ActionButton({ children, onClick, title }: { children: ReactNode; onCli
 }
 
 function ReferencePill({ value }: { value: string }) {
-  return <span className="inline-flex max-w-[150px] items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"><span className="truncate">{value}</span></span>;
+  return <span className="inline-flex max-w-[150px] items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"><span className="truncate">{value}</span></span>;
 }
 
 function StatusBadge({ isActive, t }: { isActive: boolean; t: FinanceTranslations }) {
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-400'}`}>{isActive ? t.common.active : t.common.inactive}</span>;
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-400'}`}>{isActive ? t.common.active : t.common.inactive}</span>;
 }
 
 function getReferenceLabel(options: FinanceReferenceOption[], value?: string) {
@@ -223,7 +223,7 @@ function getReferenceLabel(options: FinanceReferenceOption[], value?: string) {
 function SortableHeader({ field, label, onSort, sortIcon, width }: { field: PaymentSortField; label: string; onSort: (field: PaymentSortField) => void; sortIcon: ReactNode; width: number }) {
   return (
     <th className="px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
-      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
     </th>
   );
 }
@@ -234,7 +234,7 @@ function EmptyRow({ colSpan, t }: { colSpan: number; t: FinanceTranslations }) {
       <td colSpan={colSpan} className="px-6 py-12 text-center">
         <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
           <Search className="mb-4 h-12 w-12 opacity-50" />
-          <p className="text-lg font-semibold">{t.paymentAccounts.table.emptyTitle}</p>
+          <p className="text-lg font-medium">{t.paymentAccounts.table.emptyTitle}</p>
           <p className="text-sm">{t.paymentAccounts.table.emptyDescription}</p>
         </div>
       </td>

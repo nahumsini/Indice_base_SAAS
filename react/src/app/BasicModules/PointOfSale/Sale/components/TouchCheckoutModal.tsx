@@ -93,8 +93,8 @@ export function TouchCheckoutModal({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
         <div className="space-y-5">
           <section className="rounded-lg bg-[#222831] p-5 text-white shadow-sm">
-            <p className="text-sm font-bold text-gray-300">Total a cobrar</p>
-            <p className="mt-2 break-words text-5xl font-black leading-none">{formatCurrency(totals.total)}</p>
+            <p className="text-sm font-medium text-gray-300">Total a cobrar</p>
+            <p className="mt-2 break-words text-5xl font-medium leading-none">{formatCurrency(totals.total)}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <AmountTile label="Pagado" value={formatCurrency(totals.paid)} />
               <AmountTile
@@ -109,14 +109,14 @@ export function TouchCheckoutModal({
           <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-black text-[#222831] dark:text-white">Metodos de pago</h3>
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Botones grandes para operacion en pantalla tactil.</p>
+                <h3 className="text-lg font-medium text-[#222831] dark:text-white">Metodos de pago</h3>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Botones grandes para operacion en pantalla tactil.</p>
               </div>
               <button
                 type="button"
                 onClick={onExactPayment}
                 disabled={!hasCart || totals.isPaid || isCompletingSale}
-                className="min-h-12 rounded-lg bg-[#FF6B5E] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#ff5a4b] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                className="min-h-12 rounded-lg bg-[#FF6B5E] px-5 py-3 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#ff5a4b] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Cobrar exacto
               </button>
@@ -141,10 +141,10 @@ export function TouchCheckoutModal({
               <div className="flex items-start gap-3">
                 <AlertCircle className="mt-1 h-5 w-5 shrink-0 text-[#C64237]" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black text-[#A7352C] dark:text-[#FFB5AE]">
+                  <p className="text-sm font-medium text-[#A7352C] dark:text-[#FFB5AE]">
                     No se pudo finalizar
                   </p>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-[#7F2A23] dark:text-[#FFE5E2]">
+                  <p className="mt-1 text-sm font-medium leading-5 text-[#7F2A23] dark:text-[#FFE5E2]">
                     {checkoutNotice}
                   </p>
                 </div>
@@ -165,15 +165,15 @@ export function TouchCheckoutModal({
           <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-black text-[#222831] dark:text-white">Pagos agregados</h3>
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                <h3 className="text-lg font-medium text-[#222831] dark:text-white">Pagos agregados</h3>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   {payments.length === 0 ? 'Todavia no hay pagos capturados.' : `${payments.length} pago${payments.length === 1 ? '' : 's'} registrado${payments.length === 1 ? '' : 's'}.`}
                 </p>
               </div>
               {totals.isPaid ? (
-                <span className="rounded-full bg-[#59C3A5]/15 px-3 py-1 text-xs font-black text-[#14745F] dark:text-[#9DE7D3]">Completo</span>
+                <span className="rounded-full bg-[#59C3A5]/15 px-3 py-1 text-xs font-medium text-[#14745F] dark:text-[#9DE7D3]">Completo</span>
               ) : (
-                <span className="rounded-full bg-[#F4C84A]/20 px-3 py-1 text-xs font-black text-[#8A6500] dark:text-[#F4C84A]">Pendiente</span>
+                <span className="rounded-full bg-[#F4C84A]/20 px-3 py-1 text-xs font-medium text-[#8A6500] dark:text-[#F4C84A]">Pendiente</span>
               )}
             </div>
 
@@ -190,8 +190,8 @@ export function TouchCheckoutModal({
               {payments.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-gray-300 bg-[#F7F8FA] p-5 text-center dark:border-gray-700 dark:bg-gray-950/40">
                   <ReceiptText className="mx-auto h-8 w-8 text-[#FF6B5E]" aria-hidden="true" />
-                  <p className="mt-2 text-sm font-black text-[#222831] dark:text-white">Sin pagos</p>
-                  <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">Selecciona un metodo para capturar el primer pago.</p>
+                  <p className="mt-2 text-sm font-medium text-[#222831] dark:text-white">Sin pagos</p>
+                  <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">Selecciona un metodo para capturar el primer pago.</p>
                 </div>
               ) : null}
             </div>
@@ -209,10 +209,10 @@ export function TouchCheckoutModal({
                 <AlertCircle className="mt-1 h-5 w-5 shrink-0 text-[#B77900]" />
               )}
               <div>
-                <p className="text-sm font-black text-[#222831] dark:text-white">
+                <p className="text-sm font-medium text-[#222831] dark:text-white">
                   {totals.isPaid ? 'Pago listo para finalizar' : 'Falta cubrir el total'}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
                   {totals.isPaid
                     ? 'Verifica el cambio antes de cerrar la venta.'
                     : 'Agrega pago exacto o captura un metodo personalizado.'}
@@ -244,8 +244,8 @@ function AmountTile({
 
   return (
     <div className={`rounded-lg px-4 py-3 ${toneClass}`}>
-      <p className="text-[10px] font-black uppercase tracking-normal opacity-80">{label}</p>
-      <p className="mt-1 break-words text-lg font-black">{value}</p>
+      <p className="text-[10px] font-medium tracking-normal opacity-80">{label}</p>
+      <p className="mt-1 break-words text-lg font-medium">{value}</p>
     </div>
   );
 }
@@ -283,8 +283,8 @@ function PaymentTouchButton({
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-lg font-black leading-tight">{label}</span>
-        <span className="mt-1 block text-xs font-bold opacity-75">{shortcut}</span>
+        <span className="block text-lg font-medium leading-tight">{label}</span>
+        <span className="mt-1 block text-xs font-medium opacity-75">{shortcut}</span>
       </span>
       {!disabled ? <Plus className="h-5 w-5 shrink-0" /> : null}
     </button>
@@ -320,14 +320,14 @@ function PaymentRow({
           {methodIcon}
         </span>
         <div className="min-w-0">
-          <p className="font-black text-[#222831] dark:text-white">{methodLabel}</p>
-          <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">
+          <p className="font-medium text-[#222831] dark:text-white">{methodLabel}</p>
+          <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
             {payment.creditDetails?.customerName ?? payment.reference ?? 'Sin referencia'}
           </p>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <p className="text-base font-black text-[#222831] dark:text-white">{formatCurrency(payment.amount)}</p>
+        <p className="text-base font-medium text-[#222831] dark:text-white">{formatCurrency(payment.amount)}</p>
         <button
           type="button"
           onClick={onRemove}

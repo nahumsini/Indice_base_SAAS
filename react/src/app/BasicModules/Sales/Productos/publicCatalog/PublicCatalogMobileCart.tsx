@@ -48,12 +48,12 @@ export function PublicCatalogMobileCart({
             <ShoppingBag className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t.publicCatalog.cartItems(quantity)}</p>
-            <p className="truncate text-lg font-black text-slate-950 dark:text-white">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t.publicCatalog.cartItems(quantity)}</p>
+            <p className="truncate text-lg font-medium text-slate-950 dark:text-white">
               {config.showPrices ? formatProductCurrency(total, currency) : t.publicCatalog.pricePending}
             </p>
           </div>
-          <Button type="button" className="h-11 shrink-0 rounded-xl bg-[#FF6B5E] px-4 font-black text-white hover:bg-[#E85C50]" onClick={() => onOpenChange(true)}>
+          <Button type="button" className="h-11 shrink-0 rounded-xl bg-[#FF6B5E] px-4 font-medium text-[#222831] hover:bg-[#E85C50]" onClick={() => onOpenChange(true)}>
             {t.publicCatalog.viewCart}
           </Button>
         </div>

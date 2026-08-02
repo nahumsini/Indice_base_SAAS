@@ -23,7 +23,7 @@ export function QuoteLineItemsSection({
   return (
     <section className="space-y-4">
       <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-4">
-        <h3 className="text-base font-semibold text-slate-950">{t.lineItems.title}</h3>
+        <h3 className="text-base font-medium text-slate-950">{t.lineItems.title}</h3>
         <p className="mt-1 text-sm font-normal leading-6 text-slate-500">{t.lineItems.description}</p>
       </div>
 

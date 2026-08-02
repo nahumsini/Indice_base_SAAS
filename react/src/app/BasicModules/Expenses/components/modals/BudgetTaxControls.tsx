@@ -151,13 +151,13 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = fa
     <section className="md:col-span-2 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
       <div className={compact ? 'flex flex-col gap-3' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <div>
-          <p className="text-sm font-bold text-slate-950 dark:text-white">{t.tax.consumptionTaxes}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <p className="text-sm font-medium text-slate-950 dark:text-white">{t.tax.consumptionTaxes}</p>
+          <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             {draft.taxEnabled ? `${draft.budgetCurrencyCode} · ${selectedTaxLabel}` : `${draft.budgetCurrencyCode} · ${availableTaxLabel}`}
           </p>
         </div>
         <div className={compact ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'flex flex-col gap-2 sm:flex-row sm:items-center'}>
-          <label className="inline-flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+          <label className="inline-flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
             <input
               type="checkbox"
               checked={draft.taxEnabled}
@@ -166,7 +166,7 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = fa
             />
             {t.tax.applyTax}
           </label>
-          <label className="inline-flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+          <label className="inline-flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
             <input
               type="checkbox"
               checked={draft.taxIncluded}
@@ -225,7 +225,7 @@ function BudgetTaxSelect({
 }
 
 function FieldLabel({ label }: { label: string }) {
-  return <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>;
+  return <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>;
 }
 
 function normalizeTaxCountry(value: string): BudgetTaxCountry {

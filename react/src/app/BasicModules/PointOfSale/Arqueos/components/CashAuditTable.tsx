@@ -44,7 +44,7 @@ export function CashAuditTable({
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
         <div>
-          <h3 className="text-sm font-black text-gray-950 dark:text-white">Bandeja de revisión</h3>
+          <h3 className="text-sm font-medium text-gray-950 dark:text-white">Bandeja de revisión</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {isLoading ? 'Cargando registros reales' : `${records.length} cierres encontrados`}
           </p>
@@ -71,7 +71,7 @@ export function CashAuditTable({
                 'Revisión',
                 '',
               ].map((header) => (
-                <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                <th key={header} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {header}
                 </th>
               ))}
@@ -95,29 +95,29 @@ export function CashAuditTable({
                   selectedRecordId === record.id ? 'bg-orange-50 dark:bg-orange-900/20' : ''
                 }`}
               >
-                <td className="px-4 py-3 font-bold text-gray-950 dark:text-white">{record.id}</td>
+                <td className="px-4 py-3 font-medium text-gray-950 dark:text-white">{record.id}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDateTime(record.closedAt)}</td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                  <span className="font-bold">{record.cashRegisterCode}</span>
+                  <span className="font-medium">{record.cashRegisterCode}</span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">{record.cashRegisterName}</span>
                 </td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{record.businessUnitName}</td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{record.businessName}</td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{record.responsibleUserName}</td>
-                <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{formatCurrency(record.openingFund)}</td>
-                <td className="px-4 py-3 font-bold text-gray-950 dark:text-white">{formatCurrency(record.totalSales)}</td>
+                <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{formatCurrency(record.openingFund)}</td>
+                <td className="px-4 py-3 font-medium text-gray-950 dark:text-white">{formatCurrency(record.totalSales)}</td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{formatCurrency(record.expectedTotal)}</td>
-                <td className="px-4 py-3 font-bold text-gray-950 dark:text-white">{formatCurrency(record.countedTotal)}</td>
-                <td className={`px-4 py-3 font-black ${record.difference < 0 ? 'text-red-600' : record.difference > 0 ? 'text-blue-600' : 'text-emerald-600'}`}>
+                <td className="px-4 py-3 font-medium text-gray-950 dark:text-white">{formatCurrency(record.countedTotal)}</td>
+                <td className={`px-4 py-3 font-medium ${record.difference < 0 ? 'text-red-600' : record.difference > 0 ? 'text-blue-600' : 'text-emerald-600'}`}>
                   {record.difference > 0 ? '+' : ''}{formatCurrency(record.difference)}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-md px-2 py-1 text-xs font-bold ${statusClasses[record.status]}`}>
+                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${statusClasses[record.status]}`}>
                     {statusLabels[record.status]}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-md px-2 py-1 text-xs font-bold ${auditStatusClasses[record.auditStatus]}`}>
+                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${auditStatusClasses[record.auditStatus]}`}>
                     {auditStatusLabels[record.auditStatus]}
                   </span>
                   {record.auditNote && (
@@ -142,7 +142,7 @@ export function CashAuditTable({
 
         {!isLoading && records.length === 0 && (
           <div className="p-8 text-center">
-            <p className="font-semibold text-gray-700 dark:text-gray-200">No hay arqueos por revisar</p>
+            <p className="font-medium text-gray-700 dark:text-gray-200">No hay arqueos por revisar</p>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Ajusta enfoque, periodo, estatus o búsqueda.</p>
           </div>
         )}

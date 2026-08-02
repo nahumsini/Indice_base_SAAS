@@ -30,7 +30,7 @@ export function ScheduleImpactSummary({
   if (compact) {
     return (
       <div className="min-w-0 text-sm">
-        <p className="font-semibold text-white">{operationalSummary.compact}</p>
+        <p className="font-medium text-white">{operationalSummary.compact}</p>
         <p className="mt-0.5 max-w-2xl truncate text-white/75">{assignmentDateError || `${startMessage} ${overrideMessage}`}</p>
       </div>
     );
@@ -41,7 +41,7 @@ export function ScheduleImpactSummary({
       <div className="flex items-start gap-3">
         <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-[#8FE0CA]" />
         <div>
-          <p className="font-semibold">{copy.schedule.impact.selectedUsers(selectedEmployeeCount)}</p>
+          <p className="font-medium">{copy.schedule.impact.selectedUsers(selectedEmployeeCount)}</p>
           <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{assignmentDateError || startMessage}</p>
           {!assignmentDateError ? (
             <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">{overrideMessage}</p>

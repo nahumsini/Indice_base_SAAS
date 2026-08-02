@@ -67,20 +67,20 @@ export function CreditSaleReadOnlyModal({
               <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow className="border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
-                    <TableHead className="px-5 py-4 text-xs font-bold text-slate-500">{copy.modals.creditSale.installment}</TableHead>
-                    <TableHead className="px-5 py-4 text-xs font-bold text-slate-500">{copy.modals.creditSale.dueDate}</TableHead>
-                    <TableHead className="px-5 py-4 text-xs font-bold text-slate-500">{copy.views.accountsReceivable.table.amount}</TableHead>
-                    <TableHead className="px-5 py-4 text-xs font-bold text-slate-500">{copy.modals.creditSale.balance}</TableHead>
-                    <TableHead className="px-5 py-4 text-xs font-bold text-slate-500">{copy.views.accountsReceivable.table.status}</TableHead>
+                    <TableHead className="px-5 py-4 text-xs font-medium text-slate-500">{copy.modals.creditSale.installment}</TableHead>
+                    <TableHead className="px-5 py-4 text-xs font-medium text-slate-500">{copy.modals.creditSale.dueDate}</TableHead>
+                    <TableHead className="px-5 py-4 text-xs font-medium text-slate-500">{copy.views.accountsReceivable.table.amount}</TableHead>
+                    <TableHead className="px-5 py-4 text-xs font-medium text-slate-500">{copy.modals.creditSale.balance}</TableHead>
+                    <TableHead className="px-5 py-4 text-xs font-medium text-slate-500">{copy.views.accountsReceivable.table.status}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {installments.map((installment) => (
                     <TableRow key={installment.id} className="border-slate-100 dark:border-slate-800">
-                      <TableCell className="px-5 py-4 font-black text-slate-950 dark:text-white">#{installment.installmentNumber}</TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-600 dark:text-slate-300">{installment.dueDate}</TableCell>
-                      <TableCell className="px-5 py-4 font-bold text-slate-700 dark:text-slate-200">{formatMoney(installment.amount, installment.currency)}</TableCell>
-                      <TableCell className={cn('px-5 py-4 font-black', financeTextClass)}>{formatMoney(installment.balance, installment.currency)}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-950 dark:text-white">#{installment.installmentNumber}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-600 dark:text-slate-300">{installment.dueDate}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-700 dark:text-slate-200">{formatMoney(installment.amount, installment.currency)}</TableCell>
+                      <TableCell className={cn('px-5 py-4 font-medium', financeTextClass)}>{formatMoney(installment.balance, installment.currency)}</TableCell>
                       <TableCell className="px-5 py-4"><ReceivablesStatusBadge copy={copy} status={installment.status} /></TableCell>
                     </TableRow>
                   ))}
@@ -139,8 +139,8 @@ function DetailItem({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">{label}</p>
-      <p className={cn('mt-1 text-sm font-black text-slate-950 dark:text-white', highlight && financeTextClass)}>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={cn('mt-1 text-sm font-medium text-slate-950 dark:text-white', highlight && financeTextClass)}>
         {value}
       </p>
     </div>

@@ -2,7 +2,7 @@ import { BarChart3, CreditCard, Package, Users, Wallet, type LucideIcon } from '
 import type { PosKpiAnalytics } from '../utils/posKpiAnalytics';
 
 function EmptyText({ text }: { text: string }) {
-  return <p className="rounded-lg bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950 dark:text-slate-400">{text}</p>;
+  return <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-500 dark:bg-slate-950 dark:text-slate-400">{text}</p>;
 }
 
 export function PosKpiOperatingPanels({
@@ -43,7 +43,7 @@ function HourlySalesChart({ rows, max, formatCurrency }: {
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-slate-950 dark:text-white">Ventas por cierre</h3>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">Ventas por cierre</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400">Ritmo operativo segun hora de arqueo.</p>
         </div>
         <BarChart3 className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
@@ -61,7 +61,7 @@ function HourlySalesChart({ rows, max, formatCurrency }: {
                   title={formatCurrency(entry.sales)}
                 />
               </div>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{entry.hour}:00</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{entry.hour}:00</span>
             </div>
           ))}
         </div>
@@ -79,14 +79,14 @@ function PaymentMixPanel({ rows, formatCurrency, note }: {
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <CreditCard className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
-        <h3 className="text-lg font-bold text-slate-950 dark:text-white">Mezcla de pago</h3>
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">Mezcla de pago</h3>
       </div>
       {rows.length === 0 ? <EmptyText text="Sin pagos registrados en el periodo." /> : (
         <div className="space-y-4">
           {rows.map((payment) => (
             <div key={payment.method}>
               <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{payment.method}</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200">{payment.method}</span>
                 <span className="text-slate-500 dark:text-slate-400">{formatCurrency(payment.amount)}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -97,7 +97,7 @@ function PaymentMixPanel({ rows, formatCurrency, note }: {
           ))}
         </div>
       )}
-      {note ? <p className="mt-4 rounded-lg bg-[#FF6B5E]/10 p-3 text-xs font-semibold text-[#B63B32] dark:text-[#FFB0AA]">{note}</p> : null}
+      {note ? <p className="mt-4 rounded-lg bg-[#FF6B5E]/10 p-3 text-xs font-medium text-[#B63B32] dark:text-[#FFB0AA]">{note}</p> : null}
     </div>
   );
 }
@@ -113,20 +113,20 @@ function TopList({ title, icon: Icon, rows, formatValue, emptyText }: {
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <Icon className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
-        <h3 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h3>
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">{title}</h3>
       </div>
       {rows.length === 0 ? <EmptyText text={emptyText} /> : (
         <div className="space-y-3">
           {rows.map((row, index) => (
             <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FF6B5E]/10 text-sm font-bold text-[#B63B32] dark:text-[#FFB0AA]">{index + 1}</span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FF6B5E]/10 text-sm font-medium text-[#B63B32] dark:text-[#FFB0AA]">{index + 1}</span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{row.name}</p>
+                  <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{row.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{row.detail}</p>
                 </div>
               </div>
-              <p className="shrink-0 text-sm font-bold text-slate-950 dark:text-white">{formatValue(row.value)}</p>
+              <p className="shrink-0 text-sm font-medium text-slate-950 dark:text-white">{formatValue(row.value)}</p>
             </div>
           ))}
         </div>
@@ -144,13 +144,13 @@ function CurrencyPanel({ totals, formatCurrency, primaryCurrency }: {
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <Wallet className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
-        <h3 className="text-lg font-bold text-slate-950 dark:text-white">Divisas POS</h3>
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">Divisas POS</h3>
       </div>
       <div className="space-y-3">
         {totals.length === 0 ? <EmptyText text="Sin divisas registradas en el periodo." /> : totals.map((total) => (
           <div key={total.currency} className="flex items-center justify-between rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
-            <span className="text-sm font-bold text-slate-950 dark:text-white">{total.currency}</span>
-            <span className="text-sm font-black text-slate-950 dark:text-white">
+            <span className="text-sm font-medium text-slate-950 dark:text-white">{total.currency}</span>
+            <span className="text-sm font-medium text-slate-950 dark:text-white">
               {total.currency === primaryCurrency ? formatCurrency(total.amount) : `${total.amount.toLocaleString('es-MX')} ${total.currency}`}
             </span>
           </div>

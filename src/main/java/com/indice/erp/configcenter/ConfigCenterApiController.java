@@ -39,6 +39,7 @@ public class ConfigCenterApiController {
     private final InvitationEmailService invitationEmailService;
     private final AppWebProperties appWebProperties;
     private final InvitationSeatCoordinator invitationSeatCoordinator;
+    private final ConfigCenterUserSeatCoordinator userSeatCoordinator;
 
     public ConfigCenterApiController(
         SessionAuthService sessionAuthService,
@@ -48,7 +49,8 @@ public class ConfigCenterApiController {
         GoogleMapsCoordinateExtractor googleMapsCoordinateExtractor,
         InvitationEmailService invitationEmailService,
         AppWebProperties appWebProperties,
-        InvitationSeatCoordinator invitationSeatCoordinator
+        InvitationSeatCoordinator invitationSeatCoordinator,
+        ConfigCenterUserSeatCoordinator userSeatCoordinator
     ) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
@@ -58,6 +60,7 @@ public class ConfigCenterApiController {
         this.invitationEmailService = invitationEmailService;
         this.appWebProperties = appWebProperties;
         this.invitationSeatCoordinator = invitationSeatCoordinator;
+        this.userSeatCoordinator = userSeatCoordinator;
     }
 
     @GetMapping("/current-user")
@@ -208,6 +211,40 @@ public class ConfigCenterApiController {
                 current.get().role(),
                 userId
             ));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(messageBody(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/users/{userId}/activate")
+    public ResponseEntity<?> activateUser(
+        HttpSession session,
+        @PathVariable long userId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        var current = sessionAuthService.currentUser(session);
+        if (current.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(messageBody("Unauthorized"));
+        }
+        if (!accessService.canAccess(current.get(), ConfigCenterTab.USERS) || !canMutateUsers(current.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(messageBody("Forbidden"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
+
+        try {
+            return ResponseEntity.ok(userSeatCoordinator.activate(
+                current.get().companyId(),
+                current.get().userId(),
+                current.get().role(),
+                userId
+            ));
+        } catch (SeatCapacityExceededException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
         } catch (NoSuchElementException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(messageBody(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -569,7 +606,12 @@ public class ConfigCenterApiController {
 
     private boolean canMutateUsers(com.indice.erp.auth.AuthSessionUser currentUser) {
         var role = text(currentUser.role()).toLowerCase(java.util.Locale.ROOT);
-        return role.equals("root") || role.equals("superadmin") || role.equals("super admin") || role.equals("admin");
+        return role.equals("root")
+            || role.equals("superadmin")
+            || role.equals("super admin")
+            || role.equals("admin")
+            || role.equals("owner")
+            || role.equals("manager");
     }
 
     private String displayName(Map<String, Object> user) {

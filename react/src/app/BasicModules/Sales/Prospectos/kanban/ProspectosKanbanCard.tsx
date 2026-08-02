@@ -32,24 +32,24 @@ export function ProspectosKanbanCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-950">{opportunity.opportunityName}</p>
-          <p className="mt-1 text-xs font-semibold text-[#2563EB]">{opportunity.company}</p>
+          <p className="truncate text-sm font-medium text-slate-950">{opportunity.opportunityName}</p>
+          <p className="mt-1 text-xs font-medium text-[#2563EB]">{opportunity.company}</p>
         </div>
-        <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-semibold', temperatureClasses[opportunity.temperature])}>
+        <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-medium', temperatureClasses[opportunity.temperature])}>
           {copy.options.temperatures[opportunity.temperature]}
         </Badge>
       </div>
 
       <div className="mt-4 space-y-2 text-sm">
-        <p className="font-semibold text-slate-900">{opportunity.contactPerson}</p>
+        <p className="font-medium text-slate-900">{opportunity.contactPerson}</p>
         <p className="text-slate-500">{opportunity.owner}</p>
         <p className="text-slate-500">{formatCurrencyAmount(parseMoney(opportunity.estimatedValue), opportunity.currency)} · {opportunity.probability}</p>
       </div>
 
       <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-        <p className="text-xs font-bold uppercase tracking-normal text-slate-500">{copy.agenda.nextAction}</p>
-        <p className="mt-1 text-sm font-semibold text-slate-900">{copy.options.nextActions[opportunity.nextAction]}</p>
-        <p className="mt-1 text-xs font-semibold text-[#9a6b05]">{opportunity.nextActionDate || copy.agenda.noTime}</p>
+        <p className="text-xs font-medium tracking-normal text-slate-500">{copy.agenda.nextAction}</p>
+        <p className="mt-1 text-sm font-medium text-slate-900">{copy.options.nextActions[opportunity.nextAction]}</p>
+        <p className="mt-1 text-xs font-medium text-[#9a6b05]">{opportunity.nextActionDate || copy.agenda.noTime}</p>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -62,8 +62,8 @@ export function ProspectosKanbanCard({
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold text-slate-400">{copy.kanban.dragHint}</p>
-        <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-semibold', statusClasses[opportunity.status])}>
+        <p className="text-xs font-medium text-slate-400">{copy.kanban.dragHint}</p>
+        <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-medium', statusClasses[opportunity.status])}>
           {copy.options.statuses[opportunity.status]}
         </Badge>
       </div>

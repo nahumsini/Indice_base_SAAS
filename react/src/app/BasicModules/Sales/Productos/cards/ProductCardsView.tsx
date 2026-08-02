@@ -69,12 +69,12 @@ export function ProductCardsView({
     <>
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="border-b border-slate-100 p-5 dark:border-slate-700">
-          <h3 className="text-xl font-black text-slate-950 dark:text-white">{t.sections.cardsTitle}</h3>
+          <h3 className="text-xl font-medium text-slate-950 dark:text-white">{t.sections.cardsTitle}</h3>
           <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{t.sections.cardsDescription}</p>
         </div>
 
         {products.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-300">{t.table.empty}</div>
+          <div className="px-5 py-12 text-center text-sm font-medium text-slate-500 dark:text-slate-300">{t.table.empty}</div>
         ) : (
           <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
             {products.map((product) => {
@@ -92,7 +92,7 @@ export function ProductCardsView({
                     >
                       <ProductThumbnail product={product} size="hero" className="aspect-[4/3] min-h-[220px] transition group-hover:scale-[1.01]" />
                       {galleryCount > 0 ? (
-                        <span className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full border border-white/40 bg-slate-950/75 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur">
+                        <span className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full border border-white/40 bg-slate-950/75 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur">
                           <Images className="h-3.5 w-3.5" />
                           {galleryCount}
                         </span>
@@ -100,7 +100,7 @@ export function ProductCardsView({
                     </button>
 
                     <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2">
-                      <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold backdrop-blur', productStatusClasses[product.status])}>
+                      <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium backdrop-blur', productStatusClasses[product.status])}>
                         {t.statusLabels[product.status]}
                       </Badge>
                     </div>
@@ -108,24 +108,24 @@ export function ProductCardsView({
 
                   <div className="space-y-4 p-5">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-normal text-slate-400">{product.sku}</p>
-                      <h3 className="mt-2 text-lg font-black text-slate-950 dark:text-white">{product.name}</h3>
+                      <p className="text-xs font-medium tracking-normal text-slate-400">{product.sku}</p>
+                      <h3 className="mt-2 text-lg font-medium text-slate-950 dark:text-white">{product.name}</h3>
                       <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{product.description}</p>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-sm">
                       <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
-                        <p className="font-semibold text-slate-500">{t.labels.price}</p>
-                        <p className="mt-1 font-black text-slate-950 dark:text-white">{formatProductCurrency(product.price, product.currency)}</p>
+                        <p className="font-medium text-slate-500">{t.labels.price}</p>
+                        <p className="mt-1 font-medium text-slate-950 dark:text-white">{formatProductCurrency(product.price, product.currency)}</p>
                       </div>
                       <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
-                        <p className="font-semibold text-slate-500">{t.labels.profit}</p>
-                        <p className="mt-1 font-black text-[#177d66]">{formatProductCurrency(getProductProfit(product), product.currency)}</p>
-                        <p className="text-xs font-bold text-[#B63B32]">{getProductMargin(product)}%</p>
+                        <p className="font-medium text-slate-500">{t.labels.profit}</p>
+                        <p className="mt-1 font-medium text-[#177d66]">{formatProductCurrency(getProductProfit(product), product.currency)}</p>
+                        <p className="text-xs font-medium text-[#B63B32]">{getProductMargin(product)}%</p>
                       </div>
                       <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
-                        <p className="font-semibold text-slate-500">{t.labels.category}</p>
-                        <p className="mt-1 truncate font-black text-slate-950 dark:text-white">{getCategoryLabel(product.category, t)}</p>
+                        <p className="font-medium text-slate-500">{t.labels.category}</p>
+                        <p className="mt-1 truncate font-medium text-slate-950 dark:text-white">{getCategoryLabel(product.category, t)}</p>
                       </div>
                     </div>
 

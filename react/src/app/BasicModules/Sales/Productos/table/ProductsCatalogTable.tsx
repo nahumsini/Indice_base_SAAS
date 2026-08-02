@@ -141,7 +141,7 @@ export function ProductsCatalogTable({
             <TableBody>
               {products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length + 3} className="px-5 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-300">
+                  <TableCell colSpan={columns.length + 3} className="px-5 py-12 text-center text-sm font-medium text-slate-500 dark:text-slate-300">
                     {t.table.empty}
                   </TableCell>
                 </TableRow>

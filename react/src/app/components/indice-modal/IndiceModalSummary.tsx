@@ -68,7 +68,7 @@ export function IndiceModalSummary({
         <div className="flex items-start gap-2">
           {icon ? <span className={cn('mt-0.5 shrink-0', variantStyle.heading)} aria-hidden="true">{icon}</span> : null}
           <div className="min-w-0">
-            {title ? <h3 className={cn('text-sm font-semibold', variantStyle.heading)}>{title}</h3> : null}
+            {title ? <h3 className={cn('text-sm font-medium', variantStyle.heading)}>{title}</h3> : null}
             {description ? <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{description}</p> : null}
           </div>
         </div>
@@ -77,7 +77,7 @@ export function IndiceModalSummary({
         {items.map((item, index) => (
           <div key={item.id ?? index} className="min-w-0 px-1 py-1">
             <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">{item.label}</dt>
-            <dd className={cn('mt-1 truncate text-sm text-slate-950 dark:text-white', item.emphasized ? 'font-semibold' : 'font-medium')}>
+              <dd className={cn('mt-1 truncate text-sm text-slate-950 dark:text-white', item.emphasized ? 'font-medium' : 'font-normal')}>
               {item.value}
             </dd>
           </div>

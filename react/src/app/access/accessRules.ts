@@ -5,7 +5,8 @@ export type HomePanelTabId =
   | 'business-structure'
   | 'business-profile'
   | 'personal-performance'
-  | 'users';
+  | 'users'
+  | 'plan';
 
 export type HumanResourcesTabId =
   | 'collaborators'
@@ -72,10 +73,10 @@ export const canAccessHomePanelTab = (
   tabPermissionKeys?: readonly string[] | null,
   tabPermissionsConfigured = false,
 ) => {
-  const roleAllowsTab = tabId === 'users' || isAdminAccessRole(role) || PERSONAL_HOME_PANEL_TABS.has(tabId);
   if (hasUnrestrictedTabAccess(role)) {
     return true;
   }
+  const roleAllowsTab = tabId !== 'plan' && (isAdminAccessRole(role) || PERSONAL_HOME_PANEL_TABS.has(tabId));
   if (tabPermissionsConfigured) {
     return roleAllowsTab && (tabPermissionKeys ?? []).includes(homePanelTabPermissionKey(tabId));
   }

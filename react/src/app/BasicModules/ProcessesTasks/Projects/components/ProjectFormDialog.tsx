@@ -88,7 +88,7 @@ function SelectField<T extends string>({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
         <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />
@@ -361,7 +361,7 @@ export function ProjectFormDialog({
             ) : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.name}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.name}</label>
                 <Input
                   value={form.name}
                   onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
@@ -371,7 +371,7 @@ export function ProjectFormDialog({
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
                 <Textarea
                   value={form.description}
                   onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
@@ -394,7 +394,7 @@ export function ProjectFormDialog({
               />
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
                 <Input
                   type="date"
                   max={form.dueDate || undefined}
@@ -404,7 +404,7 @@ export function ProjectFormDialog({
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
                 <Input
                   type="date"
                   min={form.startDate || undefined}
@@ -415,7 +415,7 @@ export function ProjectFormDialog({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.unit}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.unit}</label>
                 <Select value={selectedUnitValue} onValueChange={updateUnit}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={formCopy.placeholders.unit} />
@@ -430,7 +430,7 @@ export function ProjectFormDialog({
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.business}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.business}</label>
                 <Select value={selectedBusinessValue} onValueChange={updateBusiness}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={formCopy.placeholders.business} />
@@ -446,7 +446,7 @@ export function ProjectFormDialog({
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.owner}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.owner}</label>
                 <Select value={selectedOwnerValue} onValueChange={updateOwner}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={formCopy.placeholders.owner} />

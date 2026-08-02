@@ -71,14 +71,14 @@ export function CortesColumnsModal({
           <button
             type="button"
             onClick={onClose}
-            className="h-11 rounded-lg border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="h-11 rounded-lg border border-slate-200 px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={applyColumns}
-            className="h-11 rounded-lg bg-[#222831] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#111827]"
+            className="h-11 rounded-lg bg-[#222831] px-5 text-sm font-medium text-white shadow-sm transition hover:bg-[#111827]"
           >
             Aplicar cambios
           </button>
@@ -90,21 +90,21 @@ export function CortesColumnsModal({
           <button
             type="button"
             onClick={() => setDraftColumns(cortesColumnOptions.map((option) => option.id))}
-            className="h-10 rounded-lg border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="h-10 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Todas
           </button>
           <button
             type="button"
             onClick={() => setDraftColumns([])}
-            className="h-10 rounded-lg border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="h-10 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Ninguna
           </button>
           <button
             type="button"
             onClick={() => setDraftColumns(defaultCortesColumns)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <RotateCcw className="h-4 w-4" />
             Restaurar
@@ -117,7 +117,7 @@ export function CortesColumnsModal({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar columna"
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
         </label>
 
@@ -138,7 +138,7 @@ export function CortesColumnsModal({
                     onChange={() => toggleColumn(option.id)}
                     className="h-4 w-4 rounded border-slate-300 text-[#FF6B5E] focus:ring-[#FF6B5E]"
                   />
-                  <span className="truncate text-sm font-black text-slate-800 dark:text-slate-100">{option.label}</span>
+                  <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{option.label}</span>
                 </label>
 
                 {isSelected ? (

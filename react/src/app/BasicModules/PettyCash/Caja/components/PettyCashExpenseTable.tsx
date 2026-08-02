@@ -109,48 +109,48 @@ export function PettyCashExpenseTable({
   const renderCell = (expense: PettyCashExpense, columnKey: string) => {
     switch (columnKey) {
       case 'folio':
-        return <span className="font-semibold text-gray-900 dark:text-white">{expense.folio}</span>;
+        return <span className="font-medium text-gray-900 dark:text-white">{expense.folio}</span>;
       case 'cashFundName':
         return (
           <div>
-            <p className="font-semibold text-gray-900 dark:text-white">{expense.cashFundName}</p>
+            <p className="font-medium text-gray-900 dark:text-white">{expense.cashFundName}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{expense.businessUnit} / {expense.business}</p>
           </div>
         );
       case 'collaborator':
         return (
           <div>
-            <p className="font-semibold text-gray-900 dark:text-white">{expense.collaborator}</p>
+            <p className="font-medium text-gray-900 dark:text-white">{expense.collaborator}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{expense.department}</p>
           </div>
         );
       case 'concept':
         return (
           <div className="max-w-xs">
-            <p className="truncate font-semibold text-gray-900 dark:text-white">{expense.concept}</p>
+            <p className="truncate font-medium text-gray-900 dark:text-white">{expense.concept}</p>
             <p className="truncate text-xs text-gray-500 dark:text-gray-400">{expense.description}</p>
           </div>
         );
       case 'amountIssued':
-        return <span className="font-bold text-gray-900 dark:text-white">{formatPettyCashCurrency(expense.amountIssued)}</span>;
+        return <span className="font-medium text-gray-900 dark:text-white">{formatPettyCashCurrency(expense.amountIssued)}</span>;
       case 'amountSettled':
         return <span>{formatPettyCashCurrency(expense.amountSettled)}</span>;
       case 'balance':
         return (
-          <span className={expense.balance > 0 ? 'font-bold text-amber-600 dark:text-amber-300' : 'font-bold text-green-600 dark:text-green-300'}>
+          <span className={expense.balance > 0 ? 'font-medium text-amber-600 dark:text-amber-300' : 'font-medium text-green-600 dark:text-green-300'}>
             {formatPettyCashCurrency(expense.balance)}
           </span>
         );
       case 'status':
         return (
-          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${pettyCashStatusClasses[expense.status]}`}>
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${pettyCashStatusClasses[expense.status]}`}>
             {pettyCashStatusLabels[expense.status]}
           </span>
         );
       case 'auditStatus':
         return (
           <div>
-            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${pettyCashAuditStatusClasses[expense.auditStatus]}`}>
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${pettyCashAuditStatusClasses[expense.auditStatus]}`}>
               {pettyCashAuditStatusLabels[expense.auditStatus]}
             </span>
             {expense.auditNotes && (
@@ -162,7 +162,7 @@ export function PettyCashExpenseTable({
         return <span>{formatPettyCashDate(expense.dueDate)}</span>;
       case 'receipts':
         return (
-          <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
             {expense.receiptCount} file{expense.receiptCount === 1 ? '' : 's'}
           </span>
         );
@@ -235,7 +235,7 @@ export function PettyCashExpenseTable({
               {visibleColumns.map((column) => (
                 <th
                   key={column.key}
-                  className={`px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 ${
+                  className={`px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 ${
                     column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'
                   }`}
                 >
@@ -255,7 +255,7 @@ export function PettyCashExpenseTable({
             {sortedExpenses.length === 0 ? (
               <tr>
                 <td colSpan={visibleColumns.length} className="px-6 py-12 text-center">
-                  <p className="font-semibold text-gray-900 dark:text-white">No petty cash expenses found</p>
+                  <p className="font-medium text-gray-900 dark:text-white">No petty cash expenses found</p>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Adjust filters or upload a new expense.</p>
                 </td>
               </tr>

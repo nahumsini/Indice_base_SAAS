@@ -14,7 +14,7 @@ function StatusPill({ label, tone = 'gray' }: { label: string; tone?: 'green' | 
     gray: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-950 dark:text-slate-200 dark:border-slate-800',
   };
 
-  return <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', tones[tone])}>{label}</span>;
+  return <span className={cn('rounded-full border px-3 py-1 text-xs font-medium', tones[tone])}>{label}</span>;
 }
 
 function ProgressLine({ danger = false, value }: { danger?: boolean; value: number }) {
@@ -23,7 +23,7 @@ function ProgressLine({ danger = false, value }: { danger?: boolean; value: numb
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
         <div className={cn('h-full rounded-full', danger ? 'bg-rose-500' : 'bg-[#FF6B5E]')} style={{ width: `${Math.min(Math.max(value, 2), 100)}%` }} />
       </div>
-      <span className="w-10 text-right text-sm font-bold text-slate-900 dark:text-white">{percent(value)}</span>
+      <span className="w-10 text-right text-sm font-medium text-slate-900 dark:text-white">{percent(value)}</span>
     </div>
   );
 }
@@ -49,7 +49,7 @@ export function SalesKpiSignals({
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-lg font-bold text-slate-950 dark:text-white">{copy.signals.title}</h3>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.signals.title}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400">{copy.signals.subtitle}</p>
         </div>
         <StatusPill label={commercialRisk ? copy.signals.risk : copy.signals.stable} tone={commercialRisk ? 'red' : 'green'} />
@@ -58,31 +58,31 @@ export function SalesKpiSignals({
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-bold text-slate-700 dark:text-slate-200">{copy.signals.conversion}</p>
+            <p className="font-medium text-slate-700 dark:text-slate-200">{copy.signals.conversion}</p>
             <TrendingUp className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
           </div>
-          <p className="mb-4 text-3xl font-bold text-slate-950 dark:text-white">{percent(quoteConversionRate)}</p>
+          <p className="mb-4 text-3xl font-medium text-slate-950 dark:text-white">{percent(quoteConversionRate)}</p>
           <ProgressLine value={quoteConversionRate} danger={quoteConversionRate < 25} />
         </div>
 
         <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-bold text-slate-700 dark:text-slate-200">{copy.cards.quoteApproval.label}</p>
+            <p className="font-medium text-slate-700 dark:text-slate-200">{copy.cards.quoteApproval.label}</p>
             <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
           </div>
-          <p className="mb-4 text-3xl font-bold text-slate-950 dark:text-white">{percent(quoteApprovalRate)}</p>
+          <p className="mb-4 text-3xl font-medium text-slate-950 dark:text-white">{percent(quoteApprovalRate)}</p>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{copy.cards.quoteApproval.detail(percent(quoteRejectionRate))}</p>
           <ProgressLine value={quoteApprovalRate} danger={quoteApprovalRate < 40} />
         </div>
 
         <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-bold text-slate-700 dark:text-slate-200">{copy.signals.commercialRisk}</p>
+            <p className="font-medium text-slate-700 dark:text-slate-200">{copy.signals.commercialRisk}</p>
             <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-300" />
           </div>
-          <p className="mb-4 text-3xl font-bold text-slate-950 dark:text-white">{commercialRisk}</p>
+          <p className="mb-4 text-3xl font-medium text-slate-950 dark:text-white">{commercialRisk}</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">{copy.signals.commercialRiskDescription}</p>
-          <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">{copy.cards.contacts.detail(activeCustomers)} / {totalContacts}</p>
+          <p className="mt-2 text-xs font-medium text-slate-400 dark:text-slate-500">{copy.cards.contacts.detail(activeCustomers)} / {totalContacts}</p>
         </div>
       </div>
     </section>

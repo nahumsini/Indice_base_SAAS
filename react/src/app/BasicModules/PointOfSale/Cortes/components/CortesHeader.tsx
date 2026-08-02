@@ -16,9 +16,9 @@ export function CortesHeader({
 }: CortesHeaderProps) {
   const actionLayout = (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" onClick={onColumns} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#FF6B5E] shadow-none transition hover:bg-[#FF6B5E] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"><Columns3 className="h-4 w-4" />Columnas</button>
-      <button type="button" onClick={onRefresh} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-none transition hover:bg-[#FF6B5E]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button>
-      <button type="button" onClick={onPrintReport} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#E85D52]"><Printer className="h-4 w-4" />Imprimir reporte</button>
+      <button type="button" onClick={onColumns} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#B63B32] shadow-none transition hover:bg-[#FF6B5E] hover:text-[#222831] dark:border-slate-700 dark:bg-slate-800 dark:text-white"><Columns3 className="h-4 w-4" />Columnas</button>
+      <button type="button" onClick={onRefresh} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:bg-[#FF6B5E]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button>
+      <button type="button" onClick={onPrintReport} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#E85D52]"><Printer className="h-4 w-4" />Imprimir reporte</button>
     </div>
   );
 
@@ -27,7 +27,7 @@ export function CortesHeader({
     <section className="mb-5 rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-6 shadow-sm dark:border-[#FF6B5E]/40 dark:bg-[#FF6B5E]/15">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="mb-1 flex items-center gap-2 text-2xl font-semibold text-slate-900 dark:text-white">
+          <h2 className="mb-1 flex items-center gap-2 text-2xl font-medium text-slate-900 dark:text-white">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-white text-xl leading-none shadow-sm" aria-hidden="true">
               💵
             </span>

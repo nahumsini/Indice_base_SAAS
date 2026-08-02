@@ -68,7 +68,7 @@ export function IndiceModalWizardStepper<StepId extends string>({
               <span className="flex min-w-0 items-center gap-2">
                 <span
                   className={cn(
-                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors',
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium transition-colors',
                     isComplete && 'border-emerald-500 bg-emerald-500 text-white',
                     isActive && accentStyle.active,
                     !isComplete && !isActive && 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',

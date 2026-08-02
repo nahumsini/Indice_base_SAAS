@@ -48,7 +48,7 @@ export function EmployeeTable({
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.employeeListTitle}</h3>
+          <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.timeTable.employeeListTitle}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {selectionLabel} · {dateLabel}
           </p>
@@ -103,7 +103,7 @@ export function EmployeeTable({
                 <tr key={row.assignment.user_company_id} className={`${rowClassName} transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60`}>
                   <TableCell>
                     <div>
-                      <p className="font-semibold text-slate-950 dark:text-white">{row.assignment.user_name}</p>
+                      <p className="font-medium text-slate-950 dark:text-white">{row.assignment.user_name}</p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {row.assignment.user_code || `EMP-${row.assignment.user_company_id}`}
                       </p>
@@ -114,7 +114,7 @@ export function EmployeeTable({
                   <TableCell>{row.businessLocation}</TableCell>
                   <TableCell>
                     <div>
-                      <p className={siteWarning ? 'font-semibold text-amber-700 dark:text-amber-200' : undefined}>
+                      <p className={siteWarning ? 'font-medium text-amber-700 dark:text-amber-200' : undefined}>
                         {row.contractSite}
                       </p>
                       {siteWarning ? (
@@ -124,7 +124,7 @@ export function EmployeeTable({
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className={scheduleIssue ? 'font-semibold text-rose-700 dark:text-rose-200' : noWorkingTimeWarning ? 'font-semibold text-amber-700 dark:text-amber-200' : undefined}>
+                      <p className={scheduleIssue ? 'font-medium text-rose-700 dark:text-rose-200' : noWorkingTimeWarning ? 'font-medium text-amber-700 dark:text-amber-200' : undefined}>
                         {row.schedule}
                       </p>
                       {scheduleIssue ? (
@@ -142,7 +142,7 @@ export function EmployeeTable({
                   <TableCell>{formatAttendanceTime(row.assignment.first_check_in_at, locale)}</TableCell>
                   <TableCell>{formatAttendanceTime(row.assignment.last_check_out_at, locale)}</TableCell>
                   <TableCell>
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
                       row.hasAttendance
                         ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200'
                         : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
@@ -160,7 +160,7 @@ export function EmployeeTable({
                 <TableCell colSpan={9}>
                   <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
                     <Building2 className="mx-auto h-8 w-8 text-slate-400" />
-                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{copy.timeTable.noEmployeesFound}</p>
+                    <p className="mt-3 text-sm font-medium text-slate-900 dark:text-white">{copy.timeTable.noEmployeesFound}</p>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                       {copy.timeTable.noEmployeesHint}
                     </p>
@@ -196,7 +196,7 @@ function SortableTableHead({
   const SortIcon = isActive ? (direction === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
 
   return (
-    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">
+    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300">
       <button
         type="button"
         onClick={() => onSort(sortKey)}

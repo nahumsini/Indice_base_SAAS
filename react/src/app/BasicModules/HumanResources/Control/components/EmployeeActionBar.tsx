@@ -60,7 +60,7 @@ export function EmployeeActionBar({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
             {copy.sections.access}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -73,7 +73,7 @@ export function EmployeeActionBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-9 justify-center gap-2 rounded-lg border-[#59C3A5]/25 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-sm hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/15 hover:text-[#59C3A5] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/40"
+          className="h-9 justify-center gap-2 rounded-lg border-[#59C3A5]/25 bg-[#59C3A5]/10 text-xs font-medium text-[#59C3A5] shadow-sm hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/15 hover:text-[#59C3A5] disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/40"
           disabled={assignLocationDisabled}
           title={assignLocationTitle}
           onClick={onAssignLocation}
@@ -85,7 +85,7 @@ export function EmployeeActionBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-9 justify-center gap-2 rounded-lg border-[#59C3A5]/25 bg-white text-xs font-semibold text-[#237c67] shadow-sm hover:border-[#59C3A5]/45 hover:bg-[#F4FCF9] hover:text-[#237c67] dark:border-[#8FE0CA]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
+          className="h-9 justify-center gap-2 rounded-lg border-[#59C3A5]/25 bg-white text-xs font-medium text-[#237c67] shadow-sm hover:border-[#59C3A5]/45 hover:bg-[#F4FCF9] hover:text-[#237c67] dark:border-[#8FE0CA]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
           title={copy.labels.restPlannerActionDescription}
           onClick={onOpenRestPlanner}
         >
@@ -96,7 +96,7 @@ export function EmployeeActionBar({
         <Button
           variant="outline"
           size="sm"
-          className={`h-9 justify-center gap-2 rounded-md border-[#F2C94C]/45 text-xs font-semibold shadow-[0_1px_2px_rgba(242,201,76,0.12)] transition ${
+          className={`h-9 justify-center gap-2 rounded-md border-[#F2C94C]/45 text-xs font-medium shadow-[0_1px_2px_rgba(242,201,76,0.12)] transition ${
             isCalendarBulkSelectionMode
               ? "bg-[#F2C94C] text-slate-950 hover:bg-[#e5b932] hover:text-slate-950"
               : "bg-[#F2C94C]/15 text-[#9a7400] hover:border-[#F2C94C]/65 hover:bg-[#F2C94C]/25 hover:text-[#7a5c00] dark:text-[#F2C94C]"

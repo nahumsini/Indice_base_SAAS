@@ -1,6 +1,7 @@
 package com.indice.erp.billing.seats;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.UUID;
@@ -80,6 +81,41 @@ class SeatServiceIntegrationTest {
             Integer.class,
             companyId
         )).isEqualTo(1);
+    }
+
+    @Test
+    void inactiveUserCannotBeActivatedWhenAllSeatsAreOccupied() {
+        var suffix = UUID.randomUUID().toString();
+        jdbc.update("INSERT INTO companies (name) VALUES (?)", COMPANY_PREFIX + suffix);
+        var companyId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbc.update(
+            "INSERT INTO users (email, password_hash, full_name) VALUES (?, '$2a$10$phase5-test', 'Seat Owner')",
+            EMAIL_PREFIX + "owner-" + suffix + "@example.com"
+        );
+        var ownerId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbc.update(
+            "INSERT INTO user_companies (user_id, company_id, role, status, visibility) VALUES (?, ?, 'owner', 'active', 'all')",
+            ownerId,
+            companyId
+        );
+        jdbc.update(
+            "INSERT INTO users (email, password_hash, full_name) VALUES (?, '$2a$10$phase5-test', 'Inactive User')",
+            EMAIL_PREFIX + "inactive-" + suffix + "@example.com"
+        );
+        var inactiveUserId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbc.update(
+            "INSERT INTO user_companies (user_id, company_id, role, status, visibility) VALUES (?, ?, 'user', 'inactive', 'all')",
+            inactiveUserId,
+            companyId
+        );
+        jdbc.update(
+            "INSERT INTO company_seat_states (company_id, included_seats, purchased_extra_seats) VALUES (?, 1, 0)",
+            companyId
+        );
+
+        assertThatThrownBy(() -> seats.requireAvailableSeatForActivation(companyId, inactiveUserId))
+            .isInstanceOf(SeatCapacityExceededException.class)
+            .hasMessageContaining("seat limit");
     }
 
     private String reserveAfterBarrier(

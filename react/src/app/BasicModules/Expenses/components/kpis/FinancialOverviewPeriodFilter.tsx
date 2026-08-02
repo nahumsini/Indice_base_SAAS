@@ -2,7 +2,7 @@ import { CalendarDays } from 'lucide-react';
 import type { PeriodFilter } from '../../types/expenseView.types';
 import type { FinanceTranslations } from '../../translations';
 
-const filterInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
+const filterInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
 interface FinancialOverviewPeriodFilterProps {
   customEndDate: string;
@@ -33,11 +33,11 @@ export function FinancialOverviewPeriodFilter({
             <CalendarDays className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-base font-bold text-slate-950 dark:text-white">{text.filters.title}</h3>
-            <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{text.kpis.periodFilterHelp}</p>
+            <h3 className="text-base font-medium text-slate-950 dark:text-white">{text.filters.title}</h3>
+            <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{text.kpis.periodFilterHelp}</p>
           </div>
         </div>
-        <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-bold text-[#147514] dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300">
+        <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-medium text-[#147514] dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300">
           {text.common.results(resultCount)}
         </span>
       </div>
@@ -80,7 +80,7 @@ function SelectField({
 }) {
   return (
     <label>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)} className={filterInputClass}>
         {options.map(([optionValue, optionLabel]) => (
           <option key={optionValue} value={optionValue}>{optionLabel}</option>
@@ -101,7 +101,7 @@ function DateField({
 }) {
   return (
     <label>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
       <input type="date" value={value} onChange={(event) => onChange(event.target.value)} className={filterInputClass} />
     </label>
   );

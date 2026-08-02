@@ -54,7 +54,7 @@ export function HrMobileDataCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="break-words text-sm font-bold text-slate-950 dark:text-white">{title}</h3>
+              <h3 className="break-words text-sm font-medium text-slate-950 dark:text-white">{title}</h3>
               {subtitle ? <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{subtitle}</div> : null}
             </div>
             {badges ? <div className="flex flex-wrap items-center gap-1.5">{badges}</div> : null}
@@ -64,7 +64,7 @@ export function HrMobileDataCard({
             <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-3 dark:border-slate-700">
               {details.map((detail) => (
                 <div key={detail.label} className="min-w-0">
-                  <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                  <dt className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
                     {detail.label}
                   </dt>
                   <dd className="mt-1 break-words text-sm font-medium text-slate-700 dark:text-slate-200">

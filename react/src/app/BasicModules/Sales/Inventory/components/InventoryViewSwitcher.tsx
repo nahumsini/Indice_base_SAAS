@@ -32,7 +32,7 @@ export function InventoryViewSwitcher({
             type="button"
             className={`flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition ${
               active
-                ? 'bg-[#FF6B5E] text-white shadow-md shadow-[#FF6B5E]/20'
+                ? 'bg-[#FF6B5E] text-[#222831] shadow-sm shadow-[#FF6B5E]/20'
                 : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'
             }`}
             onClick={() => onViewChange(view.id)}

@@ -184,7 +184,7 @@ export function CreditCustomersView({
         <Badge
           variant="outline"
           className={cn(
-            'rounded-full border px-3 py-1 text-xs font-bold',
+            'rounded-full border px-3 py-1 text-xs font-medium',
             policy.status === 'active' ? 'border-[#147514]/20 bg-[#147514]/10 text-[#147514]' : '',
             policy.status === 'review' ? 'border-amber-200 bg-amber-50 text-amber-700' : '',
             policy.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : '',
@@ -232,7 +232,7 @@ export function CreditCustomersView({
               type="button"
               variant="outline"
               onClick={() => setShowColumnsModal(true)}
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-medium text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
             >
               <Columns3 className="h-4 w-4" />
               {viewCopy.columnsAction}
@@ -240,7 +240,7 @@ export function CreditCustomersView({
             <Button
               type="button"
               onClick={() => setShowPolicyModal(true)}
-              className={cn('h-11 gap-2 rounded-xl px-5 text-sm font-bold', financeAccentButtonClass)}
+              className={cn('h-11 gap-2 rounded-xl px-5 text-sm font-medium', financeAccentButtonClass)}
             >
               <Plus className="h-4 w-4" />
               {viewCopy.action}
@@ -288,7 +288,7 @@ export function CreditCustomersView({
                 onSort={handleSort}
               />
             ))}
-            <TableHead className="px-5 py-4 text-right text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+            <TableHead className="px-5 py-4 text-right text-[11px] font-medium text-slate-500">
               {viewCopy.table.actions}
             </TableHead>
           </TableRow>
@@ -304,11 +304,11 @@ export function CreditCustomersView({
                     <TableCell
                       key={`${policy.id}-${column.id}`}
                       className={cn(
-                        'px-5 py-4 font-semibold text-slate-600 dark:text-slate-300',
-                        columnId === 'customer' && 'font-black text-slate-950 dark:text-white',
-                        columnId === 'line' && 'font-bold text-slate-700 dark:text-slate-200',
-                        columnId === 'available' && cn('font-black', financeTextClass),
-                        columnId === 'monthlyLimit' && 'font-bold text-slate-700 dark:text-slate-200',
+                        'px-5 py-4 font-medium text-slate-600 dark:text-slate-300',
+                        columnId === 'customer' && 'font-medium text-slate-950 dark:text-white',
+                        columnId === 'line' && 'font-medium text-slate-700 dark:text-slate-200',
+                        columnId === 'available' && cn('font-medium', financeTextClass),
+                        columnId === 'monthlyLimit' && 'font-medium text-slate-700 dark:text-slate-200',
                       )}
                     >
                       {renderCell(policy, columnId)}
@@ -412,7 +412,7 @@ export function CreditCustomersView({
                 type="button"
                 variant="destructive"
                 data-modal-destructive="true"
-                className="h-11 rounded-xl bg-red-600 px-5 text-sm font-black text-white shadow-sm hover:bg-red-700"
+                className="h-11 rounded-xl bg-red-600 px-5 text-sm font-medium text-white shadow-sm hover:bg-red-700"
                 disabled={isDeletingPolicy}
                 onClick={() => {
                   if (isDeletingPolicy) return;
@@ -439,7 +439,7 @@ export function CreditCustomersView({
         >
           <div className="space-y-4">
             <IndiceModalValidation messages={deletePolicyError ? [deletePolicyError] : []} />
-            <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
               {copy.modals.creditPolicy.deleteConfirm(deletePolicyCandidate.customerName)}
             </div>
           </div>

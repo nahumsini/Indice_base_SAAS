@@ -17,24 +17,24 @@ export default function AlmacenesTab() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">🏭</div>
-          <p className="text-3xl font-bold">{mockLocations.length}</p>
+          <p className="text-3xl font-medium">{mockLocations.length}</p>
           <p className="text-sm opacity-90">Total Ubicaciones</p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">✅</div>
-          <p className="text-3xl font-bold">{mockLocations.filter(l => l.isActive).length}</p>
+          <p className="text-3xl font-medium">{mockLocations.filter(l => l.isActive).length}</p>
           <p className="text-sm opacity-90">Activas</p>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">📊</div>
-          <p className="text-3xl font-bold">
+          <p className="text-3xl font-medium">
             {Math.round(mockLocations.reduce((acc, l) => acc + (l.occupation / l.capacity * 100), 0) / mockLocations.length)}%
           </p>
           <p className="text-sm opacity-90">Ocupación Promedio</p>
         </div>
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">📦</div>
-          <p className="text-3xl font-bold">
+          <p className="text-3xl font-medium">
             {mockLocations.reduce((acc, l) => acc + l.totalStock, 0).toLocaleString()}
           </p>
           <p className="text-sm opacity-90">Stock Total</p>
@@ -47,7 +47,7 @@ export default function AlmacenesTab() {
             <div className="flex items-start gap-3 mb-4">
               <div className="text-4xl">{getTypeIcon(location.type)}</div>
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 dark:text-white">{location.name}</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white">{location.name}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{location.code}</p>
               </div>
               {location.isActive && (

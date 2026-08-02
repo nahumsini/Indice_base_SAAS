@@ -233,8 +233,8 @@ export function PermissionDetailModal({
                 <User className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.employeeInformation}</h3>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">{permission.employee.name}</p>
+                <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">{copy.detail.employeeInformation}</h3>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">{permission.employee.name}</p>
                 {permission.employee.position ? (
                   <p className="text-sm text-gray-600 dark:text-gray-300">{permission.employee.position}</p>
                 ) : null}
@@ -289,7 +289,7 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <FileText className="h-5 w-5" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.reason}</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">{copy.detail.reason}</h3>
               </div>
               <p className="whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
                 {permission.reason}
@@ -300,7 +300,7 @@ export function PermissionDetailModal({
           <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
               <Download className="h-5 w-5" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.attachments}</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">{copy.detail.attachments}</h3>
             </div>
             {attachments.length > 0 ? (
               <div className="space-y-3">
@@ -343,22 +343,22 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <CheckCircle className="h-5 w-5" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{statusLabel}</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">{statusLabel}</h3>
               </div>
               {permission.reviewNotes ? (
                 <div className="mb-3">
-                  <p className="mb-1 text-sm font-semibold text-gray-600 dark:text-gray-300">{copy.detail.reviewNotes}</p>
+                  <p className="mb-1 text-sm font-medium text-gray-600 dark:text-gray-300">{copy.detail.reviewNotes}</p>
                   <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">{permission.reviewNotes}</p>
                 </div>
               ) : null}
               {permission.reviewedBy?.name ? (
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  <span className="font-semibold">{copy.detail.reviewedBy}:</span> {permission.reviewedBy.name}
+                  <span className="font-medium">{copy.detail.reviewedBy}:</span> {permission.reviewedBy.name}
                 </p>
               ) : null}
               {permission.reviewedAt ? (
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                  <span className="font-semibold">{copy.detail.reviewedAt}:</span> {formatDate(permission.reviewedAt, locale)}
+                  <span className="font-medium">{copy.detail.reviewedAt}:</span> {formatDate(permission.reviewedAt, locale)}
                 </p>
               ) : null}
             </div>
@@ -368,7 +368,7 @@ export function PermissionDetailModal({
             <div className="rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-6 dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10">
               <div className="mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200">
                 <CheckCircle className="h-5 w-5 text-[#159A7D]" />
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.detail.reviewNotes}</h3>
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white">{copy.detail.reviewNotes}</h3>
               </div>
               <Textarea
                 value={reviewNotes}

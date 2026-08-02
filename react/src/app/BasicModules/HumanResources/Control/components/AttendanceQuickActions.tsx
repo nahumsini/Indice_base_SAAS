@@ -128,7 +128,7 @@ export function AttendanceQuickActions({
       <div className="rounded-lg border border-[#59C3A5]/10 bg-[#F4FCF9] p-3 dark:border-gray-800 dark:bg-gray-900/40">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.manualPunch}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.labels.manualPunch}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{copy.labels.manualPunchDescription}</p>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function AttendanceQuickActions({
               type="button"
               variant="outline"
               disabled={!canSaveManualCheckIn}
-              className="mt-3 w-full gap-2 border-[#59C3A5] bg-[#59C3A5] text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:border-[#3AAE90] hover:bg-[#3AAE90] hover:text-white disabled:border-[#59C3A5]/20 disabled:bg-[#59C3A5]/10 disabled:text-[#59C3A5] dark:border-[#8FE0CA]/60 dark:bg-[#8FE0CA] dark:text-[#081a38] dark:hover:bg-[#b4ccff] dark:disabled:border-[#8FE0CA]/20 dark:disabled:bg-[#59C3A5]/25 dark:disabled:text-[#8FE0CA]"
+              className="mt-3 w-full gap-2 border-[#59C3A5] bg-[#59C3A5] text-slate-950 shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:border-[#3AAE90] hover:bg-[#3AAE90] hover:text-slate-950 disabled:border-[#59C3A5]/20 disabled:bg-[#59C3A5]/10 disabled:text-[#59C3A5] dark:border-[#8FE0CA]/60 dark:bg-[#8FE0CA] dark:text-[#081a38] dark:hover:bg-[#b4ccff] dark:disabled:border-[#8FE0CA]/20 dark:disabled:bg-[#59C3A5]/25 dark:disabled:text-[#8FE0CA]"
               onClick={() => void onManualPunch(day.date, 'check_in', manualCheckInDate, manualCheckInTime)}
             >
               <LogIn className="h-4 w-4" />
@@ -210,7 +210,7 @@ export function AttendanceQuickActions({
               type="button"
               variant="outline"
               disabled={!canSaveManualCheckOut}
-              className="mt-3 w-full gap-2 border-[#1f4c93] bg-[#1f4c93] text-white shadow-[0_1px_2px_rgba(31,76,147,0.20)] hover:border-[#59C3A5] hover:bg-[#59C3A5] hover:text-white disabled:border-[#59C3A5]/20 disabled:bg-[#59C3A5]/10 disabled:text-[#59C3A5] dark:border-[#8FE0CA]/50 dark:bg-[#6f9ee8] dark:text-[#081a38] dark:hover:bg-[#8FE0CA] dark:disabled:border-[#8FE0CA]/20 dark:disabled:bg-[#59C3A5]/25 dark:disabled:text-[#8FE0CA]"
+              className="mt-3 w-full gap-2 border-[#1f4c93] bg-[#1f4c93] text-white shadow-[0_1px_2px_rgba(31,76,147,0.20)] hover:border-[#59C3A5] hover:bg-[#59C3A5] hover:text-slate-950 disabled:border-[#59C3A5]/20 disabled:bg-[#59C3A5]/10 disabled:text-[#59C3A5] dark:border-[#8FE0CA]/50 dark:bg-[#6f9ee8] dark:text-[#081a38] dark:hover:bg-[#8FE0CA] dark:disabled:border-[#8FE0CA]/20 dark:disabled:bg-[#59C3A5]/25 dark:disabled:text-[#8FE0CA]"
               onClick={() => void onManualPunch(day.date, 'check_out', manualCheckOutDate, manualCheckOutTime)}
             >
               <LogOut className="h-4 w-4" />
@@ -228,7 +228,7 @@ export function AttendanceQuickActions({
       <div className="rounded-lg border border-[#59C3A5]/10 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900/40">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <label className="block">
-            <span className="mb-1 block text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.manuallyModifyStatus}</span>
+            <span className="mb-1 block text-sm font-medium text-gray-900 dark:text-white">{copy.labels.manuallyModifyStatus}</span>
             <select
               value={pendingStatus}
               disabled={isSaving || statusCorrectionDisabled}
@@ -247,7 +247,7 @@ export function AttendanceQuickActions({
           <Button
             type="button"
             disabled={isSaving || statusSaveDisabled}
-            className="h-10 bg-[#59C3A5] px-5 text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:bg-[#3AAE90] disabled:bg-[#59C3A5]/40"
+            className="h-10 bg-[#59C3A5] px-5 text-slate-950 shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:bg-[#3AAE90] disabled:bg-[#59C3A5]/40"
             onClick={() => void onSave(day.date, pendingStatus)}
           >
             {copy.labels.save}
@@ -265,7 +265,7 @@ export function AttendanceQuickActions({
             type="button"
             variant="ghost"
             disabled={isSaving || !canClearScheduleForDay}
-            className="h-9 justify-start px-0 text-xs font-semibold text-rose-700 hover:bg-transparent hover:text-rose-800 disabled:text-gray-400 dark:text-rose-300"
+            className="h-9 justify-start px-0 text-xs font-medium text-rose-700 hover:bg-transparent hover:text-rose-800 disabled:text-gray-400 dark:text-rose-300"
             onClick={() => void onClearDaySchedule(day.date)}
           >
             {copy.labels.clearDaySchedule}

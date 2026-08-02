@@ -68,7 +68,7 @@ export function ReturnModal({ isOpen, onClose, onConfirm }: ReturnModalProps) {
     >
       <div className="space-y-4">
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             {error}
           </div>
         ) : null}
@@ -76,15 +76,15 @@ export function ReturnModal({ isOpen, onClose, onConfirm }: ReturnModalProps) {
         <section className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-500/30 dark:bg-yellow-500/10">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-700 dark:text-yellow-200" />
           <div className="text-sm text-yellow-800 dark:text-yellow-100">
-            <p className="font-black">Importante</p>
-            <p className="mt-1 font-semibold">
+            <p className="font-medium">Importante</p>
+            <p className="mt-1 font-medium">
               La devolucion puede restaurar inventario y generar una nota de credito segun la configuracion del flujo.
             </p>
           </div>
         </section>
 
         <section>
-          <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Numero de venta
           </label>
           <input
@@ -95,13 +95,13 @@ export function ReturnModal({ isOpen, onClose, onConfirm }: ReturnModalProps) {
               setError('');
             }}
             placeholder="V123456-0001"
-            className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-black uppercase text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             autoFocus
           />
         </section>
 
         <section>
-          <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Tipo de devolucion</p>
+          <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de devolucion</p>
           <div className="grid grid-cols-2 gap-2">
             <ReturnTypeButton
               active={returnType === 'full'}
@@ -148,8 +148,8 @@ function ReturnTypeButton({
           : 'border-gray-300 bg-gray-50 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400'
       }`}
     >
-      <p className="text-sm font-black">Devolucion {title}</p>
-      <p className="mt-1 text-xs font-semibold">{description}</p>
+      <p className="text-sm font-medium">Devolucion {title}</p>
+      <p className="mt-1 text-xs font-medium">{description}</p>
     </button>
   );
 }
@@ -157,8 +157,8 @@ function ReturnTypeButton({
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <span className="font-semibold text-gray-600 dark:text-gray-400">{label}:</span>
-      <span className="font-black text-gray-900 dark:text-white">{value}</span>
+      <span className="font-medium text-gray-600 dark:text-gray-400">{label}:</span>
+      <span className="font-medium text-gray-900 dark:text-white">{value}</span>
     </div>
   );
 }

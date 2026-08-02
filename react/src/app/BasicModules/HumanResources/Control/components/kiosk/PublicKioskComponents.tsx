@@ -40,15 +40,15 @@ export function KioskStepGuide({ stepLabel, steps }: { stepLabel: string; steps:
               state === 'done'
                 ? 'bg-emerald-500 text-white'
                 : state === 'active'
-                  ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
+                  ? 'bg-[#59C3A5] text-slate-950 dark:bg-[#8FE0CA] dark:text-slate-950'
                   : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
             }`}
           >
             {state === 'done' ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">{stepLabel} {index + 1}</p>
-            <p className="mt-0.5 text-sm font-semibold">{label}</p>
+            <p className="text-[11px] font-medium opacity-70">{stepLabel} {index + 1}</p>
+            <p className="mt-0.5 text-sm font-medium">{label}</p>
           </div>
         </div>
       ))}
@@ -69,11 +69,11 @@ export function KioskStatusMetric({
 }) {
   return (
     <div className={`min-w-0 rounded-lg border px-4 py-3 ${isStrong ? 'border-[#59C3A5]/25 bg-[#59C3A5]/8 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10' : 'border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-950/75'}`}>
-      <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+      <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
         <Icon className="h-4 w-4 shrink-0" />
         <span className="truncate">{label}</span>
       </div>
-      <p className={`mt-2 truncate text-base font-semibold ${isStrong ? 'text-[#59C3A5] dark:text-[#8FE0CA]' : 'text-slate-950 dark:text-white'}`}>
+      <p className={`mt-2 truncate text-base font-medium ${isStrong ? 'text-[#59C3A5] dark:text-[#8FE0CA]' : 'text-slate-950 dark:text-white'}`}>
         {value}
       </p>
     </div>
@@ -101,7 +101,7 @@ export function KioskLanguageSelector({
         value={locale}
         onChange={(event) => onLocaleChange(event.target.value as KioskLocale)}
         aria-label={copy.language.selectorLabel}
-        className="min-w-0 flex-1 truncate bg-transparent text-sm font-semibold outline-none"
+        className="min-w-0 flex-1 truncate bg-transparent text-sm font-medium outline-none"
       >
         {localeOptions.map((option) => (
           <option key={option.code} value={option.code}>
@@ -112,7 +112,7 @@ export function KioskLanguageSelector({
       {detectedLocale === locale ? (
         <span
           title={copy.language.autoDetected}
-          className="hidden rounded-full bg-[#59C3A5]/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA] sm:inline"
+          className="hidden rounded-full bg-[#59C3A5]/8 px-2 py-0.5 text-[10px] font-medium text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA] sm:inline"
         >
           {copy.language.autoBadge}
         </span>
@@ -142,15 +142,15 @@ export function KioskFlowStepper({ stepLabel, steps }: { stepLabel: string; step
                 state === 'done'
                   ? 'bg-emerald-500 text-white'
                   : state === 'active'
-                    ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
+                    ? 'bg-[#59C3A5] text-slate-950 dark:bg-[#8FE0CA] dark:text-slate-950'
                     : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
               }`}
             >
               {state === 'done' ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">{stepLabel} {index + 1}</p>
-              <p className="mt-0.5 truncate text-sm font-semibold">{label}</p>
+              <p className="text-[11px] font-medium opacity-70">{stepLabel} {index + 1}</p>
+              <p className="mt-0.5 truncate text-sm font-medium">{label}</p>
             </div>
           </div>
         </div>
@@ -193,11 +193,11 @@ export function KioskPinKeypad({
           type="button"
           disabled={disabled}
           onClick={() => handleKey(key)}
-          className={`flex h-14 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl font-semibold text-slate-950 shadow-sm transition hover:border-[#59C3A5]/35 hover:bg-[#59C3A5]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-[#8FE0CA]/35 dark:hover:bg-[#8FE0CA]/10 ${
+          className={`flex h-14 items-center justify-center rounded-lg border border-slate-200 bg-white text-xl font-medium text-slate-950 shadow-sm transition hover:border-[#59C3A5]/35 hover:bg-[#59C3A5]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-[#8FE0CA]/35 dark:hover:bg-[#8FE0CA]/10 ${
             key === '0' ? 'col-start-2' : ''
           }`}
         >
-          {key === 'backspace' ? <span className="text-sm font-bold uppercase tracking-wide">{backspaceLabel}</span> : key}
+          {key === 'backspace' ? <span className="text-sm font-medium">{backspaceLabel}</span> : key}
         </button>
       ))}
     </div>

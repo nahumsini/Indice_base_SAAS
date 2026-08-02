@@ -592,27 +592,27 @@ export default function SupplierPortal() {
                 <KeyRound className="h-6 w-6" />
               </span>
               <div>
-                <h1 className="text-xl font-black text-slate-950 dark:text-white">{copy.portal.secureAccess}</h1>
-                <p className="mt-1 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
+                <h1 className="text-xl font-medium text-slate-950 dark:text-white">{copy.portal.secureAccess}</h1>
+                <p className="mt-1 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
                   {copy.portal.secureAccessDescription}
                 </p>
               </div>
             </div>
 
             {unavailableMessage ? (
-              <div role="status" className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+              <div role="status" className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
                 <Clock3 className="mb-2 h-5 w-5" />
                 {unavailableMessage}
               </div>
             ) : (
               <div className="mt-5 space-y-4">
                 {!bootstrap && !bootstrapping && portalCode ? (
-                  <button type="button" onClick={() => setBootstrapAttempt(current => current + 1)} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-orange-200 bg-orange-50 px-4 text-sm font-bold text-orange-800 outline-none hover:bg-orange-100 focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">
+                  <button type="button" onClick={() => setBootstrapAttempt(current => current + 1)} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-orange-200 bg-orange-50 px-4 text-sm font-medium text-orange-800 outline-none hover:bg-orange-100 focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-100">
                     {copy.portal.retryPortal}
                   </button>
                 ) : null}
                 <label className="block space-y-2">
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.portal.pin}</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.portal.pin}</span>
                   <input
                     autoComplete="one-time-code"
                     inputMode="numeric"
@@ -623,10 +623,10 @@ export default function SupplierPortal() {
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') void authenticate();
                     }}
-                    className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-2xl font-black tracking-[0.2em] text-slate-950 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-2xl font-medium text-slate-950 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                   />
                 </label>
-                <button type="button" disabled={bootstrapping || loading || !isOnline || bootstrapStatus !== 'ACTIVE' || !pin.trim()} onClick={() => void authenticate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="button" disabled={bootstrapping || loading || !isOnline || bootstrapStatus !== 'ACTIVE' || !pin.trim()} onClick={() => void authenticate()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                   {copy.portal.signIn}
                 </button>
@@ -655,7 +655,7 @@ export default function SupplierPortal() {
       banners={(
         <>
           {!isOnline ? <OfflineBanner message={copy.portal.offline} /> : null}
-          {isSessionExpiring ? <div role="status" className="bg-amber-50 px-4 py-2 text-center text-sm font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">{copy.portal.sessionExpiring}</div> : null}
+          {isSessionExpiring ? <div role="status" className="bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">{copy.portal.sessionExpiring}</div> : null}
         </>
       )}
       errorMessage={error}
@@ -667,10 +667,10 @@ export default function SupplierPortal() {
           actions={(
             <div className="flex items-center gap-2">
               <div className="hidden rounded-2xl bg-white/10 px-4 py-2 text-right sm:block">
-                <p className="text-xs font-bold text-white/60">{copy.portal.proposalTotal}</p>
-                <p className="text-xl font-black">{formatMoney(totals.total, currencyCode, locale)}</p>
+                <p className="text-xs font-medium text-white/60">{copy.portal.proposalTotal}</p>
+                <p className="text-xl font-medium">{formatMoney(totals.total, currencyCode, locale)}</p>
               </div>
-              <button type="button" onClick={closeSession} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" aria-label={copy.portal.closeSession}>
+              <button type="button" onClick={closeSession} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3 text-sm font-medium text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" aria-label={copy.portal.closeSession}>
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">{copy.portal.exit}</span>
               </button>
@@ -686,14 +686,14 @@ export default function SupplierPortal() {
           <aside className="space-y-4">
             <Panel title={copy.portal.linkedCatalog} subtitle={copy.portal.linkedCatalogSubtitle}>
               {context.catalogProducts.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <p className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {copy.portal.emptyCatalog}
                 </p>
               ) : context.catalogProducts.map((product) => (
                 <button key={product.productId} type="button" onClick={() => addCatalogProduct(product)} className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-orange-200 hover:bg-orange-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-orange-500/10">
-                  <p className="font-black text-slate-950 dark:text-white">{product.productName}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{product.providerSku || product.productSku || copy.portal.noSku}</p>
-                  <p className="mt-3 text-lg font-black text-orange-600">{formatMoney(parseNumber(product.costAmount), product.currencyCode, locale)}</p>
+                  <p className="font-medium text-slate-950 dark:text-white">{product.productName}</p>
+                  <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{product.providerSku || product.productSku || copy.portal.noSku}</p>
+                  <p className="mt-3 text-lg font-medium text-orange-600">{formatMoney(parseNumber(product.costAmount), product.currencyCode, locale)}</p>
                 </button>
               ))}
             </Panel>
@@ -706,12 +706,12 @@ export default function SupplierPortal() {
                   <article key={index} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-sm font-black text-orange-600 dark:bg-orange-500/10 dark:text-orange-200">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-sm font-medium text-orange-600 dark:bg-orange-500/10 dark:text-orange-200">
                           {index + 1}
                         </span>
                         <div>
-                          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.portal.item(index + 1)}</p>
-                          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{item.productId ? copy.portal.linkedProduct(item.productId) : copy.portal.manualProduct}</p>
+                          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.portal.item(index + 1)}</p>
+                          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{item.productId ? copy.portal.linkedProduct(item.productId) : copy.portal.manualProduct}</p>
                         </div>
                       </div>
                       <button type="button" aria-label={copy.portal.removeItem(index + 1)} onClick={() => setItems(current => current.filter((_, itemIndex) => itemIndex !== index))} className="rounded-xl p-2 text-red-500 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 dark:hover:bg-red-500/10">
@@ -728,13 +728,13 @@ export default function SupplierPortal() {
                       <Input label={copy.portal.minimumOrder} type="number" value={item.minimumOrderQuantity} onChange={(value) => updateItem(index, 'minimumOrderQuantity', value)} />
                     </div>
                     <label className="mt-3 block space-y-2">
-                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.portal.description}</span>
-                      <textarea value={item.productDescription} onChange={(event) => updateItem(index, 'productDescription', event.target.value)} className="min-h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.portal.description}</span>
+                      <textarea value={item.productDescription} onChange={(event) => updateItem(index, 'productDescription', event.target.value)} className="min-h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
                     </label>
                   </article>
                 ))}
               </div>
-              <button type="button" onClick={() => setItems(current => [...current, emptyItem()])} className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+              <button type="button" onClick={() => setItems(current => [...current, emptyItem()])} className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                 <Plus className="h-4 w-4" />
                 {copy.portal.addManualItem}
               </button>
@@ -744,51 +744,51 @@ export default function SupplierPortal() {
           <aside className="space-y-4">
             <Panel title={copy.portal.summary} subtitle={copy.portal.summarySubtitle}>
               <label className="block space-y-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.portal.currency}</span>
-                <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.portal.currency}</span>
+                <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                   {currencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}
                 </select>
               </label>
               <Input label={copy.portal.yourName} value={submittedByName} onChange={setSubmittedByName} />
               <Input label={copy.portal.email} type="email" value={submittedByEmail} onChange={setSubmittedByEmail} />
-              {!isValidOptionalEmail(submittedByEmail) ? <p className="text-xs font-bold text-red-600 dark:text-red-300">{copy.portal.invalidEmail}</p> : null}
+              {!isValidOptionalEmail(submittedByEmail) ? <p className="text-xs font-medium text-red-600 dark:text-red-300">{copy.portal.invalidEmail}</p> : null}
               <label className="block space-y-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.portal.notes}</span>
-                <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.portal.notes}</span>
+                <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-24 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
               </label>
               <div className="space-y-2 rounded-2xl bg-slate-950 p-4 text-white">
                 <Summary label={copy.portal.subtotal} value={formatMoney(totals.subtotal, currencyCode, locale)} />
                 <Summary label={copy.portal.tax} value={formatMoney(totals.tax, currencyCode, locale)} />
                 <Summary label={copy.portal.total} value={formatMoney(totals.total, currencyCode, locale)} large />
               </div>
-              <button type="button" disabled={!canSubmit} onClick={() => void submit()} className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" disabled={!canSubmit} onClick={() => void submit()} className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 {copy.portal.sendProposal}
               </button>
             </Panel>
 
             <Panel title={copy.portal.supplierInvoice} subtitle={copy.portal.supplierInvoiceSubtitle}>
-              <div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-100">
+              <div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-100">
                 <FileText className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{copy.portal.invoiceReviewNotice}</span>
               </div>
               <Input label={copy.portal.invoiceNumber} value={invoiceNumber} onChange={setInvoiceNumber} />
               <Input label={copy.portal.invoiceDate} type="date" value={invoiceDate} onChange={setInvoiceDate} />
               <Input label={copy.portal.invoiceDueDate} type="date" value={invoiceDueDate} onChange={setInvoiceDueDate} />
-              {invoiceDate && invoiceDueDate && invoiceDueDate < invoiceDate ? <p className="text-xs font-bold text-red-600 dark:text-red-300">{copy.portal.invalidDueDate}</p> : null}
+              {invoiceDate && invoiceDueDate && invoiceDueDate < invoiceDate ? <p className="text-xs font-medium text-red-600 dark:text-red-300">{copy.portal.invalidDueDate}</p> : null}
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
                 <div className="flex items-start gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-orange-600 shadow-sm dark:bg-slate-900 dark:text-orange-200">
                     {invoiceUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-slate-950 dark:text-white">{copy.portal.invoiceFile}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.portal.invoiceFile}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                       {copy.portal.invoiceFileHint}
                     </p>
                   </div>
                 </div>
-                <label className="mt-3 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-xl bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                <label className="mt-3 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-xl bg-white px-3 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                   {copy.portal.selectFile}
                   <input
                     type="file"
@@ -801,7 +801,7 @@ export default function SupplierPortal() {
                   />
                 </label>
                 {invoiceFile ? (
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                     <span className="truncate">{invoiceFile.name} · {formatFileSize(invoiceFile.size)}</span>
                     <button
                       type="button"
@@ -818,7 +818,7 @@ export default function SupplierPortal() {
                   </div>
                 ) : null}
                 {uploadedInvoiceDocument ? (
-                  <p className="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-300">{copy.portal.uploadedFile}</p>
+                  <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-300">{copy.portal.uploadedFile}</p>
                 ) : null}
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -826,17 +826,17 @@ export default function SupplierPortal() {
                 <Input label={copy.portal.invoiceTax} type="number" value={invoiceTax} onChange={setInvoiceTax} />
                 <Input label={copy.portal.invoiceTotalInput} type="number" value={invoiceTotal} onChange={setInvoiceTotal} />
               </div>
-              <button type="button" onClick={useProposalTotalForInvoice} className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800">
+              <button type="button" onClick={useProposalTotalForInvoice} className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800">
                 {copy.portal.useProposalTotal}
               </button>
               <label className="block space-y-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.portal.invoiceNotes}</span>
-                <textarea value={invoiceNotes} onChange={(event) => setInvoiceNotes(event.target.value)} className="min-h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.portal.invoiceNotes}</span>
+                <textarea value={invoiceNotes} onChange={(event) => setInvoiceNotes(event.target.value)} className="min-h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
               </label>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
                 <Summary label={copy.portal.invoiceTotal} value={formatMoney(invoiceAmounts.total, currencyCode, locale)} large tone="light" />
               </div>
-              <button type="button" disabled={!canSubmitInvoice} onClick={() => void submitInvoice()} className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950">
+              <button type="button" disabled={!canSubmitInvoice} onClick={() => void submitInvoice()} className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950">
                 {invoiceSaving || invoiceUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 {invoiceUploading ? copy.portal.uploadingDocument : copy.portal.sendInvoice}
               </button>
@@ -856,9 +856,9 @@ function PortalHeader({ actions, label, subtitle, title }: { actions?: ReactNode
             <ShieldCheck className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-black text-orange-200">{label}</p>
-            <h1 className="truncate text-xl font-black sm:text-2xl">{title}</h1>
-            <p className="truncate text-xs font-semibold text-white/70 sm:text-sm">{subtitle}</p>
+            <p className="text-xs font-medium text-orange-200">{label}</p>
+            <h1 className="truncate text-xl font-medium sm:text-2xl">{title}</h1>
+            <p className="truncate text-xs font-medium text-white/70 sm:text-sm">{subtitle}</p>
           </div>
         </div>
         {actions}
@@ -869,7 +869,7 @@ function PortalHeader({ actions, label, subtitle, title }: { actions?: ReactNode
 
 function OfflineBanner({ message }: { message: string }) {
   return (
-    <div role="alert" className="flex items-center justify-center gap-2 bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+    <div role="alert" className="flex items-center justify-center gap-2 bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-950 dark:bg-amber-950 dark:text-amber-100">
       <WifiOff className="h-4 w-4" />
       {message}
     </div>
@@ -880,8 +880,8 @@ function Panel({ children, subtitle, title }: { children: ReactNode; subtitle: s
   return (
     <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <header className="border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-xl font-black text-slate-950 dark:text-white">{title}</h2>
-        <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{subtitle}</p>
+        <h2 className="text-xl font-medium text-slate-950 dark:text-white">{title}</h2>
+        <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{subtitle}</p>
       </header>
       <div className="space-y-3 p-5">{children}</div>
     </section>
@@ -891,7 +891,7 @@ function Panel({ children, subtitle, title }: { children: ReactNode; subtitle: s
 function Input({ label, onChange, type = 'text', value }: { label: string; onChange: (value: string) => void; type?: string; value: string }) {
   return (
     <label className="block space-y-2">
-      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</span>
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       <input
         type={type}
         value={value}
@@ -899,7 +899,7 @@ function Input({ label, onChange, type = 'text', value }: { label: string; onCha
         step={type === 'number' ? 'any' : undefined}
         inputMode={type === 'number' ? 'decimal' : undefined}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
       />
     </label>
   );
@@ -924,8 +924,8 @@ function Summary({
     : 'text-slate-950 dark:text-white';
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className={`text-xs font-black uppercase tracking-[0.14em] ${labelClass}`}>{label}</span>
-      <span className={`${large ? 'text-2xl font-black' : 'text-sm font-bold'} ${valueClass}`}>{value}</span>
+      <span className={`text-xs font-medium ${labelClass}`}>{label}</span>
+      <span className={`${large ? 'text-2xl font-medium' : 'text-sm font-medium'} ${valueClass}`}>{value}</span>
     </div>
   );
 }

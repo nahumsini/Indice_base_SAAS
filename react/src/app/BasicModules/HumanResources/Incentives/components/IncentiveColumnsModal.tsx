@@ -31,9 +31,9 @@ export function IncentiveColumnsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
       <div className="flex max-h-[86vh] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[#59C3A5]/30 bg-white shadow-2xl dark:border-[#59C3A5]/25 dark:bg-slate-900">
-        <header className="flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-white">
+        <header className="flex items-center justify-between bg-[#59C3A5] px-6 py-4 text-slate-950">
           <div>
-            <h2 className="text-lg font-semibold">{copy.title}</h2>
+            <h2 className="text-lg font-medium">{copy.title}</h2>
             <p className="text-sm text-blue-100">{copy.subtitle}</p>
           </div>
           <button
@@ -75,7 +75,7 @@ export function IncentiveColumnsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#59C3A5] transition hover:bg-blue-50"
+            className="rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-[#59C3A5] transition hover:bg-blue-50"
           >
             {copy.done}
           </button>

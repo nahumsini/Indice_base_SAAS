@@ -734,20 +734,20 @@ export default function Tasks() {
             <TableBody>
               {paginatedTasks.map((task) => (
                 <TableRow key={task.id} className="border-slate-200 dark:border-slate-700">
-                <TableCell className="px-5 py-5 text-sm font-semibold text-slate-900 dark:text-white">
+                <TableCell className="px-5 py-5 text-sm font-medium text-slate-900 dark:text-white">
                   {task.folio}
                 </TableCell>
                 <TableCell className="px-5 py-5">
-                  <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                  <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
                     {agendaCopy.taskTypes[task.taskType]}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <div className="min-w-[300px] space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-slate-900 dark:text-white">{task.title}</p>
+                      <p className="font-medium text-slate-900 dark:text-white">{task.title}</p>
                       {isTaskOverdue(task) ? (
-                        <Badge variant="outline" className="rounded-full border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                        <Badge variant="outline" className="rounded-full border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
                           Overdue
                         </Badge>
                       ) : null}
@@ -769,14 +769,14 @@ export default function Tasks() {
                   </div>
                 </TableCell>
                 <TableCell className="px-5 py-5">
-                  <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', statusClasses[task.status])}>
+                  <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-medium', statusClasses[task.status])}>
                     {agendaCopy.statuses[task.status]}
                   </Badge>
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <Badge
                     variant="outline"
-                    className={cn('rounded-full px-3 py-1 font-semibold capitalize', priorityClasses[task.priority])}
+                    className={cn('rounded-full px-3 py-1 font-medium capitalize', priorityClasses[task.priority])}
                   >
                     {agendaCopy.priorities[task.priority as TaskPriority]}
                   </Badge>
@@ -784,11 +784,11 @@ export default function Tasks() {
                 <TableCell className="px-5 py-5">
                   <div className="min-w-[160px] space-y-2">
                     <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-semibold text-slate-900 dark:text-white">
+                      <span className="font-medium text-slate-900 dark:text-white">
                         {clampPercent(task.completionPercent)}%
                       </span>
                       {task.audited ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#9A6B05]">
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#9A6B05]">
                           <ClipboardCheck className="h-3.5 w-3.5" />
                           Audited
                         </span>

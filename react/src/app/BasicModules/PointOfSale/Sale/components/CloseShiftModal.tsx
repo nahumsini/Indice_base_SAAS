@@ -139,13 +139,13 @@ export function CloseShiftModal({
     >
       <div className="space-y-5">
         {(error || summaryError) ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             {error || summaryError}
           </div>
         ) : null}
 
         {isLoadingSummary ? (
-          <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-4 text-sm font-bold text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+          <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-4 text-sm font-medium text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
             <Loader2 className="h-4 w-4 animate-spin" />
             Cargando resumen real del turno...
           </div>
@@ -170,7 +170,7 @@ export function CloseShiftModal({
             </section>
 
             <section className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-              <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-black uppercase text-gray-500 dark:border-gray-700 dark:bg-gray-950/40 dark:text-gray-400">
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-950/40 dark:text-gray-400">
                 Pagos capturados por metodo
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -179,7 +179,7 @@ export function CloseShiftModal({
                     <PaymentSummaryRow key={payment.paymentMethod} payment={payment} currency={currency} />
                   ))
                 ) : (
-                  <p className="px-4 py-4 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                  <p className="px-4 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                     Sin pagos capturados en este turno.
                   </p>
                 )}
@@ -188,7 +188,7 @@ export function CloseShiftModal({
 
             <section className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
               <div>
-                <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Efectivo contado
                 </label>
                 <input
@@ -197,7 +197,7 @@ export function CloseShiftModal({
                   step="0.01"
                   value={countedCash}
                   onChange={(event) => setCountedCash(event.target.value)}
-                  className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-right text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-right text-xl font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
 
@@ -215,7 +215,7 @@ export function CloseShiftModal({
                     ) : (
                       <AlertTriangle className={`h-5 w-5 ${isOver ? 'text-blue-700 dark:text-blue-200' : 'text-red-700 dark:text-red-200'}`} />
                     )}
-                    <p className="text-sm font-black text-gray-900 dark:text-white">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {isBalanced ? 'Cuadre balanceado' : isOver ? 'Sobrante detectado' : 'Faltante detectado'}
                     </p>
                   </div>
@@ -231,7 +231,7 @@ export function CloseShiftModal({
         ) : null}
 
         <section>
-          <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Nota de cierre
           </label>
           <textarea
@@ -239,7 +239,7 @@ export function CloseShiftModal({
             onChange={(event) => setNotes(event.target.value)}
             rows={3}
             placeholder="Opcional"
-            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
           />
         </section>
       </div>

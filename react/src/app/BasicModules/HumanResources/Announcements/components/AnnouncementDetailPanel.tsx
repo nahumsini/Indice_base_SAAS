@@ -31,14 +31,14 @@ export function AnnouncementDetailPanel({
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-slate-950/55 backdrop-blur-[2px]">
       <aside className="flex h-full w-full max-w-xl flex-col overflow-hidden border-l border-[#59C3A5]/25 bg-white shadow-2xl dark:bg-slate-900">
-        <header className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-white dark:bg-[#269C82]">
+        <header className="flex items-start justify-between gap-4 bg-[#59C3A5] px-6 py-5 text-slate-950 dark:bg-[#269C82] dark:text-white">
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-current/10 bg-white/15">
               <Megaphone className="h-5 w-5" />
             </span>
             <div className="min-w-0">
               <p className="text-xs font-medium text-current/75">{copy.eyebrow}</p>
-              <h3 className="mt-0.5 text-xl font-semibold leading-7">{announcement.title}</h3>
+              <h3 className="mt-0.5 text-xl font-medium leading-7">{announcement.title}</h3>
               <p className="mt-0.5 text-sm text-current/75">{announcement.audienceSummary}</p>
             </div>
           </div>
@@ -89,7 +89,7 @@ export function AnnouncementDetailPanel({
         </div>
 
         <div className="mt-6">
-          <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+          <h4 className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
             <Paperclip className="h-4 w-4" />
             {copy.attachments(announcement.attachmentCount)}
           </h4>
@@ -126,7 +126,7 @@ function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
       <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
+      <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{value}</p>
     </div>
   );
 }

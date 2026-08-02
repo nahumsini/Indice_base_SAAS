@@ -136,7 +136,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
     >
       <form id="pos-adjust-inventory-form" onSubmit={handleSubmit} className="space-y-6">
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             {error}
           </div>
         ) : null}
@@ -150,7 +150,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
         </section>
 
         <section>
-          <label className="mb-3 block text-sm font-black text-gray-700 dark:text-gray-300">
+          <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Tipo de movimiento
           </label>
           <div className="grid grid-cols-3 gap-3">
@@ -170,7 +170,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
               >
                 <div className="flex flex-col items-center gap-2">
                   {getMovementTypeIcon(type)}
-                  <span className="text-sm font-black">{getMovementTypeLabel(type)}</span>
+                  <span className="text-sm font-medium">{getMovementTypeLabel(type)}</span>
                 </div>
               </button>
             ))}
@@ -178,7 +178,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
         </section>
 
         <section>
-          <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
             {adjustmentType === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}
           </label>
           <input
@@ -188,7 +188,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
             step="1"
             value={quantity}
             onChange={(event) => setQuantity(parseInt(event.target.value, 10) || 0)}
-            className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-lg font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-lg font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             placeholder={adjustmentType === 'ajuste' ? 'Stock total despues del ajuste' : 'Cantidad a agregar/quitar'}
           />
         </section>
@@ -197,12 +197,12 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
           <section className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-bold text-gray-600 dark:text-gray-400">Stock despues del ajuste</p>
-                <p className="mt-1 text-3xl font-black text-[#C64237] dark:text-[#FFB5AE]">{newStock}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Stock despues del ajuste</p>
+                <p className="mt-1 text-3xl font-medium text-[#C64237] dark:text-[#FFB5AE]">{newStock}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold text-gray-600 dark:text-gray-400">Diferencia</p>
-                <p className={`mt-1 text-2xl font-black ${newStock > product.currentStock ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Diferencia</p>
+                <p className={`mt-1 text-2xl font-medium ${newStock > product.currentStock ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
                   {newStock > product.currentStock ? '+' : ''}{newStock - product.currentStock}
                 </p>
               </div>
@@ -211,7 +211,7 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
         ) : null}
 
         <section>
-          <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">Motivo</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Motivo</label>
           <textarea
             required
             value={reason}
@@ -220,18 +220,18 @@ export function AdjustInventoryModal({ isOpen, onClose, product, onSave }: Adjus
               setError('');
             }}
             rows={3}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             placeholder="Describe el motivo del ajuste"
           />
         </section>
 
         <section>
-          <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">Referencia</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Referencia</label>
           <input
             type="text"
             value={reference}
             onChange={(event) => setReference(event.target.value)}
-            className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+            className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             placeholder="Ej: OC-2026-001, MERMA-001, INV-2026-05"
           />
         </section>
@@ -265,8 +265,8 @@ function StockStat({ label, value, tone = 'default' }: { label: string; value: s
 
   return (
     <div>
-      <p className="mb-1 text-xs font-bold text-gray-600 dark:text-gray-400">{label}</p>
-      <p className={`text-2xl font-black ${toneClass}`}>{value}</p>
+      <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">{label}</p>
+      <p className={`text-2xl font-medium ${toneClass}`}>{value}</p>
     </div>
   );
 }
@@ -278,7 +278,7 @@ function WarningNotice({ icon, text, tone }: { icon: ReactNode; text: string; to
   }[tone];
 
   return (
-    <div className={`rounded-lg border p-4 text-sm font-bold ${toneClass}`}>
+    <div className={`rounded-lg border p-4 text-sm font-medium ${toneClass}`}>
       <p className="flex items-center gap-2">
         {icon}
         <span>{text}</span>

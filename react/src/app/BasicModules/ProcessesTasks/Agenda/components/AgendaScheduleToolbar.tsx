@@ -35,7 +35,7 @@ export function AgendaScheduleToolbar({
     <div className="rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 p-5 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h3 className="text-xl font-bold text-slate-950 dark:text-white">
+          <h3 className="text-xl font-medium text-slate-950 dark:text-white">
             {scheduleViewMode === 'day'
               ? scheduleCopy.dayTitle
               : scheduleViewMode === 'week'
@@ -58,7 +58,7 @@ export function AgendaScheduleToolbar({
                 key={viewOption.value}
                 type="button"
                 className={cn(
-                  'h-8 rounded-md px-3 text-sm font-bold transition-colors',
+                  'h-8 rounded-md px-3 text-sm font-medium transition-colors',
                   scheduleViewMode === viewOption.value
                     ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white',
@@ -73,45 +73,45 @@ export function AgendaScheduleToolbar({
             type="date"
             value={selectedScheduleDate}
             onChange={(event) => onSelectedScheduleDateChange(event.target.value || todayAgendaValue)}
-            className="h-10 w-[168px] shrink-0 rounded-lg border-slate-200 bg-white font-bold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-800"
+            className="h-10 w-[168px] shrink-0 rounded-lg border-slate-200 bg-white font-medium shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-800"
           />
           <Button
             variant="outline"
-            className="h-10 rounded-lg border-slate-200 bg-white px-3 font-bold shadow-none dark:border-slate-700 dark:bg-slate-800"
+            className="h-10 rounded-lg border-slate-200 bg-white px-3 font-medium shadow-none dark:border-slate-700 dark:bg-slate-800"
             onClick={() => onMoveWindow(-1)}
           >
             <ArrowUp className="h-4 w-4 -rotate-90" />
           </Button>
           <Button
             variant="outline"
-            className="h-10 rounded-lg border-slate-200 bg-white px-4 font-bold shadow-none dark:border-slate-700 dark:bg-slate-800"
+            className="h-10 rounded-lg border-slate-200 bg-white px-4 font-medium shadow-none dark:border-slate-700 dark:bg-slate-800"
             onClick={() => onSelectedScheduleDateChange(todayAgendaValue)}
           >
             {scheduleCopy.today}
           </Button>
           <Button
             variant="outline"
-            className="h-10 rounded-lg border-slate-200 bg-white px-3 font-bold shadow-none dark:border-slate-700 dark:bg-slate-800"
+            className="h-10 rounded-lg border-slate-200 bg-white px-3 font-medium shadow-none dark:border-slate-700 dark:bg-slate-800"
             onClick={() => onMoveWindow(1)}
           >
             <ArrowUp className="h-4 w-4 rotate-90" />
           </Button>
           <Badge
             variant="outline"
-            className="rounded-full border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-2 text-sm font-bold text-[#2563EB]"
+            className="rounded-full border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-2 text-sm font-medium text-[#2563EB]"
           >
             {scheduleViewMode === 'day' ? scheduleCopy.dayBadge(visibleCount) : scheduleCopy.weekBadge(visibleCount)}
           </Badge>
           <Badge
             variant="outline"
-            className="rounded-full border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-2 text-sm font-bold text-[#177d66]"
+            className="rounded-full border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-2 text-sm font-medium text-[#177d66]"
           >
             {scheduleCopy.plannedBadge(visibleScheduledCount)}
           </Badge>
           {scheduleViewMode !== 'day' ? (
             <Badge
               variant="outline"
-              className="rounded-full border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="rounded-full border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
               {weekRangeLabel}
             </Badge>

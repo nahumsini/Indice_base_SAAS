@@ -23,8 +23,8 @@ export function CreditKpiCard({ icon: Icon, label, value, tone = 'gray' }: Credi
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</p>
-          <p className="truncate text-lg font-black text-gray-950 dark:text-white">{value}</p>
+          <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+          <p className="truncate text-lg font-medium text-gray-950 dark:text-white">{value}</p>
         </div>
       </div>
     </div>

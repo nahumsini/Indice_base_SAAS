@@ -53,9 +53,9 @@ export function FilterSelect({
 }) {
   return (
     <div className="space-y-2">
-      <label className={cn('text-sm text-slate-700 dark:text-slate-200', softTypography ? 'font-medium' : 'font-bold')}>{label}</label>
+      <label className={cn('text-sm text-slate-700 dark:text-slate-200', softTypography ? 'font-medium' : 'font-medium')}>{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className={cn('h-11 rounded-xl px-4 text-base text-slate-950', softTypography ? 'font-medium' : 'font-semibold', coralFieldClassName)}>
+        <SelectTrigger className={cn('h-11 rounded-xl px-4 text-base text-slate-950', softTypography ? 'font-medium' : 'font-medium', coralFieldClassName)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -87,7 +87,7 @@ export function QuoteSortableHeader({
   return (
     <button
       type="button"
-      className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-normal text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+      className="inline-flex max-w-full items-center gap-2 text-left text-xs font-medium tracking-normal text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
       onClick={() => onSort(columnId)}
     >
       <span className="min-w-0 whitespace-normal break-words">{label}</span>
@@ -115,7 +115,7 @@ export function QuoteSellerSelect({
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className="h-10 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate">
+      <SelectTrigger className="h-10 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate">
         <SelectValue placeholder={fallbackLabel} />
       </SelectTrigger>
       <SelectContent>
@@ -158,7 +158,7 @@ export function QuoteAction({
       <TooltipContent
         side="top"
         sideOffset={8}
-        className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+        className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-medium leading-4 text-white shadow-xl"
       >
         {label}
       </TooltipContent>
@@ -183,17 +183,17 @@ export function QuoteProductCard({
     <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-950 dark:text-white">{product.name}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">{product.sku}</p>
+          <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{product.name}</p>
+          <p className="mt-1 text-xs font-medium text-slate-500">{product.sku}</p>
         </div>
-        <Button size="sm" className="h-8 rounded-lg bg-[#FF6B5E] px-3 text-white shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]" onClick={onAdd}>
+        <Button size="sm" className="h-8 rounded-lg bg-[#FF6B5E] px-3 text-[#222831] shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]" onClick={onAdd}>
           <PackagePlus className="h-3.5 w-3.5" />
           {label}
         </Button>
       </div>
       <div className="mt-3 flex items-center justify-between text-sm">
-        <span className="font-semibold text-slate-500">{typeLabel}</span>
-        <span className="font-black text-slate-950 dark:text-white">{priceLabel}</span>
+        <span className="font-medium text-slate-500">{typeLabel}</span>
+        <span className="font-medium text-slate-950 dark:text-white">{priceLabel}</span>
       </div>
     </article>
   );

@@ -113,7 +113,7 @@ export default function Precios() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar lista, alcance o estado"
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
           />
         </label>
       </section>
@@ -124,7 +124,7 @@ export default function Precios() {
             <thead className="bg-slate-50 dark:bg-gray-900/40">
               <tr>
                 {['Lista', 'Alcance', 'Margen', 'Descuento max.', 'Estado', 'Actualizacion', 'Acciones'].map((header) => (
-                  <th key={header} className={`px-5 py-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>
+                  <th key={header} className={`px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>
                     {header}
                   </th>
                 ))}
@@ -133,12 +133,12 @@ export default function Precios() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {filteredRules.map((rule) => (
                 <tr key={rule.id} className="transition hover:bg-slate-50/80 dark:hover:bg-gray-700/40">
-                  <td className="px-5 py-4 font-bold text-slate-950 dark:text-white">{rule.listName}</td>
-                  <td className="px-5 py-4 font-semibold text-slate-600 dark:text-slate-300">{rule.scope}</td>
-                  <td className="px-5 py-4 font-black text-[#C64237] dark:text-[#FFB5AE]">{rule.margin}%</td>
-                  <td className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-200">{rule.discountCap}%</td>
+                  <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{rule.listName}</td>
+                  <td className="px-5 py-4 font-medium text-slate-600 dark:text-slate-300">{rule.scope}</td>
+                  <td className="px-5 py-4 font-medium text-[#C64237] dark:text-[#FFB5AE]">{rule.margin}%</td>
+                  <td className="px-5 py-4 font-medium text-slate-700 dark:text-slate-200">{rule.discountCap}%</td>
                   <td className="px-5 py-4">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusClasses[rule.status]}`}>
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusClasses[rule.status]}`}>
                       {statusLabels[rule.status]}
                     </span>
                   </td>
@@ -167,7 +167,7 @@ export default function Precios() {
           </table>
 
           {filteredRules.length === 0 && (
-            <div className="px-6 py-10 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+            <div className="px-6 py-10 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
               Sin listas con esos filtros.
             </div>
           )}
@@ -201,8 +201,8 @@ function Kpi({
           <Icon className="h-5 w-5" />
         </span>
         <div>
-          <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="text-lg font-bold text-slate-950 dark:text-white">{value}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="text-lg font-medium text-slate-950 dark:text-white">{value}</p>
         </div>
       </div>
     </div>

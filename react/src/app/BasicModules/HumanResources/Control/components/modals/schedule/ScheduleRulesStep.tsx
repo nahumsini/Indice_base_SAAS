@@ -77,15 +77,15 @@ function AttendanceRulesCard({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.attendance.eyebrow}</p>
-        <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.attendance.title}</h3>
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.schedule.attendance.eyebrow}</p>
+        <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.attendance.title}</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {copy.schedule.attendance.description}
         </p>
       </div>
 
       <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/60 dark:bg-orange-950/30">
-        <label className="mb-2 block text-sm font-semibold text-slate-900 dark:text-white">{copy.schedule.attendance.markLateAfter}</label>
+        <label className="mb-2 block text-sm font-medium text-slate-900 dark:text-white">{copy.schedule.attendance.markLateAfter}</label>
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -109,7 +109,7 @@ function OpenScheduleRulesCard({ copy }: { copy: ControlTranslations }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
-        <p className="font-semibold">{copy.schedule.attendance.openTitle}</p>
+        <p className="font-medium">{copy.schedule.attendance.openTitle}</p>
         <p className="mt-1 text-blue-800/80 dark:text-blue-100/75">
           {copy.schedule.attendance.openDescription}
         </p>
@@ -168,8 +168,8 @@ function LocationRuleSelector({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.location.eyebrow}</p>
-        <h3 className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-white">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.schedule.location.eyebrow}</p>
+        <h3 className="mt-1 flex items-center gap-2 text-sm font-medium text-slate-950 dark:text-white">
           <MapPin className="h-4 w-4 text-[#59C3A5] dark:text-[#8FE0CA]" />
           {copy.schedule.location.title}
         </h3>
@@ -194,13 +194,13 @@ function LocationRuleSelector({
             >
               <div className="flex items-start gap-3">
                 <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                  isSelected ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+                  isSelected ? 'border-[#59C3A5] bg-[#59C3A5] text-slate-950' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
                 }`}
                 >
                   {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-slate-950 dark:text-white">{option.title}</p>
+                  <p className="text-sm font-medium text-slate-950 dark:text-white">{option.title}</p>
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{option.description}</p>
                 </div>
               </div>
@@ -211,7 +211,7 @@ function LocationRuleSelector({
 
       {locationRule === 'temporary' ? (
         <div className="mt-4">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.schedule.location.temporaryLabel}
           </label>
           <select

@@ -649,7 +649,7 @@ function MovementViewModeSwitcher({
             key={mode.id}
             type="button"
             className={`h-8 rounded-lg px-3 text-sm font-medium transition ${
-              value === mode.id ? 'bg-[#FF6B5E] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              value === mode.id ? 'bg-[#FF6B5E] text-[#222831] shadow-sm' : 'text-slate-600 hover:bg-slate-100'
             }`}
             onClick={() => onChange(mode.id)}
           >
@@ -665,7 +665,7 @@ function EmptyState({ title, description }: { title: string; description: string
   return (
     <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
       <div className="max-w-md">
-        <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+        <h3 className="text-lg font-medium text-slate-950">{title}</h3>
         <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
       </div>
     </div>

@@ -95,15 +95,15 @@ export function EmployeeAccessActions({
     ? 'contents'
     : 'grid w-full grid-cols-2 gap-2 sm:w-auto sm:auto-cols-max sm:grid-flow-col sm:grid-cols-none xl:justify-end';
   const actionButtonClassName = actionBarLayout
-    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5]/25 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.08)] hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/15 hover:text-[#59C3A5] dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/40'
+    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5]/25 bg-[#59C3A5]/10 text-xs font-medium text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.08)] hover:border-[#59C3A5]/45 hover:bg-[#59C3A5]/15 hover:text-[#59C3A5] dark:border-[#8FE0CA]/25 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/40'
     : inlineLayout
     ? 'h-9 min-w-[8.75rem] shrink-0 justify-center whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white'
     : 'whitespace-nowrap border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:hover:bg-gray-900 dark:hover:text-white';
   const pinActionButtonClassName = actionBarLayout
-    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5]/30 bg-[#59C3A5]/10 text-xs font-semibold text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.10)] hover:border-[#59C3A5]/50 hover:bg-[#59C3A5]/20 hover:text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/45'
+    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5]/30 bg-[#59C3A5]/10 text-xs font-medium text-[#59C3A5] shadow-[0_1px_2px_rgba(89,195,165,0.10)] hover:border-[#59C3A5]/50 hover:bg-[#59C3A5]/20 hover:text-[#59C3A5] dark:border-[#8FE0CA]/30 dark:bg-[#59C3A5]/30 dark:text-[#8FE0CA] dark:hover:bg-[#59C3A5]/45'
     : actionButtonClassName;
   const faceActionButtonClassName = actionBarLayout
-    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5] bg-[#59C3A5] text-xs font-semibold text-white shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:border-[#3AAE90] hover:bg-[#3AAE90] hover:text-white dark:border-[#8FE0CA]/60 dark:bg-[#8FE0CA] dark:text-[#081a38] dark:hover:bg-[#b4ccff]'
+    ? 'h-9 justify-center gap-2 rounded-md border-[#59C3A5] bg-[#59C3A5] text-xs font-medium text-slate-950 shadow-[0_1px_2px_rgba(89,195,165,0.22)] hover:border-[#3AAE90] hover:bg-[#3AAE90] hover:text-slate-950 dark:border-[#8FE0CA]/60 dark:bg-[#8FE0CA] dark:text-[#081a38] dark:hover:bg-[#b4ccff]'
     : actionButtonClassName;
   const effectiveAccessProfile = selectedAccessProfile ?? selectedEmployee.access_profile ?? null;
   const selectedPinMethod = effectiveAccessProfile?.methods.find((method) => method.method_type === 'pin') ?? null;
@@ -238,7 +238,7 @@ export function EmployeeAccessActions({
             {pinLabelOverride ?? copy.labels.setPin}
           </Button>
         ) : !actionBarLayout ? (
-          <div className={inlineLayout ? 'flex h-9 shrink-0 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100' : 'flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'}>
+          <div className={inlineLayout ? 'flex h-9 shrink-0 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100' : 'flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'}>
             <span className={`h-2 w-2 rounded-full ${selectedPinMethod ? 'bg-emerald-500' : 'bg-amber-500'}`} />
             {selectedPinMethod ? copy.labels.pinSet : copy.labels.noPin}
           </div>
@@ -587,7 +587,7 @@ function AccessProfileDialog({
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.pinStatus}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.labels.pinStatus}</p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{pinStatusDescription}</p>
               </div>
               {canOpenResetPin ? (
@@ -595,7 +595,7 @@ function AccessProfileDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="rounded-md border-gray-300 bg-white text-[#59C3A5] hover:bg-[#59C3A5] hover:text-white dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  className="rounded-md border-gray-300 bg-white text-[#59C3A5] hover:bg-[#59C3A5] hover:text-slate-950 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                   onClick={() => setIsResetPinDialogOpen(true)}
                   disabled={isSaving || isLoadingPin || isResettingPin || shouldRegeneratePin || !canOpenResetPin}
                 >
@@ -606,7 +606,7 @@ function AccessProfileDialog({
             </div>
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="rounded-md border border-gray-200 bg-white px-4 py-3 font-mono text-lg font-semibold text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
+              <div className="rounded-md border border-gray-200 bg-white px-4 py-3 font-mono text-lg font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white">
                 {canRevealPin && isPinVisible ? visiblePin : '*****'}
               </div>
               <Button

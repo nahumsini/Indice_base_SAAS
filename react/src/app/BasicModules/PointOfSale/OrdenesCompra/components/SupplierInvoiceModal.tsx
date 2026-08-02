@@ -134,7 +134,7 @@ export function SupplierInvoiceModal({
       footerClassName={posModalModuleFooterClassName}
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-white/85">Total factura {formatMoney(totalAmount, currencyCode)}</p>
+          <p className="text-sm font-medium text-white/85">Total factura {formatMoney(totalAmount, currencyCode)}</p>
           <div className="flex flex-wrap justify-end gap-3">
             <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
               Cancelar
@@ -158,7 +158,7 @@ export function SupplierInvoiceModal({
               <FileText className="h-5 w-5" />
             </span>
             <div>
-              <h4 className="text-base font-bold text-slate-950 dark:text-white">Datos fiscales</h4>
+              <h4 className="text-base font-medium text-slate-950 dark:text-white">Datos fiscales</h4>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Relaciona la factura con proveedor, orden y fechas de pago.</p>
             </div>
           </div>
@@ -187,7 +187,7 @@ export function SupplierInvoiceModal({
               <Calculator className="h-5 w-5" />
             </span>
             <div>
-              <h4 className="text-base font-bold text-slate-950 dark:text-white">Importes e impuesto</h4>
+              <h4 className="text-base font-medium text-slate-950 dark:text-white">Importes e impuesto</h4>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">El impuesto se calcula desde la tasa seleccionada; usa manual cuando la factura no cuadre.</p>
             </div>
           </div>
@@ -211,7 +211,7 @@ export function SupplierInvoiceModal({
             <Input label="Documento URL" value={documentUrl} onChange={setDocumentUrl} />
             <Input label="Enviado por" value={submittedByName} onChange={setSubmittedByName} />
             <label className="space-y-2 md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Notas</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Notas</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
@@ -228,8 +228,8 @@ export function SupplierInvoiceModal({
 function Select({ children, label, onChange, value }: { children: ReactNode; label: string; onChange: (value: string) => void; value: string }) {
   return (
     <label className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
         {children}
       </select>
     </label>
@@ -239,8 +239,8 @@ function Select({ children, label, onChange, value }: { children: ReactNode; lab
 function Input({ label, onChange, type = 'text', value }: { label: string; onChange: (value: string) => void; type?: string; value: string }) {
   return (
     <label className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
     </label>
   );
 }
@@ -248,8 +248,8 @@ function Input({ label, onChange, type = 'text', value }: { label: string; onCha
 function SummaryMetric({ label, strong = false, value }: { label: string; strong?: boolean; value: string }) {
   return (
     <div>
-      <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]/75">{label}</p>
-      <p className={`mt-1 ${strong ? 'text-xl' : 'text-lg'} font-black text-slate-950 dark:text-white`}>{value}</p>
+      <p className="text-xs font-medium tracking-normal text-[#B63B32]/75">{label}</p>
+      <p className={`mt-1 ${strong ? 'text-xl' : 'text-lg'} font-medium text-slate-950 dark:text-white`}>{value}</p>
     </div>
   );
 }

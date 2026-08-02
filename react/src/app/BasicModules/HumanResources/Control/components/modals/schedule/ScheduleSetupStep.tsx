@@ -73,8 +73,8 @@ export function ScheduleSetupStep({
     <section className="space-y-4">
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.setup.eyebrow}</p>
-          <h3 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.title}</h3>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.schedule.setup.eyebrow}</p>
+          <h3 className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.setup.title}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {copy.schedule.setup.description}
           </p>
@@ -170,13 +170,13 @@ function SourceOptionButton({
     >
       <div className="flex items-start gap-3">
         <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-          isSelected ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+          isSelected ? 'border-[#59C3A5] bg-[#59C3A5] text-slate-950' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
         }`}
         >
           {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
         </span>
         <div>
-          <p className="text-sm font-semibold text-slate-950 dark:text-white">{title}</p>
+          <p className="text-sm font-medium text-slate-950 dark:text-white">{title}</p>
           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">
             {description}
           </p>
@@ -197,7 +197,7 @@ function ScheduleTypeSelector({
 }) {
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.schedule.setup.scheduleType}</span>
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.schedule.setup.scheduleType}</span>
       <div className="grid gap-3 md:grid-cols-2">
         <button
           type="button"
@@ -210,13 +210,13 @@ function ScheduleTypeSelector({
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              !isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              !isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-slate-950' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
               {!isOpenSchedule ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
             </span>
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.strictTitle}</p>
+              <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.setup.strictTitle}</p>
               <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 {copy.schedule.setup.strictDescription}
               </p>
@@ -234,13 +234,13 @@ function ScheduleTypeSelector({
         >
           <div className="flex items-start gap-3">
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-              isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-white' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
+              isOpenSchedule ? 'border-[#59C3A5] bg-[#59C3A5] text-slate-950' : 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950'
             }`}
             >
               {isOpenSchedule ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
             </span>
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.setup.openTitle}</p>
+              <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.setup.openTitle}</p>
               <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 {copy.schedule.setup.openDescription}
               </p>
@@ -277,10 +277,10 @@ function ScheduleTemplateSelector({
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.schedule.template.title}</h3>
+          <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.schedule.template.title}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.schedule.template.description}</p>
         </div>
-        <span className="inline-flex max-w-[14rem] shrink-0 truncate rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-blue-950/40 dark:text-[#8FE0CA]">
+        <span className="inline-flex max-w-[14rem] shrink-0 truncate rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-[#59C3A5] dark:bg-blue-950/40 dark:text-[#8FE0CA]">
           {selectedTemplateName === defaultScheduleTemplateName ? copy.schedule.defaultTemplateName : selectedTemplateName}
         </span>
       </div>
@@ -296,7 +296,7 @@ function ScheduleTemplateSelector({
         ))}
       </select>
       <details className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/50">
-        <summary className="cursor-pointer text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <summary className="cursor-pointer text-xs font-medium text-slate-500 dark:text-slate-400">
           {copy.schedule.template.manage}
         </summary>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

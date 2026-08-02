@@ -178,20 +178,20 @@ export default function Descuentos() {
             <DiscountKpiCard icon={ShieldCheck} label="Con autorizacion" value={String(kpis.authorized)} tone="orange" />
             <DiscountKpiCard icon={Tag} label="Impacto preview" value={formatCurrency(kpis.previewImpact, saleCurrency)} tone="orange" />
           </div>
-          <div className="rounded-[20px] border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
+          <div className="rounded-[20px] border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-medium text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
             {activeEligibleRules.length} reglas aplican al ticket ejemplo de {formatCurrency(previewAmount, saleCurrency)}.
           </div>
         </>
       ) : null}
 
       {notice && (
-        <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+        <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
           {notice}
         </div>
       )}
 
       <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-gray-800">
-        <h3 className="text-base font-bold text-slate-800 dark:text-white">Filtros</h3>
+        <h3 className="text-base font-medium text-slate-800 dark:text-white">Filtros</h3>
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_repeat(3,minmax(160px,1fr))]">
           <label className="relative min-w-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -199,14 +199,14 @@ export default function Descuentos() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar regla, alcance, categoria o descripcion"
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
             />
           </label>
-          <select value={status} onChange={(event) => setStatus(event.target.value as DiscountRuleStatus | 'all')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white">
+          <select value={status} onChange={(event) => setStatus(event.target.value as DiscountRuleStatus | 'all')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white">
             <option value="all">Todos los estados</option>
             {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <select value={scope} onChange={(event) => setScope(event.target.value as DiscountScope | 'all')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white">
+          <select value={scope} onChange={(event) => setScope(event.target.value as DiscountScope | 'all')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white">
             <option value="all">Todos los alcances</option>
             {Object.entries(scopeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
@@ -215,7 +215,7 @@ export default function Descuentos() {
             min="0"
             value={previewAmount}
             onChange={(event) => setPreviewAmount(Number(event.target.value))}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
             aria-label="Monto de ticket para preview"
           />
         </div>
@@ -227,7 +227,7 @@ export default function Descuentos() {
             <thead className="bg-slate-50 dark:bg-gray-900/40">
               <tr>
                 {['Regla', 'Alcance', 'Descuento', 'Condicion', 'Vigencia', 'Preview', 'Control', 'Estado', 'Acciones'].map((header) => (
-                  <th key={header} className={`px-5 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>{header}</th>
+                  <th key={header} className={`px-5 py-5 text-sm font-medium text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>{header}</th>
                 ))}
               </tr>
             </thead>
@@ -235,19 +235,19 @@ export default function Descuentos() {
               {rulesPagination.paginatedRows.map((rule) => (
                 <tr key={rule.id} className="transition hover:bg-slate-50/80 dark:hover:bg-gray-700/40">
                   <td className="px-5 py-4">
-                    <p className="font-bold text-slate-950 dark:text-white">{rule.name}</p>
+                    <p className="font-medium text-slate-950 dark:text-white">{rule.name}</p>
                     <p className="line-clamp-2 text-xs font-medium text-slate-500 dark:text-slate-400">{rule.description}</p>
                   </td>
-                  <td className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-200">{scopeLabels[rule.scope]}</td>
-                  <td className="px-5 py-4 font-bold text-slate-950 dark:text-white">{formatDiscount(rule, saleCurrency)}</td>
+                  <td className="px-5 py-4 font-medium text-slate-700 dark:text-slate-200">{scopeLabels[rule.scope]}</td>
+                  <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{formatDiscount(rule, saleCurrency)}</td>
                   <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCondition(rule, saleCurrency)}</td>
                   <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(rule.startsAt)} - {formatDate(rule.endsAt)}</td>
-                  <td className="px-5 py-4 font-bold text-[#B63B32] dark:text-[#FFB0AA]">{formatCurrency(calculateDiscountPreview(rule, previewAmount), saleCurrency)}</td>
+                  <td className="px-5 py-4 font-medium text-[#B63B32] dark:text-[#FFB0AA]">{formatCurrency(calculateDiscountPreview(rule, previewAmount), saleCurrency)}</td>
                   <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{rule.requiresAuthorization ? 'Supervisor' : 'Caja'}</td>
-                  <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusClasses[rule.status]}`}>{statusLabels[rule.status]}</span></td>
+                  <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusClasses[rule.status]}`}>{statusLabels[rule.status]}</span></td>
                   <td className="px-5 py-4 text-right">
                     <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-gray-900">
-                      <button onClick={() => toggleRuleStatus(rule)} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
+                      <button onClick={() => toggleRuleStatus(rule)} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
                         {rule.status === 'active' ? 'Pausar' : 'Activar'}
                       </button>
                       <button onClick={() => setEditingRule(rule)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20" aria-label={`Editar regla ${rule.name}`} title="Editar regla">
@@ -261,7 +261,7 @@ export default function Descuentos() {
           </table>
           {filteredRules.length === 0 && (
             <div className="p-8 text-center">
-              <p className="font-semibold text-slate-700 dark:text-slate-200">Sin reglas con esos filtros</p>
+              <p className="font-medium text-slate-700 dark:text-slate-200">Sin reglas con esos filtros</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Ajusta filtros o crea una regla comercial.</p>
             </div>
           )}

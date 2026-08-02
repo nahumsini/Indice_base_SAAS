@@ -26,23 +26,23 @@ export function PublicCatalogLinkPanel({
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+      <h3 className="flex items-center gap-2 text-lg font-medium text-slate-950">
         <Link2 className="h-5 w-5 text-[#FF6B5E]" />
         {t.publicCatalog.linkSection}
       </h3>
       <div className="mt-4 space-y-3">
-        {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</div> : null}
+        {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</div> : null}
         {!catalog.publicUrl && catalog.publicTokenHint ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium leading-5 text-amber-800">
             {t.publicCatalog.protectedLinkHint(catalog.publicTokenHint)}
           </div>
         ) : null}
         {catalog.publicUrl ? (
           <>
-            <div className="break-all rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-600">
+            <div className="break-all rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
               {catalog.publicUrl}
             </div>
-            <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onCopyLink} disabled={busy}>
+            <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-medium text-[#222831] hover:bg-[#E85C50]" onClick={onCopyLink} disabled={busy}>
               <Copy className="h-4 w-4" />
               {t.publicCatalog.copyLink}
             </Button>
@@ -52,12 +52,12 @@ export function PublicCatalogLinkPanel({
             </Button>
           </>
         ) : (
-          <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-semibold text-white hover:bg-[#E85C50]" onClick={onRegenerateLink} disabled={busy}>
+          <Button className="w-full gap-2 rounded-lg bg-[#FF6B5E] font-medium text-[#222831] hover:bg-[#E85C50]" onClick={onRegenerateLink} disabled={busy}>
             <RefreshCw className="h-4 w-4" />
             {t.publicCatalog.generateNewLink}
           </Button>
         )}
-        <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-sm font-bold text-slate-400">
+        <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-sm font-medium text-slate-400">
           {catalog.qrImageDataUrl ? (
             <img src={catalog.qrImageDataUrl} alt={t.publicCatalog.qrPlaceholder} className="h-full w-full object-contain p-5" />
           ) : (

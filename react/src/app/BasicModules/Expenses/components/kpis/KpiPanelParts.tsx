@@ -47,10 +47,10 @@ export function OverviewMetric({
       </span>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
-          <p className={cn('truncate text-sm font-extrabold', valueClassName)}>{value}</p>
-          {helper ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{helper}</span> : null}
+          <p className={cn('truncate text-sm font-medium', valueClassName)}>{value}</p>
+          {helper ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{helper}</span> : null}
         </div>
-        <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </div>
   );
@@ -71,7 +71,7 @@ export function KpiPanel({
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
           {icon}
         </span>
-        <h3 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h3>
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">{title}</h3>
       </div>
       {children}
     </section>
@@ -127,14 +127,14 @@ export function CashRequirementGrid({
         <article key={item.id} className={cn('rounded-xl border p-4', toneClasses[item.tone])}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-bold">{item.label}</p>
+              <p className="text-sm font-medium">{item.label}</p>
               <p className="mt-1 text-xs opacity-80">{item.description}</p>
             </div>
-            <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-900/40 dark:text-slate-100">
+            <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-900/40 dark:text-slate-100">
               {item.count} {countLabel}
             </span>
           </div>
-          <p className="mt-3 text-xl font-bold">{formatKpiCurrency(item.amount, currency, locale)}</p>
+          <p className="mt-3 text-xl font-medium">{formatKpiCurrency(item.amount, currency, locale)}</p>
         </article>
       ))}
     </div>
@@ -170,7 +170,7 @@ export function BudgetHealthTable({
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+          <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
             <th className="px-5 py-4">{labels.line}</th>
             <th className="px-5 py-4 text-right">{labels.planned}</th>
             <th className="px-5 py-4 text-right">{labels.committed}</th>
@@ -183,26 +183,26 @@ export function BudgetHealthTable({
         <tbody>
           {rows.slice(0, 7).map(row => (
             <tr key={row.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
-              <td className="max-w-[260px] px-6 py-4 font-semibold text-slate-900 dark:text-white">
+              <td className="max-w-[260px] px-6 py-4 font-medium text-slate-900 dark:text-white">
                 <span className="block truncate">{row.name}</span>
                 <span className="text-xs font-medium text-slate-500">
                   {row.budgetName ? `${row.budgetName} - ` : null}{formatKpiPercent(row.usagePercent)} {labels.used}
                 </span>
               </td>
-              <td className="px-6 py-4 text-right font-semibold text-slate-700 dark:text-slate-200">{formatKpiCurrency(row.planned, currency, locale)}</td>
+              <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-200">{formatKpiCurrency(row.planned, currency, locale)}</td>
               <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300">{formatKpiCurrency(row.committed, currency, locale)}</td>
               <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300">{formatKpiCurrency(row.actual, currency, locale)}</td>
-              <td className="px-6 py-4 text-right font-semibold text-[#147514] dark:text-emerald-300">{formatKpiCurrency(row.available, currency, locale)}</td>
+              <td className="px-6 py-4 text-right font-medium text-[#147514] dark:text-emerald-300">{formatKpiCurrency(row.available, currency, locale)}</td>
               <td className="px-6 py-4">
                 <div className="mx-auto w-28">
-                  <div className="mb-1 text-center text-xs font-bold text-slate-600 dark:text-slate-300">{formatKpiPercent(row.usagePercent)}</div>
+                  <div className="mb-1 text-center text-xs font-medium text-slate-600 dark:text-slate-300">{formatKpiPercent(row.usagePercent)}</div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                     <div className={cn('h-full rounded-full', row.usagePercent >= 100 ? 'bg-rose-500' : row.usagePercent >= 80 ? 'bg-amber-500' : 'bg-[#147514]')} style={{ width: `${Math.min(row.usagePercent, 100)}%` }} />
                   </div>
                 </div>
               </td>
               <td className="px-6 py-4 text-center">
-                <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-semibold', healthClasses[row.healthStatus])}>
+                <span className={cn('inline-flex rounded-full border px-3 py-1 text-xs font-medium', healthClasses[row.healthStatus])}>
                   {healthLabels[row.healthStatus]}
                 </span>
               </td>
@@ -235,11 +235,11 @@ export function CostDriverList({
         <div key={driver.id}>
           <div className="mb-2 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{driver.name}</p>
+              <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{driver.name}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">{driver.count} {recordsLabel}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold text-slate-900 dark:text-white">{formatKpiCurrency(driver.total, currency, locale)}</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-white">{formatKpiCurrency(driver.total, currency, locale)}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">{formatKpiPercent(driver.percentage)}</p>
             </div>
           </div>
@@ -260,9 +260,9 @@ export function AlertList({ alerts }: { alerts: FinancialOverviewAlert[] }) {
           <div className="flex items-start gap-3">
             {alert.tone === 'success' ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
             <div>
-              <p className="text-sm font-bold">{alert.title}</p>
+              <p className="text-sm font-medium">{alert.title}</p>
               <p className="mt-1 text-sm opacity-90">{alert.message}</p>
-              <p className="mt-2 text-xs font-semibold opacity-90">{alert.recommendation}</p>
+              <p className="mt-2 text-xs font-medium opacity-90">{alert.recommendation}</p>
             </div>
           </div>
         </article>

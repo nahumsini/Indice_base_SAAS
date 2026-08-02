@@ -51,7 +51,7 @@ type AttachmentDraft = {
   url?: string;
 };
 
-const inputClass = 'min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-900 shadow-sm placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+const inputClass = 'min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base font-medium text-slate-900 shadow-sm placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set(['csv', 'doc', 'docx', 'heic', 'heif', 'jpeg', 'jpg', 'pdf', 'png', 'txt', 'webp', 'xls', 'xlsx']);
@@ -352,9 +352,9 @@ export default function PayablesKioskPage() {
 
           {mode === 'provider-registration' ? (
             <form onSubmit={submitProvider} className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-              <button type="button" onClick={() => setMode('access')} className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-slate-500"><ArrowLeft className="h-4 w-4" />{copy.back}</button>
-              <h2 className="text-xl font-black text-slate-950 dark:text-white">{copy.providerRegistrationTitle}</h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.providerRegistrationDescription}</p>
+              <button type="button" onClick={() => setMode('access')} className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-500"><ArrowLeft className="h-4 w-4" />{copy.back}</button>
+              <h2 className="text-xl font-medium text-slate-950 dark:text-white">{copy.providerRegistrationTitle}</h2>
+              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.providerRegistrationDescription}</p>
               <div className="mt-5 grid gap-4">
                 <Field label={copy.fields.name} required><input className={inputClass} value={providerDraft.name} onChange={event => setProviderDraft({ ...providerDraft, name: event.target.value })} /></Field>
                 <Field label={copy.fields.legalName}><input className={inputClass} value={providerDraft.legalName} onChange={event => setProviderDraft({ ...providerDraft, legalName: event.target.value })} /></Field>
@@ -364,7 +364,7 @@ export default function PayablesKioskPage() {
                 <Field label={copy.fields.contactName}><input className={inputClass} value={providerDraft.contactName} onChange={event => setProviderDraft({ ...providerDraft, contactName: event.target.value })} /></Field>
                 <Field label={copy.notes}><textarea className={`${inputClass} min-h-24 resize-y`} value={providerDraft.notes} onChange={event => setProviderDraft({ ...providerDraft, notes: event.target.value })} /></Field>
               </div>
-              <Button type="submit" disabled={!canSubmitProvider} className="mt-5 h-12 w-full rounded-xl bg-[#147514] font-black text-white hover:bg-[#105010]">{copy.submitProvider}</Button>
+              <Button type="submit" disabled={!canSubmitProvider} className="mt-5 h-12 w-full rounded-xl bg-[#147514] font-medium text-white hover:bg-[#105010]">{copy.submitProvider}</Button>
             </form>
           ) : null}
 
@@ -374,7 +374,7 @@ export default function PayablesKioskPage() {
                 <section className="rounded-[22px] border border-emerald-200 bg-white p-5 shadow-sm dark:border-emerald-900/60">
                   <div className="flex items-start gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-[#147514] dark:bg-emerald-950/60"><ScanFace className="h-5 w-5" /></span>
-                    <div><h2 className="text-lg font-black text-slate-950 dark:text-white">{copy.face.title}</h2><p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{copy.face.description}</p></div>
+                    <div><h2 className="text-lg font-medium text-slate-950 dark:text-white">{copy.face.title}</h2><p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.face.description}</p></div>
                   </div>
                   {faceMode !== 'idle' ? (
                     <div className="mt-5">
@@ -391,16 +391,16 @@ export default function PayablesKioskPage() {
                     </div>
                   ) : faceStatus.enrolled ? (
                     <div className="mt-4 space-y-3">
-                      <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><ShieldCheck className="h-5 w-5" /><div><p className="text-sm font-black">{copy.face.enrolled}</p><p className="text-xs font-semibold opacity-80">{copy.face.enrolledHint}</p></div></div>
+                      <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><ShieldCheck className="h-5 w-5" /><div><p className="text-sm font-medium">{copy.face.enrolled}</p><p className="text-xs font-medium opacity-80">{copy.face.enrolledHint}</p></div></div>
                       {isConfirmingFaceWithdrawal ? (
-                        <div role="alertdialog" aria-label={copy.face.confirmWithdraw} className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30"><p className="text-sm font-bold text-red-800 dark:text-red-200">{copy.face.confirmWithdrawDescription}</p><div className="mt-3 flex gap-2"><Button type="button" variant="outline" onClick={() => setIsConfirmingFaceWithdrawal(false)}>{copy.face.cancel}</Button><Button type="button" disabled={isSubmitting} onClick={() => void withdrawFaceConsent()} className="bg-red-600 text-white hover:bg-red-700">{copy.face.confirmWithdraw}</Button></div></div>
+                        <div role="alertdialog" aria-label={copy.face.confirmWithdraw} className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30"><p className="text-sm font-medium text-red-800 dark:text-red-200">{copy.face.confirmWithdrawDescription}</p><div className="mt-3 flex gap-2"><Button type="button" variant="outline" onClick={() => setIsConfirmingFaceWithdrawal(false)}>{copy.face.cancel}</Button><Button type="button" disabled={isSubmitting} onClick={() => void withdrawFaceConsent()} className="bg-red-600 text-white hover:bg-red-700">{copy.face.confirmWithdraw}</Button></div></div>
                       ) : (
                         <div className="grid gap-2 sm:grid-cols-2">{faceStatus.available ? <Button type="button" onClick={() => setFaceMode('verify')} className="bg-[#147514] text-white hover:bg-[#105010]">{copy.face.verify}</Button> : null}<Button type="button" variant="outline" onClick={() => setIsConfirmingFaceWithdrawal(true)} className="text-red-700">{copy.face.withdraw}</Button></div>
                       )}
                     </div>
                   ) : (
                     <div className="mt-4 space-y-3">
-                      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"><input type="checkbox" checked={faceConsent} onChange={event => setFaceConsent(event.target.checked)} className="mt-1 h-5 w-5 accent-[#147514]" /><span><span className="block text-sm font-black text-slate-900 dark:text-white">{copy.face.consent}</span><span className="mt-1 block text-xs font-semibold leading-5 text-slate-500">{copy.face.consentHint}</span></span></label>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"><input type="checkbox" checked={faceConsent} onChange={event => setFaceConsent(event.target.checked)} className="mt-1 h-5 w-5 accent-[#147514]" /><span><span className="block text-sm font-medium text-slate-900 dark:text-white">{copy.face.consent}</span><span className="mt-1 block text-xs font-medium leading-5 text-slate-500">{copy.face.consentHint}</span></span></label>
                       <Button type="button" disabled={!faceConsent} onClick={() => setFaceMode('enroll')} className="w-full bg-[#147514] text-white hover:bg-[#105010]">{copy.face.enroll}</Button>
                     </div>
                   )}
@@ -409,8 +409,8 @@ export default function PayablesKioskPage() {
 
               <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <div><h2 className="text-xl font-black text-slate-950 dark:text-white">{copy.payableTitle}</h2><p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{bootstrap?.employee?.name ?? bootstrap?.provider?.name}</p></div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{currency}</span>
+                  <div><h2 className="text-xl font-medium text-slate-950 dark:text-white">{copy.payableTitle}</h2><p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{bootstrap?.employee?.name ?? bootstrap?.provider?.name}</p></div>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">{currency}</span>
                 </div>
                 <div className="mt-5 grid gap-4">
                   {bootstrap?.identityType === 'EMPLOYEE' ? (
@@ -426,7 +426,7 @@ export default function PayablesKioskPage() {
                           <option key={provider.id} value={provider.id}>{provider.name}</option>
                         ))}
                       </select>
-                      <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">{copy.employeeProviderHint}</span>
+                      <span className="mt-2 block text-xs font-medium leading-5 text-slate-500">{copy.employeeProviderHint}</span>
                     </Field>
                   ) : null}
                   <Field label={copy.dueDate}><input type="date" value={draft.dueDate} onChange={event => updateDraft({ dueDate: event.target.value })} className={inputClass} /></Field>
@@ -436,7 +436,7 @@ export default function PayablesKioskPage() {
               </section>
 
               <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-xl font-black text-slate-950 dark:text-white">{copy.totalAmount}</h2>
+                <h2 className="text-xl font-medium text-slate-950 dark:text-white">{copy.totalAmount}</h2>
                 <div className="mt-5 grid gap-4">
                   <Field label={t.expenses.modal.amount} required><input required min={0.01} step="0.01" type="number" value={draft.amount} onChange={event => updateDraft({ amount: event.target.value })} placeholder="0.00" className={inputClass} /></Field>
                   <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
@@ -449,11 +449,11 @@ export default function PayablesKioskPage() {
               </section>
 
               <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2"><Paperclip className="h-4 w-4 text-[#147514]" /><h2 className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">{copy.evidence}</h2></div>
+                <div className="mb-4 flex items-center gap-2"><Paperclip className="h-4 w-4 text-[#147514]" /><h2 className="text-sm font-medium text-slate-500">{copy.evidence}</h2></div>
                 <label className={`flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-[22px] border-2 border-dashed bg-slate-50 px-4 py-6 text-center transition ${canAttachMoreFiles ? 'border-[#147514]/25 hover:bg-[#147514]/5' : 'cursor-not-allowed opacity-60'}`}>
                   <input type="file" multiple disabled={!canAttachMoreFiles} onChange={event => { addAttachments(event.target.files); event.target.value = ''; }} className="hidden" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" />
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]"><Upload className="h-5 w-5" /></span>
-                  <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{copy.attachmentAction}</span>
+                  <span className="mt-3 text-sm font-medium text-slate-900 dark:text-white">{copy.attachmentAction}</span>
                   <span className="mt-1 text-xs font-medium text-slate-500">{copy.attachmentHint}</span>
                 </label>
                 {draft.attachments.length > 0 ? <div className="mt-3 space-y-2">{draft.attachments.map(attachment => <AttachmentRow key={attachment.id} attachment={attachment} deleteLabel={t.common.delete} onRemove={() => removeAttachment(attachment.id)} />)}</div> : null}
@@ -461,7 +461,7 @@ export default function PayablesKioskPage() {
 
               <Field label={copy.notes}><textarea value={draft.notes} onChange={event => updateDraft({ notes: event.target.value })} placeholder={copy.notesPlaceholder} className={`${inputClass} min-h-28 resize-y`} /></Field>
               <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-slate-700 dark:bg-slate-950/95">
-                <Button type="submit" disabled={!canSubmitPayable} className="h-12 w-full rounded-2xl bg-[#147514] text-base font-black text-white shadow-lg shadow-[#147514]/20 hover:bg-[#105010]">
+                <Button type="submit" disabled={!canSubmitPayable} className="h-12 w-full rounded-2xl bg-[#147514] text-base font-medium text-white shadow-lg shadow-[#147514]/20 hover:bg-[#105010]">
                   {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
                   {copy.submitPayable}
                 </Button>
@@ -488,12 +488,12 @@ function KioskShell({ children, copy, errorMessage, isLoading, isOnline, minimal
 }) {
   return (
     <KioskPublicShell
-      banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900">{copy.offline}</div> : null}
+      banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900">{copy.offline}</div> : null}
       errorMessage={errorMessage}
       header={(<header className="border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
-        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#147514] dark:text-emerald-300">{copy.kioskEyebrow}</p>
-        <h1 className="mt-1 line-clamp-2 break-words text-2xl font-black leading-tight tracking-tight text-slate-950 dark:text-white">{title}</h1>
-        <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{subtitle}</p>
+        <p className="text-[11px] font-medium text-[#147514] dark:text-emerald-300">{copy.kioskEyebrow}</p>
+        <h1 className="mt-1 line-clamp-2 break-words text-2xl font-medium leading-tight tracking-tight text-slate-950 dark:text-white">{title}</h1>
+        <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">{subtitle}</p>
       </header>)}
       loadingOverlay={<LoadingBarOverlay isVisible={isLoading} title={copy.loading} description={copy.subtitle} />}
       maxWidthClassName="max-w-[480px]"
@@ -507,23 +507,23 @@ function KioskShell({ children, copy, errorMessage, isLoading, isOnline, minimal
 }
 
 function ModeCard({ active, description, disabled, icon, label, onClick }: { active: boolean; description: string; disabled?: boolean; icon: ReactNode; label: string; onClick: () => void }) {
-  return <button type="button" disabled={disabled} onClick={onClick} className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left shadow-sm transition dark:bg-slate-900 ${active ? 'border-[#147514]/30 bg-white text-slate-900 dark:text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-[#147514]/40 dark:border-slate-700 dark:text-slate-200'} disabled:cursor-not-allowed disabled:opacity-50`}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514] [&>svg]:h-5 [&>svg]:w-5">{icon}</span><span><span className="block text-base font-black">{label}</span><span className="mt-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">{description}</span></span></button>;
+  return <button type="button" disabled={disabled} onClick={onClick} className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left shadow-sm transition dark:bg-slate-900 ${active ? 'border-[#147514]/30 bg-white text-slate-900 dark:text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-[#147514]/40 dark:border-slate-700 dark:text-slate-200'} disabled:cursor-not-allowed disabled:opacity-50`}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514] [&>svg]:h-5 [&>svg]:w-5">{icon}</span><span><span className="block text-base font-medium">{label}</span><span className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400">{description}</span></span></button>;
 }
 
 function EmptyState({ description, title }: { description: string; title: string }) {
-  return <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900"><Store className="mx-auto h-8 w-8 text-[#147514]" /><p className="mt-4 text-lg font-black text-slate-950 dark:text-white">{title}</p><p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{description}</p></div>;
+  return <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900"><Store className="mx-auto h-8 w-8 text-[#147514]" /><p className="mt-4 text-lg font-medium text-slate-950 dark:text-white">{title}</p><p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{description}</p></div>;
 }
 
 function Field({ children, label, required }: { children: ReactNode; label: string; required?: boolean }) {
-  return <label className="block"><span className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300">{label}{required ? ' *' : ''}</span>{children}</label>;
+  return <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}{required ? ' *' : ''}</span>{children}</label>;
 }
 
 function SummaryMetric({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
-  return <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white px-2 py-3 dark:border-slate-700 dark:bg-slate-900 ${strong ? 'col-span-2' : ''}`}><p className="truncate text-[10px] font-bold uppercase text-slate-500">{label}</p><p title={value} className={`mt-1 truncate text-xs ${strong ? 'font-black text-[#147514]' : 'font-bold text-slate-900 dark:text-white'}`}>{value}</p></div>;
+  return <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white px-2 py-3 dark:border-slate-700 dark:bg-slate-900 ${strong ? 'col-span-2' : ''}`}><p className="truncate text-[10px] font-medium text-slate-500">{label}</p><p title={value} className={`mt-1 truncate text-xs ${strong ? 'font-medium text-[#147514]' : 'font-medium text-slate-900 dark:text-white'}`}>{value}</p></div>;
 }
 
 function AttachmentRow({ attachment, deleteLabel, onRemove }: { attachment: AttachmentDraft; deleteLabel: string; onRemove: () => void }) {
-  return <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800"><File className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{attachment.name}</p><p className="text-xs font-medium text-slate-500">{formatFileSize(attachment.size)}</p></div><button type="button" onClick={onRemove} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100" aria-label={deleteLabel}><Trash2 className="h-4 w-4" /></button></div>;
+  return <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800"><File className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-900 dark:text-white">{attachment.name}</p><p className="text-xs font-medium text-slate-500">{formatFileSize(attachment.size)}</p></div><button type="button" onClick={onRemove} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100" aria-label={deleteLabel}><Trash2 className="h-4 w-4" /></button></div>;
 }
 
 function createPayableDraft(currency: string): PayableDraft {

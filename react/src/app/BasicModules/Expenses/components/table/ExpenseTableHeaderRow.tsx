@@ -76,7 +76,7 @@ export function ExpenseTableHeaderRow({
         );
       })}
       <th
-        className="px-5 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400"
+        className="px-5 py-4 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400"
         style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}
       >
         {t.common.actions}
@@ -105,7 +105,7 @@ function SortableHeader({
   return (
     <th className="group relative px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
       <div className="flex items-center">
-        <button type="button" onClick={() => onSort(columnKey)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+        <button type="button" onClick={() => onSort(columnKey)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
           <span>{label}</span>
           {sortIcon}
         </button>
@@ -131,7 +131,7 @@ function StaticHeader({
   return (
     <th className="group relative px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
       <div className="flex items-center">
-        <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</span>
+        <span className="whitespace-nowrap text-[11px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
         <ColumnResizeHandle columnKey={columnKey} resizingColumn={resizingColumn} onResizeStart={onResizeStart} />
       </div>
     </th>

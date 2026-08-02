@@ -15,7 +15,7 @@ export const tableTextareaClass =
   'min-h-[76px] rounded-xl border-slate-200 bg-white text-sm leading-5 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100';
 
 export const tableSelectTriggerClass =
-  'h-10 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none transition-colors hover:border-slate-300 focus:ring-2 focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600';
+  'h-10 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none transition-colors hover:border-slate-300 focus:ring-2 focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600';
 
 const actionButtonBaseClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors disabled:cursor-not-allowed disabled:opacity-50';
@@ -110,7 +110,7 @@ export function AgendaSortableTableHead<TColumnId extends string, TResizeColumnI
       <div className="flex min-w-0 items-center justify-between gap-3 pr-2">
         <button
           type="button"
-          className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
+          className="flex min-w-0 items-center gap-2 text-left text-sm font-medium text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
           onClick={() => onSort(columnId)}
         >
           <span className="truncate">{column.label}</span>
@@ -155,7 +155,7 @@ export function AgendaStaticTableHead<TColumnId extends string>({
       style={{ width, minWidth: width }}
     >
       <div className="flex min-w-0 items-center justify-between gap-3 pr-2">
-        <span className="truncate text-sm font-semibold text-slate-500 dark:text-slate-400">{column.label}</span>
+        <span className="truncate text-sm font-medium text-slate-500 dark:text-slate-400">{column.label}</span>
         <AgendaColumnResizeHandle
           columnId={columnId}
           resizeLabel={resizeLabel}

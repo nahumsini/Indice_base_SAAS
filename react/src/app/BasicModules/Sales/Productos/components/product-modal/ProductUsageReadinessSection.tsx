@@ -25,8 +25,8 @@ function ToggleRow({
   return (
     <div className="flex items-start justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4">
       <div>
-        <p className="font-semibold text-slate-950">{label}</p>
-        <p className="mt-1 text-sm font-semibold leading-5 text-slate-500">{description}</p>
+        <p className="font-medium text-slate-950">{label}</p>
+        <p className="mt-1 text-sm font-medium leading-5 text-slate-500">{description}</p>
       </div>
       <Switch
         checked={checked}
@@ -55,8 +55,8 @@ export function ProductUsageReadinessSection({
   return (
     <section className="space-y-4">
       <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-4">
-        <h3 className="text-base font-bold text-slate-950">{t.usage.title}</h3>
-        <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">{t.usage.description}</p>
+        <h3 className="text-base font-medium text-slate-950">{t.usage.title}</h3>
+        <p className="mt-1 text-sm font-medium leading-6 text-slate-500">{t.usage.description}</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -101,8 +101,8 @@ export function ProductUsageReadinessSection({
             >
               <Icon className={cn('mt-0.5 h-5 w-5 shrink-0', ready ? 'text-[#177d66]' : 'text-slate-400')} />
               <div>
-                <p className="font-semibold text-slate-950">{t.usage.labels[key]}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
+                <p className="font-medium text-slate-950">{t.usage.labels[key]}</p>
+                <p className="mt-1 text-sm font-medium text-slate-500">
                   {ready ? t.usage.ready : t.usage.notReady}
                 </p>
               </div>
@@ -112,11 +112,11 @@ export function ProductUsageReadinessSection({
       </div>
 
       <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
-        <p className="text-sm font-semibold text-slate-950">{t.readiness.title}</p>
+        <p className="text-sm font-medium text-slate-950">{t.readiness.title}</p>
         <ProductReadinessBadges form={form} t={t} />
       </div>
 
-      <Badge className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500">
+      <Badge className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
         {t.usage.frontendOnly}
       </Badge>
     </section>

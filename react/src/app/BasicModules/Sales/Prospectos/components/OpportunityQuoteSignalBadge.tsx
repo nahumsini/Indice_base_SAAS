@@ -25,12 +25,12 @@ export function OpportunityQuoteSignalBadge({
 
   return (
     <div className="min-w-0 max-w-full space-y-1.5">
-      <p className="break-words text-sm font-black text-slate-950">
+      <p className="break-words text-sm font-medium text-slate-950">
         {copy.countDetail(signal.quoteCount, signal.totalQuotedValueLabel)}
       </p>
       <Badge
         variant="outline"
-        className={cn('h-auto max-w-full whitespace-normal rounded-full px-3 py-1 text-xs font-black uppercase tracking-normal', quoteSignalClassNames[signal.state])}
+        className={cn('h-auto max-w-full whitespace-normal rounded-full px-3 py-1 text-xs font-medium tracking-normal', quoteSignalClassNames[signal.state])}
       >
         {copy.labels[signal.state]}
       </Badge>

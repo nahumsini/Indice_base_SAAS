@@ -23,10 +23,10 @@ export function IncentiveFilters({
 }: IncentiveFiltersProps) {
   return (
     <div className="mb-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">{copy.filters.title}</h3>
+      <h3 className="mb-4 text-base font-medium text-slate-900 dark:text-white">{copy.filters.title}</h3>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.searchLabel}
           </label>
           <div className="relative">
@@ -42,7 +42,7 @@ export function IncentiveFilters({
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.filters.type}</label>
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.filters.type}</label>
           <select
             value={selectedType}
             onChange={(event) => onTypeChange(event.target.value as 'all' | RHIncentivo['tipo'])}
@@ -55,7 +55,7 @@ export function IncentiveFilters({
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.filters.status}</label>
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.filters.status}</label>
           <select
             value={selectedStatus}
             onChange={(event) => onStatusChange(event.target.value as 'all' | RHIncentivo['estado'])}

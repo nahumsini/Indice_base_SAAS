@@ -186,12 +186,12 @@ export function PaymentsView({
     }
 
     return hasPaymentReceipt(payment) ? (
-      <Badge variant="outline" className="rounded-full border-[#147514]/20 bg-[#147514]/10 px-3 py-1 text-xs font-bold text-[#147514]">
+      <Badge variant="outline" className="rounded-full border-[#147514]/20 bg-[#147514]/10 px-3 py-1 text-xs font-medium text-[#147514]">
         <FileCheck2 className="mr-1 h-3.5 w-3.5" />
         {viewCopy.table.files}
       </Badge>
     ) : (
-      <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+      <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
         <FileWarning className="mr-1 h-3.5 w-3.5" />
         {copy.modals.files.missing}
       </Badge>
@@ -210,7 +210,7 @@ export function PaymentsView({
               type="button"
               variant="outline"
               onClick={() => setShowColumnsModal(true)}
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-medium text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
             >
               <Columns3 className="h-4 w-4" />
               {viewCopy.columnsAction}
@@ -218,7 +218,7 @@ export function PaymentsView({
             <Button
               type="button"
               onClick={() => setShowPaymentModal(true)}
-              className={cn('h-11 gap-2 rounded-xl px-5 text-sm font-bold', financeAccentButtonClass)}
+              className={cn('h-11 gap-2 rounded-xl px-5 text-sm font-medium', financeAccentButtonClass)}
             >
               <Plus className="h-4 w-4" />
               {viewCopy.action}
@@ -263,7 +263,7 @@ export function PaymentsView({
                 onSort={handleSort}
               />
             ))}
-            <TableHead className="px-5 py-4 text-right text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+            <TableHead className="px-5 py-4 text-right text-[11px] font-medium text-slate-500">
               {viewCopy.table.actions}
             </TableHead>
           </TableRow>
@@ -279,10 +279,10 @@ export function PaymentsView({
                     <TableCell
                       key={`${payment.id}-${column.id}`}
                       className={cn(
-                        'px-5 py-4 font-semibold text-slate-600 dark:text-slate-300',
-                        columnId === 'sale' && 'font-black text-slate-950 dark:text-white',
+                        'px-5 py-4 font-medium text-slate-600 dark:text-slate-300',
+                        columnId === 'sale' && 'font-medium text-slate-950 dark:text-white',
                         columnId === 'customer' && 'text-slate-700 dark:text-slate-200',
-                        columnId === 'amount' && cn('font-black', financeTextClass),
+                        columnId === 'amount' && cn('font-medium', financeTextClass),
                       )}
                     >
                       {renderCell(payment, columnId)}

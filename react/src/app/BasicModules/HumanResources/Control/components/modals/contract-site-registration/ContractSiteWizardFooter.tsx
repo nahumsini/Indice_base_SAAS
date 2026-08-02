@@ -50,12 +50,12 @@ export function ContractSiteWizardFooter({
           </Button>
         ) : null}
         {wizardStep === 'review' ? (
-          <Button onClick={onAddOrUpdate} type="button" className="gap-2 bg-[#59C3A5] text-white hover:bg-[#3AAE90]" disabled={!hasCompleteFormInput}>
+          <Button onClick={onAddOrUpdate} type="button" className="gap-2 bg-[#59C3A5] text-slate-950 hover:bg-[#3AAE90]" disabled={!hasCompleteFormInput}>
             <Check className="h-4 w-4" />
             {editingLocationId ? copy.form.updateLocation : copy.form.addLocation}
           </Button>
         ) : (
-          <Button onClick={onContinue} type="button" className="gap-2 bg-[#59C3A5] text-white hover:bg-[#3AAE90]" disabled={!canContinueWizard}>
+          <Button onClick={onContinue} type="button" className="gap-2 bg-[#59C3A5] text-slate-950 hover:bg-[#3AAE90]" disabled={!canContinueWizard}>
             {copy.form.continue}
             <ChevronRight className="h-4 w-4" />
           </Button>

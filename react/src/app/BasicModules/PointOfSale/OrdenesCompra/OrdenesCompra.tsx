@@ -140,14 +140,14 @@ export default function OrdenesCompra() {
       />
 
       {notice ? (
-        <div className="flex items-start justify-between gap-3 rounded-[20px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+        <div className="flex items-start justify-between gap-3 rounded-[20px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
           <span>{notice}</span>
-          <button type="button" className="text-xs font-bold uppercase" onClick={() => setNotice(null)}>Cerrar</button>
+          <button type="button" className="text-xs font-medium" onClick={() => setNotice(null)}>Cerrar</button>
         </div>
       ) : null}
 
       {(error || balanceLoadError) ? (
-        <div className="flex items-start gap-3 rounded-[20px] border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+        <div className="flex items-start gap-3 rounded-[20px] border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error ?? balanceLoadError}</span>
         </div>

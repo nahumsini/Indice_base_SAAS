@@ -36,7 +36,7 @@ export function FilterSelect({
 }) {
   return (
     <div className="min-w-0 space-y-2">
-      <label id={`${id}-label`} className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <label id={`${id}-label`} className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger
           id={id}

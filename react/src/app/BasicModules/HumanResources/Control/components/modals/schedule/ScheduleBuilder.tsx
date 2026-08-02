@@ -113,14 +113,14 @@ export function ScheduleBuilder({
       <div className="rounded-lg border border-[#59C3A5]/20 bg-blue-50/60 p-4 shadow-sm dark:border-[#8FE0CA]/30 dark:bg-blue-950/20">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 id="schedule-details-heading" className="text-sm font-semibold text-slate-950 dark:text-white">
+            <h3 id="schedule-details-heading" className="text-sm font-medium text-slate-950 dark:text-white">
               {copy.schedule.builder.title}
             </h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {copy.schedule.builder.description}
             </p>
           </div>
-          <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#59C3A5] shadow-sm dark:bg-slate-950 dark:text-[#8FE0CA]">
+          <span className="inline-flex shrink-0 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#59C3A5] shadow-sm dark:bg-slate-950 dark:text-[#8FE0CA]">
             {currentStepIndex + 1}/{scheduleBuilderSteps.length}
           </span>
         </div>
@@ -207,7 +207,7 @@ export function ScheduleBuilder({
           type="button"
           onClick={goNext}
           disabled={!canGoNext}
-          className="rounded-md bg-[#59C3A5] text-white hover:bg-[#3AAE90]"
+          className="rounded-md bg-[#59C3A5] text-slate-950 hover:bg-[#3AAE90]"
         >
           {canGoNext ? copy.schedule.builder.continue : copy.schedule.builder.readyToSave}
         </Button>

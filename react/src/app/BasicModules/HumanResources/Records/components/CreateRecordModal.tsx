@@ -248,7 +248,7 @@ export function CreateRecordModal({
           <div className="flex gap-3 rounded-2xl border border-[#C9EDE3] bg-[#EAF8F4] p-4 dark:border-[#59C3A5]/25 dark:bg-[#10231F]">
             <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#1F8A70] dark:text-[#9BE4D0]" />
             <div className="text-sm text-[#145F51] dark:text-[#C6F4E8]">
-              <p className="mb-1 font-semibold">{copy.modal.noticeTitle}</p>
+              <p className="mb-1 font-medium">{copy.modal.noticeTitle}</p>
               <p className="text-[#1F8A70] dark:text-[#9BE4D0]">
                 {copy.modal.noticeDescription}
               </p>
@@ -256,7 +256,7 @@ export function CreateRecordModal({
           </div>
 
           <div className="space-y-4">
-            <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
+            <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900 dark:border-gray-700 dark:text-white">
               {copy.modal.basicInformation}
             </h3>
 
@@ -359,7 +359,7 @@ export function CreateRecordModal({
                     >
                       <div className="mb-1 flex items-center gap-2">
                         <TypeIcon className={`h-4 w-4 ${option.iconClassName}`} />
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{option.label}</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{option.label}</span>
                       </div>
                       <div className="text-xs leading-tight text-gray-600 dark:text-gray-400">{option.description}</div>
                     </button>
@@ -379,7 +379,7 @@ export function CreateRecordModal({
                       key={level}
                       type="button"
                       onClick={() => setFormData((current) => ({ ...current, severity: level }))}
-                      className={`flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 font-semibold capitalize transition-all ${
+                      className={`flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 font-medium capitalize transition-all ${
                         formData.severity === level
                           ? level === 'low'
                             ? 'border-green-500 bg-green-50 text-green-700 shadow-sm dark:bg-green-900/30 dark:text-green-400'
@@ -399,7 +399,7 @@ export function CreateRecordModal({
           </div>
 
           <div className="space-y-4">
-            <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
+            <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900 dark:border-gray-700 dark:text-white">
               {copy.modal.recordDetails}
             </h3>
 
@@ -456,7 +456,7 @@ export function CreateRecordModal({
           </div>
 
           <div className="space-y-4">
-            <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
+            <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900 dark:border-gray-700 dark:text-white">
               {copy.modal.actionsContext}
             </h3>
 
@@ -557,7 +557,7 @@ export function CreateRecordModal({
           </div>
 
           <div className="space-y-4">
-            <h3 className="border-b border-gray-200 pb-2 text-lg font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
+            <h3 className="border-b border-gray-200 pb-2 text-lg font-medium text-gray-900 dark:border-gray-700 dark:text-white">
               {copy.modal.attachments}
             </h3>
 
@@ -576,7 +576,7 @@ export function CreateRecordModal({
               />
               <label
                 htmlFor="record-file-upload"
-                className="inline-block cursor-pointer rounded-lg bg-[#59C3A5] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#48AE91]"
+                className="inline-block cursor-pointer rounded-lg bg-[#59C3A5] px-4 py-2 text-sm font-medium text-slate-950 transition-colors hover:bg-[#48AE91]"
               >
                 {copy.modal.chooseFiles}
               </label>

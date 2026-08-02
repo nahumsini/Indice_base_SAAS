@@ -34,6 +34,7 @@ const toneClassNames: Record<PosModalTone, {
   header: string;
   icon: string;
   subtitle: string;
+  title: string;
 }> = {
   graphite: {
     close: 'border-white/20 bg-white/10 text-white hover:bg-white/20 focus:ring-white/60',
@@ -41,21 +42,23 @@ const toneClassNames: Record<PosModalTone, {
     header: 'bg-[#222831]',
     icon: 'border-white/15 bg-[#FF6B5E]/20 text-white',
     subtitle: 'text-gray-300',
+    title: 'text-white',
   },
   coral: {
-    close: 'border-white/20 bg-white/10 text-white hover:bg-white/20 focus:ring-white/60',
-    eyebrow: 'text-white/80',
-    header: 'bg-[#FF6B5E]',
-    icon: 'border-white/20 bg-white/15 text-white',
-    subtitle: 'text-white/85',
+    close: 'border-[#222831]/20 bg-white/20 text-[#222831] hover:bg-white/35 focus:ring-[#222831]/30',
+    eyebrow: 'text-[#222831]/75',
+    header: 'bg-[#FF6B5E] text-[#222831]',
+    icon: 'border-[#222831]/15 bg-white/20 text-[#222831]',
+    subtitle: 'text-[#222831]/75',
+    title: 'text-[#222831]',
   },
 };
 
-export const posModalPrimaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[#B63B32] shadow-sm transition hover:bg-white/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B63B32]/50 disabled:active:scale-100 sm:w-auto';
+export const posModalPrimaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[#B63B32] shadow-sm transition hover:bg-white/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B63B32]/50 disabled:active:scale-100 sm:w-auto';
 
-export const posModalSecondaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:w-auto';
+export const posModalSecondaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#222831]/35 bg-white/10 px-5 py-2.5 text-sm font-medium text-[#222831] transition hover:bg-white/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:w-auto';
 
-export const posModalModuleFooterClassName = 'border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-white';
+export const posModalModuleFooterClassName = 'border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-[#222831] dark:border-[#b63b32] dark:bg-[#b63b32] dark:text-white';
 
 interface PosModalFrameProps {
   actions?: ReactNode;
@@ -132,14 +135,14 @@ export function PosModalFrame({
         closeButtonLabel={closeLabel}
         overlayClassName={cn('bg-[#111827]/70 backdrop-blur-sm', zIndexClassName)}
       >
-        <DialogHeader className={cn('shrink-0 px-5 py-4 text-left text-white sm:px-6', toneClasses.header)}>
+        <DialogHeader className={cn('shrink-0 px-5 py-4 text-left sm:px-6', toneClasses.header)}>
           <div className="flex min-w-0 items-start gap-3 pr-14">
             <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-sm', toneClasses.icon)} aria-hidden="true">
               {icon}
             </span>
             <div className="min-w-0 flex-1">
               {eyebrow ? <p className={cn('mb-1 text-xs font-medium leading-5 tracking-normal', toneClasses.eyebrow)}>{eyebrow}</p> : null}
-              <DialogTitle className="text-xl font-semibold leading-tight text-white sm:text-2xl">{title}</DialogTitle>
+              <DialogTitle className={cn('text-xl font-medium leading-tight sm:text-2xl', toneClasses.title)}>{title}</DialogTitle>
               {subtitle ? <DialogDescription className={cn('mt-1 text-sm font-normal leading-5', toneClasses.subtitle)}>{subtitle}</DialogDescription> : null}
             </div>
             {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
@@ -148,7 +151,6 @@ export function PosModalFrame({
 
         <div className={cn(
           'min-h-0 flex-1 overflow-y-auto bg-[#F7F8FA] p-4 dark:bg-[#111827] sm:p-5',
-          '[&_.font-black]:font-semibold [&_.font-bold]:font-semibold [&_.uppercase]:normal-case [&_.tracking-wide]:tracking-normal [&_.tracking-wider]:tracking-normal [&_.tracking-widest]:tracking-normal',
           bodyClassName,
         )}>
           {children}
@@ -156,8 +158,7 @@ export function PosModalFrame({
 
         {footer || footerLeading || footerSummary ? (
           <DialogFooter className={cn(
-            'shrink-0 border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-white dark:border-[#b63b32] dark:bg-[#b63b32]',
-            '[&_.font-black]:font-semibold [&_.font-bold]:font-semibold [&_.uppercase]:normal-case [&_.tracking-wide]:tracking-normal [&_.tracking-wider]:tracking-normal [&_.tracking-widest]:tracking-normal',
+            'shrink-0 border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-[#222831] dark:border-[#b63b32] dark:bg-[#b63b32] dark:text-white',
             footerClassName,
           )}>
             <IndiceModalFooter actions={footer} leading={footerLeading} summary={footerSummary} tone="coral" />

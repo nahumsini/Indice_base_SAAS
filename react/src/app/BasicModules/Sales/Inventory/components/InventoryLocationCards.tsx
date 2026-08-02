@@ -17,7 +17,7 @@ export function InventoryLocationCards({
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-lg font-black text-slate-950">{t.locationsView.cardsTitle}</h3>
+      <h3 className="mb-4 text-lg font-medium text-slate-950">{t.locationsView.cardsTitle}</h3>
       <div className="grid gap-4 lg:grid-cols-3">
         {locations.slice(0, 3).map((location) => {
           const summary = getLocationStockSummary(location, stockItems);
@@ -29,8 +29,8 @@ export function InventoryLocationCards({
                   <MapPinned className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate font-black text-slate-950">{location.name}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">{location.code}</p>
+                  <p className="truncate font-medium text-slate-950">{location.name}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-500">{location.code}</p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -42,16 +42,16 @@ export function InventoryLocationCards({
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-500">{t.locationsView.trackedSkus}</p>
-                  <p className="mt-1 font-black text-slate-950">{summary.trackedSkus}</p>
+                  <p className="text-xs font-medium text-slate-500">{t.locationsView.trackedSkus}</p>
+                  <p className="mt-1 font-medium text-slate-950">{summary.trackedSkus}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-500">{t.locationsView.estimatedValue}</p>
-                  <p className="mt-1 font-black text-slate-950">{formatInventoryCurrency(summary.estimatedValue)}</p>
+                  <p className="text-xs font-medium text-slate-500">{t.locationsView.estimatedValue}</p>
+                  <p className="mt-1 font-medium text-slate-950">{formatInventoryCurrency(summary.estimatedValue)}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-500">{t.locationsView.lastMovement}</p>
-                  <p className="mt-1 font-black text-slate-950">{summary.lastMovement ?? t.common.notAvailable}</p>
+                  <p className="text-xs font-medium text-slate-500">{t.locationsView.lastMovement}</p>
+                  <p className="mt-1 font-medium text-slate-950">{summary.lastMovement ?? t.common.notAvailable}</p>
                 </div>
               </div>
             </article>

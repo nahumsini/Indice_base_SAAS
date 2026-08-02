@@ -31,7 +31,7 @@ const riskLabels: Record<CreditRiskLevel, string> = {
 
 const customerGroupOptions = ['General', 'Frequent retail', 'Business', 'Wholesale', 'VIP'];
 const currencyOptions = ['MXN', 'USD', 'CAD', 'COP', 'BRL'];
-const fieldClassName = 'min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-500';
+const fieldClassName = 'min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-500';
 
 export function CreditRuleModal({ rule, customers, onClose, onSave }: CreditRuleModalProps) {
   const [draft, setDraft] = useState<CreditRule | null>(rule);
@@ -102,7 +102,7 @@ export function CreditRuleModal({ rule, customers, onClose, onSave }: CreditRule
     >
       <div className="space-y-4">
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             {error}
           </div>
         ) : null}
@@ -190,7 +190,7 @@ export function CreditRuleModal({ rule, customers, onClose, onSave }: CreditRule
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1 block text-xs font-black uppercase text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
       {children}
     </label>
   );
@@ -198,7 +198,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function Toggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
   return (
-    <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 text-sm font-black text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
+    <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
       <span>{label}</span>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500" />
     </label>

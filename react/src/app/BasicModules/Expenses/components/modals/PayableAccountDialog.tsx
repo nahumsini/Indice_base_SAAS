@@ -183,7 +183,7 @@ export function PayableAccountDialog({
       footer={(
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
           <button type="button" className="h-10 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50" disabled={isSubmitting} onClick={() => onOpenChange(false)}>{t.expenses.payableAccount.cancel}</button>
-          <button form="payable-account-form" type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:opacity-50" disabled={!canSubmit}>
+          <button form="payable-account-form" type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#147514] transition hover:bg-slate-100 disabled:opacity-50" disabled={!canSubmit}>
             <Check className="h-4 w-4" />
             {isSubmitting ? t.expenses.payableAccount.saving : t.expenses.payableAccount.save}
           </button>
@@ -200,7 +200,7 @@ export function PayableAccountDialog({
         <form id="payable-account-form" className="space-y-5" onSubmit={handleSubmit}>
             {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-              <h4 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.mainData}</h4>
+              <h4 className="mb-4 text-sm font-medium text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.mainData}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <QuickProviderField
                   emptyLabel={t.expenses.payableAccount.unassignedProvider}
@@ -229,7 +229,7 @@ export function PayableAccountDialog({
             </section>
 
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
-              <h4 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.sectionAmount}</h4>
+              <h4 className="mb-4 text-sm font-medium text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.sectionAmount}</h4>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label={t.expenses.modal.amount} required>
                   <input
@@ -261,7 +261,7 @@ export function PayableAccountDialog({
             <section className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <div className="mb-4 flex items-center gap-2">
                 <Paperclip className="h-4 w-4 text-[#147514]" />
-                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.evidence}</h4>
+                <h4 className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.expenses.payableAccount.evidence}</h4>
               </div>
               <label className={`flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-[22px] border-2 border-dashed bg-slate-50 px-4 py-6 text-center transition ${
                 canAttachMoreFiles
@@ -282,7 +282,7 @@ export function PayableAccountDialog({
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#147514]/10 text-[#147514]">
                   <Upload className="h-5 w-5" />
                 </span>
-                <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">{t.expenses.payableAccount.uploadFile}</span>
+                <span className="mt-3 text-sm font-medium text-slate-900 dark:text-white">{t.expenses.payableAccount.uploadFile}</span>
                 <span className="mt-1 text-xs font-medium text-slate-500">{t.expenses.payableAccount.attachmentHint}</span>
               </label>
               {draft.attachments.length > 0 ? (
@@ -293,7 +293,7 @@ export function PayableAccountDialog({
                         <File className="h-4 w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{attachment.name}</p>
+                        <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{attachment.name}</p>
                         <p className="text-xs font-medium text-slate-500">{formatFileSize(attachment.size)}</p>
                       </div>
                       <button type="button" onClick={() => removeAttachment(attachment.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100" aria-label={t.expenses.payableAccount.attachmentDelete}>
@@ -344,7 +344,7 @@ function createDraft(currency: string): PayableDraft {
 function Field({ children, label, required }: { children: ReactNode; label: string; required?: boolean }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
         {label}{required ? ' *' : ''}
       </span>
       {children}
@@ -356,7 +356,7 @@ function SummaryMetric({ label, strong, value }: { label: string; strong?: boole
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
       <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className={`mt-1 text-sm font-semibold ${strong ? 'text-[#147514]' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
+      <p className={`mt-1 text-sm font-medium ${strong ? 'text-[#147514]' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
     </div>
   );
 }

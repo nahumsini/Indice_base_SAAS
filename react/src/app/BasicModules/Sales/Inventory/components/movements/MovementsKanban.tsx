@@ -130,11 +130,11 @@ export function MovementsKanban({
 
       {dragState ? (
         <div
-          className="pointer-events-none fixed z-[9999] rounded-lg border border-[#FF6B5E]/30 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-xl ring-4 ring-[#FF6B5E]/10"
+          className="pointer-events-none fixed z-[9999] rounded-lg border border-[#FF6B5E]/30 bg-white px-3 py-2 text-xs font-medium text-slate-900 shadow-xl ring-4 ring-[#FF6B5E]/10"
           style={{ left: dragState.x + 12, top: dragState.y + 12 }}
         >
           {dragState.label}
-          <span className={`ml-2 rounded-full border px-2 py-0.5 font-bold ${movementStatusTone[dragState.status]}`}>
+          <span className={`ml-2 rounded-full border px-2 py-0.5 font-medium ${movementStatusTone[dragState.status]}`}>
             {t.operational.movementStatuses[dragState.status]}
           </span>
         </div>
@@ -169,18 +169,18 @@ function MovementKanbanColumn({
         <div>
           <div className="flex items-center gap-2">
             <span className={`h-2.5 w-2.5 rounded-full border ${movementStatusTone[status]}`} />
-            <h3 className="text-sm font-semibold text-slate-900">{t.operational.movementStatuses[status]}</h3>
+            <h3 className="text-sm font-medium text-slate-900">{t.operational.movementStatuses[status]}</h3>
           </div>
-          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{t.operational.kanbanColumns[status]}</p>
+          <p className="mt-1 text-xs font-medium leading-5 text-slate-500">{t.operational.kanbanColumns[status]}</p>
         </div>
-        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200">
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
           {movements.length}
         </span>
       </div>
 
       <div className="space-y-3">
         {movements.length === 0 ? (
-          <div className={`flex min-h-[140px] items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm font-semibold transition ${isActiveDrop ? 'border-[#FF6B5E]/40 bg-[#FF6B5E]/10 text-[#B63B32]' : 'border-slate-200 bg-white/70 text-slate-400'}`}>
+          <div className={`flex min-h-[140px] items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm font-medium transition ${isActiveDrop ? 'border-[#FF6B5E]/40 bg-[#FF6B5E]/10 text-[#B63B32]' : 'border-slate-200 bg-white/70 text-slate-400'}`}>
             {t.operational.emptyStates.movementsDescription}
           </div>
         ) : movements.map((movement) => (
@@ -206,8 +206,8 @@ function MovementKanbanCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{movement.movementNumber ?? movement.id}</span>
-          <span className={`rounded-full border px-3 py-1 text-xs font-bold ${movementTone[movement.movementType]}`}>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">{movement.movementNumber ?? movement.id}</span>
+          <span className={`rounded-full border px-3 py-1 text-xs font-medium ${movementTone[movement.movementType]}`}>
             {t.operational.movementTypes[movement.movementType]}
           </span>
         </div>
@@ -225,27 +225,27 @@ function MovementKanbanCard({
         <MovementFlow movement={movement} />
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-semibold text-slate-400">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-medium text-slate-400">
           {movement.productImageUrl ? <img src={movement.productImageUrl} alt={movement.productImageAlt ?? movement.productName} className="h-full w-full object-cover" loading="lazy" /> : t.operational.columns.photo}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-950">{movement.productName}</p>
-          <p className="text-xs font-semibold text-slate-500">{movement.productSku ?? t.common.notAvailable}</p>
+          <p className="truncate text-sm font-medium text-slate-950">{movement.productName}</p>
+          <p className="text-xs font-medium text-slate-500">{movement.productSku ?? t.common.notAvailable}</p>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-semibold text-slate-500">
+      <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-medium text-slate-500">
         <div>
-          <span className="block text-xs font-semibold text-slate-400">{t.operational.columns.quantity}</span>
+          <span className="block text-xs font-medium text-slate-400">{t.operational.columns.quantity}</span>
           <span className={movement.quantity >= 0 ? 'text-emerald-600' : 'text-red-600'}>
             {movement.quantity >= 0 ? '+' : ''}{formatInventoryNumber(movement.quantity)}
           </span>
         </div>
         <div>
-          <span className="block text-xs font-semibold text-slate-400">{t.operational.columns.date}</span>
+          <span className="block text-xs font-medium text-slate-400">{t.operational.columns.date}</span>
           <span>{movement.movementDate}</span>
         </div>
         <div className="col-span-2">
-          <span className="block text-xs font-semibold text-slate-400">{t.operational.columns.responsible}</span>
+          <span className="block text-xs font-medium text-slate-400">{t.operational.columns.responsible}</span>
           <span>{movement.responsibleName}</span>
         </div>
       </div>

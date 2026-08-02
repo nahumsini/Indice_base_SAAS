@@ -34,8 +34,8 @@ export function CommissionStatusBadge({
 }) {
   return (
     <span className={cn(
-      'inline-flex rounded-full border px-3 py-1 text-xs font-black',
-      !naturalCase && 'uppercase tracking-normal',
+      'inline-flex rounded-full border px-3 py-1 text-xs font-medium',
+      !naturalCase && 'tracking-normal',
       statusClasses[status],
     )}>
       {t.commissions.statuses[status]}
@@ -76,7 +76,7 @@ export function CommissionTable({
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
               {[columns.commissionId, columns.salesRep, columns.customer, columns.sale, columns.product, columns.commissionAmount, columns.status, columns.createdDate, columns.actions].map((column) => (
-                <TableHead key={column} className="whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                <TableHead key={column} className="whitespace-normal px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-400">
                   {column}
                 </TableHead>
               ))}
@@ -87,7 +87,7 @@ export function CommissionTable({
               <TableRow>
                 <TableCell colSpan={9} className="px-5 py-12 text-center">
                   <div className="mx-auto max-w-md space-y-2">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{t.commissions.table.emptyTitle}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{t.commissions.table.emptyTitle}</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">{t.commissions.table.emptyDescription}</p>
                   </div>
                 </TableCell>
@@ -95,19 +95,19 @@ export function CommissionTable({
             ) : paginatedRows.map((record) => (
               <TableRow key={record.id} className="border-slate-200 align-top hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-800/70">
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                  <p className="break-all font-black text-slate-950 dark:text-white">{record.id}</p>
-                  <p className="mt-1 break-words text-xs font-semibold text-slate-500">{record.commissionRuleName}</p>
+                  <p className="break-all font-medium text-slate-950 dark:text-white">{record.id}</p>
+                  <p className="mt-1 break-words text-xs font-medium text-slate-500">{record.commissionRuleName}</p>
                 </TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-bold text-slate-800 dark:text-slate-100"><span className="block break-words">{record.salesRepName}</span></TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-bold text-slate-800 dark:text-slate-100"><span className="block break-words">{record.customerName}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-800 dark:text-slate-100"><span className="block break-words">{record.salesRepName}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-800 dark:text-slate-100"><span className="block break-words">{record.customerName}</span></TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                  <p className="break-all font-black text-slate-950 dark:text-white">{record.saleCode}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{formatSalesCurrency(record.saleAmount, record.currency)}</p>
+                  <p className="break-all font-medium text-slate-950 dark:text-white">{record.saleCode}</p>
+                  <p className="mt-1 text-xs font-medium text-slate-500">{formatSalesCurrency(record.saleAmount, record.currency)}</p>
                 </TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-semibold text-slate-700 dark:text-slate-200"><span className="block break-words">{record.productName}</span></TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-black text-slate-950 dark:text-white"><span className="block break-words">{formatSalesCurrency(record.commissionAmount, record.currency)}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-700 dark:text-slate-200"><span className="block break-words">{record.productName}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-950 dark:text-white"><span className="block break-words">{formatSalesCurrency(record.commissionAmount, record.currency)}</span></TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top"><CommissionStatusBadge status={record.status} t={t} /></TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-semibold text-slate-700 dark:text-slate-200">{formatSalesDate(record.createdDate)}</TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-700 dark:text-slate-200">{formatSalesDate(record.createdDate)}</TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -122,7 +122,7 @@ export function CommissionTable({
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" sideOffset={8} className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl">
+                    <TooltipContent side="top" sideOffset={8} className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-medium leading-4 text-white shadow-xl">
                       {t.commissions.table.actions.viewDetail}
                     </TooltipContent>
                   </Tooltip>

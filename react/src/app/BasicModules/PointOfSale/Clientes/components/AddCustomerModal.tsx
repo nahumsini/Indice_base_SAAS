@@ -130,7 +130,7 @@ export function AddCustomerModal({ isOpen, onClose, onSave, customer }: AddCusto
 
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
               Información Básica
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -211,7 +211,7 @@ export function AddCustomerModal({ isOpen, onClose, onSave, customer }: AddCusto
 
           {/* Address */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
               Dirección
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

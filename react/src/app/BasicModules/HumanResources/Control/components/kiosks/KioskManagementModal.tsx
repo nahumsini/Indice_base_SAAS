@@ -226,14 +226,14 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
         <div className="space-y-4">
           <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.kiosk.management.centerTitle}</p>
+              <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.kiosk.management.centerTitle}</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {copy.kiosk.management.centerDescription}
               </p>
             </div>
             <Button
               type="button"
-              className="h-10 gap-2 rounded-xl bg-[#59C3A5] px-4 text-white shadow-sm transition hover:bg-[#3AAE90]"
+              className="h-10 gap-2 rounded-xl bg-[#59C3A5] px-4 text-slate-950 shadow-sm transition hover:bg-[#3AAE90]"
               onClick={() => { onClose(); onNew(); }}
             >
               <Plus className="h-4 w-4" />
@@ -281,13 +281,13 @@ export function KioskManagementModal(props: KioskManagementModalProps) {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]">
                 <MonitorSmartphone className="h-6 w-6" />
               </div>
-              <p className="mt-4 text-base font-semibold text-slate-950 dark:text-white">{copy.kiosk.management.emptyTitle}</p>
+              <p className="mt-4 text-base font-medium text-slate-950 dark:text-white">{copy.kiosk.management.emptyTitle}</p>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
                 {copy.kiosk.management.emptyDescription}
               </p>
               <Button
                 type="button"
-                className="mt-5 h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-white hover:bg-[#3AAE90]"
+                className="mt-5 h-10 gap-2 rounded-lg bg-[#59C3A5] px-4 text-slate-950 hover:bg-[#3AAE90]"
                 onClick={() => { onClose(); onNew(); }}
               >
                 <Plus className="h-4 w-4" />

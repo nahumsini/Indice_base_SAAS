@@ -188,7 +188,7 @@ function ProcessKpiMetric({
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
         {icon}
       </span>
-      <span className={cn('font-semibold', valueClassName)}>{value}</span>
+      <span className={cn('font-medium', valueClassName)}>{value}</span>
       <span>{label}</span>
     </div>
   );
@@ -303,16 +303,16 @@ function ProcessKpiStrip({
 
         <div className="flex flex-wrap items-center gap-2">
           {metrics.overdueTaskCount > 0 ? (
-            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
               {copy.badges.overdue(metrics.overdueTaskCount)}
             </span>
           ) : null}
           {metrics.inactiveCount > 0 ? (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
               {copy.badges.paused(metrics.inactiveCount)}
             </span>
           ) : null}
-          <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', healthTone)}>
+          <span className={cn('rounded-full border px-3 py-1 text-xs font-medium', healthTone)}>
             {copy.badges.health(metrics.healthScore)}
           </span>
         </div>
@@ -1331,7 +1331,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   const renderCell = (record: ProcessRecord, columnId: ProcessColumnId) => {
     switch (columnId) {
       case 'folio':
-        return <span className="text-sm font-semibold text-slate-900 dark:text-white">{record.folio}</span>;
+        return <span className="text-sm font-medium text-slate-900 dark:text-white">{record.folio}</span>;
       case 'unit':
         return (
           <InlineSelectField
@@ -1449,12 +1449,12 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               value={record.title}
               onCommit={(nextValue) => handleInlineTextCommit(record.id, 'title', nextValue)}
               placeholder={processCopy.form.placeholders.title}
-              className="font-semibold text-slate-900 dark:text-white"
+              className="font-medium text-slate-900 dark:text-white"
               disabled={isRecordPending(record.id)}
             />
             <span
               className={cn(
-                'inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase',
+                'inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium',
                 record.isActive
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
                   : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
@@ -1477,7 +1477,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       case 'template':
         return (
           <div className="min-w-[280px] space-y-2">
-            <p className="line-clamp-2 text-sm font-semibold text-slate-900 dark:text-white">
+            <p className="line-clamp-2 text-sm font-medium text-slate-900 dark:text-white">
               {record.taskTitleTemplate || record.title}
             </p>
             <p className="line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">
@@ -1486,14 +1486,14 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
             <div className="flex flex-wrap gap-2">
               <Badge
                 variant="outline"
-                className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+                className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
               >
                 {processCopy.table.graceDays(record.graceDays ?? 0)}
               </Badge>
               {record.evidenceRequired ? (
                 <Badge
                   variant="outline"
-                  className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300"
+                  className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300"
                 >
                   {processCopy.table.evidenceRequired}
                 </Badge>
@@ -1517,7 +1517,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                 }))
               }
               className="min-w-[180px]"
-              renderValue={(value) => <span className="font-semibold">{processCopy.frequencies[value]}</span>}
+              renderValue={(value) => <span className="font-medium">{processCopy.frequencies[value]}</span>}
               disabled={isRecordPending(record.id)}
             />
             <p className="px-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -1528,7 +1528,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       case 'nextOccurrence':
         return (
           <div className="min-w-[190px] space-y-2">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+            <p className="text-sm font-medium text-slate-900 dark:text-white">
               {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate, locale)}
             </p>
             <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -1549,7 +1549,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       case 'tasks':
         return (
           <div className="min-w-[180px] space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
               <ListChecks className="h-4 w-4" />
               {record.taskCount}
             </div>
@@ -1627,8 +1627,8 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
             onChange={(nextValue) =>
               void persistRecordChange(record.id, (currentRecord) => ({ ...currentRecord, priority: nextValue }))
             }
-            className={cn('min-w-[136px] border font-semibold', prioritySelectClasses[record.priority])}
-            renderValue={(value) => <span className="font-semibold">{processCopy.priorities[value]}</span>}
+            className={cn('min-w-[136px] border font-medium', prioritySelectClasses[record.priority])}
+            renderValue={(value) => <span className="font-medium">{processCopy.priorities[value]}</span>}
             disabled={isRecordPending(record.id)}
           />
         );
@@ -1646,7 +1646,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{headerCopy.actions.diagram}</h3>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white">{headerCopy.actions.diagram}</h3>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
                 {headerCopy.subtitle}
               </p>
@@ -1661,7 +1661,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Badge variant="outline" className="rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]">
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-medium text-[#9A6B05]">
                 <CalendarRange className="mr-1 h-4 w-4" />
                 {formatProcessMonth(processDiagramMonth, locale)}
               </Badge>
@@ -1674,7 +1674,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Badge variant="outline" className="w-fit rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <Badge variant="outline" className="w-fit rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
                 {activeRecordsCount} {processCopy.statuses.active.toLowerCase()}
               </Badge>
             </div>
@@ -1706,20 +1706,20 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
           <div className="overflow-x-auto">
             <div className="min-w-[1040px]">
               <div className="grid border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50" style={{ gridTemplateColumns: 'minmax(320px, 380px) 1fr minmax(130px, 160px)' }}>
-                <div className="border-r border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="border-r border-slate-200 px-5 py-3 text-xs font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {processCopy.columns.title.label}
                 </div>
                 <div className="grid" style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(42px, 1fr))` }}>
                   {processTimeline.days.map((day) => (
                     <div key={day.toISOString()} className="border-r border-slate-200 px-2 py-3 text-center last:border-r-0 dark:border-slate-700">
-                      <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
+                      <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
                         {new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day)}
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">{day.getDate()}</p>
+                      <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-100">{day.getDate()}</p>
                     </div>
                   ))}
                 </div>
-                <div className="border-l border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="border-l border-slate-200 px-5 py-3 text-xs font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   {processCopy.columns.tasks.label}
                 </div>
               </div>
@@ -1739,13 +1739,13 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                   >
                     <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                        <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
                           {record.folio}
                         </Badge>
                         <Badge
                           variant="outline"
                           className={cn(
-                            'rounded-full px-2.5 py-1 text-xs font-semibold',
+                            'rounded-full px-2.5 py-1 text-xs font-medium',
                             record.isActive
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
@@ -1754,7 +1754,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                           {record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}
                         </Badge>
                       </div>
-                      <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{record.title}</p>
+                      <p className="mt-2 line-clamp-2 text-sm font-medium text-slate-900 dark:text-white">{record.title}</p>
                       <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                         {processCopy.frequencies[record.frequency]} · {record.responsible || processCopy.common.unassigned}
                       </p>
@@ -1777,8 +1777,8 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                           }}
                         >
                           <div className="flex h-full items-center justify-between gap-3">
-                            <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">{record.title}</span>
-                            <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                            <span className="truncate text-xs font-medium text-slate-900 dark:text-white">{record.title}</span>
+                            <span className="shrink-0 text-xs font-medium text-slate-700 dark:text-slate-200">
                               {formatOptionalDate(record.nextOccurrenceDate, processCopy.common.noDate, locale)}
                             </span>
                           </div>
@@ -1790,12 +1790,12 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                       )}
                     </div>
                     <div className="flex flex-col justify-center gap-1 border-l border-slate-200 px-5 py-4 text-sm dark:border-slate-700">
-                      <span className="font-bold text-slate-900 dark:text-white">{record.taskCount}</span>
+                      <span className="font-medium text-slate-900 dark:text-white">{record.taskCount}</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">
                         {processCopy.table.taskCounts.open} {record.openTaskCount}
                       </span>
                       {record.overdueTaskCount > 0 ? (
-                        <span className="text-xs font-semibold text-rose-600 dark:text-rose-300">
+                        <span className="text-xs font-medium text-rose-600 dark:text-rose-300">
                           {processCopy.table.taskCounts.overdue} {record.overdueTaskCount}
                         </span>
                       ) : null}
@@ -1810,22 +1810,22 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               <Table>
                 <TableHeader className="bg-slate-50/90 dark:bg-slate-900/60">
                   <TableRow>
-                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <TableHead className="px-4 py-3 text-xs font-medium text-slate-500">
                       {processCopy.columns.folio.label}
                     </TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <TableHead className="px-4 py-3 text-xs font-medium text-slate-500">
                       {processCopy.columns.title.label}
                     </TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <TableHead className="px-4 py-3 text-xs font-medium text-slate-500">
                       {processCopy.columns.responsible.label}
                     </TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <TableHead className="px-4 py-3 text-xs font-medium text-slate-500">
                       {processCopy.columns.nextOccurrence.label}
                     </TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <TableHead className="px-4 py-3 text-xs font-medium text-slate-500">
                       {processCopy.columns.tasks.label}
                     </TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <TableHead className="px-4 py-3 text-xs font-medium text-slate-500">
                       {processCopy.table.status}
                     </TableHead>
                   </TableRow>
@@ -1833,10 +1833,10 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                 <TableBody>
                   {sortedRecords.map((record) => (
                     <TableRow key={`diagram-data-${record.id}`} className="border-slate-100 dark:border-slate-700">
-                      <TableCell className="px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      <TableCell className="px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
                         {record.folio}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-sm font-semibold text-slate-950 dark:text-white">
+                      <TableCell className="px-4 py-3 text-sm font-medium text-slate-950 dark:text-white">
                         {record.title}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
@@ -1852,7 +1852,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                         <Badge
                           variant="outline"
                           className={cn(
-                            'rounded-full px-2.5 py-1 text-xs font-semibold',
+                            'rounded-full px-2.5 py-1 text-xs font-medium',
                             record.isActive
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300',
@@ -1878,7 +1878,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       <Button
         type="button"
         variant="outline"
-        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 sm:w-auto sm:px-4 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 sm:w-auto sm:px-4 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         onClick={() => setIsColumnsDialogOpen(true)}
         disabled={isLoadingProcesses}
       >
@@ -1887,7 +1887,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       </Button>
       <Button
         type="button"
-        className={cn('h-10 w-full gap-2 rounded-xl px-3 text-sm font-semibold sm:w-auto sm:px-4', accentButtonClass)}
+        className={cn('h-10 w-full gap-2 rounded-xl px-3 text-sm font-medium sm:w-auto sm:px-4', accentButtonClass)}
         onClick={openCreateDialog}
         disabled={isLoadingProcesses}
       >
@@ -1937,12 +1937,12 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
 
       <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base font-bold text-slate-800 dark:text-white">{processCopy.filters.title}</h3>
+          <h3 className="text-base font-medium text-slate-800 dark:text-white">{processCopy.filters.title}</h3>
           <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
             <button
               type="button"
               aria-pressed={viewMode === 'table'}
-              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors', viewMode === 'table' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
+              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors', viewMode === 'table' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
               onClick={() => setViewMode('table')}
             >
               <ListChecks className="h-4 w-4" />
@@ -1951,7 +1951,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
             <button
               type="button"
               aria-pressed={viewMode === 'diagram'}
-              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors', viewMode === 'diagram' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
+              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors', viewMode === 'diagram' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
               onClick={() => setViewMode('diagram')}
             >
               <CalendarRange className="h-4 w-4" />
@@ -1961,7 +1961,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
           <div className="space-y-2 md:col-span-3 xl:col-span-4">
-            <label htmlFor="processes-search" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{processCopy.filters.search}</label>
+            <label htmlFor="processes-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{processCopy.filters.search}</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
@@ -2011,7 +2011,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       {rowSelection.selectedCount > 0 ? (
         <section className="mb-4 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 py-3 shadow-sm dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
               <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05] dark:bg-slate-800 dark:text-[#FEF3C7]">
                 {processCopy.bulk.selected(rowSelection.selectedCount)}
               </Badge>
@@ -2021,7 +2021,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 disabled={isBulkActionRunning}
                 onClick={() => {
                   void runBulkProcessAction('duplicate');
@@ -2033,7 +2033,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 disabled={isBulkActionRunning}
                 onClick={() => setIsBulkAssignOpen(true)}
               >
@@ -2045,7 +2045,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                   void runBulkProcessAction('priority', { priority: value as ProcessPriority });
                 }}
               >
-                <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
                   <SelectValue placeholder={processCopy.form.labels.priority} />
                 </SelectTrigger>
                 <SelectContent>
@@ -2059,7 +2059,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
+                className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
                 disabled={isBulkActionRunning}
                 onClick={() => setBulkConfirmation('delete')}
               >
@@ -2069,7 +2069,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 disabled={isBulkActionRunning}
                 onClick={rowSelection.clearSelection}
               >
@@ -2111,20 +2111,20 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9A6B05]">{record.folio}</p>
-                              <h3 className="mt-1 break-words text-base font-bold text-slate-950 dark:text-white">{record.title}</h3>
+                              <p className="text-xs font-medium text-[#9A6B05]">{record.folio}</p>
+                              <h3 className="mt-1 break-words text-base font-medium text-slate-950 dark:text-white">{record.title}</h3>
                             </div>
-                            <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', record.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300')}>{record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}</Badge>
+                            <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', record.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300')}>{record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}</Badge>
                           </div>
                           <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{record.description}</p>
                         </div>
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-2">
-                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.frequency.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{processCopy.frequencies[record.frequency]}</p></div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.responsible.label}</p><p className="mt-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{record.responsible || processCopy.common.unassigned}</p></div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.nextOccurrence.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{record.nextOccurrenceDate ? formatDate(record.nextOccurrenceDate, locale) : processCopy.common.noDate}</p></div>
-                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{processCopy.columns.tasks.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{record.completedTaskCount}/{record.taskCount} · {clampPercent(record.completionPercent)}%</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.frequency.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{processCopy.frequencies[record.frequency]}</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.responsible.label}</p><p className="mt-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{record.responsible || processCopy.common.unassigned}</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.nextOccurrence.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{record.nextOccurrenceDate ? formatDate(record.nextOccurrenceDate, locale) : processCopy.common.noDate}</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.tasks.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{record.completedTaskCount}/{record.taskCount} · {clampPercent(record.completionPercent)}%</p></div>
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
@@ -2169,7 +2169,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                     <button
                       type="button"
                       onClick={() => handleSort(column.id)}
-                      className="flex min-h-8 items-center gap-2 rounded-md text-left text-sm font-semibold tracking-tight text-slate-500 transition hover:text-[#9A6B05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-slate-100 dark:focus-visible:ring-offset-slate-800"
+                      className="flex min-h-8 items-center gap-2 rounded-md text-left text-sm font-medium tracking-tight text-slate-500 transition hover:text-[#9A6B05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-slate-100 dark:focus-visible:ring-offset-slate-800"
                     >
                       <span>{column.label}</span>
                       <SortIcon
@@ -2182,7 +2182,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                   </TableHead>
                 );
               })}
-              <TableHead className="px-4 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <TableHead className="px-4 py-4 text-sm font-medium text-slate-500 dark:text-slate-400">
                 {processCopy.common.actions}
               </TableHead>
             </TableRow>

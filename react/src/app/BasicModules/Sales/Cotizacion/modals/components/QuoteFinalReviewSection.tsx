@@ -38,7 +38,7 @@ export function QuoteFinalReviewSection({
   return (
     <section className="space-y-4">
       <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
-        <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+        <h3 className="flex items-center gap-2 text-base font-medium text-slate-950">
           <FileText className="h-5 w-5 text-[#FF6B5E]" />
           {t.builderSections.summary}
         </h3>
@@ -74,14 +74,14 @@ export function QuoteFinalReviewSection({
         </div>
         <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4 shadow-sm">
           <p className="text-sm font-medium text-[#B63B32]">{t.labels.total}</p>
-          <p className="mt-2 text-xl font-bold text-[#B63B32]">{formatCurrency(totals.total, form.currency)}</p>
+          <p className="mt-2 text-xl font-medium text-[#B63B32]">{formatCurrency(totals.total, form.currency)}</p>
           <p className="mt-1 text-xs font-medium text-[#B63B32]">{t.summary.items}: {items.length}</p>
         </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h4 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+          <h4 className="flex items-center gap-2 text-base font-medium text-slate-950">
             <ReceiptText className="h-5 w-5 text-[#FF6B5E]" />
             {t.lineItems.title}
           </h4>
@@ -100,14 +100,14 @@ export function QuoteFinalReviewSection({
                   <article key={item.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-950">{item.productName}</p>
+                        <p className="truncate font-medium text-slate-950">{item.productName}</p>
                         <p className="mt-1 text-xs font-medium text-slate-500">
                           {item.quantity} x {formatCurrency(item.unitPrice, itemCurrency)}
                           {product?.currency && product.currency !== itemCurrency ? ` · ${product.currency}` : ''}
                         </p>
                       </div>
                       <div className="text-left sm:text-right">
-                        <p className="font-semibold text-slate-950">{formatCurrency(pricing.lineTotal, itemCurrency)}</p>
+                        <p className="font-medium text-slate-950">{formatCurrency(pricing.lineTotal, itemCurrency)}</p>
                         <p className="mt-1 text-xs font-medium text-[#B63B32]">{getRoundedMargin(pricing.estimatedMargin)}%</p>
                       </div>
                     </div>
@@ -144,8 +144,8 @@ export function QuoteFinalReviewSection({
                 <span className="font-medium text-slate-950">{formatCurrency(totals.taxTotal, form.currency)}</span>
               </div>
               <div className="mt-2 flex justify-between gap-3 border-t border-slate-200 pt-3 text-lg">
-                <span className="font-semibold text-slate-950">{t.labels.total}</span>
-                <span className="font-bold text-[#B63B32]">{formatCurrency(totals.total, form.currency)}</span>
+                <span className="font-medium text-slate-950">{t.labels.total}</span>
+                <span className="font-medium text-[#B63B32]">{formatCurrency(totals.total, form.currency)}</span>
               </div>
             </div>
           </div>

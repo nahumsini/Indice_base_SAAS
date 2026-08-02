@@ -39,7 +39,7 @@ function ProductSortableHeader({
 
   if (!column.sortColumn) {
     return (
-      <span className="text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">
+      <span className="text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">
         {column.label}
       </span>
     );
@@ -48,7 +48,7 @@ function ProductSortableHeader({
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-2 text-left text-xs font-bold uppercase tracking-normal text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+      className="inline-flex items-center gap-2 text-left text-xs font-medium tracking-normal text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
       onClick={() => column.sortColumn && onSort(column.sortColumn)}
     >
       <span>{column.label}</span>
@@ -76,7 +76,7 @@ export function ProductTableHeader({
           onCheckedChange={(checked) => onToggleAllVisible(checked === true)}
         />
       </TableHead>
-      <TableHead className="w-[88px] px-5 py-4 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">
+      <TableHead className="w-[88px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">
         {t.table.columns.cover}
       </TableHead>
       {columns.map((column) => (
@@ -84,7 +84,7 @@ export function ProductTableHeader({
           <ProductSortableHeader column={column} sortState={sortState} onSort={onSort} />
         </TableHead>
       ))}
-      <TableHead className="w-[250px] px-5 py-4 text-right text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">
+      <TableHead className="w-[250px] px-5 py-4 text-right text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">
         {t.table.columns.actions}
       </TableHead>
     </TableRow>

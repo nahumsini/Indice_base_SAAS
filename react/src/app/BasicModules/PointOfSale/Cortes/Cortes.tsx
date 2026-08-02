@@ -409,19 +409,19 @@ export default function Cortes() {
       />
 
       {notice ? (
-        <div className="rounded-lg border border-[#F4C84A]/25 bg-[#F4C84A]/10 px-4 py-3 text-sm font-black text-[#9A6B05] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
+        <div className="rounded-lg border border-[#F4C84A]/25 bg-[#F4C84A]/10 px-4 py-3 text-sm font-medium text-[#9A6B05] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
           {error}
         </div>
       ) : null}
 
       {filterOptionsError ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {filterOptionsError}
         </div>
       ) : null}
@@ -441,13 +441,13 @@ export default function Cortes() {
           <ViewButton active={viewMode === 'day'} icon={<LayoutList className="h-4 w-4" />} label="Por dia" onClick={() => setViewMode('day')} />
         </div>
 
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
           Mostrando {visibleRows.length} de {totalCount} corte(s) - Preferida {analytics.convertedSalesLabel} - Cobrado {analytics.totalSalesLabel}
         </p>
       </div>
 
       {loading ? (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
           Cargando cortes reales del punto de venta...
         </div>
       ) : null}
@@ -536,9 +536,9 @@ function ViewButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-black transition ${
+      className={`inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium transition ${
         active
-          ? 'bg-[#FF6B5E] text-white shadow-sm'
+          ? 'bg-[#FF6B5E] text-[#222831] shadow-sm'
           : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
       }`}
     >

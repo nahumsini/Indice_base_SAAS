@@ -67,7 +67,7 @@ function BulkSelectControl({
 }) {
   return (
     <div className="min-w-0 space-y-1.5">
-      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</label>
+      <label className="text-xs font-medium text-slate-600 dark:text-slate-300">{label}</label>
       {children}
     </div>
   );

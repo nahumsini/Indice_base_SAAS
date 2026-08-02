@@ -99,7 +99,7 @@ function ReadonlyTextCell({
   return (
     <td className="px-6 py-4 align-middle" style={{ width: columnWidths[field], minWidth: columnWidths[field] }}>
       <ReadonlyValue>{provider[field] || '-'}</ReadonlyValue>
-      {field === 'name' && provider.registrationSource === 'payable-kiosk-registration' ? <span className="ml-3 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Registro desde kiosko</span> : null}
+      {field === 'name' && provider.registrationSource === 'payable-kiosk-registration' ? <span className="ml-3 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">Registro desde kiosko</span> : null}
     </td>
   );
 }
@@ -153,7 +153,7 @@ function ReadonlyMappedCell<T extends keyof Pick<ProviderRecord, 'authorizer' | 
 
 function ReadonlyValue({ children }: { children: ReactNode }) {
   return (
-    <span className="block max-w-xs truncate px-3 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+    <span className="block max-w-xs truncate px-3 py-2 text-sm font-medium text-slate-800 dark:text-slate-100">
       {children}
     </span>
   );
@@ -172,7 +172,7 @@ function StatusCell({ columnWidths, isEditing, label, onStartEdit, onUpdateProvi
   return (
     <td className="px-6 py-4 align-middle" style={{ width: columnWidths.status, minWidth: columnWidths.status }}>
       {isEditing ? <EditableSelect ariaLabel={`${label} ${provider.folio}`} value={provider.status} options={statusOptions} onChange={(status) => onUpdateProvider(provider.id, { status })} /> : (
-        <button type="button" onClick={onStartEdit} className={`w-full rounded-full border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${getProviderStatusClass(provider.status)}`}>{statusLabel}</button>
+        <button type="button" onClick={onStartEdit} className={`w-full rounded-full border px-3 py-2 text-xs font-medium transition-all hover:-translate-y-0.5 hover:shadow-sm ${getProviderStatusClass(provider.status)}`}>{statusLabel}</button>
       )}
     </td>
   );
@@ -182,7 +182,7 @@ function AttachmentsCell({ addLabel, columnWidths, onOpenAttachments, provider, 
   const hasAttachments = provider.attachments.length > 0;
   return (
     <td className="whitespace-nowrap px-6 py-4 text-center align-middle" style={{ width: columnWidths.attachments, minWidth: columnWidths.attachments }}>
-      <button type="button" onClick={() => onOpenAttachments(provider)} className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${hasAttachments ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/60 dark:bg-green-950/60 dark:text-green-300 dark:hover:bg-green-900/60' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-800'}`} title={hasAttachments ? viewLabel : addLabel} aria-label={hasAttachments ? viewLabel : addLabel}>
+      <button type="button" onClick={() => onOpenAttachments(provider)} className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-all hover:-translate-y-0.5 hover:shadow-sm ${hasAttachments ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/60 dark:bg-green-950/60 dark:text-green-300 dark:hover:bg-green-900/60' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-800'}`} title={hasAttachments ? viewLabel : addLabel} aria-label={hasAttachments ? viewLabel : addLabel}>
         <Paperclip className="h-4 w-4" />
         <span>{provider.attachments.length}</span>
       </button>

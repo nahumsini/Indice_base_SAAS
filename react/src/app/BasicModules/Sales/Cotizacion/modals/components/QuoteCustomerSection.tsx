@@ -44,7 +44,7 @@ export function QuoteCustomerSection({
         <Button
           type="button"
           variant={form.clientMode === 'contact' ? 'default' : 'ghost'}
-          className={cn('rounded-lg', form.clientMode === 'contact' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
+          className={cn('rounded-lg', form.clientMode === 'contact' && 'bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]')}
           onClick={() => onFormChange((current) => ({ ...current, clientMode: 'contact' }))}
         >
           {t.builder.modeContact}
@@ -52,7 +52,7 @@ export function QuoteCustomerSection({
         <Button
           type="button"
           variant={form.clientMode === 'temporary' ? 'default' : 'ghost'}
-          className={cn('rounded-lg', form.clientMode === 'temporary' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
+          className={cn('rounded-lg', form.clientMode === 'temporary' && 'bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]')}
           onClick={() => onFormChange((current) => ({ ...current, clientMode: 'temporary' }))}
         >
           {t.builder.modeTemporary}

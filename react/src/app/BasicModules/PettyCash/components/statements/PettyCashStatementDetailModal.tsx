@@ -45,7 +45,7 @@ export function PettyCashStatementDetailModal({
       contentClassName="sm:max-w-6xl"
       description={`${statement.folio} · ${copy.statementsHistory.detail.description}`}
       footer={(
-        <button className="h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-emerald-50" onClick={onClose} type="button">
+        <button className="h-10 rounded-xl bg-white px-5 text-sm font-medium text-[#147514] shadow-sm transition hover:bg-emerald-50" onClick={onClose} type="button">
           {copy.statementsHistory.detail.close}
         </button>
       )}
@@ -75,8 +75,8 @@ export function PettyCashStatementDetailModal({
             >
               {movements.length ? movements.map(item => (
                 <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/70">
-                  <div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800 dark:text-white sm:text-sm">{copy.status.movement[item.type]}</p><p className="mt-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">{formatPettyCashIsoDate(item.movementDate)}</p></div>
-                  <strong className="shrink-0 text-xs font-semibold tabular-nums text-sky-600 dark:text-sky-300 sm:text-sm">+{formatPettyCashCurrency(item.amount, item.currencyCode)}</strong>
+                  <div className="min-w-0"><p className="truncate text-xs font-medium text-slate-800 dark:text-white sm:text-sm">{copy.status.movement[item.type]}</p><p className="mt-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">{formatPettyCashIsoDate(item.movementDate)}</p></div>
+                  <strong className="shrink-0 text-xs font-medium tabular-nums text-sky-600 dark:text-sky-300 sm:text-sm">+{formatPettyCashCurrency(item.amount, item.currencyCode)}</strong>
                 </div>
               )) : <ModalEmptyState label={copy.statementsHistory.detail.movements} />}
             </StatementActivityPanel>
@@ -88,8 +88,8 @@ export function PettyCashStatementDetailModal({
             >
               {receipts.length ? receipts.map(item => (
                 <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/70">
-                  <div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800 dark:text-white sm:text-sm">{item.description}</p><p className={`mt-0.5 text-[10px] font-medium ${item.status === 'EXPENSE_CREATED' ? 'text-[#147514] dark:text-emerald-300' : 'text-orange-600 dark:text-orange-300'}`}>{item.status === 'EXPENSE_CREATED' ? copy.statementsHistory.detail.approved : copy.statementsHistory.detail.pending}</p></div>
-                  <strong className="shrink-0 text-xs font-semibold tabular-nums text-slate-900 dark:text-white sm:text-sm">{formatPettyCashCurrency(item.totalAmount, item.currencyCode)}</strong>
+                  <div className="min-w-0"><p className="truncate text-xs font-medium text-slate-800 dark:text-white sm:text-sm">{item.description}</p><p className={`mt-0.5 text-[10px] font-medium ${item.status === 'EXPENSE_CREATED' ? 'text-[#147514] dark:text-emerald-300' : 'text-orange-600 dark:text-orange-300'}`}>{item.status === 'EXPENSE_CREATED' ? copy.statementsHistory.detail.approved : copy.statementsHistory.detail.pending}</p></div>
+                  <strong className="shrink-0 text-xs font-medium tabular-nums text-slate-900 dark:text-white sm:text-sm">{formatPettyCashCurrency(item.totalAmount, item.currencyCode)}</strong>
                 </div>
               )) : <ModalEmptyState label={copy.statementsHistory.detail.receipts} />}
             </StatementActivityPanel>
@@ -103,8 +103,8 @@ function StatementActivityPanel({ children, count, icon, title }: { children: Re
     <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2.5 dark:border-slate-700">
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-[#147514] dark:bg-emerald-500/10 dark:text-emerald-300">{icon}</span>
-        <h4 className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white">{title}</h4>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{count}</span>
+        <h4 className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900 dark:text-white">{title}</h4>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{count}</span>
       </div>
       <div className="max-h-[24rem] space-y-2 overflow-y-auto p-3">{children}</div>
     </section>

@@ -118,7 +118,7 @@ export function ReceivablesPanel() {
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div className="grid gap-3 lg:grid-cols-[1.4fr_minmax(180px,260px)_auto]">
           <label className="relative min-w-0">
-            <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Buscar</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Buscar</span>
             <Search className="absolute left-3 top-[34px] h-4 w-4 text-gray-400" />
             <input
               value={search}
@@ -141,7 +141,7 @@ export function ReceivablesPanel() {
             <button
               type="button"
               onClick={refreshReceivables}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 lg:w-auto"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 lg:w-auto"
             >
               <RefreshCw className="h-4 w-4" />
               Actualizar
@@ -152,7 +152,7 @@ export function ReceivablesPanel() {
         {balanceByCurrency.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {balanceByCurrency.map(([currency, balance]) => (
-              <span key={currency} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200">
+              <span key={currency} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200">
                 {currency} pendiente: {formatCurrency(balance, currency)}
               </span>
             ))}
@@ -168,11 +168,11 @@ export function ReceivablesPanel() {
           <div className="bg-amber-500" style={{ width: `${distribution.partial}%` }} />
           <div className="bg-emerald-500" style={{ width: `${distribution.paid}%` }} />
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-100">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-100">
           {filteredReceivables.length} cuentas visibles; {metrics.overdueAccounts} vencidas y {formatCurrency(metrics.totalBalance)} pendientes de cobro.
         </div>
         {notice && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-100">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-100">
             {notice}
           </div>
         )}
@@ -187,7 +187,7 @@ export function ReceivablesPanel() {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
       {children}
     </label>
   );

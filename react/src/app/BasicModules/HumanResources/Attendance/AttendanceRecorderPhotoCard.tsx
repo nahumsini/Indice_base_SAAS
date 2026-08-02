@@ -206,7 +206,7 @@ export function AttendanceRecorderPhotoCard({
             {photoLockedHint}
           </div>
           <div className="mt-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-[#59C3A5] dark:text-[#BEEFE3]">
+            <p className="mb-2 text-xs font-medium text-[#59C3A5] dark:text-[#BEEFE3]">
               {capturedPhotoLabel}
             </p>
             <img
@@ -222,7 +222,7 @@ export function AttendanceRecorderPhotoCard({
             <video ref={videoRef} playsInline muted className="h-64 w-full object-cover" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Button type="button" className="bg-[#59C3A5] text-white hover:bg-[#3AAE90]" onClick={capturePhoto}>
+            <Button type="button" className="bg-[#59C3A5] text-slate-950 hover:bg-[#3AAE90]" onClick={capturePhoto}>
               {captureLabel}
             </Button>
             <Button type="button" variant="outline" onClick={stopCamera}>

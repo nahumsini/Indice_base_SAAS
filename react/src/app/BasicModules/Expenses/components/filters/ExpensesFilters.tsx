@@ -89,7 +89,7 @@ function SearchFilter({
 }: Pick<ExpensesFiltersProps, 'filters' | 'onFiltersChange'> & { placeholder: string; searchLabel: string }) {
   return (
     <label className="min-w-0">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{searchLabel}</span>
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{searchLabel}</span>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
@@ -126,7 +126,7 @@ function SelectFilter({
 }) {
   return (
     <label>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}

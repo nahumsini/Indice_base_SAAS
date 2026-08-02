@@ -32,7 +32,7 @@ export function ProspectosAgenda({
       <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.07] p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h3 className="text-xl font-bold text-slate-950">
+            <h3 className="text-xl font-medium text-slate-950">
               {copy.agenda.titleByView[agenda.agendaViewMode]}
             </h3>
             <p className="mt-1 text-sm text-slate-600">
@@ -47,9 +47,9 @@ export function ProspectosAgenda({
                   key={viewOption}
                   type="button"
                   className={cn(
-                    'h-8 rounded-md px-3 text-sm font-bold transition-colors',
+                    'h-8 rounded-md px-3 text-sm font-medium transition-colors',
                     agenda.agendaViewMode === viewOption
-                      ? 'bg-[#FF6B5E] text-white shadow-sm'
+                      ? 'bg-[#FF6B5E] text-[#222831] shadow-sm'
                       : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
                   )}
                   onClick={() => agenda.setAgendaViewMode(viewOption)}
@@ -62,25 +62,25 @@ export function ProspectosAgenda({
               type="date"
               value={agenda.selectedDate}
               onChange={(event) => agenda.setSelectedDate(event.target.value)}
-              className="h-10 w-[168px] rounded-lg border-slate-200 bg-white font-bold shadow-none"
+              className="h-10 w-[168px] rounded-lg border-slate-200 bg-white font-medium shadow-none"
             />
-            <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-3 font-bold" onClick={() => agenda.moveAgendaWindow(-1)}>
+            <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-3 font-medium" onClick={() => agenda.moveAgendaWindow(-1)}>
               <ArrowUp className="h-4 w-4 -rotate-90" />
             </Button>
-            <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-4 font-bold" onClick={agenda.goToToday}>
+            <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-4 font-medium" onClick={agenda.goToToday}>
               {copy.agenda.today}
             </Button>
-            <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-3 font-bold" onClick={() => agenda.moveAgendaWindow(1)}>
+            <Button variant="outline" className="h-10 rounded-lg border-slate-200 bg-white px-3 font-medium" onClick={() => agenda.moveAgendaWindow(1)}>
               <ArrowUp className="h-4 w-4 rotate-90" />
             </Button>
-            <Badge variant="outline" className="rounded-full border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-2 text-sm font-bold text-[#2563EB]">
+            <Badge variant="outline" className="rounded-full border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-2 text-sm font-medium text-[#2563EB]">
               {agenda.agendaViewMode === 'day' ? copy.agenda.dayCount(agenda.dayOpportunities.length) : copy.agenda.weekCount(agenda.weekOpportunities.length)}
             </Badge>
-            <Badge variant="outline" className="rounded-full border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-2 text-sm font-bold text-[#177d66]">
+            <Badge variant="outline" className="rounded-full border-[#59C3A5]/25 bg-[#59C3A5]/10 px-4 py-2 text-sm font-medium text-[#177d66]">
               {copy.agenda.scheduled(agenda.scheduledCount)}
             </Badge>
             {agenda.agendaViewMode !== 'day' ? (
-              <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600">
+              <Badge variant="outline" className="rounded-full border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600">
                 {agenda.weekRangeLabel}
               </Badge>
             ) : null}

@@ -20,12 +20,12 @@ export type SelectOption<T extends string = string> = {
 export const readonlyCellClass = 'text-sm text-gray-900 dark:text-gray-100';
 
 const inlineInputBaseClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition-all hover:border-slate-300 focus:border-slate-300 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:focus:border-slate-600 dark:focus:ring-slate-700';
+  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 outline-none transition-all hover:border-slate-300 focus:border-slate-300 focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:focus:border-slate-600 dark:focus:ring-slate-700';
 
 const emptySelectValue = '__expense_empty_value__';
 
 const tableSelectTriggerClass =
-  'h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-none transition-colors hover:border-slate-300 hover:bg-slate-50 focus:border-slate-300 focus:ring-2 focus:ring-slate-200 data-[state=open]:border-slate-300 data-[state=open]:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:focus:border-slate-600 dark:focus:ring-slate-700 dark:data-[state=open]:border-slate-600 dark:data-[state=open]:bg-slate-800';
+  'h-10 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 shadow-none transition-colors hover:border-slate-300 hover:bg-slate-50 focus:border-slate-300 focus:ring-2 focus:ring-slate-200 data-[state=open]:border-slate-300 data-[state=open]:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:focus:border-slate-600 dark:focus:ring-slate-700 dark:data-[state=open]:border-slate-600 dark:data-[state=open]:bg-slate-800';
 
 const tableSelectContentClass =
   'max-h-72 rounded-xl border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900';
@@ -135,7 +135,7 @@ export function ReadonlyPill({ children, onClick }: { children: ReactNode; onCli
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-xl border border-transparent px-3 py-2 text-left text-sm font-semibold leading-5 text-slate-800 whitespace-normal break-words transition-colors hover:border-slate-200 hover:bg-slate-50 dark:text-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
+      className="w-full rounded-xl border border-transparent px-3 py-2 text-left text-sm font-medium leading-5 text-slate-800 whitespace-normal break-words transition-colors hover:border-slate-200 hover:bg-slate-50 dark:text-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
     >
       {children}
     </button>
@@ -147,7 +147,7 @@ export function ReadonlySelectPill({ children, onClick }: { children: ReactNode;
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-left text-sm font-semibold leading-5 text-slate-900 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:focus:ring-slate-700"
+      className="inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-left text-sm font-medium leading-5 text-slate-900 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:focus:ring-slate-700"
     >
       <span className="min-w-0 flex-1 whitespace-normal break-words">{children}</span>
       <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />

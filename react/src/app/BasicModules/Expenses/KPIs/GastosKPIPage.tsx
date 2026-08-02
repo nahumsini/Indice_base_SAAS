@@ -107,18 +107,18 @@ function MetricCard({
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
             {icon}
           </span>
-          <h3 className="pt-1 text-sm font-bold leading-5 text-slate-600 dark:text-slate-200">{title}</h3>
+          <h3 className="pt-1 text-sm font-medium leading-5 text-slate-600 dark:text-slate-200">{title}</h3>
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold ${styles.badge}`}>{styles.label}</span>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${styles.badge}`}>{styles.label}</span>
       </div>
-      <p className="mt-3 pl-14 text-3xl font-black tracking-tight text-slate-950 dark:text-white">{value}</p>
+      <p className="mt-3 pl-14 text-3xl font-medium tracking-tight text-slate-950 dark:text-white">{value}</p>
       <div className="mt-5 flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
           <div className={`h-full rounded-full ${styles.bar}`} style={{ width: `${clampPercent(progress)}%` }} />
         </div>
-        <span className="w-10 text-right text-xs font-black text-slate-700 dark:text-slate-200">{Math.round(clampPercent(progress))}%</span>
+        <span className="w-10 text-right text-xs font-medium text-slate-700 dark:text-slate-200">{Math.round(clampPercent(progress))}%</span>
       </div>
-      <p className="mt-5 text-xs font-bold text-slate-500 dark:text-slate-400">{helper}</p>
+      <p className="mt-5 text-xs font-medium text-slate-500 dark:text-slate-400">{helper}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>
     </article>
   );
@@ -132,7 +132,7 @@ function FilterSelect({ label, onChange, options, value }: {
 }) {
   return (
     <label className="min-w-0">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -149,7 +149,7 @@ function SectionCard({ children, icon, subtitle, title }: { children: ReactNode;
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-black text-slate-950 dark:text-white">{title}</h3>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{title}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
         </div>
         <span className="text-emerald-500">{icon}</span>
@@ -401,7 +401,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
       type="button"
       disabled={!isCompanyPrintIdentityReady}
       onClick={() => void downloadFinancialOverviewPdf({ companyIdentity: companyPrintIdentity, copy: t, locale, overview, periodLabel })}
-      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#147514]/20 bg-white px-4 text-sm font-bold text-[#147514] transition hover:bg-[#147514]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-900 dark:text-emerald-300"
+      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#147514]/20 bg-white px-4 text-sm font-medium text-[#147514] transition hover:bg-[#147514]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-900 dark:text-emerald-300"
     >
       <Printer className="h-4 w-4" /> Imprimir reporte
     </button>
@@ -415,8 +415,8 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
           <div className="flex items-start gap-3">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#147514]/20 bg-white text-2xl shadow-sm dark:bg-slate-900" aria-hidden="true">📊</span>
             <div>
-              <h2 className="text-xl font-black text-slate-950 dark:text-white">Indicadores</h2>
-              <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">Visión integral del gasto, presupuesto y desempeño financiero.</p>
+              <h2 className="text-xl font-medium text-slate-950 dark:text-white">Indicadores</h2>
+              <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">Visión integral del gasto, presupuesto y desempeño financiero.</p>
             </div>
           </div>
           {titleAction}
@@ -427,12 +427,12 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Filtros</h3>
+            <h3 className="text-base font-medium text-slate-900 dark:text-white">Filtros</h3>
             <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">El periodo y el alcance se aplican a todos los indicadores.</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-500 dark:text-slate-400">{metrics.expenseCount} resultados</span>
-            <button type="button" onClick={resetFilters} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"><RefreshCcw className="h-3.5 w-3.5" /> Limpiar</button>
+            <button type="button" onClick={resetFilters} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"><RefreshCcw className="h-3.5 w-3.5" /> Limpiar</button>
           </div>
         </div>
         <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -443,14 +443,14 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
           <FilterSelect label="Cuenta contable" value={accountingAccountId} onChange={setAccountingAccountId} options={[allOption, ...sources.accountingAccounts.map(item => ({ label: `${item.code} · ${item.name}`, value: item.id }))]} />
           <FilterSelect label="Estado de pago" value={paymentStatus} onChange={setPaymentStatus} options={[allOption, { label: 'Pagado', value: 'PAID' }, { label: 'Pago parcial', value: 'PARTIALLY_PAID' }, { label: 'Pendiente', value: 'UNPAID' }, { label: 'Vencido', value: 'OVERDUE' }]} />
         </div>
-        {periodFilter === 'custom' ? <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:max-w-xl"><label className="min-w-0"><span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Desde</span><input type="date" value={customStartDate} onChange={event => setCustomStartDate(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label><label className="min-w-0"><span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Hasta</span><input type="date" value={customEndDate} onChange={event => setCustomEndDate(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label></div> : null}
+        {periodFilter === 'custom' ? <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:max-w-xl"><label className="min-w-0"><span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">Desde</span><input type="date" value={customStartDate} onChange={event => setCustomStartDate(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label><label className="min-w-0"><span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">Hasta</span><input type="date" value={customEndDate} onChange={event => setCustomEndDate(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#147514] focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label></div> : null}
       </section>
 
-      {overview.errorMessage || overview.fallbackWarnings.length > 0 ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">Algunas fuentes no respondieron; se muestran los datos disponibles del módulo.</div> : null}
+      {overview.errorMessage || overview.fallbackWarnings.length > 0 ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">Algunas fuentes no respondieron; se muestran los datos disponibles del módulo.</div> : null}
 
       <div className="flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/30 bg-[#E7F3F2] px-5 py-4 text-sm text-[#257B68] dark:border-[#59C3A5]/20 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA] md:flex-row md:items-center md:justify-between">
-        <p className="font-bold">Consolidado en {preferredCurrency} · {overview.currencies.length} {overview.currencies.length === 1 ? 'divisa de origen' : 'divisas de origen'}: {overview.currencies.join(' / ') || preferredCurrency}</p>
-        <p className="text-xs font-semibold">Tipo de cambio {rateContext.mode === 'manual' ? 'manual' : 'diario'} · Fecha efectiva {rateContext.effectiveDate} · Actualizado {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(overview.generatedAt))}{rateContext.hasWarnings ? ' · Con respaldo interno' : ''}</p>
+        <p className="font-medium">Consolidado en {preferredCurrency} · {overview.currencies.length} {overview.currencies.length === 1 ? 'divisa de origen' : 'divisas de origen'}: {overview.currencies.join(' / ') || preferredCurrency}</p>
+        <p className="text-xs font-medium">Tipo de cambio {rateContext.mode === 'manual' ? 'manual' : 'diario'} · Fecha efectiva {rateContext.effectiveDate} · Actualizado {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(overview.generatedAt))}{rateContext.hasWarnings ? ' · Con respaldo interno' : ''}</p>
       </div>
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -460,22 +460,22 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
       <section className="grid gap-6 xl:grid-cols-2">
         <SectionCard title="Mezcla de pagos" subtitle="Distribución del gasto por estado de liquidación." icon={<BadgeDollarSign className="h-5 w-5" />}>
           <div className="h-[330px]">
-            {paymentMix.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paymentMix} dataKey="value" nameKey="name" innerRadius={75} outerRadius={112} paddingAngle={2}>{paymentMix.map(row => <Cell key={row.key} fill={row.color} />)}</Pie><Tooltip /><Legend verticalAlign="bottom" /></PieChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Sin movimientos en el periodo.</div>}
+            {paymentMix.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paymentMix} dataKey="value" nameKey="name" innerRadius={75} outerRadius={112} paddingAngle={2}>{paymentMix.map(row => <Cell key={row.key} fill={row.color} />)}</Pie><Tooltip /><Legend verticalAlign="bottom" /></PieChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-medium text-slate-400">Sin movimientos en el periodo.</div>}
           </div>
         </SectionCard>
         <SectionCard title="Comparativo por unidad" subtitle={`Gasto gestionado por unidad en ${preferredCurrency}.`} icon={<Building2 className="h-5 w-5" />}>
           <div className="h-[330px]">
-            {unitData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={unitData} layout="vertical" margin={{ left: 16, right: 24 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 12 }} /><Tooltip /><Bar dataKey="total" name="Gasto" fill="#59C3A5" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Sin unidades para comparar.</div>}
+            {unitData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={unitData} layout="vertical" margin={{ left: 16, right: 24 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 12 }} /><Tooltip /><Bar dataKey="total" name="Gasto" fill="#59C3A5" radius={[0, 8, 8, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-medium text-slate-400">Sin unidades para comparar.</div>}
           </div>
         </SectionCard>
         <SectionCard title="Evolución del gasto" subtitle="Comportamiento diario del gasto registrado y pagado." icon={<TrendingUp className="h-5 w-5" />}>
           <div className="h-[330px]">
-            {trendData.length ? <ResponsiveContainer width="100%" height="100%"><AreaChart data={trendData} margin={{ left: 4, right: 12 }}><defs><linearGradient id="managedArea" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#147514" stopOpacity={0.28} /><stop offset="95%" stopColor="#147514" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} width={55} /><Tooltip /><Legend /><Area type="monotone" dataKey="amount" name="Gestionado" stroke="#147514" fill="url(#managedArea)" strokeWidth={3} /><Area type="monotone" dataKey="paid" name="Pagado" stroke="#0ea5e9" fill="transparent" strokeWidth={2} /></AreaChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Sin datos para construir la tendencia.</div>}
+            {trendData.length ? <ResponsiveContainer width="100%" height="100%"><AreaChart data={trendData} margin={{ left: 4, right: 12 }}><defs><linearGradient id="managedArea" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#147514" stopOpacity={0.28} /><stop offset="95%" stopColor="#147514" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} width={55} /><Tooltip /><Legend /><Area type="monotone" dataKey="amount" name="Gestionado" stroke="#147514" fill="url(#managedArea)" strokeWidth={3} /><Area type="monotone" dataKey="paid" name="Pagado" stroke="#0ea5e9" fill="transparent" strokeWidth={2} /></AreaChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-medium text-slate-400">Sin datos para construir la tendencia.</div>}
           </div>
         </SectionCard>
         <SectionCard title="Presupuesto vs ejecución" subtitle="Comparación de líneas presupuestales con mayor actividad." icon={<BarChart3 className="h-5 w-5" />}>
           <div className="h-[330px]">
-            {budgetData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={budgetData} margin={{ left: 4, right: 12 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 11 }} width={55} /><Tooltip /><Legend /><Bar dataKey="Planeado" fill="#cbd5e1" radius={[6, 6, 0, 0]} /><Bar dataKey="Ejecutado" fill="#147514" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Sin líneas presupuestales en el alcance.</div>}
+            {budgetData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={budgetData} margin={{ left: 4, right: 12 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 11 }} width={55} /><Tooltip /><Legend /><Bar dataKey="Planeado" fill="#cbd5e1" radius={[6, 6, 0, 0]} /><Bar dataKey="Ejecutado" fill="#147514" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm font-medium text-slate-400">Sin líneas presupuestales en el alcance.</div>}
           </div>
         </SectionCard>
       </section>
@@ -485,7 +485,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
           <div className="space-y-4">
             {agingData.map((bucket) => {
               const max = Math.max(...agingData.map(item => item.total), 1);
-              return <div key={bucket.label}><div className="mb-2 flex items-center justify-between gap-4"><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{bucket.label}</span><span className="text-sm font-black text-slate-950 dark:text-white">{displayMoney(bucket.total)}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className={`h-full rounded-full ${bucket.color}`} style={{ width: `${(bucket.total / max) * 100}%` }} /></div></div>;
+              return <div key={bucket.label}><div className="mb-2 flex items-center justify-between gap-4"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{bucket.label}</span><span className="text-sm font-medium text-slate-950 dark:text-white">{displayMoney(bucket.total)}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className={`h-full rounded-full ${bucket.color}`} style={{ width: `${(bucket.total / max) * 100}%` }} /></div></div>;
             })}
           </div>
         </SectionCard>
@@ -494,13 +494,13 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
         </SectionCard>
         <SectionCard title="Impuestos del periodo" subtitle="Lectura consolidada del subtotal y la carga fiscal registrada." icon={<ReceiptText className="h-5 w-5" />}>
           <div className="grid gap-4 sm:grid-cols-3">
-            {[{ label: 'Subtotal', value: displayMoney(taxSummary.subtotal) }, { label: 'Impuestos', value: displayMoney(taxSummary.taxes) }, { label: 'Tasa efectiva', value: `${taxSummary.effectiveRate.toFixed(1)}%` }].map(item => <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/50"><p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">{item.label}</p><p className="mt-2 text-xl font-black text-slate-950 dark:text-white">{item.value}</p></div>)}
+            {[{ label: 'Subtotal', value: displayMoney(taxSummary.subtotal) }, { label: 'Impuestos', value: displayMoney(taxSummary.taxes) }, { label: 'Tasa efectiva', value: `${taxSummary.effectiveRate.toFixed(1)}%` }].map(item => <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/50"><p className="text-xs font-medium text-slate-500">{item.label}</p><p className="mt-2 text-xl font-medium text-slate-950 dark:text-white">{item.value}</p></div>)}
           </div>
           <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">La tasa efectiva se calcula sobre los subtotales capturados. Los montos se presentan en la divisa preferida.</p>
         </SectionCard>
         <SectionCard title="Excepciones de calidad" subtitle="Registros que requieren completar información o seguimiento." icon={<ShieldCheck className="h-5 w-5" />}>
           <div className="grid gap-3 sm:grid-cols-2">
-            {exceptions.map(item => <div key={item.label} className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700"><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{item.label}</span><span className={`rounded-full border px-2.5 py-1 text-xs font-black ${item.count === 0 ? toneStyles.healthy.badge : toneStyles[item.tone].badge}`}>{item.count}</span></div>)}
+            {exceptions.map(item => <div key={item.label} className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{item.label}</span><span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${item.count === 0 ? toneStyles.healthy.badge : toneStyles[item.tone].badge}`}>{item.count}</span></div>)}
           </div>
         </SectionCard>
       </section>
@@ -510,17 +510,17 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
           { onSelect: setProviderId, rows: overview.costDrivers.PROVIDER, title: 'Top proveedores', subtitle: 'Mayor concentración de gasto' },
           { onSelect: setAccountingAccountId, rows: overview.costDrivers.ACCOUNTING_ACCOUNT, title: 'Top cuentas contables', subtitle: 'Rubros con mayor consumo' },
           { onSelect: setBusinessId, rows: overview.costDrivers.BUSINESS, title: 'Top negocios', subtitle: 'Participación en el gasto total' },
-        ].map(group => <SectionCard key={group.title} title={group.title} subtitle={group.subtitle} icon={<Gauge className="h-5 w-5" />}><div className="space-y-4">{group.rows.slice(0, 5).map((row, index) => <button type="button" key={row.id} disabled={row.id.startsWith('missing-')} onClick={() => group.onSelect(row.id)} className="block w-full rounded-lg text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#147514]/20 disabled:cursor-default dark:hover:bg-slate-900/40"><div className="mb-2 flex items-center justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-600 dark:bg-slate-700 dark:text-slate-200">{index + 1}</span><span className="truncate text-sm font-bold text-slate-700 dark:text-slate-200">{row.name}</span></div><span className="shrink-0 text-sm font-black text-slate-950 dark:text-white">{displayMoney(row.total)}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${clampPercent(row.percentage)}%` }} /></div></button>)}{group.rows.length === 0 ? <p className="py-8 text-center text-sm font-semibold text-slate-400">Sin información disponible.</p> : null}</div></SectionCard>)}
+        ].map(group => <SectionCard key={group.title} title={group.title} subtitle={group.subtitle} icon={<Gauge className="h-5 w-5" />}><div className="space-y-4">{group.rows.slice(0, 5).map((row, index) => <button type="button" key={row.id} disabled={row.id.startsWith('missing-')} onClick={() => group.onSelect(row.id)} className="block w-full rounded-lg text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#147514]/20 disabled:cursor-default dark:hover:bg-slate-900/40"><div className="mb-2 flex items-center justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">{index + 1}</span><span className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{row.name}</span></div><span className="shrink-0 text-sm font-medium text-slate-950 dark:text-white">{displayMoney(row.total)}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${clampPercent(row.percentage)}%` }} /></div></button>)}{group.rows.length === 0 ? <p className="py-8 text-center text-sm font-medium text-slate-400">Sin información disponible.</p> : null}</div></SectionCard>)}
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 dark:border-slate-700 lg:flex-row lg:items-center lg:justify-between"><div><h3 className="text-lg font-black text-slate-950 dark:text-white">Desempeño por responsable</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Puntaje: 55% avance de pago, 25% control de vencimiento y 20% cobertura de evidencia.</p></div><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><label className="flex items-center gap-2 text-xs font-bold text-slate-500"><span>Evaluar por</span><select value={rankingRole} onChange={event => setRankingRole(event.target.value as RankingRole)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-white"><option value="requested">Solicitante</option><option value="approved">Autorizador</option><option value="performed">Responsable de pago</option></select></label><span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"><Users className="h-4 w-4" /> {rankingRows.length} responsables</span></div></div>
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 dark:border-slate-700 lg:flex-row lg:items-center lg:justify-between"><div><h3 className="text-lg font-medium text-slate-950 dark:text-white">Desempeño por responsable</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Puntaje: 55% avance de pago, 25% control de vencimiento y 20% cobertura de evidencia.</p></div><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><label className="flex items-center gap-2 text-xs font-medium text-slate-500"><span>Evaluar por</span><select value={rankingRole} onChange={event => setRankingRole(event.target.value as RankingRole)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-white"><option value="requested">Solicitante</option><option value="approved">Autorizador</option><option value="performed">Responsable de pago</option></select></label><span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"><Users className="h-4 w-4" /> {rankingRows.length} responsables</span></div></div>
         <div className="overflow-x-auto">
           <table className="min-w-[1050px] w-full text-left">
-            <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/60 dark:text-slate-400"><tr><th className="px-5 py-4">Posición</th><th className="px-5 py-4">Responsable</th><th className="px-5 py-4">Puntuación</th><th className="px-5 py-4">Movimientos</th><th className="px-5 py-4">Pago</th><th className="px-5 py-4">Evidencia</th><th className="px-5 py-4">Vencido</th><th className="px-5 py-4">Estado</th></tr></thead>
+            <thead className="bg-slate-50 text-[11px] font-medium text-slate-500 dark:bg-slate-900/60 dark:text-slate-400"><tr><th className="px-5 py-4">Posición</th><th className="px-5 py-4">Responsable</th><th className="px-5 py-4">Puntuación</th><th className="px-5 py-4">Movimientos</th><th className="px-5 py-4">Pago</th><th className="px-5 py-4">Evidencia</th><th className="px-5 py-4">Vencido</th><th className="px-5 py-4">Estado</th></tr></thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {pagination.paginatedRows.map(row => { const tone = rankTone(row.score); return <tr key={row.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/30"><td className="px-5 py-4 text-lg font-black text-slate-800 dark:text-white">#{row.position}</td><td className="px-5 py-4"><p className="font-bold text-slate-900 dark:text-white">{row.name}</p><p className="mt-1 text-xs text-slate-500">{displayMoney(row.total)} gestionado</p></td><td className="px-5 py-4"><div className="flex items-center gap-3"><div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className={`h-full ${toneStyles[tone].bar}`} style={{ width: `${row.score}%` }} /></div><span className="font-black">{row.score}</span></div></td><td className="px-5 py-4 font-semibold">{row.count}</td><td className="px-5 py-4 font-semibold">{Math.round(row.paymentRatio)}%</td><td className="px-5 py-4"><span className="inline-flex items-center gap-1.5 font-semibold"><Paperclip className="h-4 w-4 text-emerald-500" /> {Math.round(row.evidenceRatio)}%</span></td><td className="px-5 py-4 font-bold text-rose-600 dark:text-rose-300">{displayMoney(row.overdue)}</td><td className="px-5 py-4"><span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${toneStyles[tone].badge}`}>{toneStyles[tone].label}</span></td></tr>; })}
-              {pagination.totalCount === 0 ? <tr><td colSpan={8} className="px-5 py-12 text-center text-sm font-semibold text-slate-400">No hay responsables con actividad en el alcance seleccionado.</td></tr> : null}
+              {pagination.paginatedRows.map(row => { const tone = rankTone(row.score); return <tr key={row.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/30"><td className="px-5 py-4 text-lg font-medium text-slate-800 dark:text-white">#{row.position}</td><td className="px-5 py-4"><p className="font-medium text-slate-900 dark:text-white">{row.name}</p><p className="mt-1 text-xs text-slate-500">{displayMoney(row.total)} gestionado</p></td><td className="px-5 py-4"><div className="flex items-center gap-3"><div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className={`h-full ${toneStyles[tone].bar}`} style={{ width: `${row.score}%` }} /></div><span className="font-medium">{row.score}</span></div></td><td className="px-5 py-4 font-medium">{row.count}</td><td className="px-5 py-4 font-medium">{Math.round(row.paymentRatio)}%</td><td className="px-5 py-4"><span className="inline-flex items-center gap-1.5 font-medium"><Paperclip className="h-4 w-4 text-emerald-500" /> {Math.round(row.evidenceRatio)}%</span></td><td className="px-5 py-4 font-medium text-rose-600 dark:text-rose-300">{displayMoney(row.overdue)}</td><td className="px-5 py-4"><span className={`rounded-full border px-3 py-1.5 text-xs font-medium ${toneStyles[tone].badge}`}>{toneStyles[tone].label}</span></td></tr>; })}
+              {pagination.totalCount === 0 ? <tr><td colSpan={8} className="px-5 py-12 text-center text-sm font-medium text-slate-400">No hay responsables con actividad en el alcance seleccionado.</td></tr> : null}
             </tbody>
           </table>
         </div>

@@ -22,7 +22,7 @@ export function ContactRelationshipSignal({
     <div className="min-w-0 max-w-full space-y-1.5">
       <Badge
         variant="outline"
-        className={cn('h-auto max-w-full whitespace-normal rounded-full px-3 py-1 text-xs font-black uppercase tracking-normal', relationshipStateClassNames[signal.state])}
+        className={cn('h-auto max-w-full whitespace-normal rounded-full px-3 py-1 text-xs font-medium tracking-normal', relationshipStateClassNames[signal.state])}
       >
         {copy.labels[signal.state]}
       </Badge>

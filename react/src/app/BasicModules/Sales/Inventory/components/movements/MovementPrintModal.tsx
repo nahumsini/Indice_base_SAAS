@@ -75,14 +75,14 @@ export function MovementPrintModal({
             <header className="border-b border-slate-200 pb-7">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-xs font-semibold text-[#B63B32]">Índice Sales OS</p>
-                  <h1 className="mt-3 text-4xl font-semibold tracking-normal text-slate-950">{documentTitle}</h1>
-                  <p className="mt-2 text-sm font-semibold text-slate-500">{t.operational.movementTypes[movement.movementType]}</p>
+                  <p className="text-xs font-medium text-[#B63B32]">Índice Sales OS</p>
+                  <h1 className="mt-3 text-4xl font-medium tracking-normal text-slate-950">{documentTitle}</h1>
+                  <p className="mt-2 text-sm font-medium text-slate-500">{t.operational.movementTypes[movement.movementType]}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-semibold text-slate-500">{t.operational.columns.movement}</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-950">{movement.movementNumber ?? movement.id}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">{movement.movementDate}</p>
+                  <p className="text-xs font-medium text-slate-500">{t.operational.columns.movement}</p>
+                  <p className="mt-1 text-lg font-medium text-slate-950">{movement.movementNumber ?? movement.id}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-500">{movement.movementDate}</p>
                 </div>
               </div>
             </header>
@@ -96,45 +96,45 @@ export function MovementPrintModal({
             </section>
 
             <section className="py-7">
-              <h2 className="text-xl font-semibold text-slate-950">{t.operational.columns.product}</h2>
+              <h2 className="text-xl font-medium text-slate-950">{t.operational.columns.product}</h2>
               <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead className="bg-[#222831] text-white">
                     <tr>
-                      <th className="px-4 py-3 font-semibold">{t.operational.columns.product}</th>
-                      <th className="px-4 py-3 font-semibold">{t.operational.columns.quantity}</th>
-                      <th className="px-4 py-3 text-right font-semibold">{t.operational.columns.estimatedValue}</th>
+                      <th className="px-4 py-3 font-medium">{t.operational.columns.product}</th>
+                      <th className="px-4 py-3 font-medium">{t.operational.columns.quantity}</th>
+                      <th className="px-4 py-3 text-right font-medium">{t.operational.columns.estimatedValue}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lines.map((line) => (
                       <tr key={line.id} className="border-t border-slate-200">
                         <td className="px-4 py-4">
-                          <p className="font-semibold text-slate-950">{line.productName}</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">SKU: {line.productSku ?? t.common.notAvailable}</p>
+                          <p className="font-medium text-slate-950">{line.productName}</p>
+                          <p className="mt-1 text-xs font-medium text-slate-500">SKU: {line.productSku ?? t.common.notAvailable}</p>
                         </td>
-                        <td className="px-4 py-4 font-semibold text-slate-700">{line.quantity >= 0 ? '+' : ''}{formatInventoryNumber(line.quantity)}</td>
-                        <td className="px-4 py-4 text-right font-semibold text-slate-950">{formatInventoryCurrency(Math.abs(line.quantity) * (line.unitCost ?? 0))}</td>
+                        <td className="px-4 py-4 font-medium text-slate-700">{line.quantity >= 0 ? '+' : ''}{formatInventoryNumber(line.quantity)}</td>
+                        <td className="px-4 py-4 text-right font-medium text-slate-950">{formatInventoryCurrency(Math.abs(line.quantity) * (line.unitCost ?? 0))}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="mt-4 rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-5 text-right">
-                <p className="text-xs font-semibold text-[#B63B32]">{t.operational.columns.estimatedValue}</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">{formatInventoryCurrency(movementValue)}</p>
+                <p className="text-xs font-medium text-[#B63B32]">{t.operational.columns.estimatedValue}</p>
+                <p className="mt-2 text-2xl font-medium text-slate-950">{formatInventoryCurrency(movementValue)}</p>
               </div>
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-semibold text-slate-500">{t.operational.columns.reference}</p>
-                <p className="mt-2 font-semibold text-slate-900">{movement.reference ?? t.common.notAvailable}</p>
+                <p className="text-xs font-medium text-slate-500">{t.operational.columns.reference}</p>
+                <p className="mt-2 font-medium text-slate-900">{movement.reference ?? t.common.notAvailable}</p>
                 <p className="mt-4 text-sm leading-6 text-slate-600">{movement.reason}</p>
               </div>
               <div className="mt-5 rounded-lg border border-slate-200 bg-white p-5">
-                <p className="text-xs font-semibold text-slate-500">{t.operational.columns.files}</p>
+                <p className="text-xs font-medium text-slate-500">{t.operational.columns.files}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {movement.attachments?.length ? movement.attachments.map((file) => (
                     <span key={file.id} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">{file.name}</span>
-                  )) : <span className="text-sm font-semibold text-slate-400">{t.common.none}</span>}
+                  )) : <span className="text-sm font-medium text-slate-400">{t.common.none}</span>}
                 </div>
               </div>
             </section>
@@ -158,8 +158,8 @@ export function MovementPrintModal({
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-      <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className="mt-3 text-lg font-semibold text-slate-950">{value}</p>
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-3 text-lg font-medium text-slate-950">{value}</p>
     </div>
   );
 }

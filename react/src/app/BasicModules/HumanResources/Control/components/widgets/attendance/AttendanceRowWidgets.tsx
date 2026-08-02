@@ -60,7 +60,7 @@ export function ControlAttendanceRow({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-gray-900 dark:text-white">{assignment.user_name}</p>
+            <p className="truncate text-base font-medium text-gray-900 dark:text-white">{assignment.user_name}</p>
             <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">{role}</p>
             {workLocation ? (
               <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -69,7 +69,7 @@ export function ControlAttendanceRow({
               </div>
             ) : null}
           </div>
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[displayStatus]}`}>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusClasses[displayStatus]}`}>
             {copy.statuses[displayStatus]}
           </span>
         </div>
@@ -177,8 +177,8 @@ export function AttendanceMomentPanel({
   return (
     <div className="grid min-w-0 grid-cols-[1fr_auto] gap-3 rounded-lg border border-[#59C3A5]/10 bg-[#f8fbff] px-3 py-2 dark:border-gray-800 dark:bg-gray-950/40">
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">{label}</p>
-        <p className={`mt-1 truncate text-sm font-semibold ${isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{time}</p>
+        <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{label}</p>
+        <p className={`mt-1 truncate text-sm font-medium ${isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{time}</p>
         <AttendanceLocationLink
           copy={copy}
           label={locationLabel}
@@ -239,7 +239,7 @@ function AttendanceLocationLink({
       rel="noreferrer"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
-      className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[#59C3A5] underline-offset-2 hover:underline dark:text-blue-200"
+      className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-[#59C3A5] underline-offset-2 hover:underline dark:text-blue-200"
       title={`${title} · ${copy.labels.openInMaps}`}
       aria-label={`${copy.labels.openInMaps}: ${title}`}
     >
@@ -351,7 +351,7 @@ function AttendanceEvidenceThumbnail({
         loading="lazy"
         onError={() => setLoadFailed(true)}
       />
-      <span className="absolute inset-x-0 bottom-0 bg-white/92 px-1.5 py-0.5 text-[9px] font-semibold text-[#0f7f68] shadow-sm transition group-hover:bg-white dark:bg-gray-950/90 dark:text-blue-200">
+      <span className="absolute inset-x-0 bottom-0 bg-white/92 px-1.5 py-0.5 text-[9px] font-medium text-[#0f7f68] shadow-sm transition group-hover:bg-white dark:bg-gray-950/90 dark:text-blue-200">
         {copy.labels.viewEvidence}
       </span>
     </button>

@@ -74,10 +74,10 @@ export function PurchaseOrderFiltersBar({
 
   return (
     <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Filtros de compra</h3>
+      <h3 className="text-lg font-medium text-slate-950 dark:text-white">Filtros de compra</h3>
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(260px,1.4fr)_repeat(6,minmax(150px,1fr))]">
         <label className="space-y-2">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Buscar</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Buscar</span>
           <span className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 dark:border-slate-700 dark:bg-slate-950">
             <Search className="h-4 w-4 text-slate-400" />
             <input
@@ -129,8 +129,8 @@ export function PurchaseOrderFiltersBar({
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <label className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-      <span className="flex h-11 items-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 text-sm font-bold text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB0AA]">
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
+      <span className="flex h-11 items-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 text-sm font-medium text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB0AA]">
         {value}
       </span>
     </label>
@@ -150,11 +150,11 @@ function SelectField({
 }) {
   return (
     <label className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       >
         {children}
       </select>
@@ -175,12 +175,12 @@ function InputField({
 }) {
   return (
     <label className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       />
     </label>
   );

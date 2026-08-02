@@ -85,13 +85,13 @@ export function AgendaFilters({
   return (
     <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-        <h3 className="text-base font-bold text-slate-800 dark:text-white">{copy.filters.title}</h3>
+        <h3 className="text-base font-medium text-slate-800 dark:text-white">{copy.filters.title}</h3>
         <div className="inline-flex h-10 max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
           <button
             type="button"
             aria-pressed={viewMode === 'table'}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
               viewMode === 'table'
                 ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                 : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
@@ -105,7 +105,7 @@ export function AgendaFilters({
             type="button"
             aria-pressed={viewMode === 'kanban'}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
               viewMode === 'kanban'
                 ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                 : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
@@ -119,7 +119,7 @@ export function AgendaFilters({
             type="button"
             aria-pressed={viewMode === 'diagram'}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
               viewMode === 'diagram'
                 ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                 : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
@@ -133,7 +133,7 @@ export function AgendaFilters({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:gap-4 xl:grid-cols-12">
         <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-3">
-          <label htmlFor="agenda-search" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
+          <label htmlFor="agenda-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
           <Input
             id="agenda-search"
             type="search"
@@ -144,7 +144,7 @@ export function AgendaFilters({
           />
         </div>
         <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.unit}</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.unit}</label>
           <Select value={unitFilter} onValueChange={onUnitFilterChange}>
             <SelectTrigger aria-label={copy.filters.unit} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
               <SelectValue />
@@ -160,7 +160,7 @@ export function AgendaFilters({
           </Select>
         </div>
         <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.business}</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.business}</label>
           <Select value={businessFilter} onValueChange={onBusinessFilterChange}>
             <SelectTrigger aria-label={copy.filters.business} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
               <SelectValue />
@@ -176,7 +176,7 @@ export function AgendaFilters({
           </Select>
         </div>
         <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.period}</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.period}</label>
           <Select value={periodFilter} onValueChange={(value) => onPeriodFilterChange(value as PeriodFilter)}>
             <SelectTrigger aria-label={copy.filters.period} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
               <SelectValue />
@@ -189,7 +189,7 @@ export function AgendaFilters({
           </Select>
         </div>
         <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.status}</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.status}</label>
           <Select value={statusFilter} onValueChange={(value) => onStatusFilterChange(value as StatusFilter)}>
             <SelectTrigger aria-label={copy.filters.status} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
               <SelectValue />
@@ -205,7 +205,7 @@ export function AgendaFilters({
         {periodFilter === 'custom' ? (
           <>
             <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-              <label htmlFor="agenda-date-from" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.from}</label>
+              <label htmlFor="agenda-date-from" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.from}</label>
               <Input
                 id="agenda-date-from"
                 type="date"
@@ -216,7 +216,7 @@ export function AgendaFilters({
               />
             </div>
             <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-              <label htmlFor="agenda-date-to" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.to}</label>
+              <label htmlFor="agenda-date-to" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.to}</label>
               <Input
                 id="agenda-date-to"
                 type="date"
@@ -229,7 +229,7 @@ export function AgendaFilters({
           </>
         ) : null}
         <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.collaborator}</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.collaborator}</label>
           <Select value={collaboratorFilter} onValueChange={onCollaboratorFilterChange}>
             <SelectTrigger aria-label={copy.filters.collaborator} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
               <SelectValue />
@@ -245,7 +245,7 @@ export function AgendaFilters({
           </Select>
         </div>
         <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.form.labels.project}</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.form.labels.project}</label>
           <Select value={projectFilter} onValueChange={onProjectFilterChange}>
             <SelectTrigger aria-label={copy.form.labels.project} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
               <SelectValue />
@@ -261,7 +261,7 @@ export function AgendaFilters({
           </Select>
         </div>
         <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.focus}</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.focus}</label>
           <Select value={focusFilter} onValueChange={(value) => onFocusFilterChange(value as AgendaFocusFilter)}>
             <SelectTrigger aria-label={copy.filters.focus} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
               <SelectValue />

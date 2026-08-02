@@ -25,7 +25,7 @@ export function FilterSelect<T extends string>({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
         <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />
@@ -59,13 +59,13 @@ export function InlineTableSelect({
 
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className="h-10 min-w-[190px] max-w-[320px] rounded-full border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-800 shadow-none transition hover:border-[#59C3A5]/40 hover:bg-[#59C3A5]/5 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-blue-300/50 dark:hover:bg-blue-950/30">
+      <SelectTrigger className="h-10 min-w-[190px] max-w-[320px] rounded-full border-slate-200 bg-white px-3 text-left text-sm font-medium text-slate-800 shadow-none transition hover:border-[#59C3A5]/40 hover:bg-[#59C3A5]/5 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-blue-300/50 dark:hover:bg-blue-950/30">
         <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
           <span className="min-w-0 truncate">
             {selectedOption?.label ?? placeholder}
           </span>
           {selectedOption?.badge ? (
-            <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#59C3A5] dark:bg-blue-300/10 dark:text-blue-200">
+            <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2 py-0.5 text-[10px] font-medium text-[#59C3A5] dark:bg-blue-300/10 dark:text-blue-200">
               {selectedOption.badge}
             </span>
           ) : null}
@@ -76,9 +76,9 @@ export function InlineTableSelect({
           <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
             <div className="flex min-w-0 flex-col gap-1 py-1">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate font-semibold">{option.label}</span>
+                <span className="truncate font-medium">{option.label}</span>
                 {option.badge ? (
-                  <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#59C3A5] dark:bg-blue-300/10 dark:text-blue-200">
+                  <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2 py-0.5 text-[10px] font-medium text-[#59C3A5] dark:bg-blue-300/10 dark:text-blue-200">
                     {option.badge}
                   </span>
                 ) : null}

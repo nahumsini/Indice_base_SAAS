@@ -22,7 +22,7 @@ export function InventoryStatusBar({
           return <div key={status} className={cn('h-full', inventoryStatusBarTone[status])} style={{ width: `${width}%` }} aria-hidden="true" />;
         })}
       </div>
-      <div className="flex flex-wrap gap-3 text-sm font-semibold text-slate-500">
+      <div className="flex flex-wrap gap-3 text-sm font-medium text-slate-500">
         {statusOrder.map((status) => (
           <span key={status} className="inline-flex items-center gap-2">
             <span className={cn('h-2.5 w-2.5 rounded-full', inventoryStatusBarTone[status])} />

@@ -33,7 +33,7 @@ export function PanelInicialState({
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="font-semibold">{title}</h2>
+          <h2 className="font-medium">{title}</h2>
           <p className={isError
             ? 'mt-1 text-sm leading-6 text-red-800 dark:text-red-100/80'
             : 'mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300'}>

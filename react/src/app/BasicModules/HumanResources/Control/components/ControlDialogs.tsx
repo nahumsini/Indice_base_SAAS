@@ -614,7 +614,7 @@ export function ControlWorkSiteDialog({
     >
         <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/60 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.contractSiteLabel}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.labels.contractSiteLabel}</p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {copy.labels.contractSiteHint}
             </p>
@@ -693,7 +693,7 @@ export function ControlWorkSiteDialog({
           ) : null}
 
           <div className="sm:col-span-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.labels.assignedHours}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.labels.assignedHours}</p>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.contractSites.scheduleStep.startTime}</label>

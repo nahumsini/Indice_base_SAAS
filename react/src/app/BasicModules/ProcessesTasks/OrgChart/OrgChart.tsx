@@ -482,7 +482,7 @@ export default function OrgChart() {
       <div className="bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15 rounded-lg p-6 mb-6 border border-[#F4C84A]/30 dark:border-[#F4C84A]/40">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+            <h2 className="text-2xl font-medium text-gray-900 dark:text-white mb-1 flex items-center gap-2">
               <span className="text-2xl">🏢</span>
               Organigrama
             </h2>
@@ -500,7 +500,7 @@ export default function OrgChart() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Colaboradores</h3>
+              <h3 className="text-xl font-medium text-gray-900 dark:text-white">Colaboradores</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {assignedCount} en organigrama · {availableCount} disponibles
               </p>
@@ -539,12 +539,12 @@ export default function OrgChart() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-full bg-[#F4C84A]/15 text-[#9A6B05] flex items-center justify-center text-sm font-semibold shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-[#F4C84A]/15 text-[#9A6B05] flex items-center justify-center text-sm font-medium shrink-0">
                       {getInitials(collaborator.name)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-semibold text-gray-900 dark:text-white truncate">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">
                           {collaborator.name}
                         </p>
                         <span
@@ -574,7 +574,7 @@ export default function OrgChart() {
             <div className="mt-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                  <h4 className="font-medium text-gray-900 dark:text-white">
                     {selectedCollaborator.name}
                   </h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -647,7 +647,7 @@ export default function OrgChart() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Organigrama</h3>
+              <h3 className="text-2xl font-medium text-gray-900 dark:text-white">Organigrama</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Lienzo editable con niveles jerarquicos, zoom y guardado local.
               </p>
@@ -795,7 +795,7 @@ export default function OrgChart() {
                         cursor: dragState?.collaboratorId === assignment.collaboratorId ? 'grabbing' : 'grab',
                       }}
                     >
-                      <p className="text-[13px] font-semibold text-gray-900 dark:text-white leading-tight">
+                      <p className="text-[13px] font-medium text-gray-900 dark:text-white leading-tight">
                         {collaborator.role}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">

@@ -181,7 +181,7 @@ export default function Clientes() {
       />
 
       {notice && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {notice}
         </div>
       )}
@@ -195,7 +195,7 @@ export default function Clientes() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Total clientes</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{kpis.total}</p>
+              <p className="text-2xl font-medium text-gray-900 dark:text-white">{kpis.total}</p>
             </div>
           </div>
         </div>
@@ -207,7 +207,7 @@ export default function Clientes() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Activos</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{kpis.active}</p>
+              <p className="text-2xl font-medium text-green-600 dark:text-green-400">{kpis.active}</p>
             </div>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function Clientes() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Inactivos</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{kpis.inactive}</p>
+              <p className="text-2xl font-medium text-red-600 dark:text-red-400">{kpis.inactive}</p>
             </div>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function Clientes() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Ventas totales</p>
-              <p className="text-lg font-bold text-[#C64237] dark:text-[#FFB5AE]">
+              <p className="text-lg font-medium text-[#C64237] dark:text-[#FFB5AE]">
                 {formatCurrency(kpis.totalRevenue)}
               </p>
             </div>
@@ -245,7 +245,7 @@ export default function Clientes() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Saldo pendiente</p>
-              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              <p className="text-lg font-medium text-blue-600 dark:text-blue-400">
                 {formatCurrency(kpis.totalBalance)}
               </p>
             </div>
@@ -297,31 +297,31 @@ export default function Clientes() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Cliente
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Email
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Teléfono
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Tipo
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Total Compras
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Saldo
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Última Compra
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Estado
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
                   Acciones
                 </th>
               </tr>
@@ -366,10 +366,10 @@ export default function Clientes() {
                         {customer.customerType === 'individual' ? 'Física' : 'Moral'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                       {formatCurrency(customer.totalPurchases)}
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold">
+                    <td className="px-4 py-3 text-sm font-medium">
                       <span className={customer.currentBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}>
                         {formatCurrency(customer.currentBalance)}
                       </span>

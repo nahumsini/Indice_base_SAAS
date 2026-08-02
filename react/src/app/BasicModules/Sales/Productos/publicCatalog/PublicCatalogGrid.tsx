@@ -15,8 +15,8 @@ export function PublicCatalogGrid({
 }) {
   if (items.length === 0) {
     return (
-      <section className="mx-auto max-w-7xl px-5 md:px-8">
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
+      <section>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
           {t.publicCatalog.emptyCatalog}
         </div>
       </section>
@@ -24,8 +24,8 @@ export function PublicCatalogGrid({
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-5 md:px-8">
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <section className="min-w-0">
+      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
         {items.map((item) => (
           <PublicCatalogCard
             key={item.id}

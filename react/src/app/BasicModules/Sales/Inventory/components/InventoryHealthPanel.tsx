@@ -26,14 +26,14 @@ export function InventoryHealthPanel({
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-lg font-black text-slate-950">{t.health.title}</h3>
+      <h3 className="mb-4 text-lg font-medium text-slate-950">{t.health.title}</h3>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {alerts.map((alert) => {
           const Icon = alert.icon;
           return (
             <article key={alert.label} className={`rounded-lg border px-4 py-3 ${alert.tone}`}>
               <Icon className="mb-3 h-4 w-4" />
-              <p className="text-sm font-bold leading-5">{alert.label}</p>
+              <p className="text-sm font-medium leading-5">{alert.label}</p>
             </article>
           );
         })}

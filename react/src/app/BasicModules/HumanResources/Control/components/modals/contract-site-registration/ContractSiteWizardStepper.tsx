@@ -25,7 +25,7 @@ export function ContractSiteWizardStepper({
     <>
       <div>
         <div>
-          <p className="text-base font-semibold text-slate-950 dark:text-white">
+          <p className="text-base font-medium text-slate-950 dark:text-white">
             {title}
           </p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

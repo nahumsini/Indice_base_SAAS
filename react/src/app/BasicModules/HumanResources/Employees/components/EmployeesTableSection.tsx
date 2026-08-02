@@ -128,7 +128,7 @@ export function EmployeesTableSection({
             leading={<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF8F4] text-lg dark:bg-[#13362F]">👥</div>}
             title={employee.fullName}
             subtitle={`${employee.code}${employee.email ? ` · ${employee.email}` : ''}`}
-            badges={<span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{copy.statusLabels[employee.status]}</span>}
+            badges={<span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{copy.statusLabels[employee.status]}</span>}
             details={[
               { label: copy.columns.position, value: employee.position || '—' },
               { label: copy.columns.department, value: employee.department || '—' },

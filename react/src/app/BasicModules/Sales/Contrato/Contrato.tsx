@@ -165,8 +165,8 @@ function MetricCard({
           {icon}
         </span>
         <div>
-          <p className="text-2xl font-black leading-none text-slate-950">{value}</p>
-          <p className="mt-1 text-sm font-semibold text-slate-500">{label}</p>
+          <p className="text-2xl font-medium leading-none text-slate-950">{value}</p>
+          <p className="mt-1 text-sm font-medium text-slate-500">{label}</p>
         </div>
       </div>
     </div>
@@ -186,7 +186,7 @@ function FilterSelect({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-semibold text-slate-700">{label}</label>
+      <label className="text-sm font-medium text-slate-700">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
         <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white px-4 text-base font-medium text-slate-950 shadow-none">
           <SelectValue />
@@ -473,7 +473,7 @@ export default function Contrato() {
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#9a6b05]" />
           <div>
-            <h3 className="font-black text-slate-950">{t.sections.legalBoundary}</h3>
+            <h3 className="font-medium text-slate-950">{t.sections.legalBoundary}</h3>
             <p className="mt-1 text-sm leading-6 text-slate-600">{t.notices.legalBoundary}</p>
           </div>
         </div>
@@ -511,7 +511,7 @@ export default function Contrato() {
           <div className="border-b border-slate-100 p-5">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-[#2563EB]" />
-              <h3 className="text-xl font-black text-slate-950">{t.sections.tableTitle}</h3>
+              <h3 className="text-xl font-medium text-slate-950">{t.sections.tableTitle}</h3>
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-500">{t.sections.tableDescription}</p>
           </div>
@@ -520,24 +520,24 @@ export default function Contrato() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.title}</TableHead>
-                  <TableHead className="min-w-[180px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.client}</TableHead>
-                  <TableHead className="min-w-[220px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.opportunity}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.quote}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.type}</TableHead>
-                  <TableHead className="min-w-[175px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.status}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.owner}</TableHead>
-                  <TableHead className="min-w-[165px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.signature}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.updated}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.expiration}</TableHead>
-                  <TableHead className="min-w-[100px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.files}</TableHead>
-                  <TableHead className="min-w-[160px] px-5 py-4 text-xs font-black uppercase tracking-normal text-slate-500">{t.table.columns.actions}</TableHead>
+                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.title}</TableHead>
+                  <TableHead className="min-w-[180px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.client}</TableHead>
+                  <TableHead className="min-w-[220px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.opportunity}</TableHead>
+                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.quote}</TableHead>
+                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.type}</TableHead>
+                  <TableHead className="min-w-[175px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.status}</TableHead>
+                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.owner}</TableHead>
+                  <TableHead className="min-w-[165px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.signature}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.updated}</TableHead>
+                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.expiration}</TableHead>
+                  <TableHead className="min-w-[100px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.files}</TableHead>
+                  <TableHead className="min-w-[160px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredContracts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="px-5 py-10 text-center text-sm font-semibold text-slate-500">
+                    <TableCell colSpan={12} className="px-5 py-10 text-center text-sm font-medium text-slate-500">
                       {t.table.empty}
                     </TableCell>
                   </TableRow>
@@ -549,29 +549,29 @@ export default function Contrato() {
                     <TableRow key={contract.id} className="align-top hover:bg-slate-50/70">
                       <TableCell className="px-5 py-4">
                         <button type="button" className="text-left" onClick={() => setSelectedContractId(contract.id)}>
-                          <p className="font-black text-slate-950">{contract.title}</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-500">{contract.contractNumber}</p>
-                          <Badge className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-600">
+                          <p className="font-medium text-slate-950">{contract.title}</p>
+                          <p className="mt-1 text-sm font-medium text-slate-500">{contract.contractNumber}</p>
+                          <Badge className="mt-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
                             {t.sourceLabels[contract.source]}
                           </Badge>
                         </button>
                       </TableCell>
                       <TableCell className="px-5 py-4">
-                        <p className="font-black text-slate-950">{contract.clientName}</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">{contract.contactPerson}</p>
+                        <p className="font-medium text-slate-950">{contract.clientName}</p>
+                        <p className="mt-1 text-sm font-medium text-slate-500">{contract.contactPerson}</p>
                       </TableCell>
                       <TableCell className="px-5 py-4">
                         {opportunity ? (
-                          <Badge className="rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2 py-1 text-xs font-bold text-[#1D4ED8]">
+                          <Badge className="rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2 py-1 text-xs font-medium text-[#1D4ED8]">
                             {opportunity.opportunityName}
                           </Badge>
-                        ) : <span className="text-sm font-semibold text-slate-400">{t.common.unassigned}</span>}
+                        ) : <span className="text-sm font-medium text-slate-400">{t.common.unassigned}</span>}
                       </TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-700">{quote?.quoteNumber ?? t.common.notAvailable}</TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-700">{t.typeLabels[contract.contractType]}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-700">{quote?.quoteNumber ?? t.common.notAvailable}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-700">{t.typeLabels[contract.contractType]}</TableCell>
                       <TableCell className="px-5 py-4">
                         <Select value={contract.status} onValueChange={(value) => updateContractStatus(contract.id, value as DigitalContractStatus)}>
-                          <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-black shadow-none', statusClasses[contract.status])}>
+                          <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-medium shadow-none', statusClasses[contract.status])}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -583,10 +583,10 @@ export default function Contrato() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-700">{contract.owner}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-700">{contract.owner}</TableCell>
                       <TableCell className="px-5 py-4">
                         <Select value={contract.signatureStatus} onValueChange={(value) => updateContractSignatureStatus(contract.id, value as DigitalSignatureStatus)}>
-                          <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-black shadow-none', signatureClasses[contract.signatureStatus])}>
+                          <SelectTrigger className={cn('h-9 rounded-lg border px-3 text-sm font-medium shadow-none', signatureClasses[contract.signatureStatus])}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -598,12 +598,12 @@ export default function Contrato() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-600">{contract.lastUpdated}</TableCell>
-                      <TableCell className="px-5 py-4 font-semibold text-slate-600">{contract.expirationDate}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-600">{contract.lastUpdated}</TableCell>
+                      <TableCell className="px-5 py-4 font-medium text-slate-600">{contract.expirationDate}</TableCell>
                       <TableCell className="px-5 py-4">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                           onClick={() => setFilesContract(contract)}
                         >
                           <FileText className="h-4 w-4 text-[#2563EB]" />
@@ -641,32 +641,32 @@ export default function Contrato() {
         <aside className="space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-[#2563EB]" />
-            <h3 className="text-xl font-black text-slate-950">{t.sections.previewTitle}</h3>
+            <h3 className="text-xl font-medium text-slate-950">{t.sections.previewTitle}</h3>
           </div>
           <p className="text-sm leading-6 text-slate-500">{t.sections.previewDescription}</p>
 
           {selectedContract ? (
             <>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-bold text-slate-500">{selectedContract.contractNumber}</p>
-                <h4 className="mt-2 text-lg font-black text-slate-950">{selectedContract.title}</h4>
+                <p className="text-sm font-medium text-slate-500">{selectedContract.contractNumber}</p>
+                <h4 className="mt-2 text-lg font-medium text-slate-950">{selectedContract.title}</h4>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', statusClasses[selectedContract.status])}>
+                  <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', statusClasses[selectedContract.status])}>
                     {t.statusLabels[selectedContract.status]}
                   </Badge>
-                  <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', signatureClasses[selectedContract.signatureStatus])}>
+                  <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', signatureClasses[selectedContract.signatureStatus])}>
                     {t.signatureLabels[selectedContract.signatureStatus]}
                   </Badge>
                 </div>
               </div>
 
               <div>
-                <h4 className="font-black text-slate-950">{t.sections.lifecycle}</h4>
+                <h4 className="font-medium text-slate-950">{t.sections.lifecycle}</h4>
                 <div className="mt-3 space-y-2">
                   {selectedContract.lifecycle.map((step) => (
                     <div key={step.labelKey} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3">
                       <span className={cn(
-                        'flex h-7 w-7 items-center justify-center rounded-full border text-xs font-black',
+                        'flex h-7 w-7 items-center justify-center rounded-full border text-xs font-medium',
                         step.status === 'done' && 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
                         step.status === 'current' && 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
                         step.status === 'future' && 'border-slate-200 bg-slate-50 text-slate-400',
@@ -674,28 +674,28 @@ export default function Contrato() {
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
                       </span>
-                      <span className="text-sm font-bold text-slate-700">{t.lifecycleLabels[step.labelKey]}</span>
+                      <span className="text-sm font-medium text-slate-700">{t.lifecycleLabels[step.labelKey]}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div>
-                <h4 className="font-black text-slate-950">{t.sections.dynamicFields}</h4>
+                <h4 className="font-medium text-slate-950">{t.sections.dynamicFields}</h4>
                 <div className="mt-3 grid gap-2">
                   {Object.entries(selectedContract.dynamicFieldValues).map(([key, value]) => (
                     <div key={key} className="rounded-lg bg-slate-50 p-3">
-                      <p className="text-xs font-black uppercase tracking-normal text-slate-400">
+                      <p className="text-xs font-medium tracking-normal text-slate-400">
                         {t.dynamicFieldLabels[key as keyof typeof t.dynamicFieldLabels] ?? key}
                       </p>
-                      <p className="mt-1 text-sm font-bold text-slate-800">{value}</p>
+                      <p className="mt-1 text-sm font-medium text-slate-800">{value}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="rounded-lg border border-[#F4C84A]/40 bg-[#F4C84A]/10 p-4">
-                <p className="text-sm font-bold text-[#9a6b05]">
+                <p className="text-sm font-medium text-[#9a6b05]">
                   {selectedContract.source === 'Template generated' ? t.notices.generated : t.notices.upload}
                 </p>
               </div>
@@ -724,11 +724,11 @@ export default function Contrato() {
         )}
       >
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">{t.forms.create.mode}</label>
+              <label className="text-sm font-medium text-slate-700">{t.forms.create.mode}</label>
               <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1 sm:grid-cols-2">
                 <Button
                   variant={form.mode === 'upload' ? 'default' : 'ghost'}
-                  className={cn('rounded-lg', form.mode === 'upload' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
+                  className={cn('rounded-lg', form.mode === 'upload' && 'bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]')}
                   onClick={() => setFormMode('upload')}
                 >
                   <FolderOpen className="h-4 w-4" />
@@ -736,7 +736,7 @@ export default function Contrato() {
                 </Button>
                 <Button
                   variant={form.mode === 'template' ? 'default' : 'ghost'}
-                  className={cn('rounded-lg', form.mode === 'template' && 'bg-[#FF6B5E] text-white hover:bg-[#E85C50]')}
+                  className={cn('rounded-lg', form.mode === 'template' && 'bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]')}
                   onClick={() => setFormMode('template')}
                 >
                   <Sparkles className="h-4 w-4" />
@@ -745,7 +745,7 @@ export default function Contrato() {
               </div>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">{t.forms.create.contractTitle}</label>
+              <label className="text-sm font-medium text-slate-700">{t.forms.create.contractTitle}</label>
               <Input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={t.forms.create.contractTitlePlaceholder} />
             </div>
             <FilterSelect label={t.forms.create.client} value={form.clientId} onValueChange={(value) => setForm((current) => ({ ...current, clientId: value }))} options={contacts.map((contact) => ({ value: contact.id, label: `${contact.company} · ${contact.contactPerson}` }))} />
@@ -761,20 +761,20 @@ export default function Contrato() {
               <FilterSelect label={t.forms.create.template} value={form.templateId} onValueChange={(value) => setForm((current) => ({ ...current, templateId: value }))} options={digitalContractTemplateRegistry.map((template) => ({ value: template.id, label: template.name }))} />
             ) : null}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">{t.forms.create.expiration}</label>
+              <label className="text-sm font-medium text-slate-700">{t.forms.create.expiration}</label>
               <Input type="date" value={form.expirationDate} onChange={(event) => setForm((current) => ({ ...current, expirationDate: event.target.value }))} />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">{t.forms.create.files}</label>
+              <label className="text-sm font-medium text-slate-700">{t.forms.create.files}</label>
               <Input value={form.files} onChange={(event) => setForm((current) => ({ ...current, files: event.target.value }))} placeholder={t.forms.create.filesPlaceholder} />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">{t.forms.create.notes}</label>
+              <label className="text-sm font-medium text-slate-700">{t.forms.create.notes}</label>
               <Textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder={t.forms.create.notesPlaceholder} />
             </div>
             {form.mode === 'template' && selectedTemplate ? (
               <div className="rounded-lg border border-[#222831]/15 bg-[#222831]/5 p-4 md:col-span-2">
-                <h4 className="font-semibold text-slate-950">{selectedTemplate.name}</h4>
+                <h4 className="font-medium text-slate-950">{selectedTemplate.name}</h4>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{selectedTemplate.description}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedTemplate.dynamicFields.map((field) => (
@@ -806,8 +806,8 @@ export default function Contrato() {
               <article key={template.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-slate-950">{template.name}</h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">{template.version} · {t.countryLabels[template.country]}</p>
+                    <h3 className="font-medium text-slate-950">{template.name}</h3>
+                    <p className="mt-1 text-sm font-medium text-slate-500">{template.version} · {t.countryLabels[template.country]}</p>
                   </div>
                   <Badge className="rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2 py-1 text-xs font-medium text-[#1D4ED8]">
                     {t.typeLabels[template.contractType]}
@@ -825,7 +825,7 @@ export default function Contrato() {
             ))}
         </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <h3 className="font-semibold text-slate-950">{t.sections.backendReady}</h3>
+            <h3 className="font-medium text-slate-950">{t.sections.backendReady}</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {digitalContractsBackendPreparation.entities.map((entity) => (
                 <Badge key={entity} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
@@ -855,8 +855,8 @@ export default function Contrato() {
                 <div className="flex items-center gap-3">
                   <FileText className="h-4 w-4 text-[#222831]" />
                   <div>
-                    <p className="text-sm font-semibold text-slate-950">{file.name}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                    <p className="text-sm font-medium text-slate-950">{file.name}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
                       {t.fileKindLabels[file.kind]} · {t.fileStatusLabels[file.status]} · {t.sourceLabels[file.source]}
                     </p>
                   </div>
@@ -885,11 +885,11 @@ export default function Contrato() {
         )}
       >
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">{t.forms.signature.recipientName}</label>
+              <label className="text-sm font-medium text-slate-700">{t.forms.signature.recipientName}</label>
               <Input value={signatureForm.recipientName} onChange={(event) => setSignatureForm((current) => ({ ...current, recipientName: event.target.value }))} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">{t.forms.signature.recipientEmail}</label>
+              <label className="text-sm font-medium text-slate-700">{t.forms.signature.recipientEmail}</label>
               <Input value={signatureForm.recipientEmail} onChange={(event) => setSignatureForm((current) => ({ ...current, recipientEmail: event.target.value }))} />
             </div>
             <FilterSelect

@@ -215,15 +215,15 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
                 const funded = statement.assignedAmount + statement.additionalDepositAmount;
                 return (
                   <tr key={statement.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                    <td className="px-5 py-4 text-sm font-extrabold text-slate-900 dark:text-white">{statement.folio}</td>
-                    <td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{fund?.name ?? copy.common.notAvailable}</td>
-                    <td className="px-5 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{formatPettyCashIsoDate(statement.periodStart)} – {formatPettyCashIsoDate(statement.periodEnd)}</td>
-                    <td className="px-5 py-4 text-sm font-extrabold tabular-nums">{formatPettyCashCurrency(statement.openingBalanceAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-extrabold tabular-nums text-sky-700 dark:text-sky-300">{formatPettyCashCurrency(funded, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-extrabold tabular-nums text-amber-700 dark:text-amber-300">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-extrabold tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(statement.verifiedExpenseAmount, statement.currencyCode)}</td>
-                    <td className={`px-5 py-4 text-sm font-extrabold tabular-nums ${statement.declaredClosingBalanceAmount < 0 ? 'text-red-600' : ''}`}>{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-semibold text-slate-500">{previous ? copy.statementsHistory.table.previous(previous.folio) : copy.statementsHistory.table.current}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-slate-900 dark:text-white">{statement.folio}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund?.name ?? copy.common.notAvailable}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">{formatPettyCashIsoDate(statement.periodStart)} – {formatPettyCashIsoDate(statement.periodEnd)}</td>
+                    <td className="px-5 py-4 text-sm font-medium tabular-nums">{formatPettyCashCurrency(statement.openingBalanceAmount, statement.currencyCode)}</td>
+                    <td className="px-5 py-4 text-sm font-medium tabular-nums text-sky-700 dark:text-sky-300">{formatPettyCashCurrency(funded, statement.currencyCode)}</td>
+                    <td className="px-5 py-4 text-sm font-medium tabular-nums text-amber-700 dark:text-amber-300">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
+                    <td className="px-5 py-4 text-sm font-medium tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(statement.verifiedExpenseAmount, statement.currencyCode)}</td>
+                    <td className={`px-5 py-4 text-sm font-medium tabular-nums ${statement.declaredClosingBalanceAmount < 0 ? 'text-red-600' : ''}`}>{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-slate-500">{previous ? copy.statementsHistory.table.previous(previous.folio) : copy.statementsHistory.table.current}</td>
                     <td className="px-5 py-4"><PettyCashStatusPill kind="statement" status={statement.status} /></td>
                     <td className="px-5 py-4 text-right">
                       <button type="button" onClick={() => setSelectedStatement(statement)} title={copy.statementsHistory.table.view} aria-label={copy.statementsHistory.table.view} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#147514]/20 bg-[#147514]/10 text-[#147514] hover:bg-[#147514] hover:text-white"><Eye className="h-4 w-4" /></button>

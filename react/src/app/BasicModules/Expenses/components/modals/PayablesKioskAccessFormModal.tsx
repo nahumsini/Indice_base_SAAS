@@ -46,7 +46,7 @@ export function PayablesKioskAccessFormModal({
       footer={(
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
           <button type="button" disabled={isSaving} onClick={onClose} className="h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">{t.common.cancel}</button>
-          <button type="button" disabled={isSaving || !form.name.trim()} onClick={onSave} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#147514] px-5 text-sm font-semibold text-white transition hover:bg-[#105F10] disabled:opacity-50">
+          <button type="button" disabled={isSaving || !form.name.trim()} onClick={onSave} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#147514] px-5 text-sm font-medium text-white transition hover:bg-[#105F10] disabled:opacity-50">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {editing ? t.common.saveChanges : copy.createAccess}
           </button>

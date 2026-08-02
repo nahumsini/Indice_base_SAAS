@@ -166,7 +166,7 @@ export function PermissionsTable({
     return (
       <Card className="rounded-2xl border border-slate-200 p-16 text-center shadow-sm dark:border-slate-700">
         <div className="mb-4 text-6xl">📅</div>
-        <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{copy.empty.title}</h3>
+        <h3 className="mb-2 text-xl font-medium text-gray-900 dark:text-white">{copy.empty.title}</h3>
         <p className="text-gray-500 dark:text-gray-400">{copy.empty.description}</p>
       </Card>
     );
@@ -184,13 +184,13 @@ export function PermissionsTable({
               leading={(
                 <Avatar className="h-11 w-11 border border-[#59C3A5]/25">
                   <AvatarImage src={permission.employee.avatar} />
-                  <AvatarFallback className="bg-[#EAF8F4] text-xs font-bold text-[#177d66]">{permission.employee.initials}</AvatarFallback>
+                  <AvatarFallback className="bg-[#EAF8F4] text-xs font-medium text-[#177d66]">{permission.employee.initials}</AvatarFallback>
                 </Avatar>
               )}
               title={permission.employee.name}
               subtitle={permission.folio}
               badges={(
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(permission)}`}>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusColor(permission)}`}>
                   {getStatusLabel(copy, permission)}
                 </span>
               )}
@@ -232,7 +232,7 @@ export function PermissionsTable({
               {visibleColumnSet.has('days') ? <TableHeader field="days" label={copy.columns.days} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
               {visibleColumnSet.has('status') ? <TableHeader field="status" label={copy.columns.status} onSort={handleSort} sortDirection={sortDirection} sortField={sortField} /> : null}
               {visibleColumnSet.has('actions') ? (
-                <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                <th className="px-6 py-4 text-right text-xs font-medium text-slate-500 dark:text-slate-400">
                   {copy.columns.actions}
                 </th>
               ) : null}
@@ -249,7 +249,7 @@ export function PermissionsTable({
                   onClick={() => onView(permission)}
                 >
                   {visibleColumnSet.has('folio') ? (
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                       {permission.folio}
                     </td>
                   ) : null}
@@ -260,7 +260,7 @@ export function PermissionsTable({
                           <AvatarImage src={permission.employee.avatar} />
                           <AvatarFallback className="text-xs">{permission.employee.initials}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
                           {permission.employee.name}
                         </span>
                       </div>
@@ -291,7 +291,7 @@ export function PermissionsTable({
                     </td>
                   ) : null}
                   {visibleColumnSet.has('days') ? (
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                       {permission.days}
                     </td>
                   ) : null}
@@ -390,7 +390,7 @@ function TableHeader({
       <button
         type="button"
         onClick={() => onSort(field)}
-        className="inline-flex items-center gap-2 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        className="inline-flex items-center gap-2 text-left text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
       >
         <span>{label}</span>
         <StandardSortIcon active={sortField === field} direction={sortDirection} />

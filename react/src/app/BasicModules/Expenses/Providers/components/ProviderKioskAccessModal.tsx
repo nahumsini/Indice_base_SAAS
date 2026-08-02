@@ -127,17 +127,17 @@ export function ProviderKioskAccessModal({ onClose, onError, onSuccess, provider
           ) : provider?.status !== 'active' ? (
             <IndiceModalValidation messages={[copy.pendingProviderHint]} title={copy.providerAccess} tone="warning" />
           ) : activeKiosks.length === 0 ? (
-            <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-6 text-center font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900">{copy.noKiosks}</div>
+            <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-6 text-center font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900">{copy.noKiosks}</div>
           ) : (
             <>
               <div className="rounded-[22px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
                 <div className="mb-4 flex items-center gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#147514]/10 text-[#147514]"><Store className="h-5 w-5" /></span>
-                  <div><p className="font-bold text-slate-950 dark:text-white">{copy.providerAccess}</p><p className="text-xs font-semibold text-slate-500">{activeAccess ? copy.accessReady : copy.selectKiosk}</p></div>
+                  <div><p className="font-medium text-slate-950 dark:text-white">{copy.providerAccess}</p><p className="text-xs font-medium text-slate-500">{activeAccess ? copy.accessReady : copy.selectKiosk}</p></div>
                 </div>
                 <label className="block text-xs font-medium text-slate-500">
                   {copy.assignedKiosk}
-                  <select value={activeAccess ? String(activeAccess.kioskId) : selectedKioskId} disabled={Boolean(activeAccess)} onChange={event => setSelectedKioskId(event.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+                  <select value={activeAccess ? String(activeAccess.kioskId) : selectedKioskId} disabled={Boolean(activeAccess)} onChange={event => setSelectedKioskId(event.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
                     {activeKiosks.map(kiosk => <option key={kiosk.id} value={kiosk.id}>{kiosk.name} · {kiosk.currencyCode}</option>)}
                   </select>
                 </label>
@@ -153,15 +153,15 @@ export function ProviderKioskAccessModal({ onClose, onError, onSuccess, provider
 
               {generatedPin ? (
                 <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-800/50 dark:bg-emerald-950/30">
-                  <div className="flex items-center gap-2 font-bold text-emerald-900 dark:text-emerald-100"><ShieldCheck className="h-5 w-5" />{copy.generatedPin}</div>
+                  <div className="flex items-center gap-2 font-medium text-emerald-900 dark:text-emerald-100"><ShieldCheck className="h-5 w-5" />{copy.generatedPin}</div>
                   <button type="button" onClick={() => copyValue(generatedPin, copy.messages.pinCopied)} className="mt-3 flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-900">
-                    <code className="text-2xl font-semibold tracking-[0.2em] text-slate-950 dark:text-white">{generatedPin}</code><Copy className="h-5 w-5 text-[#147514]" />
+                    <code className="text-2xl font-medium text-slate-950 dark:text-white">{generatedPin}</code><Copy className="h-5 w-5 text-[#147514]" />
                   </button>
-                  <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{copy.generatedPinOnce}</p>
+                  <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">{copy.generatedPinOnce}</p>
                 </div>
               ) : null}
 
-              {activeAccess ? <button type="button" onClick={() => setShowRevokeConfirm(true)} className="w-full text-center text-sm font-semibold text-red-600 hover:underline">{copy.revokeAccess}</button> : null}
+              {activeAccess ? <button type="button" onClick={() => setShowRevokeConfirm(true)} className="w-full text-center text-sm font-medium text-red-600 hover:underline">{copy.revokeAccess}</button> : null}
             </>
           )}
         </section>

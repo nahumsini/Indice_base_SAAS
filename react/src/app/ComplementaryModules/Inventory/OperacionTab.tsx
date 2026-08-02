@@ -109,7 +109,7 @@ export default function OperacionTab() {
         {/* Transferencias Activas */}
         <div className="lg:col-span-2">
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               🚚 Transferencias Activas
             </h2>
             <div className="space-y-4">
@@ -121,7 +121,7 @@ export default function OperacionTab() {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{transfer.folio}</h3>
+                      <h3 className="font-medium text-gray-900 dark:text-white">{transfer.folio}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         {transfer.originNodeName} → {transfer.destinationNodeName}
                       </p>
@@ -153,7 +153,7 @@ export default function OperacionTab() {
         {/* Stock Crítico */}
         <div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               🔴 Stock Crítico
             </h2>
             <div className="space-y-3">
@@ -162,7 +162,7 @@ export default function OperacionTab() {
                   <h3 className="font-medium text-gray-900 dark:text-white text-sm">{item.productName}</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.locationName}</p>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-lg font-bold text-red-600 dark:text-red-400">{item.stock}</span>
+                    <span className="text-lg font-medium text-red-600 dark:text-red-400">{item.stock}</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">Mín: {item.minStock}</span>
                   </div>
                 </div>
@@ -174,7 +174,7 @@ export default function OperacionTab() {
 
       {/* Movimientos Recientes */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
           📊 Movimientos Recientes
         </h2>
         <div className="space-y-3">
@@ -189,7 +189,7 @@ export default function OperacionTab() {
                   {movement.destinationNodeName ?? movement.originNodeName ?? 'Sin ubicación'} • {movement.timestamp.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
-              <div className={`font-bold ${getMovementQuantity(movement) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`font-medium ${getMovementQuantity(movement) > 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {getMovementQuantity(movement) > 0 ? '+' : ''}{getMovementQuantity(movement)}
               </div>
             </div>
@@ -205,7 +205,7 @@ export default function OperacionTab() {
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 z-10">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedTransfer.folio}</h2>
+                  <h2 className="text-2xl font-medium text-gray-900 dark:text-white">{selectedTransfer.folio}</h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {selectedTransfer.originNodeName} → {selectedTransfer.destinationNodeName}
                   </p>
@@ -218,7 +218,7 @@ export default function OperacionTab() {
             <div className="p-6 space-y-6">
               {/* Timeline */}
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">📅 Timeline</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white mb-4">📅 Timeline</h3>
                 <div className="space-y-3">
                   {buildTransferTimeline(selectedTransfer).map(event => (
                     <div key={event.id} className="flex gap-3">
@@ -243,7 +243,7 @@ export default function OperacionTab() {
 
               {/* Productos */}
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">📦 Productos</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white mb-4">📦 Productos</h3>
                 <div className="space-y-2">
                   {selectedTransfer.products.map(item => (
                     <div key={item.productId} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">

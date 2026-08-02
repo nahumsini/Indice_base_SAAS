@@ -111,7 +111,7 @@ export function UploadPettyCashExpenseModal({
       footer={(
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
           <button type="button" disabled={isSaving} onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">Cancel</button>
-          <button form="upload-petty-cash-expense-form" type="submit" disabled={isSaving} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-green-50 disabled:opacity-50">
+          <button form="upload-petty-cash-expense-form" type="submit" disabled={isSaving} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#147514] transition hover:bg-green-50 disabled:opacity-50">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             Upload expense
           </button>

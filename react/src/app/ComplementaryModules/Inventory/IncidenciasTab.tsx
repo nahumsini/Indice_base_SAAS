@@ -17,22 +17,22 @@ export default function IncidenciasTab() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">🔥</div>
-          <p className="text-3xl font-bold">{mockIncidents.filter(i => i.priority === 'critica').length}</p>
+          <p className="text-3xl font-medium">{mockIncidents.filter(i => i.priority === 'critica').length}</p>
           <p className="text-sm opacity-90">Críticas</p>
         </div>
         <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">⚠️</div>
-          <p className="text-3xl font-bold">{mockIncidents.filter(i => i.status !== 'resuelta').length}</p>
+          <p className="text-3xl font-medium">{mockIncidents.filter(i => i.status !== 'resuelta').length}</p>
           <p className="text-sm opacity-90">Abiertas</p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">✅</div>
-          <p className="text-3xl font-bold">{mockIncidents.filter(i => i.status === 'resuelta').length}</p>
+          <p className="text-3xl font-medium">{mockIncidents.filter(i => i.status === 'resuelta').length}</p>
           <p className="text-sm opacity-90">Resueltas</p>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">💰</div>
-          <p className="text-3xl font-bold">
+          <p className="text-3xl font-medium">
             ${mockIncidents.reduce((acc, i) => acc + (i.estimatedCost || 0), 0).toLocaleString()}
           </p>
           <p className="text-sm opacity-90">Costo Estimado</p>
@@ -44,7 +44,7 @@ export default function IncidenciasTab() {
           <div key={incident.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">{incident.title}</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white">{incident.title}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{incident.folio}</p>
               </div>
               {getPriorityBadge(incident.priority)}
@@ -80,7 +80,7 @@ export default function IncidenciasTab() {
             {incident.estimatedCost && (
               <div className="mb-3">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Costo Estimado: </span>
-                <span className="font-bold text-red-600 dark:text-red-400">
+                <span className="font-medium text-red-600 dark:text-red-400">
                   ${incident.estimatedCost.toLocaleString()}
                 </span>
               </div>

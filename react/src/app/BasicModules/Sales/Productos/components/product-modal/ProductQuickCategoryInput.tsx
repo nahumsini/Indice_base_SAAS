@@ -27,7 +27,7 @@ export function ProductQuickCategoryInput({
 
   return (
     <div className="space-y-2 md:col-span-2">
-      <label className="text-sm font-bold text-slate-700">{t.form.fields.category}</label>
+      <label className="text-sm font-medium text-slate-700">{t.form.fields.category}</label>
       <Input
         className={productFieldClassName}
         list={listId}
@@ -46,18 +46,18 @@ export function ProductQuickCategoryInput({
         <Button
           type="button"
           variant="outline"
-          className="h-9 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-3 text-sm font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10"
+          className="h-9 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-3 text-sm font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10"
           onClick={() => onCreateCategory(value)}
         >
           <Plus className="h-4 w-4" />
           {t.quickCategory.create(value.trim())}
         </Button>
       ) : activeCategories.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+        <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">
           {t.quickCategory.empty}
         </p>
       ) : (
-        <p className="text-xs font-semibold text-slate-500">{t.quickCategory.helper}</p>
+        <p className="text-xs font-medium text-slate-500">{t.quickCategory.helper}</p>
       )}
     </div>
   );

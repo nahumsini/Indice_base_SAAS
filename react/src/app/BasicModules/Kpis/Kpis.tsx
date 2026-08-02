@@ -6,6 +6,8 @@ import { FavoritesBar } from '../../components/FavoritesBar';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useKpisTranslations } from '../../hooks/useKpisTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { getCachedAuthSession } from '../../api/authSessionStore';
+import { canAccessModuleTab } from '../../access/tabScopeCatalog';
 import { KPI_ACCENT } from './kpisExecutiveData';
 import {
   LearningModeHeaderActionsProvider,
@@ -56,7 +58,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
     legacyKpiTabAliases,
   );
 
-  const tabs: KpiTab[] = [
+  const allTabs: KpiTab[] = [
     {
       id: 'kpis',
       label: t.tabs.kpis,
@@ -79,9 +81,13 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
       component: InformesAutomatizados,
     },
   ];
+  const cachedSession = getCachedAuthSession();
+  const tabs = cachedSession === undefined
+    ? allTabs
+    : allTabs.filter((tab) => canAccessModuleTab('kpis', tab.id, cachedSession));
 
   const activeTabConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
-  const ActiveComponent = activeTabConfig.component;
+  const ActiveComponent = activeTabConfig?.component ?? KPIs;
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
@@ -113,14 +119,14 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
               </span>
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200">
+                  <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200">
                     {t.badges.executive}
                   </span>
                   <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                     {t.badges.proforma}
                   </span>
                 </div>
-                <h1 className="text-2xl font-bold tracking-normal text-slate-950 dark:text-white md:text-3xl">
+                <h1 className="text-2xl font-medium tracking-normal text-slate-950 dark:text-white md:text-3xl">
                   {t.title}
                 </h1>
                 <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -132,7 +138,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
             <Button
               variant="outline"
               onClick={() => onNavigate()}
-              className="h-10 w-fit gap-2 rounded-lg border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+              className="h-10 w-fit gap-2 rounded-lg border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               <ArrowLeft className="h-4 w-4" />
               {t.back}
@@ -150,7 +156,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    'flex h-11 shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors',
+                    'flex h-11 shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors',
                     isActive
                       ? 'border-blue-700 bg-blue-700 text-white shadow-sm'
                       : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/40 dark:hover:text-blue-200',

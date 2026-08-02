@@ -24,11 +24,11 @@ export function QuoteReadinessBadge({
 
   return (
     <div className="flex items-center gap-1.5">
-      <Badge className={cn('rounded-full border px-2.5 py-1 text-xs font-black', readinessClasses[signal.key])}>
+      <Badge className={cn('rounded-full border px-2.5 py-1 text-xs font-medium', readinessClasses[signal.key])}>
         {t.tableSignals.readiness[signal.key]}
       </Badge>
       {remainingIssues > 0 ? (
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-black text-slate-500">
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">
           {t.tableSignals.readiness.moreIssues(remainingIssues)}
         </span>
       ) : null}

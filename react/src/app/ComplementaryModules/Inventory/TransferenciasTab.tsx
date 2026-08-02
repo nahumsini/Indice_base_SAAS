@@ -62,7 +62,7 @@ export default function TransferenciasTab() {
             <Clock className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
             <div>
               <p className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">Pendientes</p>
-              <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-300">{stats.pending}</p>
+              <p className="text-2xl font-medium text-yellow-900 dark:text-yellow-300">{stats.pending}</p>
             </div>
           </div>
         </div>
@@ -72,7 +72,7 @@ export default function TransferenciasTab() {
             <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
             <div>
               <p className="text-xs text-green-700 dark:text-green-400 font-medium">Aprobadas</p>
-              <p className="text-2xl font-bold text-green-900 dark:text-green-300">{stats.approved}</p>
+              <p className="text-2xl font-medium text-green-900 dark:text-green-300">{stats.approved}</p>
             </div>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function TransferenciasTab() {
             <Truck className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             <div>
               <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">En Tránsito</p>
-              <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">{stats.inTransit}</p>
+              <p className="text-2xl font-medium text-blue-900 dark:text-blue-300">{stats.inTransit}</p>
             </div>
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function TransferenciasTab() {
             <CheckCircle2 className="w-8 h-8 text-purple-600 dark:text-purple-400" />
             <div>
               <p className="text-xs text-purple-700 dark:text-purple-400 font-medium">Recibidas</p>
-              <p className="text-2xl font-bold text-purple-900 dark:text-purple-300">{stats.received}</p>
+              <p className="text-2xl font-medium text-purple-900 dark:text-purple-300">{stats.received}</p>
             </div>
           </div>
         </div>
@@ -100,13 +100,13 @@ export default function TransferenciasTab() {
 
       {/* New Transfer Button */}
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border-2 border-dashed border-blue-300 dark:border-blue-700 p-6 text-center">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
           ¿Necesitas transferir mercancía?
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
           Crea una nueva transferencia entre nodos logísticos
         </p>
-        <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-bold flex items-center gap-2 mx-auto shadow-lg transition-all hover:shadow-xl">
+        <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-medium flex items-center gap-2 mx-auto shadow-lg transition-all hover:shadow-xl">
           <Plus className="w-5 h-5" />
           Nueva Transferencia
         </button>
@@ -152,7 +152,7 @@ export default function TransferenciasTab() {
                     <span className="text-xs font-mono text-gray-500 dark:text-gray-500">
                       {transfer.folio}
                     </span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${statusBadge.className}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge.className}`}>
                       <StatusIcon className="w-3 h-3" />
                       {statusBadge.label}
                     </span>
@@ -160,14 +160,14 @@ export default function TransferenciasTab() {
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg">
                       <MapPin className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {transfer.originNodeName}
                       </span>
                     </div>
                     <ArrowRight className="w-4 h-4 text-gray-400" />
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg">
                       <MapPin className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {transfer.destinationNodeName}
                       </span>
                     </div>
@@ -179,7 +179,7 @@ export default function TransferenciasTab() {
               <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 mb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Package className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                     Productos ({transfer.products.length})
                   </span>
                 </div>
@@ -192,7 +192,7 @@ export default function TransferenciasTab() {
                       <span className="text-gray-900 dark:text-white">
                         {product.productName}
                       </span>
-                      <span className="font-semibold text-gray-900 dark:text-white">
+                      <span className="font-medium text-gray-900 dark:text-white">
                         {product.quantity} {product.unit}
                       </span>
                     </div>
@@ -206,7 +206,7 @@ export default function TransferenciasTab() {
                   <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Responsable</p>
                   <div className="flex items-center gap-1">
                     <User className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {transfer.responsible}
                     </p>
                   </div>
@@ -216,7 +216,7 @@ export default function TransferenciasTab() {
                     <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Transporte</p>
                     <div className="flex items-center gap-1">
                       <Truck className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
                         {transfer.transport}
                       </p>
                     </div>
@@ -226,7 +226,7 @@ export default function TransferenciasTab() {
                   <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Creada</p>
                   <div className="flex items-center gap-1">
                     <Calendar className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {formatDate(transfer.createdAt)}
                     </p>
                   </div>
@@ -236,7 +236,7 @@ export default function TransferenciasTab() {
                     <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">ETA</p>
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
                         {formatDate(transfer.eta)}
                       </p>
                     </div>

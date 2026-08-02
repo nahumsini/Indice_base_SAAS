@@ -40,10 +40,10 @@ export class PanelInicialErrorBoundary extends Component<
         role="alert"
         className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-amber-950 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:p-6"
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700 dark:text-amber-300">
+        <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
           {copy.tabErrorEyebrow}
         </p>
-        <h2 className="mt-2 text-lg font-semibold">{copy.tabErrorTitle}</h2>
+        <h2 className="mt-2 text-lg font-medium">{copy.tabErrorTitle}</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-800 dark:text-amber-100/85">
           {copy.tabErrorDescription}
         </p>

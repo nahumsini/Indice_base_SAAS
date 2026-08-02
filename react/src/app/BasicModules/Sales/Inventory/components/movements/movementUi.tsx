@@ -28,14 +28,14 @@ export const movementStatusTone = {
 export function MovementFlow({ movement }: { movement: InventoryOperationalMovement }) {
   return (
     <div className="min-w-[260px] rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
         {movement.fromWarehouseName ?? 'System'}
       </span>
       <div className="my-2 flex items-center gap-2 pl-3 text-[#B63B32]">
         <ArrowDown className="h-4 w-4" />
-        <span className="text-xs font-semibold text-[#B63B32]/80">flow</span>
+        <span className="text-xs font-medium text-[#B63B32]/80">flow</span>
       </div>
-      <span className="inline-flex rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-semibold text-[#B63B32]">
+      <span className="inline-flex rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-medium text-[#B63B32]">
         {movement.toWarehouseName ?? 'Inventory'}
       </span>
     </div>
@@ -45,7 +45,7 @@ export function MovementFlow({ movement }: { movement: InventoryOperationalMovem
 export function MovementProduct({ movement, t }: { movement: InventoryOperationalMovement; t: InventoryTranslations }) {
   return (
     <div className="flex min-w-[260px] items-center gap-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500">
         {movement.productImageUrl ? (
           <img src={movement.productImageUrl} alt={movement.productImageAlt ?? movement.productName} className="h-full w-full object-cover" loading="lazy" />
         ) : (
@@ -53,9 +53,9 @@ export function MovementProduct({ movement, t }: { movement: InventoryOperationa
         )}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{movement.productName}</p>
-        <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-300">SKU: {movement.productSku ?? t.common.notAvailable}</p>
-        {movement.variantLabel ? <p className="text-xs font-semibold text-slate-400 dark:text-slate-500">{movement.variantLabel}</p> : null}
+        <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{movement.productName}</p>
+        <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">SKU: {movement.productSku ?? t.common.notAvailable}</p>
+        {movement.variantLabel ? <p className="text-xs font-medium text-slate-400 dark:text-slate-500">{movement.variantLabel}</p> : null}
       </div>
     </div>
   );
@@ -64,7 +64,7 @@ export function MovementProduct({ movement, t }: { movement: InventoryOperationa
 export function MovementQuantity({ quantity }: { quantity: number }) {
   const isPositive = quantity >= 0;
   return (
-    <span className={`text-lg font-semibold tabular-nums ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+    <span className={`text-lg font-medium tabular-nums ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
       {isPositive ? '+' : ''}{formatInventoryNumber(quantity)}
     </span>
   );
@@ -107,11 +107,11 @@ export function MovementActions({
 export function MovementNumber({ movement, t }: { movement: InventoryOperationalMovement; t: InventoryTranslations }) {
   return (
     <div className="min-w-[170px]">
-      <p className="text-sm font-semibold text-slate-950 dark:text-white">{movement.movementNumber ?? movement.id}</p>
-      <span className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-bold ${movementTone[movement.movementType]}`}>
+      <p className="text-sm font-medium text-slate-950 dark:text-white">{movement.movementNumber ?? movement.id}</p>
+      <span className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-medium ${movementTone[movement.movementType]}`}>
         {t.operational.movementTypes[movement.movementType]}
       </span>
-      <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-300">{movement.movementDate}</p>
+      <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-300">{movement.movementDate}</p>
     </div>
   );
 }

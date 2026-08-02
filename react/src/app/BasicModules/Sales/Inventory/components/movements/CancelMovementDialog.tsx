@@ -39,7 +39,7 @@ export function CancelMovementDialog({
         </Button>
       )}
       footer={(
-        <Button type="button" className="h-11 rounded-lg bg-red-600 px-5 font-semibold text-white shadow-sm hover:bg-red-700" onClick={handleConfirm}>
+        <Button type="button" className="h-11 rounded-lg bg-red-600 px-5 font-medium text-white shadow-sm hover:bg-red-700" onClick={handleConfirm}>
           {t.operational.modals.confirmCancelMovement}
         </Button>
       )}

@@ -34,7 +34,7 @@ export function AccountingAccountsSummary({ accounts }: { accounts: AccountingAc
               <div className="bg-rose-500 transition-all duration-300" style={{ width: inactiveWidth }} />
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#147514]" />{t.common.active}</span>
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" />{t.common.inactive}</span>
           </div>
@@ -50,7 +50,7 @@ function Metric({ icon, label, value, valueClassName = 'text-slate-900 dark:text
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#147514] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
         {icon}
       </span>
-      <span className={`font-extrabold ${valueClassName}`}>{value}</span>
+      <span className={`font-medium ${valueClassName}`}>{value}</span>
       <span>{label}</span>
     </div>
   );

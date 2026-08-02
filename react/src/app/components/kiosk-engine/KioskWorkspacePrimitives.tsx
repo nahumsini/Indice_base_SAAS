@@ -47,11 +47,11 @@ export function KioskWorkspaceHeader({
               {icon}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-lg font-black leading-none text-slate-950 dark:text-white">{brandName}</p>
-              <p className={`mt-1 text-xs font-black uppercase tracking-[0.16em] ${theme.text} ${theme.darkText}`}>
+              <p className="text-lg font-medium leading-none text-slate-950 dark:text-white">{brandName}</p>
+              <p className={`mt-1 text-xs font-medium ${theme.text} ${theme.darkText}`}>
                 {moduleLabel}
               </p>
-              <h1 className="mt-3 text-2xl font-black leading-tight text-slate-950 dark:text-white">{kioskName}</h1>
+              <h1 className="mt-3 text-2xl font-medium leading-tight text-slate-950 dark:text-white">{kioskName}</h1>
               {description ? (
                 <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-600 dark:text-slate-300">{description}</p>
               ) : null}
@@ -85,8 +85,8 @@ export function KioskAccessPanel({
     <section className={`rounded-lg border p-3 shadow-sm sm:p-5 ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder}`}>
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className={`text-xs font-black uppercase tracking-[0.2em] ${theme.text} ${theme.darkText}`}>{stepLabel}</p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{title}</h2>
+          <p className={`text-xs font-medium ${theme.text} ${theme.darkText}`}>{stepLabel}</p>
+          <h2 className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{title}</h2>
           <p className="mt-1 max-w-xl text-sm leading-5 text-slate-600 dark:text-slate-300">{description}</p>
         </div>
         <div
@@ -134,7 +134,7 @@ export function KioskPinKeypad({
           type="button"
           disabled={disabled}
           aria-label={key === 'backspace' ? (backspaceLabel ?? deleteLabel) : key === 'clear' ? clearLabel : key}
-          className={`flex h-14 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl font-bold text-slate-950 shadow-[0_5px_12px_-9px_rgba(15,23,42,0.65)] outline-none transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${theme.iconHover} ${key === '0' && !clearLabel ? 'col-start-2' : ''}`}
+          className={`flex h-14 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl font-medium text-slate-950 shadow-[0_5px_12px_-9px_rgba(15,23,42,0.65)] outline-none transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${theme.iconHover} ${key === '0' && !clearLabel ? 'col-start-2' : ''}`}
           onFocus={event => { event.currentTarget.style.borderColor = theme.primary; }}
           onBlur={event => { event.currentTarget.style.borderColor = ''; }}
           onMouseEnter={event => { if (!disabled) event.currentTarget.style.borderColor = theme.primary; }}
@@ -154,7 +154,7 @@ export function KioskPinKeypad({
           {key === 'backspace'
             ? <Delete aria-hidden="true" className="h-5 w-5" />
             : key === 'clear'
-              ? <span className="text-xs font-black uppercase tracking-wide">{clearLabel}</span>
+              ? <span className="text-xs font-medium">{clearLabel}</span>
               : key}
         </button>
       ))}
@@ -199,7 +199,7 @@ export function KioskWorkspaceTabs<Value extends string>({
         return (
           <button
             aria-selected={active}
-            className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-[11px] font-semibold leading-tight outline-none transition focus-visible:ring-4 focus-visible:ring-slate-400/25 ${active ? `${activeTextClass} shadow-sm` : `bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ${theme.iconHover}`}`}
+            className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-[11px] font-medium leading-tight outline-none transition focus-visible:ring-4 focus-visible:ring-slate-400/25 ${active ? `${activeTextClass} shadow-sm` : `bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ${theme.iconHover}`}`}
             key={item.value}
             onClick={() => onChange(item.value)}
             role="tab"
@@ -239,10 +239,10 @@ export function KioskMetricCard({
 
   return (
     <div className={`min-w-0 rounded-lg border px-3 py-3 shadow-sm ${accent ? `${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder}` : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950'}`}>
-      <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+      <div className="flex min-w-0 items-center gap-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">
         {icon}<span className="truncate">{label}</span>
       </div>
-      <div className={`mt-1 truncate font-black ${valueClassName} ${accent ? `${theme.text} ${theme.darkText}` : 'text-slate-950 dark:text-white'}`}>
+      <div className={`mt-1 truncate font-medium ${valueClassName} ${accent ? `${theme.text} ${theme.darkText}` : 'text-slate-950 dark:text-white'}`}>
         {value}
       </div>
     </div>
@@ -274,22 +274,22 @@ export function KioskIdentitySummary({
     <section className={`overflow-hidden rounded-lg border bg-white shadow-sm dark:bg-slate-950 ${theme.border} ${theme.darkBorder}`}>
       <div className="px-4 py-3 text-slate-950" style={{ backgroundColor: theme.primary }}>
         <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-base font-black">{kioskLabel}</p>
+          <p className="truncate text-base font-medium">{kioskLabel}</p>
           {action}
         </div>
       </div>
       <div className="p-3 sm:p-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-black text-slate-950 shadow-sm" style={{ backgroundColor: theme.primary }}>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-medium text-slate-950 shadow-sm" style={{ backgroundColor: theme.primary }}>
             {initials}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">{verifiedLabel}</p>
-            <p className="mt-1 line-clamp-2 break-words text-lg font-black leading-tight text-slate-950 dark:text-white">{name}</p>
+            <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{verifiedLabel}</p>
+            <p className="mt-1 line-clamp-2 break-words text-lg font-medium leading-tight text-slate-950 dark:text-white">{name}</p>
             <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{detail}</p>
           </div>
         </div>
-        <div className={`mt-3 w-full truncate rounded-lg border px-3 py-2 text-sm font-black ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder} ${theme.text} ${theme.darkText}`}>
+        <div className={`mt-3 w-full truncate rounded-lg border px-3 py-2 text-sm font-medium ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder} ${theme.text} ${theme.darkText}`}>
           {scopeLabel}
         </div>
       </div>

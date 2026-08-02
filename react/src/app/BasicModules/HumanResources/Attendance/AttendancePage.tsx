@@ -421,7 +421,7 @@ export default function Attendance() {
                   )}
                   <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{copy.labels.collaborator}</p>
-                    <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{selectedItem.user_name}</p>
+                    <p className="mt-1 text-xl font-medium text-gray-900 dark:text-white">{selectedItem.user_name}</p>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {selectedItem.position_title || selectedItem.department || copy.labels.unassignedPosition}
                     </p>
@@ -436,7 +436,7 @@ export default function Attendance() {
                 <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-700 dark:bg-slate-900/40">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
                         {attendanceStatusTitle}
                       </p>
                       <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
@@ -451,7 +451,7 @@ export default function Attendance() {
 
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">{copy.recorder.photo}</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-white">{copy.recorder.photo}</h4>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{copy.recorder.photoRequired}</p>
                 </div>
@@ -480,7 +480,7 @@ export default function Attendance() {
 
                 {!attendancePhotoUpload.photo && latestRecordedPhotoUrl ? (
                   <div className="mt-4">
-                    <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                    <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                       {copy.recorder.savedPhotoLabel}
                     </p>
                     <img
@@ -507,7 +507,7 @@ export default function Attendance() {
                   <MapPin className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">{copy.recorder.location}</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-white">{copy.recorder.location}</h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{copy.recorder.locationRequired}</p>
                 </div>
               </div>
@@ -535,7 +535,7 @@ export default function Attendance() {
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-gray-400" />
-                  <h4 className="font-semibold text-gray-900 dark:text-white">{copy.recorder.record}</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-white">{copy.recorder.record}</h4>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {!selectedItem
@@ -550,7 +550,7 @@ export default function Attendance() {
               <Button
                 type="button"
                 disabled={recorderDisabled || !canInlineCheckIn || isSubmitting}
-                className="bg-[#59C3A5] text-white hover:bg-[#3AAE90] disabled:bg-gray-300 disabled:text-gray-500"
+                className="bg-[#59C3A5] text-slate-950 hover:bg-[#3AAE90] disabled:bg-gray-300 disabled:text-gray-500"
                 onClick={() => {
                   void handleInlineAttendanceRecord('check_in');
                 }}

@@ -76,14 +76,14 @@ export function CardPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
     >
       <div className="space-y-5">
         <section className="rounded-lg border border-blue-200 bg-blue-50 p-5 text-center dark:border-blue-500/30 dark:bg-blue-500/10">
-          <p className="text-sm font-black text-blue-700 dark:text-blue-200">Total a cobrar</p>
-          <p className="mt-2 text-4xl font-black text-blue-800 dark:text-blue-100">
+          <p className="text-sm font-medium text-blue-700 dark:text-blue-200">Total a cobrar</p>
+          <p className="mt-2 text-4xl font-medium text-blue-800 dark:text-blue-100">
             {formatCurrency(totalAmount)}
           </p>
         </section>
 
         <section className="rounded-lg border border-gray-200 bg-white p-4 text-center dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {processing ? (
               <span className="inline-flex items-center justify-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-[#FF6B5E]" />
@@ -99,11 +99,11 @@ export function CardPaymentModal({ isOpen, onClose, totalAmount, onConfirmPaymen
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-gray-800">
             <CreditCard className="h-8 w-8 text-gray-400" />
           </div>
-          <p className="text-sm font-bold text-gray-400">Terminal de pago</p>
+          <p className="text-sm font-medium text-gray-400">Terminal de pago</p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-800">
             {processing ? <div className="h-full animate-pulse bg-[#FF6B5E]" /> : null}
           </div>
-          <p className="mt-2 text-xs font-semibold text-gray-500">
+          <p className="mt-2 text-xs font-medium text-gray-500">
             {processing ? 'Esperando confirmacion...' : 'Lista para recibir pago'}
           </p>
         </section>

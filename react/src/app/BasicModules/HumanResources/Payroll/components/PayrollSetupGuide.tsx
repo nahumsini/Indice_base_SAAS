@@ -29,10 +29,10 @@ export function PayrollSetupGuide({
     <section className="mb-6 rounded-2xl border border-[#59C3A5]/20 bg-white p-6 shadow-sm dark:border-blue-300/25 dark:bg-slate-800">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#59C3A5] dark:text-blue-200">
+          <p className="text-xs font-medium text-[#59C3A5] dark:text-blue-200">
             {copy.eyebrow}
           </p>
-          <h3 className="mt-2 text-xl font-bold text-slate-950 dark:text-white">
+          <h3 className="mt-2 text-xl font-medium text-slate-950 dark:text-white">
             {copy.title}
           </h3>
           <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -60,7 +60,7 @@ export function PayrollSetupGuide({
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-blue-400/10 dark:text-blue-200">
                 <mode.Icon className="h-5 w-5" />
               </span>
-              <h4 className="text-base font-bold text-slate-950 dark:text-white">{mode.title}</h4>
+              <h4 className="text-base font-medium text-slate-950 dark:text-white">{mode.title}</h4>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{mode.description}</p>
           </div>

@@ -26,7 +26,7 @@ export function ProductOperationalChips({
         <Badge
           key={key}
           className={cn(
-            'rounded-full border font-bold',
+            'rounded-full border font-medium',
             compact ? 'px-2 py-0.5 text-[11px]' : 'px-2 py-1 text-xs',
             availabilityClasses[key],
           )}

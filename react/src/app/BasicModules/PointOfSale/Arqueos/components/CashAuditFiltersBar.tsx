@@ -18,7 +18,7 @@ export function CashAuditFiltersBar({
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="grid gap-3 lg:grid-cols-[1.4fr_repeat(4,minmax(0,1fr))_auto]">
         <label className="relative min-w-0">
-          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Buscar</span>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Buscar</span>
           <Search className="absolute left-3 top-[34px] h-4 w-4 text-gray-400" />
           <input
             value={filters.search}
@@ -35,7 +35,7 @@ export function CashAuditFiltersBar({
 
         <button
           onClick={onReset}
-          className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+          className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
         >
           <RotateCcw className="h-4 w-4" />
           Limpiar
@@ -44,7 +44,7 @@ export function CashAuditFiltersBar({
 
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label className="min-w-0">
-          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Enfoque</span>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Enfoque</span>
           <select
             value={filters.focus}
             onChange={(event) => onFilterChange('focus', event.target.value as CashAuditFilters['focus'])}
@@ -57,7 +57,7 @@ export function CashAuditFiltersBar({
           </select>
         </label>
         <label className="min-w-0">
-          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Periodo</span>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Periodo</span>
           <input
             type="month"
             value={filters.month === 'all' ? '' : filters.month}
@@ -66,7 +66,7 @@ export function CashAuditFiltersBar({
           />
         </label>
         <label className="min-w-0">
-          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Estatus</span>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Estatus</span>
           <select
             value={filters.status}
             onChange={(event) => onFilterChange('status', event.target.value as CashAuditFilters['status'])}
@@ -79,7 +79,7 @@ export function CashAuditFiltersBar({
           </select>
         </label>
         <label className="min-w-0">
-          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Revisión</span>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Revisión</span>
           <select
             value={filters.reviewStatus}
             onChange={(event) => onFilterChange('reviewStatus', event.target.value as CashAuditFilters['reviewStatus'])}
@@ -110,7 +110,7 @@ function FilterSelect({
 }) {
   return (
     <label className="min-w-0">
-      <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}

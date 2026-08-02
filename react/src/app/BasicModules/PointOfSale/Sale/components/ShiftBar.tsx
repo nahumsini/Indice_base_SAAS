@@ -58,12 +58,12 @@ export function ShiftBar({
         <div className="min-w-0 rounded-lg border border-white/10 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-normal text-[#FF6B5E] dark:text-[#FF8A80]">Turno operativo</p>
-              <p className="text-sm font-black text-gray-800 dark:text-gray-200">
+              <p className="text-[11px] font-medium tracking-normal text-[#FF6B5E] dark:text-[#FF8A80]">Turno operativo</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                 Caja {shift.cashRegisterCode}
               </p>
             </div>
-            <span className="rounded-full bg-[#F4C84A]/20 px-3 py-1 text-[11px] font-black uppercase text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
+            <span className="rounded-full bg-[#F4C84A]/20 px-3 py-1 text-[11px] font-medium text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
               {shift.cashRegisterName}
             </span>
           </div>
@@ -95,12 +95,12 @@ export function ShiftBar({
                 <ReceiptText className="h-4 w-4" />
               </span>
               <span className="flex min-w-0 flex-col items-center gap-1">
-                <span className="block text-[10px] font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">Divisa / Impuestos</span>
-                <span className="max-w-full truncate text-sm font-black text-gray-950 dark:text-white">
+                <span className="block text-[10px] font-medium tracking-normal text-gray-500 dark:text-gray-400">Divisa / Impuestos</span>
+                <span className="max-w-full truncate text-sm font-medium text-gray-950 dark:text-white">
                   {fiscalSummary ?? 'Fiscal'}
                 </span>
                 {fiscalDetail && (
-                  <span className="max-w-full rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black uppercase leading-none text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+                  <span className="max-w-full rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium leading-none text-gray-500 dark:bg-gray-800 dark:text-gray-300">
                     {fiscalDetail}
                   </span>
                 )}
@@ -198,10 +198,10 @@ function ShiftPill({
         {icon}
       </span>
       <div className="min-w-0 flex-1 text-center">
-        <p className="text-[10px] font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="mt-0.5 break-words text-[13px] font-black leading-snug text-gray-950 dark:text-white" title={value}>{value}</p>
+        <p className="text-[10px] font-medium tracking-normal text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="mt-0.5 break-words text-[13px] font-medium leading-snug text-gray-950 dark:text-white" title={value}>{value}</p>
         {detail && (
-          <p className="break-words text-[11px] font-bold leading-snug text-gray-500 dark:text-gray-300" title={detail}>{detail}</p>
+          <p className="break-words text-[11px] font-medium leading-snug text-gray-500 dark:text-gray-300" title={detail}>{detail}</p>
         )}
       </div>
     </div>
@@ -244,7 +244,7 @@ function ActionButton({
     <button
       onClick={onClick}
       aria-label={title}
-      className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2.5 py-3 text-center text-sm font-black shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98] ${className}`}
+      className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2.5 py-3 text-center text-sm font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98] ${className}`}
     >
       {variant === 'danger' && (
         <span className="absolute inset-0 animate-pulse bg-white/0 transition-colors group-hover:bg-white/5" aria-hidden="true" />

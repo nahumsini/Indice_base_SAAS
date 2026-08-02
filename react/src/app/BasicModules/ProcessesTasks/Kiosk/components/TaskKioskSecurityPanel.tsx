@@ -88,7 +88,7 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
       {!embedded ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-semibold text-slate-950 dark:text-white">Accesos y auditoría</p>
+            <p className="font-medium text-slate-950 dark:text-white">Accesos y auditoría</p>
             <p className="mt-1 text-xs text-slate-500">El PIN es personal; este kiosko únicamente concede o revoca capacidades.</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Cerrar seguridad">

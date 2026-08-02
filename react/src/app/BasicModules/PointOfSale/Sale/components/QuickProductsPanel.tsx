@@ -55,14 +55,14 @@ export function QuickProductsPanel({
               <Sparkles className="h-6 w-6" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-xl font-black text-white">Productos rapidos</h3>
+              <h3 className="text-xl font-medium text-white">Productos rapidos</h3>
               <p className="mt-1 text-sm font-medium text-gray-300">
                 Toca un producto o usa teclas 1-9 para agregarlo al ticket.
               </p>
             </div>
           </div>
           {selectedQuickQuantity > 1 && (
-            <span className="rounded-lg bg-[#F4C84A] px-4 py-2 text-sm font-black text-[#222831]">
+            <span className="rounded-lg bg-[#F4C84A] px-4 py-2 text-sm font-medium text-[#222831]">
               x{selectedQuickQuantity}
             </span>
           )}
@@ -79,9 +79,9 @@ export function QuickProductsPanel({
                   type="button"
                   onClick={() => onSelectCategory(category)}
                   aria-pressed={selectedCategory === category}
-                  className={`min-h-11 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold transition ${
+                  className={`min-h-11 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
                     selectedCategory === category
-                      ? 'bg-[#FF6B5E] text-white shadow-sm'
+                      ? 'bg-[#FF6B5E] text-[#222831] shadow-sm'
                       : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-[#FF6B5E]/10 hover:text-[#222831] dark:bg-gray-700 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-600'
                   }`}
                 >
@@ -99,7 +99,7 @@ export function QuickProductsPanel({
               value={quickSearch}
               onChange={(event) => setQuickSearch(event.target.value)}
               placeholder="Buscar por nombre, SKU o codigo"
-              className="min-h-12 w-full rounded-lg border border-gray-200 bg-white pl-12 pr-11 text-sm font-bold text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="min-h-12 w-full rounded-lg border border-gray-200 bg-white pl-12 pr-11 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
             {quickSearch ? (
               <button
@@ -164,11 +164,11 @@ export function QuickProductsPanel({
                       />
                     )}
                     <div className="absolute right-2 top-2 z-20 flex flex-col items-end gap-1">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#222831] text-xs font-black text-white shadow-sm dark:bg-white dark:text-gray-900">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#222831] text-xs font-medium text-white shadow-sm dark:bg-white dark:text-gray-900">
                         {index + 1}
                       </span>
                       {selectedQuickQuantity > 1 && (
-                        <span className="rounded-full bg-[#FF6B5E] px-2 py-0.5 text-[11px] font-black text-white shadow-sm">
+                        <span className="rounded-full bg-[#FF6B5E] px-2 py-0.5 text-[11px] font-medium text-[#222831] shadow-sm">
                           x{selectedQuickQuantity}
                         </span>
                       )}
@@ -176,22 +176,22 @@ export function QuickProductsPanel({
                   </div>
 
                   <div className="min-h-[56px]">
-                    <p className="line-clamp-2 text-base font-black leading-tight text-gray-900 dark:text-white">
+                    <p className="line-clamp-2 text-base font-medium leading-tight text-gray-900 dark:text-white">
                       {product.name}
                     </p>
                     {product.sku && (
-                      <p className="mt-1 truncate text-[11px] font-black uppercase text-gray-400 dark:text-gray-500">
+                      <p className="mt-1 truncate text-[11px] font-medium text-gray-400 dark:text-gray-500">
                         {product.sku}
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <p className="break-words text-2xl font-black leading-none text-gray-950 dark:text-white">
+                    <p className="break-words text-2xl font-medium leading-none text-gray-950 dark:text-white">
                       {formatCurrency(product.salePrice)}
                     </p>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
                         isOutOfStock ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
                         hasLowStock ? 'bg-[#F4C84A]/25 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
                         'bg-[#59C3A5]/15 text-[#14745F] dark:bg-[#59C3A5]/15 dark:text-[#9DE7D3]'
@@ -199,7 +199,7 @@ export function QuickProductsPanel({
                         <Boxes className="h-3.5 w-3.5" />
                         Stock {product.currentStock}
                       </span>
-                      <span className="text-[11px] font-black uppercase text-gray-400 dark:text-gray-500">
+                      <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
                         {statusLabel}
                       </span>
                     </div>
@@ -214,7 +214,7 @@ export function QuickProductsPanel({
 
         {visibleQuickProducts.length === 0 && (
           <div className="flex h-full min-h-[320px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">
-            <p className="text-sm font-semibold">
+            <p className="text-sm font-medium">
               {quickSearch ? 'No hay productos para esa busqueda' : 'No hay productos en esta categoria'}
             </p>
           </div>

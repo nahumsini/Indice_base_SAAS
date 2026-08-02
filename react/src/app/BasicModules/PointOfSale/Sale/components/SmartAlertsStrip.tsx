@@ -82,7 +82,7 @@ export function SmartAlertsStrip({ alerts }: { alerts: SmartAlert[] }) {
             <AlertTriangle className="h-5 w-5 text-[#8A6500] dark:text-[#F4C84A]" />
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-black text-[#222831] dark:text-white">Alertas inteligentes</span>
+            <span className="block text-sm font-medium text-[#222831] dark:text-white">Alertas inteligentes</span>
             <span className="block truncate text-xs font-medium text-gray-500 dark:text-gray-400">
               {alerts.length} señales activas para revisar
             </span>
@@ -109,13 +109,13 @@ export function SmartAlertsStrip({ alerts }: { alerts: SmartAlert[] }) {
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={`mb-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${categoryStyles[alert.category]}`}>
+                    <span className={`mb-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-medium ${categoryStyles[alert.category]}`}>
                       {categoryLabels[alert.category]}
                     </span>
-                    <span className={`block truncate text-sm font-semibold ${styles.text}`}>{alert.title}</span>
+                    <span className={`block truncate text-sm font-medium ${styles.text}`}>{alert.title}</span>
                     <span className="mt-0.5 block text-xs text-gray-600 dark:text-gray-300">{alert.description}</span>
                     {alert.actionLabel && (
-                      <span className="mt-2 inline-flex text-xs font-semibold text-gray-900 underline-offset-2 hover:underline dark:text-white">
+                      <span className="mt-2 inline-flex text-xs font-medium text-gray-900 underline-offset-2 hover:underline dark:text-white">
                         {alert.actionLabel}
                       </span>
                     )}

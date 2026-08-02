@@ -86,14 +86,14 @@ export default function Kiosk() {
         banners={(
           <>
             {!isOnline ? (
-              <div role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-center text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-200">
+              <div role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-center text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-200">
                 {selectedLocale.startsWith('es')
                   ? 'Sin conexión. Las acciones del kiosko están pausadas.'
                   : 'Offline. Kiosk actions are paused.'}
               </div>
             ) : null}
             {isSessionExpiring ? (
-              <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm font-semibold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-100">
+              <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-100">
                 {selectedLocale.startsWith('es')
                   ? 'Tu sesión está por vencer. Interactúa para continuar.'
                   : 'Your session is about to expire. Interact to continue.'}

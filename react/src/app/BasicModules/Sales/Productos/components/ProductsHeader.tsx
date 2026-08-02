@@ -38,6 +38,14 @@ export function ProductsHeader({
           <Button
             variant="outline"
             className={salesTitleBarSecondaryActionClassName}
+            onClick={onOpenColumns}
+          >
+            <Columns3 className="h-4 w-4" />
+            {t.header.columnsAction}
+          </Button>
+          <Button
+            variant="outline"
+            className={salesTitleBarSecondaryActionClassName}
             onClick={onOpenPublicCatalog}
           >
             <Globe2 className="h-4 w-4" />
@@ -50,14 +58,6 @@ export function ProductsHeader({
           >
             <FolderCog className="h-4 w-4" />
             {t.header.categoryAction}
-          </Button>
-          <Button
-            variant="outline"
-            className={salesTitleBarSecondaryActionClassName}
-            onClick={onOpenColumns}
-          >
-            <Columns3 className="h-4 w-4" />
-            {t.header.columnsAction}
           </Button>
           <Button className={salesTitleBarPrimaryActionClassName} onClick={onCreateProduct}>
             <Plus className="h-4 w-4" />

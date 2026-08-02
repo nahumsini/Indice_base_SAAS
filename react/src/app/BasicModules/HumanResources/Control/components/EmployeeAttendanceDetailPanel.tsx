@@ -54,7 +54,7 @@ export function EmployeeAttendanceDetailPanel({
     <section className="rounded-lg border border-[#59C3A5]/10 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-800">
       <div className="flex flex-col gap-4">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-xl font-medium text-gray-900 dark:text-white">
             {copy.labels.attendanceCalendar}
           </h3>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">

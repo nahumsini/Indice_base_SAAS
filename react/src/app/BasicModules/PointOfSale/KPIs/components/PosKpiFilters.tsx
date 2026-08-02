@@ -16,7 +16,7 @@ export function PosKpiFilters({
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#B63B32] dark:text-[#FFB0AA]">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-[#B63B32] dark:text-[#FFB0AA]">
         <SlidersHorizontal className="h-4 w-4" />
         Filtros de lectura POS
       </div>
@@ -28,9 +28,9 @@ export function PosKpiFilters({
               key={option.value}
               type="button"
               onClick={() => onPeriodChange(option.value)}
-              className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition ${
+              className={`min-h-10 rounded-lg px-4 text-sm font-medium transition ${
                 period === option.value
-                  ? 'bg-[#FF6B5E] text-white shadow-sm shadow-[#FF6B5E]/20'
+                  ? 'bg-[#FF6B5E] text-[#222831] shadow-sm shadow-[#FF6B5E]/20'
                   : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-900'
               }`}
             >

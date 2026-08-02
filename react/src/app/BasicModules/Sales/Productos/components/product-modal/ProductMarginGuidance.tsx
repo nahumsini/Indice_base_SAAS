@@ -34,8 +34,8 @@ export function ProductMarginGuidance({
       <div className="flex items-start gap-3">
         <Icon className="mt-0.5 h-5 w-5 shrink-0" />
         <div>
-          <p className="text-sm font-semibold">{t.marginGuidance.title(getRoundedPercentValue(actualMargin))}</p>
-          <p className="mt-1 text-sm font-semibold leading-5">{t.marginGuidance.messages[guidance.labelKey]}</p>
+          <p className="text-sm font-medium">{t.marginGuidance.title(getRoundedPercentValue(actualMargin))}</p>
+          <p className="mt-1 text-sm font-medium leading-5">{t.marginGuidance.messages[guidance.labelKey]}</p>
         </div>
       </div>
     </div>

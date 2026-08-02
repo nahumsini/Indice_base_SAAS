@@ -27,7 +27,7 @@ export function QuoteCatalogSection({
     <section className="space-y-4">
       <div className="flex flex-col gap-3 rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+          <h3 className="flex items-center gap-2 text-base font-medium text-slate-950">
             <PackagePlus className="h-5 w-5 text-[#B63B32]" />
             {t.sections.catalogTitle}
           </h3>

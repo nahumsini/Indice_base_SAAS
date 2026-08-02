@@ -17,7 +17,7 @@ export function FieldGroup({ title, description, children, className }: FieldGro
       )}
     >
       <div className="mb-4">
-        <h4 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h4>
+        <h4 className="text-sm font-medium text-slate-900 dark:text-white">{title}</h4>
         {description ? (
           <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>
         ) : null}

@@ -26,7 +26,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
       <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#59C3A5] shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {icon}
       </span>
-      <span className={`text-base font-bold ${valueClassName}`}>{value}</span>
+      <span className={`text-base font-medium ${valueClassName}`}>{value}</span>
       <span>{label}</span>
     </span>
   );
@@ -63,7 +63,7 @@ export function AssetKpiStrip({
         <span className="text-slate-300 dark:text-slate-600">•</span>
         <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={copy.kpis.assetValue} value={assetValueLabel} valueClassName="text-[#59C3A5]" />
         {currencyCount > 1 ? (
-          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/12 dark:text-blue-200">
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/12 dark:text-blue-200">
             {copy.kpis.currencies(currencyCount)}
           </span>
         ) : null}
@@ -86,7 +86,7 @@ export function AssetKpiStrip({
 
       <div className="rounded-lg border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#59C3A5] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-blue-100">
         <div>{copy.kpis.summary(assignedCount, availableCount, maintenanceCount, selectedCount, visibleCount, totalCount)}</div>
-        <div className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">{nativeBreakdownLabel}</div>
+        <div className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">{nativeBreakdownLabel}</div>
       </div>
     </div>
   );

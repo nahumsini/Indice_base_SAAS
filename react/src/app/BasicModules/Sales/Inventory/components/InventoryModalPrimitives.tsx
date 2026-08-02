@@ -35,7 +35,7 @@ export function InventoryModalSection({
     <section className={cn('rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/40', className)}>
       {title || description ? (
         <div className="mb-4">
-          {title ? <h3 className="text-base font-semibold text-slate-950 dark:text-white">{title}</h3> : null}
+          {title ? <h3 className="text-base font-medium text-slate-950 dark:text-white">{title}</h3> : null}
           {description ? <p className="mt-1 text-sm font-normal leading-6 text-slate-600 dark:text-slate-300">{description}</p> : null}
         </div>
       ) : null}

@@ -45,7 +45,7 @@ export function IndiceModalValidation({
     >
       <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
       <div className="min-w-0">
-        {title ? <p className="font-semibold">{title}</p> : null}
+        {title ? <p className="font-medium">{title}</p> : null}
         {messages.length === 1 ? (
           <p className={cn(title && 'mt-1')}>{messages[0]}</p>
         ) : (

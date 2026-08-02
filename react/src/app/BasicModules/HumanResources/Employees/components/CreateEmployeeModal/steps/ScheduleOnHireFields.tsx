@@ -37,7 +37,7 @@ export function ScheduleOnHireFields({
           className="mt-1 h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]/30 dark:border-slate-600"
         />
         <span>
-          <span className="block text-sm font-bold text-slate-900 dark:text-white">
+          <span className="block text-sm font-medium text-slate-900 dark:text-white">
             {copy.labels.scheduleOnHire}
           </span>
           <span className="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">

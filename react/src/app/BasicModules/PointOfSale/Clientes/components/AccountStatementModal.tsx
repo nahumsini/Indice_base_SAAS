@@ -339,20 +339,20 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
           {transactions.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-normal text-white/70">Total cargos</p>
-                <p className="text-lg font-black text-white">{formatCurrency(totals.sales)}</p>
+                <p className="text-[11px] font-medium tracking-normal text-white/70">Total cargos</p>
+                <p className="text-lg font-medium text-white">{formatCurrency(totals.sales)}</p>
               </div>
               <div>
-                <p className="text-[11px] font-black uppercase tracking-normal text-white/70">Total abonos</p>
-                <p className="text-lg font-black text-white">{formatCurrency(totals.payments)}</p>
+                <p className="text-[11px] font-medium tracking-normal text-white/70">Total abonos</p>
+                <p className="text-lg font-medium text-white">{formatCurrency(totals.payments)}</p>
               </div>
               <div className="border-white/30 sm:border-l sm:pl-4">
-                <p className="text-[11px] font-black uppercase tracking-normal text-white/70">Saldo final</p>
-                <p className="text-xl font-black text-white">{formatCurrency(customer.currentBalance)}</p>
+                <p className="text-[11px] font-medium tracking-normal text-white/70">Saldo final</p>
+                <p className="text-xl font-medium text-white">{formatCurrency(customer.currentBalance)}</p>
               </div>
             </div>
           ) : (
-            <p className="text-sm font-bold text-white/80">Sin movimientos registrados.</p>
+            <p className="text-sm font-medium text-white/80">Sin movimientos registrados.</p>
           )}
 
           <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
@@ -365,20 +365,20 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
         <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">RFC</p>
-              <p className="font-mono text-sm font-black text-gray-900 dark:text-white">{customer.rfc || 'N/A'}</p>
+              <p className="mb-1 text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">RFC</p>
+              <p className="font-mono text-sm font-medium text-gray-900 dark:text-white">{customer.rfc || 'N/A'}</p>
             </div>
             <div>
-              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">Email</p>
-              <p className="break-words text-sm font-black text-gray-900 dark:text-white">{customer.email}</p>
+              <p className="mb-1 text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">Email</p>
+              <p className="break-words text-sm font-medium text-gray-900 dark:text-white">{customer.email}</p>
             </div>
             <div>
-              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">Telefono</p>
-              <p className="text-sm font-black text-gray-900 dark:text-white">{customer.phone}</p>
+              <p className="mb-1 text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">Telefono</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{customer.phone}</p>
             </div>
             <div>
-              <p className="mb-1 text-xs font-bold uppercase tracking-normal text-gray-500 dark:text-gray-400">Cliente desde</p>
-              <p className="text-sm font-black text-gray-900 dark:text-white">{formatDate(customer.createdAt)}</p>
+              <p className="mb-1 text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">Cliente desde</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(customer.createdAt)}</p>
             </div>
           </div>
         </section>
@@ -387,9 +387,9 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
             <div className="mb-2 flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <p className="text-xs font-black uppercase tracking-normal text-blue-700 dark:text-blue-300">Limite de credito</p>
+              <p className="text-xs font-medium tracking-normal text-blue-700 dark:text-blue-300">Limite de credito</p>
             </div>
-            <p className="text-xl font-black text-blue-950 dark:text-blue-200">
+            <p className="text-xl font-medium text-blue-950 dark:text-blue-200">
               {customer.creditLimit ? formatCurrency(customer.creditLimit) : 'N/A'}
             </p>
           </div>
@@ -397,17 +397,17 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
             <div className="mb-2 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-red-600 dark:text-red-400" />
-              <p className="text-xs font-black uppercase tracking-normal text-red-700 dark:text-red-300">Saldo actual</p>
+              <p className="text-xs font-medium tracking-normal text-red-700 dark:text-red-300">Saldo actual</p>
             </div>
-            <p className="text-xl font-black text-red-950 dark:text-red-200">{formatCurrency(customer.currentBalance)}</p>
+            <p className="text-xl font-medium text-red-950 dark:text-red-200">{formatCurrency(customer.currentBalance)}</p>
           </div>
 
           <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
             <div className="mb-2 flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <p className="text-xs font-black uppercase tracking-normal text-green-700 dark:text-green-300">Credito disponible</p>
+              <p className="text-xs font-medium tracking-normal text-green-700 dark:text-green-300">Credito disponible</p>
             </div>
-            <p className="text-xl font-black text-green-950 dark:text-green-200">
+            <p className="text-xl font-medium text-green-950 dark:text-green-200">
               {customer.creditLimit
                 ? formatCurrency(customer.creditLimit - customer.currentBalance)
                 : 'N/A'
@@ -418,16 +418,16 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
           <div className="rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-4 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/10">
             <div className="mb-2 flex items-center gap-2">
               <Calendar className="h-4 w-4 text-[#C64237] dark:text-[#FFB5AE]" />
-              <p className="text-xs font-black uppercase tracking-normal text-[#C64237] dark:text-[#FFB5AE]">Total compras</p>
+              <p className="text-xs font-medium tracking-normal text-[#C64237] dark:text-[#FFB5AE]">Total compras</p>
             </div>
-            <p className="text-xl font-black text-[#222831] dark:text-white">{formatCurrency(customer.totalPurchases)}</p>
+            <p className="text-xl font-medium text-[#222831] dark:text-white">{formatCurrency(customer.totalPurchases)}</p>
           </div>
         </section>
 
         <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="border-b border-gray-200 p-5 dark:border-gray-700">
-            <h3 className="text-lg font-black text-gray-900 dark:text-white">Historial de movimientos</h3>
-            <p className="mt-1 text-sm font-semibold text-gray-600 dark:text-gray-400">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Historial de movimientos</h3>
+            <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-400">
               Total de transacciones: {transactions.length}
             </p>
           </div>
@@ -435,54 +435,54 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
           {transactions.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FileText className="mx-auto mb-3 h-12 w-12 text-gray-400" />
-              <p className="font-semibold text-gray-500 dark:text-gray-400">No hay movimientos registrados</p>
+              <p className="font-medium text-gray-500 dark:text-gray-400">No hay movimientos registrados</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[920px]">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Fecha</th>
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Tipo</th>
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Descripcion</th>
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Referencia</th>
-                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Cargos</th>
-                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Abonos</th>
-                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-normal text-gray-600 dark:text-gray-400">Saldo</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-normal text-gray-600 dark:text-gray-400">Fecha</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-normal text-gray-600 dark:text-gray-400">Tipo</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-normal text-gray-600 dark:text-gray-400">Descripcion</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-normal text-gray-600 dark:text-gray-400">Referencia</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium tracking-normal text-gray-600 dark:text-gray-400">Cargos</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium tracking-normal text-gray-600 dark:text-gray-400">Abonos</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium tracking-normal text-gray-600 dark:text-gray-400">Saldo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                   {transactions.map((transaction) => (
                     <tr key={transaction.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/70">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                         {formatDate(transaction.date)}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-black ${getTransactionTypeColor(transaction.type)}`}>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getTransactionTypeColor(transaction.type)}`}>
                           {getTransactionTypeLabel(transaction.type)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                         {transaction.description}
                       </td>
                       <td className="px-4 py-3 font-mono text-sm text-gray-600 dark:text-gray-400">
                         {transaction.reference || transaction.invoice || '-'}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-black">
+                      <td className="px-4 py-3 text-right text-sm font-medium">
                         {transaction.amount > 0 ? (
                           <span className="text-red-600 dark:text-red-400">{formatCurrency(transaction.amount)}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-black">
+                      <td className="px-4 py-3 text-right text-sm font-medium">
                         {transaction.amount < 0 ? (
                           <span className="text-green-600 dark:text-green-400">{formatCurrency(Math.abs(transaction.amount))}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-black text-gray-900 dark:text-white">
+                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">
                         {formatCurrency(transaction.balance)}
                       </td>
                     </tr>

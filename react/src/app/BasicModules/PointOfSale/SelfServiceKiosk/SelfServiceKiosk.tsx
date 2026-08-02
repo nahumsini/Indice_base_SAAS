@@ -183,7 +183,7 @@ export default function SelfServiceKiosk() {
       maxWidthClassName="max-w-[1500px]"
       errorMessage={viewError || null}
       banners={!online ? (
-        <div role="status" className="flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-bold text-amber-800">
+        <div role="status" className="flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">
           <WifiOff className="h-4 w-4" /> {copy.selfServicePublic.offline}
         </div>
       ) : null}
@@ -192,13 +192,13 @@ export default function SelfServiceKiosk() {
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-lg bg-teal-600 text-white"><Store /></span>
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-700">{copy.selfServicePublic.eyebrow}</p>
-              <h1 className="truncate text-xl font-black text-slate-950 dark:text-white">
+              <p className="text-xs font-medium text-teal-700">{copy.selfServicePublic.eyebrow}</p>
+              <h1 className="truncate text-xl font-medium text-slate-950 dark:text-white">
                 {bootstrap?.name ?? copy.selfServicePublic.preparingCatalog}
               </h1>
               {bootstrap ? (
                 <div className="text-sm text-slate-500 dark:text-slate-400">
-                  <p className="truncate font-semibold">{bootstrap.companyName}</p>
+                  <p className="truncate font-medium">{bootstrap.companyName}</p>
                   <p className="truncate">{bootstrap.unitName} · {bootstrap.businessName} · {bootstrap.warehouseName}</p>
                   <p className="truncate">{copy.selfServicePublic.pickupAt(bootstrap.cashRegisterName)}</p>
                 </div>
@@ -209,7 +209,7 @@ export default function SelfServiceKiosk() {
       )}
     >
       {viewLoading ? (
-        <div className="grid flex-1 place-items-center py-20 text-sm font-bold text-slate-500">{copy.selfServicePublic.loading}</div>
+        <div className="grid flex-1 place-items-center py-20 text-sm font-medium text-slate-500">{copy.selfServicePublic.loading}</div>
       ) : null}
 
       {!viewLoading && !bootstrap ? (
@@ -218,7 +218,7 @@ export default function SelfServiceKiosk() {
             type="button"
             disabled={!online}
             onClick={() => setReloadKey((current) => current + 1)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-sm font-medium text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             <RefreshCw className="h-4 w-4" /> {copy.selfServicePublic.retry}
           </button>
@@ -255,7 +255,7 @@ export default function SelfServiceKiosk() {
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
                 aria-label={copy.selfServicePublic.categoryFilterLabel}
-                className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold dark:border-slate-700 dark:bg-slate-900"
+                className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium dark:border-slate-700 dark:bg-slate-900"
               >
                 <option value="all">{copy.selfServicePublic.allCategories}</option>
                 {categories.map((value) => <option key={value} value={value}>{value}</option>)}
@@ -263,7 +263,7 @@ export default function SelfServiceKiosk() {
             </div>
 
             {visibleItems.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 px-6 py-16 text-center text-sm font-semibold text-slate-500">
+              <div className="rounded-lg border border-dashed border-slate-300 px-6 py-16 text-center text-sm font-medium text-slate-500">
                 {copy.selfServicePublic.emptyResults}
               </div>
             ) : (
@@ -272,15 +272,15 @@ export default function SelfServiceKiosk() {
                   const quantity = cart[item.productId] ?? 0;
                   return (
                     <article key={item.productId} className="flex min-h-56 flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                      <p className="text-xs font-bold uppercase tracking-wide text-teal-700">{item.category || copy.selfServicePublic.product}</p>
-                      <h2 className="mt-2 text-base font-black text-slate-950 dark:text-white">{item.name}</h2>
+                      <p className="text-xs font-medium text-teal-700">{item.category || copy.selfServicePublic.product}</p>
+                      <h2 className="mt-2 text-base font-medium text-slate-950 dark:text-white">{item.name}</h2>
                       <p className="mt-1 text-xs text-slate-500">{item.sku || copy.selfServicePublic.noCode}</p>
                       {item.description ? <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{item.description}</p> : null}
                       <div className="mt-auto pt-4">
                         <div className="flex items-end justify-between gap-2">
                           <strong className="text-xl text-teal-700">{formatCurrency(item.unitPrice, item.currencyCode, locale)}</strong>
                           {bootstrap.showStock && item.stockTracked ? (
-                            <span className="text-xs font-bold text-slate-500">{numberValue(item.availableQuantity)} {copy.selfServicePublic.available}</span>
+                            <span className="text-xs font-medium text-slate-500">{numberValue(item.availableQuantity)} {copy.selfServicePublic.available}</span>
                           ) : null}
                         </div>
                         {quantity === 0 ? (
@@ -288,14 +288,14 @@ export default function SelfServiceKiosk() {
                             type="button"
                             disabled={!item.available}
                             onClick={() => changeQuantity(item, 1)}
-                            className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                            className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                           >
                             <Plus className="h-4 w-4" /> {item.available ? copy.selfServicePublic.add : copy.selfServicePublic.unavailableItem}
                           </button>
                         ) : (
                           <div className="mt-3 grid grid-cols-[44px_1fr_44px] items-center overflow-hidden rounded-lg border border-teal-200">
                             <button type="button" onClick={() => changeQuantity(item, -1)} className="grid h-11 place-items-center text-teal-700" aria-label={copy.selfServicePublic.removeItem(item.name)}><Minus className="h-4 w-4" /></button>
-                            <span className="text-center text-sm font-black">{quantity}</span>
+                            <span className="text-center text-sm font-medium">{quantity}</span>
                             <button type="button" onClick={() => changeQuantity(item, 1)} className="grid h-11 place-items-center bg-teal-600 text-white" aria-label={copy.selfServicePublic.addItem(item.name)}><Plus className="h-4 w-4" /></button>
                           </div>
                         )}
@@ -310,15 +310,15 @@ export default function SelfServiceKiosk() {
           <aside className="h-fit rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 xl:sticky xl:top-4">
             <div className="flex items-center gap-2">
               <ShoppingBasket className="h-5 w-5 text-teal-700" />
-              <h2 className="text-lg font-black">{copy.selfServicePublic.selection}</h2>
-              <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-xs font-black text-teal-800">{cartLines.length}</span>
+              <h2 className="text-lg font-medium">{copy.selfServicePublic.selection}</h2>
+              <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800">{cartLines.length}</span>
             </div>
             <div className="mt-4 space-y-2">
-              {cartLines.length === 0 ? <p className="rounded-lg bg-white px-3 py-8 text-center text-sm font-semibold text-slate-500 dark:bg-slate-950">{copy.selfServicePublic.emptyCart}</p> : null}
+              {cartLines.length === 0 ? <p className="rounded-lg bg-white px-3 py-8 text-center text-sm font-medium text-slate-500 dark:bg-slate-950">{copy.selfServicePublic.emptyCart}</p> : null}
               {cartLines.map(({ product, quantity }) => (
                 <div key={product.productId} className="flex items-center gap-3 rounded-lg bg-white p-3 dark:bg-slate-950">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black">{product.name}</p>
+                    <p className="truncate text-sm font-medium">{product.name}</p>
                     <p className="text-xs text-slate-500">{quantity} × {formatCurrency(product.unitPrice, product.currencyCode, locale)}</p>
                   </div>
                   <strong className="text-sm">{formatCurrency(numberValue(product.unitPrice) * quantity, product.currencyCode, locale)}</strong>
@@ -327,25 +327,25 @@ export default function SelfServiceKiosk() {
               ))}
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-700">
-              <span className="font-bold">{copy.selfServicePublic.estimatedTotal}</span>
+              <span className="font-medium">{copy.selfServicePublic.estimatedTotal}</span>
               <strong className="text-2xl text-teal-700">{formatCurrency(total, bootstrap.currencyCode, locale)}</strong>
             </div>
             <div className="mt-4 grid gap-3">
-              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+              <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
                 <span>{copy.selfServicePublic.name}{bootstrap.customerNameRequired ? ' *' : ` (${copy.selfServicePublic.optional})`}</span>
                 <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" maxLength={180} className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
               </label>
-              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+              <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
                 <span>{copy.selfServicePublic.email} ({copy.selfServicePublic.optional})</span>
                 <input value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} autoComplete="email" type="email" maxLength={180} className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
               </label>
-              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+              <label className="grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
                 <span>{copy.selfServicePublic.phone} ({copy.selfServicePublic.optional})</span>
                 <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} autoComplete="tel" type="tel" maxLength={40} className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
               </label>
             </div>
             <p className="mt-3 text-xs leading-5 text-slate-500">{copy.selfServicePublic.disclaimer}</p>
-            <button type="button" disabled={!online || submitting || cartLines.length === 0} onClick={() => void submit()} className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={!online || submitting || cartLines.length === 0} onClick={() => void submit()} className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] shadow-sm disabled:cursor-not-allowed disabled:opacity-50">
               <ShoppingBasket className="h-5 w-5" /> {submitting ? copy.selfServicePublic.creating : copy.selfServicePublic.createPreticket}
             </button>
           </aside>
@@ -360,18 +360,18 @@ function PreticketSuccess({ preticket, onNew }: { preticket: SelfServicePreticke
   return (
     <div className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center py-10 text-center">
       <CheckCircle2 className="h-20 w-20 text-emerald-600" />
-      <p className="mt-5 text-sm font-black uppercase tracking-[0.2em] text-emerald-700">{copy.selfServicePublic.ready}</p>
-      <h2 className="mt-2 text-3xl font-black">{copy.selfServicePublic.showCode}</h2>
+      <p className="mt-5 text-sm font-medium text-emerald-700">{copy.selfServicePublic.ready}</p>
+      <h2 className="mt-2 text-3xl font-medium">{copy.selfServicePublic.showCode}</h2>
       <div className="mt-6 w-full max-w-full overflow-hidden rounded-lg border-2 border-dashed border-teal-300 bg-teal-50 px-4 py-6 sm:px-10 dark:bg-teal-950/30">
-        <p className="break-all font-mono text-3xl font-black tracking-[0.1em] text-teal-800 sm:text-5xl sm:tracking-[0.16em] dark:text-teal-200">{preticket.claimCode}</p>
-        <p className="mt-2 text-xs font-bold text-teal-700">{preticket.preticketNumber}</p>
+        <p className="break-all font-mono text-3xl font-medium text-teal-800 sm:text-5xl dark:text-teal-200">{preticket.claimCode}</p>
+        <p className="mt-2 text-xs font-medium text-teal-700">{preticket.preticketNumber}</p>
       </div>
       <dl className="mt-6 grid w-full grid-cols-2 gap-3 text-left">
-        <div className="rounded-lg bg-slate-100 p-4 dark:bg-slate-900"><dt className="text-xs font-bold text-slate-500">{copy.selfServicePublic.items}</dt><dd className="mt-1 text-lg font-black">{preticket.itemCount}</dd></div>
-        <div className="rounded-lg bg-slate-100 p-4 dark:bg-slate-900"><dt className="text-xs font-bold text-slate-500">{copy.selfServicePublic.estimatedTotal}</dt><dd className="mt-1 text-lg font-black">{formatCurrency(preticket.totalAmount, preticket.currencyCode, locale)}</dd></div>
+        <div className="rounded-lg bg-slate-100 p-4 dark:bg-slate-900"><dt className="text-xs font-medium text-slate-500">{copy.selfServicePublic.items}</dt><dd className="mt-1 text-lg font-medium">{preticket.itemCount}</dd></div>
+        <div className="rounded-lg bg-slate-100 p-4 dark:bg-slate-900"><dt className="text-xs font-medium text-slate-500">{copy.selfServicePublic.estimatedTotal}</dt><dd className="mt-1 text-lg font-medium">{formatCurrency(preticket.totalAmount, preticket.currencyCode, locale)}</dd></div>
       </dl>
       <p className="mt-5 text-sm text-slate-600 dark:text-slate-300">{copy.selfServicePublic.expires(new Date(preticket.expiresAt).toLocaleString(locale))}</p>
-      <button type="button" onClick={onNew} className="mt-7 h-11 rounded-lg border border-slate-300 bg-white px-6 text-sm font-black text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-white">{copy.selfServicePublic.createAnother}</button>
+      <button type="button" onClick={onNew} className="mt-7 h-11 rounded-lg border border-slate-300 bg-white px-6 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-white">{copy.selfServicePublic.createAnother}</button>
     </div>
   );
 }

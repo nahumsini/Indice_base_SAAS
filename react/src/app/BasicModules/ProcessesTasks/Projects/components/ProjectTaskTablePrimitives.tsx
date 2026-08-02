@@ -75,7 +75,7 @@ export function SortableHead<TColumnId extends string>({
     <TableHead className="group relative px-4 py-4" style={width ? { width, minWidth: width } : undefined}>
       <button
         type="button"
-        className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
+        className="flex min-w-0 items-center gap-2 text-left text-sm font-medium text-slate-500 transition-colors hover:text-[#9A6B05] dark:text-slate-400"
         onClick={() => onSort(columnId)}
       >
         <span className="truncate">{column.label}</span>

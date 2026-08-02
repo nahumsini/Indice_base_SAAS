@@ -17,6 +17,16 @@ export const INDICE_BRAND_COLORS = {
   error: '#EF4444',
 } as const;
 
+export function getModulePrimaryForeground(tone: IndiceModuleTone) {
+  return tone === 'aqua'
+    || tone === 'coral'
+    || tone === 'orange'
+    || tone === 'yellow'
+    || tone === 'gold'
+    ? INDICE_BRAND_COLORS.graphite
+    : '#ffffff';
+}
+
 export type IndiceModuleTone =
   | 'aqua'
   | 'blue'

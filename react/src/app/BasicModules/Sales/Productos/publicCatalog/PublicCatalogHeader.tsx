@@ -1,4 +1,4 @@
-import { Mail, MessageCircle, Phone, Store, Globe2 } from 'lucide-react';
+import { ArrowUpRight, Globe2, Mail, MessageCircle, Phone, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type { ProductsTranslations } from '../translations';
 import type { PublicCatalogConfig } from './types/publicCatalogTypes';
@@ -21,29 +21,32 @@ const contactHref = (config: PublicCatalogConfig) => {
 
 export function PublicCatalogHeader({
   config,
+  itemCount,
   t,
   compact = false,
 }: {
   config: PublicCatalogConfig;
+  itemCount: number;
   t: ProductsTranslations;
   compact?: boolean;
 }) {
   const ContactIcon = contactIcons[config.contactMethod];
   const href = contactHref(config);
+  const externalContact = config.contactMethod !== 'phone' && config.contactMethod !== 'email';
 
   if (compact) {
     return (
-      <header className="w-full min-w-0 max-w-full overflow-hidden border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-        <div className="min-w-0 px-4 py-5">
+      <header className="w-full min-w-0 overflow-hidden border-b border-[#FF6B5E]/20 bg-[linear-gradient(145deg,rgba(255,107,94,.12),rgba(255,255,255,1)_52%)] dark:bg-[linear-gradient(145deg,rgba(255,107,94,.15),rgba(2,6,23,1)_55%)]">
+        <div className="min-w-0 px-4 py-4">
           <div className="flex items-start gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#FF6B5E]/25 bg-white/80 text-[#B63B32] shadow-sm dark:bg-slate-950/70 dark:text-[#FF9B91]">
               <Store className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-wider text-[#B63B32]">{t.publicCatalog.moduleEyebrow}</p>
-              <h1 className="mt-1 text-2xl font-black leading-7 text-slate-950 dark:text-white">{config.title}</h1>
+              <p className="text-[10px] font-mediumr text-[#B63B32] dark:text-[#FF9B91]">{t.publicCatalog.moduleEyebrow}</p>
+              <h1 className="mt-1 line-clamp-2 text-2xl font-medium leading-7 text-slate-950 dark:text-white">{config.title}</h1>
               {config.companyName || config.businessName ? (
-                <p className="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+                <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                   {[config.companyName, config.businessName].filter(Boolean).join(' · ')}
                 </p>
               ) : null}
@@ -52,18 +55,22 @@ export function PublicCatalogHeader({
           {config.description ? (
             <p className="mt-3 line-clamp-2 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{config.description}</p>
           ) : null}
+          <span className="mt-3 inline-flex rounded-full border border-[#FF6B5E]/20 bg-white/80 px-3 py-1.5 text-xs font-medium text-[#9F3028] dark:bg-slate-950/70 dark:text-[#FF9B91]">
+            {t.publicCatalog.productsFound(itemCount)}
+          </span>
           {href ? (
-            <Button asChild variant="outline" className="mt-4 h-10 w-full gap-2 rounded-xl border-[#FF6B5E]/30 font-black text-[#B63B32] hover:bg-[#FF6B5E]/5">
-              <a href={href} target={config.contactMethod === 'phone' || config.contactMethod === 'email' ? undefined : '_blank'} rel="noreferrer">
+            <Button asChild className="mt-4 h-12 w-full gap-2 rounded-xl bg-[#FF6B5E] font-medium text-[#222831] shadow-sm hover:bg-[#E85C50]">
+              <a href={href} target={externalContact ? '_blank' : undefined} rel="noreferrer">
                 <ContactIcon className="h-4 w-4" />
                 {config.contactCtaLabel || t.publicCatalog.contactCta}
+                <ArrowUpRight className="ml-auto h-4 w-4" />
               </a>
             </Button>
           ) : null}
         </div>
         {config.coverImageUrl ? (
           <div className="px-4 pb-4">
-            <img src={config.coverImageUrl} alt={config.title} className="aspect-[16/7] w-full rounded-2xl border border-slate-200 object-cover dark:border-slate-800" />
+            <img src={config.coverImageUrl} alt={config.title} className="aspect-[16/7] w-full rounded-2xl border border-white/70 object-cover shadow-sm dark:border-slate-800" />
           </div>
         ) : null}
       </header>
@@ -71,40 +78,39 @@ export function PublicCatalogHeader({
   }
 
   return (
-    <header className="bg-white dark:bg-slate-950">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-9 md:px-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
-            <Store className="h-7 w-7" />
+    <header className="overflow-hidden border-b border-[#FF6B5E]/20 bg-[linear-gradient(120deg,rgba(255,107,94,.13),rgba(255,255,255,1)_48%)] dark:bg-[linear-gradient(120deg,rgba(255,107,94,.15),rgba(2,6,23,1)_52%)]">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-7 md:px-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 gap-4 lg:max-w-[72%]">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#FF6B5E]/25 bg-white/80 text-[#B63B32] shadow-sm dark:bg-slate-950/70 dark:text-[#FF9B91]">
+            <Store className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-normal text-[#B63B32]">{t.publicCatalog.moduleEyebrow}</p>
-            <h1 className="mt-1 text-3xl font-black text-slate-950 md:text-4xl dark:text-white">{config.title}</h1>
+            <p className="text-xs font-medium text-[#B63B32] dark:text-[#FF9B91]">{t.publicCatalog.moduleEyebrow}</p>
+            <h1 className="mt-1 text-3xl font-medium leading-tight text-slate-950 md:text-[2.35rem] dark:text-white">{config.title}</h1>
             {config.companyName || config.unitName || config.businessName ? (
-              <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                 {[config.companyName, config.unitName, config.businessName].filter(Boolean).join(' / ')}
               </p>
             ) : null}
-            <p className="mt-2 max-w-3xl text-base font-medium leading-7 text-slate-600 dark:text-slate-300">{config.description}</p>
+            {config.description ? <p className="mt-2 max-w-3xl text-base font-medium leading-6 text-slate-600 dark:text-slate-300">{config.description}</p> : null}
+            <span className="mt-4 inline-flex rounded-full border border-[#FF6B5E]/20 bg-white/80 px-3 py-1.5 text-xs font-medium text-[#9F3028] dark:bg-slate-950/70 dark:text-[#FF9B91]">
+              {t.publicCatalog.productsFound(itemCount)}
+            </span>
           </div>
         </div>
-
         {href ? (
-          <Button asChild className="h-11 gap-2 rounded-xl bg-[#FF6B5E] px-5 text-sm font-black text-white shadow-sm hover:bg-[#E85C50]">
-            <a href={href} target={config.contactMethod === 'phone' || config.contactMethod === 'email' ? undefined : '_blank'} rel="noreferrer">
+          <Button asChild className="h-12 shrink-0 gap-2 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] shadow-md shadow-[#FF6B5E]/20 hover:bg-[#E85C50]">
+            <a href={href} target={externalContact ? '_blank' : undefined} rel="noreferrer">
               <ContactIcon className="h-4 w-4" />
               {config.contactCtaLabel || t.publicCatalog.contactCta}
+              <ArrowUpRight className="h-4 w-4" />
             </a>
           </Button>
         ) : null}
       </div>
       {config.coverImageUrl ? (
-        <div className="mx-auto max-w-7xl px-5 pb-6 md:px-8">
-          <img
-            src={config.coverImageUrl}
-            alt={config.title}
-            className="h-64 w-full rounded-2xl border border-slate-200 object-cover shadow-sm dark:border-slate-800"
-          />
+        <div className="mx-auto max-w-7xl px-6 pb-6 md:px-8">
+          <img src={config.coverImageUrl} alt={config.title} className="h-56 w-full rounded-2xl border border-white/70 object-cover shadow-sm dark:border-slate-800" />
         </div>
       ) : null}
     </header>

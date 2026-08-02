@@ -28,8 +28,8 @@ export function PosKpiCard({ detail, icon: Icon, label, tone = 'coral', value }:
           <Icon className="h-5 w-5" />
         </span>
       </div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-2 truncate text-2xl font-bold tracking-normal text-slate-950 dark:text-white">{value}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-2 truncate text-2xl font-medium tracking-normal text-slate-950 dark:text-white">{value}</p>
       <p className="mt-2 min-h-[40px] text-sm leading-5 text-slate-600 dark:text-slate-300">{detail}</p>
     </article>
   );

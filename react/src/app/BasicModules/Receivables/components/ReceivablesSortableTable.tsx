@@ -108,12 +108,12 @@ export function SortableReceivablesHead<ColumnId extends string>({
   const active = sortState.columnId === columnId;
 
   return (
-    <TableHead className={cn('px-5 py-4 text-xs font-bold text-slate-500', align === 'right' && 'text-right')}>
+    <TableHead className={cn('px-5 py-4 text-xs font-medium text-slate-500', align === 'right' && 'text-right')}>
       <button
         type="button"
         onClick={() => onSort(columnId)}
         className={cn(
-          'inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300',
+          'inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300',
           align === 'right' && 'justify-end',
         )}
       >

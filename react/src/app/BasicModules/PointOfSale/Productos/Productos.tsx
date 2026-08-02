@@ -202,19 +202,19 @@ export default function Productos() {
       />
 
       {notice && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {notice}
         </div>
       )}
 
       {isLoadingInventoryBalances && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
           Sincronizando catálogo compartido de Sales e inventario disponible para POS.
         </div>
       )}
 
       {balanceLoadError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
           {balanceLoadError}
         </div>
       )}
@@ -228,7 +228,7 @@ export default function Productos() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Total productos</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{kpis.total}</p>
+              <p className="text-2xl font-medium text-gray-900 dark:text-white">{kpis.total}</p>
             </div>
           </div>
         </div>
@@ -240,7 +240,7 @@ export default function Productos() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Activos</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{kpis.active}</p>
+              <p className="text-2xl font-medium text-green-600 dark:text-green-400">{kpis.active}</p>
             </div>
           </div>
         </div>
@@ -252,7 +252,7 @@ export default function Productos() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Stock bajo</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{kpis.lowStock}</p>
+              <p className="text-2xl font-medium text-red-600 dark:text-red-400">{kpis.lowStock}</p>
             </div>
           </div>
         </div>
@@ -264,7 +264,7 @@ export default function Productos() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Valor inventario</p>
-              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              <p className="text-lg font-medium text-blue-600 dark:text-blue-400">
                 {formatCurrency(kpis.totalValue)}
               </p>
             </div>
@@ -278,7 +278,7 @@ export default function Productos() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Ganancia promedio</p>
-              <p className="text-2xl font-bold text-[#C64237] dark:text-[#FFB5AE]">
+              <p className="text-2xl font-medium text-[#C64237] dark:text-[#FFB5AE]">
                 {kpis.avgMargin.toFixed(1)}%
               </p>
             </div>
@@ -347,34 +347,34 @@ export default function Productos() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Código de Barras
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Producto
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Departamento
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Tipo Venta
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Precio Costo
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Ganancia
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Precio Venta
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Stock
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Estado
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
                   Acciones
                 </th>
               </tr>
@@ -431,13 +431,13 @@ export default function Productos() {
                           {getSaleTypeLabel(product.saleType)}
                         </span>
                       </td>
-	                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+	                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
 	                        {formatCurrency(product.costPrice, product.currency)}
 	                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-[#C64237] dark:text-[#FFB5AE]">
+                      <td className="px-4 py-3 text-sm font-medium text-[#C64237] dark:text-[#FFB5AE]">
                         {product.profitMargin.toFixed(2)}%
                       </td>
-	                      <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
+	                      <td className="px-4 py-3 text-sm font-medium text-green-600 dark:text-green-400">
 	                        {formatCurrency(product.salePrice, product.currency)}
 	                      </td>
                       <td className="px-4 py-3">

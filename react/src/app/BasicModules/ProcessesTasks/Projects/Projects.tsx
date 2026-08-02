@@ -502,7 +502,7 @@ function ProjectKpiMetric({
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#9A6B05] shadow-sm ring-1 ring-[#F4C84A]/30 dark:bg-slate-800 dark:text-[#FEF3C7] dark:ring-[#F4C84A]/35">
         {icon}
       </span>
-      <span className={cn('font-semibold', valueClassName)}>{value}</span>
+      <span className={cn('font-medium', valueClassName)}>{value}</span>
       <span>{label}</span>
     </div>
   );
@@ -639,21 +639,21 @@ function ProjectKpiStrip({
 
         <div className="flex flex-wrap items-center gap-2">
           {metrics.atRiskCount > 0 ? (
-            <span className="rounded-full border border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-3 py-1 text-xs font-semibold text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">
+            <span className="rounded-full border border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-3 py-1 text-xs font-medium text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">
               {copy.badges.atRisk(metrics.atRiskCount)}
             </span>
           ) : null}
           {metrics.pausedCount > 0 ? (
-            <span className="rounded-full border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-1 text-xs font-semibold text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
+            <span className="rounded-full border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-1 text-xs font-medium text-[#9A6B05] dark:border-[#F4C84A]/45 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7]">
               {copy.badges.paused(metrics.pausedCount)}
             </span>
           ) : null}
           {metrics.cancelledCount > 0 ? (
-            <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
               {copy.badges.cancelled(metrics.cancelledCount)}
             </span>
           ) : null}
-          <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', healthTone)}>
+          <span className={cn('rounded-full border px-3 py-1 text-xs font-medium', healthTone)}>
             {copy.badges.health(metrics.healthScore)}
           </span>
         </div>
@@ -1325,11 +1325,11 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
   const renderProjectCell = (project: ProjectRecord, columnId: ProjectColumnId): ReactNode => {
     switch (columnId) {
       case 'folio':
-        return <div className="text-sm font-semibold text-slate-900 dark:text-white">{project.folio}</div>;
+        return <div className="text-sm font-medium text-slate-900 dark:text-white">{project.folio}</div>;
       case 'name':
         return (
           <div className="min-w-[280px] space-y-1">
-            <p className="font-semibold text-slate-900 dark:text-white">{project.name}</p>
+            <p className="font-medium text-slate-900 dark:text-white">{project.name}</p>
             {project.description ? (
               <p className="line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{project.description}</p>
             ) : (
@@ -1441,7 +1441,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
               disabled={isProjectPending(project.id)}
               onValueChange={(value) => void persistProjectChange(project, { status: value as ProjectStatus })}
             >
-              <SelectTrigger className={cn('h-10 rounded-lg border text-sm font-semibold shadow-none focus:ring-[#F4C84A]/20', statusClasses[project.status])}>
+              <SelectTrigger className={cn('h-10 rounded-lg border text-sm font-medium shadow-none focus:ring-[#F4C84A]/20', statusClasses[project.status])}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1453,7 +1453,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
               </SelectContent>
             </Select>
             {isProjectAtRisk(project) ? (
-              <Badge variant="outline" className="rounded-full border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-3 py-1 font-semibold text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">
+              <Badge variant="outline" className="rounded-full border-[#FF2D5E]/30 bg-[#FF2D5E]/10 px-3 py-1 font-medium text-[#C60037] dark:border-[#FF2D5E]/45 dark:bg-[#FF2D5E]/15 dark:text-pink-200">
                 {projectCopy.common.atRisk}
               </Badge>
             ) : null}
@@ -1472,7 +1472,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
           >
             <SelectTrigger
               className={cn(
-                'h-10 min-w-[140px] rounded-lg border bg-white text-sm font-semibold shadow-none focus:ring-[#F4C84A]/20 dark:bg-slate-700',
+                'h-10 min-w-[140px] rounded-lg border bg-white text-sm font-medium shadow-none focus:ring-[#F4C84A]/20 dark:bg-slate-700',
                 project.priority
                   ? priorityClasses[project.priority]
                   : 'border-slate-200 text-slate-500 dark:border-slate-600 dark:text-slate-300',
@@ -1515,7 +1515,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
           <div className="min-w-[180px] space-y-2">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="font-medium text-slate-700 dark:text-slate-200">{projectCopy.table.progress}</span>
-              <span className="font-semibold text-slate-900 dark:text-white">{clampPercent(project.completionPercent)}%</span>
+              <span className="font-medium text-slate-900 dark:text-white">{clampPercent(project.completionPercent)}%</span>
             </div>
             <div className={progressTrackClass}>
               <div className="h-full rounded-full bg-[#F4C84A]" style={{ width: `${clampPercent(project.completionPercent)}%` }} />
@@ -1529,7 +1529,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
       case 'tasks':
         return (
           <div className="min-w-[170px] space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
               <ListChecks className="h-4 w-4" />
               {project.taskCount}
             </div>
@@ -1551,13 +1551,13 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
       <Button
         type="button"
         variant="outline"
-        className="h-10 w-full gap-2 rounded-lg border-[#F4C84A]/25 bg-white px-3 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A]/10 sm:w-auto sm:px-4 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
+        className="h-10 w-full gap-2 rounded-lg border-[#F4C84A]/25 bg-white px-3 text-sm font-medium text-[#9A6B05] shadow-none hover:bg-[#F4C84A]/10 sm:w-auto sm:px-4 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
         onClick={() => setIsColumnsModalOpen(true)}
       >
         <Columns3 className="h-4 w-4" />
         {headerCopy.actions.columns}
       </Button>
-      <Button className="h-10 w-full gap-2 rounded-lg bg-[#F4C84A] px-3 text-sm font-semibold text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835] sm:w-auto sm:px-4" onClick={openCreateDialog}>
+      <Button className="h-10 w-full gap-2 rounded-lg bg-[#F4C84A] px-3 text-sm font-medium text-slate-950 shadow-sm shadow-[#F4C84A]/20 hover:bg-[#E5B835] sm:w-auto sm:px-4" onClick={openCreateDialog}>
         <Plus className="h-4 w-4" />
         {headerCopy.actions.create}
       </Button>
@@ -1587,10 +1587,10 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
       ) : null}
 
       <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{projectCopy.filters.title}</h3>
+        <h3 className="mb-4 text-base font-medium text-slate-800 dark:text-white">{projectCopy.filters.title}</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
           <div className="space-y-2 md:col-span-3 xl:col-span-4">
-            <label htmlFor="projects-search" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.search}</label>
+            <label htmlFor="projects-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.search}</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
@@ -1603,7 +1603,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
             </div>
           </div>
           <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-unit-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.unit}</label>
+            <label id="projects-unit-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.unit}</label>
             <Select value={unitFilter} onValueChange={setUnitFilter}>
               <SelectTrigger aria-labelledby="projects-unit-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
@@ -1619,7 +1619,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
             </Select>
           </div>
           <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-business-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.business}</label>
+            <label id="projects-business-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.business}</label>
             <Select value={businessFilter} onValueChange={setBusinessFilter}>
               <SelectTrigger aria-labelledby="projects-business-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
@@ -1635,7 +1635,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
             </Select>
           </div>
           <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-status-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.status}</label>
+            <label id="projects-status-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.status}</label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
               <SelectTrigger aria-labelledby="projects-status-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
@@ -1652,7 +1652,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
             </Select>
           </div>
           <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-owner-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{projectCopy.filters.owner}</label>
+            <label id="projects-owner-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.owner}</label>
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
               <SelectTrigger aria-labelledby="projects-owner-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
@@ -1701,24 +1701,24 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
                 <article key={project.id} className={cn('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800', selectedProjectId === project.id && 'border-[#F4C84A]/60 bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15')}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9A6B05]">{project.folio}</p>
-                      <h3 className="mt-1 break-words text-base font-bold text-slate-950 dark:text-white">{project.name}</h3>
+                      <p className="text-xs font-medium text-[#9A6B05]">{project.folio}</p>
+                      <h3 className="mt-1 break-words text-base font-medium text-slate-950 dark:text-white">{project.name}</h3>
                       <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{project.description || projectCopy.common.noDescription}</p>
                     </div>
-                    <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', statusClasses[project.status])}>{projectCopy.statuses[project.status]}</Badge>
+                    <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', statusClasses[project.status])}>{projectCopy.statuses[project.status]}</Badge>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{projectCopy.columns.owner.label}</p>
-                      <p className="mt-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{project.ownerName || projectCopy.common.noResponsible}</p>
+                      <p className="text-[10px] font-medium text-slate-400">{projectCopy.columns.owner.label}</p>
+                      <p className="mt-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{project.ownerName || projectCopy.common.noResponsible}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{projectCopy.columns.dueDate.label}</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{formatDate(project.dueDate, false, projectCopy.common.noDate, locale)}</p>
+                      <p className="text-[10px] font-medium text-slate-400">{projectCopy.columns.dueDate.label}</p>
+                      <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{formatDate(project.dueDate, false, projectCopy.common.noDate, locale)}</p>
                     </div>
                     <div className="col-span-2 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
-                      <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+                      <div className="flex items-center justify-between gap-3 text-sm font-medium">
                         <span className="text-slate-600 dark:text-slate-300">{projectCopy.table.progress}</span>
                         <span className="text-slate-950 dark:text-white">{clampPercent(project.completionPercent)}%</span>
                       </div>
@@ -1746,7 +1746,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
                   <SortableTableHead key={column.id} column={column} sortState={sortState} onSort={handleSort} />
                 ))}
                 <TableHead className="px-4 py-4">
-                  <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{projectCopy.common.actions}</span>
+                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{projectCopy.common.actions}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>

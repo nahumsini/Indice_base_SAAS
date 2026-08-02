@@ -104,7 +104,7 @@ export function ProductTableRow({
           !hasDedicatedSkuColumn && !hasCategoryColumn && 'xl:grid-cols-[minmax(0,1fr)_minmax(150px,0.58fr)]',
         )}>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{product.name}</p>
+            <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{product.name}</p>
             <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{product.description}</p>
             <div className="mt-2">
               <ProductHealthIndicators product={product} t={t} limit={2} />
@@ -112,14 +112,14 @@ export function ProductTableRow({
           </div>
           {!hasDedicatedSkuColumn ? (
             <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-[10px] font-semibold uppercase tracking-normal text-slate-400">SKU</p>
-              <p className="mt-1 max-w-full whitespace-normal text-xs font-semibold leading-4 text-slate-600 [overflow-wrap:anywhere] dark:text-slate-300">{product.sku}</p>
+              <p className="text-[10px] font-medium tracking-normal text-slate-400">SKU</p>
+              <p className="mt-1 max-w-full whitespace-normal text-xs font-medium leading-4 text-slate-600 [overflow-wrap:anywhere] dark:text-slate-300">{product.sku}</p>
             </div>
           ) : null}
         </div>
       </TableCell>
       {hasDedicatedSkuColumn ? (
-        <TableCell className="w-[220px] px-5 py-4 align-middle text-sm font-semibold leading-5 text-slate-700 dark:text-slate-300">
+        <TableCell className="w-[220px] px-5 py-4 align-middle text-sm font-medium leading-5 text-slate-700 dark:text-slate-300">
           <span className="block max-w-full whitespace-normal [overflow-wrap:anywhere]">{product.sku}</span>
         </TableCell>
       ) : null}
@@ -134,18 +134,18 @@ export function ProductTableRow({
         </TableCell>
       ) : null}
       {visibleColumns.includes('type') ? (
-        <TableCell className="truncate px-5 py-4 align-middle font-semibold text-slate-700 dark:text-slate-300">{t.typeLabels[product.type]}</TableCell>
+        <TableCell className="truncate px-5 py-4 align-middle font-medium text-slate-700 dark:text-slate-300">{t.typeLabels[product.type]}</TableCell>
       ) : null}
       {visibleColumns.includes('price') ? (
-        <TableCell className="truncate px-5 py-4 align-middle font-black text-slate-950 dark:text-white">{formatProductCurrency(product.price, product.currency)}</TableCell>
+        <TableCell className="truncate px-5 py-4 align-middle font-medium text-slate-950 dark:text-white">{formatProductCurrency(product.price, product.currency)}</TableCell>
       ) : null}
       {visibleColumns.includes('cost') ? (
-        <TableCell className="truncate px-5 py-4 align-middle font-semibold text-slate-600 dark:text-slate-300">{formatProductCurrency(product.cost, product.currency)}</TableCell>
+        <TableCell className="truncate px-5 py-4 align-middle font-medium text-slate-600 dark:text-slate-300">{formatProductCurrency(product.cost, product.currency)}</TableCell>
       ) : null}
       {visibleColumns.includes('profit') ? (
         <TableCell className="px-5 py-4 align-middle">
-          <p className="font-black text-[#177d66]">{formatProductCurrency(getProductProfit(product), product.currency)}</p>
-          <p className="mt-1 text-xs font-bold text-[#B63B32]">{getProductMargin(product)}%</p>
+          <p className="font-medium text-[#177d66]">{formatProductCurrency(getProductProfit(product), product.currency)}</p>
+          <p className="mt-1 text-xs font-medium text-[#B63B32]">{getProductMargin(product)}%</p>
         </TableCell>
       ) : null}
       {visibleColumns.includes('status') ? (
@@ -168,7 +168,7 @@ export function ProductTableRow({
         </TableCell>
       ) : null}
       {visibleColumns.includes('lastUpdated') ? (
-        <TableCell className="truncate px-5 py-4 align-middle font-semibold text-slate-600 dark:text-slate-300">{product.lastUpdated}</TableCell>
+        <TableCell className="truncate px-5 py-4 align-middle font-medium text-slate-600 dark:text-slate-300">{product.lastUpdated}</TableCell>
       ) : null}
       <TableCell className="px-5 py-4 align-middle">
         <div className="ml-auto flex w-max items-center justify-end gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">

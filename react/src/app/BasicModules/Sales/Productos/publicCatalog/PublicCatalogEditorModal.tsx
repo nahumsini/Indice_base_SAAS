@@ -50,7 +50,7 @@ export function PublicCatalogEditorModal({
       icon={<Globe2 className="h-6 w-6" />}
       contentClassName="flex h-[min(88dvh,900px)] w-[calc(100vw-2rem)] max-w-[860px] flex-col sm:max-w-[860px]"
       bodyClassName="!max-h-none min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-white p-0"
-      footerSummary={error ? <span role="alert" className="font-semibold text-white">{error}</span> : undefined}
+      footerSummary={error ? <span role="alert" className="font-medium text-white">{error}</span> : undefined}
       footer={(
         <>
           <Button type="button" variant="outline" className={editorActionClassNames.secondary} onClick={() => onOpenChange(false)}>

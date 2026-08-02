@@ -235,8 +235,8 @@ export function PublicTaskKioskDialogs(props: Props) {
                     <Sparkles className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A6B05] dark:text-[#FDE68A]">{copy.create.eyebrow}</p>
-                    <h2 id="task-kiosk-create-title" className="mt-0.5 text-xl font-semibold leading-tight">{copy.create.title}</h2>
+                    <p className="text-xs font-medium text-[#9A6B05] dark:text-[#FDE68A]">{copy.create.eyebrow}</p>
+                    <h2 id="task-kiosk-create-title" className="mt-0.5 text-xl font-medium leading-tight">{copy.create.title}</h2>
                     <p className="mt-1 line-clamp-2 text-xs font-normal leading-4 text-slate-500 dark:text-slate-400 sm:text-sm sm:leading-5">{copy.create.description}</p>
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export function PublicTaskKioskDialogs(props: Props) {
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/70 px-4 py-4 dark:bg-slate-900/40 sm:px-5">
             {errorMessage ? (
-              <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+              <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
                 {errorMessage}
               </div>
             ) : null}
@@ -267,13 +267,13 @@ export function PublicTaskKioskDialogs(props: Props) {
                     <ListChecks className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.create.titleLabel}</p>
+                    <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.create.titleLabel}</p>
                     <p className="text-xs font-normal text-slate-500 dark:text-slate-400">{copy.create.description}</p>
                   </div>
                 </div>
                 <div className="grid gap-3.5">
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.create.titleLabel}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.titleLabel}</span>
                     <Input
                       value={createTaskForm.title}
                       disabled={isSubmitting}
@@ -284,7 +284,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.create.descriptionLabel}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.descriptionLabel}</span>
                     <Textarea
                       value={createTaskForm.description}
                       rows={3}
@@ -297,7 +297,7 @@ export function PublicTaskKioskDialogs(props: Props) {
 
                   <div className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2">
                     <label className="space-y-2">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.create.dueDateLabel}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.dueDateLabel}</span>
                       <Input
                         type="date"
                         value={createTaskForm.dueDate}
@@ -307,7 +307,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                       />
                     </label>
                     <label className="space-y-2">
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.create.priorityLabel}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.priorityLabel}</span>
                       <select
                         value={createTaskForm.priority}
                         disabled={isSubmitting}
@@ -329,14 +329,14 @@ export function PublicTaskKioskDialogs(props: Props) {
                     <UserRound className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.header.scope}</p>
+                    <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.header.scope}</p>
                     <p className="text-xs font-normal text-slate-500 dark:text-slate-400">{scopeLabel}</p>
                   </div>
                 </div>
 
                 <div className="grid gap-3.5">
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.create.unitLabel}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.unitLabel}</span>
                     <select
                       value={createTaskForm.unitId}
                       disabled={isSubmitting}
@@ -360,7 +360,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.create.businessLabel}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.businessLabel}</span>
                     <select
                       value={createTaskForm.businessId}
                       disabled={isSubmitting}
@@ -383,7 +383,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.create.responsibleLabel}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.responsibleLabel}</span>
                     <select
                       value={createTaskForm.assignedUserCompanyId || identity.user.id.toString()}
                       disabled={isSubmitting}
@@ -409,17 +409,17 @@ export function PublicTaskKioskDialogs(props: Props) {
                     <Camera className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-slate-950 dark:text-white">{labels.createdEvidenceTitle}</p>
+                    <p className="text-sm font-medium text-slate-950 dark:text-white">{labels.createdEvidenceTitle}</p>
                     <p className="mt-1 text-xs font-normal text-slate-600 dark:text-slate-300">{labels.createdEvidenceBody}</p>
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/55 bg-[#F4C84A]/20 px-3 py-3 text-center text-sm font-semibold text-[#7A5204] transition hover:bg-[#F4C84A]/30 dark:text-[#FDE68A]">
+                  <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/55 bg-[#F4C84A]/20 px-3 py-3 text-center text-sm font-medium text-[#7A5204] transition hover:bg-[#F4C84A]/30 dark:text-[#FDE68A]">
                     <Camera className="h-5 w-5" />
                     {labels.takePhoto}
                     <input type="file" className="sr-only" accept="image/*" capture="environment" disabled={isSubmitting} onChange={handleCreateEvidenceFilesChange} />
                   </label>
-                  <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                  <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
                     <FileUp className="h-5 w-5" />
                     {labels.chooseFile}
                     <input type="file" className="sr-only" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={isSubmitting} onChange={handleCreateEvidenceFilesChange} />
@@ -431,7 +431,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                     {createEvidenceFiles.map((file) => (
                       <div
                         key={`${file.name}-${file.size}-${file.lastModified}`}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
                       >
                         <Paperclip className="h-4 w-4 text-[#9A6B05]" />
                         <span className="min-w-0 flex-1 truncate">{file.name}</span>
@@ -447,7 +447,7 @@ export function PublicTaskKioskDialogs(props: Props) {
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
                 disabled={!isOnline || isSubmitting}
                 onClick={() => {
                   setCreateEvidenceFiles([]);
@@ -458,7 +458,7 @@ export function PublicTaskKioskDialogs(props: Props) {
               </Button>
               <Button
                 type="button"
-                className="h-12 rounded-xl bg-[#F4C84A] px-5 text-sm font-semibold text-[#5F4003] hover:bg-[#E5B835]"
+                className="h-12 rounded-xl bg-[#F4C84A] px-5 text-sm font-medium text-[#5F4003] hover:bg-[#E5B835]"
                 disabled={isSubmitting}
                 onClick={() => void handleCreateTask()}
               >
@@ -485,8 +485,8 @@ export function PublicTaskKioskDialogs(props: Props) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F4C84A] text-[#5F4003] shadow-sm"><UserRound className="h-5 w-5" /></span>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#9A6B05] dark:text-[#FDE68A]">{copy.responsible.eyebrow}</p>
-                <h2 id="task-kiosk-responsible-title" className="mt-1 text-xl font-semibold leading-tight">{copy.responsible.title}</h2>
+                <p className="mt-3 text-xs font-medium text-[#9A6B05] dark:text-[#FDE68A]">{copy.responsible.eyebrow}</p>
+                <h2 id="task-kiosk-responsible-title" className="mt-1 text-xl font-medium leading-tight">{copy.responsible.title}</h2>
                 <p className="mt-1 text-sm font-normal text-slate-500 dark:text-slate-400">{copy.responsible.description}</p>
               </div>
               <button
@@ -502,17 +502,17 @@ export function PublicTaskKioskDialogs(props: Props) {
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/70 px-4 py-4 dark:bg-slate-900/40 sm:px-5">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              <p className="text-[11px] font-medium text-slate-500">
                 {responsibleTask.unit_name || copy.filters.unassignedUnit} / {responsibleTask.business_name || copy.filters.unassignedBusiness}
               </p>
-              <h3 className="mt-2 text-lg font-semibold text-slate-950 dark:text-white">{responsibleTask.title}</h3>
+              <h3 className="mt-2 text-lg font-medium text-slate-950 dark:text-white">{responsibleTask.title}</h3>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {copy.task.due} {formatDate(responsibleTask.due_date, selectedLocale, copy.errors.noDate)}
               </p>
             </div>
 
             <label className="mt-5 block space-y-2">
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.responsible.selectLabel}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.responsible.selectLabel}</span>
               <select
                 value={responsibleUserCompanyId}
                 disabled={!isOnline || isAssigningResponsible || responsibleCollaboratorOptions.length === 0}
@@ -531,7 +531,7 @@ export function PublicTaskKioskDialogs(props: Props) {
             </label>
 
             {responsibleError ? (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
                 {responsibleError}
               </div>
             ) : null}
@@ -541,7 +541,7 @@ export function PublicTaskKioskDialogs(props: Props) {
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
                 disabled={isAssigningResponsible}
                 onClick={closeResponsibleModal}
               >
@@ -549,7 +549,7 @@ export function PublicTaskKioskDialogs(props: Props) {
               </Button>
               <Button
                 type="button"
-                className="h-12 rounded-xl bg-[#F4C84A] px-5 text-sm font-semibold text-[#5F4003] hover:bg-[#E5B835]"
+                className="h-12 rounded-xl bg-[#F4C84A] px-5 text-sm font-medium text-[#5F4003] hover:bg-[#E5B835]"
                 disabled={isAssigningResponsible || responsibleCollaboratorOptions.length === 0}
                 onClick={() => void handleAssignResponsible()}
               >
@@ -579,9 +579,9 @@ export function PublicTaskKioskDialogs(props: Props) {
                     <ClipboardCheck className="h-5 w-5" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A6B05] dark:text-[#FDE68A]">{copy.selectedTask.eyebrow}</p>
-                    <h2 id="task-kiosk-completion-title" className="mt-1 break-words text-xl font-semibold leading-tight">{selectedTask.title}</h2>
-                    <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-medium text-[#9A6B05] dark:text-[#FDE68A]">{copy.selectedTask.eyebrow}</p>
+                    <h2 id="task-kiosk-completion-title" className="mt-1 break-words text-xl font-medium leading-tight">{selectedTask.title}</h2>
+                    <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
                       {taskTypeLabel(selectedTask.task_type, copy)} / {selectedTask.attachments} {labels.attachments}
                     </p>
                   </div>
@@ -598,12 +598,12 @@ export function PublicTaskKioskDialogs(props: Props) {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/70 px-4 py-4 dark:bg-slate-900/40 sm:px-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#7A5204] dark:text-[#FDE68A]">{labels.taskDetails}</p>
+              <p className="text-[10px] font-medium text-[#7A5204] dark:text-[#FDE68A]">{labels.taskDetails}</p>
               {selectedTask.description ? (
                 <p className="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">{selectedTask.description}</p>
               ) : null}
 
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-500">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-medium text-slate-500">
                 <span className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                   {copy.task.start} {formatDate(selectedTask.start_date, selectedLocale, copy.errors.noDate)}
                 </span>
@@ -618,11 +618,11 @@ export function PublicTaskKioskDialogs(props: Props) {
               <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400"><UserRound className="h-5 w-5" /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{copy.task.responsible}</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold text-slate-950 dark:text-white">{selectedTask.assigned_name || identity?.user.full_name}</p>
+                  <p className="text-[10px] font-medium text-slate-500">{copy.task.responsible}</p>
+                  <p className="mt-0.5 truncate text-sm font-medium text-slate-950 dark:text-white">{selectedTask.assigned_name || identity?.user.full_name}</p>
                 </div>
                 {openTaskStatuses.has(selectedTask.status) ? (
-                  <Button type="button" variant="ghost" className="h-10 shrink-0 rounded-xl px-3 text-xs font-bold text-[#7A5204] hover:bg-[#F4C84A]/10 dark:text-[#FDE68A]" onClick={() => openResponsibleModal(selectedTask)}>
+                  <Button type="button" variant="ghost" className="h-10 shrink-0 rounded-xl px-3 text-xs font-medium text-[#7A5204] hover:bg-[#F4C84A]/10 dark:text-[#FDE68A]" onClick={() => openResponsibleModal(selectedTask)}>
                     {copy.task.changeResponsible}
                   </Button>
                 ) : null}
@@ -640,14 +640,14 @@ export function PublicTaskKioskDialogs(props: Props) {
                   </div>
 
                   <div className="mt-5">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.selectedTask.evidence}</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.selectedTask.evidence}</label>
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/55 bg-[#F4C84A]/20 px-3 py-3 text-center text-sm font-semibold text-[#7A5204] transition hover:bg-[#F4C84A]/30 dark:text-[#FDE68A]">
+                      <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/55 bg-[#F4C84A]/20 px-3 py-3 text-center text-sm font-medium text-[#7A5204] transition hover:bg-[#F4C84A]/30 dark:text-[#FDE68A]">
                         <Camera className="h-5 w-5" />
                         {labels.takePhoto}
                         <input type="file" className="sr-only" accept="image/*" capture="environment" disabled={isSubmitting} onChange={handleEvidenceFilesChange} />
                       </label>
-                      <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                      <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
                         <Upload className="h-5 w-5" />
                         {labels.chooseFile}
                         <input type="file" className="sr-only" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={isSubmitting} onChange={handleEvidenceFilesChange} />
@@ -659,7 +659,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                         {evidenceFiles.map((file) => (
                           <div
                             key={`${file.name}-${file.size}-${file.lastModified}`}
-                            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
                           >
                             <Paperclip className="h-4 w-4 text-[#9A6B05]" />
                             <span className="min-w-0 flex-1 truncate">{file.name}</span>
@@ -670,7 +670,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                   </div>
 
                   <div className="mt-5">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.selectedTask.notes}</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.selectedTask.notes}</label>
                     <Textarea
                       value={completionNotes}
                       rows={4}
@@ -682,7 +682,7 @@ export function PublicTaskKioskDialogs(props: Props) {
                   </div>
                 </>
               ) : (
-                <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-bold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
                   {copy.task.resolved}
                 </div>
               )}
@@ -692,7 +692,7 @@ export function PublicTaskKioskDialogs(props: Props) {
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
                 disabled={isSubmitting}
                 onClick={closeTaskCompletionModal}
               >
@@ -701,7 +701,7 @@ export function PublicTaskKioskDialogs(props: Props) {
               {selectedTask.can_complete && openTaskStatuses.has(selectedTask.status) ? (
                 <Button
                   type="button"
-                  className="h-12 rounded-xl bg-[#F4C84A] px-5 text-sm font-semibold text-[#5F4003] hover:bg-[#E5B835]"
+                  className="h-12 rounded-xl bg-[#F4C84A] px-5 text-sm font-medium text-[#5F4003] hover:bg-[#E5B835]"
                   disabled={!isOnline || isSubmitting}
                   onClick={() => void handleCompleteTask()}
                 >
@@ -711,7 +711,7 @@ export function PublicTaskKioskDialogs(props: Props) {
               ) : (
                 <Button
                   type="button"
-                  className="h-12 rounded-xl bg-slate-100 px-5 text-sm font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-200"
+                  className="h-12 rounded-xl bg-slate-100 px-5 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-200"
                   onClick={closeTaskCompletionModal}
                 >
                   <ImageIcon className="mr-2 h-5 w-5" />

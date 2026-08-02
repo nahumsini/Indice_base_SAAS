@@ -101,7 +101,7 @@ export function QuickExpenseDialog({
       footer={(
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
           <button type="button" className="h-10 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50" disabled={isSubmitting} onClick={() => onOpenChange(false)}>{t.common.cancel}</button>
-          <button form="quick-expense-form" type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:opacity-50" disabled={!canSubmit}>
+          <button form="quick-expense-form" type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#147514] transition hover:bg-slate-100 disabled:opacity-50" disabled={!canSubmit}>
             <Plus className="h-4 w-4" />
             {isSubmitting ? t.expenses.quick.saving : t.expenses.quick.create}
           </button>
@@ -140,7 +140,7 @@ const inputClass = 'h-11 rounded-xl border-slate-200 bg-white text-slate-900 sha
 
 function Field({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <label className="block space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+    <label className="block space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
       <span>{label}</span>
       {children}
     </label>
@@ -151,7 +151,7 @@ function QuickSummary({ label, strong, value }: { label: string; strong?: boolea
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
       <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
-      <p className={`mt-1 truncate text-sm font-semibold ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
+      <p className={`mt-1 truncate text-sm font-medium ${strong ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-900 dark:text-slate-100'}`}>{value}</p>
     </div>
   );
 }

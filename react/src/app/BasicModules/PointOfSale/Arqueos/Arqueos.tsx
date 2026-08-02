@@ -57,7 +57,7 @@ export default function Arqueos() {
         <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-900 dark:border-red-800 dark:bg-red-900/20 dark:text-red-100">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="min-w-0">
-            <p className="font-bold">No se pudieron cargar los arqueos reales</p>
+            <p className="font-medium">No se pudieron cargar los arqueos reales</p>
             <p className="mt-0.5 text-sm opacity-80">{error}</p>
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function Arqueos() {
           <Info className="mt-0.5 h-5 w-5 shrink-0" />
         )}
         <div className="min-w-0">
-          <p className="font-bold">
+          <p className="font-medium">
             {!hasDifference ? 'Periodo sin diferencias abiertas' : hasRisk ? 'Diferencias por revisar' : 'Sobrantes registrados'}
           </p>
           <p className="mt-0.5 text-sm opacity-80">
@@ -88,7 +88,7 @@ export default function Arqueos() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white p-8 text-sm font-semibold text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+        <div className="flex items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white p-8 text-sm font-medium text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
           <Loader2 className="h-5 w-5 animate-spin" />
           Cargando cierres reales para revisión...
         </div>

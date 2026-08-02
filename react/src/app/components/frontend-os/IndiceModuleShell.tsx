@@ -2,7 +2,10 @@ import { Home } from 'lucide-react';
 import type { ReactNode, Ref } from 'react';
 import { FavoritesBar } from '../FavoritesBar';
 import { Button } from '../ui/button';
-import { MODULE_COLORS, type IndiceModuleTone } from '../../styles/moduleColors';
+import { getModulePrimaryForeground, MODULE_COLORS, type IndiceModuleTone } from '../../styles/moduleColors';
+import { getCachedAuthSession } from '../../api/authSessionStore';
+import { canAccessModuleTab } from '../../access/tabScopeCatalog';
+import { resolvePageId } from '../../config/navigation';
 
 export type IndiceModuleTab<TabId extends string> = {
   id: TabId;
@@ -27,9 +30,9 @@ interface IndiceModuleShellProps<TabId extends string> {
 }
 
 /**
- * Presentation-only module frame approved by Frontend Operating System v2.
- * Permissions, route resolution, tab availability, and feature behavior stay
- * inside the owning module.
+ * Shared module frame approved by Frontend Operating System v2. The owning
+ * module keeps feature behavior while the canonical access catalog filters
+ * navigation consistently across every module.
  */
 export function IndiceModuleShell<TabId extends string>({
   activeTab,
@@ -47,10 +50,18 @@ export function IndiceModuleShell<TabId extends string>({
   tone,
 }: IndiceModuleShellProps<TabId>) {
   const theme = MODULE_COLORS[tone];
-  const activeTextColor = tone === 'yellow' || tone === 'gold' ? '#222831' : '#ffffff';
+  const activeTextColor = getModulePrimaryForeground(tone);
+  const resolvedPage = resolvePageId(currentModule);
+  const cachedSession = getCachedAuthSession();
+  const visibleTabs = resolvedPage && cachedSession !== undefined
+    ? tabs.filter((tab) => canAccessModuleTab(resolvedPage, tab.id, cachedSession))
+    : tabs;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
+    <div
+      className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white"
+      data-module={currentModule}
+    >
       {loadingOverlay}
       <header className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
         <div className="mx-auto max-w-[1600px]">
@@ -65,7 +76,7 @@ export function IndiceModuleShell<TabId extends string>({
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold leading-tight text-slate-950 dark:text-white sm:text-3xl">{title}</h1>
+              <h1 className="text-2xl font-medium leading-tight text-slate-950 dark:text-white sm:text-3xl">{title}</h1>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">{subtitle}</p>
             </div>
             {backLabel && onNavigate ? (
@@ -83,7 +94,7 @@ export function IndiceModuleShell<TabId extends string>({
 
           <nav aria-label={title} className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
             <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
-              {tabs.map(tab => {
+              {visibleTabs.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
                   <button

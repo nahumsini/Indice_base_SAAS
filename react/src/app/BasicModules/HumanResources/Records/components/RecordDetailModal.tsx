@@ -197,8 +197,8 @@ export function RecordDetailModal({
                 <User className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.employeeInformation}</h3>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">{record.user.name}</p>
+                <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">{copy.detail.employeeInformation}</h3>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">{record.user.name}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{record.user.position}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{record.user.department}</p>
               </div>
@@ -225,7 +225,7 @@ export function RecordDetailModal({
           <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
             <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
               <FileText className="h-5 w-5" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.description}</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">{copy.detail.description}</h3>
             </div>
             <p className="whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
               {record.description}
@@ -236,7 +236,7 @@ export function RecordDetailModal({
             <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <Pencil className="h-5 w-5" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.actionsTaken}</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">{copy.detail.actionsTaken}</h3>
               </div>
               <p className="whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
                 {record.actionsTaken}
@@ -248,7 +248,7 @@ export function RecordDetailModal({
             <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <Users className="h-5 w-5" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.witnesses}</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">{copy.detail.witnesses}</h3>
               </div>
               <div className="flex flex-wrap gap-2">
                 {record.witnesses.map((witness) => (
@@ -267,7 +267,7 @@ export function RecordDetailModal({
             <div className="rounded-2xl border border-[#DCEFEA] bg-white p-6 dark:border-white/10 dark:bg-[#10231F]">
               <div className="mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <Download className="h-5 w-5" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{copy.detail.attachments}</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">{copy.detail.attachments}</h3>
               </div>
               <div className="space-y-2">
                 {record.attachments.map((attachment) => (

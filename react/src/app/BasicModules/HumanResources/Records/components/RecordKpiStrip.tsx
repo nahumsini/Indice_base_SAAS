@@ -23,7 +23,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
       <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#59C3A5] shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {icon}
       </span>
-      <span className={`text-base font-bold ${valueClassName}`}>{value}</span>
+      <span className={`text-base font-medium ${valueClassName}`}>{value}</span>
       <span>{label}</span>
     </span>
   );

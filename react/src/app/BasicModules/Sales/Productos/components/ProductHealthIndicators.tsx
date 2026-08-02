@@ -21,7 +21,7 @@ export function ProductHealthIndicators({
   return (
     <div className="flex flex-wrap gap-1.5">
       {warnings.map((warning) => (
-        <Badge key={warning} className="rounded-full border border-[#F4C84A]/45 bg-[#F4C84A]/15 px-2 py-1 text-xs font-bold text-[#9a6b05]">
+        <Badge key={warning} className="rounded-full border border-[#F4C84A]/45 bg-[#F4C84A]/15 px-2 py-1 text-xs font-medium text-[#9a6b05]">
           {t.healthWarnings[warning]}
         </Badge>
       ))}

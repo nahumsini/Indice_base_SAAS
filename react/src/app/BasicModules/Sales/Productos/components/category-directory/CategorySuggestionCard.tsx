@@ -30,9 +30,9 @@ export function CategorySuggestionCard({
         <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-start justify-between gap-2">
-            <p className="min-w-0 truncate text-sm font-semibold leading-5 text-slate-900">{category.name}</p>
+            <p className="min-w-0 truncate text-sm font-medium leading-5 text-slate-900">{category.name}</p>
             {disabled ? (
-              <span className="shrink-0 rounded-full bg-slate-200/70 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+              <span className="shrink-0 rounded-full bg-slate-200/70 px-2 py-0.5 text-[10px] font-medium text-slate-500">
                 {t.categoryManager.alreadyInCatalog}
               </span>
             ) : null}
@@ -40,7 +40,7 @@ export function CategorySuggestionCard({
           <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-slate-500">{category.description}</p>
           <div className="mt-1.5 flex min-w-0 flex-wrap gap-1">
             {category.supportedTypes.map((type) => (
-              <span key={type} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+              <span key={type} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-600">
                 {t.typeLabels[type]}
               </span>
             ))}

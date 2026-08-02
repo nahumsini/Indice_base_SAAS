@@ -62,7 +62,7 @@ function AgendaKpiMetric({
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
         {icon}
       </span>
-      <span className={cn('font-semibold', valueClassName)}>{value}</span>
+      <span className={cn('font-medium', valueClassName)}>{value}</span>
       <span>{label}</span>
     </div>
   );
@@ -202,16 +202,16 @@ export function AgendaKpiStrip({
 
         <div className="flex flex-wrap items-center gap-2">
           {metrics.overdueCount > 0 ? (
-            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
               {copy.badges.overdue(metrics.overdueCount)}
             </span>
           ) : null}
           {metrics.pendingAuditCount > 0 ? (
-            <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300">
               {copy.badges.pendingAudit(metrics.pendingAuditCount)}
             </span>
           ) : null}
-          <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', productivityTone)}>
+          <span className={cn('rounded-full border px-3 py-1 text-xs font-medium', productivityTone)}>
             {copy.badges.productivity(metrics.productivityScore)}
           </span>
         </div>

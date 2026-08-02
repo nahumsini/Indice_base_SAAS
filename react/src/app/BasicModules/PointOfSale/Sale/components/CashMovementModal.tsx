@@ -160,13 +160,13 @@ export function CashMovementModal({
     >
         <div className="space-y-5">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
 
           <div>
-            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Tipo de movimiento</p>
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de movimiento</p>
             <div className="grid gap-2 sm:grid-cols-4">
               {movementOptions.map((option) => {
                 const Icon = option.icon;
@@ -184,8 +184,8 @@ export function CashMovementModal({
                     }`}
                   >
                     <Icon className="mb-2 h-5 w-5" />
-                    <p className="text-sm font-black">{option.label}</p>
-                    <p className="mt-1 text-[11px] font-semibold opacity-80">{option.description}</p>
+                    <p className="text-sm font-medium">{option.label}</p>
+                    <p className="mt-1 text-[11px] font-medium opacity-80">{option.description}</p>
                   </button>
                 );
               })}
@@ -194,7 +194,7 @@ export function CashMovementModal({
 
           <div className="grid gap-4 md:grid-cols-[1fr_0.8fr]">
             <div>
-              <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Monto
               </label>
               <div className="relative">
@@ -207,16 +207,16 @@ export function CashMovementModal({
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   placeholder="0.00"
-                  className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-12 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-12 pr-4 text-xl font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
             </div>
 
             <div>
-              <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Vista previa</p>
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Vista previa</p>
               <div className={`rounded-lg border-2 p-4 ${activeOption.tone}`}>
-                <p className="text-xs font-black uppercase">{activeOption.label}</p>
-                <p className="mt-1 text-2xl font-black">
+                <p className="text-xs font-medium">{activeOption.label}</p>
+                <p className="mt-1 text-2xl font-medium">
                   {formatCurrency(Number(amount) || 0, currency)}
                 </p>
               </div>
@@ -224,14 +224,14 @@ export function CashMovementModal({
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Montos rapidos</p>
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Montos rapidos</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[100, 200, 500, 1000].map((value) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => handleQuickAmount(value)}
-                  className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                 >
                   {formatCurrency(value, currency)}
                 </button>
@@ -241,7 +241,7 @@ export function CashMovementModal({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Motivo
               </label>
               <input
@@ -249,12 +249,12 @@ export function CashMovementModal({
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Describe el motivo"
-                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Referencia
               </label>
               <input
@@ -262,20 +262,20 @@ export function CashMovementModal({
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
                 placeholder="Opcional"
-                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Motivos comunes</p>
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Motivos comunes</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {commonReasons[type].map((reasonOption) => (
                 <button
                   key={reasonOption}
                   type="button"
                   onClick={() => setReason(reasonOption)}
-                  className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-black transition-all active:scale-[0.98] ${
+                  className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all active:scale-[0.98] ${
                     reason === reasonOption
                       ? activeOption.tone
                       : 'border-gray-300 bg-gray-50 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300'

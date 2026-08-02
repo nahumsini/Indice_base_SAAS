@@ -1,4 +1,4 @@
-import { Plus, ShoppingCart } from 'lucide-react';
+import { Image, Plus, ShoppingCart } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import type { ProductsTranslations } from '../translations';
@@ -17,39 +17,42 @@ export function PublicCatalogMobileCard({
   onAddToCart: (item: PublicCatalogItem) => void;
 }) {
   return (
-    <article className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <article className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition active:scale-[.995] dark:border-slate-800 dark:bg-slate-900">
       <div className="flex min-w-0 gap-3 p-3">
-        <div className="h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900">
+        <div className="h-28 w-[6.5rem] shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-950">
           {item.thumbnailUrl ? (
             <img src={item.thumbnailUrl} alt={item.thumbnailAlt || item.name} className="h-full w-full object-cover" loading="lazy" />
           ) : (
-            <div className="grid h-full place-items-center px-2 text-center text-xs font-bold text-slate-400">{item.name}</div>
+            <div className="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center text-xs font-medium text-slate-400">
+              <Image className="h-5 w-5" />
+              <span className="line-clamp-2">{item.name}</span>
+            </div>
           )}
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="min-w-0">
-            <h2 className="line-clamp-2 text-base font-black leading-5 text-slate-950 dark:text-white">{item.name}</h2>
+            <h2 className="line-clamp-2 text-base font-medium leading-5 text-slate-950 dark:text-white">{item.name}</h2>
             {config.showCategories && item.category ? (
-              <p className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{t.categoryLabels[item.category]}</p>
+              <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{t.categoryLabels[item.category]}</p>
             ) : null}
           </div>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
             {config.showStockStatus ? (
-              <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px] font-bold">
+              <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px] font-medium">
                 {t.publicCatalog.inventoryStatus[item.publicInventoryStatus]}
               </Badge>
             ) : null}
             {config.showItemTypeBadges && item.type !== 'Product' ? (
-              <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px] font-bold">{t.typeLabels[item.type]}</Badge>
+              <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px] font-medium">{t.typeLabels[item.type]}</Badge>
             ) : null}
           </div>
 
           <div className="mt-auto flex items-end justify-between gap-2 pt-2">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t.publicCatalog.publicPrice}</p>
-              <p className="truncate text-lg font-black text-slate-950 dark:text-white">
+              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{t.publicCatalog.publicPrice}</p>
+              <p className="truncate text-lg font-medium text-slate-950 dark:text-white">
                 {config.showPrices ? formatProductCurrency(item.publicPrice ?? 0, item.currency) : t.publicCatalog.pricePending}
               </p>
             </div>
@@ -57,7 +60,7 @@ export function PublicCatalogMobileCard({
               <Button
                 type="button"
                 size="icon"
-                className="h-11 w-11 shrink-0 rounded-xl bg-[#FF6B5E] text-white shadow-sm hover:bg-[#E85C50]"
+                className="h-11 w-11 shrink-0 rounded-xl bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50]"
                 aria-label={config.allowCart ? t.publicCatalog.addToCart : t.publicCatalog.requestQuote}
                 onClick={() => onAddToCart(item)}
               >

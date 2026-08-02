@@ -1,6 +1,15 @@
 import { resolvePanelInicialLocale } from '../translations';
 
 export interface UsersTranslations {
+  accessEditor: {
+    review: string;
+    role: string;
+    title: string;
+  };
+  actions: {
+    activate: string;
+    deactivate: string;
+  };
   bulk: {
     activate: string;
     clear: string;
@@ -18,6 +27,9 @@ export interface UsersTranslations {
   delete: string;
   deleteConfirmationDescription: string;
   deleteConfirmationTitle: string;
+  deactivateConfirmationDescription: string;
+  deactivateConfirmationTitle: string;
+  deactivateConfirmationWarning: string;
   deleting: string;
   emailDeliveryDisabled: string;
   emailNotSent: string;
@@ -56,6 +68,10 @@ export interface UsersTranslations {
   loading: string;
   noResults: string;
   overlays: {
+    activatingDescription: string;
+    activatingTitle: string;
+    deactivatingDescription: string;
+    deactivatingTitle: string;
     deletingDescription: string;
     deletingTitle: string;
     resendingDescription: string;
@@ -74,12 +90,43 @@ export interface UsersTranslations {
   resendEmailHint: string;
   resendEmailLabel: string;
   resendSuccess: string;
+  scope: {
+    business: string;
+    business_office: string;
+    corporate: string;
+    corporate_office: string;
+    label: string;
+    unit: string;
+    unit_headquarters: string;
+  };
+  seats: {
+    active: string;
+    activeCompany: string;
+    available: string;
+    currentCompany: string;
+    limitReached: string;
+    pending: string;
+    summary: (active: number, pending: number, available: number) => string;
+  };
   selectedModules: (count: number) => string;
   statusFallback: string;
+  tabPermissions: {
+    all: string;
+    collapse: string;
+    expand: string;
+    noResults: string;
+    none: string;
+    protected: string;
+    search: string;
+    selected: (count: number) => string;
+    title: string;
+  };
   total: string;
 }
 
 const en: UsersTranslations = {
+  accessEditor: { review: 'Access summary', role: 'System role', title: 'Edit role, scope and access' },
+  actions: { activate: 'Activate user', deactivate: 'Deactivate user' },
   bulk: {
     activate: 'Activate selected', clear: 'Clear selection', deactivate: 'Deactivate selected',
     selectAll: 'Select visible users', selectUser: (name) => `Select ${name}`,
@@ -90,6 +137,9 @@ const en: UsersTranslations = {
   close: 'Close', currentUser: 'You', delete: 'Delete', deleting: 'Deleting...',
   deleteConfirmationTitle: 'Delete invitation?',
   deleteConfirmationDescription: 'This cancels the pending invite link and removes it from the users list.',
+  deactivateConfirmationTitle: 'Deactivate user?',
+  deactivateConfirmationDescription: 'The user will immediately lose access to this company.',
+  deactivateConfirmationWarning: 'Their HR work profile and historical records are preserved. Reactivating them will require an available seat.',
   emailDeliveryDisabled: 'Email delivery disabled', emailNotSent: 'Email not sent', emailSent: 'Email sent',
   errors: {
     businessAssignment: 'Unable to update business assignment.', copyLink: 'Unable to copy the invitation link.',
@@ -104,6 +154,8 @@ const en: UsersTranslations = {
   resendEmailHint: 'Leave it empty to use the current email.', resendEmailLabel: 'New email (optional)',
   resendSuccess: 'Invitation resent successfully.', statusFallback: 'Use the invite link below to test the acceptance flow.', total: 'Total users',
   overlays: {
+    activatingDescription: 'Reserving an available seat and restoring company access.', activatingTitle: 'Activating user...',
+    deactivatingDescription: 'Revoking company access while preserving historical records.', deactivatingTitle: 'Deactivating user...',
     deletingDescription: 'Cancelling the pending invite link and refreshing the users list.', deletingTitle: 'Deleting invitation...',
     resendingDescription: 'Refreshing the invite link and sending the email again.', resendingTitle: 'Resending invitation...',
     sendingDescription: 'Creating the user invitation and preparing email delivery.', sendingTitle: 'Sending invitation...',
@@ -111,6 +163,21 @@ const en: UsersTranslations = {
   pagination: {
     itemLabel: 'users', next: 'Next', previous: 'Previous', rowsPerPage: 'Rows per page',
     showing: (start, end, total, label) => `Showing ${start}-${end} of ${total} ${label}`,
+  },
+  scope: {
+    business: 'Specific business', business_office: 'Business', corporate: 'Entire company',
+    corporate_office: 'Corporate', label: 'Organizational scope', unit: 'Business unit', unit_headquarters: 'Unit',
+  },
+  seats: {
+    active: 'Active seats', activeCompany: 'Active company', available: 'Available seats', currentCompany: 'Current company',
+    limitReached: 'No seats are available. Deactivate a user or expand the plan to invite or activate another user.',
+    pending: 'Pending invitations',
+    summary: (active, pending, available) => `${active} active · ${pending} pending · ${available} available`,
+  },
+  tabPermissions: {
+    all: 'All', collapse: 'Collapse module', expand: 'Expand module', noResults: 'No modules or tabs match this search.',
+    none: 'None', protected: 'Protected', search: 'Search module or tab',
+    selected: (count) => `${count} tabs selected`, title: 'Module access',
   },
   selectedModules: (count) => `${count} module${count === 1 ? '' : 's'} selected`,
   inviteWizard: {
@@ -124,6 +191,26 @@ const en: UsersTranslations = {
 
 const es: UsersTranslations = {
   ...en,
+  accessEditor: { review: 'Resumen de accesos', role: 'Rol del sistema', title: 'Editar rol, alcance y accesos' },
+  actions: { activate: 'Activar usuario', deactivate: 'Desactivar usuario' },
+  deactivateConfirmationTitle: '¿Desactivar usuario?',
+  deactivateConfirmationDescription: 'El usuario perderá de inmediato el acceso a esta empresa.',
+  deactivateConfirmationWarning: 'Su perfil laboral de Recursos Humanos y sus registros históricos se conservan. Para reactivarlo deberá existir una licencia disponible.',
+  scope: {
+    business: 'Negocio específico', business_office: 'Negocio', corporate: 'Toda la empresa',
+    corporate_office: 'Corporativo', label: 'Alcance organizacional', unit: 'Unidad de negocio', unit_headquarters: 'Unidad',
+  },
+  seats: {
+    active: 'Usuarios activos', activeCompany: 'Empresa activa', available: 'Lugares disponibles', currentCompany: 'Empresa actual',
+    limitReached: 'No hay lugares disponibles. Desactiva un usuario o amplía el plan para invitar o activar a otro.',
+    pending: 'Invitaciones pendientes',
+    summary: (active, pending, available) => `${active} usuarios activos · ${pending} invitaciones · ${available} lugares disponibles`,
+  },
+  tabPermissions: {
+    all: 'Todas', collapse: 'Contraer módulo', expand: 'Expandir módulo', noResults: 'No hay módulos o pestañas que coincidan.',
+    none: 'Ninguna', protected: 'Protegido', search: 'Buscar módulo o pestaña',
+    selected: (count) => `${count} pestañas seleccionadas`, title: 'Accesos por módulo',
+  },
   bulk: {
     activate: 'Activar seleccionados', clear: 'Limpiar selección', deactivate: 'Desactivar seleccionados',
     selectAll: 'Seleccionar usuarios visibles', selectUser: (name) => `Seleccionar a ${name}`,
@@ -148,6 +235,8 @@ const es: UsersTranslations = {
   resendEmailHint: 'Déjalo vacío para usar el correo actual.', resendEmailLabel: 'Nuevo correo (opcional)',
   resendSuccess: 'Invitación reenviada correctamente.', statusFallback: 'Usa el enlace de invitación para completar el flujo de aceptación.', total: 'Total de usuarios',
   overlays: {
+    activatingDescription: 'Reservando una licencia disponible y restaurando el acceso a la empresa.', activatingTitle: 'Activando usuario...',
+    deactivatingDescription: 'Revocando el acceso a la empresa y conservando el historial.', deactivatingTitle: 'Desactivando usuario...',
     deletingDescription: 'Cancelando el enlace pendiente y actualizando la lista de usuarios.', deletingTitle: 'Eliminando invitación...',
     resendingDescription: 'Actualizando el enlace y reenviando el correo.', resendingTitle: 'Reenviando invitación...',
     sendingDescription: 'Creando la invitación y preparando el envío del correo.', sendingTitle: 'Enviando invitación...',

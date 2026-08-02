@@ -1,5 +1,7 @@
 package com.indice.erp.config;
 
+import com.indice.erp.access.tab.TabPermissionInterceptor;
+import com.indice.erp.access.module.ModuleAccessInterceptor;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleInterceptor;
 import com.indice.erp.billing.subscription.ModuleEntitlementInterceptor;
 import com.indice.erp.billing.subscription.SubscriptionAccessInterceptor;
@@ -23,19 +25,25 @@ public class WebConfig implements WebMvcConfigurer {
     private final ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor;
     private final ObjectProvider<SubscriptionAccessInterceptor> subscriptionAccessInterceptor;
     private final ObjectProvider<ModuleEntitlementInterceptor> moduleEntitlementInterceptor;
+    private final ObjectProvider<TabPermissionInterceptor> tabPermissionInterceptor;
+    private final ObjectProvider<ModuleAccessInterceptor> moduleAccessInterceptor;
 
     public WebConfig(
         AppWebProperties appWebProperties,
         ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor,
         ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor,
         ObjectProvider<SubscriptionAccessInterceptor> subscriptionAccessInterceptor,
-        ObjectProvider<ModuleEntitlementInterceptor> moduleEntitlementInterceptor
+        ObjectProvider<ModuleEntitlementInterceptor> moduleEntitlementInterceptor,
+        ObjectProvider<TabPermissionInterceptor> tabPermissionInterceptor,
+        ObjectProvider<ModuleAccessInterceptor> moduleAccessInterceptor
     ) {
         this.appWebProperties = appWebProperties;
         this.entitlementShadowInterceptor = entitlementShadowInterceptor;
         this.commercialLifecycleInterceptor = commercialLifecycleInterceptor;
         this.subscriptionAccessInterceptor = subscriptionAccessInterceptor;
         this.moduleEntitlementInterceptor = moduleEntitlementInterceptor;
+        this.tabPermissionInterceptor = tabPermissionInterceptor;
+        this.moduleAccessInterceptor = moduleAccessInterceptor;
     }
 
     @Override
@@ -60,6 +68,12 @@ public class WebConfig implements WebMvcConfigurer {
         );
         moduleEntitlementInterceptor.ifAvailable((interceptor) ->
             registry.addInterceptor(interceptor).addPathPatterns("/api/v1/**").order(-30)
+        );
+        moduleAccessInterceptor.ifAvailable((interceptor) ->
+            registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-25)
+        );
+        tabPermissionInterceptor.ifAvailable((interceptor) ->
+            registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-20)
         );
     }
 

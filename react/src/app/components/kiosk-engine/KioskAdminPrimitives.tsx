@@ -93,7 +93,7 @@ export function KioskAdminPanelAction({
     >
       <span className="shrink-0">{icon}</span>
       <span className="min-w-0">
-        <span className="block text-sm font-semibold">{label}</span>
+        <span className="block text-sm font-medium">{label}</span>
         {description ? <span className="mt-0.5 block whitespace-normal text-xs font-normal leading-4 opacity-75">{description}</span> : null}
       </span>
     </Button>

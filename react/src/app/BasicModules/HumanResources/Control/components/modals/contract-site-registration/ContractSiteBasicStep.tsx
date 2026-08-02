@@ -53,7 +53,7 @@ export function ContractSiteBasicStep({
       <div className="flex items-start gap-3 rounded-md border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
         <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
         <div>
-          <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{copy.basic.title}</p>
+          <p className="text-sm font-medium text-[#59C3A5] dark:text-blue-200">{copy.basic.title}</p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             {copy.basic.description}
           </p>
@@ -62,7 +62,7 @@ export function ContractSiteBasicStep({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.unitLabel}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.basic.unitLabel}</label>
           <select
             value={selectedUnitId}
             onChange={(event) => onUnitChange(event.target.value)}
@@ -76,7 +76,7 @@ export function ContractSiteBasicStep({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.businessLabel}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.basic.businessLabel}</label>
           <select
             value={selectedBusinessId}
             onChange={(event) => onBusinessChange(event.target.value)}
@@ -98,7 +98,7 @@ export function ContractSiteBasicStep({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.locationNameLabel}</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.basic.locationNameLabel}</label>
         <input
           ref={nameInputRef}
           type="text"
@@ -114,7 +114,7 @@ export function ContractSiteBasicStep({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.contractStart}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.basic.contractStart}</label>
           <input
             type="date"
             value={contractStartDate}
@@ -123,7 +123,7 @@ export function ContractSiteBasicStep({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.contractEnd}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.basic.contractEnd}</label>
           <input
             type="date"
             value={contractEndDate}
@@ -133,7 +133,7 @@ export function ContractSiteBasicStep({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.basic.duration}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.basic.duration}</label>
           <input
             type="text"
             value={contractDaysForForm ? formatContractDays(contractStartDate, contractEndDate, copy) : copy.days.invalidRange}

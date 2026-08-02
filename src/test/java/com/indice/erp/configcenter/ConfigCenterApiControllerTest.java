@@ -60,6 +60,9 @@ class ConfigCenterApiControllerTest {
     private InvitationSeatCoordinator invitationSeatCoordinator;
 
     @MockBean
+    private ConfigCenterUserSeatCoordinator userSeatCoordinator;
+
+    @MockBean
     private AppWebProperties appWebProperties;
 
     @BeforeEach
@@ -445,6 +448,34 @@ class ConfigCenterApiControllerTest {
                     """))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+    }
+
+    @Test
+    void activateUserRestoresCompanyAccessThroughDedicatedAction() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(userSeatCoordinator.activate(7L, 1L, "admin", 5L))
+            .willReturn(Map.of("success", true, "active", true));
+
+        mockMvc.perform(post("/api/v1/config-center/users/5/activate"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.active").value(true));
+    }
+
+    @Test
+    void activateUserReturnsSeatDetailsWhenCapacityIsFull() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(userSeatCoordinator.activate(7L, 1L, "admin", 5L)).willThrow(seatLimitError());
+
+        mockMvc.perform(post("/api/v1/config-center/users/5/activate"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("SEAT_CAPACITY_EXCEEDED"))
+            .andExpect(jsonPath("$.seats.limit").value(5))
+            .andExpect(jsonPath("$.seats.active").value(5))
+            .andExpect(jsonPath("$.seats.available").value(0));
     }
 
     @Test

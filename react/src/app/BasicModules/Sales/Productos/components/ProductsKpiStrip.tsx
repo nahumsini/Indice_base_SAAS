@@ -23,9 +23,9 @@ function CatalogMetric({
       <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
         {icon}
       </span>
-      <span className="text-sm font-semibold">
-        <span className={cn('mr-2 font-bold', valueClassName)}>{value}</span>
-        <span className="font-bold text-slate-600 dark:text-slate-300">{label}</span>
+      <span className="text-sm font-medium">
+        <span className={cn('mr-2 font-medium', valueClassName)}>{value}</span>
+        <span className="font-medium text-slate-600 dark:text-slate-300">{label}</span>
       </span>
     </span>
   );
@@ -100,7 +100,7 @@ export function ProductsKpiStrip({
             return <div key={type} className={cn('h-full', productTypeProgressStyles[type])} style={{ width: `${width}%` }} aria-hidden="true" />;
           })}
         </div>
-        <div className="flex flex-wrap gap-3 text-sm font-semibold text-slate-500 dark:text-slate-300 xl:justify-end">
+        <div className="flex flex-wrap gap-3 text-sm font-medium text-slate-500 dark:text-slate-300 xl:justify-end">
           <span className="inline-flex items-center gap-2 rounded-full border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-3 py-1 text-[#177d66] dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/15 dark:text-[#7EE0C3]">
             <ShoppingCart className="h-3.5 w-3.5" />
             {posReadyCount} {metricLabels.posReady}

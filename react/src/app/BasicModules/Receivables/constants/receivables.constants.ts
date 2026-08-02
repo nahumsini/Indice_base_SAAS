@@ -11,10 +11,10 @@ export const financeSoftSurfaceClass =
 export const financeTextClass = 'text-[#147514] dark:text-emerald-300';
 
 export const moduleModalOutlineButtonClassName =
-  'h-10 rounded-xl border-white/30 bg-white/10 px-5 text-sm font-semibold text-white shadow-none hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50 dark:border-white/25 dark:bg-white/10 dark:text-white dark:hover:bg-white/20';
+  'h-10 rounded-xl border-white/30 bg-white/10 px-5 text-sm font-medium text-white shadow-none hover:bg-white/20 hover:text-white disabled:border-white/20 disabled:bg-white/5 disabled:text-white/50 dark:border-white/25 dark:bg-white/10 dark:text-white dark:hover:bg-white/20';
 
 export const moduleModalPrimaryButtonClassName =
-  'h-10 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] shadow-sm hover:bg-slate-100 hover:text-[#147514] focus-visible:ring-white/40 dark:bg-white dark:text-[#147514] dark:hover:bg-slate-100';
+  'h-10 rounded-xl bg-white px-5 text-sm font-medium text-[#147514] shadow-sm hover:bg-slate-100 hover:text-[#147514] focus-visible:ring-white/40 dark:bg-white dark:text-[#147514] dark:hover:bg-slate-100';
 
 export const receivablesTabIds = [
   'credit-sales',

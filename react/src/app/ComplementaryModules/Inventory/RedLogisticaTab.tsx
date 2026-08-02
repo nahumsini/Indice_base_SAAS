@@ -97,7 +97,7 @@ export default function RedLogisticaTab() {
                     <Icon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold mb-1">
+                    <h3 className="text-base font-medium mb-1">
                       {node.name}
                     </h3>
                     <p className="text-xs opacity-75 flex items-center gap-1">
@@ -107,7 +107,7 @@ export default function RedLogisticaTab() {
                   </div>
                 </div>
                 {node.alerts > 0 && (
-                  <span className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  <span className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-medium">
                     {node.alerts}
                   </span>
                 )}
@@ -115,7 +115,7 @@ export default function RedLogisticaTab() {
 
               {/* Status Badge */}
               <div className="mb-3">
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 rounded-md text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 rounded-md text-xs font-medium">
                   <span>{statusBadge.icon}</span>
                   {statusBadge.label}
                 </span>
@@ -125,11 +125,11 @@ export default function RedLogisticaTab() {
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-2">
                   <p className="text-xs opacity-75 mb-1">Stock</p>
-                  <p className="text-lg font-bold">{node.stockTotal.toLocaleString()}</p>
+                  <p className="text-lg font-medium">{node.stockTotal.toLocaleString()}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-2">
                   <p className="text-xs opacity-75 mb-1">Valor</p>
-                  <p className="text-lg font-bold">{formatCurrency(node.stockValue)}</p>
+                  <p className="text-lg font-medium">{formatCurrency(node.stockValue)}</p>
                 </div>
               </div>
 
@@ -139,7 +139,7 @@ export default function RedLogisticaTab() {
                   <span className="text-xs opacity-75">Movimientos hoy</span>
                   <div className="flex items-center gap-1">
                     <Activity className="w-3 h-3" />
-                    <span className="text-sm font-bold">{node.movementsToday}</span>
+                    <span className="text-sm font-medium">{node.movementsToday}</span>
                   </div>
                 </div>
               </div>
@@ -148,7 +148,7 @@ export default function RedLogisticaTab() {
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs opacity-75">Capacidad</span>
-                  <span className="text-xs font-semibold">{capacityPercent}%</span>
+                  <span className="text-xs font-medium">{capacityPercent}%</span>
                 </div>
                 <div className="h-2 bg-white dark:bg-gray-800 rounded-full overflow-hidden">
                   <div
@@ -206,12 +206,12 @@ export default function RedLogisticaTab() {
                     })()}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold mb-1">{selectedNode.name}</h2>
+                    <h2 className="text-2xl font-medium mb-1">{selectedNode.name}</h2>
                     <p className="text-sm opacity-75 flex items-center gap-1 mb-2">
                       <MapPin className="w-4 h-4" />
                       {selectedNode.location}
                     </p>
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-white dark:bg-gray-800 rounded-lg text-sm font-semibold">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-white dark:bg-gray-800 rounded-lg text-sm font-medium">
                       {getStatusBadge(selectedNode.status).icon} {getStatusBadge(selectedNode.status).label}
                     </span>
                   </div>
@@ -227,18 +227,18 @@ export default function RedLogisticaTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
                   <p className="text-xs opacity-75 mb-1">Responsable</p>
-                  <p className="text-sm font-semibold">{selectedNode.responsible}</p>
+                  <p className="text-sm font-medium">{selectedNode.responsible}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
                   <p className="text-xs opacity-75 mb-1">Tipo</p>
-                  <p className="text-sm font-semibold capitalize">{selectedNode.type}</p>
+                  <p className="text-sm font-medium capitalize">{selectedNode.type}</p>
                 </div>
               </div>
             </div>
 
             {/* KPIs */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Métricas Operativas
               </h3>
               <div className="grid grid-cols-2 gap-4">
@@ -247,7 +247,7 @@ export default function RedLogisticaTab() {
                     <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     <p className="text-xs text-blue-700 dark:text-blue-400">Stock Total</p>
                   </div>
-                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
+                  <p className="text-2xl font-medium text-blue-900 dark:text-blue-300">
                     {selectedNode.stockTotal.toLocaleString()}
                   </p>
                 </div>
@@ -257,7 +257,7 @@ export default function RedLogisticaTab() {
                     <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
                     <p className="text-xs text-green-700 dark:text-green-400">Valor</p>
                   </div>
-                  <p className="text-2xl font-bold text-green-900 dark:text-green-300">
+                  <p className="text-2xl font-medium text-green-900 dark:text-green-300">
                     {formatCurrency(selectedNode.stockValue)}
                   </p>
                 </div>
@@ -267,7 +267,7 @@ export default function RedLogisticaTab() {
                     <Activity className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     <p className="text-xs text-purple-700 dark:text-purple-400">Movimientos Hoy</p>
                   </div>
-                  <p className="text-2xl font-bold text-purple-900 dark:text-purple-300">
+                  <p className="text-2xl font-medium text-purple-900 dark:text-purple-300">
                     {selectedNode.movementsToday}
                   </p>
                 </div>
@@ -289,7 +289,7 @@ export default function RedLogisticaTab() {
                         : 'text-gray-700 dark:text-gray-400'
                     }`}>Alertas</p>
                   </div>
-                  <p className={`text-2xl font-bold ${
+                  <p className={`text-2xl font-medium ${
                     selectedNode.alerts > 0
                       ? 'text-red-900 dark:text-red-300'
                       : 'text-gray-900 dark:text-gray-300'
@@ -302,10 +302,10 @@ export default function RedLogisticaTab() {
               {/* Capacity */}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
                     Capacidad Utilizada
                   </span>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
                     {getCapacityPercentage(selectedNode)}%
                   </span>
                 </div>
@@ -327,7 +327,7 @@ export default function RedLogisticaTab() {
 
             {/* Timeline */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Actividad Reciente
               </h3>
               <div className="space-y-3">
@@ -338,7 +338,7 @@ export default function RedLogisticaTab() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
                           {movement.type === 'entry' ? '📥 Entrada' :
                            movement.type === 'exit' ? '📤 Salida' :
                            movement.type === 'transfer' ? '🔄 Transferencia' :
@@ -373,16 +373,16 @@ export default function RedLogisticaTab() {
             {/* Actions */}
             <div className="p-6 border-t border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-2 gap-3">
-                <button className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-colors">
+                <button className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors">
                   Transferir
                 </button>
-                <button className="px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold transition-colors">
+                <button className="px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors">
                   Ajustar Stock
                 </button>
-                <button className="px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold transition-colors">
+                <button className="px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors">
                   Ver Movimientos
                 </button>
-                <button className="px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold transition-colors">
+                <button className="px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors">
                   Auditar
                 </button>
               </div>

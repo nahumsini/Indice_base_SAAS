@@ -18,7 +18,7 @@ export function ControlKpiMetric({
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
         {icon}
       </span>
-      <span className={`font-semibold ${valueClassName}`}>{value}</span>
+      <span className={`font-medium ${valueClassName}`}>{value}</span>
       <span>{label}</span>
     </div>
   );

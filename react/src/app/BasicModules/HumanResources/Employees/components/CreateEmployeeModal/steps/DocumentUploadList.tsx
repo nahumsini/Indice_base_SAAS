@@ -37,12 +37,12 @@ export function DocumentUploadList({
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">
                     {copy.documents[documentType]}
                   </p>
                   <span
                     className={cn(
-                      'rounded-full px-2 py-0.5 text-xs font-semibold',
+                      'rounded-full px-2 py-0.5 text-xs font-medium',
                       isUploaded
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
                         : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
@@ -66,7 +66,7 @@ export function DocumentUploadList({
                     href={slot.existingDownloadUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     {copy.buttons.viewCurrent}
                   </a>
@@ -82,7 +82,7 @@ export function DocumentUploadList({
                     {slot.removeExisting ? copy.buttons.undoRemove : copy.buttons.removeCurrent}
                   </Button>
                 ) : null}
-                <label className="inline-flex h-10 cursor-pointer items-center rounded-xl bg-[#59C3A5] px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#3AAE90] dark:bg-blue-600 dark:hover:bg-blue-500">
+                <label className="inline-flex h-10 cursor-pointer items-center rounded-xl bg-[#59C3A5] px-3 text-sm font-medium text-slate-950 shadow-sm transition-colors hover:bg-[#3AAE90] dark:bg-blue-600 dark:text-white dark:hover:bg-blue-500">
                   <Upload className="mr-2 h-4 w-4" />
                   {slot.existingId || slot.file ? copy.buttons.replaceFile : copy.buttons.chooseFile}
                   <input

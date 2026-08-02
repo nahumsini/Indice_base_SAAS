@@ -53,7 +53,7 @@ export function AgendaReportDialog({ copy, onDownload, onOpenChange, task }: Age
           </div>
 
           <section className={sectionClassName}>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{task.title}</h3>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white">{task.title}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{task.description ?? copy.common.noDescription}</p>
           </section>
 

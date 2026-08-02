@@ -302,12 +302,12 @@ export function EditableExpenseRow({
               <button
                 type="button"
                 onClick={startEditing}
-                className={`w-full rounded-full border px-3 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${statusClass}`}
+                className={`w-full rounded-full border px-3 py-2 text-xs font-medium transition-all hover:-translate-y-0.5 hover:shadow-sm ${statusClass}`}
               >
                 {t.expenses.table.statuses[effectiveStatus] ?? effectiveStatus}
               </button>
               {hasOverduePartialBalance ? (
-                <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
                   {t.expenses.table.statuses.overdue}
                 </span>
               ) : null}
@@ -321,7 +321,7 @@ export function EditableExpenseRow({
           <button
             type="button"
             onClick={() => onOpenAttachments(expense)}
-            className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm ${
+            className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-all hover:-translate-y-0.5 hover:shadow-sm ${
               attachmentsCount > 0
                 ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-900/60 dark:bg-green-950/60 dark:text-green-300 dark:hover:bg-green-900/60'
                 : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-800'

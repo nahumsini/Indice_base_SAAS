@@ -465,7 +465,7 @@ export function AddNewAssests({
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className={cn('text-sm font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
+                    <p className={cn('text-sm font-medium', isDarkMode ? 'text-white' : 'text-slate-900')}>
                       {t.photoUploader.title}
                     </p>
                     <p className={cn('mt-1 text-xs leading-5', isDarkMode ? 'text-slate-300' : 'text-slate-600')}>
@@ -490,7 +490,7 @@ export function AddNewAssests({
                   <Button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="shrink-0 rounded-xl bg-[#59C3A5] font-semibold text-white hover:bg-[#43ad90]"
+                    className="shrink-0 rounded-xl bg-[#59C3A5] font-medium text-slate-950 hover:bg-[#43ad90]"
                   >
                     <ImagePlus className="mr-2 h-4 w-4" />
                     {t.photoUploader.browse}
@@ -498,7 +498,7 @@ export function AddNewAssests({
                 </div>
 
                 {photoError ? (
-                  <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                  <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
                     {photoError}
                   </p>
                 ) : null}
@@ -529,7 +529,7 @@ export function AddNewAssests({
                           </button>
                         </div>
                         <div className="px-3 py-2">
-                          <p className={cn('truncate text-xs font-semibold', isDarkMode ? 'text-white' : 'text-slate-800')}>
+                          <p className={cn('truncate text-xs font-medium', isDarkMode ? 'text-white' : 'text-slate-800')}>
                             {photo.fileName}
                           </p>
                           <p className={cn('mt-0.5 text-[11px]', isDarkMode ? 'text-slate-400' : 'text-slate-500')}>

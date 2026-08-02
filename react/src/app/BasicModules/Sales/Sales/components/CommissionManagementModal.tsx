@@ -92,7 +92,7 @@ export function CommissionManagementModal({
       )}
     >
       <div className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 px-4 py-3">
-        <p className="text-sm font-semibold text-[#B63B32]">{record?.saleNumber ?? t.common.notAvailable}</p>
+        <p className="text-sm font-medium text-[#B63B32]">{record?.saleNumber ?? t.common.notAvailable}</p>
         <p className="mt-1 text-sm font-normal text-slate-600 dark:text-slate-300">
           {record?.customerName ?? t.common.notAvailable} · {formatSalesCurrency(record?.totalAmount ?? 0, record?.currency ?? defaultSalesCurrency)}
         </p>

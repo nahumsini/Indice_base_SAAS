@@ -30,9 +30,9 @@ export function QuoteExpirationBadge({
 }) {
   return (
     <div className="space-y-1">
-      <p className="font-semibold text-slate-700">{expirationDate || t.common.unassigned}</p>
+      <p className="font-medium text-slate-700">{expirationDate || t.common.unassigned}</p>
       {signal.key !== 'valid' ? (
-        <Badge className={cn('rounded-full border px-2 py-0.5 text-xs font-black', expirationClasses[signal.key])}>
+        <Badge className={cn('rounded-full border px-2 py-0.5 text-xs font-medium', expirationClasses[signal.key])}>
           {getExpirationLabel(signal, t)}
         </Badge>
       ) : null}

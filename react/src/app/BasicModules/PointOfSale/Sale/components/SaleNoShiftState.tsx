@@ -100,10 +100,10 @@ export function SaleNoShiftState({
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-lg bg-gray-950 text-white dark:bg-white dark:text-gray-950">
             <LogIn className="h-10 w-10" />
           </div>
-          <h2 className="mb-2 text-center text-2xl font-black text-gray-900 dark:text-white">
+          <h2 className="mb-2 text-center text-2xl font-medium text-gray-900 dark:text-white">
             {title}
           </h2>
-          <p className="mx-auto mb-6 max-w-2xl text-center text-sm font-semibold text-gray-600 dark:text-gray-400">
+          <p className="mx-auto mb-6 max-w-2xl text-center text-sm font-medium text-gray-600 dark:text-gray-400">
             {description}
           </p>
 
@@ -112,7 +112,7 @@ export function SaleNoShiftState({
           )}
 
           {(error || setupError || setupNotice) && (
-            <div className={`mb-4 rounded-lg border px-4 py-3 text-left text-sm font-semibold ${
+            <div className={`mb-4 rounded-lg border px-4 py-3 text-left text-sm font-medium ${
               setupNotice
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
                 : 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
@@ -155,7 +155,7 @@ export function SaleNoShiftState({
               <button
                 type="button"
                 onClick={onClearError}
-                className="rounded-lg px-5 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="rounded-lg px-5 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 Limpiar
               </button>
@@ -164,7 +164,7 @@ export function SaleNoShiftState({
               <button
                 onClick={onOpenShiftModal}
                 disabled={isLoading || isOpeningShift}
-                className="rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white shadow-md transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg bg-orange-600 px-6 py-3 font-medium text-white shadow-md transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isOpeningShift ? 'Abriendo...' : 'Abrir caja'}
               </button>

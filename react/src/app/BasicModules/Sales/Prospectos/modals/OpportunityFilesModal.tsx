@@ -65,14 +65,14 @@ export function OpportunityFilesModal({
         )}
       >
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="break-words font-semibold text-slate-950">{opportunity?.opportunityName}</p>
+              <p className="break-words font-medium text-slate-950">{opportunity?.opportunityName}</p>
               <p className="mt-1 break-words text-sm text-slate-600">{opportunity?.company}</p>
             </div>
 
             <div className="space-y-4">
               {hasQuoteFiles ? (
                 <section className="space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-700">{copy.quotesTitle}</h3>
+                  <h3 className="text-sm font-medium text-slate-700">{copy.quotesTitle}</h3>
                   {linkedQuotes.map((quote) => (
                     <div key={quote.id} className="flex flex-col gap-3 rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/[0.04] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <span className="inline-flex min-w-0 items-start gap-3 text-sm font-medium text-slate-800">
@@ -87,7 +87,7 @@ export function OpportunityFilesModal({
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-9 shrink-0 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white text-xs font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10"
+                        className="h-9 shrink-0 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white text-xs font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10"
                         onClick={() => setPreviewQuote(quote)}
                       >
                         <Eye className="h-3.5 w-3.5" />
@@ -100,7 +100,7 @@ export function OpportunityFilesModal({
 
               {hasLocalFiles ? (
                 <section className="space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-700">{copy.localFilesTitle}</h3>
+                  <h3 className="text-sm font-medium text-slate-700">{copy.localFilesTitle}</h3>
                   {opportunity?.files.map((file) => (
                     <div key={file} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <span className="inline-flex min-w-0 items-center gap-3 text-sm font-medium text-slate-800">

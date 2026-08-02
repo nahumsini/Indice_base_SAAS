@@ -32,14 +32,14 @@ export function TimeTableFilters({
     <section className="rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.filtersTitle}</h3>
+          <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.timeTable.filtersTitle}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {copy.timeTable.filtersDescription}
           </p>
         </div>
 
         <label className="block w-full xl:w-52">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.timeTable.attendanceDate}
           </span>
           <input
@@ -55,7 +55,7 @@ export function TimeTableFilters({
         </label>
 
         <label className="block w-full xl:w-72">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.labels.unit}
           </span>
           <select
@@ -71,7 +71,7 @@ export function TimeTableFilters({
         </label>
 
         <label className="block w-full xl:w-72">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.labels.business}
           </span>
           <select
@@ -128,7 +128,7 @@ function TimeTableKpiMetric({
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="truncate text-lg font-semibold leading-5 text-slate-950 dark:text-white">
+        <p className="truncate text-lg font-medium leading-5 text-slate-950 dark:text-white">
           <span className={valueClassName}>{value}</span>
         </p>
         <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
@@ -166,7 +166,7 @@ export function OrganizationSummary({
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.timeTable.organizationSummaryTitle}</h3>
+          <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.timeTable.organizationSummaryTitle}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {copy.timeTable.organizationSummaryDescription(
               totalEmployees,
@@ -175,7 +175,7 @@ export function OrganizationSummary({
             )}
           </p>
         </div>
-        <span className="inline-flex w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA]">
+        <span className="inline-flex w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-medium text-[#59C3A5] dark:bg-[#8FE0CA]/15 dark:text-[#8FE0CA]">
           {dateLabel}
         </span>
       </div>
@@ -194,12 +194,12 @@ export function OrganizationSummary({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{group.unit}</p>
+                <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{group.unit}</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {copy.timeTable.businessCount(group.businessList.length)}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-[#59C3A5] dark:bg-slate-800 dark:text-[#8FE0CA]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-[#59C3A5] dark:bg-slate-800 dark:text-[#8FE0CA]">
                 <Users className="h-3.5 w-3.5" />
                 {group.count}
               </span>
@@ -208,7 +208,7 @@ export function OrganizationSummary({
               {group.businessList.slice(0, 3).map((business) => (
                 <div key={business.business} className="flex items-center justify-between gap-3 rounded-md bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900">
                   <span className="truncate font-medium text-slate-700 dark:text-slate-200">{business.business}</span>
-                  <span className="font-semibold text-slate-950 dark:text-white">{business.count}</span>
+                  <span className="font-medium text-slate-950 dark:text-white">{business.count}</span>
                 </div>
               ))}
             </div>

@@ -39,7 +39,7 @@ export function AgendaBulkActionsBar({
   return (
     <section className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mb-4 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 py-3 shadow-lg shadow-slate-950/10 backdrop-blur dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 sm:static sm:shadow-sm sm:backdrop-blur-0">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+        <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
           <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05] dark:bg-slate-800 dark:text-[#FEF3C7]">
             {copy.bulk.selected(selectedCount)}
           </Badge>
@@ -49,7 +49,7 @@ export function AgendaBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             disabled={isRunning}
             onClick={onDuplicate}
           >
@@ -59,7 +59,7 @@ export function AgendaBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             disabled={isRunning}
             onClick={onOpenAssign}
           >
@@ -68,14 +68,14 @@ export function AgendaBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             disabled={isRunning}
             onClick={onOpenUnit}
           >
             {copy.form.labels.unit}
           </Button>
           <Select disabled={isRunning} onValueChange={(value) => onPriorityChange(value as TaskPriority)}>
-            <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
               <SelectValue placeholder={copy.form.labels.priority} />
             </SelectTrigger>
             <SelectContent>
@@ -89,7 +89,7 @@ export function AgendaBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
+            className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
             disabled={isRunning}
             onClick={onComplete}
           >
@@ -99,7 +99,7 @@ export function AgendaBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
+            className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
             disabled={isRunning}
             onClick={onDelete}
           >
@@ -109,7 +109,7 @@ export function AgendaBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             disabled={isRunning}
             onClick={onClearSelection}
           >

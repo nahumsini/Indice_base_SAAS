@@ -913,7 +913,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       <Button
         type="button"
         variant="outline"
-        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto"
+        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto"
         onClick={() => setIsColumnsModalOpen(true)}
       >
         <Columns3 className="h-4 w-4" />
@@ -922,7 +922,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       <Button
         type="button"
         variant="outline"
-        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-800 dark:text-[#FEF3C7] sm:w-auto"
+        className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/15 dark:border-slate-700 dark:bg-slate-800 dark:text-[#FEF3C7] sm:w-auto"
         onClick={handleOpenTaskKiosks}
       >
         <MonitorSmartphone className="h-5 w-5" />
@@ -930,7 +930,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       </Button>
       <Button
         type="button"
-        className={cn('h-10 w-full gap-2 rounded-xl px-4 text-sm font-semibold sm:w-auto', accentButtonClass)}
+        className={cn('h-10 w-full gap-2 rounded-xl px-4 text-sm font-medium sm:w-auto', accentButtonClass)}
         onClick={handleCreateTaskClick}
       >
         <Plus className="h-4 w-4" />
