@@ -1,4 +1,4 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=indice-erp-backend:latest
 FROM ${BASE_IMAGE}
 
 # Offline deployment path for restricted VPS hosts. The JVM and non-root

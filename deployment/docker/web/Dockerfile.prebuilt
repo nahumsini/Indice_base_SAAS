@@ -1,8 +1,10 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=indice-erp-web:latest
 FROM ${BASE_IMAGE}
 
 # Replace, rather than layer beside, the previous frontend assets so an old
 # chunk can never be served accidentally after a rollback or cache miss.
+USER root
 RUN rm -rf /usr/share/nginx/html/*
-COPY deployment/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
-COPY react/dist /usr/share/nginx/html
+COPY --chown=101:101 deployment/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=101:101 react/dist /usr/share/nginx/html
+USER 101
