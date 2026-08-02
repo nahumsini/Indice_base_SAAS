@@ -85,8 +85,8 @@ APP_BILLING_STRIPE_ENABLED=true
 APP_BILLING_STRIPE_MODE=test
 APP_BILLING_STRIPE_SECRET_KEY=sk_test_...
 APP_BILLING_STRIPE_WEBHOOK_SECRET=whsec_...
-APP_BILLING_STRIPE_PROCESSOR_ENABLED=false
-APP_BILLING_PROVISIONING_ENABLED=false
+APP_BILLING_STRIPE_PROCESSOR_ENABLED=true
+APP_BILLING_PROVISIONING_ENABLED=true
 
 APP_BILLING_STRIPE_PRICE_BASIC_1_MONTHLY=price_...
 APP_BILLING_STRIPE_PRICE_BASIC_1_ANNUAL=price_...
@@ -103,6 +103,10 @@ APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_ANNUAL=price_...
 ```
 
 La llave publicable y el account ID no son utilizados por el checkout actual: la sesión la crea el backend y el navegador es redirigido a Stripe Checkout.
+
+Los dos interruptores anteriores quedan en `false` durante el Paso A y sólo se
+cambian a `true` después de validar la firma del webhook. Los valores mostrados
+en esta sección representan el estado certificado actual de staging.
 
 El catálogo TEST se crea de forma repetible con:
 
@@ -233,7 +237,83 @@ Además:
 
 Como las llaves TEST se compartieron por chat, deben rotarse al cerrar la certificación de staging. Esto no afecta producción.
 
-## 8. Rollback de staging
+## 8. Certificación ejecutada el 2 de agosto de 2026
+
+Versión desplegada: `be5fc2f2`, rama
+`feature/stripe-staging-courtesy-2026-08-01`.
+
+### Infraestructura y aislamiento
+
+- `apptest.indiceapp.com/api/v1/health`, `/login` y `/platform-admin`
+  respondieron HTTP 200.
+- Apache dirige `apptest` a `127.0.0.1:8180`; producción continúa en
+  `127.0.0.1:8080`.
+- Web, backend, MySQL y MinIO de staging quedaron saludables y sin reinicios.
+- Los puertos `8180`, `8182`, `8336`, `8900` y `8901` escuchan sólo en
+  `127.0.0.1`.
+- `app.indiceapp.com/api/v1/health` permaneció en HTTP 200. Las imágenes,
+  identificadores y fechas de inicio de los contenedores de producción no
+  cambiaron durante el despliegue.
+
+### Stripe TEST y webhook
+
+- Los trece precios TEST se contrastaron contra Stripe: importes, intervalo,
+  moneda USD, `tax_behavior=exclusive`, estado activo y `livemode=false`.
+- Stripe Tax quedó activo en TEST con el domicilio corporativo documentado y
+  código fiscal de SaaS para uso empresarial.
+- Un webhook sin firma respondió HTTP 400; un evento firmado respondió HTTP
+  200 y se almacenó.
+- Los eventos reales `customer.subscription.created` e `invoice.paid`
+  enviados por Stripe llegaron al endpoint público y quedaron procesados.
+- El mismo evento `checkout.session.completed` se reenvió y fue reconocido
+  como duplicado sin crear una segunda empresa.
+
+### Alta comercial certificada
+
+- Se creó un cliente Stripe TEST con método de pago de prueba, suscripción
+  `trialing`, 30 días exactos y Automatic Tax activo.
+- El evento de finalización aprovisionó una sola empresa, propietario y
+  membresía.
+- La prueba entregó los seis productos básicos, cinco empleados y
+  `5,368,709,120` bytes, equivalentes a 5 GiB.
+- El propietario pudo iniciar sesión en `apptest` como `superadmin`.
+- Un Checkout anual de tres productos más dos empleados verificó USD
+  1,430.40 de paquete anual, USD 144 por empleado, tarjeta y dirección
+  obligatorias, Automatic Tax y USD 0 a pagar al comenzar la prueba. La sesión
+  se expiró al terminar la comprobación.
+
+La automatización de navegador no estuvo disponible durante esta ejecución.
+Por ello, antes de promover a producción permanece como compuerta manual abrir
+una sesión alojada de Stripe Checkout, ingresar una tarjeta TEST y confirmar la
+redirección visual a `/signup/complete`. La captura de tarjeta, la suscripción
+TEST, los webhooks y el aprovisionamiento sí fueron certificados por API.
+
+### Cortesía desde root
+
+- Se habilitó un administrador `PLATFORM_ROOT` exclusivo de staging; sus
+  credenciales se mantienen sólo en el VPS.
+- Root creó dos códigos mediante la API usada por el panel y se generaron dos
+  eventos de auditoría `COURTESY_CODE_CREATED`.
+- El código temporal entregó los seis productos, dos asientos adicionales y 45
+  días de acceso.
+- El código permanente entregó solamente Cartera y no tiene fecha de
+  vencimiento.
+- Ambas cuentas se aprovisionaron e iniciaron sesión sin cliente, sesión ni
+  suscripción de Stripe.
+
+### Pruebas de código
+
+Pasaron las suites dirigidas de selección comercial, registro, aprovisionamiento,
+cortesía, administración de plataforma, suscripciones y ciclo comercial. La
+prueba de ciclo comercial confirma que una prueba vencida entra en solo lectura
+por 90 días y luego queda en `PURGE_PENDING` sin borrar automáticamente la
+empresa. También pasaron la compilación React y la validación de Compose.
+
+El barrido del contenido rastreado por Git no encontró llaves Stripe reales.
+Los secretos, credenciales sintéticas y referencias de certificación viven
+únicamente en archivos `0600` bajo `/root/indice-apptest`.
+
+## 9. Rollback de staging
 
 1. Guardar copia del archivo secreto, Compose y configuración Apache antes de cada cambio.
 2. Reapuntar `apptest.indiceapp.com` al puerto anterior si el smoke test falla.
@@ -241,7 +321,7 @@ Como las llaves TEST se compartieron por chat, deben rotarse al cerrar la certif
 
 ```bash
 docker compose --env-file /root/indice-apptest/staging.env \
-  -f /root/indice-apptest/deployment/compose/docker-compose.staging.yml down
+  -f /root/indice-apptest/source/deployment/compose/docker-compose.staging.yml down
 ```
 
 4. No usar `down -v` durante un rollback normal; los volúmenes contienen los datos de prueba.
