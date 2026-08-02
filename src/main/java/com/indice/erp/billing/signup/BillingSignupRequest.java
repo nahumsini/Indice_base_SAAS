@@ -13,6 +13,7 @@ public record BillingSignupRequest(
     String companySize,
     String billingInterval,
     Integer extraSeats,
-    List<String> selectedProductCodes
+    List<String> selectedProductCodes,
+    String courtesyCode
 ) {
 }

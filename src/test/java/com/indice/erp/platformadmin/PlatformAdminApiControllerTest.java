@@ -36,6 +36,9 @@ class PlatformAdminApiControllerTest {
     @MockBean
     private PlatformAdminService service;
 
+    @MockBean
+    private CourtesyCodeService courtesyCodes;
+
     @Test
     void contextRequiresAnAuthenticatedApplicationSession() throws Exception {
         given(auth.currentUser(any())).willReturn(Optional.empty());

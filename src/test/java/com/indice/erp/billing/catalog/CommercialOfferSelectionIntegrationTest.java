@@ -28,16 +28,25 @@ class CommercialOfferSelectionIntegrationTest {
 
         var threeAnnual = service.select(products.subList(0, 3).stream().map(p -> p.code()).toList(), "YEAR", 1);
         assertThat(threeAnnual.offerCode()).isEqualTo("basic_3");
-        assertThat(threeAnnual.estimatedAmountCents()).isEqualTo(154_560);
+        assertThat(threeAnnual.estimatedAmountCents()).isEqualTo(157_440);
+
+        for (int count = 4; count <= products.size(); count++) {
+            var fourOrMore = service.select(
+                products.subList(0, count).stream().map(p -> p.code()).toList(),
+                "MONTH",
+                0
+            );
+            assertThat(fourOrMore.offerCode()).isEqualTo("basic_all");
+            assertThat(fourOrMore.estimatedAmountCents()).isEqualTo(19_900);
+        }
 
         var all = service.select(products.stream().map(p -> p.code()).toList(), "MONTH", 0);
         assertThat(all.offerCode()).isEqualTo("basic_all");
         assertThat(all.baseAmountCents()).isEqualTo(19_900);
         assertThat(all.estimatedAmountCents()).isEqualTo(19_900);
 
-        assertThatThrownBy(() -> service.select(
-            products.subList(0, 4).stream().map(p -> p.code()).toList(), "MONTH", 0
-        )).isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("1, 2, 3, or all");
+        assertThatThrownBy(() -> service.select(List.of(), "MONTH", 0))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("valid basic products");
     }
 }

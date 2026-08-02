@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.indice.erp.billing.lifecycle.CommercialLifecycleProperties;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -30,9 +31,15 @@ class CompanySubscriptionServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    private CompanySubscriptionService service() {
+        var properties = new CommercialLifecycleProperties();
+        properties.setRetentionDays(90);
+        return new CompanySubscriptionService(jdbcTemplate, CLOCK, properties);
+    }
+
     @Test
     void futureTrialIsAllowed() {
-        var service = new CompanySubscriptionService(jdbcTemplate, CLOCK);
+        var service = service();
         stubSubscription("trialing", "all-modules", "2026-07-01T12:00:00Z", null, null);
 
         var status = service.currentStatus(7L);
@@ -43,7 +50,7 @@ class CompanySubscriptionServiceTest {
 
     @Test
     void expiredTrialIsBlockedEvenBeforeJobRuns() {
-        var service = new CompanySubscriptionService(jdbcTemplate, CLOCK);
+        var service = service();
         stubSubscription("trialing", "all-modules", "2026-06-29T12:00:00Z", null, null);
 
         var status = service.currentStatus(7L);
@@ -54,7 +61,7 @@ class CompanySubscriptionServiceTest {
 
     @Test
     void missingSubscriptionFallsBackToLegacyAccess() {
-        var service = new CompanySubscriptionService(jdbcTemplate, CLOCK);
+        var service = service();
         when(jdbcTemplate.query(contains("FROM company_billing_subscriptions"), ArgumentMatchers.<RowMapper<CompanySubscriptionStatus>>any(), eq(7L)))
             .thenReturn(List.of());
         when(jdbcTemplate.query(contains("FROM company_commercial_states"), ArgumentMatchers.<RowMapper<CompanySubscriptionStatus>>any(), eq(7L)))
@@ -68,7 +75,7 @@ class CompanySubscriptionServiceTest {
 
     @Test
     void paymentGraceAllowsPastDueAccessUntilGraceExpires() {
-        var service = new CompanySubscriptionService(jdbcTemplate, CLOCK);
+        var service = service();
         stubSubscription("past_due", "all-modules", "2026-07-01T12:00:00Z", null, "payment_grace", "2026-07-01T12:00:00Z");
 
         var status = service.currentStatus(7L);
@@ -79,8 +86,11 @@ class CompanySubscriptionServiceTest {
 
     @Test
     void expireTrialsMarksExpiredTrialRows() {
-        var service = new CompanySubscriptionService(jdbcTemplate, CLOCK);
-        when(jdbcTemplate.update(contains("UPDATE company_commercial_states"))).thenReturn(2);
+        var service = service();
+        when(jdbcTemplate.update(
+            contains("UPDATE company_commercial_states"),
+            ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any()
+        )).thenReturn(2);
 
         assertEquals(2, service.expireTrials());
     }

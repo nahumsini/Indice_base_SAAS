@@ -36,6 +36,13 @@ public class CommercialLifecycleService {
     }
 
     @Transactional
+    public TransitionResult initializeCourtesy(long companyId, Instant accessEndsAt) {
+        var now = clock.instant();
+        return apply(companyId, "COURTESY", "courtesy:" + companyId, now,
+            "courtesy", null, accessEndsAt, "COURTESY_STARTED");
+    }
+
+    @Transactional
     public TransitionResult applySubscriptionEvent(
         long companyId,
         String eventId,
@@ -79,31 +86,56 @@ public class CommercialLifecycleService {
             """
                 SELECT company_id
                 FROM company_commercial_states
-                WHERE (state = 'GRACE' AND (grace_ends_at IS NULL OR grace_ends_at <= ?))
+                WHERE (state = 'TRIAL' AND trial_ends_at IS NOT NULL AND trial_ends_at <= ?)
+                   OR (state = 'GRACE' AND (grace_ends_at IS NULL OR grace_ends_at <= ?))
                    OR (state = 'READ_ONLY' AND (read_only_ends_at IS NULL OR read_only_ends_at <= ?))
                    OR (state IN ('SUSPENDED', 'RETENTION') AND retention_until <= ?)
+                   OR (state = 'ACTIVE' AND subscription_status = 'courtesy'
+                       AND trial_ends_at IS NOT NULL AND trial_ends_at <= ?)
                 ORDER BY updated_at, company_id
                 LIMIT ?
                 """,
             (rs, rowNum) -> rs.getLong(1),
-            Timestamp.from(now), Timestamp.from(now), Timestamp.from(now), properties.getSchedulerBatchSize()
+            Timestamp.from(now), Timestamp.from(now), Timestamp.from(now), Timestamp.from(now), Timestamp.from(now),
+            properties.getSchedulerBatchSize()
         );
         var changed = 0;
         for (var companyId : companyIds) {
             var state = rows(companyId, true).stream().findFirst().orElse(null);
             if (state == null) continue;
             var next = switch (state.state()) {
+                case TRIAL -> state.withState(
+                    CommercialLifecycleState.READ_ONLY, "READ_ONLY", "TRIAL_EXPIRED",
+                    null, null, now,
+                    now.plus(properties.getRetentionDays(), ChronoUnit.DAYS), null,
+                    now.plus(properties.getRetentionDays(), ChronoUnit.DAYS), null
+                );
+                case ACTIVE -> state.withState(
+                    CommercialLifecycleState.READ_ONLY, "READ_ONLY", "COURTESY_EXPIRED",
+                    null, null, now,
+                    now.plus(properties.getRetentionDays(), ChronoUnit.DAYS), null, null, null
+                );
                 case GRACE -> state.withState(
                     CommercialLifecycleState.READ_ONLY, "READ_ONLY", "GRACE_EXPIRED",
                     state.graceStartedAt(), state.graceEndsAt(), now,
                     now.plus(properties.getReadOnlyDays(), ChronoUnit.DAYS), null, null, null
                 );
-                case READ_ONLY -> state.withState(
-                    CommercialLifecycleState.SUSPENDED, "BILLING_ONLY", "READ_ONLY_EXPIRED",
-                    state.graceStartedAt(), state.graceEndsAt(), state.readOnlyStartedAt(),
-                    state.readOnlyEndsAt(), now,
-                    now.plus(properties.getRetentionDays(), ChronoUnit.DAYS), null
-                );
+                case READ_ONLY -> "courtesy".equalsIgnoreCase(state.subscriptionStatus())
+                    || "canceled".equalsIgnoreCase(state.subscriptionStatus())
+                    || "trialing".equalsIgnoreCase(state.subscriptionStatus())
+                    || "TRIAL_EXPIRED".equalsIgnoreCase(state.reasonCode())
+                    || "trial_expired".equalsIgnoreCase(state.reasonCode())
+                    ? state.withState(
+                        CommercialLifecycleState.PURGE_PENDING, "BILLING_ONLY", "RETENTION_EXPIRED",
+                        state.graceStartedAt(), state.graceEndsAt(), state.readOnlyStartedAt(),
+                        state.readOnlyEndsAt(), now, state.readOnlyEndsAt(), now
+                    )
+                    : state.withState(
+                        CommercialLifecycleState.SUSPENDED, "BILLING_ONLY", "READ_ONLY_EXPIRED",
+                        state.graceStartedAt(), state.graceEndsAt(), state.readOnlyStartedAt(),
+                        state.readOnlyEndsAt(), now,
+                        now.plus(properties.getRetentionDays(), ChronoUnit.DAYS), null
+                    );
                 case SUSPENDED, RETENTION -> state.withState(
                     CommercialLifecycleState.PURGE_PENDING, "BILLING_ONLY", "RETENTION_EXPIRED",
                     state.graceStartedAt(), state.graceEndsAt(), state.readOnlyStartedAt(),
@@ -163,6 +195,9 @@ public class CommercialLifecycleService {
         if (subscription.equals("ACTIVE") || subscription.equals("RESUMED")) {
             return active(current, "SUBSCRIPTION_ACTIVE", trialEndsAt);
         }
+        if (subscription.equals("COURTESY")) {
+            return active(current, "COURTESY_ACTIVE", trialEndsAt);
+        }
         if (payment.contains("PAID") || payment.contains("PAYMENT_SUCCEEDED")) {
             if ((current.state() == CommercialLifecycleState.RETENTION
                 || current.state() == CommercialLifecycleState.PURGE_PENDING)
@@ -186,9 +221,9 @@ public class CommercialLifecycleService {
             return current.withReason("PAYMENT_REFUNDED");
         }
         if (subscription.equals("CANCELED") || subscription.equals("DELETED")) {
-            return current.withState(CommercialLifecycleState.RETENTION, "BILLING_ONLY", "SUBSCRIPTION_CANCELED",
-                current.graceStartedAt(), current.graceEndsAt(), current.readOnlyStartedAt(),
-                current.readOnlyEndsAt(), occurredAt,
+            return current.withState(CommercialLifecycleState.READ_ONLY, "READ_ONLY", "SUBSCRIPTION_CANCELED",
+                current.graceStartedAt(), current.graceEndsAt(), occurredAt,
+                occurredAt.plus(properties.getRetentionDays(), ChronoUnit.DAYS), null,
                 occurredAt.plus(properties.getRetentionDays(), ChronoUnit.DAYS), null);
         }
         if (subscription.equals("PAUSED")) {

@@ -9,6 +9,7 @@ import com.indice.erp.billing.stripe.StripeCheckoutGateway;
 import com.indice.erp.billing.stripe.StripeGatewayException;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.billing.stripe.StripeSecretProvider;
+import com.indice.erp.platformadmin.CourtesyCodeService;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ import org.springframework.stereotype.Service;
 public class BillingSignupService {
 
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
-    private static final Set<String> LAUNCH_COUNTRIES = Set.of("MX", "CA");
+    private static final Set<String> LAUNCH_COUNTRIES = Set.of("MX", "CA", "US", "CO", "BR");
 
     private final CommercialOfferSelectionService offerSelectionService;
     private final BillingSignupIntentRepository repository;
@@ -37,6 +38,8 @@ public class BillingSignupService {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final BillingProvisioningProperties provisioningProperties;
+    private final CourtesyCodeService courtesyCodes;
+    private final BillingTenantProvisioningService tenantProvisioning;
 
     public BillingSignupService(
         CommercialOfferSelectionService offerSelectionService,
@@ -48,7 +51,9 @@ public class BillingSignupService {
         BCryptPasswordEncoder passwordEncoder,
         ObjectMapper objectMapper,
         Clock clock,
-        BillingProvisioningProperties provisioningProperties
+        BillingProvisioningProperties provisioningProperties,
+        CourtesyCodeService courtesyCodes,
+        BillingTenantProvisioningService tenantProvisioning
     ) {
         this.offerSelectionService = offerSelectionService;
         this.repository = repository;
@@ -60,6 +65,8 @@ public class BillingSignupService {
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.provisioningProperties = provisioningProperties;
+        this.courtesyCodes = courtesyCodes;
+        this.tenantProvisioning = tenantProvisioning;
     }
 
     public boolean provisioningEnabled() {
@@ -68,14 +75,16 @@ public class BillingSignupService {
 
     public SignupCheckoutResponse createCheckout(BillingSignupRequest request, String idempotencyKey) {
         validate(request, idempotencyKey);
-        secrets.requireEnabled();
+        var courtesySignup = courtesyCodes.isCourtesy(request.courtesyCode());
+        if (!courtesySignup) secrets.requireEnabled();
 
         var extraSeats = request.extraSeats() == null ? 0 : request.extraSeats();
         var selection = offerSelectionService.select(request.selectedProductCodes(), request.billingInterval(), extraSeats);
         var normalizedRequest = normalizedRequest(
             request,
             selection.billingInterval().name(),
-            selection.products().stream().map(product -> product.code()).toList()
+            selection.products().stream().map(product -> product.code()).toList(),
+            courtesySignup ? BillingHashing.sha256(request.courtesyCode().trim().toUpperCase(Locale.ROOT)) : ""
         );
         var fingerprint = BillingHashing.sha256(json(normalizedRequest));
         var idempotencyHash = BillingHashing.sha256(idempotencyKey.trim());
@@ -88,6 +97,19 @@ public class BillingSignupService {
             passwordEncoder.encode(request.password()),
             selection
         );
+
+        if (courtesySignup) {
+            var replayedCourtesy = "COURTESY_COMPLETED".equals(intent.status()) || intent.provisioned();
+            if (!replayedCourtesy) {
+                courtesyCodes.redeem(intent.id(), request.courtesyCode(), normalizedRequest.email());
+                tenantProvisioning.provisionIfEligible(intent.id());
+            }
+            var completed = repository.findById(intent.id());
+            audit.record("SIGNUP", "COURTESY_REDEEMED", "SUCCESS", idempotencyHash, null,
+                null, completed == null ? null : completed.companyId(), intent.id(),
+                Map.of("permanentCardBypass", true));
+            return response(completed == null ? intent : completed, replayedCourtesy);
+        }
 
         if (intent.stripeCheckoutSessionId() != null && intent.checkoutUrl() != null) {
             audit.record("SIGNUP", "CHECKOUT_REPLAYED", "SUCCESS", idempotencyHash, null,
@@ -205,7 +227,7 @@ public class BillingSignupService {
         }
         var country = request.countryCode() == null ? "" : request.countryCode().trim().toUpperCase(Locale.ROOT);
         if (!LAUNCH_COUNTRIES.contains(country)) {
-            throw new IllegalArgumentException("Country must be MX or CA during launch.");
+            throw new IllegalArgumentException("Country must be MX, CA, US, CO or BR during launch.");
         }
         if (idempotencyKey == null || idempotencyKey.trim().length() < 8 || idempotencyKey.trim().length() > 200) {
             throw new IllegalArgumentException("A valid Idempotency-Key header is required.");
@@ -222,7 +244,8 @@ public class BillingSignupService {
     private NormalizedSignupRequest normalizedRequest(
         BillingSignupRequest request,
         String normalizedBillingInterval,
-        List<String> sortedProducts
+        List<String> sortedProducts,
+        String courtesyCodeHash
     ) {
         return new NormalizedSignupRequest(
             request.fullName().trim(),
@@ -235,7 +258,8 @@ public class BillingSignupService {
             blank(request.companySize()),
             normalizedBillingInterval,
             request.extraSeats() == null ? 0 : request.extraSeats(),
-            sortedProducts
+            sortedProducts,
+            courtesyCodeHash
         );
     }
 
@@ -262,7 +286,8 @@ public class BillingSignupService {
         String companySize,
         String billingInterval,
         int extraSeats,
-        List<String> selectedProductCodes
+        List<String> selectedProductCodes,
+        String courtesyCodeHash
     ) {
     }
 

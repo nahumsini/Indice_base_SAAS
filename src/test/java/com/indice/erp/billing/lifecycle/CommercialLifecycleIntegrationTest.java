@@ -161,6 +161,29 @@ class CommercialLifecycleIntegrationTest {
     }
 
     @Test
+    void expiredTrialBecomesReadOnlyForTheNinetyDayRetentionWindow() {
+        var companyId = premiumCompany("trial-retention");
+        lifecycle.initializeTrial(companyId, Instant.now().minus(1, ChronoUnit.MINUTES));
+
+        assertThat(lifecycle.advanceDueStates()).isEqualTo(1);
+        var snapshot = lifecycle.snapshot(companyId).orElseThrow();
+        assertThat(snapshot.state()).isEqualTo("READ_ONLY");
+        assertThat(snapshot.operational_write_allowed()).isFalse();
+        assertThat(snapshot.reason_code()).isEqualTo("TRIAL_EXPIRED");
+        assertThat(snapshot.read_only_ends_at())
+            .isAfter(Instant.now().plus(89, ChronoUnit.DAYS));
+
+        expire(companyId, "read_only_ends_at");
+        assertThat(lifecycle.advanceDueStates()).isEqualTo(1);
+        var retained = lifecycle.snapshot(companyId).orElseThrow();
+        assertThat(retained.state()).isEqualTo("PURGE_PENDING");
+        assertThat(retained.reason_code()).isEqualTo("RETENTION_EXPIRED");
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM companies WHERE id = ?", Integer.class, companyId
+        )).isEqualTo(1);
+    }
+
+    @Test
     void legacyCompanyWithoutPremiumPolicyRemainsOutsideCommercialEnforcement() {
         var companyId = company("legacy");
 

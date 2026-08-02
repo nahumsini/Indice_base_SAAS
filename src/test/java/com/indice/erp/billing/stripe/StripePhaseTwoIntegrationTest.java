@@ -195,7 +195,7 @@ class StripePhaseTwoIntegrationTest {
         var selection = offers.select(List.of(product.code()), "MONTH", 0);
         var request = new BillingSignupRequest(
             "Premium Owner", "owner-" + idempotency + "@example.com", "very-secure-password",
-            "Premium Company", "MX", null, null, null, "MONTH", 0, List.of(product.code())
+            "Premium Company", "MX", null, null, null, "MONTH", 0, List.of(product.code()), null
         );
         var intent = signupIntents.createOrLoad(
             BillingHashing.randomReference(), BillingHashing.sha256(idempotency), BillingHashing.sha256("fp-" + idempotency),
