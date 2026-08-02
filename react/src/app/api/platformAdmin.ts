@@ -84,7 +84,46 @@ export interface BenefitPayload {
   ends_at?: string;
 }
 
+export interface CourtesyCode {
+  reference: string;
+  code?: string;
+  label: string;
+  status: string;
+  allowed_email?: string | null;
+  all_basic_products: boolean;
+  product_codes: string[];
+  included_extra_seats: number;
+  permanent: boolean;
+  access_days?: number | null;
+  max_redemptions: number;
+  redemption_count: number;
+  starts_at: string;
+  expires_at?: string | null;
+  reason: string;
+  campaign_code?: string | null;
+  created_at: string;
+}
+
+export interface CourtesyCodeCatalog {
+  codes: CourtesyCode[];
+  products: { code: string; name: string }[];
+}
+
+export interface CourtesyCodePayload {
+  label: string;
+  allowed_email?: string;
+  product_codes: string[];
+  included_extra_seats: number;
+  access_days?: number;
+  permanent: boolean;
+  max_redemptions: number;
+  expires_at?: string;
+  reason: string;
+  campaign_code?: string;
+}
+
 const companyPath = (companyId: number) => `${endpoints.platformAdmin.companies}/${companyId}`;
+const courtesyCodesPath = '/api/v1/platform-admin/courtesy-codes';
 
 export const platformAdminApi = {
   getContext: () => apiClient<PlatformAdminContext>(endpoints.platformAdmin.context),
@@ -102,6 +141,16 @@ export const platformAdminApi = {
   ),
   revokeBenefit: (companyId: number, reference: string, reason: string) => apiClient<PlatformBenefit>(
     `${companyPath(companyId)}/benefits/${encodeURIComponent(reference)}`,
+    { method: 'DELETE', body: JSON.stringify({ reason }) },
+  ),
+  getCourtesyCodes: () => apiClient<CourtesyCodeCatalog>(courtesyCodesPath),
+  createCourtesyCode: (payload: CourtesyCodePayload) => apiClient<CourtesyCode>(courtesyCodesPath, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+    body: JSON.stringify(payload),
+  }),
+  revokeCourtesyCode: (reference: string, reason: string) => apiClient<CourtesyCode>(
+    `${courtesyCodesPath}/${encodeURIComponent(reference)}`,
     { method: 'DELETE', body: JSON.stringify({ reason }) },
   ),
 };

@@ -16,6 +16,7 @@ import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.stripe.StripeCheckoutGateway;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.billing.stripe.StripeSecretProvider;
+import com.indice.erp.platformadmin.CourtesyCodeService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -42,6 +43,12 @@ class BillingSignupServiceTest {
     @Mock
     private BillingAuditService audit;
 
+    @Mock
+    private CourtesyCodeService courtesyCodes;
+
+    @Mock
+    private BillingTenantProvisioningService tenantProvisioning;
+
     private StripePhaseTwoProperties properties;
     private BillingSignupService service;
 
@@ -59,7 +66,7 @@ class BillingSignupServiceTest {
             offers, repository, gateway, properties, secrets, audit,
             new BCryptPasswordEncoder(4), new ObjectMapper(),
             Clock.fixed(Instant.parse("2026-07-21T12:00:00Z"), ZoneOffset.UTC),
-            provisioningProperties
+            provisioningProperties, courtesyCodes, tenantProvisioning
         );
     }
 
@@ -72,7 +79,7 @@ class BillingSignupServiceTest {
         );
         var request = new BillingSignupRequest(
             "Premium Owner", "owner@example.com", "very-secure-password", "Premium Company",
-            "MX", null, null, null, "MONTH", 0, List.of("basic_hr")
+            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null
         );
         var pending = new BillingSignupIntent(
             17L, "a".repeat(64), "b".repeat(64), "c".repeat(64), "PENDING",

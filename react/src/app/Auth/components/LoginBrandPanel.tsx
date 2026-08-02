@@ -1,5 +1,5 @@
-import indiceLogoUrl from '../../../assets/indice-logo.png';
 import type { LoginPageCopy } from './loginTypes';
+import { IndiceBrandLogo } from './IndiceBrandLogo';
 
 const pillarColors = [
   '#59C3A5',
@@ -16,13 +16,7 @@ export function LoginBrandPanel({ copy }: { copy: LoginPageCopy }) {
 
       <div className="relative flex flex-col">
         <div className="hidden items-center justify-between gap-4 lg:flex">
-          <div className="relative h-16 w-64 overflow-hidden">
-            <img
-              src={indiceLogoUrl}
-              alt={copy.logoAlt}
-              className="absolute left-1/2 top-1/2 w-[292px] max-w-none -translate-x-1/2 -translate-y-[45%]"
-            />
-          </div>
+          <IndiceBrandLogo alt={copy.logoAlt} className="h-16 w-64" imageClassName="w-[292px]" />
           <span className="inline-flex w-fit items-center rounded-full border border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--indice-brand-action)]">
             {copy.operatingSystemLabel}
           </span>

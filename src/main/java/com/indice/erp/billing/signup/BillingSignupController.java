@@ -44,13 +44,14 @@ public class BillingSignupController {
         return Map.ofEntries(
             Map.entry("csrfToken", csrf.ensureCsrf(session)),
             Map.entry("checkoutEnabled", properties.isEnabled()),
+            Map.entry("courtesyEnabled", service.provisioningEnabled()),
             Map.entry("provisioningEnabled", service.provisioningEnabled()),
             Map.entry("trialDays", 30),
             Map.entry("cardRequired", true),
             Map.entry("automaticCharge", true),
             Map.entry("includedSeats", 5),
             Map.entry("currency", "USD"),
-            Map.entry("launchCountries", java.util.List.of("MX", "CA")),
+            Map.entry("launchCountries", java.util.List.of("MX", "CA", "US", "CO", "BR")),
             Map.entry("products", offers.activeBasicProducts()),
             Map.entry("prices", offers.activePrices())
         );
