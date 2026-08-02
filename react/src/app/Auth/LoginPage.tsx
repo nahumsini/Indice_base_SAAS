@@ -16,9 +16,9 @@ import { Button } from '../components/ui/button';
 import { languages, useLanguage } from '../shared/context';
 import { isValidEmail, normalizeEmail } from '../shared/validation/email';
 import { LoginBrandPanel } from './components/LoginBrandPanel';
+import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 import { LoginFormPanel } from './components/LoginFormPanel';
 import { PasswordResetModal } from './components/PasswordResetModal';
-import indiceLogoUrl from '../../assets/indice-logo.png';
 
 const LOGIN_MINIMUM_LOADING_MS = 2500;
 
@@ -164,13 +164,7 @@ export default function LoginPage() {
     <>
       <main className="flex min-h-screen flex-col bg-[linear-gradient(135deg,_#F8FAFC_0%,_#EEF4FA_52%,_#F8FAFC_100%)] px-3 py-3 text-slate-900 sm:px-6 sm:py-5 lg:px-8">
         <div className="mx-auto mb-3 flex w-full max-w-[1420px] items-center justify-between lg:mb-4 lg:justify-end">
-          <div className="relative h-12 w-36 overflow-hidden lg:hidden">
-            <img
-              src={indiceLogoUrl}
-              alt={copy.logoAlt}
-              className="absolute left-1/2 top-1/2 w-44 max-w-none -translate-x-1/2 -translate-y-[45%]"
-            />
-          </div>
+          <IndiceBrandLogo alt={copy.logoAlt} className="h-12 w-36 lg:hidden" imageClassName="w-44" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-10 gap-2 rounded-full border-slate-200 bg-white/90 px-3 text-[var(--indice-structural-blue)] shadow-sm hover:text-[var(--indice-structural-blue-hover)] sm:px-4">
