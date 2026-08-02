@@ -56,6 +56,12 @@ El proyecto Compose `indice-apptest` tiene base de datos, volúmenes, red y cont
 
 Archivo de runtime: `deployment/compose/docker-compose.staging.yml`.
 
+Si el VPS no puede resolver los repositorios de Maven o npm, se usa el camino
+offline: el JAR y `react/dist` se compilan y validan en la estación de despliegue,
+se transfieren por SSH y se empaquetan con `Dockerfile.prebuilt`. Las imágenes
+base deben ser las mismas versiones de JVM y nginx ya aprobadas en el VPS; no se
+descargan dependencias durante esta operación.
+
 ## 4. Secretos y variables
 
 El archivo real se conserva sólo en el VPS, propiedad de `root`, modo `0600`. Nunca se copia a Git.
