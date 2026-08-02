@@ -24,7 +24,7 @@ const tabPermissionPickerSource = readFileSync(
   'utf8',
 );
 const moduleRegistryMigrationSource = readFileSync(
-  resolve(root, '../src/main/resources/db/migration/V157__module_access_registry.sql'),
+  resolve(root, '../src/main/resources/db/migration/V159__module_access_registry.sql'),
   'utf8',
 );
 const appSource = readFileSync(resolve(root, 'src/app/App.tsx'), 'utf8');

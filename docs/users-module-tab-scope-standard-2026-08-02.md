@@ -77,7 +77,7 @@ Fuera de esos dos módulos puede recibir cualquiera de los scopes operativos del
 
 ## Persistencia y migración
 
-La migración `V156__complete_module_tab_scope_catalog.sql` agrega únicamente filas faltantes:
+La migración `V158__complete_module_tab_scope_catalog.sql` agrega únicamente filas faltantes:
 
 - no sobrescribe decisiones existentes de `can_view`;
 - habilita por defecto las nuevas pestañas pertenecientes a módulos ya asignados, para no romper usuarios existentes;
@@ -108,7 +108,7 @@ No debe publicarse una pestaña que solo esté oculta visualmente. El backend de
 - catálogo: 54 scopes únicos y 10 módulos;
 - compatibilidad de rol, techo de Admin y protección de Plan cubiertos por pruebas;
 - clasificación de rutas privadas y exclusión de rutas públicas cubiertas por pruebas;
-- migración V156 aplicada desde cero y revalidada sin sobrescribir permisos existentes;
+- migración V158 aplicada desde cero y revalidada sin sobrescribir permisos existentes;
 - 39 pruebas backend focalizadas aprobadas, incluido arranque completo del contexto Spring y la doble exigencia módulo + pestaña;
 - typecheck, matriz frontend completa, 8 regresiones específicas de Usuarios y build de producción aprobados.
 
