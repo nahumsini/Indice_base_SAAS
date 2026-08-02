@@ -47,12 +47,12 @@ Internet
   -> Apache/cPanel TLS para apptest.indiceapp.com
   -> 127.0.0.1:8180
   -> indice-apptest-web
-       -> indice-apptest-backend:8082
-       -> indice-apptest-minio:9000
-       -> indice-apptest-mysql:3306
+       -> 127.0.0.1:8182 (backend)
+       -> 127.0.0.1:8900 (MinIO)
+       -> 127.0.0.1:8336 (MySQL)
 ```
 
-El proyecto Compose `indice-apptest` tiene base de datos, volúmenes, red y contenedores independientes del runtime actual `indice-erp`. No se reutilizan sus puertos, base de datos ni volúmenes.
+El proyecto Compose `indice-apptest` tiene base de datos, volúmenes y contenedores independientes del runtime actual `indice-erp`. El VPS bloquea el acceso a redes bridge, por lo que staging usa la red host con puertos exclusivos ligados a `127.0.0.1`; no se reutilizan puertos, base de datos ni volúmenes y esos servicios no quedan publicados a Internet.
 
 Archivo de runtime: `deployment/compose/docker-compose.staging.yml`.
 
@@ -61,6 +61,18 @@ offline: el JAR y `react/dist` se compilan y validan en la estación de desplieg
 se transfieren por SSH y se empaquetan con `Dockerfile.prebuilt`. Las imágenes
 base deben ser las mismas versiones de JVM y nginx ya aprobadas en el VPS; no se
 descargan dependencias durante esta operación.
+
+La imagen web de staging se construye con:
+
+```bash
+docker build \
+  --build-arg BASE_IMAGE=indice-erp-web:<tag-aprobado> \
+  --build-arg NGINX_LISTEN_PORT=8180 \
+  --build-arg BACKEND_UPSTREAM=127.0.0.1:8182 \
+  --build-arg MINIO_UPSTREAM=127.0.0.1:8900 \
+  -f deployment/docker/web/Dockerfile.prebuilt \
+  -t indice-erp-web:<tag-apptest> .
+```
 
 ## 4. Secretos y variables
 
