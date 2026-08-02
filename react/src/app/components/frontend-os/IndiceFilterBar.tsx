@@ -62,7 +62,7 @@ export function IndiceFilterBar({
     >
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
+          <h3 className="text-base font-medium text-slate-900 dark:text-white">{title}</h3>
           {subtitle ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
         </div>
         {summary ? <div className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-300">{summary}</div> : null}

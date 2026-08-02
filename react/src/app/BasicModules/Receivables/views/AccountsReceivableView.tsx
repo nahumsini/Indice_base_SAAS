@@ -229,7 +229,7 @@ export function AccountsReceivableView({
                 installments: sortedInstallments,
                 locale,
               })}
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-medium text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
             >
               <Printer className="h-4 w-4" />
               Imprimir antigüedad
@@ -238,7 +238,7 @@ export function AccountsReceivableView({
               type="button"
               variant="outline"
               onClick={() => setShowColumnsModal(true)}
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-medium text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
             >
               <Columns3 className="h-4 w-4" />
               {viewCopy.columnsAction}
@@ -289,7 +289,7 @@ export function AccountsReceivableView({
                 onSort={handleSort}
               />
             ))}
-            <TableHead className="px-5 py-4 text-right text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+            <TableHead className="px-5 py-4 text-right text-[11px] font-medium text-slate-500">
               {viewCopy.table.actions}
             </TableHead>
           </TableRow>
@@ -305,13 +305,13 @@ export function AccountsReceivableView({
                     <TableCell
                       key={`${installment.id}-${column.id}`}
                       className={cn(
-                        'px-5 py-4 font-semibold text-slate-600 dark:text-slate-300',
-                        columnId === 'sale' && 'font-black text-slate-950 dark:text-white',
+                        'px-5 py-4 font-medium text-slate-600 dark:text-slate-300',
+                        columnId === 'sale' && 'font-medium text-slate-950 dark:text-white',
                         columnId === 'customer' && 'text-slate-700 dark:text-slate-200',
-                        columnId === 'installment' && 'font-bold text-slate-700 dark:text-slate-200',
-                        columnId === 'amount' && 'font-bold text-slate-700 dark:text-slate-200',
-                        columnId === 'paid' && 'font-bold text-slate-700 dark:text-slate-200',
-                        columnId === 'balance' && cn('font-black', financeTextClass),
+                        columnId === 'installment' && 'font-medium text-slate-700 dark:text-slate-200',
+                        columnId === 'amount' && 'font-medium text-slate-700 dark:text-slate-200',
+                        columnId === 'paid' && 'font-medium text-slate-700 dark:text-slate-200',
+                        columnId === 'balance' && cn('font-medium', financeTextClass),
                       )}
                     >
                       {renderCell(installment, columnId)}

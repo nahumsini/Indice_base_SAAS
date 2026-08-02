@@ -18,7 +18,7 @@ export function CategoryQuickCreate({
 }: CategoryQuickCreateProps) {
   return (
     <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-3.5">
-      <h3 className="text-sm font-semibold text-slate-900">{t.categoryManager.createTitle}</h3>
+      <h3 className="text-sm font-medium text-slate-900">{t.categoryManager.createTitle}</h3>
       <div className="mt-2.5 flex min-w-0 gap-2">
         <Input
           value={value}
@@ -34,7 +34,7 @@ export function CategoryQuickCreate({
         />
         <Button
           type="button"
-          className="h-10 shrink-0 gap-2 rounded-lg bg-[#FF6B5E] px-3 text-sm font-semibold text-white hover:bg-[#E85C50] sm:px-4"
+          className="h-10 shrink-0 gap-2 rounded-lg bg-[#FF6B5E] px-3 text-sm font-medium text-[#222831] hover:bg-[#E85C50] sm:px-4"
           onClick={onCreate}
         >
           <Plus className="h-4 w-4" />

@@ -37,7 +37,7 @@ export function TaskKioskConfirmationDialog({
         <Button
           type="button"
           disabled={busy}
-          className="rounded-lg bg-white font-semibold text-red-700 hover:bg-red-50"
+          className="rounded-lg bg-white font-medium text-red-700 hover:bg-red-50"
           onClick={onConfirm}
         >
           {busy ? 'Procesando...' : confirmLabel}

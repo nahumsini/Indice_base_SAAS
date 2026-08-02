@@ -91,7 +91,10 @@ const messageFromPayload = (payload: unknown) => (
 
 const codeFromPayload = (payload: unknown) => (
   typeof payload === 'object' && payload !== null
-    ? (payload as { error?: { code?: string } }).error?.code
+    ? (
+      (payload as { code?: string; error?: { code?: string } }).error?.code
+      ?? (payload as { code?: string }).code
+    )
     : undefined
 );
 

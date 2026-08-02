@@ -112,7 +112,7 @@ export function QuoteLineItemRow({
         <div className="flex min-w-0 gap-3">
           <ProductThumbnail product={previewProduct} size="md" />
           <div className="min-w-0">
-            <p className="font-semibold text-slate-950">{item.productName}</p>
+            <p className="font-medium text-slate-950">{item.productName}</p>
             <p className="mt-1 text-xs font-medium text-slate-500">{item.sku}</p>
             <p className="mt-1 text-xs font-normal text-slate-400">
               {product ? t.productTypeLabels[product.type] : t.common.unassigned}
@@ -175,7 +175,7 @@ export function QuoteLineItemRow({
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-slate-500">{t.labels.subtotal}</label>
-          <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-950">
+          <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-950">
             {formatCurrency(pricing.lineTotal, quoteCurrency)}
           </div>
         </div>
@@ -199,11 +199,11 @@ export function QuoteLineItemRow({
         </div>
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
           <p className="font-medium text-slate-500">{t.pricing.estimatedCost}</p>
-          <p className="mt-1 font-semibold text-slate-950">{formatCurrency(pricing.estimatedCost, quoteCurrency)}</p>
+          <p className="mt-1 font-medium text-slate-950">{formatCurrency(pricing.estimatedCost, quoteCurrency)}</p>
         </div>
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
           <p className="font-medium text-slate-500">{t.pricing.estimatedMargin}</p>
-          <p className="mt-1 font-semibold text-[#B63B32]">{getRoundedMargin(pricing.estimatedMargin)}%</p>
+          <p className="mt-1 font-medium text-[#B63B32]">{getRoundedMargin(pricing.estimatedMargin)}%</p>
         </div>
       </div>
     </article>

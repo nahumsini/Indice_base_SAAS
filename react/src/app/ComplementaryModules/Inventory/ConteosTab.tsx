@@ -17,22 +17,22 @@ export default function ConteosTab() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">🔢</div>
-          <p className="text-3xl font-bold">{mockCounts.length}</p>
+          <p className="text-3xl font-medium">{mockCounts.length}</p>
           <p className="text-sm opacity-90">Conteos Totales</p>
         </div>
         <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">⏳</div>
-          <p className="text-3xl font-bold">{mockCounts.filter(c => c.status === 'pendiente').length}</p>
+          <p className="text-3xl font-medium">{mockCounts.filter(c => c.status === 'pendiente').length}</p>
           <p className="text-sm opacity-90">Pendientes</p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">✅</div>
-          <p className="text-3xl font-bold">{mockCounts.filter(c => c.status === 'validado').length}</p>
+          <p className="text-3xl font-medium">{mockCounts.filter(c => c.status === 'validado').length}</p>
           <p className="text-sm opacity-90">Validados</p>
         </div>
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">⚠️</div>
-          <p className="text-3xl font-bold">{mockCounts.filter(c => c.status === 'diferencia').length}</p>
+          <p className="text-3xl font-medium">{mockCounts.filter(c => c.status === 'diferencia').length}</p>
           <p className="text-sm opacity-90">Con Diferencias</p>
         </div>
       </div>
@@ -42,7 +42,7 @@ export default function ConteosTab() {
           <div key={count.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">{count.folio}</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white">{count.folio}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{count.locationName}</p>
               </div>
               {getStatusBadge(count.status)}

@@ -27,7 +27,7 @@ export function ProspectosAgendaSidebar({
       onDrop={(event) => onScheduleDrop(event, '', '')}
     >
       <div className="mb-4">
-        <h4 className="text-base font-bold text-slate-950 dark:text-white">{copy.agenda.unscheduledTitle}</h4>
+        <h4 className="text-base font-medium text-slate-950 dark:text-white">{copy.agenda.unscheduledTitle}</h4>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.agenda.unscheduledDescription}</p>
       </div>
 
@@ -41,10 +41,10 @@ export function ProspectosAgendaSidebar({
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-bold text-slate-950 dark:text-white">{opportunity.opportunityName}</p>
-                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{opportunity.company} · {copy.options.nextActions[opportunity.nextAction]}</p>
+                <p className="text-sm font-medium text-slate-950 dark:text-white">{opportunity.opportunityName}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{opportunity.company} · {copy.options.nextActions[opportunity.nextAction]}</p>
               </div>
-              <Badge variant="outline" className={cn('rounded-full px-2 py-0.5 text-xs font-bold', temperatureClasses[opportunity.temperature])}>
+              <Badge variant="outline" className={cn('rounded-full px-2 py-0.5 text-xs font-medium', temperatureClasses[opportunity.temperature])}>
                 {copy.options.temperatures[opportunity.temperature]}
               </Badge>
             </div>
@@ -53,13 +53,13 @@ export function ProspectosAgendaSidebar({
                 type="date"
                 value={opportunitySchedules.get(opportunity.id)?.date ?? ''}
                 onChange={(event) => onDraftChange(opportunity, 'date', event.target.value)}
-                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-semibold shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               />
               <Input
                 type="time"
                 value={opportunitySchedules.get(opportunity.id)?.time ?? ''}
                 onChange={(event) => onDraftChange(opportunity, 'time', event.target.value)}
-                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-semibold shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium shadow-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               />
             </div>
           </article>

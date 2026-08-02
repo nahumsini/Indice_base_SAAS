@@ -108,14 +108,14 @@ function PairCustomerDisplay() {
       errorMessage={error || (!isOnline ? copy.customerDisplayPublic.shellOffline : null)}
       header={(
         <header className="bg-[#222831] px-5 py-5 text-white sm:px-8">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#F4C84A]">{copy.customerDisplayPublic.kioskEyebrow}</p>
-          <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">{copy.customerDisplayPublic.connectTitle}</h1>
+          <p className="text-xs font-medium text-[#F4C84A]">{copy.customerDisplayPublic.kioskEyebrow}</p>
+          <h1 className="mt-1 text-2xl font-medium sm:text-3xl">{copy.customerDisplayPublic.connectTitle}</h1>
           <p className="mt-2 text-sm text-gray-300">{copy.customerDisplayPublic.connectDescription}</p>
         </header>
       )}
       loadingOverlay={isPreparing && isOnline ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50" role="status">
-          <div className="rounded-lg bg-white px-5 py-4 font-semibold text-slate-900 shadow-xl">
+          <div className="rounded-lg bg-white px-5 py-4 font-medium text-slate-900 shadow-xl">
             {copy.customerDisplayPublic.preparingKiosk}
           </div>
         </div>
@@ -126,7 +126,7 @@ function PairCustomerDisplay() {
           <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-[#59C3A5]/15 text-4xl" aria-hidden="true">
             ↔
           </span>
-          <h2 className="mt-5 text-3xl font-semibold">{copy.customerDisplayPublic.registerCodeTitle}</h2>
+          <h2 className="mt-5 text-3xl font-medium">{copy.customerDisplayPublic.registerCodeTitle}</h2>
           <p className="mt-2 text-sm font-medium text-gray-600 dark:text-gray-300">
             {copy.customerDisplayPublic.registerCodeHelp}
           </p>
@@ -134,7 +134,7 @@ function PairCustomerDisplay() {
 
         <div className="mt-7 space-y-4">
           <label className="block">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{copy.customerDisplayPublic.registerCode}</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.customerDisplayPublic.registerCode}</span>
             <input
               value={pairingCode}
               onChange={(event) => setPairingCode(event.target.value.toUpperCase())}
@@ -142,13 +142,13 @@ function PairCustomerDisplay() {
               inputMode="text"
               autoComplete="one-time-code"
               aria-label={copy.customerDisplayPublic.pairingCodeLabel}
-              className="mt-2 min-h-16 w-full rounded-lg border-2 border-gray-200 bg-white px-5 text-center text-3xl font-semibold tracking-[0.18em] text-[#222831] outline-none transition focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+              className="mt-2 min-h-16 w-full rounded-lg border-2 border-gray-200 bg-white px-5 text-center text-3xl font-medium text-[#222831] outline-none transition focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
               maxLength={8}
             />
           </label>
 
           <label className="block">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{copy.customerDisplayPublic.displayName}</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.customerDisplayPublic.displayName}</span>
             <input
               value={deviceName}
               onChange={(event) => setDeviceName(event.target.value)}
@@ -161,7 +161,7 @@ function PairCustomerDisplay() {
             type="button"
             onClick={() => { void pairDisplay(); }}
             disabled={isPairing || isPreparing || !isOnline}
-            className="min-h-14 w-full rounded-lg bg-[#FF6B5E] px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-[#e85c50] disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-14 w-full rounded-lg bg-[#FF6B5E] px-5 py-3 text-base font-medium text-[#222831] shadow-sm transition hover:bg-[#e85c50] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPairing ? copy.customerDisplayPublic.connecting : copy.customerDisplayPublic.connect}
           </button>
@@ -251,17 +251,17 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
         errorMessage={error || null}
         header={(
           <header className="bg-[#222831] px-6 py-5 text-white">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#F4C84A]">{copy.customerDisplayPublic.kioskEyebrow}</p>
-            <h1 className="mt-1 text-2xl font-semibold">{copy.customerDisplayPublic.displayTitle}</h1>
+            <p className="text-xs font-medium text-[#F4C84A]">{copy.customerDisplayPublic.kioskEyebrow}</p>
+            <h1 className="mt-1 text-2xl font-medium">{copy.customerDisplayPublic.displayTitle}</h1>
           </header>
         )}
       >
         <div role="status" className="grid flex-1 place-items-center p-8 text-center">
           <div>
             <MonitorStatusIcon online={isOnline && !error} />
-            <p className="mt-5 text-lg font-semibold">{statusMessage}</p>
+            <p className="mt-5 text-lg font-medium">{statusMessage}</p>
             {error && isOnline ? (
-              <button type="button" onClick={() => setPollGeneration(current => current + 1)} className="mt-5 min-h-11 rounded-lg bg-[#FF6B5E] px-5 font-semibold text-white">
+              <button type="button" onClick={() => setPollGeneration(current => current + 1)} className="mt-5 min-h-11 rounded-lg bg-[#FF6B5E] px-5 font-medium text-[#222831]">
                 {copy.common.retry}
               </button>
             ) : null}
@@ -278,24 +278,24 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
       header={(
         <header className="flex flex-col gap-4 bg-[#222831] px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 lg:py-6">
           <div className="flex min-w-0 items-center gap-3 sm:gap-5">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-base font-black text-[#222831] sm:h-20 sm:w-20 sm:rounded-3xl sm:text-xl" aria-hidden="true">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-base font-medium text-[#222831] sm:h-20 sm:w-20 sm:rounded-3xl sm:text-xl" aria-hidden="true">
               POS
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-wide text-[#F4C84A] sm:text-sm">{copy.customerDisplayPublic.liveEyebrow}</p>
-              <h1 className="truncate text-2xl font-black sm:text-3xl lg:text-4xl">{state.kioskName || state.cashRegisterName || copy.customerDisplayPublic.defaultRegister}</h1>
-              <p className="mt-1 truncate text-sm font-bold text-gray-200 sm:text-lg">{state.companyName}</p>
-              <p className="hidden text-sm font-semibold text-gray-300 sm:block lg:text-base">
+              <p className="text-xs font-medium text-[#F4C84A] sm:text-sm">{copy.customerDisplayPublic.liveEyebrow}</p>
+              <h1 className="truncate text-2xl font-medium sm:text-3xl lg:text-4xl">{state.kioskName || state.cashRegisterName || copy.customerDisplayPublic.defaultRegister}</h1>
+              <p className="mt-1 truncate text-sm font-medium text-gray-200 sm:text-lg">{state.companyName}</p>
+              <p className="hidden text-sm font-medium text-gray-300 sm:block lg:text-base">
                 {[state.unitName, state.businessName, state.warehouseName].filter(Boolean).join(' · ')}
               </p>
-              <p className="text-sm font-semibold text-gray-300 lg:text-base">
+              <p className="text-sm font-medium text-gray-300 lg:text-base">
                 {state.cashRegisterCode || copy.customerDisplayPublic.connectingRegister} · {lastRefresh ? copy.customerDisplayPublic.live : copy.customerDisplayPublic.preparing}
               </p>
             </div>
           </div>
           <div className="rounded-2xl bg-white/10 px-4 py-3 text-left sm:shrink-0 sm:px-6 sm:py-4 sm:text-right">
-            <p className="text-xs font-black uppercase text-gray-300 sm:text-sm">{copy.customerDisplayPublic.status}</p>
-            <p className="text-xl font-black sm:text-2xl">{statusLabel(state.status, copy)}</p>
+            <p className="text-xs font-medium text-gray-300 sm:text-sm">{copy.customerDisplayPublic.status}</p>
+            <p className="text-xl font-medium sm:text-2xl">{statusLabel(state.status, copy)}</p>
           </div>
         </header>
       )}
@@ -303,8 +303,8 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
         <section className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:rounded-3xl">
             <div className="border-b border-gray-200 px-4 py-4 dark:border-gray-700 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-              <p className="text-sm font-black uppercase tracking-normal text-[#FF6B5E]">{copy.customerDisplayPublic.currentReceipt}</p>
-              <h2 className="mt-1 text-2xl font-black sm:text-3xl lg:text-4xl">
+              <p className="text-sm font-medium tracking-normal text-[#FF6B5E]">{copy.customerDisplayPublic.currentReceipt}</p>
+              <h2 className="mt-1 text-2xl font-medium sm:text-3xl lg:text-4xl">
                 {isIdle ? copy.customerDisplayPublic.registerReady : copy.customerDisplayPublic.itemCount(state.itemCount ?? items.length)}
               </h2>
             </div>
@@ -312,8 +312,8 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
             {isIdle ? (
               <div className="flex min-h-[240px] flex-1 flex-col items-center justify-center p-6 text-center sm:min-h-[360px] sm:p-10">
                 <span className="text-5xl sm:text-7xl" aria-hidden="true">✓</span>
-                <h3 className="mt-5 text-3xl font-black sm:mt-7 sm:text-4xl lg:text-5xl">{copy.customerDisplayPublic.readyTitle}</h3>
-                <p className="mt-3 max-w-2xl text-lg font-semibold text-gray-500 dark:text-gray-300 sm:text-xl lg:text-2xl">
+                <h3 className="mt-5 text-3xl font-medium sm:mt-7 sm:text-4xl lg:text-5xl">{copy.customerDisplayPublic.readyTitle}</h3>
+                <p className="mt-3 max-w-2xl text-lg font-medium text-gray-500 dark:text-gray-300 sm:text-xl lg:text-2xl">
                   {copy.customerDisplayPublic.readyDescription}
                 </p>
               </div>
@@ -335,9 +335,9 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
           </div>
 
           <aside className="flex min-h-0 flex-col gap-4 sm:gap-5">
-            <div className={`rounded-2xl p-5 text-white shadow-xl sm:rounded-3xl sm:p-7 ${state.status === 'PAID' ? 'bg-[#59C3A5]' : 'bg-[#222831]'}`}>
-              <p className="text-base font-black uppercase opacity-80 sm:text-lg">{copy.customerDisplayPublic.total}</p>
-              <p className="mt-3 break-words text-4xl font-black leading-none sm:mt-4 sm:text-5xl lg:text-6xl">
+            <div className={`rounded-2xl p-5 shadow-xl sm:rounded-3xl sm:p-7 ${state.status === 'PAID' ? 'bg-[#59C3A5] text-[#222831]' : 'bg-[#222831] text-white'}`}>
+              <p className="text-base font-medium opacity-80 sm:text-lg">{copy.customerDisplayPublic.total}</p>
+              <p className="mt-3 break-words text-4xl font-medium leading-none sm:mt-4 sm:text-5xl lg:text-6xl">
                 {formatMoney(state.totalAmount ?? 0, currency, locale)}
               </p>
             </div>
@@ -361,10 +361,10 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
             </div>
 
             <div className="mt-auto rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 p-5 sm:rounded-3xl sm:p-6">
-              <p className="text-xl font-black text-[#14745F] sm:text-2xl">
+              <p className="text-xl font-medium text-[#14745F] sm:text-2xl">
                 {state.customerMessage || copy.customerDisplayPublic.thankYou}
               </p>
-              <p className="mt-2 text-base font-semibold text-gray-600 dark:text-gray-300">
+              <p className="mt-2 text-base font-medium text-gray-600 dark:text-gray-300">
                 {copy.customerDisplayPublic.informational}
               </p>
             </div>
@@ -394,21 +394,21 @@ function DisplayItemRow({ item, currency, copy, locale }: {
   return (
     <article className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-gray-200 bg-[#F7F8FA] p-3 dark:border-gray-700 dark:bg-gray-950/60 sm:grid-cols-[72px_minmax(0,1fr)_minmax(120px,190px)] sm:gap-4 sm:rounded-3xl sm:p-4 lg:gap-5 lg:p-5">
       <div className="flex h-16 w-16 flex-col items-center justify-center rounded-2xl bg-[#F4C84A]/25 text-[#222831] sm:h-[72px] sm:w-[72px] sm:rounded-3xl">
-        <span className="text-2xl font-black leading-none sm:text-3xl">{item.quantity}</span>
-        <span className="text-xs font-black uppercase">{copy.customerDisplayPublic.units}</span>
+        <span className="text-2xl font-medium leading-none sm:text-3xl">{item.quantity}</span>
+        <span className="text-xs font-medium">{copy.customerDisplayPublic.units}</span>
       </div>
       <div className="min-w-0">
-        <h3 className="line-clamp-2 text-xl font-black sm:truncate sm:text-2xl lg:text-3xl">{item.productName}</h3>
-        <p className="mt-1 text-sm font-bold text-gray-500 dark:text-gray-300 sm:text-base lg:text-lg">
+        <h3 className="line-clamp-2 text-xl font-medium sm:truncate sm:text-2xl lg:text-3xl">{item.productName}</h3>
+        <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-300 sm:text-base lg:text-lg">
           {formatMoney(item.unitPrice, currency, locale)} {copy.customerDisplayPublic.each} {item.sku ? `· ${item.sku}` : ''}
         </p>
         {hasDiscount && (
-          <p className="mt-2 inline-flex items-center rounded-full bg-[#FF6B5E]/10 px-3 py-1 text-sm font-black text-[#C74337] sm:mt-3 sm:text-base">
+          <p className="mt-2 inline-flex items-center rounded-full bg-[#FF6B5E]/10 px-3 py-1 text-sm font-medium text-[#C74337] sm:mt-3 sm:text-base">
             {copy.customerDisplayPublic.discount} -{formatMoney(discountAmount, currency, locale)}
           </p>
         )}
       </div>
-      <p className="col-span-2 text-right text-2xl font-black sm:col-span-1 sm:text-3xl lg:text-4xl">{formatMoney(item.lineTotalAmount, currency, locale)}</p>
+      <p className="col-span-2 text-right text-2xl font-medium sm:col-span-1 sm:text-3xl lg:text-4xl">{formatMoney(item.lineTotalAmount, currency, locale)}</p>
     </article>
   );
 }
@@ -430,8 +430,8 @@ function TotalTile({
   }[tone];
   return (
     <div className={`rounded-2xl border border-gray-200 p-4 dark:border-gray-700 sm:rounded-3xl sm:p-5 ${toneClassName}`}>
-      <p className="text-sm font-black uppercase text-gray-500 dark:text-gray-300">{label}</p>
-      <p className="mt-2 break-words text-2xl font-black sm:text-3xl">{value}</p>
+      <p className="text-sm font-medium text-gray-500 dark:text-gray-300">{label}</p>
+      <p className="mt-2 break-words text-2xl font-medium sm:text-3xl">{value}</p>
     </div>
   );
 }

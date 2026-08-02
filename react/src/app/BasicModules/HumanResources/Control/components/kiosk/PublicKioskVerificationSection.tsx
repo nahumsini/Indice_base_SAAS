@@ -46,10 +46,10 @@ export function PublicKioskVerificationSection({
   return (
     <section className="overflow-hidden rounded-2xl border border-[#59C3A5]/30 bg-white shadow-[0_16px_40px_-34px_rgba(15,23,42,0.7)] dark:border-[#8FE0CA]/25 dark:bg-slate-950">
       <div className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
-        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#177D66] dark:text-[#8FE0CA]">
+        <p className="text-[11px] font-medium text-[#177D66] dark:text-[#8FE0CA]">
           {copy.stepLabel} 2 · {copy.verificationMethod}
         </p>
-        <h2 className="mt-1.5 text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+        <h2 className="mt-1.5 text-2xl font-medium tracking-tight text-slate-950 dark:text-white">
           {copy.steps.identity}
         </h2>
         <p className="mt-1 text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
@@ -63,7 +63,7 @@ export function PublicKioskVerificationSection({
         >
           <button
             aria-selected={evidenceMode === 'photo'}
-            className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 ${evidenceMode === 'photo' ? 'bg-[#177D66] text-white shadow-sm' : 'bg-white text-slate-600 hover:text-[#177D66] dark:bg-slate-950 dark:text-slate-300'}`}
+            className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 ${evidenceMode === 'photo' ? 'bg-[#177D66] text-white shadow-sm' : 'bg-white text-slate-600 hover:text-[#177D66] dark:bg-slate-950 dark:text-slate-300'}`}
             onClick={() => onEvidenceModeChange('photo')}
             role="tab"
             type="button"
@@ -73,7 +73,7 @@ export function PublicKioskVerificationSection({
           </button>
           <button
             aria-selected={evidenceMode === 'face'}
-            className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 ${evidenceMode === 'face' ? 'bg-[#177D66] text-white shadow-sm' : 'bg-white text-slate-600 hover:text-[#177D66] dark:bg-slate-950 dark:text-slate-300'}`}
+            className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 ${evidenceMode === 'face' ? 'bg-[#177D66] text-white shadow-sm' : 'bg-white text-slate-600 hover:text-[#177D66] dark:bg-slate-950 dark:text-slate-300'}`}
             onClick={() => onEvidenceModeChange('face')}
             role="tab"
             type="button"
@@ -88,7 +88,7 @@ export function PublicKioskVerificationSection({
         {evidenceMode === 'face' ? (
           <div>
             {faceVerificationSessionId ? (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                 {copy.faceVerified}
               </div>
             ) : (

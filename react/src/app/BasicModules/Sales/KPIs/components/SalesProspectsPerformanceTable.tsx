@@ -12,7 +12,7 @@ function StatusPill({ label }: { label: string }) {
       ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200'
       : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200';
 
-  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>;
+  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${tone}`}>{label}</span>;
 }
 
 export function SalesProspectsPerformanceTable({
@@ -42,7 +42,7 @@ export function SalesProspectsPerformanceTable({
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 p-5 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-lg font-bold text-slate-950 dark:text-white">{copy.prospectsTable.title}</h3>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.prospectsTable.title}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400">{copy.prospectsTable.subtitle}</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
@@ -50,7 +50,7 @@ export function SalesProspectsPerformanceTable({
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm font-semibold outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm font-medium outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             {[10, 25, 50, 100, 200].map((size) => (
               <option key={size} value={size}>{size}</option>
@@ -61,7 +61,7 @@ export function SalesProspectsPerformanceTable({
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[950px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-normal text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+          <thead className="bg-slate-50 text-xs tracking-normal text-slate-500 dark:bg-slate-950 dark:text-slate-400">
             <tr>
               <th className="px-5 py-4">{copy.prospectsTable.columns.prospect}</th>
               <th className="px-5 py-4">{copy.prospectsTable.columns.customer}</th>
@@ -76,13 +76,13 @@ export function SalesProspectsPerformanceTable({
             {items.map((item) => (
               <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
                 <td className="px-5 py-4">
-                  <p className="font-bold text-slate-950 dark:text-white">{item.opportunityName}</p>
+                  <p className="font-medium text-slate-950 dark:text-white">{item.opportunityName}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{item.id}</p>
                 </td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.company}</td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.stage}</td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.owner}</td>
-                <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
+                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">
                   <p>{formatPreferred(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
                   {item.currency !== preferredCurrency ? (
                     <p className="text-xs font-medium text-slate-400">{copy.context.native}: {formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>

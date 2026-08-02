@@ -44,7 +44,7 @@ export function PanelInicialHeader({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0">
-            <h1 className="mb-2 text-[1.625rem] font-bold leading-tight text-[var(--indice-graphite)] dark:text-white sm:text-3xl">
+            <h1 className="mb-2 text-[1.625rem] font-medium leading-tight text-[var(--indice-graphite)] dark:text-white sm:text-3xl">
               {title}
             </h1>
             <p className="max-w-2xl text-sm leading-6 text-[var(--indice-muted)] sm:text-base">

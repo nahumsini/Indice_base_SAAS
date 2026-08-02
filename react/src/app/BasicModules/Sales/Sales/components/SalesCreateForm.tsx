@@ -80,7 +80,7 @@ function SalesLineItemsPreview({
             <span className="font-medium text-slate-600 dark:text-slate-300">{item.quantity}</span>
             <span className="text-right font-medium text-slate-700 dark:text-slate-200">{formatSalesCurrency(item.unitPrice, form.currency)}</span>
             <span className="text-center text-slate-600 dark:text-slate-300">{item.taxPercent}%</span>
-            <span className="text-right font-semibold text-slate-900 dark:text-white">{formatSalesCurrency(item.subtotal, form.currency)}</span>
+            <span className="text-right font-medium text-slate-900 dark:text-white">{formatSalesCurrency(item.subtotal, form.currency)}</span>
           </div>
         ))}
         {!saleLines.length ? quoteLines.map((item) => (
@@ -92,7 +92,7 @@ function SalesLineItemsPreview({
             <span className="font-medium text-slate-600 dark:text-slate-300">{item.quantity}</span>
             <span className="text-right font-medium text-slate-700 dark:text-slate-200">{formatSalesCurrency(item.unitPrice, form.currency)}</span>
             <span className="text-center text-slate-600 dark:text-slate-300">{item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`}</span>
-            <span className="text-right font-semibold text-slate-900 dark:text-white">{formatSalesCurrency(item.quantity * item.unitPrice, form.currency)}</span>
+            <span className="text-right font-medium text-slate-900 dark:text-white">{formatSalesCurrency(item.quantity * item.unitPrice, form.currency)}</span>
           </div>
         )) : null}
         {!saleLines.length && !quoteLines.length ? (
@@ -137,7 +137,7 @@ function OriginStep({
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
             <div className="min-w-0">
-              <h3 className="text-base font-semibold">{t.modal.wizard.noApprovedQuotesTitle}</h3>
+              <h3 className="text-base font-medium">{t.modal.wizard.noApprovedQuotesTitle}</h3>
               <p className="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-200">{t.modal.wizard.noApprovedQuotesDescription}</p>
               <Button asChild variant="outline" className="mt-4 h-10 rounded-xl border-amber-300 bg-white px-4 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
                 <Link to="/sales/quotes">
@@ -324,7 +324,7 @@ function ReviewStep({
       )}>
         {isReady ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /> : <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />}
         <div>
-          <h3 className="text-sm font-semibold">{isReady ? t.modal.wizard.readyTitle : t.modal.wizard.pendingTitle}</h3>
+          <h3 className="text-sm font-medium">{isReady ? t.modal.wizard.readyTitle : t.modal.wizard.pendingTitle}</h3>
           <p className="mt-1 text-sm leading-6 opacity-80">{isReady ? t.modal.wizard.readyDescription : t.modal.wizard.pendingDescription}</p>
         </div>
       </section>

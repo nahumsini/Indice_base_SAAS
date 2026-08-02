@@ -144,7 +144,7 @@ export function CommissionRulesModal({
     >
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-slate-500">{t.commissions.rules.sections.rules}</h3>
+              <h3 className="text-sm font-medium text-slate-500">{t.commissions.rules.sections.rules}</h3>
               <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-lg border-[#FF6B5E]/25 bg-white text-[#B63B32]" onClick={handleReset}>
                 <Plus className="h-4 w-4" />
               </Button>
@@ -160,7 +160,7 @@ export function CommissionRulesModal({
                   )}
                   onClick={() => handleSelectRule(rule)}
                 >
-                  <p className="font-semibold text-slate-950 dark:text-white">{rule.name}</p>
+                  <p className="font-medium text-slate-950 dark:text-white">{rule.name}</p>
                   <p className="mt-1 text-xs font-normal text-slate-500">{formatCommissionType(rule.type)} · {rule.value}</p>
                   <span className={cn(
                     'mt-2 inline-flex rounded-full border px-2 py-1 text-xs font-medium',
@@ -243,13 +243,13 @@ export function CommissionRulesModal({
                 <Textarea value={draft.notes ?? ''} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} className="min-h-24 rounded-lg border-slate-200 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" />
               </FormField>
               <div className="rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 p-4">
-                <p className="text-sm font-semibold text-[#177d66]">{t.commissions.rules.sections.preview}</p>
+                <p className="text-sm font-medium text-[#177d66]">{t.commissions.rules.sections.preview}</p>
                 <div className="mt-3 grid gap-3">
                   <Input type="number" value={exampleSaleAmount} onChange={(event) => setExampleSaleAmount(Number(event.target.value))} className={salesFieldClassName} aria-label={t.commissions.rules.fields.exampleSaleAmount} />
                   <Input type="number" value={exampleQuantity} onChange={(event) => setExampleQuantity(Number(event.target.value))} className={salesFieldClassName} aria-label={t.commissions.rules.fields.exampleQuantity} />
                 </div>
-                <p className="mt-4 text-xs font-semibold text-[#177d66]">{t.commissions.rules.estimatedCommission}</p>
-                <p className="mt-1 text-2xl font-bold text-slate-950">{formatSalesCurrency(previewCommission)}</p>
+                <p className="mt-4 text-xs font-medium text-[#177d66]">{t.commissions.rules.estimatedCommission}</p>
+                <p className="mt-1 text-2xl font-medium text-slate-950">{formatSalesCurrency(previewCommission)}</p>
               </div>
             </div>
 

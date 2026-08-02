@@ -257,7 +257,7 @@ export default function KPIs() {
       />
 
       {error ? (
-        <section className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900 shadow-sm dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-100 sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-900 shadow-sm dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-100 sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
             {error}
@@ -368,7 +368,7 @@ function TitleBar({
             <BarChart3 className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <h2 className="mb-1 text-xl font-bold text-slate-950 dark:text-white">Panel ejecutivo</h2>
+            <h2 className="mb-1 text-xl font-medium text-slate-950 dark:text-white">Panel ejecutivo</h2>
             <p className="max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">
               Vista directiva de ventas, gastos, cartera, cajas chicas y ejecucion por unidad de negocio.
             </p>
@@ -491,8 +491,8 @@ function KpiGrid({ items, loading }: { items: ExecutiveKpiCard[]; loading: boole
                   </span>
                   <StatusBadge status={card.status} />
                 </div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{card.title}</p>
-                <p className="mt-2 text-2xl font-bold tracking-normal text-slate-950 dark:text-white">{formatValue(card.value, card.id)}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{card.title}</p>
+                <p className="mt-2 text-2xl font-medium tracking-normal text-slate-950 dark:text-white">{formatValue(card.value, card.id)}</p>
                 <p className="mt-2 text-sm leading-5 text-slate-600 dark:text-slate-300">{card.description}</p>
               </>
             )}
@@ -516,7 +516,7 @@ function ExecutiveInsight({ data, loading }: { data: ExecutiveKpiResponse | null
             <CheckCircle2 className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-bold text-blue-900 dark:text-blue-100">Lectura ejecutiva</p>
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Lectura ejecutiva</p>
             <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
               {loading
                 ? 'Consolidando informacion ejecutiva del periodo seleccionado.'
@@ -527,8 +527,8 @@ function ExecutiveInsight({ data, loading }: { data: ExecutiveKpiResponse | null
           </div>
         </div>
         <div className="rounded-xl border border-blue-200 bg-white px-4 py-3 text-right dark:border-blue-800 dark:bg-slate-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Score ejecutivo</p>
-          <p className="text-2xl font-bold text-slate-950 dark:text-white">{loading ? '--' : `${score}/100`}</p>
+          <p className="text-xs font-medium text-blue-700 dark:text-blue-200">Score ejecutivo</p>
+          <p className="text-2xl font-medium text-slate-950 dark:text-white">{loading ? '--' : `${score}/100`}</p>
         </div>
       </div>
     </section>
@@ -560,7 +560,7 @@ function FinancialMap({
             <LineChart className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="font-bold text-slate-950 dark:text-white">Mapa financiero por unidad</h3>
+            <h3 className="font-medium text-slate-950 dark:text-white">Mapa financiero por unidad</h3>
             <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">Comparativo directo entre ventas, gastos y utilidad operativa.</p>
           </div>
         </div>
@@ -582,10 +582,10 @@ function FinancialMap({
             <div key={`financial-map-${row.unitId ?? 'u'}-${row.businessId ?? 'b'}`} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-bold text-slate-950 dark:text-white">{row.businessName}</p>
+                  <p className="truncate font-medium text-slate-950 dark:text-white">{row.businessName}</p>
                   <p className="truncate text-xs text-slate-500 dark:text-slate-400">{row.unitName}</p>
                 </div>
-                <p className={cn('shrink-0 text-sm font-bold', row.operatingProfit >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300')}>
+                <p className={cn('shrink-0 text-sm font-medium', row.operatingProfit >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300')}>
                   {formatMoney(row.operatingProfit)}
                 </p>
               </div>
@@ -596,7 +596,7 @@ function FinancialMap({
             </div>
           );
         }) : (
-          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 dark:border-slate-700">
+          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-medium text-slate-500 dark:border-slate-700">
             No hay unidades con movimiento financiero para el filtro actual.
           </p>
         )}
@@ -629,7 +629,7 @@ function PettyCashPulse({
             <WalletCards className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="font-bold text-slate-950 dark:text-white">Cajas chicas administradas</h3>
+            <h3 className="font-medium text-slate-950 dark:text-white">Cajas chicas administradas</h3>
             <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">Fondos activos, saldo disponible y cajas que requieren corte o revision.</p>
           </div>
         </div>
@@ -644,8 +644,8 @@ function PettyCashPulse({
 
       <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
         <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-          <span className="font-bold text-blue-900 dark:text-blue-100">Uso contra limite</span>
-          <span className="font-bold text-slate-950 dark:text-white">{loading ? '--' : formatPercent(utilization)}</span>
+          <span className="font-medium text-blue-900 dark:text-blue-100">Uso contra limite</span>
+          <span className="font-medium text-slate-950 dark:text-white">{loading ? '--' : formatPercent(utilization)}</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-white dark:bg-slate-800">
           <div className="h-full rounded-full bg-blue-700" style={{ width: `${Math.min(100, Math.max(0, utilization))}%` }} />
@@ -656,13 +656,13 @@ function PettyCashPulse({
         {loading ? <Skeleton /> : visibleRows.length ? visibleRows.map((row) => (
           <div key={`petty-cash-${row.unitId ?? 'u'}-${row.businessId ?? 'b'}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
             <div className="min-w-0">
-              <p className="truncate font-bold text-slate-950 dark:text-white">{row.businessName}</p>
+              <p className="truncate font-medium text-slate-950 dark:text-white">{row.businessName}</p>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">{row.unitName} - {row.pettyCashFunds} fondos</p>
             </div>
-            <p className="shrink-0 font-bold text-slate-950 dark:text-white">{formatMoney(row.pettyCashBalance)}</p>
+            <p className="shrink-0 font-medium text-slate-950 dark:text-white">{formatMoney(row.pettyCashBalance)}</p>
           </div>
         )) : (
-          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 dark:border-slate-700">
+          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-medium text-slate-500 dark:border-slate-700">
             Sin cajas chicas con saldo para el filtro actual.
           </p>
         )}
@@ -684,7 +684,7 @@ function FinancialBar({
 }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
         <span>{label}</span>
         <span>{formatMoney(value)}</span>
       </div>
@@ -737,14 +737,14 @@ function UnitMatrix({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bool
       <div className="border-b border-slate-100 p-4 dark:border-slate-800">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-950 dark:text-white">Matriz por unidad y negocio</h3>
+            <h3 className="text-base font-medium text-slate-950 dark:text-white">Matriz por unidad y negocio</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Ventas, gastos, cartera y ejecucion comparables en una sola tabla.</p>
           </div>
           <div className="relative flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              className="h-10 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
               onClick={() => setShowColumns((current) => !current)}
             >
               <Columns3 className="mr-2 h-4 w-4" />
@@ -752,10 +752,10 @@ function UnitMatrix({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bool
             </Button>
             {showColumns && (
               <div className="absolute right-0 top-12 z-20 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-950">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Columnas visibles</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Columnas visibles</p>
                 <div className="mt-3 space-y-2">
                   {matrixColumns.map((column) => (
-                    <label key={column.key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">
+                    <label key={column.key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900">
                       <span>{column.label}</span>
                       <input
                         type="checkbox"
@@ -774,7 +774,7 @@ function UnitMatrix({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bool
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-[1120px] w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+          <thead className="bg-slate-50 text-xs font-medium text-slate-500 dark:bg-slate-950 dark:text-slate-400">
             <tr>
               {activeColumns.map((column) => (
                 <th key={column.key} className="px-4 py-3">{column.label}</th>
@@ -792,7 +792,7 @@ function UnitMatrix({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bool
               </tr>
             )) : (
               <tr>
-                <td colSpan={activeColumns.length} className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                <td colSpan={activeColumns.length} className="px-4 py-8 text-center text-sm font-medium text-slate-500">
                   No hay datos para el filtro actual.
                 </td>
               </tr>
@@ -801,13 +801,13 @@ function UnitMatrix({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bool
         </table>
       </div>
       <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300 lg:flex-row lg:items-center lg:justify-between">
-        <p className="font-semibold">
+        <p className="font-medium">
           {rows.length ? `Mostrando ${pageStart}-${pageEnd} de ${rows.length} unidades/negocios` : 'Sin registros para paginar'}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold">Filas</span>
+          <span className="font-medium">Filas</span>
           <select
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             value={pageSize}
             onChange={(event) => setPageSize(Number(event.target.value) as (typeof matrixPageSizeOptions)[number])}
           >
@@ -824,7 +824,7 @@ function UnitMatrix({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bool
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="min-w-24 text-center font-bold text-slate-700 dark:text-slate-200">
+          <span className="min-w-24 text-center font-medium text-slate-700 dark:text-slate-200">
             {safePage} / {totalPages}
           </span>
           <Button
@@ -855,12 +855,12 @@ function MatrixCell({
   if (column === 'identity') {
     return (
       <td className="px-4 py-3">
-        <p className="font-bold text-slate-950 dark:text-white">{row.businessName}</p>
+        <p className="font-medium text-slate-950 dark:text-white">{row.businessName}</p>
         <p className="text-xs text-slate-500 dark:text-slate-400">{row.unitName}</p>
         <button
           type="button"
           onClick={onSelect}
-          className="mt-2 text-xs font-bold text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+          className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
         >
           Ver detalle
         </button>
@@ -870,7 +870,7 @@ function MatrixCell({
 
   if (column === 'profit') {
     return (
-      <td className={cn('px-4 py-3 font-bold', row.operatingProfit >= 0 ? 'text-emerald-700' : 'text-rose-700')}>
+      <td className={cn('px-4 py-3 font-medium', row.operatingProfit >= 0 ? 'text-emerald-700' : 'text-rose-700')}>
         {formatMoney(row.operatingProfit)}
       </td>
     );
@@ -890,7 +890,7 @@ function MatrixCell({
     attendance: formatPercent(row.attendanceRate),
   };
 
-  return <td className="px-4 py-3 font-semibold">{values[column]}</td>;
+  return <td className="px-4 py-3 font-medium">{values[column]}</td>;
 }
 
 function UnitDetailModal({ onClose, row }: { onClose: () => void; row: ExecutiveUnitRow }) {
@@ -931,9 +931,9 @@ function UnitDetailModal({ onClose, row }: { onClose: () => void; row: Executive
               <Building2 className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Detalle ejecutivo</p>
-              <h3 className="truncate text-xl font-black tracking-normal text-slate-950 dark:text-white">{row.businessName}</h3>
-              <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{row.unitName}</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Detalle ejecutivo</p>
+              <h3 className="truncate text-xl font-medium tracking-normal text-slate-950 dark:text-white">{row.businessName}</h3>
+              <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{row.unitName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -959,7 +959,7 @@ function UnitDetailModal({ onClose, row }: { onClose: () => void; row: Executive
                   <LineChart className="h-5 w-5" />
                 </span>
                 <div>
-                  <h4 className="font-bold text-slate-950 dark:text-white">Lectura financiera</h4>
+                  <h4 className="font-medium text-slate-950 dark:text-white">Lectura financiera</h4>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Relacion entre ingreso, gasto, utilidad y presion de cartera.</p>
                 </div>
               </div>
@@ -977,13 +977,13 @@ function UnitDetailModal({ onClose, row }: { onClose: () => void; row: Executive
                   <AlertTriangle className="h-5 w-5" />
                 </span>
                 <div>
-                  <h4 className="font-bold text-slate-950 dark:text-white">Lectura accionable</h4>
+                  <h4 className="font-medium text-slate-950 dark:text-white">Lectura accionable</h4>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Senales generadas desde finanzas y operacion.</p>
                 </div>
               </div>
               <div className="mt-4 space-y-3">
                 {insights.map((insight) => (
-                  <p key={insight} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold leading-5 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                  <p key={insight} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium leading-5 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
                     {insight}
                   </p>
                 ))}
@@ -1019,9 +1019,9 @@ function DetailMetric({
       <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
         <Icon className="h-4 w-4" />
       </span>
-      <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{helper}</p>
+      <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-medium text-slate-950 dark:text-white">{value}</p>
+      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{helper}</p>
     </div>
   );
 }
@@ -1032,8 +1032,8 @@ function DetailBar({ label, tone, value }: { label: string; tone: string; value:
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-        <span className="font-semibold text-slate-600 dark:text-slate-300">{label}</span>
-        <span className="font-black text-slate-950 dark:text-white">{formatPercent(value)}</span>
+        <span className="font-medium text-slate-600 dark:text-slate-300">{label}</span>
+        <span className="font-medium text-slate-950 dark:text-white">{formatPercent(value)}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
         <div className={cn('h-full rounded-full', tone)} style={{ width: `${normalizedValue}%` }} />
@@ -1078,14 +1078,14 @@ function AlertPanel({ alerts, loading }: { alerts: ExecutiveAlert[]; loading: bo
   return (
     <section className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="border-b border-slate-100 p-4 dark:border-slate-800">
-        <h3 className="text-base font-bold text-slate-950 dark:text-white">Alertas ejecutivas</h3>
+        <h3 className="text-base font-medium text-slate-950 dark:text-white">Alertas ejecutivas</h3>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Prioridades generadas desde finanzas, cartera y operacion.</p>
       </div>
       <div className="space-y-3 p-4">
         {loading ? <Skeleton /> : alerts.map((alert) => (
           <div key={`${alert.title}-${alert.status}`} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
             <div className="flex items-start justify-between gap-3">
-              <p className="font-bold text-slate-950 dark:text-white">{alert.title}</p>
+              <p className="font-medium text-slate-950 dark:text-white">{alert.title}</p>
               <StatusBadge status={alert.status} />
             </div>
             <p className="mt-2 text-sm leading-5 text-slate-600 dark:text-slate-300">{alert.description}</p>
@@ -1120,7 +1120,7 @@ function BreakdownPanel({
           <Icon className="h-5 w-5" />
         </span>
         <div>
-          <h3 className="font-bold text-slate-950 dark:text-white">{title}</h3>
+          <h3 className="font-medium text-slate-950 dark:text-white">{title}</h3>
           <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">{description}</p>
         </div>
       </div>
@@ -1130,15 +1130,15 @@ function BreakdownPanel({
           return (
             <div key={label}>
               <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                <span className="font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-                <span className="font-bold text-slate-950 dark:text-white">{formatMoney(item.total)}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-200">{label}</span>
+                <span className="font-medium text-slate-950 dark:text-white">{formatMoney(item.total)}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                 <div className="h-full rounded-full bg-blue-700" style={{ width: `${Math.max(4, (item.total / max) * 100)}%` }} />
               </div>
             </div>
           );
-        }) : <p className="text-sm font-semibold text-slate-500">Sin datos en el periodo.</p>}
+        }) : <p className="text-sm font-medium text-slate-500">Sin datos en el periodo.</p>}
       </div>
     </section>
   );
@@ -1173,7 +1173,7 @@ function ExecutiveRankings({ data, loading }: { data: ExecutiveKpiResponse | nul
             <BarChart3 className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="font-bold text-slate-950 dark:text-white">Rankings ejecutivos</h3>
+            <h3 className="font-medium text-slate-950 dark:text-white">Rankings ejecutivos</h3>
             <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">Top por ventas, gastos, utilidad y cartera para priorizar decisiones.</p>
           </div>
         </div>
@@ -1189,7 +1189,7 @@ function ExecutiveRankings({ data, loading }: { data: ExecutiveKpiResponse | nul
                 type="button"
                 onClick={() => setActiveRanking(tab.key)}
                 className={cn(
-                  'inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition-colors',
+                  'inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors',
                   isActive
                     ? 'border-blue-700 bg-blue-700 text-white shadow-sm'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200',
@@ -1210,8 +1210,8 @@ function ExecutiveRankings({ data, loading }: { data: ExecutiveKpiResponse | nul
               <Icon className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-blue-700 dark:text-blue-200">Vista activa</p>
-              <p className="text-lg font-bold text-slate-950 dark:text-white">{activeTab.label}</p>
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-200">Vista activa</p>
+              <p className="text-lg font-medium text-slate-950 dark:text-white">{activeTab.label}</p>
             </div>
           </div>
           <p className="mt-3 text-sm leading-5 text-slate-600 dark:text-slate-300">
@@ -1230,19 +1230,19 @@ function ExecutiveRankings({ data, loading }: { data: ExecutiveKpiResponse | nul
           )) : rows.length ? rows.slice(0, 4).map((row, index) => (
             <article key={`ranking-${activeRanking}-${row.unitId ?? 'u'}-${row.businessId ?? 'b'}`} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
               <div className="flex items-start justify-between gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm font-black text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
                   {index + 1}
                 </span>
                 <StatusBadge status={row.status} />
               </div>
-              <p className="mt-3 truncate font-bold text-slate-950 dark:text-white">{row.businessName}</p>
+              <p className="mt-3 truncate font-medium text-slate-950 dark:text-white">{row.businessName}</p>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">{row.unitName}</p>
-              <p className={cn('mt-3 text-xl font-black tracking-normal', activeTab.tone)}>
+              <p className={cn('mt-3 text-xl font-medium tracking-normal', activeTab.tone)}>
                 {formatMoney(activeTab.metric(row))}
               </p>
             </article>
           )) : (
-            <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 dark:border-slate-700 lg:col-span-4">
+            <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-medium text-slate-500 dark:border-slate-700 lg:col-span-4">
               Sin registros para el ranking seleccionado.
             </p>
           )}
@@ -1260,7 +1260,7 @@ function RankingPanel({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bo
           <AlertTriangle className="h-5 w-5" />
         </span>
         <div>
-          <h3 className="font-bold text-slate-950 dark:text-white">Focos de atencion</h3>
+          <h3 className="font-medium text-slate-950 dark:text-white">Focos de atencion</h3>
           <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">Unidades o negocios que requieren lectura de direccion.</p>
         </div>
       </div>
@@ -1269,7 +1269,7 @@ function RankingPanel({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bo
           <div key={`${row.unitId}-${row.businessId}`} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-bold text-slate-950 dark:text-white">{row.businessName}</p>
+                <p className="font-medium text-slate-950 dark:text-white">{row.businessName}</p>
                 <p className="text-xs text-slate-500">{row.unitName}</p>
               </div>
               <StatusBadge status={row.status} />
@@ -1278,7 +1278,7 @@ function RankingPanel({ rows, loading }: { rows: ExecutiveUnitRow[]; loading: bo
               Utilidad {formatMoney(row.operatingProfit)} - CxC {formatMoney(row.receivablesTotal)}
             </p>
           </div>
-        )) : <p className="text-sm font-semibold text-slate-500">Sin focos de riesgo activos.</p>}
+        )) : <p className="text-sm font-medium text-slate-500">Sin focos de riesgo activos.</p>}
       </div>
     </section>
   );
@@ -1308,7 +1308,7 @@ function PeopleSignalPanel({
           <Icon className="h-5 w-5" />
         </span>
         <div>
-          <h3 className="font-bold text-slate-950 dark:text-white">{title}</h3>
+          <h3 className="font-medium text-slate-950 dark:text-white">{title}</h3>
           <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">{description}</p>
         </div>
       </div>
@@ -1317,7 +1317,7 @@ function PeopleSignalPanel({
           <div key={`${kind}-${item.collaboratorId ?? item.collaboratorName}`} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate font-bold text-slate-950 dark:text-white">{item.collaboratorName}</p>
+                <p className="truncate font-medium text-slate-950 dark:text-white">{item.collaboratorName}</p>
                 <p className="truncate text-xs text-slate-500 dark:text-slate-400">{item.unitName} - {item.businessName}</p>
               </div>
               <StatusBadge status={item.status} />
@@ -1339,7 +1339,7 @@ function PeopleSignalPanel({
             </div>
           </div>
         )) : (
-          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 dark:border-slate-700">
+          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm font-medium text-slate-500 dark:border-slate-700">
             {emptyText}
           </p>
         )}
@@ -1351,8 +1351,8 @@ function PeopleSignalPanel({
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 dark:border-slate-800 dark:bg-slate-950">
-      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">{value}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -1360,7 +1360,7 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
 function Field({ children, label }: { children: React.ReactNode; label: string }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
       {children}
     </label>
   );
@@ -1373,8 +1373,8 @@ function ContextItem({ icon: Icon, label, value }: { icon: LucideIcon; label: st
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-        <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{value}</p>
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{value}</p>
       </div>
     </div>
   );
@@ -1382,7 +1382,7 @@ function ContextItem({ icon: Icon, label, value }: { icon: LucideIcon; label: st
 
 function StatusBadge({ status }: { status: ExecutiveKpiStatus }) {
   return (
-    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold', statusClasses[status])}>
+    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium', statusClasses[status])}>
       {statusLabels[status]}
     </span>
   );
@@ -1400,7 +1400,7 @@ function Skeleton() {
 
 function inputClassName(extra?: string) {
   return cn(
-    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950',
+    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950',
     extra,
   );
 }

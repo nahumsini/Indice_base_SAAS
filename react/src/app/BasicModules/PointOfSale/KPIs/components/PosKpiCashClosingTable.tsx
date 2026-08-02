@@ -23,7 +23,7 @@ function DifferencePill({ value, formatCurrency }: { value: number; formatCurren
     ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200'
     : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200';
 
-  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${tone}`}>{value > 0 ? '+' : ''}{formatCurrency(value)}</span>;
+  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${tone}`}>{value > 0 ? '+' : ''}{formatCurrency(value)}</span>;
 }
 
 export function PosKpiCashClosingTable({
@@ -49,7 +49,7 @@ export function PosKpiCashClosingTable({
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 p-5 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-lg font-bold text-slate-950 dark:text-white">Cierres que alimentan los KPIs</h3>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">Cierres que alimentan los KPIs</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400">Auditoria rapida de turnos, tickets, ventas y diferencias de caja.</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
@@ -57,7 +57,7 @@ export function PosKpiCashClosingTable({
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm font-semibold outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm font-medium outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             {[10, 25, 50, 100, 200].map((size) => (
               <option key={size} value={size}>{size}</option>
@@ -68,7 +68,7 @@ export function PosKpiCashClosingTable({
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[950px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-normal text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+          <thead className="bg-slate-50 text-xs tracking-normal text-slate-500 dark:bg-slate-950 dark:text-slate-400">
             <tr>
               <th className="px-5 py-4">Cierre</th>
               <th className="px-5 py-4">Caja</th>
@@ -82,20 +82,20 @@ export function PosKpiCashClosingTable({
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+                <td colSpan={7} className="px-5 py-8 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
                   Sin cierres para mostrar en el periodo.
                 </td>
               </tr>
             ) : items.map((item) => (
               <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
                 <td className="px-5 py-4">
-                  <p className="font-bold text-slate-950 dark:text-white">#{item.id}</p>
+                  <p className="font-medium text-slate-950 dark:text-white">#{item.id}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{formatDate(item.closedAt)}</p>
                 </td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">Caja {item.cashRegisterId}</td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">Almacen {item.warehouseId}</td>
-                <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">{item.ticketsCount}</td>
-                <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">{formatCurrency(toNumber(item.totalSalesAmount))}</td>
+                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">{item.ticketsCount}</td>
+                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">{formatCurrency(toNumber(item.totalSalesAmount))}</td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(toNumber(item.expectedCashAmount))}</td>
                 <td className="px-5 py-4">
                   <DifferencePill value={toNumber(item.overShortAmount)} formatCurrency={formatCurrency} />

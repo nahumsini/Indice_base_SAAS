@@ -9,7 +9,7 @@ import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inve
 import { CancelMovementDialog } from './CancelMovementDialog';
 import { MovementActions, MovementFlow, MovementNumber, MovementQuantity, movementStatusTone } from './movementUi';
 
-const headerClass = 'h-12 whitespace-nowrap px-4 text-sm font-semibold text-slate-500 dark:text-slate-300';
+const headerClass = 'h-12 whitespace-nowrap px-4 text-sm font-medium text-slate-500 dark:text-slate-300';
 const selectableStatuses: InventoryOperationalMovement['status'][] = ['draft', 'inTransit', 'received', 'completed', 'cancelled'];
 
 type MovementGroup = {
@@ -40,20 +40,20 @@ function GroupedProducts({ group, t }: { group: MovementGroup; t: InventoryTrans
     <div className="min-w-[300px] space-y-2">
       {group.lines.slice(0, 4).map((movement) => (
         <div key={movement.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-semibold uppercase text-slate-400">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-medium text-slate-400">
             {movement.productImageUrl ? <img src={movement.productImageUrl} alt={movement.productImageAlt ?? movement.productName} className="h-full w-full object-cover" loading="lazy" /> : t.operational.columns.photo}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{movement.productName}</p>
-            <p className="truncate text-xs font-semibold text-slate-500">SKU: {movement.productSku ?? t.common.notAvailable}</p>
+            <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{movement.productName}</p>
+            <p className="truncate text-xs font-medium text-slate-500">SKU: {movement.productSku ?? t.common.notAvailable}</p>
           </div>
-          <span className={`text-sm font-semibold tabular-nums ${movement.quantity >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <span className={`text-sm font-medium tabular-nums ${movement.quantity >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {movement.quantity >= 0 ? '+' : ''}{formatInventoryNumber(movement.quantity)}
           </span>
         </div>
       ))}
       {group.lines.length > 4 ? (
-        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
           +{group.lines.length - 4} more
         </span>
       ) : null}
@@ -135,7 +135,7 @@ export function MovementsTable({
                   <TableRow key={group.id} className="border-slate-100 hover:bg-[#FF6B5E]/5 dark:border-slate-700 dark:hover:bg-slate-700/40">
                     <TableCell className="px-4 py-4 align-top">
                       <MovementNumber movement={movement} t={t} />
-                      {group.lines.length > 1 ? <p className="mt-2 text-xs font-semibold text-slate-500">{group.lines.length} products</p> : null}
+                      {group.lines.length > 1 ? <p className="mt-2 text-xs font-medium text-slate-500">{group.lines.length} products</p> : null}
                     </TableCell>
                     <TableCell className="px-4 py-4 align-top">
                       <MovementFlow movement={movement} />
@@ -145,11 +145,11 @@ export function MovementsTable({
                     </TableCell>
                     <TableCell className="px-4 py-4 text-right align-top">
                       <MovementQuantity quantity={totalQuantity} />
-                      <p className="mt-1 text-xs font-semibold text-slate-400">{formatInventoryCurrency(movementValue)}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-400">{formatInventoryCurrency(movementValue)}</p>
                     </TableCell>
                     <TableCell className="min-w-[160px] px-4 py-4 align-top">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-white">{movement.responsibleName}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{movement.businessUnitName ?? t.common.notAvailable}</p>
+                      <p className="text-sm font-medium text-slate-800 dark:text-white">{movement.responsibleName}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500">{movement.businessUnitName ?? t.common.notAvailable}</p>
                     </TableCell>
                     <TableCell className="px-4 py-4 align-top">
                       <MovementStatusSelector
@@ -165,10 +165,10 @@ export function MovementsTable({
                       />
                     </TableCell>
                     <TableCell className="min-w-[180px] px-4 py-4 align-top">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-white">{movement.reference ?? t.common.notAvailable}</p>
-                      <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{movement.reason}</p>
+                      <p className="text-sm font-medium text-slate-800 dark:text-white">{movement.reference ?? t.common.notAvailable}</p>
+                      <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-slate-500">{movement.reason}</p>
                       {movement.status === 'cancelled' ? (
-                        <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold leading-5 text-red-700">
+                        <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium leading-5 text-red-700">
                           {t.operational.cancelledReturnMessage}
                         </p>
                       ) : null}
@@ -176,14 +176,14 @@ export function MovementsTable({
                     <TableCell className="min-w-[150px] px-4 py-4 align-top">
                       {attachmentCount ? (
                         <div className="flex flex-col gap-1">
-                          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2.5 py-1 text-xs font-bold text-[#1D4ED8]">
+                          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#2563EB]/25 bg-[#2563EB]/10 px-2.5 py-1 text-xs font-medium text-[#1D4ED8]">
                             <Paperclip className="h-3.5 w-3.5" />
                             {attachmentCount}
                           </span>
-                          <span className="max-w-[150px] truncate text-xs font-semibold text-slate-500">{movement.attachments[0]?.name}</span>
+                          <span className="max-w-[150px] truncate text-xs font-medium text-slate-500">{movement.attachments[0]?.name}</span>
                         </div>
                       ) : (
-                        <span className="text-xs font-semibold text-slate-400">{t.common.none}</span>
+                        <span className="text-xs font-medium text-slate-400">{t.common.none}</span>
                       )}
                     </TableCell>
                     <TableCell className="px-4 py-4 align-top">
@@ -229,7 +229,7 @@ function MovementStatusSelector({
         value={movement.status}
         disabled={movement.status === 'cancelled'}
         onChange={(event) => onStatusChange(movement, event.target.value as InventoryOperationalMovement['status'])}
-        className={`h-9 w-full rounded-full border px-3 text-xs font-bold shadow-none outline-none transition focus:ring-2 focus:ring-[#FF6B5E]/25 disabled:cursor-not-allowed ${movementStatusTone[movement.status]}`}
+        className={`h-9 w-full rounded-full border px-3 text-xs font-medium shadow-none outline-none transition focus:ring-2 focus:ring-[#FF6B5E]/25 disabled:cursor-not-allowed ${movementStatusTone[movement.status]}`}
       >
         {selectableStatuses.map((status) => (
           <option key={status} value={status}>
@@ -238,7 +238,7 @@ function MovementStatusSelector({
         ))}
       </select>
       {movement.status === 'cancelled' ? (
-        <p className="mt-2 text-xs font-semibold leading-4 text-red-700">
+        <p className="mt-2 text-xs font-medium leading-4 text-red-700">
           {t.operational.cancelledReturnMessage}
         </p>
       ) : null}

@@ -80,6 +80,13 @@ export interface ConfigCenterUser {
   tab_permissions_configured?: boolean;
   is_protected: boolean;
   source: string;
+  capabilities?: {
+    can_edit_access: boolean;
+    can_activate: boolean;
+    can_deactivate: boolean;
+    can_resend_invitation: boolean;
+    can_cancel_invitation: boolean;
+  };
 }
 
 export interface UpdateConfigCenterUserPayload {
@@ -139,6 +146,14 @@ export interface AcceptInvitationResponse {
 export interface ConfigCenterCatalogModule {
   slug: string;
   name: string;
+  description?: string;
+  category?: 'basic' | 'complementary' | 'ai';
+  lifecycle_status?: 'planned' | 'development' | 'pilot' | 'released' | 'retired';
+  access_model?: 'module' | 'tabs';
+  assignment_enabled?: boolean;
+  route_key?: string;
+  entitled?: boolean;
+  assignable?: boolean;
 }
 
 export interface ConfigCenterCatalogTab {
@@ -146,6 +161,11 @@ export interface ConfigCenterCatalogTab {
   tab_key: string;
   permission_key: string;
   name: string;
+  name_en?: string;
+  name_es?: string;
+  module_order?: number;
+  tab_order?: number;
+  protected_scope?: boolean;
 }
 
 export interface ConfigCenterCatalogUnit {
@@ -251,6 +271,12 @@ interface CurrentUserResponse {
 interface UsersResponse {
   ok: boolean;
   users: ConfigCenterUser[];
+  company_id?: number;
+  capabilities?: {
+    can_manage_users: boolean;
+    can_invite: boolean;
+    can_assign_super_admin: boolean;
+  };
   catalog: {
     units: ConfigCenterCatalogUnit[];
     businesses: ConfigCenterCatalogBusiness[];
@@ -417,6 +443,12 @@ export const configCenterApi = {
   deleteUser(id: number) {
     return apiClient<{ success: boolean; deleted: boolean }>(`${endpoints.configCenter.updateUser}/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  activateUser(id: number) {
+    return apiClient<{ success: boolean; active: boolean }>(`${endpoints.configCenter.updateUser}/${id}/activate`, {
+      method: 'POST',
     });
   },
 

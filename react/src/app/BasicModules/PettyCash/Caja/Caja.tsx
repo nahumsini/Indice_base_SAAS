@@ -216,7 +216,7 @@ export default function Caja({
               <WalletCards className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Cash</h2>
+              <h2 className="text-xl font-medium text-gray-900 dark:text-white">Cash</h2>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                 Track cash assigned to collaborators, receipts, pending balances, and settlement status.
               </p>
@@ -227,7 +227,7 @@ export default function Caja({
             <button
               type="button"
               onClick={() => setIsColumnsModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-white px-4 py-2 text-sm font-semibold text-[#147514] shadow-sm transition hover:bg-green-50 dark:border-green-800 dark:bg-gray-900 dark:text-green-300"
+              className="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-white px-4 py-2 text-sm font-medium text-[#147514] shadow-sm transition hover:bg-green-50 dark:border-green-800 dark:bg-gray-900 dark:text-green-300"
             >
               <Columns3 className="h-4 w-4" />
               Columns
@@ -235,7 +235,7 @@ export default function Caja({
             <button
               type="button"
               onClick={() => setIsUploadModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#147514] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#147514] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-700"
             >
               <FileUp className="h-4 w-4" />
               Upload Expense
@@ -245,10 +245,10 @@ export default function Caja({
       </section>
 
       <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Filters</h3>
+        <h3 className="text-sm font-medium text-gray-900 dark:text-white">Filters</h3>
         <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(260px,1.4fr)_repeat(3,minmax(170px,1fr))]">
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Search expense</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Search expense</span>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -261,7 +261,7 @@ export default function Caja({
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Cash fund</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Cash fund</span>
             <select
               value={fundFilter}
               onChange={(event) => setFundFilter(event.target.value)}
@@ -275,7 +275,7 @@ export default function Caja({
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Department</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Department</span>
             <select
               value={departmentFilter}
               onChange={(event) => setDepartmentFilter(event.target.value)}
@@ -288,7 +288,7 @@ export default function Caja({
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Status</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Status</span>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as PettyCashExpenseStatus | 'all')}
@@ -315,7 +315,7 @@ export default function Caja({
             <InlineMetric label="Overdue" value={String(summary.overdueCount)} tone={summary.overdueCount > 0 ? 'danger' : 'success'} />
             <InlineMetric label="Visible" value={`${filteredExpenses.length} of ${expenses.length}`} />
           </div>
-          <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-[#147514] dark:bg-green-900/30 dark:text-green-300">
+          <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-[#147514] dark:bg-green-900/30 dark:text-green-300">
             {selectedCount} open balance{selectedCount === 1 ? '' : 's'}
           </span>
         </div>
@@ -412,7 +412,7 @@ function InlineMetric({
     <div className="flex items-center gap-2">
       <span className="h-2 w-2 rounded-full bg-[#147514]" />
       <div>
-        <p className={`text-sm font-bold ${valueClass}`}>{value}</p>
+        <p className={`text-sm font-medium ${valueClass}`}>{value}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
       </div>
     </div>

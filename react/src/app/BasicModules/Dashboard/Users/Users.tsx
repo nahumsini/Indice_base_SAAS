@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import {
+  Building2,
   Check,
   CheckCircle2,
   ChevronDown,
+  CircleAlert,
   Copy,
   Layers3,
   Mail,
@@ -14,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
-import { Checkbox } from '../../../components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/tooltip';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import {
   IndiceModalFrame,
@@ -26,6 +28,8 @@ import { DataTablePagination } from '../../../components/table/DataTablePaginati
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { useLanguage } from '../../../shared/context';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { authApi } from '../../../api/auth';
+import { billingApi, type BillingSubscriptionResponse } from '../../../api/billing';
 import {
   configCenterApi,
   type ConfigCenterCatalogBusiness,
@@ -34,6 +38,8 @@ import {
   type ConfigCenterCatalogUnit,
   type ConfigCenterUser,
 } from '../../../api/configCenter';
+import { ApiClientError } from '../../../lib/apiClient';
+import { isTabScopeAssignableToRole } from '../../../access/tabScopeCatalog';
 import {
   backendSlugForRoute,
   buildDefaultModuleCatalog,
@@ -54,7 +60,6 @@ import { UsersFilters } from './components/UsersFilters';
 import { UsersKpiStrip } from './components/UsersKpiStrip';
 import { getUsersTranslations } from './usersTranslations';
 import { DashboardTitleBar } from '../components/DashboardTitleBar';
-import { OperationalBulkActionsBar, useRowSelection } from '../../shared/operational';
 
 interface User {
   id: string;
@@ -66,10 +71,20 @@ interface User {
   role: 'Super Admin' | 'Admin' | 'User';
   status: 'active' | 'pending' | 'inactive';
   unitId: number | null;
+  unitName: string;
   businessId: number | null;
+  businessName: string;
+  scopeType: 'corporate_office' | 'unit_headquarters' | 'business_office';
   modules: string[];
   tabPermissionKeys: string[];
   isProtected: boolean;
+  capabilities: {
+    canEditAccess: boolean;
+    canActivate: boolean;
+    canDeactivate: boolean;
+    canResendInvitation: boolean;
+    canCancelInvitation: boolean;
+  };
 }
 
 interface AvailableModule {
@@ -79,12 +94,18 @@ interface AvailableModule {
   emoji: string;
   color: DashboardModuleColor;
   category: DashboardModuleCategory;
+  lifecycleStatus: 'planned' | 'development' | 'pilot' | 'released' | 'retired';
+  accessModel: 'module' | 'tabs';
+  assignable: boolean;
+  entitled: boolean;
+  description: string;
 }
 
 interface InviteFormState {
   name: string;
   email: string;
   role: User['role'];
+  scopeType: User['scopeType'];
   businessUnitId: string;
   businessId: string;
 }
@@ -100,23 +121,13 @@ interface BusinessOption {
   name: string;
 }
 
-interface UserBusinessAssignment {
-  businessUnitId?: string;
-  businessId?: string;
-}
-
 interface InviteEmailStatus {
   sent: boolean;
   status: string;
   message?: string;
 }
 
-type BusinessInlineField = 'businessUnit' | 'business';
-type EditableBusinessCell = {
-  userId: string;
-  field: BusinessInlineField;
-} | null;
-type SortColumn = 'name' | 'role' | 'businessUnit' | 'business' | 'modules' | 'status';
+type SortColumn = 'name' | 'role' | 'scope' | 'modules' | 'status';
 type SortDirection = 'asc' | 'desc';
 type SortState = {
   column: SortColumn;
@@ -127,29 +138,14 @@ type InviteWizardStep = 'identity' | 'organization' | 'access';
 const inputClassName =
   'w-full border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
-const categoryMeta: Array<{ category: AvailableModule['category']; emoji: string }> = [
-  { category: 'basic', emoji: '📱' },
-  { category: 'complementary', emoji: '🔧' },
-  { category: 'ai', emoji: '🤖' },
-];
-
 const emptyInviteForm: InviteFormState = {
   name: '',
   email: '',
   role: 'User',
+  scopeType: 'business_office',
   businessUnitId: '',
   businessId: '',
 };
-
-const USER_SELF_SERVICE_TAB_PERMISSION_KEYS = new Set([
-  'config_center.profile',
-  'config_center.personal-performance',
-  'human_resources.announcements',
-  'human_resources.assets',
-  'human_resources.attendance',
-  'human_resources.control',
-  'human_resources.permissions',
-]);
 
 export default function Users() {
   const { currentLanguage, t } = useLanguage();
@@ -157,8 +153,6 @@ export default function Users() {
     () => getUsersTranslations(currentLanguage.code),
     [currentLanguage.code],
   );
-  const rowSelection = useRowSelection<string>();
-  const businessCellRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>(() =>
     buildAvailableModules(t),
@@ -166,10 +160,10 @@ export default function Users() {
   const [availableUnits, setAvailableUnits] = useState<BusinessUnitOption[]>([]);
   const [availableBusinesses, setAvailableBusinesses] = useState<BusinessOption[]>([]);
   const [catalogTabs, setCatalogTabs] = useState<ConfigCenterCatalogTab[]>([]);
-  const [businessAssignments, setBusinessAssignments] = useState<Record<string, UserBusinessAssignment>>({});
-  const [editingBusinessCell, setEditingBusinessCell] = useState<EditableBusinessCell>(null);
   const [sortState, setSortState] = useState<SortState>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [unitFilter, setUnitFilter] = useState('');
+  const [businessFilter, setBusinessFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedUserForModules, setSelectedUserForModules] = useState<string | null>(null);
@@ -179,6 +173,7 @@ export default function Users() {
   const [showResendModal, setShowResendModal] = useState(false);
   const [selectedUserForResend, setSelectedUserForResend] = useState<string | null>(null);
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<string | null>(null);
+  const [selectedUserForDeactivate, setSelectedUserForDeactivate] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteEmailStatus, setInviteEmailStatus] = useState<InviteEmailStatus | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -191,6 +186,13 @@ export default function Users() {
   const [loadError, setLoadError] = useState('');
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [activeCompanyName, setActiveCompanyName] = useState('');
+  const [subscription, setSubscription] = useState<BillingSubscriptionResponse | null>(null);
+  const [pageCapabilities, setPageCapabilities] = useState({
+    canManageUsers: false,
+    canInvite: false,
+    canAssignSuperAdmin: false,
+  });
   const [loadingOverlay, setLoadingOverlay] = useState<{
     isVisible: boolean;
     title: string;
@@ -201,17 +203,25 @@ export default function Users() {
   });
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
   const [selectedTabPermissionDraft, setSelectedTabPermissionDraft] = useState<string[]>([]);
+  const [selectedRoleDraft, setSelectedRoleDraft] = useState<User['role']>('User');
+  const [selectedScopeTypeDraft, setSelectedScopeTypeDraft] = useState<User['scopeType']>('business_office');
+  const [selectedUnitDraft, setSelectedUnitDraft] = useState('');
+  const [selectedBusinessDraft, setSelectedBusinessDraft] = useState('');
   const usersBusinessCopy = t.panelInicial.users.businessStructure;
   const businessUnitOptions = availableUnits.map((unit) => ({
     value: unit.id,
     label: unit.name,
   }));
+  const businessFilterOptions = useMemo(() => (
+    availableBusinesses
+      .filter((business) => !unitFilter || business.unitId === unitFilter)
+      .map((business) => ({ value: business.id, label: business.name }))
+  ), [availableBusinesses, unitFilter]);
   const tabPermissionModules = useMemo(
     () => buildTabPermissionModuleOptions(availableModules),
     [availableModules],
   );
-  const canAssignSuperAdmin = isSuperAdminRole(currentUserRole);
-  const canManageUsers = canAssignSuperAdmin || isAdminRole(currentUserRole);
+  const canAssignSuperAdmin = pageCapabilities.canAssignSuperAdmin || isSuperAdminRole(currentUserRole);
   const currentAccessUser = users.find((user) =>
     user.source === 'user' && user.backendId === currentUserId
   ) ?? null;
@@ -273,6 +283,21 @@ export default function Users() {
   const inviteBusinessOptions = assignableBusinesses.filter((business) =>
     !inviteForm.businessUnitId || business.unitId === inviteForm.businessUnitId
   );
+  const selectedBusinessOptions = assignableBusinesses.filter((business) =>
+    !selectedUnitDraft || business.unitId === selectedUnitDraft
+  );
+  const assignableScopeTypes = useMemo<User['scopeType'][]>(() => {
+    if (canAssignSuperAdmin || !currentAccessUser || currentAccessUser.scopeType === 'corporate_office') {
+      return ['corporate_office', 'unit_headquarters', 'business_office'];
+    }
+    if (currentAccessUser.scopeType === 'unit_headquarters') {
+      return ['unit_headquarters', 'business_office'];
+    }
+    return ['business_office'];
+  }, [canAssignSuperAdmin, currentAccessUser]);
+  const selectedEditScopeIsValid = selectedScopeTypeDraft === 'corporate_office'
+    || (selectedScopeTypeDraft === 'unit_headquarters' && Boolean(selectedUnitDraft))
+    || (selectedScopeTypeDraft === 'business_office' && Boolean(selectedUnitDraft && selectedBusinessDraft));
 
   const statusLabelMap: Record<User['status'], string> = {
     active: t.panelInicial.users.status.active,
@@ -303,27 +328,21 @@ export default function Users() {
       user.email.toLowerCase().includes(normalizedSearch);
     const matchesRole = roleFilter === '' || user.role === roleFilter;
     const matchesStatus = statusFilter === '' || user.status === statusFilter;
+    const matchesUnit = unitFilter === '' || String(user.unitId ?? '') === unitFilter;
+    const matchesBusiness = businessFilter === '' || String(user.businessId ?? '') === businessFilter;
 
-    return matchesSearch && matchesRole && matchesStatus;
-  }), [roleFilter, searchTerm, statusFilter, users]);
+    return matchesSearch && matchesRole && matchesStatus && matchesUnit && matchesBusiness;
+  }), [businessFilter, roleFilter, searchTerm, statusFilter, unitFilter, users]);
   const sortedUsers = useMemo(() => {
     if (!sortState) {
       return filteredUsers;
     }
 
     const valueFor = (user: User): string | number => {
-      const assignment = businessAssignments[user.id];
       switch (sortState.column) {
         case 'name': return user.name.toLocaleLowerCase();
         case 'role': return user.role;
-        case 'businessUnit': {
-          const unitId = assignment?.businessUnitId ?? (user.unitId == null ? '' : String(user.unitId));
-          return availableUnits.find((unit) => unit.id === unitId)?.name.toLocaleLowerCase() ?? '';
-        }
-        case 'business': {
-          const businessId = assignment?.businessId ?? (user.businessId == null ? '' : String(user.businessId));
-          return availableBusinesses.find((business) => business.id === businessId)?.name.toLocaleLowerCase() ?? '';
-        }
+        case 'scope': return `${user.unitName} ${user.businessName}`.toLocaleLowerCase();
         case 'modules': return user.modules.length;
         case 'status': return user.status;
       }
@@ -337,10 +356,10 @@ export default function Users() {
         : String(leftValue).localeCompare(String(rightValue), currentLanguage.code, { sensitivity: 'base' });
       return sortState.direction === 'asc' ? comparison : -comparison;
     });
-  }, [availableBusinesses, availableUnits, businessAssignments, currentLanguage.code, filteredUsers, sortState]);
+  }, [currentLanguage.code, filteredUsers, sortState]);
   const usersPaginationResetKey = useMemo(
-    () => `${searchTerm}:${roleFilter}:${statusFilter}:${filteredUsers.map(user => user.id).join('|')}`,
-    [filteredUsers, roleFilter, searchTerm, statusFilter],
+    () => `${searchTerm}:${unitFilter}:${businessFilter}:${roleFilter}:${statusFilter}:${filteredUsers.map(user => user.id).join('|')}`,
+    [businessFilter, filteredUsers, roleFilter, searchTerm, statusFilter, unitFilter],
   );
   const usersPagination = useTablePagination({
     resetKey: usersPaginationResetKey,
@@ -351,16 +370,13 @@ export default function Users() {
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
   const selectedUserCatalogTabs = selectedUser
-    ? catalogTabsForRole(selectedUser.role, assignableCatalogTabs)
+    ? catalogTabsForRole(selectedRoleDraft, assignableCatalogTabs)
     : assignableCatalogTabs;
   const inviteCatalogTabs = catalogTabsForRole(inviteForm.role, assignableCatalogTabs);
   const invitationPendingDelete =
     users.find((user) => user.id === selectedUserForDelete && user.source === 'invitation') ?? null;
-  const categoryTitleMap: Record<AvailableModule['category'], string> = {
-    basic: t.sections.basicModules,
-    complementary: t.sections.complementaryModules,
-    ai: t.sections.aiModules,
-  };
+  const userPendingDeactivation =
+    users.find((user) => user.id === selectedUserForDeactivate && user.source === 'user') ?? null;
   const inviteWizardCopy = usersCopy.inviteWizard;
   const inviteWizardSteps = [
     { id: 'identity', label: inviteWizardCopy.identity },
@@ -373,7 +389,9 @@ export default function Users() {
     && inviteForm.email.trim()
     && validateEmail(inviteForm.email.trim()).ok,
   );
-  const inviteOrganizationIsValid = Boolean(inviteForm.businessUnitId && inviteForm.businessId);
+  const inviteOrganizationIsValid = inviteForm.scopeType === 'corporate_office'
+    || (inviteForm.scopeType === 'unit_headquarters' && Boolean(inviteForm.businessUnitId))
+    || (inviteForm.scopeType === 'business_office' && Boolean(inviteForm.businessUnitId && inviteForm.businessId));
   const inviteAccessIsValid = inviteModuleIds.length > 0;
 
   const continueInviteWizard = () => {
@@ -404,6 +422,12 @@ export default function Users() {
   const activeUsers = users.filter((user) => user.status === 'active').length;
   const pendingUsers = users.filter((user) => user.status === 'pending').length;
   const inactiveUsers = users.filter((user) => user.status === 'inactive').length;
+  const seatLimitReached = Boolean(subscription?.seat_limit_enforced && subscription.remaining_seats <= 0);
+  const activeSeatCount = subscription?.active_seats ?? activeUsers;
+  const pendingSeatCount = subscription?.pending_invitations ?? pendingUsers;
+  const availableSeatCount = subscription?.seat_limit_enforced
+    ? subscription.remaining_seats
+    : Math.max(0, totalUsers - activeUsers);
 
   const hideLoadingOverlay = () => {
     setLoadingOverlay({
@@ -437,28 +461,11 @@ export default function Users() {
     }
   };
 
-  const syncBusinessAssignments = (mappedUsers: User[]) => {
-    setBusinessAssignments((currentAssignments) => {
-      const nextAssignments: Record<string, UserBusinessAssignment> = {};
-
-      for (const user of mappedUsers) {
-        const currentAssignment = currentAssignments[user.id] ?? {};
-        nextAssignments[user.id] = {
-          ...currentAssignment,
-          businessUnitId: currentAssignment.businessUnitId ?? (user.unitId ? String(user.unitId) : undefined),
-          businessId: currentAssignment.businessId ?? (user.businessId ? String(user.businessId) : undefined),
-        };
-      }
-
-      return nextAssignments;
-    });
-  };
-
   const getRoleColorClasses = (role: User['role']) => {
     const styles: Record<User['role'], string> = {
-      'Super Admin': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-      Admin: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-      User: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+      'Super Admin': 'border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300',
+      Admin: 'border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200',
+      User: 'border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
     };
 
     return styles[role];
@@ -489,56 +496,30 @@ export default function Users() {
     return styles[status];
   };
 
-  const getModuleColorClasses = (color: AvailableModule['color']) => {
-    const styles: Record<AvailableModule['color'], string> = {
-      aqua: 'border-[#59C3A5]/35 bg-[#59C3A5]/10 dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/20',
-      blue: 'border-[#2563EB]/25 bg-[#2563EB]/10 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/20',
-      coral: 'border-[#FF6B5E]/25 bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/20',
-      yellow: 'border-[#F4C84A]/35 bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/20',
-      orange: 'border-[#FF6B5E]/25 bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/20',
-      green: 'border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20',
-      purple: 'border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20',
-      gray: 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20',
-      gold: 'border-[#F4C84A]/35 bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/20',
-      red: 'border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20',
-    };
-
-    return styles[color];
-  };
-
-  const refreshUsers = async (fallbackModules: AvailableModule[] = buildAvailableModules(t)) => {
-    const response = await configCenterApi.getUsers();
-    const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+  const refreshUsers = async () => {
+    const [response, nextSubscription] = await Promise.all([
+      configCenterApi.getUsers(),
+      billingApi.subscription().catch(() => null),
+    ]);
     const mappedUnits = response.catalog.units.map(mapCatalogUnit);
     const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
     const mappedModules = response.catalog.modules
       .map((module) => mapCatalogModule(module, t))
       .filter((module): module is AvailableModule => module !== null);
+    const mappedUsers = response.users.map((user) => mapBackendUser(user, mappedModules));
 
     setUsers(mappedUsers);
-    syncBusinessAssignments(mappedUsers);
+    setSubscription(nextSubscription);
+    setPageCapabilities({
+      canManageUsers: response.capabilities?.can_manage_users ?? false,
+      canInvite: response.capabilities?.can_invite ?? false,
+      canAssignSuperAdmin: response.capabilities?.can_assign_super_admin ?? false,
+    });
     setAvailableUnits(mappedUnits);
     setAvailableBusinesses(mappedBusinesses);
     setCatalogTabs(response.catalog.tabs ?? []);
-    if (mappedModules.length > 0) {
-      setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
-    } else {
-      setAvailableModules(fallbackModules);
-    }
+    setAvailableModules(mappedModules);
   };
-
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!businessCellRef.current?.contains(event.target as Node)) {
-        setEditingBusinessCell(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-    };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -551,29 +532,38 @@ export default function Users() {
     runWithMinimumDuration(Promise.all([
       configCenterApi.getCurrentUser(),
       configCenterApi.getUsers(),
+      authApi.getSessionOrNull().catch(() => null),
+      billingApi.subscription().catch(() => null),
     ]))
-      .then(([currentUser, response]) => {
+      .then(([currentUser, response, session, nextSubscription]) => {
         if (!active) {
           return;
         }
 
         setCurrentUserId(currentUser.id);
         setCurrentUserRole(currentUser.role ?? null);
-        const mappedUsers = response.users.map((user) => mapBackendUser(user, fallbackModules));
+        setActiveCompanyName(session?.company.name ?? '');
+        setSubscription(nextSubscription);
+        setPageCapabilities({
+          canManageUsers: response.capabilities?.can_manage_users
+            ?? (isSuperAdminRole(currentUser.role) || isAdminRole(currentUser.role)),
+          canInvite: response.capabilities?.can_invite
+            ?? (isSuperAdminRole(currentUser.role) || isAdminRole(currentUser.role)),
+          canAssignSuperAdmin: response.capabilities?.can_assign_super_admin
+            ?? isSuperAdminRole(currentUser.role),
+        });
         const mappedUnits = response.catalog.units.map(mapCatalogUnit);
         const mappedBusinesses = response.catalog.businesses.map(mapCatalogBusiness);
         const mappedModules = response.catalog.modules
           .map((module) => mapCatalogModule(module, t))
           .filter((module): module is AvailableModule => module !== null);
+        const mappedUsers = response.users.map((user) => mapBackendUser(user, mappedModules));
 
         setUsers(mappedUsers);
-        syncBusinessAssignments(mappedUsers);
         setAvailableUnits(mappedUnits);
         setAvailableBusinesses(mappedBusinesses);
         setCatalogTabs(response.catalog.tabs ?? []);
-        if (mappedModules.length > 0) {
-          setAvailableModules(mergeAvailableModules(mappedModules, fallbackModules));
-        }
+        setAvailableModules(mappedModules);
       })
       .catch((error) => {
         if (!active) {
@@ -614,7 +604,7 @@ export default function Users() {
   };
 
   const toggleUserModule = (moduleId: string) => {
-    const role = selectedUser?.role ?? 'User';
+    const role = selectedRoleDraft;
     const roleCatalogTabs = catalogTabsForRole(role, assignableCatalogTabs);
     setSelectedModulesDraft((prevModules) => {
       const nextModules = prevModules.includes(moduleId)
@@ -655,7 +645,6 @@ export default function Users() {
       businessId: string | number | null;
     }> = {},
   ) => {
-    const assignment = businessAssignments[user.id];
     const moduleIds = overrides.moduleIds ?? user.modules;
     const role = overrides.role ?? user.role;
     const tabPermissionKeys = pruneTabPermissionKeysForRole(
@@ -667,99 +656,39 @@ export default function Users() {
       status: overrides.status ?? user.status,
       module_slugs: moduleSlugsForIds(moduleIds),
       tab_permission_keys: tabPermissionKeys,
-      unit_id: numberOrNull(overrides.unitId ?? assignment?.businessUnitId ?? user.unitId),
-      business_id: numberOrNull(overrides.businessId ?? assignment?.businessId ?? user.businessId),
+      unit_id: numberOrNull(overrides.unitId ?? user.unitId),
+      business_id: numberOrNull(overrides.businessId ?? user.businessId),
     };
   };
 
-  const canEditAccessFor = (user: User) => {
-    if (user.source !== 'user') {
-      return false;
-    }
-    if (canAssignSuperAdmin) {
-      return true;
-    }
-    if (!isAdminRole(currentUserRole) || user.backendId === currentUserId) {
-      return false;
-    }
+  const canEditAccessFor = (user: User) => user.source === 'user' && user.capabilities.canEditAccess;
 
-    return user.role !== 'Super Admin';
-  };
-
-  const selectedEditableUsers = users.filter(
-    (user) => rowSelection.selectedIds.has(user.id) && canEditAccessFor(user),
-  );
-  const visibleSelectableUserIds = usersPagination.paginatedRows
-    .filter(canEditAccessFor)
-    .map((user) => user.id);
-  const visibleSelectionState = rowSelection.visibleSelectionState(visibleSelectableUserIds);
-
-  const handleBulkStatusChange = async (status: User['status']) => {
-    if (selectedEditableUsers.length === 0) {
-      rowSelection.clearSelection();
-      return;
-    }
-
+  const handleActivateUser = async (user: User) => {
+    if (!user.capabilities.canActivate) return;
     try {
       setLoadError('');
       await runUserFeedbackTask({
-        title: usersCopy.bulk.updatingTitle,
-        description: usersCopy.bulk.updatingDescription,
+        title: usersCopy.overlays.activatingTitle,
+        description: usersCopy.overlays.activatingDescription,
         task: async () => {
-          await Promise.all(selectedEditableUsers.map((user) =>
-            configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { status })),
-          ));
+          await configCenterApi.activateUser(user.backendId);
           await refreshUsers();
-          rowSelection.clearSelection();
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.status);
-    }
-  };
-
-  const toggleUserStatus = async (user: User) => {
-    if (!canEditAccessFor(user)) {
-      return;
-    }
-
-    const nextStatus = user.status === 'active' ? 'inactive' : 'active';
-
-    try {
-      setLoadError('');
-      await configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { status: nextStatus }));
-      await refreshUsers();
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.status);
-    }
-  };
-
-  const changeUserRole = async (user: User, newRole: User['role']) => {
-    if (!canEditAccessFor(user)) {
-      return;
-    }
-    if (newRole === 'Super Admin' && !canAssignSuperAdmin) {
-      return;
-    }
-
-    try {
-      setLoadError('');
-      await configCenterApi.updateUser(user.backendId, buildUserAccessPayload(user, { role: newRole }));
-      await refreshUsers();
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.role);
+      setLoadError(formatApiError(error, usersCopy.errors.status));
     }
   };
 
   const handleSendInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canManageUsers) {
+    if (!pageCapabilities.canInvite || seatLimitReached) {
       return;
     }
     const trimmedName = inviteForm.name.trim();
     const trimmedEmail = inviteForm.email.trim();
 
-    if (!trimmedName || !trimmedEmail || !inviteForm.businessUnitId || !inviteForm.businessId || inviteModuleIds.length === 0) {
+    if (!trimmedName || !trimmedEmail || !inviteOrganizationIsValid || inviteModuleIds.length === 0) {
       setInviteValidationMessage(usersCopy.inviteWizard.accessError);
       return;
     }
@@ -781,8 +710,12 @@ export default function Users() {
             name: trimmedName,
             email: emailValidation.normalized,
             role: toBackendRole(inviteForm.role),
-            unit_id: numberOrNull(inviteForm.businessUnitId),
-            business_id: numberOrNull(inviteForm.businessId),
+            unit_id: inviteForm.scopeType === 'corporate_office'
+              ? null
+              : numberOrNull(inviteForm.businessUnitId),
+            business_id: inviteForm.scopeType === 'business_office'
+              ? numberOrNull(inviteForm.businessId)
+              : null,
             module_slugs: moduleSlugsForIds(inviteModuleIds),
             tab_permission_keys: pruneTabPermissionKeysForRole(
               inviteForm.role,
@@ -804,7 +737,7 @@ export default function Users() {
         },
       });
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.sendInvitation);
+      setLoadError(formatApiError(error, usersCopy.errors.sendInvitation));
     }
   };
 
@@ -878,12 +811,47 @@ export default function Users() {
     }
   };
 
+  const closeDeactivateDialog = () => {
+    if (!isDeletingUser) {
+      setSelectedUserForDeactivate(null);
+    }
+  };
+
+  const handleDeactivateUser = async () => {
+    if (!userPendingDeactivation?.capabilities.canDeactivate || isDeletingUser) {
+      return;
+    }
+
+    try {
+      const pendingDeactivation = userPendingDeactivation;
+      setIsDeletingUser(true);
+      setLoadError('');
+      setSelectedUserForDeactivate(null);
+      await runUserFeedbackTask({
+        title: usersCopy.overlays.deactivatingTitle,
+        description: usersCopy.overlays.deactivatingDescription,
+        task: async () => {
+          await configCenterApi.deleteUser(pendingDeactivation.backendId);
+          await refreshUsers();
+        },
+      });
+    } catch (error) {
+      setLoadError(formatApiError(error, usersCopy.errors.status));
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
   const handleOpenModuleSettings = (user: User) => {
     if (!canEditAccessFor(user)) {
       return;
     }
 
     setSelectedUserForModules(user.id);
+    setSelectedRoleDraft(user.role);
+    setSelectedScopeTypeDraft(user.scopeType);
+    setSelectedUnitDraft(user.unitId == null ? '' : String(user.unitId));
+    setSelectedBusinessDraft(user.businessId == null ? '' : String(user.businessId));
     const allowedModuleIds = new Set(assignableModules.map((module) => module.id));
     setSelectedModulesDraft(user.modules.filter((moduleId) => allowedModuleIds.has(moduleId)));
     setSelectedTabPermissionDraft(
@@ -911,14 +879,17 @@ export default function Users() {
       await configCenterApi.updateUser(
         selectedUser.backendId,
         buildUserAccessPayload(selectedUser, {
+          role: selectedRoleDraft,
           moduleIds: selectedModulesDraft,
           tabPermissionKeys,
+          unitId: selectedScopeTypeDraft === 'corporate_office' ? null : selectedUnitDraft,
+          businessId: selectedScopeTypeDraft === 'business_office' ? selectedBusinessDraft : null,
         }),
       );
       await refreshUsers();
       setSelectedUserForModules(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.moduleAccess);
+      setLoadError(formatApiError(error, usersCopy.errors.moduleAccess));
     }
   };
 
@@ -959,6 +930,12 @@ export default function Users() {
       ...prevForm,
       [field]: value,
       ...(field === 'businessUnitId' ? { businessId: '' } : {}),
+      ...(field === 'scopeType' && value === 'corporate_office'
+        ? { businessUnitId: '', businessId: '' }
+        : {}),
+      ...(field === 'scopeType' && value === 'unit_headquarters'
+        ? { businessId: '' }
+        : {}),
     }));
   };
 
@@ -1023,123 +1000,91 @@ export default function Users() {
     </button>
   );
 
-  const updateBusinessAssignment = async (
-    user: User,
-    field: BusinessInlineField,
-    value: string,
-  ) => {
-    setEditingBusinessCell(null);
-    if (!canEditAccessFor(user) || !value) {
-      return;
-    }
-
-    const currentAssignment = businessAssignments[user.id] ?? {};
-    const nextAssignment = { ...currentAssignment };
-    if (field === 'businessUnit') {
-      nextAssignment.businessUnitId = value;
-      const existingBusiness = assignableBusinesses.find((business) =>
-        business.id === nextAssignment.businessId && business.unitId === value
-      );
-      nextAssignment.businessId = existingBusiness?.id
-        ?? assignableBusinesses.find((business) => business.unitId === value)?.id;
-    } else {
-      const business = assignableBusinesses.find((option) => option.id === value);
-      nextAssignment.businessId = value;
-      nextAssignment.businessUnitId = business?.unitId ?? nextAssignment.businessUnitId;
-    }
-
-    if (!nextAssignment.businessUnitId || !nextAssignment.businessId) {
-      setLoadError(usersCopy.errors.selectBusiness);
-      return;
-    }
-
-    try {
-      setLoadError('');
-      await configCenterApi.updateUser(
-        user.backendId,
-        buildUserAccessPayload(user, {
-          unitId: nextAssignment.businessUnitId,
-          businessId: nextAssignment.businessId,
-        }),
-      );
-      setBusinessAssignments((currentAssignments) => ({
-        ...currentAssignments,
-        [user.id]: nextAssignment,
-      }));
-      await refreshUsers();
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : usersCopy.errors.businessAssignment);
-    }
+  const scopeLabel = (user: User) => {
+    if (user.scopeType === 'corporate_office') return usersCopy.scope.corporate;
+    if (user.scopeType === 'unit_headquarters') return user.unitName || usersCopy.scope.unit;
+    const uniqueNames = [user.unitName, user.businessName]
+      .filter(Boolean)
+      .filter((name, index, names) => (
+        names.findIndex((candidate) => candidate.trim().toLocaleLowerCase() === name.trim().toLocaleLowerCase()) === index
+      ));
+    return uniqueNames.join(' / ') || usersCopy.scope.business;
   };
 
-  const getBusinessUnitLabel = (assignment: UserBusinessAssignment | undefined) => (
-    businessUnitOptions.find((option) => option.value === assignment?.businessUnitId)?.label
-      ?? usersBusinessCopy.empty
+  const withActionTooltip = (label: string, action: ReactElement) => (
+    <Tooltip>
+      <TooltipTrigger asChild>{action}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={6}>{label}</TooltipContent>
+    </Tooltip>
   );
 
-  const getBusinessLabel = (assignment: UserBusinessAssignment | undefined) => (
-    availableBusinesses.find((business) => business.id === assignment?.businessId)?.name
-      ?? usersBusinessCopy.empty
+  const renderUserActions = (user: User) => (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {canEditAccessFor(user) ? (
+        withActionTooltip(usersCopy.accessEditor.title, <button
+          type="button"
+          onClick={() => handleOpenModuleSettings(user)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
+          title={usersCopy.accessEditor.title}
+          aria-label={usersCopy.accessEditor.title}
+        >
+          <Settings aria-hidden="true" className="h-4 w-4" />
+        </button>)
+      ) : null}
+      {user.capabilities.canActivate ? (
+        withActionTooltip(seatLimitReached ? usersCopy.seats.limitReached : usersCopy.actions.activate, <button
+          type="button"
+          onClick={() => void handleActivateUser(user)}
+          disabled={seatLimitReached}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40 md:h-9 md:w-9 md:rounded-lg dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300"
+          title={seatLimitReached ? usersCopy.seats.limitReached : usersCopy.actions.activate}
+          aria-label={usersCopy.actions.activate}
+        >
+          <UserCheck aria-hidden="true" className="h-4 w-4" />
+        </button>)
+      ) : null}
+      {user.capabilities.canDeactivate ? (
+        withActionTooltip(usersCopy.actions.deactivate, <button
+          type="button"
+          onClick={() => setSelectedUserForDeactivate(user.id)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
+          title={usersCopy.actions.deactivate}
+          aria-label={usersCopy.actions.deactivate}
+        >
+          <UserX aria-hidden="true" className="h-4 w-4" />
+        </button>)
+      ) : null}
+      {user.capabilities.canResendInvitation ? (
+        withActionTooltip(t.panelInicial.users.actions.resend, <button
+          type="button"
+          onClick={() => {
+            setSelectedUserForResend(user.id);
+            setShowResendModal(true);
+            setInviteLink('');
+            setInviteEmailStatus(null);
+            setCopiedLink(false);
+            setNewEmail('');
+          }}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-violet-200 bg-violet-50 text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300"
+          title={t.panelInicial.users.actions.resend}
+          aria-label={t.panelInicial.users.actions.resend}
+        >
+          <Mail aria-hidden="true" className="h-4 w-4" />
+        </button>)
+      ) : null}
+      {user.capabilities.canCancelInvitation ? (
+        withActionTooltip(deleteLabel, <button
+          type="button"
+          onClick={() => setSelectedUserForDelete(user.id)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+          title={deleteLabel}
+          aria-label={deleteLabel}
+        >
+          <Trash2 aria-hidden="true" className="h-4 w-4" />
+        </button>)
+      ) : null}
+    </div>
   );
-
-  const renderBusinessInlineCell = (user: User, field: BusinessInlineField) => {
-    const assignment = businessAssignments[user.id];
-    const isEditing = editingBusinessCell?.userId === user.id && editingBusinessCell.field === field;
-    const selectedValue = field === 'businessUnit' ? assignment?.businessUnitId : assignment?.businessId;
-    const label = field === 'businessUnit' ? getBusinessUnitLabel(assignment) : getBusinessLabel(assignment);
-    const options = field === 'businessUnit'
-      ? assignableBusinessUnitOptions
-      : assignableBusinesses
-          .filter((business) => !assignment?.businessUnitId || business.unitId === assignment.businessUnitId)
-          .map((business) => ({ value: business.id, label: business.name }));
-    const placeholder = field === 'businessUnit'
-      ? usersBusinessCopy.selectBusinessUnit
-      : usersBusinessCopy.selectBusiness;
-
-    if (isEditing) {
-      return (
-        <div ref={businessCellRef} className="relative w-[220px] max-w-full transition-all duration-150 ease-in-out">
-          <select
-            autoFocus
-            value={selectedValue ?? ''}
-            onChange={(event) => void updateBusinessAssignment(user, field, event.target.value)}
-            className="h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600"
-          >
-            <option value="">{placeholder}</option>
-            {options.length > 0 ? (
-              options.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                >
-                  {option.label}
-                </option>
-              ))
-            ) : (
-              <option value="" disabled>{usersBusinessCopy.noBusinessOptions}</option>
-            )}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-        </div>
-      );
-    }
-
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          if (canEditAccessFor(user)) {
-            setEditingBusinessCell({ userId: user.id, field });
-          }
-        }}
-        disabled={!canEditAccessFor(user)}
-        className="group inline-flex h-12 w-[220px] max-w-full items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-white px-5 text-left text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 dark:hover:bg-slate-800"
-      >
-        <span className="min-w-0 truncate">{label}</span>
-        <ChevronDown className="h-5 w-5 flex-shrink-0 text-slate-400 transition-colors group-hover:text-slate-500" />
-      </button>
-    );
-  };
 
   const renderInviteEmailStatus = () => {
     if (!inviteEmailStatus) {
@@ -1171,9 +1116,11 @@ export default function Users() {
     );
   };
 
-  const titleBarActions = canManageUsers ? (
+  const titleBarActions = pageCapabilities.canInvite ? (
     <Button
       className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+      disabled={seatLimitReached}
+      title={seatLimitReached ? usersCopy.seats.limitReached : undefined}
       onClick={() => {
         setInviteForm(emptyInviteForm);
         setInviteModuleIds([]);
@@ -1192,7 +1139,7 @@ export default function Users() {
   ) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <UsersFeedback error={loadError} isLoading={isLoading} loadingLabel={usersCopy.loading} />
 
       <DashboardTitleBar
@@ -1202,20 +1149,61 @@ export default function Users() {
         title={t.panelInicial.users.title}
       />
 
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="grid lg:grid-cols-[minmax(230px,0.75fr)_minmax(0,2.25fr)]">
+          <div className="flex min-w-0 items-center gap-3 border-b border-blue-100 bg-blue-50/70 px-4 py-3 dark:border-blue-900/60 dark:bg-blue-950/20 lg:border-b-0 lg:border-r">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-300">
+              <Building2 aria-hidden="true" className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs text-slate-500 dark:text-slate-400">{usersCopy.seats.activeCompany}</p>
+              <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{activeCompanyName || usersCopy.seats.currentCompany}</p>
+            </div>
+          </div>
+
+          <UsersKpiStrip items={[
+            { label: usersCopy.seats.active, tone: 'green', value: activeSeatCount },
+            { label: usersCopy.seats.pending, tone: 'yellow', value: pendingSeatCount },
+            { label: usersCopy.seats.available, tone: 'blue', value: availableSeatCount },
+            { label: t.panelInicial.users.filters.inactive, tone: 'slate', value: inactiveUsers },
+          ]} />
+        </div>
+        {seatLimitReached ? (
+          <p className="flex items-start gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 text-xs leading-5 text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
+            <CircleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+            {usersCopy.seats.limitReached}
+          </p>
+        ) : null}
+      </section>
+
       <UsersFilters
         allLabel={t.panelInicial.users.filters.all}
+        businessFilter={businessFilter}
+        businessLabel={usersBusinessCopy.business}
+        businessOptions={businessFilterOptions}
         clearLabel={usersCopy.clearFilters}
         filterTitle={usersCopy.filters.title}
-        hasActiveFilters={Boolean(searchTerm || roleFilter || statusFilter)}
+        hasActiveFilters={Boolean(searchTerm || unitFilter || businessFilter || roleFilter || statusFilter)}
         insightLabel={usersCopy.insight(filteredUsers.length, totalUsers)}
+        onBusinessChange={setBusinessFilter}
         onClear={() => {
           setSearchTerm('');
+          setUnitFilter('');
+          setBusinessFilter('');
           setRoleFilter('');
           setStatusFilter('');
         }}
         onRoleChange={setRoleFilter}
         onSearchChange={setSearchTerm}
         onStatusChange={setStatusFilter}
+        onUnitChange={(nextUnitId) => {
+          setUnitFilter(nextUnitId);
+          setBusinessFilter((currentBusinessId) => {
+            if (!currentBusinessId) return '';
+            const currentBusiness = availableBusinesses.find((business) => business.id === currentBusinessId);
+            return !nextUnitId || currentBusiness?.unitId === nextUnitId ? currentBusinessId : '';
+          });
+        }}
         roleFilter={roleFilter}
         roleLabel={usersCopy.filters.role}
         roleOptions={[
@@ -1232,82 +1220,77 @@ export default function Users() {
           { value: 'pending', label: t.panelInicial.users.status.pending },
           { value: 'inactive', label: t.panelInicial.users.status.inactive },
         ]}
+        unitFilter={unitFilter}
+        unitLabel={usersBusinessCopy.businessUnit}
+        unitOptions={businessUnitOptions}
       />
 
-      <UsersKpiStrip items={[
-        { label: summaryLabels.total, tone: 'blue', value: totalUsers },
-        { label: t.panelInicial.users.filters.active, tone: 'green', value: activeUsers },
-        { label: t.panelInicial.users.filters.pending, tone: 'yellow', value: pendingUsers },
-        { label: t.panelInicial.users.filters.inactive, tone: 'slate', value: inactiveUsers },
-      ]} />
-
-      {rowSelection.selectedCount > 0 ? (
-        <OperationalBulkActionsBar
-          accent="blue"
-          actions={[
-            {
-              id: 'activate',
-              icon: <UserCheck aria-hidden="true" className="h-4 w-4" />,
-              label: usersCopy.bulk.activate,
-              onClick: () => void handleBulkStatusChange('active'),
-              tone: 'success',
-            },
-            {
-              id: 'deactivate',
-              icon: <UserX aria-hidden="true" className="h-4 w-4" />,
-              label: usersCopy.bulk.deactivate,
-              onClick: () => void handleBulkStatusChange('inactive'),
-              tone: 'danger',
-            },
-            {
-              id: 'clear',
-              icon: <X aria-hidden="true" className="h-4 w-4" />,
-              label: usersCopy.bulk.clear,
-              onClick: rowSelection.clearSelection,
-            },
-          ]}
-          selectedLabel={usersCopy.bulk.selected(rowSelection.selectedCount)}
-          title={usersCopy.bulk.title}
-        />
-      ) : null}
-
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1120px] w-full">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="space-y-3 p-4 md:hidden">
+          {usersPagination.paginatedRows.length > 0 ? usersPagination.paginatedRows.map((user) => {
+            const statusConfig = getStatusConfig(user.status);
+            const isCurrentUser = user.source === 'user' && user.backendId === currentUserId;
+            const initials = user.name.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+            return (
+              <article key={user.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/50">
+                <div className="flex items-start gap-3">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.name} className="h-11 w-11 rounded-full border border-slate-200 object-cover dark:border-slate-700" />
+                  ) : (
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm ${getRoleColorClasses(user.role)}`}>{initials}</span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{user.name}</p>
+                      {isCurrentUser ? <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{currentUserBadgeLabel}</span> : null}
+                    </div>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`} />
+                    {statusLabelMap[user.status]}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">{t.panelInicial.users.table.role}</p>
+                    <p className="mt-0.5 truncate text-slate-700 dark:text-slate-200">{user.role === 'Super Admin' ? t.panelInicial.users.roles.superAdmin : user.role === 'Admin' ? t.panelInicial.users.roles.admin : t.panelInicial.users.roles.user}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">{usersCopy.scope.label}</p>
+                    <p className="mt-0.5 truncate text-slate-700 dark:text-slate-200">{scopeLabel(user)}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{formatModulesCount(user.modules.length)}</span>
+                  {renderUserActions(user)}
+                </div>
+              </article>
+            );
+          }) : (
+            <p className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{summaryLabels.noResults}</p>
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="min-w-[900px] w-full">
             <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>
-                <th className="w-12 px-4 py-3 text-center">
-                  <Checkbox
-                    aria-label={usersCopy.bulk.selectAll}
-                    checked={visibleSelectionState.allVisibleSelected
-                      ? true
-                      : visibleSelectionState.someVisibleSelected
-                        ? 'indeterminate'
-                        : false}
-                    disabled={visibleSelectableUserIds.length === 0}
-                    onCheckedChange={(checked) => rowSelection.toggleAllVisible(visibleSelectableUserIds, checked === true)}
-                    className="border-slate-300 data-[state=checked]:border-[var(--indice-blue)] data-[state=checked]:bg-[var(--indice-blue)]"
-                  />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {renderSortableHeader(t.panelInicial.users.table.name, 'name')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {renderSortableHeader(t.panelInicial.users.table.role, 'role')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {renderSortableHeader(usersBusinessCopy.businessUnit, 'businessUnit')}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {renderSortableHeader(usersCopy.scope.label, 'scope')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {renderSortableHeader(usersBusinessCopy.business, 'business')}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {renderSortableHeader(t.panelInicial.users.table.modules, 'modules')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {renderSortableHeader(t.panelInicial.users.table.status, 'status')}
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400">
                   {t.panelInicial.users.table.actions}
                 </th>
               </tr>
@@ -1316,7 +1299,6 @@ export default function Users() {
               {filteredUsers.length > 0 ? (
                 usersPagination.paginatedRows.map((user) => {
                   const isCurrentUser = user.source === 'user' && user.backendId === currentUserId;
-                  const canEditUserAccess = canEditAccessFor(user);
                   const initials = user.name
                     .split(' ')
                     .filter(Boolean)
@@ -1329,31 +1311,21 @@ export default function Users() {
                   return (
                     <tr
                       key={user.id}
-                      data-selected={rowSelection.isSelected(user.id) || undefined}
-                      className="transition-colors hover:bg-blue-50/40 data-[selected=true]:bg-blue-50/70 dark:hover:bg-blue-950/20 dark:data-[selected=true]:bg-blue-950/30"
+                      className="transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/20"
                     >
-                      <td className="px-4 py-4 text-center align-middle">
-                        <Checkbox
-                          aria-label={usersCopy.bulk.selectUser(user.name)}
-                          checked={rowSelection.isSelected(user.id)}
-                          disabled={!canEditUserAccess}
-                          onCheckedChange={(checked) => rowSelection.toggleSelection(user.id, checked === true)}
-                          className="border-slate-300 data-[state=checked]:border-[var(--indice-blue)] data-[state=checked]:bg-[var(--indice-blue)]"
-                        />
-                      </td>
-                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                      <td className="px-6 py-3.5 align-middle whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {user.avatarUrl ? (
                             <img
                               src={user.avatarUrl}
                               alt={user.name}
-                              className="h-10 w-10 rounded-full border border-gray-200 object-cover shadow-sm dark:border-gray-700"
+                              className="h-9 w-9 rounded-full border border-gray-200 object-cover dark:border-gray-700"
                             />
                           ) : (
                             <div
-                              className={`w-10 h-10 rounded-full ${getRoleColorClasses(
+                              className={`h-9 w-9 rounded-full ${getRoleColorClasses(
                                 user.role,
-                              )} flex items-center justify-center font-semibold`}
+                              )} flex items-center justify-center font-medium`}
                             >
                               {initials}
                             </div>
@@ -1362,7 +1334,7 @@ export default function Users() {
                             <div className="font-medium text-gray-900 dark:text-white">
                               {user.name}
                               {isCurrentUser ? (
-                                <span className="ml-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                                <span className="ml-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
                                   {currentUserBadgeLabel}
                                 </span>
                               ) : null}
@@ -1373,37 +1345,27 @@ export default function Users() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        <div className="relative w-[180px] max-w-full">
-                          <select
-                            value={user.role}
-                            onChange={(event) => changeUserRole(user, event.target.value as User['role'])}
-                            disabled={!canEditUserAccess}
-                            className={`h-12 w-full appearance-none rounded-[18px] border border-slate-200 bg-white px-5 pr-11 text-base font-semibold text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:border-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 ${
-                              !canEditUserAccess ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                            }`}
-                          >
-                            {(canAssignSuperAdmin || user.role === 'Super Admin') ? (
-                              <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
-                            ) : null}
-                            <option value="Admin">{t.panelInicial.users.roles.admin}</option>
-                            <option value="User">{t.panelInicial.users.roles.user}</option>
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                      <td className="px-6 py-3.5 align-middle whitespace-nowrap">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getRoleColorClasses(user.role)}`}>
+                          {user.role === 'Super Admin'
+                            ? t.panelInicial.users.roles.superAdmin
+                            : user.role === 'Admin'
+                              ? t.panelInicial.users.roles.admin
+                              : t.panelInicial.users.roles.user}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3.5 align-middle">
+                        <div className="max-w-[240px]">
+                          <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{scopeLabel(user)}</p>
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{usersCopy.scope[user.scopeType]}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        {renderBusinessInlineCell(user, 'businessUnit')}
-                      </td>
-                      <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        {renderBusinessInlineCell(user, 'business')}
-                      </td>
-                      <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 dark:border-blue-800/70 dark:bg-blue-900/20 dark:text-blue-300">
+                      <td className="px-6 py-3.5 align-middle whitespace-nowrap">
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                           {formatModulesCount(user.modules.length)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 align-middle whitespace-nowrap">
+                      <td className="px-6 py-3.5 align-middle whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}
                         >
@@ -1411,72 +1373,8 @@ export default function Users() {
                           {statusLabelMap[user.status]}
                         </span>
                       </td>
-                      <td className="px-6 py-4 align-middle whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => toggleUserStatus(user)}
-                            disabled={!canEditUserAccess}
-                            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                              user.status === 'active'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
-                                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                            }`}
-                            title={
-                              user.status === 'active'
-                                ? t.panelInicial.users.status.inactive
-                                : t.panelInicial.users.status.active
-                            }
-                            aria-label={
-                              user.status === 'active'
-                                ? t.panelInicial.users.status.inactive
-                                : t.panelInicial.users.status.active
-                            }
-                          >
-                            <CheckCircle2 aria-hidden="true" className="h-5 w-5" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleOpenModuleSettings(user)}
-                            disabled={!canEditUserAccess}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
-                            title={t.panelInicial.users.modal.modules}
-                            aria-label={t.panelInicial.users.modal.modules}
-                          >
-                            <Settings aria-hidden="true" className="h-5 w-5" />
-                          </button>
-
-                          {user.source === 'invitation' ? <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedUserForResend(user.id);
-                              setShowResendModal(true);
-                              setInviteLink('');
-                              setInviteEmailStatus(null);
-                              setCopiedLink(false);
-                              setNewEmail('');
-                            }}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition-colors hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300"
-                            title={t.panelInicial.users.actions.resend}
-                            aria-label={t.panelInicial.users.actions.resend}
-                          >
-                            <Mail aria-hidden="true" className="h-5 w-5" />
-                          </button>
-                          : null}
-
-                          {user.source === 'invitation' ? (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedUserForDelete(user.id)}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
-                              title={deleteLabel}
-                              aria-label={deleteLabel}
-                            >
-                              <Trash2 aria-hidden="true" className="h-5 w-5" />
-                            </button>
-                          ) : null}
-                        </div>
+                      <td className="px-6 py-3.5 align-middle whitespace-nowrap">
+                        {renderUserActions(user)}
                       </td>
                     </tr>
                   );
@@ -1484,7 +1382,7 @@ export default function Users() {
               ) : (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={6}
                     className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     {summaryLabels.noResults}
@@ -1523,7 +1421,7 @@ export default function Users() {
           footer={(
             <Button
               onClick={handleSaveSelectedModules}
-              disabled={selectedModulesDraft.length === 0}
+              disabled={selectedModulesDraft.length === 0 || !selectedEditScopeIsValid}
             >
               {t.panelInicial.users.modal.save}
             </Button>
@@ -1533,90 +1431,103 @@ export default function Users() {
               type="button"
               variant="outline"
               onClick={() => setSelectedUserForModules(null)}
-              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {t.panelInicial.users.modal.cancel}
             </Button>
           )}
-          footerSummary={formatSelectedModulesCount(selectedModulesDraft.length)}
+          footerSummary={`${usersCopy.accessEditor.review}: ${formatSelectedModulesCount(selectedModulesDraft.length)}`}
           icon={<Layers3 className="h-5 w-5" />}
           modalType="operational-workspace"
           onOpenChange={(open) => {
             if (!open) setSelectedUserForModules(null);
           }}
           open
-          title={t.panelInicial.users.modal.modules}
+          title={usersCopy.accessEditor.title}
           tone="blue"
         >
               <div className="space-y-8">
-                {categoryMeta.map((section) => (
-                  <div key={section.category}>
-                    <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
-                        {section.emoji}
-                      </span>
-                      {categoryTitleMap[section.category]}
-                    </h4>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-	                      {assignableModules
-                        .filter((module) => module.category === section.category)
-                        .map((module) => {
-                          const isSelected = selectedModulesDraft.includes(module.id);
-                          const colorClasses = getModuleColorClasses(module.color);
-
-                          return (
-                            <button
-                              key={module.id}
-                              type="button"
-                              onClick={() => toggleUserModule(module.id)}
-                              className={`rounded-2xl border-2 bg-white p-4 text-left shadow-sm transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900 ${
-                                isSelected
-                                  ? `${colorClasses} ring-2 ring-blue-500/10`
-                                  : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
-                              }`}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div
-                                  className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl ${
-                                    isSelected ? colorClasses : 'bg-slate-100 dark:bg-slate-800'
-                                  }`}
-                                >
-                                  {module.emoji}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div
-                                    className={`truncate text-base font-semibold ${
-                                      isSelected
-                                        ? 'text-slate-900 dark:text-white'
-                                        : 'text-slate-600 dark:text-slate-300'
-                                    }`}
-                                  >
-                                    {module.name}
-                                  </div>
-                                </div>
-                                <div className="flex-shrink-0">
-                                  {isSelected ? (
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-2 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-800">
-                                      <CheckCircle2 className="h-5 w-5" />
-                                    </span>
-                                  ) : (
-                                    <div className="h-7 w-7 rounded-full border-2 border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900" />
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                    </div>
-                  </div>
-	                ))}
+                <section className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/50 md:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{usersCopy.accessEditor.role}</span>
+                    <select
+                      value={selectedRoleDraft}
+                      onChange={(event) => {
+                        const role = event.target.value as User['role'];
+                        setSelectedRoleDraft(role);
+                        setSelectedTabPermissionDraft((keys) => pruneTabPermissionKeysForRole(role, keys));
+                      }}
+                      className={`${inputClassName} h-11 px-3 text-sm`}
+                    >
+                      {canAssignSuperAdmin || selectedUser.role === 'Super Admin' ? (
+                        <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
+                      ) : null}
+                      <option value="Admin">{t.panelInicial.users.roles.admin}</option>
+                      <option value="User">{t.panelInicial.users.roles.user}</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{usersCopy.scope.label}</span>
+                    <select
+                      value={selectedScopeTypeDraft}
+                      onChange={(event) => {
+                        const scope = event.target.value as User['scopeType'];
+                        setSelectedScopeTypeDraft(scope);
+                        if (scope === 'corporate_office') {
+                          setSelectedUnitDraft('');
+                          setSelectedBusinessDraft('');
+                        } else if (scope === 'unit_headquarters') {
+                          setSelectedBusinessDraft('');
+                        }
+                      }}
+                      className={`${inputClassName} h-11 px-3 text-sm`}
+                    >
+                      {assignableScopeTypes.map((scope) => (
+                        <option key={scope} value={scope}>{usersCopy.scope[scope]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {selectedScopeTypeDraft !== 'corporate_office' ? (
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{usersBusinessCopy.businessUnit}</span>
+                      <select
+                        value={selectedUnitDraft}
+                        onChange={(event) => {
+                          setSelectedUnitDraft(event.target.value);
+                          setSelectedBusinessDraft('');
+                        }}
+                        className={`${inputClassName} h-11 px-3 text-sm`}
+                      >
+                        <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
+                        {assignableBusinessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </label>
+                  ) : null}
+                  {selectedScopeTypeDraft === 'business_office' ? (
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{usersBusinessCopy.business}</span>
+                      <select
+                        value={selectedBusinessDraft}
+                        onChange={(event) => setSelectedBusinessDraft(event.target.value)}
+                        className={`${inputClassName} h-11 px-3 text-sm`}
+                      >
+                        <option value="">{usersBusinessCopy.selectBusiness}</option>
+                        {selectedBusinessOptions.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+                      </select>
+                    </label>
+                  ) : null}
+                </section>
 	                <UsersTabPermissionPicker
 		                  catalogTabs={selectedUserCatalogTabs}
+		                  languageCode={currentLanguage.code}
 		                  modules={assignableTabPermissionModules}
+	                  copy={usersCopy.tabPermissions}
+	                  moduleSelectionLabel={usersCopy.selectedModules}
 	                  selectedModuleIds={selectedModulesDraft}
 	                  selectedPermissionKeys={selectedTabPermissionDraft}
+	                  onModuleChange={toggleUserModule}
 	                  onChange={(permissionKeys) =>
-                        setSelectedTabPermissionDraft(pruneTabPermissionKeysForRole(selectedUser.role, permissionKeys))
+                        setSelectedTabPermissionDraft(pruneTabPermissionKeysForRole(selectedRoleDraft, permissionKeys))
                       }
 	                />
 	              </div>
@@ -1660,7 +1571,7 @@ export default function Users() {
               type="button"
               variant="outline"
               onClick={closeInviteModal}
-              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {t.panelInicial.users.modal.cancel}
             </Button>
@@ -1743,36 +1654,53 @@ export default function Users() {
 
                 {inviteWizardStep === 'organization' ? (
                   <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersBusinessCopy.businessUnit}</span>
+                    <label className="space-y-2 sm:col-span-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.scope.label}</span>
                       <select
-                        value={inviteForm.businessUnitId}
-                        onChange={(event) => updateInviteForm('businessUnitId', event.target.value)}
+                        value={inviteForm.scopeType}
+                        onChange={(event) => updateInviteForm('scopeType', event.target.value)}
                         className={`h-11 appearance-none cursor-pointer px-4 ${inputClassName}`}
-                        required
                       >
-                        <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
-                        {assignableBusinessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        {assignableScopeTypes.map((scope) => (
+                          <option key={scope} value={scope}>{usersCopy.scope[scope]}</option>
+                        ))}
                       </select>
                     </label>
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersBusinessCopy.business}</span>
-                      <select
-                        value={inviteForm.businessId}
-                        onChange={(event) => updateInviteForm('businessId', event.target.value)}
-                        className={`h-11 appearance-none cursor-pointer px-4 ${inputClassName}`}
-                        required
-                      >
-                        <option value="">{usersBusinessCopy.selectBusiness}</option>
-                        {inviteBusinessOptions.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
-                      </select>
-                    </label>
+                    {inviteForm.scopeType !== 'corporate_office' ? (
+                      <label className={inviteForm.scopeType === 'unit_headquarters' ? 'space-y-2 sm:col-span-2' : 'space-y-2'}>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersBusinessCopy.businessUnit}</span>
+                        <select
+                          value={inviteForm.businessUnitId}
+                          onChange={(event) => updateInviteForm('businessUnitId', event.target.value)}
+                          className={`h-11 appearance-none cursor-pointer px-4 ${inputClassName}`}
+                          required
+                        >
+                          <option value="">{usersBusinessCopy.selectBusinessUnit}</option>
+                          {assignableBusinessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </label>
+                    ) : null}
+                    {inviteForm.scopeType === 'business_office' ? (
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersBusinessCopy.business}</span>
+                        <select
+                          value={inviteForm.businessId}
+                          onChange={(event) => updateInviteForm('businessId', event.target.value)}
+                          className={`h-11 appearance-none cursor-pointer px-4 ${inputClassName}`}
+                          required
+                        >
+                          <option value="">{usersBusinessCopy.selectBusiness}</option>
+                          {inviteBusinessOptions.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+                        </select>
+                      </label>
+                    ) : null}
                     <div className="sm:col-span-2">
                       <IndiceModalSummary
-                        columns={2}
+                        columns={3}
                         items={[
                           { label: t.panelInicial.users.modal.name, value: inviteForm.name || '—' },
                           { label: t.panelInicial.users.modal.role, value: inviteForm.role },
+                          { label: usersCopy.scope.label, value: usersCopy.scope[inviteForm.scopeType] },
                         ]}
                         title={inviteWizardCopy.inheritedProfile}
                         variant="muted"
@@ -1783,43 +1711,22 @@ export default function Users() {
 
                 {inviteWizardStep === 'access' ? (
                   <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-base font-semibold text-slate-950 dark:text-white">{t.panelInicial.users.modal.modules}</h3>
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{formatSelectedModulesCount(inviteModuleIds.length)}</p>
-                      </div>
-                      <Layers3 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div className="grid max-h-48 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-950/50 sm:grid-cols-2">
-                      {assignableModules.map((module) => {
-                        const isSelected = inviteModuleIds.includes(module.id);
-                        return (
-                          <button
-                            key={module.id}
-                            type="button"
-                            onClick={() => toggleInviteModule(module.id)}
-                            className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${isSelected
-                              ? 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'}`}
-                          >
-                            <span className="min-w-0 truncate"><span className="mr-2">{module.emoji}</span>{module.name}</span>
-                            {isSelected ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
                     <UsersTabPermissionPicker
                       catalogTabs={inviteCatalogTabs}
+                      languageCode={currentLanguage.code}
                       modules={assignableTabPermissionModules}
+                      copy={usersCopy.tabPermissions}
+                      moduleSelectionLabel={usersCopy.selectedModules}
                       selectedModuleIds={inviteModuleIds}
                       selectedPermissionKeys={inviteTabPermissionKeys}
+                      onModuleChange={toggleInviteModule}
                       onChange={(permissionKeys) => setInviteTabPermissionKeys(pruneTabPermissionKeysForRole(inviteForm.role, permissionKeys))}
                     />
                     <IndiceModalSummary
                       columns={3}
                       items={[
                         { label: t.panelInicial.users.modal.name, value: inviteForm.name || '—' },
-                        { label: usersBusinessCopy.businessUnit, value: assignableBusinessUnitOptions.find((option) => option.value === inviteForm.businessUnitId)?.label || '—' },
+                        { label: usersCopy.scope.label, value: usersCopy.scope[inviteForm.scopeType] },
                         { label: t.panelInicial.users.modal.modules, value: formatSelectedModulesCount(inviteModuleIds.length), emphasized: true },
                       ]}
                       title={inviteWizardCopy.finalReview}
@@ -1875,7 +1782,7 @@ export default function Users() {
               type="button"
               variant="outline"
               onClick={closeResendModal}
-              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {t.panelInicial.users.modal.cancel}
             </Button>
@@ -1977,6 +1884,22 @@ export default function Users() {
         onConfirm={handleDeleteUser}
         onCancel={closeDeleteDialog}
       />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(userPendingDeactivation)}
+        title={usersCopy.deactivateConfirmationTitle}
+        itemName={userPendingDeactivation ? `${userPendingDeactivation.name} <${userPendingDeactivation.email}>` : undefined}
+        description={usersCopy.deactivateConfirmationDescription}
+        confirmLabel={isDeletingUser ? usersCopy.overlays.deactivatingTitle : usersCopy.actions.deactivate}
+        cancelLabel={t.panelInicial.users.modal.cancel}
+        confirmDisabled={isDeletingUser || loadingOverlay.isVisible}
+        onConfirm={handleDeactivateUser}
+        onCancel={closeDeactivateDialog}
+      >
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          {usersCopy.deactivateConfirmationWarning}
+        </p>
+      </ConfirmDeleteDialog>
     </div>
   );
 }
@@ -1989,6 +1912,11 @@ function buildAvailableModules(t: any): AvailableModule[] {
     emoji: module.emoji,
     color: module.color,
     category: module.category,
+    lifecycleStatus: 'released',
+    accessModel: 'module',
+    assignable: true,
+    entitled: true,
+    description: '',
   }));
 }
 
@@ -1996,6 +1924,8 @@ function mapCatalogModule(module: ConfigCenterCatalogModule, t: any): AvailableM
   const mapped = mapBackendModuleToCard({
     slug: module.slug,
     name: module.name,
+    category: module.category,
+    url: module.route_key,
   }, t);
 
   if (!mapped) {
@@ -2008,7 +1938,12 @@ function mapCatalogModule(module: ConfigCenterCatalogModule, t: any): AvailableM
     name: mapped.title,
     emoji: mapped.emoji,
     color: mapped.color,
-    category: mapped.category,
+    category: module.category ?? mapped.category,
+    lifecycleStatus: module.lifecycle_status ?? 'released',
+    accessModel: module.access_model ?? 'module',
+    assignable: module.assignable ?? true,
+    entitled: module.entitled ?? true,
+    description: module.description ?? '',
   };
 }
 
@@ -2025,22 +1960,6 @@ function mapCatalogBusiness(business: ConfigCenterCatalogBusiness): BusinessOpti
     unitId: business.unit_id == null ? '' : String(business.unit_id),
     name: business.name,
   };
-}
-
-function mergeAvailableModules(apiModules: AvailableModule[], fallbackModules: AvailableModule[]) {
-  const merged = new Map<string, AvailableModule>();
-
-  for (const module of apiModules) {
-    merged.set(module.id, module);
-  }
-
-  for (const module of fallbackModules) {
-    if (!merged.has(module.id)) {
-      merged.set(module.id, module);
-    }
-  }
-
-  return Array.from(merged.values());
 }
 
 function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModule[]): User {
@@ -2062,8 +1981,23 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     role,
     status,
     unitId: user.unit_id ?? null,
+    unitName: user.unit_name ?? '',
     businessId: user.business_id ?? null,
+    businessName: user.business_name ?? '',
+    scopeType: user.scope_type
+      ?? (user.business_id != null
+        ? 'business_office'
+        : user.unit_id != null
+          ? 'unit_headquarters'
+          : 'corporate_office'),
     isProtected: user.is_protected,
+    capabilities: {
+      canEditAccess: user.capabilities?.can_edit_access ?? false,
+      canActivate: user.capabilities?.can_activate ?? false,
+      canDeactivate: user.capabilities?.can_deactivate ?? false,
+      canResendInvitation: user.capabilities?.can_resend_invitation ?? false,
+      canCancelInvitation: user.capabilities?.can_cancel_invitation ?? false,
+    },
     tabPermissionKeys: user.tab_permission_keys ?? [],
     modules: user.module_slugs
       .flatMap((slug) => {
@@ -2071,6 +2005,16 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
         return route && validModuleIds.has(route) ? [route] : [];
       }),
   };
+}
+
+function formatApiError(error: unknown, fallback: string) {
+  if (error instanceof ApiClientError && error.code === 'SEAT_CAPACITY_EXCEEDED') {
+    const seats = (error.payload as { seats?: { active?: number; reserved?: number; limit?: number } } | null)?.seats;
+    if (seats && typeof seats.limit === 'number') {
+      return `${error.message} (${seats.active ?? 0} active + ${seats.reserved ?? 0} pending / ${seats.limit})`;
+    }
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function normalizeUserRole(role: string): User['role'] {
@@ -2094,28 +2038,23 @@ function isAdminRole(role: string | null | undefined) {
   return normalized === 'admin' || normalized === 'owner' || normalized === 'manager';
 }
 
-function isSelfServiceUserRole(role: User['role'] | string | null | undefined) {
-  return (role ?? '').trim().toLowerCase() === 'user';
+function isProtectedAccessRole(role: User['role'] | string | null | undefined) {
+  const normalized = (role ?? '').trim().toLowerCase();
+  return normalized === 'root' || normalized === 'superadmin' || normalized === 'super admin';
 }
 
 function pruneTabPermissionKeysForRole(
   role: User['role'] | string | null | undefined,
   permissionKeys: string[],
 ) {
-  if (!isSelfServiceUserRole(role)) {
-    return permissionKeys;
-  }
-  return permissionKeys.filter((permissionKey) => USER_SELF_SERVICE_TAB_PERMISSION_KEYS.has(permissionKey));
+  return permissionKeys.filter((permissionKey) => isTabScopeAssignableToRole(permissionKey, role));
 }
 
 function catalogTabsForRole(
   role: User['role'] | string | null | undefined,
   catalogTabs: ConfigCenterCatalogTab[],
 ) {
-  if (!isSelfServiceUserRole(role)) {
-    return catalogTabs;
-  }
-  return catalogTabs.filter((tab) => USER_SELF_SERVICE_TAB_PERMISSION_KEYS.has(tab.permission_key));
+  return catalogTabs.filter((tab) => isTabScopeAssignableToRole(tab.permission_key, role));
 }
 
 function toBackendRole(role: User['role']): string {

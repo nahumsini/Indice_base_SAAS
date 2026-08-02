@@ -47,11 +47,11 @@ export function ProspectosKanbanColumn({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className={cn('h-2.5 w-2.5 rounded-full', stageProgressStyles[stage])} />
-            <h3 className="text-sm font-bold text-slate-950">{copy.options.stages[stage]}</h3>
+            <h3 className="text-sm font-medium text-slate-950">{copy.options.stages[stage]}</h3>
           </div>
-          <p className="mt-1 text-xs font-semibold text-slate-500">{copy.kanban.dragHint}</p>
+          <p className="mt-1 text-xs font-medium text-slate-500">{copy.kanban.dragHint}</p>
         </div>
-        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200">
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">
           {opportunities.length}
         </span>
       </div>

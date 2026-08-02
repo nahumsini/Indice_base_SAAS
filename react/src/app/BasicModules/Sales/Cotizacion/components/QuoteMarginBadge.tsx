@@ -21,11 +21,11 @@ export function QuoteMarginBadge({
 
   return (
     <div className="space-y-1">
-      <Badge className={cn('rounded-full border px-2.5 py-1 text-xs font-black', marginClasses[signal.key])}>
+      <Badge className={cn('rounded-full border px-2.5 py-1 text-xs font-medium', marginClasses[signal.key])}>
         {shouldShowValue ? marginValue : t.tableSignals.margin.costMissing}
       </Badge>
       {shouldShowValue ? (
-        <p className="text-xs font-bold text-slate-500">{t.tableSignals.margin[signal.key]}</p>
+        <p className="text-xs font-medium text-slate-500">{t.tableSignals.margin[signal.key]}</p>
       ) : null}
     </div>
   );

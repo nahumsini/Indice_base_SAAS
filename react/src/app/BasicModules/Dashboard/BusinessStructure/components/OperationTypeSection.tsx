@@ -41,7 +41,7 @@ export function OperationTypeSection({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-5">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{structure.mode.title}</h3>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{structure.mode.title}</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           {structure.mode.description}
         </p>
@@ -82,7 +82,7 @@ export function OperationTypeSection({
                   <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                 )}
               </div>
-              <span className={`font-semibold ${
+              <span className={`font-medium ${
                 estructuraType === 'simple'
                   ? 'text-gray-950 dark:text-white'
                   : 'text-gray-800 dark:text-gray-200'
@@ -129,7 +129,7 @@ export function OperationTypeSection({
                   <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                 )}
               </div>
-              <span className={`font-semibold ${
+              <span className={`font-medium ${
                 estructuraType === 'multi'
                   ? 'text-gray-950 dark:text-white'
                   : 'text-gray-800 dark:text-gray-200'
@@ -163,7 +163,7 @@ export function OperationTypeSection({
                   }
                 }}
                 disabled={disabled}
-                className="font-semibold hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                className="font-medium hover:underline disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {structure.mode.switchAction}
               </button>
@@ -175,7 +175,7 @@ export function OperationTypeSection({
               {structure.mode.multiNote}
             </p>
             <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {structure.mode.structurePreviewTitle}
               </p>
               <pre className="text-xs text-gray-600 dark:text-gray-400 font-mono">

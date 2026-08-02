@@ -27,8 +27,8 @@ export function IndiceSignalBar({
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-black text-[#222831] dark:text-white">Señal Indice</h3>
-              <span className="rounded-lg bg-white px-2 py-0.5 text-[11px] font-bold uppercase text-blue-700 shadow-sm dark:bg-gray-900 dark:text-blue-300">
+              <h3 className="text-sm font-medium text-[#222831] dark:text-white">Señal Indice</h3>
+              <span className="rounded-lg bg-white px-2 py-0.5 text-[11px] font-medium text-blue-700 shadow-sm dark:bg-gray-900 dark:text-blue-300">
                 Control retail
               </span>
             </div>
@@ -72,7 +72,7 @@ function SignalChip({
   }[tone];
 
   return (
-    <span className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold shadow-sm ${toneClass}`}>
+    <span className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium shadow-sm ${toneClass}`}>
       <Icon className="h-3.5 w-3.5" />
       {label}
     </span>

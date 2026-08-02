@@ -48,7 +48,7 @@ function AutomationStatusBadge({ status }: { status: AutomationRule['status'] })
   const Icon = statusIcons[status];
 
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold', automationStatusClasses[status])}>
+    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium', automationStatusClasses[status])}>
       <Icon className="h-3.5 w-3.5" />
       {automationStatusLabels[status]}
     </span>
@@ -57,7 +57,7 @@ function AutomationStatusBadge({ status }: { status: AutomationRule['status'] })
 
 function inputClassName(extra?: string) {
   return cn(
-    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950',
+    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950',
     extra,
   );
 }
@@ -118,8 +118,8 @@ export default function InformesAutomatizados() {
   };
   const titleActions = (
     <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-      <Button type="button" variant="outline" onClick={() => exportAutomationCsv(filteredRules)} className="h-10 rounded-xl border-blue-300 bg-white text-sm font-semibold text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950/40"><Download className="mr-2 h-4 w-4" />Exportar</Button>
-      <Button type="button" className="h-10 rounded-xl bg-blue-700 text-sm font-semibold text-white hover:bg-blue-800"><Settings2 className="mr-2 h-4 w-4" />Nueva regla</Button>
+      <Button type="button" variant="outline" onClick={() => exportAutomationCsv(filteredRules)} className="h-10 rounded-xl border-blue-300 bg-white text-sm font-medium text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950/40"><Download className="mr-2 h-4 w-4" />Exportar</Button>
+      <Button type="button" className="h-10 rounded-xl bg-blue-700 text-sm font-medium text-white hover:bg-blue-800"><Settings2 className="mr-2 h-4 w-4" />Nueva regla</Button>
     </div>
   );
 
@@ -133,10 +133,10 @@ export default function InformesAutomatizados() {
               <BellRing className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
                 Automatizaciones
               </p>
-              <h2 className="mt-1 text-xl font-bold tracking-normal text-slate-950 dark:text-white">
+              <h2 className="mt-1 text-xl font-medium tracking-normal text-slate-950 dark:text-white">
                 Motor de reportes programados
               </h2>
               <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-700 dark:text-slate-200">
@@ -152,7 +152,7 @@ export default function InformesAutomatizados() {
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-950 dark:text-white">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-950 dark:text-white">
               <SlidersHorizontal className="h-4 w-4 text-blue-700 dark:text-blue-300" />
               Filtros de automatizacion
             </div>
@@ -164,7 +164,7 @@ export default function InformesAutomatizados() {
             type="button"
             variant="outline"
             onClick={resetFilters}
-            className="h-10 w-fit rounded-xl border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="h-10 w-fit rounded-xl border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             Limpiar
@@ -172,7 +172,7 @@ export default function InformesAutomatizados() {
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_220px_220px]">
-          <label className="min-w-0 text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label className="min-w-0 text-sm font-medium text-slate-700 dark:text-slate-200">
             Buscar
             <span className="relative mt-1 block">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -184,7 +184,7 @@ export default function InformesAutomatizados() {
               />
             </span>
           </label>
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
             Estado
             <select
               value={statusFilter}
@@ -198,7 +198,7 @@ export default function InformesAutomatizados() {
               ))}
             </select>
           </label>
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
             Cadencia
             <select
               value={cadenceFilter}
@@ -223,8 +223,8 @@ export default function InformesAutomatizados() {
           ['Pausadas', pausedCount, 'border-slate-200 bg-slate-50 text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-white'],
         ].map(([label, value, className]) => (
           <div key={label} className={cn('rounded-xl border p-4 shadow-sm', className as string)}>
-            <p className="text-xs font-semibold uppercase tracking-wide opacity-75">{label}</p>
-            <p className="mt-2 text-2xl font-bold">{value}</p>
+            <p className="text-xs font-medium opacity-75">{label}</p>
+            <p className="mt-2 text-2xl font-medium">{value}</p>
           </div>
         ))}
       </section>
@@ -238,10 +238,10 @@ export default function InformesAutomatizados() {
             <div className="border-b border-slate-100 p-5 dark:border-slate-800">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     Regla automatizada
                   </p>
-                  <h3 className="mt-1 text-lg font-bold tracking-normal text-slate-950 dark:text-white">
+                  <h3 className="mt-1 text-lg font-medium tracking-normal text-slate-950 dark:text-white">
                     {rule.title}
                   </h3>
                 </div>
@@ -261,13 +261,13 @@ export default function InformesAutomatizados() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-slate-300 text-sm font-semibold dark:border-slate-700"
+                className="h-9 rounded-xl border-slate-300 text-sm font-medium dark:border-slate-700"
               >
                 Simular
               </Button>
               <Button
                 type="button"
-                className="h-9 rounded-xl bg-blue-700 text-sm font-semibold text-white hover:bg-blue-800"
+                className="h-9 rounded-xl bg-blue-700 text-sm font-medium text-white hover:bg-blue-800"
               >
                 Editar regla
               </Button>
@@ -278,7 +278,7 @@ export default function InformesAutomatizados() {
 
       {filteredRules.length === 0 && (
         <section className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-sm font-semibold text-slate-950 dark:text-white">No hay reglas con estos filtros.</p>
+          <p className="text-sm font-medium text-slate-950 dark:text-white">No hay reglas con estos filtros.</p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Limpia la busqueda o cambia el estado para ver mas automatizaciones.</p>
         </section>
       )}
@@ -286,7 +286,7 @@ export default function InformesAutomatizados() {
       <section className="grid gap-5 xl:grid-cols-[1fr_420px]">
         <div className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="border-b border-slate-100 p-5 dark:border-slate-800">
-            <h2 className="text-lg font-bold tracking-normal text-slate-950 dark:text-white">
+            <h2 className="text-lg font-medium tracking-normal text-slate-950 dark:text-white">
               Flujo de automatizacion
             </h2>
           </div>
@@ -298,10 +298,10 @@ export default function InformesAutomatizados() {
               ['Notifica', `${readyCount} reglas listas`],
             ].map(([title, description], index) => (
               <div key={title} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-sm font-medium text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
                   {index + 1}
                 </span>
-                <p className="mt-3 font-bold text-slate-950 dark:text-white">{title}</p>
+                <p className="mt-3 font-medium text-slate-950 dark:text-white">{title}</p>
                 <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">{description}</p>
               </div>
             ))}
@@ -309,7 +309,7 @@ export default function InformesAutomatizados() {
         </div>
 
         <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
             <MailCheck className="h-4 w-4 text-blue-700 dark:text-blue-300" />
             Salida esperada
           </div>
@@ -325,7 +325,7 @@ export default function InformesAutomatizados() {
           </div>
           <Button
             type="button"
-            className="mt-5 h-10 w-full rounded-xl bg-blue-700 text-sm font-semibold text-white hover:bg-blue-800"
+            className="mt-5 h-10 w-full rounded-xl bg-blue-700 text-sm font-medium text-white hover:bg-blue-800"
           >
             <Send className="mr-2 h-4 w-4" />
             Probar envio
@@ -339,11 +339,11 @@ export default function InformesAutomatizados() {
 function RuleDetail({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
-      <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
+      <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -352,7 +352,7 @@ function OutputRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span>{label}</span>
-      <span className="font-semibold">{value}</span>
+      <span className="font-medium">{value}</span>
     </div>
   );
 }

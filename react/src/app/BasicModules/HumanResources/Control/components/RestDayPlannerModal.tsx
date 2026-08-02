@@ -199,7 +199,7 @@ export function RestDayPlannerModal({
         <Button
           type="button"
           variant="outline"
-          className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+          className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
           onClick={onClose}
         >
           {copy.labels.cancel}
@@ -219,7 +219,7 @@ export function RestDayPlannerModal({
           <section className="min-h-0 overflow-y-auto p-5">
             <div className="mb-4 flex flex-col gap-3 rounded-xl border border-[#59C3A5]/15 bg-[#F4FCF9] p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                <p className="text-sm font-medium text-slate-950 dark:text-white">
                   {copy.labels.restPlannerCalendarTitle}
                 </p>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -235,7 +235,7 @@ export function RestDayPlannerModal({
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="min-w-[180px] text-center text-sm font-semibold capitalize text-slate-950 dark:text-white">
+                <span className="min-w-[180px] text-center text-sm font-medium capitalize text-slate-950 dark:text-white">
                   {monthLabel(plannerMonth, locale)}
                 </span>
                 <Button
@@ -290,7 +290,7 @@ export function RestDayPlannerModal({
                       }
                     }}
                   >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-900 dark:bg-slate-800 dark:text-white">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-sm font-medium text-slate-900 dark:bg-slate-800 dark:text-white">
                       {day}
                     </span>
                     <div className="mt-2 space-y-1">
@@ -336,7 +336,7 @@ export function RestDayPlannerModal({
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-[#59C3A5]" />
                   <div>
-                    <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                    <p className="text-sm font-medium text-slate-950 dark:text-white">
                       {copy.labels.restPlannerEmployeesTitle}
                     </p>
                     <p className="text-xs font-medium text-slate-500">
@@ -350,7 +350,7 @@ export function RestDayPlannerModal({
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder={copy.labels.restPlannerSearchPlaceholder}
-                    className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-slate-400"
+                    className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
                   />
                 </label>
               </div>
@@ -378,11 +378,11 @@ export function RestDayPlannerModal({
                     }}
                     onDragEnd={() => setDraggedEmployeeId(null)}
                   >
-                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F2C94C] text-sm font-black text-slate-950">
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F2C94C] text-sm font-medium text-slate-950">
                       {employeeInitials(assignment.user_name)}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-slate-950 dark:text-white">
+                      <span className="block truncate text-sm font-medium text-slate-950 dark:text-white">
                         {assignment.user_name}
                       </span>
                       <span className="block truncate text-xs font-medium text-slate-500">

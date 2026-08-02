@@ -91,8 +91,8 @@ export function ReceivableFilesModal({
                   <div className="min-w-0 p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <p className="truncate text-base font-black text-slate-950 dark:text-white">{fileName}</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                        <p className="truncate text-base font-medium text-slate-950 dark:text-white">{fileName}</p>
+                        <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
                           {payment.saleNumber} · {payment.customerName}
                         </p>
                       </div>
@@ -103,7 +103,7 @@ export function ReceivableFilesModal({
                               asChild
                               type="button"
                               variant="outline"
-                              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                             >
                               <a href={dataUrl} target="_blank" rel="noreferrer">
                                 <ExternalLink className="h-4 w-4" />
@@ -113,7 +113,7 @@ export function ReceivableFilesModal({
                             <Button
                               asChild
                               type="button"
-                              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-bold', moduleModalPrimaryButtonClassName)}
+                              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-medium', moduleModalPrimaryButtonClassName)}
                             >
                               <a href={dataUrl} download={fileName}>
                                 <Download className="h-4 w-4" />
@@ -125,23 +125,23 @@ export function ReceivableFilesModal({
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300 sm:grid-cols-3">
+                    <div className="mt-4 grid gap-3 text-sm font-medium text-slate-600 dark:text-slate-300 sm:grid-cols-3">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-950">
-                        <p className="text-xs font-black uppercase text-slate-400">{copy.modals.files.registeredOn}</p>
+                        <p className="text-xs font-medium text-slate-400">{copy.modals.files.registeredOn}</p>
                         <p className="mt-1">{payment.paymentDate}</p>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-950">
-                        <p className="text-xs font-black uppercase text-slate-400">{copy.modals.files.amount}</p>
+                        <p className="text-xs font-medium text-slate-400">{copy.modals.files.amount}</p>
                         <p className="mt-1 text-[#147514]">{formatMoney(payment.amount, payment.currency)}</p>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-950">
-                        <p className="text-xs font-black uppercase text-slate-400">{copy.modals.files.reference}</p>
+                        <p className="text-xs font-medium text-slate-400">{copy.modals.files.reference}</p>
                         <p className="mt-1 truncate">{payment.reference}</p>
                       </div>
                     </div>
 
                     {!isImage && !isPdf ? (
-                      <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
+                      <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
                         {copy.modals.files.noPreview}
                       </p>
                     ) : null}
@@ -154,7 +154,7 @@ export function ReceivableFilesModal({
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
           <FileText className="mx-auto h-10 w-10 text-slate-400" />
-          <p className="mt-3 text-sm font-bold text-slate-500 dark:text-slate-300">{copy.modals.files.empty}</p>
+          <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-300">{copy.modals.files.empty}</p>
         </div>
       )}
     </ReceivablesModalFrame>

@@ -67,7 +67,7 @@ export function EmployeeModalFrame({
           type="button"
           variant="outline"
           onClick={onClose}
-          className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+          className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
         >
           {copy.buttons.cancel}
         </Button>
@@ -98,7 +98,7 @@ export function EmployeeModalFrame({
       />
       <form ref={formRef} id="hr-employee-wizard-form" onSubmit={onSubmit}>
           {statusFeedback ? (
-            <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+            <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
               {statusFeedback}
             </div>
           ) : null}

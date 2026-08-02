@@ -38,7 +38,7 @@ export function OpportunityDetailModal({
       )}
     >
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <p className="font-semibold text-slate-950">{opportunity?.opportunityName}</p>
+            <p className="font-medium text-slate-950">{opportunity?.opportunityName}</p>
             <p className="mt-1 text-sm text-slate-600">{opportunity?.company} · {opportunity?.contactPerson}</p>
           </div>
 

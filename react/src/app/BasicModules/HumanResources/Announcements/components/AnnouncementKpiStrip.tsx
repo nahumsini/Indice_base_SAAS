@@ -85,11 +85,11 @@ export function AnnouncementKpiStrip({
 
         <div className="flex flex-wrap items-center gap-2">
           {showSelectionMetrics && selectedCount > 0 ? (
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
               {copy.selectedBadge(selectedCount)}
             </span>
           ) : null}
-          <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#177d66] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-[#8DE1CB]">
+          <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-medium text-[#177d66] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-[#8DE1CB]">
             {copy.publishedRate(actionRate)}
           </span>
         </div>
@@ -139,7 +139,7 @@ function AnnouncementKpiMetric({
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
         {icon}
       </span>
-      <span className={`font-semibold ${valueClassName}`}>{value}</span>
+      <span className={`font-medium ${valueClassName}`}>{value}</span>
       <span>{label}</span>
     </div>
   );

@@ -445,7 +445,7 @@ export function TaskFormDialog({
               />
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
                 <Input
                   type="date"
                   value={form.startDate}
@@ -458,7 +458,7 @@ export function TaskFormDialog({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
                 <Input
                   type="date"
                   value={form.dueDate}
@@ -485,7 +485,7 @@ export function TaskFormDialog({
               {!isQuickCreate ? (
                 <>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.process}</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.process}</label>
                     <Select
                       value={selectedProcessValue}
                       onValueChange={(value) =>
@@ -509,7 +509,7 @@ export function TaskFormDialog({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.project}</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.project}</label>
                     <Select
                       value={selectedProjectValue}
                       onValueChange={(value) =>
@@ -536,7 +536,7 @@ export function TaskFormDialog({
               ) : null}
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.unit}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.unit}</label>
                 <Select value={selectedUnitValue} onValueChange={updateUnit}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={formCopy.placeholders.unit} />
@@ -551,7 +551,7 @@ export function TaskFormDialog({
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.business}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.business}</label>
                 <Select value={selectedBusinessValue} onValueChange={updateBusiness}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={formCopy.placeholders.business} />
@@ -566,7 +566,7 @@ export function TaskFormDialog({
                 </Select>
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.responsible}</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.responsible}</label>
                 <Select value={selectedAssignedValue} onValueChange={updateAssignedUser}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={formCopy.placeholders.responsible} />
@@ -583,7 +583,7 @@ export function TaskFormDialog({
 
               {!isQuickCreate ? (
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formCopy.labels.notes}</label>
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.notes}</label>
                   <Textarea
                     value={form.notes}
                     onChange={(event) =>

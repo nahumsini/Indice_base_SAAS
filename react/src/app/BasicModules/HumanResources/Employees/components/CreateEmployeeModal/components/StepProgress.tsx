@@ -26,7 +26,7 @@ export function StepProgress({
   return (
     <div className="border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
           {progressLabel}
         </p>
       </div>
@@ -49,7 +49,7 @@ export function StepProgress({
                 type="button"
                 onClick={() => onStepSelect(step.id)}
                 className={cn(
-                  'flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all',
+                  'flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all',
                   isActive
                     ? 'border-[#59C3A5]/40 bg-[#59C3A5]/10 text-[#59C3A5] shadow-sm dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300'
                     : isCompleted
@@ -59,9 +59,9 @@ export function StepProgress({
               >
                 <span
                   className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium',
                     isActive
-                      ? 'bg-[#59C3A5] text-white dark:bg-blue-500'
+                      ? 'bg-[#59C3A5] text-slate-950 dark:bg-blue-500 dark:text-white'
                       : isCompleted
                         ? 'bg-emerald-600 text-white'
                         : 'border border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-500',

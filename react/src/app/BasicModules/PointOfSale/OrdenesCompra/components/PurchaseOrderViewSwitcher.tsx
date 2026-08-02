@@ -52,9 +52,9 @@ function SwitchButton({
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
+        'inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25',
         active
-          ? 'bg-[#FF6B5E] text-white shadow-md shadow-[#FF6B5E]/25'
+          ? 'bg-[#FF6B5E] text-[#222831] shadow-sm shadow-[#FF6B5E]/20'
           : 'text-slate-600 hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:text-slate-300 dark:hover:bg-[#FF6B5E]/15 dark:hover:text-[#FFB0AA]',
       )}
     >
@@ -63,7 +63,7 @@ function SwitchButton({
       <span className={cn(
         'rounded-full px-2 py-0.5 text-xs',
         active
-          ? 'bg-white/20 text-white'
+          ? 'bg-white/45 text-[#222831]'
           : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300',
       )}>
         {count}

@@ -22,12 +22,12 @@ export function InventoryMovementHistory({
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4">
-        <h3 className="text-lg font-black text-slate-950">{t.movementHistory.title}</h3>
+        <h3 className="text-lg font-medium text-slate-950">{t.movementHistory.title}</h3>
         <p className="mt-1 text-sm font-medium text-slate-500">{t.movementHistory.description}</p>
       </div>
 
       {movements.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-medium text-slate-500">
           {t.movementHistory.empty}
         </div>
       ) : (
@@ -43,8 +43,8 @@ export function InventoryMovementHistory({
                       <Icon className="h-4 w-4" />
                     </span>
                     <div>
-                      <p className="font-black text-slate-950">{movement.productName}</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                      <p className="font-medium text-slate-950">{movement.productName}</p>
+                      <p className="mt-1 text-sm font-medium text-slate-500">
                         {t.movementTypes[movement.movementType]} · {formatInventoryNumber(movement.quantity)}
                         {movement.unitCost ? ` · ${formatInventoryCurrency(movement.unitCost)}` : ''}
                       </p>
@@ -52,10 +52,10 @@ export function InventoryMovementHistory({
                     </div>
                   </div>
                   <div className="text-left md:text-right">
-                    <p className="text-sm font-bold text-slate-700">{movement.movementDate}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">{movement.responsibleName ?? t.common.notAvailable}</p>
+                    <p className="text-sm font-medium text-slate-700">{movement.movementDate}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">{movement.responsibleName ?? t.common.notAvailable}</p>
                     <Badge className={cn(
-                      'mt-2 rounded-full border px-2 py-1 text-xs font-bold',
+                      'mt-2 rounded-full border px-2 py-1 text-xs font-medium',
                       movement.status === 'pendingSync'
                         ? 'border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05]'
                         : 'border-emerald-200 bg-emerald-50 text-emerald-700',

@@ -180,7 +180,7 @@ export function CreatableOptionField({
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => selectOption(option)}
                   className={cn(
-                    'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors',
+                    'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors',
                     isActive
                       ? 'bg-[#59C3A5]/10 text-[#59C3A5] dark:bg-blue-400/10 dark:text-blue-200'
                       : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800',
@@ -198,7 +198,7 @@ export function CreatableOptionField({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={commitCustomOption}
                 className={cn(
-                  'mt-1 flex w-full items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-left text-sm font-semibold transition-colors',
+                  'mt-1 flex w-full items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-left text-sm font-medium transition-colors',
                   activeIndex === visibleOptions.length
                     ? 'border-[#59C3A5]/40 bg-[#59C3A5]/10 text-[#59C3A5] dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-200'
                     : 'border-[#59C3A5]/20 bg-[#59C3A5]/5 text-[#59C3A5] hover:bg-[#59C3A5]/10 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200',

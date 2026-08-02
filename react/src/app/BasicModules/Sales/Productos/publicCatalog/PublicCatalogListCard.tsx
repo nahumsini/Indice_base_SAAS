@@ -57,18 +57,18 @@ export function PublicCatalogListCard({
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h4 className="min-w-0 truncate text-sm font-semibold text-slate-950">{catalog.title}</h4>
-              <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${status === 'active' ? 'bg-emerald-50 text-emerald-700' : terminal ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+              <h4 className="min-w-0 truncate text-sm font-medium text-slate-950">{catalog.title}</h4>
+              <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${status === 'active' ? 'bg-emerald-50 text-emerald-700' : terminal ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
                 {statusText}
               </span>
             </div>
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
-              <span className="max-w-full truncate text-xs font-semibold text-slate-600">
+              <span className="max-w-full truncate text-xs font-medium text-slate-600">
                 {catalog.unitName ?? t.publicCatalog.unitFallback(catalog.unitId ?? '-')} / {catalog.businessName ?? t.publicCatalog.businessFallback(catalog.businessId ?? '-')}
               </span>
               <span aria-hidden="true" className="text-slate-300">·</span>
               <span className="text-xs font-medium text-slate-500">{cardSummary.productCount} · {t.publicCatalog.selectedProductsLabel}</span>
-              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${cardSummary.hasPublicLink ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${cardSummary.hasPublicLink ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
                 {cardSummary.hasPublicLink ? t.publicCatalog.publicLinkReady : t.publicCatalog.publicLinkMissing}
               </span>
               {cardSummary.hasPublicLink ? <Link2 className="h-3 w-3 text-slate-400" /> : null}
@@ -78,7 +78,7 @@ export function PublicCatalogListCard({
         </div>
 
         <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 sm:flex-nowrap sm:justify-end">
-          <Button type="button" size="icon" className="h-9 w-9 shrink-0 rounded-lg bg-[#FF6B5E] text-white hover:bg-[#E85C50]" onClick={onSelect} disabled={terminal} title={t.publicCatalog.editAction} aria-label={t.publicCatalog.editAction}>
+          <Button type="button" size="icon" className="h-9 w-9 shrink-0 rounded-lg bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]" onClick={onSelect} disabled={terminal} title={t.publicCatalog.editAction} aria-label={t.publicCatalog.editAction}>
             <PencilLine className="h-4 w-4" />
           </Button>
           <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0 rounded-lg border-slate-200 text-slate-600 hover:border-[#FF6B5E]/30 hover:bg-[#FF6B5E]/5 hover:text-[#B63B32]" onClick={onCatalogLink} disabled={terminal} title={t.publicCatalog.copyLink} aria-label={t.publicCatalog.copyLink}>

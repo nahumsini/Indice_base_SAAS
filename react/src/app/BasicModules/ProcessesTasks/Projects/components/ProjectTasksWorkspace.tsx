@@ -2002,10 +2002,10 @@ export function ProjectTasksWorkspace({
 
     switch (columnId) {
       case 'folio':
-        return <div className="text-sm font-semibold text-slate-900 dark:text-white">{task.folio}</div>;
+        return <div className="text-sm font-medium text-slate-900 dark:text-white">{task.folio}</div>;
       case 'type':
         return (
-          <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+          <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
             {taskCopy.taskTypes[task.taskType]}
           </Badge>
         );
@@ -2226,7 +2226,7 @@ export function ProjectTasksWorkspace({
             title={taskCopy.actions.files}
             disabled={pending}
             onClick={() => setAttachmentsTask(task)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-sm font-semibold text-[#9A6B05] transition-colors hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-sm font-medium text-[#9A6B05] transition-colors hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
           >
             <FolderOpen className="h-4 w-4" />
             {task.attachments}
@@ -2235,7 +2235,7 @@ export function ProjectTasksWorkspace({
       case 'project':
         return (
           <div className="min-w-[220px] space-y-1 text-sm text-slate-700 dark:text-slate-200">
-            <p className="font-semibold text-slate-900 dark:text-white">{task.projectName ?? project.name}</p>
+            <p className="font-medium text-slate-900 dark:text-white">{task.projectName ?? project.name}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">{task.projectFolio ?? project.folio}</p>
           </div>
         );
@@ -2281,7 +2281,7 @@ export function ProjectTasksWorkspace({
           />
         ) : (
           <div className="space-y-2">
-            <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', auditStatusClasses[task.auditStatus])}>
+            <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-medium', auditStatusClasses[task.auditStatus])}>
               {taskCopy.auditStatuses[task.auditStatus]}
             </Badge>
             {task.status === 'completed' ? (
@@ -2289,7 +2289,7 @@ export function ProjectTasksWorkspace({
                 type="button"
                 variant="outline"
                 disabled={pending}
-                className="h-9 rounded-xl border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 shadow-none hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/60"
+                className="h-9 rounded-xl border-violet-200 bg-violet-50 px-3 text-sm font-medium text-violet-700 shadow-none hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/60"
                 onClick={() => handleAuditTask(task)}
               >
                 <ClipboardCheck className="h-4 w-4" />
@@ -2330,7 +2330,7 @@ export function ProjectTasksWorkspace({
         <div className="min-w-[1080px]">
           <div className="grid border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" style={{ gridTemplateColumns: 'minmax(340px, 400px) 1fr' }}>
             <div className="border-r border-slate-200 px-5 py-3 dark:border-slate-700">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 {copy.gantt.taskColumn}
               </p>
               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.gantt.timelineRange}</p>
@@ -2347,14 +2347,14 @@ export function ProjectTasksWorkspace({
                     isToday && 'bg-[#F4C84A]/20 dark:bg-[#F4C84A]/15',
                   )}
                 >
-                  <p className="text-[11px] font-semibold uppercase text-slate-400 dark:text-slate-500">
+                  <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
                     {new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day)}
                   </p>
-                  <p className={cn('mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100', isToday && 'text-[#9A6B05] dark:text-[#FEF3C7]')}>
+                  <p className={cn('mt-1 text-sm font-medium text-slate-700 dark:text-slate-100', isToday && 'text-[#9A6B05] dark:text-[#FEF3C7]')}>
                     {day.getDate()}
                   </p>
                   {isToday ? (
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#9A6B05] dark:text-[#FEF3C7]">
+                    <p className="mt-1 text-[10px] font-medium text-[#9A6B05] dark:text-[#FEF3C7]">
                       {copy.gantt.today}
                     </p>
                   ) : null}
@@ -2390,14 +2390,14 @@ export function ProjectTasksWorkspace({
               >
                 <div className="border-r border-slate-200 px-5 py-4 dark:border-slate-700">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                    <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
                       {task.folio}
                     </Badge>
-                    <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', statusClasses[displayStatus])}>
+                    <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 text-xs font-medium', statusClasses[displayStatus])}>
                       {taskCopy.statuses[displayStatus]}
                     </Badge>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{task.title}</p>
+                  <p className="mt-2 line-clamp-2 text-sm font-medium text-slate-900 dark:text-white">{task.title}</p>
                   <div className="mt-2 grid gap-2 text-xs text-slate-500 dark:text-slate-400">
                     <div className="flex min-w-0 items-center gap-2">
                       <UserRound className="h-3.5 w-3.5 shrink-0" />
@@ -2411,7 +2411,7 @@ export function ProjectTasksWorkspace({
                           : taskCopy.common.noDate}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 font-semibold text-[#9A6B05] dark:text-[#FEF3C7]">
+                    <div className="flex items-center gap-2 font-medium text-[#9A6B05] dark:text-[#FEF3C7]">
                       <Gauge className="h-3.5 w-3.5" />
                       <span>{clampPercent(task.completionPercent)}%</span>
                       {ganttDates ? <span>- {copy.gantt.duration(duration)}</span> : null}
@@ -2420,26 +2420,26 @@ export function ProjectTasksWorkspace({
                   {ganttDates ? (
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
                           {taskCopy.columns.startDate.label}
                         </span>
                         <Input
                           type="date"
                           value={ganttDates.start}
                           disabled={isPending}
-                          className="h-8 rounded-lg border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          className="h-8 rounded-lg border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                           onChange={(event) => handleTaskGanttDateInputChange(task, 'startDate', event.target.value)}
                         />
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
                           {taskCopy.columns.dueDate.label}
                         </span>
                         <Input
                           type="date"
                           value={ganttDates.end}
                           disabled={isPending}
-                          className="h-8 rounded-lg border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          className="h-8 rounded-lg border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                           onChange={(event) => handleTaskGanttDateInputChange(task, 'dueDate', event.target.value)}
                         />
                       </div>
@@ -2452,7 +2452,7 @@ export function ProjectTasksWorkspace({
                       void handleTaskPredecessorChange(task, value);
                     }}
                   >
-                    <SelectTrigger className="mt-3 h-9 w-full rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+                    <SelectTrigger className="mt-3 h-9 w-full rounded-xl border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-none hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
                       <SelectValue placeholder={taskCopy.columns.predecessor.label} />
                     </SelectTrigger>
                     <SelectContent>
@@ -2518,9 +2518,9 @@ export function ProjectTasksWorkspace({
                       </button>
                       <div className="flex h-full items-center justify-between gap-3">
                         <div className="min-w-0 pl-6">
-                          <span className="block truncate text-xs font-semibold text-slate-900 dark:text-white">{task.title}</span>
+                          <span className="block truncate text-xs font-medium text-slate-900 dark:text-white">{task.title}</span>
                           {task.predecessorTaskFolio ? (
-                            <span className="mt-1 inline-flex max-w-full items-center rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-semibold text-[#9A6B05] dark:bg-slate-900/45 dark:text-[#FEF3C7]">
+                            <span className="mt-1 inline-flex max-w-full items-center rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-medium text-[#9A6B05] dark:bg-slate-900/45 dark:text-[#FEF3C7]">
                               {copy.gantt.dependsOn(task.predecessorTaskFolio)}
                             </span>
                           ) : null}
@@ -2528,7 +2528,7 @@ export function ProjectTasksWorkspace({
                             <span className={cn('block h-full rounded-full', ganttProgressClasses[displayStatus])} style={{ width: `${clampPercent(task.completionPercent)}%` }} />
                           </span>
                         </div>
-                        <span className="shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-200">{clampPercent(task.completionPercent)}%</span>
+                        <span className="shrink-0 text-xs font-medium text-slate-700 dark:text-slate-200">{clampPercent(task.completionPercent)}%</span>
                       </div>
                       <button
                         type="button"
@@ -2564,22 +2564,22 @@ export function ProjectTasksWorkspace({
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F4C84A] text-slate-950 shadow-sm">
                 <FolderOpen className="h-5 w-5" />
               </span>
-              <Badge variant="outline" className="rounded-full border-[#F4C84A]/45 bg-white/80 px-3 py-1 font-semibold text-[#9A6B05] dark:bg-slate-800/80 dark:text-[#FEF3C7]">
+              <Badge variant="outline" className="rounded-full border-[#F4C84A]/45 bg-white/80 px-3 py-1 font-medium text-[#9A6B05] dark:bg-slate-800/80 dark:text-[#FEF3C7]">
                 {copy.header.eyebrow}
               </Badge>
-              <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', project.status === 'cancelled' ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300' : project.status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9A6B05] dark:text-[#FEF3C7]')}>
+              <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-medium', project.status === 'cancelled' ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300' : project.status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9A6B05] dark:text-[#FEF3C7]')}>
                 {copy.projectStatuses[project.status]}
               </Badge>
-              <Badge variant="outline" className="rounded-full border-slate-200 bg-white/80 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
+              <Badge variant="outline" className="rounded-full border-slate-200 bg-white/80 px-3 py-1 font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200">
                 {copy.header.tasksCount(metrics.total)}
               </Badge>
             </div>
             <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9A6B05] dark:text-[#FEF3C7]">
+                <p className="text-xs font-medium text-[#9A6B05] dark:text-[#FEF3C7]">
                   {project.folio}
                 </p>
-                <h3 className="mt-1 break-words text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                <h3 className="mt-1 break-words text-2xl font-medium tracking-tight text-slate-950 dark:text-white">
                   {project.name}
                 </h3>
                 <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -2588,12 +2588,12 @@ export function ProjectTasksWorkspace({
               </div>
               <div className="grid min-w-[220px] grid-cols-2 gap-2 rounded-2xl border border-[#F4C84A]/35 bg-white/80 p-3 dark:border-[#F4C84A]/25 dark:bg-slate-800/80">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.metrics.productivity}</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{metrics.averageCompletion}%</p>
+                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{copy.metrics.productivity}</p>
+                  <p className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{metrics.averageCompletion}%</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{copy.metrics.open}</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{metrics.open}</p>
+                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{copy.metrics.open}</p>
+                  <p className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{metrics.open}</p>
                 </div>
               </div>
             </div>
@@ -2604,7 +2604,7 @@ export function ProjectTasksWorkspace({
                 type="button"
                 aria-pressed={workspaceViewMode === 'table'}
                 className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
                   workspaceViewMode === 'table'
                     ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
@@ -2618,7 +2618,7 @@ export function ProjectTasksWorkspace({
                 type="button"
                 aria-pressed={workspaceViewMode === 'diagram'}
                 className={cn(
-                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors',
+                  'inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
                   workspaceViewMode === 'diagram'
                     ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
@@ -2632,7 +2632,7 @@ export function ProjectTasksWorkspace({
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               onClick={onClose}
             >
               {copy.header.closePanel}
@@ -2640,13 +2640,13 @@ export function ProjectTasksWorkspace({
             <Button
               type="button"
               variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               onClick={() => setIsColumnsModalOpen(true)}
             >
               <Columns3 className="h-4 w-4" />
               {copy.header.columns}
             </Button>
-            <Button type="button" className={cn('h-10 rounded-xl px-4 text-sm font-semibold', accentButtonClass)} onClick={handleCreateTaskClick}>
+            <Button type="button" className={cn('h-10 rounded-xl px-4 text-sm font-medium', accentButtonClass)} onClick={handleCreateTaskClick}>
               <Plus className="h-4 w-4" />
               {copy.header.createTask}
             </Button>
@@ -2656,8 +2656,8 @@ export function ProjectTasksWorkspace({
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {projectContextItems.map((item) => (
             <div key={item.label} className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{item.label}</p>
-              <p className="mt-1 truncate text-sm font-bold text-slate-950 dark:text-white" title={item.value}>
+              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{item.label}</p>
+              <p className="mt-1 truncate text-sm font-medium text-slate-950 dark:text-white" title={item.value}>
                 {item.value}
               </p>
             </div>
@@ -2671,7 +2671,7 @@ export function ProjectTasksWorkspace({
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-12">
           <div className="space-y-2 md:col-span-4 xl:col-span-6">
-            <label htmlFor="project-tasks-search" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
+            <label htmlFor="project-tasks-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
             <Input
               id="project-tasks-search"
               value={searchQuery}
@@ -2681,7 +2681,7 @@ export function ProjectTasksWorkspace({
             />
           </div>
           <div className="space-y-2 md:col-span-2 xl:col-span-3">
-            <label id="project-tasks-status-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.status}</label>
+            <label id="project-tasks-status-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.status}</label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
               <SelectTrigger aria-labelledby="project-tasks-status-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
@@ -2697,7 +2697,7 @@ export function ProjectTasksWorkspace({
             </Select>
           </div>
           <div className="space-y-2 md:col-span-2 xl:col-span-3">
-            <label id="project-tasks-responsible-label" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.filters.responsible}</label>
+            <label id="project-tasks-responsible-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.responsible}</label>
             <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
               <SelectTrigger aria-labelledby="project-tasks-responsible-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                 <SelectValue />
@@ -2715,10 +2715,10 @@ export function ProjectTasksWorkspace({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Badge variant="outline" className="justify-center rounded-2xl border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+          <Badge variant="outline" className="justify-center rounded-2xl border-red-200 bg-red-50 px-3 py-2 font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
             {copy.metrics.overdue(metrics.overdue)}
           </Badge>
-          <Badge variant="outline" className="justify-center rounded-2xl border-violet-200 bg-violet-50 px-3 py-2 font-semibold text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300">
+          <Badge variant="outline" className="justify-center rounded-2xl border-violet-200 bg-violet-50 px-3 py-2 font-medium text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300">
             {copy.metrics.audited(metrics.audited)}
           </Badge>
         </div>
@@ -2761,7 +2761,7 @@ export function ProjectTasksWorkspace({
       {rowSelection.selectedCount > 0 ? (
         <div className="border-b border-[#F4C84A]/25 bg-[#F4C84A]/10 px-5 py-3 dark:bg-[#F4C84A]/15">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
               <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05] dark:bg-slate-800 dark:text-[#FEF3C7]">
                 {copy.bulk.selectedLabel(rowSelection.selectedCount)}
               </Badge>
@@ -2771,7 +2771,7 @@ export function ProjectTasksWorkspace({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 disabled={isBulkActionRunning}
                 onClick={() => {
                   void runBulkTaskAction('duplicate');
@@ -2783,7 +2783,7 @@ export function ProjectTasksWorkspace({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 disabled={isBulkActionRunning}
                 onClick={() => setIsBulkAssignOpen(true)}
               >
@@ -2795,7 +2795,7 @@ export function ProjectTasksWorkspace({
                   void runBulkTaskAction('priority', { priority: value as TaskPriority });
                 }}
               >
-                <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                <SelectTrigger className="h-9 w-[160px] rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 shadow-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
                   <SelectValue placeholder={taskCopy.form.labels.priority} />
                 </SelectTrigger>
                 <SelectContent>
@@ -2809,7 +2809,7 @@ export function ProjectTasksWorkspace({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
+                className="h-9 rounded-xl border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-700 shadow-none hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300"
                 disabled={isBulkActionRunning}
                 onClick={() => setBulkConfirmation('complete')}
               >
@@ -2819,7 +2819,7 @@ export function ProjectTasksWorkspace({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
+                className="h-9 rounded-xl border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 shadow-none hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300"
                 disabled={isBulkActionRunning}
                 onClick={() => setBulkConfirmation('delete')}
               >
@@ -2829,7 +2829,7 @@ export function ProjectTasksWorkspace({
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="h-9 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-none hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 disabled={isBulkActionRunning}
                 onClick={rowSelection.clearSelection}
               >
@@ -2871,17 +2871,17 @@ export function ProjectTasksWorkspace({
                       <Checkbox aria-label={copy.bulk.selectTaskLabel(task.folio)} checked={selected} disabled={isTaskPending(task.taskId)} onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)} className="mt-1 border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9A6B05]">{task.folio}</p><h4 className="mt-1 break-words text-base font-bold text-slate-950 dark:text-white">{task.title}</h4></div>
-                          <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', statusClasses[displayStatus])}>{taskCopy.statuses[displayStatus]}</Badge>
+                          <div className="min-w-0"><p className="text-xs font-medium text-[#9A6B05]">{task.folio}</p><h4 className="mt-1 break-words text-base font-medium text-slate-950 dark:text-white">{task.title}</h4></div>
+                          <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', statusClasses[displayStatus])}>{taskCopy.statuses[displayStatus]}</Badge>
                         </div>
                         {task.description ? <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{task.description}</p> : null}
                       </div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.responsible.label}</p><p className="mt-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{task.assignedName || task.responsible || taskCopy.common.unassigned}</p></div>
-                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.dueDate.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{formatDate(task.dueDate, false, taskCopy.common.noDate, locale)}</p></div>
-                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.priority.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{taskCopy.priorities[task.priority]}</p></div>
-                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{taskCopy.columns.completion.label}</p><p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{task.completionPercent}%</p></div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{taskCopy.columns.responsible.label}</p><p className="mt-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{task.assignedName || task.responsible || taskCopy.common.unassigned}</p></div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{taskCopy.columns.dueDate.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{formatDate(task.dueDate, false, taskCopy.common.noDate, locale)}</p></div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{taskCopy.columns.priority.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{taskCopy.priorities[task.priority]}</p></div>
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{taskCopy.columns.completion.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{task.completionPercent}%</p></div>
                     </div>
                     <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700">{renderTaskActions(task)}</div>
                   </article>
@@ -2929,7 +2929,7 @@ export function ProjectTasksWorkspace({
                 className="group relative px-4 py-4"
                 style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}
               >
-                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{taskCopy.columns.actions.label}</span>
+                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{taskCopy.columns.actions.label}</span>
                 <div
                   role="separator"
                   aria-label={taskCopy.table.resizeColumn}

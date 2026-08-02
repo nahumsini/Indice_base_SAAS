@@ -57,7 +57,7 @@ const periodPresets: PeriodPreset[] = [
 
 function StatusBadge({ status }: { status: FinancialStatement['status'] }) {
   return (
-    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold', statusClasses[status])}>
+    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium', statusClasses[status])}>
       {statusLabels[status]}
     </span>
   );
@@ -70,10 +70,10 @@ function formatCellValue(value: string | number) {
 
 function lineClassName(line: StatementLine) {
   if (line.kind === 'total') {
-    return 'bg-blue-50 font-bold text-blue-950 dark:bg-blue-950/30 dark:text-blue-100';
+    return 'bg-blue-50 font-medium text-blue-950 dark:bg-blue-950/30 dark:text-blue-100';
   }
   if (line.kind === 'subtotal') {
-    return 'bg-slate-50 font-semibold text-slate-950 dark:bg-slate-950 dark:text-white';
+    return 'bg-slate-50 font-medium text-slate-950 dark:bg-slate-950 dark:text-white';
   }
   return 'text-slate-700 dark:text-slate-200';
 }
@@ -86,7 +86,7 @@ function amountClassName(value: number, kind?: StatementLine['kind']) {
 
 function inputClassName(extra?: string) {
   return cn(
-    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950',
+    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-950',
     extra,
   );
 }
@@ -209,8 +209,8 @@ export default function InformesContables() {
   };
   const titleActions = (
     <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-      <Button type="button" variant="outline" onClick={exportActiveStatement} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Download className="mr-2 h-4 w-4" />Exportar</Button>
-      <Button type="button" variant="outline" disabled={!isCompanyPrintIdentityReady} onClick={handlePrintStatement} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Printer className="mr-2 h-4 w-4" />Imprimir</Button>
+      <Button type="button" variant="outline" onClick={exportActiveStatement} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-medium text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Download className="mr-2 h-4 w-4" />Exportar</Button>
+      <Button type="button" variant="outline" disabled={!isCompanyPrintIdentityReady} onClick={handlePrintStatement} className="h-10 rounded-xl border-blue-200 bg-white text-sm font-medium text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200"><Printer className="mr-2 h-4 w-4" />Imprimir</Button>
     </div>
   );
 
@@ -224,10 +224,10 @@ export default function InformesContables() {
               <FileSpreadsheet className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
                 Estados financieros
               </p>
-              <h2 className="mt-1 text-xl font-bold tracking-normal text-slate-950 dark:text-white">
+              <h2 className="mt-1 text-xl font-medium tracking-normal text-slate-950 dark:text-white">
                 Documentos proforma por periodo
               </h2>
               <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-700 dark:text-slate-200">
@@ -243,7 +243,7 @@ export default function InformesContables() {
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
               <SlidersHorizontal className="h-4 w-4 text-blue-700 dark:text-blue-300" />
               Periodo de calculo
             </div>
@@ -255,7 +255,7 @@ export default function InformesContables() {
             type="button"
             variant="outline"
             onClick={resetPeriodFilters}
-            className="h-10 w-fit rounded-xl border-slate-300 text-sm font-semibold dark:border-slate-700"
+            className="h-10 w-fit rounded-xl border-slate-300 text-sm font-medium dark:border-slate-700"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             Limpiar filtros
@@ -264,7 +264,7 @@ export default function InformesContables() {
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.1fr_1fr_1fr_1fr_1fr]">
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Periodo
             </span>
             <select
@@ -279,7 +279,7 @@ export default function InformesContables() {
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Desde
             </span>
             <input
@@ -294,7 +294,7 @@ export default function InformesContables() {
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Hasta
             </span>
             <input
@@ -309,7 +309,7 @@ export default function InformesContables() {
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Base
             </span>
             <select
@@ -324,7 +324,7 @@ export default function InformesContables() {
           </label>
 
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Documento
             </span>
             <select
@@ -340,7 +340,7 @@ export default function InformesContables() {
           </label>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+        <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
           <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
             {selectedPreset.label}: {periodFrom} a {periodTo}
           </span>
@@ -356,7 +356,7 @@ export default function InformesContables() {
       <section className="grid gap-5 xl:grid-cols-[380px_1fr]">
         <aside className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="border-b border-slate-100 p-4 dark:border-slate-800">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
               <FileSpreadsheet className="h-4 w-4" />
               Estados financieros proforma
             </div>
@@ -398,7 +398,7 @@ export default function InformesContables() {
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{statement.title}</span>
+                    <span className="block truncate text-sm font-medium">{statement.title}</span>
                     <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
                       {statement.category} - {periodFrom} / {periodTo}
                     </span>
@@ -408,7 +408,7 @@ export default function InformesContables() {
             })}
             {filteredStatements.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-300 p-5 text-center dark:border-slate-700">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">No hay documentos en este filtro.</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">No hay documentos en este filtro.</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Cambia el tipo de documento para ampliar el listado.</p>
               </div>
             ) : null}
@@ -426,14 +426,14 @@ export default function InformesContables() {
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <StatusBadge status={activeStatement.status} />
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
                         {periodFrom} / {periodTo}
                       </span>
-                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
                         {calculationBasis === 'accrual' ? 'Devengado' : calculationBasis === 'cash' ? 'Caja' : 'Proforma'}
                       </span>
                     </div>
-                    <h2 className="text-xl font-bold tracking-normal text-slate-950 dark:text-white">
+                    <h2 className="text-xl font-medium tracking-normal text-slate-950 dark:text-white">
                       {activeStatement.title}
                     </h2>
                     <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
@@ -447,7 +447,7 @@ export default function InformesContables() {
                     variant="outline"
                     disabled={!isCompanyPrintIdentityReady}
                     onClick={handlePrintStatement}
-                    className="h-9 rounded-xl border-slate-300 text-sm font-semibold dark:border-slate-700"
+                    className="h-9 rounded-xl border-slate-300 text-sm font-medium dark:border-slate-700"
                   >
                     <Printer className="mr-2 h-4 w-4" />
                     Imprimir
@@ -458,7 +458,7 @@ export default function InformesContables() {
 
             <div className="p-5">
               <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-                <div className="flex items-center gap-2 text-sm font-semibold text-blue-800 dark:text-blue-200">
+                <div className="flex items-center gap-2 text-sm font-medium text-blue-800 dark:text-blue-200">
                   <ShieldCheck className="h-4 w-4" />
                   Lectura ejecutiva
                 </div>
@@ -470,17 +470,17 @@ export default function InformesContables() {
               {activeStatement.lines ? (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                   <table className="min-w-[640px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+                    <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-950 dark:text-slate-400">
                       <tr>
-                        <th className="px-4 py-3 font-semibold">Concepto</th>
-                        <th className="px-4 py-3 text-right font-semibold">Importe</th>
+                        <th className="px-4 py-3 font-medium">Concepto</th>
+                        <th className="px-4 py-3 text-right font-medium">Importe</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {activeStatement.lines.map((line) => (
                         <tr key={`${activeStatement.id}-${line.label}`} className={lineClassName(line)}>
                           <td className="px-4 py-3">{line.label}</td>
-                          <td className={cn('px-4 py-3 text-right font-semibold', amountClassName(line.value, line.kind))}>
+                          <td className={cn('px-4 py-3 text-right font-medium', amountClassName(line.value, line.kind))}>
                             {formatCurrency(line.value)}
                           </td>
                         </tr>
@@ -493,25 +493,25 @@ export default function InformesContables() {
               {activeStatement.rows && activeStatement.columns ? (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                   <table className="min-w-[760px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+                    <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-950 dark:text-slate-400">
                       <tr>
-                        <th className="px-4 py-3 font-semibold">Concepto</th>
+                        <th className="px-4 py-3 font-medium">Concepto</th>
                         {activeStatement.columns.map((column) => (
-                          <th key={column} className="px-4 py-3 font-semibold">{column}</th>
+                          <th key={column} className="px-4 py-3 font-medium">{column}</th>
                         ))}
-                        <th className="px-4 py-3 font-semibold">Estado</th>
+                        <th className="px-4 py-3 font-medium">Estado</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {activeStatement.rows.map((row) => (
                         <tr key={`${activeStatement.id}-${row.label}`} className="align-top">
-                          <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">{row.label}</td>
+                          <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{row.label}</td>
                           {row.columns.map((column, index) => (
                             <td
                               key={`${activeStatement.id}-${row.label}-${index}`}
                               className={cn(
                                 'px-4 py-3 text-slate-700 dark:text-slate-200',
-                                typeof column === 'number' && column < 0 ? 'font-semibold text-rose-700 dark:text-rose-300' : '',
+                                typeof column === 'number' && column < 0 ? 'font-medium text-rose-700 dark:text-rose-300' : '',
                               )}
                             >
                               {formatCellValue(column)}

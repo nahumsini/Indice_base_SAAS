@@ -164,11 +164,11 @@ function SortableCreditSalesHead({
   const active = sortState.columnId === columnId;
 
   return (
-    <TableHead className="px-5 py-4 text-xs font-bold text-slate-500">
+    <TableHead className="px-5 py-4 text-xs font-medium text-slate-500">
       <button
         type="button"
         onClick={() => onSort(columnId)}
-        className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
+        className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
       >
         <span>{column.label}</span>
         <CreditSalesSortIcon active={active} direction={sortState.direction} />
@@ -265,8 +265,8 @@ export function CreditSalesView({
     if (columnId === 'sale') {
       return (
         <>
-          <div className="font-black text-slate-950 dark:text-white">{sale.saleNumber}</div>
-          <div className="text-xs font-semibold text-slate-500">{sale.saleDate}</div>
+          <div className="font-medium text-slate-950 dark:text-white">{sale.saleNumber}</div>
+          <div className="text-xs font-medium text-slate-500">{sale.saleDate}</div>
         </>
       );
     }
@@ -294,8 +294,8 @@ export function CreditSalesView({
     if (columnId === 'run') {
       return (
         <>
-          <div className="font-bold text-slate-800 dark:text-slate-100">{sale.selectedSimulation.name}</div>
-          <div className="text-xs font-semibold text-slate-500">
+          <div className="font-medium text-slate-800 dark:text-slate-100">{sale.selectedSimulation.name}</div>
+          <div className="text-xs font-medium text-slate-500">
             {sale.selectedSimulation.termMonths} {copy.modals.creditSale.months.toLowerCase()} - {formatPercent(sale.selectedSimulation.annualInterestRate)}
           </div>
         </>
@@ -336,7 +336,7 @@ export function CreditSalesView({
               type="button"
               variant="outline"
               onClick={() => setShowColumnsModal(true)}
-              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+              className="h-11 gap-2 rounded-xl border-slate-200 bg-white px-5 text-sm font-medium text-[#147514] shadow-sm hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
             >
               <Columns3 className="h-4 w-4" />
               {viewCopy.columnsAction}
@@ -344,7 +344,7 @@ export function CreditSalesView({
             <Button
               type="button"
               onClick={() => setShowCreateModal(true)}
-              className={cn('h-11 gap-2 rounded-xl px-5 text-sm font-bold', financeAccentButtonClass)}
+              className={cn('h-11 gap-2 rounded-xl px-5 text-sm font-medium', financeAccentButtonClass)}
             >
               <Plus className="h-4 w-4" />
               {viewCopy.action}
@@ -397,7 +397,7 @@ export function CreditSalesView({
                 onSort={handleSort}
               />
             ))}
-            <TableHead className="px-5 py-4 text-right text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+            <TableHead className="px-5 py-4 text-right text-[11px] font-medium text-slate-500">
               {viewCopy.table.actions}
             </TableHead>
           </TableRow>
@@ -413,10 +413,10 @@ export function CreditSalesView({
                     <TableCell
                       key={`${sale.id}-${column.id}`}
                       className={cn(
-                        'px-5 py-4 font-semibold text-slate-600 dark:text-slate-300',
+                        'px-5 py-4 font-medium text-slate-600 dark:text-slate-300',
                         columnId === 'sale' && 'text-slate-950 dark:text-white',
-                        columnId === 'amount' && 'font-black text-slate-950 dark:text-white',
-                        columnId === 'monthlyPayment' && cn('font-bold', financeTextClass),
+                        columnId === 'amount' && 'font-medium text-slate-950 dark:text-white',
+                        columnId === 'monthlyPayment' && cn('font-medium', financeTextClass),
                       )}
                     >
                       {renderCreditSaleCell(sale, columnId)}

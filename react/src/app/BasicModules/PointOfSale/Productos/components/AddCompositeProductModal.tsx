@@ -177,7 +177,7 @@ export function AddCompositeProductModal({
     >
       <form id="pos-composite-product-form" onSubmit={handleSubmit} className="space-y-6">
         {error ? (
-          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -185,11 +185,11 @@ export function AddCompositeProductModal({
 
         <section className="rounded-lg border-2 border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-4 dark:border-[#FF6B5E]/35">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-lg font-black text-gray-900 dark:text-white">Productos componentes</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Productos componentes</h3>
             <button
               type="button"
               onClick={handleAddComponent}
-              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#FF6B5E] px-3 py-1.5 text-sm font-black text-white transition-colors hover:bg-[#ff5a4b]"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#FF6B5E] px-3 py-1.5 text-sm font-medium text-[#222831] transition-colors hover:bg-[#ff5a4b]"
             >
               <Plus className="h-4 w-4" />
               Agregar producto
@@ -199,7 +199,7 @@ export function AddCompositeProductModal({
           {selectedComponents.length === 0 ? (
             <div className="py-8 text-center text-gray-500 dark:text-gray-400">
               <Package className="mx-auto mb-2 h-12 w-12 opacity-50" />
-              <p className="font-bold">Agrega productos para crear el compuesto.</p>
+              <p className="font-medium">Agrega productos para crear el compuesto.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -234,8 +234,8 @@ export function AddCompositeProductModal({
                     />
 
                     <div className="text-right">
-                      <p className="text-sm font-black text-gray-900 dark:text-white">${subtotal.toFixed(2)}</p>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">${subtotal.toFixed(2)}</p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
                         ${componentProduct?.costPrice.toFixed(2)} c/u
                       </p>
                     </div>
@@ -254,8 +254,8 @@ export function AddCompositeProductModal({
 
               <div className="border-t-2 border-[#FF6B5E]/30 pt-3">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-black text-gray-700 dark:text-gray-300">Costo total del producto:</span>
-                  <span className="text-xl font-black text-[#C64237] dark:text-[#FFB5AE]">${calculatedCost.toFixed(2)}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Costo total del producto:</span>
+                  <span className="text-xl font-medium text-[#C64237] dark:text-[#FFB5AE]">${calculatedCost.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -321,7 +321,7 @@ export function AddCompositeProductModal({
         </section>
 
         <section className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-500/30 dark:bg-blue-500/10">
-          <p className="text-sm font-bold text-blue-800 dark:text-blue-100">
+          <p className="text-sm font-medium text-blue-800 dark:text-blue-100">
             Al vender este producto compuesto se descontara automaticamente el inventario de cada componente segun las cantidades especificadas.
           </p>
         </section>
@@ -330,12 +330,12 @@ export function AddCompositeProductModal({
   );
 }
 
-const fieldClassName = 'min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white';
+const fieldClassName = 'min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white';
 
 function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1.5 block text-sm font-black text-gray-700 dark:text-gray-300">{label}</span>
+      <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
       {children}
     </label>
   );

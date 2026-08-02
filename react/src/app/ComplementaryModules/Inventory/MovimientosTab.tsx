@@ -91,7 +91,7 @@ export default function MovimientosTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+          <h2 className="text-xl font-medium text-gray-900 dark:text-white mb-1">
             Timeline de Movimientos
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -100,7 +100,7 @@ export default function MovimientosTab() {
         </div>
         <div className="flex items-center gap-1 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span className="text-sm font-semibold">En vivo</span>
+          <span className="text-sm font-medium">En vivo</span>
         </div>
       </div>
 
@@ -157,14 +157,14 @@ export default function MovimientosTab() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${color} border`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${color} border`}>
                           {label}
                         </span>
                         <span className="text-xs font-mono text-gray-500 dark:text-gray-500">
                           {movement.folio}
                         </span>
                       </div>
-                      <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                      <h3 className="text-base font-medium text-gray-900 dark:text-white">
                         {movement.reason}
                       </h3>
                     </div>
@@ -201,7 +201,7 @@ export default function MovimientosTab() {
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 mb-3">
                     <div className="flex items-center gap-2 mb-2">
                       <Package className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                         Productos ({movement.products.length})
                       </span>
                     </div>
@@ -220,7 +220,7 @@ export default function MovimientosTab() {
                               ({product.sku})
                             </span>
                           </div>
-                          <span className="font-semibold text-gray-900 dark:text-white">
+                          <span className="font-medium text-gray-900 dark:text-white">
                             {product.quantity > 0 ? '+' : ''}{product.quantity} {product.unit}
                           </span>
                         </div>

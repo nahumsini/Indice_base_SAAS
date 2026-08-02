@@ -149,13 +149,13 @@ export default function Inventario() {
       />
 
       {notice && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {notice}
         </div>
       )}
 
       {balanceLoadError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
           {balanceLoadError}
         </div>
       )}
@@ -169,7 +169,7 @@ export default function Inventario() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Valor inventario</p>
-              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              <p className="text-lg font-medium text-blue-600 dark:text-blue-400">
                 {formatCurrency(kpis.totalValue)}
               </p>
             </div>
@@ -183,7 +183,7 @@ export default function Inventario() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Stock bajo</p>
-              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{kpis.lowStock}</p>
+              <p className="text-2xl font-medium text-yellow-600 dark:text-yellow-400">{kpis.lowStock}</p>
             </div>
           </div>
         </div>
@@ -195,7 +195,7 @@ export default function Inventario() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Agotados</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{kpis.outOfStock}</p>
+              <p className="text-2xl font-medium text-red-600 dark:text-red-400">{kpis.outOfStock}</p>
             </div>
           </div>
         </div>
@@ -207,7 +207,7 @@ export default function Inventario() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Exceso stock</p>
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{kpis.overStock}</p>
+              <p className="text-2xl font-medium text-purple-600 dark:text-purple-400">{kpis.overStock}</p>
             </div>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function Inventario() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Entradas hoy</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{kpis.entriesToday}</p>
+              <p className="text-2xl font-medium text-green-600 dark:text-green-400">{kpis.entriesToday}</p>
             </div>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function Inventario() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Salidas hoy</p>
-              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{kpis.exitsToday}</p>
+              <p className="text-2xl font-medium text-orange-600 dark:text-orange-400">{kpis.exitsToday}</p>
             </div>
           </div>
         </div>
@@ -300,31 +300,31 @@ export default function Inventario() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Producto
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Código
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Departamento
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
                   Stock Actual
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
                   Mínimo
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
                   Máximo
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Valor Stock
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400">
                   Estado
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
                   Acciones
                 </th>
               </tr>
@@ -364,7 +364,7 @@ export default function Inventario() {
                         {product.department}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="text-lg font-bold text-gray-900 dark:text-white">
+                        <span className="text-lg font-medium text-gray-900 dark:text-white">
                           {product.currentStock}
                         </span>
                       </td>
@@ -374,7 +374,7 @@ export default function Inventario() {
                       <td className="px-4 py-3 text-center text-sm text-gray-500 dark:text-gray-400">
                         {product.maxStock}
                       </td>
-	                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+	                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
 	                        {formatCurrency(stockValue, product.currency)}
 	                      </td>
                       <td className="px-4 py-3">
@@ -416,7 +416,7 @@ export default function Inventario() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Mostrando {filteredProducts.length} de {products.length} producto{products.length !== 1 ? 's' : ''}
             </p>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
 	              Valor total filtrado: {formatCurrency(filteredProducts.reduce((sum, p) => sum + (p.currentStock * p.costPrice), 0))}
             </p>
           </div>

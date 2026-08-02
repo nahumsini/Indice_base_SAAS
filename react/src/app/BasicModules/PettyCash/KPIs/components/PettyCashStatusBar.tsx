@@ -37,12 +37,12 @@ export function PettyCashStatusBar({ expenses }: PettyCashStatusBarProps) {
     <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Settlement distribution</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Settlement distribution</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">How petty cash is moving through control states</p>
         </div>
         <div className="flex flex-wrap gap-3">
           {distribution.map((entry) => (
-            <span key={entry.status} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
+            <span key={entry.status} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
               <span className={`h-2 w-2 rounded-full ${statusColors[entry.status]}`} />
               {pettyCashStatusLabels[entry.status]} {entry.count}
             </span>

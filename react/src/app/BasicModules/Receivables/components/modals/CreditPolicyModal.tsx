@@ -122,8 +122,8 @@ export function CreditPolicyModal({
           <IndiceModalValidation messages={submitError ? [submitError] : []} />
           {isEditing ? (
             <div className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.customer}</span>
-              <div className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-black text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.customer}</span>
+              <div className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                 {selectedCustomer.name}
               </div>
             </div>
@@ -137,19 +137,19 @@ export function CreditPolicyModal({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.creditLine}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.creditLine}</span>
               <Input type="number" min="0" value={creditLine} onChange={(event) => setCreditLine(Number(event.target.value))} className="h-11 rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" />
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.monthlyLimit}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.monthlyLimit}</span>
               <Input type="number" min="0" value={monthlyPurchaseLimit} onChange={(event) => setMonthlyPurchaseLimit(Number(event.target.value))} className="h-11 rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" />
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.suggestedTerm}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.suggestedTerm}</span>
               <Input type="number" min="1" value={defaultTermMonths} onChange={(event) => setDefaultTermMonths(Number(event.target.value))} className="h-11 rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" />
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.annualInterest}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.annualInterest}</span>
               <Input type="number" min="0" value={annualInterestRate} onChange={(event) => setAnnualInterestRate(Number(event.target.value))} className="h-11 rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" />
             </label>
             <FilterSelect
@@ -163,13 +163,13 @@ export function CreditPolicyModal({
               ]}
             />
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.notes}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditPolicy.notes}</span>
               <Input value={notes} onChange={(event) => setNotes(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" />
             </label>
           </div>
         </div>
       ) : (
-        <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+        <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900">
           {copy.modals.creditPolicy.noCustomers}
         </p>
       )}

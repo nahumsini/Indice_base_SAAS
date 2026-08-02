@@ -1,3 +1,5 @@
+import { Clock3, UserCheck, Users, UserX } from 'lucide-react';
+
 interface UsersKpiStripProps {
   items: Array<{
     label: string;
@@ -22,26 +24,22 @@ const iconByTone = {
 
 export function UsersKpiStrip({ items }: UsersKpiStripProps) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-6">
-      <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700 sm:grid-cols-4">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-center justify-center gap-3 px-3 py-2 first:pl-0 last:pr-0">
-            {(() => {
-              const Icon = iconByTone[item.tone];
-              return (
-                <span className="hidden h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-300 lg:flex">
-                  <Icon aria-hidden="true" className="h-5 w-5" />
-                </span>
-              );
-            })()}
-            <div className="text-center sm:text-left">
-              <div className={`text-2xl font-bold leading-none sm:text-3xl ${toneClasses[item.tone]}`}>{item.value}</div>
-              <div className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300 sm:text-sm">{item.label}</div>
+    <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-700 sm:grid-cols-4">
+      {items.map((item) => {
+        const Icon = iconByTone[item.tone];
+
+        return (
+          <div key={item.label} className="flex min-w-0 items-center gap-2.5 bg-white px-3 py-3 dark:bg-slate-800 sm:px-4">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+              <Icon aria-hidden="true" className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <div className={`text-xl font-medium tabular-nums leading-none ${toneClasses[item.tone]}`}>{item.value}</div>
+              <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{item.label}</div>
             </div>
           </div>
-        ))}
-      </div>
-    </section>
+        );
+      })}
+    </div>
   );
 }
-import { Clock3, UserCheck, Users, UserX } from 'lucide-react';

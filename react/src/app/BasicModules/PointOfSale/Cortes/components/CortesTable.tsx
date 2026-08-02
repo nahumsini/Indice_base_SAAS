@@ -68,8 +68,8 @@ export function CortesTable({
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-black text-slate-950 dark:text-white">Historial de cortes</h3>
-          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">Historial de cortes</h3>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
             {rows.length} registro(s) visibles
           </p>
         </div>
@@ -90,7 +90,7 @@ export function CortesTable({
                 />
               </th>
               {visibleColumns.map((column) => (
-                <th key={column} className="px-5 py-3 text-left text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">
+                <th key={column} className="px-5 py-3 text-left text-xs font-medium tracking-normal text-slate-500 dark:text-slate-400">
                   {sortableColumns[column] ? (
                     <button
                       type="button"
@@ -106,7 +106,7 @@ export function CortesTable({
                   ) : cortesColumnLabels[column]}
                 </th>
               ))}
-              <th className="px-5 py-3 text-right text-xs font-black uppercase tracking-normal text-slate-500 dark:text-slate-400">
+              <th className="px-5 py-3 text-right text-xs font-medium tracking-normal text-slate-500 dark:text-slate-400">
                 Acciones
               </th>
             </tr>
@@ -115,7 +115,7 @@ export function CortesTable({
             {loading ? (
               <tr>
                 <td colSpan={columnSpan} className="px-6 py-12">
-                  <div className="flex items-center justify-center gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-5 text-sm font-black text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+                  <div className="flex items-center justify-center gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-5 text-sm font-medium text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Cargando cortes reales del punto de venta...
                   </div>
@@ -163,8 +163,8 @@ export function CortesTable({
 
         {!loading && rows.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-lg font-black text-slate-900 dark:text-white">No hay cortes con estos filtros</p>
-            <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            <p className="text-lg font-medium text-slate-900 dark:text-white">No hay cortes con estos filtros</p>
+            <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
               Ajusta el periodo o revisa si ya existe un turno cerrado en Venta.
             </p>
           </div>
@@ -191,12 +191,12 @@ function CortesTableCell({
     return (
       <span>
         <strong className="block text-slate-950 dark:text-white">COR-{row.id}</strong>
-        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">ID {row.id}</span>
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">ID {row.id}</span>
       </span>
     );
   }
   if (column === 'closedAt') {
-    return <span className="font-semibold">{formatDateTime(row.closedAt)}</span>;
+    return <span className="font-medium">{formatDateTime(row.closedAt)}</span>;
   }
   if (column === 'context') {
     return <strong className="text-slate-950 dark:text-white">Almacen {row.warehouseId}</strong>;
@@ -293,11 +293,11 @@ function MoneyCell({
 
   return (
     <span className="block leading-tight">
-      <MainTag className={`block font-black ${className}`}>
+      <MainTag className={`block font-medium ${className}`}>
         {amount > 0 && tone === 'warning' ? '+' : ''}{nativeLabel}
       </MainTag>
       {isConverted ? (
-        <span className="mt-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <span className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400">
           equiv. {convertedLabel}
         </span>
       ) : null}
@@ -313,7 +313,7 @@ function StatusBadge({ status }: { status: ReturnType<typeof getClosingStatus> }
     : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200';
   const label = status === 'balanced' ? 'Cuadrado' : status === 'over' ? 'Sobrante' : 'Faltante';
 
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${className}`}>{label}</span>;
+  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${className}`}>{label}</span>;
 }
 
 function IconButton({

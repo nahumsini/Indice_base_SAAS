@@ -50,7 +50,7 @@ export function SaleTicketPanel({
             <ShoppingCart className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <h2 className="text-xl font-black text-white">Ticket actual</h2>
+            <h2 className="text-xl font-medium text-white">Ticket actual</h2>
             <p className="text-sm text-gray-300">
               {itemCount} {itemCount === 1 ? 'articulo' : 'articulos'} en caja
             </p>
@@ -60,7 +60,7 @@ export function SaleTicketPanel({
         <button
           onClick={onClearCart}
           disabled={cart.length === 0}
-          className="flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-[#FF8A80] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[#FF8A80] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <X className="h-4 w-4" />
           <span>Cancelar</span>
@@ -85,7 +85,7 @@ export function SaleTicketPanel({
         </form>
         <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
           <span>Escaner activo para venta continua</span>
-            <span className="hidden rounded bg-white px-2 py-1 font-semibold text-[#222831] shadow-sm dark:bg-gray-800 dark:text-gray-300 sm:inline">Enter para agregar</span>
+            <span className="hidden rounded bg-white px-2 py-1 font-medium text-[#222831] shadow-sm dark:bg-gray-800 dark:text-gray-300 sm:inline">Enter para agregar</span>
         </div>
       </div>
 
@@ -93,7 +93,7 @@ export function SaleTicketPanel({
         {cart.length === 0 ? (
           <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-[#59C3A5]/40 bg-[#59C3A5]/10 p-6 text-center text-gray-500 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-gray-400">
             <ScanLine className="mb-3 h-10 w-10 text-[#14745F] dark:text-[#9DE7D3]" aria-hidden="true" />
-            <p className="text-xl font-semibold text-gray-600 dark:text-gray-300">Escanea o toca un producto</p>
+            <p className="text-xl font-medium text-gray-600 dark:text-gray-300">Escanea o toca un producto</p>
             <p className="mt-1 text-sm">El ticket se arma aqui con cantidades, descuentos y stock visible.</p>
           </div>
         ) : (
@@ -114,8 +114,8 @@ export function SaleTicketPanel({
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start gap-3">
                       <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-[#F4C84A]/25 text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
-                        <span className="text-xl font-black leading-none">{item.quantity}</span>
-                        <span className="text-[10px] font-black uppercase leading-none">uds</span>
+                        <span className="text-xl font-medium leading-none">{item.quantity}</span>
+                        <span className="text-[10px] font-medium leading-none">uds</span>
                       </div>
 
                       <div
@@ -127,21 +127,21 @@ export function SaleTicketPanel({
                         }}
                       >
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
-                          <p className="min-w-0 flex-1 truncate text-base font-black text-gray-900 dark:text-white">
+                          <p className="min-w-0 flex-1 truncate text-base font-medium text-gray-900 dark:text-white">
                             {item.name}
                           </p>
                           {isOutOfStock && (
-                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
                               SIN STOCK
                             </span>
                           )}
                           {hasLowStock && !isOutOfStock && (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                               BAJO
                             </span>
                           )}
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                           <span>{formatCurrency(item.price)} c/u</span>
                           {product?.useInventory && (
                             <>
@@ -154,7 +154,7 @@ export function SaleTicketPanel({
                           )}
                         </div>
                         {item.discount > 0 && (
-                          <div className="mt-1 flex items-center gap-1 text-xs font-bold text-purple-600 dark:text-purple-400">
+                          <div className="mt-1 flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400">
                             <Percent className="h-3 w-3" />
                             <span>
                               Descuento: {item.discountType === 'percentage' ? `${item.discount}%` : formatCurrency(item.discount)}
@@ -169,10 +169,10 @@ export function SaleTicketPanel({
                             {formatCurrency(item.price * item.quantity)}
                           </p>
                         )}
-                        <p className="text-xl font-black text-gray-950 dark:text-white">
+                        <p className="text-xl font-medium text-gray-950 dark:text-white">
                           {formatCurrency(item.subtotal)}
                         </p>
-                        <p className="text-[10px] font-black uppercase text-gray-400 dark:text-gray-500">subtotal</p>
+                        <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500">subtotal</p>
                       </div>
                     </div>
 
@@ -185,7 +185,7 @@ export function SaleTicketPanel({
                         >
                           <Minus className="h-4 w-4" />
                         </button>
-                        <span className="min-w-10 rounded-lg bg-white px-3 py-2 text-center text-sm font-black text-[#222831] shadow-sm dark:bg-gray-800 dark:text-white">
+                        <span className="min-w-10 rounded-lg bg-white px-3 py-2 text-center text-sm font-medium text-[#222831] shadow-sm dark:bg-gray-800 dark:text-white">
                           {item.quantity}
                         </span>
                         <button
@@ -200,7 +200,7 @@ export function SaleTicketPanel({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onOpenItemDiscount(item)}
-                          className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-purple-50 px-3 text-sm font-black text-purple-600 transition hover:bg-purple-100 active:scale-95 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+                          className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-purple-50 px-3 text-sm font-medium text-purple-600 transition hover:bg-purple-100 active:scale-95 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
                           title="Aplicar descuento"
                           aria-label={`Aplicar descuento a ${item.name}`}
                         >
@@ -208,7 +208,7 @@ export function SaleTicketPanel({
                         </button>
                         <button
                           onClick={() => onRemoveItem(item.id)}
-                          className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-red-50 px-3 text-sm font-black text-red-600 transition hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                          className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-red-50 px-3 text-sm font-medium text-red-600 transition hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                           aria-label={`Quitar ${item.name}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -226,8 +226,8 @@ export function SaleTicketPanel({
       <div className="border-t border-gray-200 bg-[#222831] px-5 py-3 text-white dark:border-gray-700">
         <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-gray-300">Total a cobrar</p>
-            <p className="mt-1 break-words text-3xl font-black leading-none">
+            <p className="text-sm font-medium text-gray-300">Total a cobrar</p>
+            <p className="mt-1 break-words text-3xl font-medium leading-none">
               {formatCurrency(totals.total)}
             </p>
           </div>
@@ -240,7 +240,7 @@ export function SaleTicketPanel({
         {cart.length > 0 && (
           <button
             onClick={onOpenGlobalDiscount}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ff5a4b]"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-4 py-2 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#ff5a4b]"
           >
             <Percent className="h-4 w-4" />
             <span>Descuento a toda la venta</span>

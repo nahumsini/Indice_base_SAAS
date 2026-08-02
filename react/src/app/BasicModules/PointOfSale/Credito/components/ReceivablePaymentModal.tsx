@@ -32,7 +32,7 @@ const paymentMethodLabels: Record<ReceivablePaymentMethod, string> = {
   other: 'Otro',
 };
 
-const inputClassName = 'min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white';
+const inputClassName = 'min-h-12 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white';
 
 export function ReceivablePaymentModal({ receivable, onClose, onSave }: ReceivablePaymentModalProps) {
   const [amount, setAmount] = useState('');
@@ -107,7 +107,7 @@ export function ReceivablePaymentModal({ receivable, onClose, onSave }: Receivab
     >
       <div className="space-y-4">
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             {error}
           </div>
         ) : null}
@@ -147,7 +147,7 @@ export function ReceivablePaymentModal({ receivable, onClose, onSave }: Receivab
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1 block text-xs font-black uppercase text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
       {children}
     </label>
   );
@@ -156,8 +156,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-1 text-base font-black text-gray-950 dark:text-white">{value}</p>
+      <p className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1 text-base font-medium text-gray-950 dark:text-white">{value}</p>
     </div>
   );
 }

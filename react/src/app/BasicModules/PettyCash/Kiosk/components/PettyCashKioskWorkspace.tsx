@@ -57,19 +57,19 @@ export function PettyCashKioskIdentityCard({
   return (
     <section className="rounded-2xl border border-[#147514]/25 bg-white p-4 shadow-[0_14px_34px_-32px_rgba(15,23,42,0.8)] dark:border-emerald-400/20 dark:bg-slate-950">
       <div className="flex min-w-0 items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#147514] text-base font-semibold text-white shadow-sm">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#147514] text-base font-medium text-white shadow-sm">
           {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#147514] dark:text-emerald-300">{verifiedLabel}</p>
-          <h2 className="mt-1 line-clamp-2 text-lg font-semibold leading-tight tracking-tight text-slate-950 dark:text-white">{name}</h2>
+          <p className="text-[10px] font-medium text-[#147514] dark:text-emerald-300">{verifiedLabel}</p>
+          <h2 className="mt-1 line-clamp-2 text-lg font-medium leading-tight tracking-tight text-slate-950 dark:text-white">{name}</h2>
           <p className="mt-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">{detail}</p>
         </div>
         <Button
           type="button"
           variant="outline"
           aria-label={resetLabel}
-          className="h-10 shrink-0 gap-2 rounded-xl border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:border-[#147514]/40 hover:bg-emerald-50 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+          className="h-10 shrink-0 gap-2 rounded-xl border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:border-[#147514]/40 hover:bg-emerald-50 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
           onClick={onReset}
         >
           <RefreshCw aria-hidden="true" className="h-4 w-4" />
@@ -84,11 +84,11 @@ export function PettyCashKioskIdentityCard({
         </div>
         <div className="mt-3 flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">{balanceLabel}</p>
-            <p className="mt-0.5 truncate text-sm font-semibold text-slate-950 dark:text-white">{balanceValue}</p>
+            <p className="text-[9px] font-medium text-slate-400">{balanceLabel}</p>
+            <p className="mt-0.5 truncate text-sm font-medium text-slate-950 dark:text-white">{balanceValue}</p>
           </div>
           <div className="min-w-0 text-right">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">{fundLimitLabel}</p>
+            <p className="text-[9px] font-medium text-slate-400">{fundLimitLabel}</p>
             <p className="mt-0.5 truncate text-sm font-medium text-slate-600 dark:text-slate-300">{fundLimitValue}</p>
           </div>
         </div>
@@ -126,8 +126,8 @@ export function PettyCashKioskSummaryStrip({
       {metrics.map(metric => (
         <div className="min-w-0 px-2 py-3 text-center" key={metric.label}>
           <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{metric.icon}</div>
-          <p title={metric.value} className={`mt-1 truncate text-sm font-semibold leading-none min-[390px]:text-base ${metric.valueClass}`}>{metric.value}</p>
-          <p className="mt-1 truncate text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 min-[390px]:text-[9px]">{metric.label}</p>
+          <p title={metric.value} className={`mt-1 truncate text-sm font-medium leading-none min-[390px]:text-base ${metric.valueClass}`}>{metric.value}</p>
+          <p className="mt-1 truncate text-[8px] font-medium text-slate-500 dark:text-slate-400 min-[390px]:text-[9px]">{metric.label}</p>
         </div>
       ))}
     </section>
@@ -161,7 +161,7 @@ export function PettyCashKioskToolbar({
             <Filter aria-hidden="true" className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#147514] dark:text-emerald-300">{periodLabel}</span>
+            <span className="block text-[10px] font-medium text-[#147514] dark:text-emerald-300">{periodLabel}</span>
             <select
               aria-label={periodLabel}
               className="mt-0.5 block h-6 w-full min-w-0 appearance-none truncate bg-transparent pr-1 text-sm font-medium text-slate-950 outline-none dark:text-white"
@@ -175,7 +175,7 @@ export function PettyCashKioskToolbar({
         <Button
           type="button"
           aria-label={createLabel}
-          className="h-auto min-h-12 gap-2 rounded-xl bg-[#147514] px-3 text-xs font-semibold text-white shadow-sm hover:bg-[#0f5f0f]"
+          className="h-auto min-h-12 gap-2 rounded-xl bg-[#147514] px-3 text-xs font-medium text-white shadow-sm hover:bg-[#0f5f0f]"
           onClick={onCreate}
         >
           <Plus aria-hidden="true" className="h-4 w-4" />
@@ -190,7 +190,7 @@ export function PettyCashKioskEmptyState({ body, icon, title }: { body: string; 
   return (
     <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{icon}</div>
-      <h3 className="mt-4 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h3>
+      <h3 className="mt-4 text-lg font-medium tracking-tight text-slate-950 dark:text-white">{title}</h3>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-5 text-slate-500 dark:text-slate-400">{body}</p>
     </section>
   );
@@ -259,8 +259,8 @@ export function PettyCashReceiptModal({
             <div className="flex min-w-0 items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#147514] text-white shadow-sm"><ReceiptText className="h-5 w-5" /></span>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
-                <h2 id="petty-cash-receipt-title" className="mt-0.5 text-xl font-semibold leading-tight text-slate-950 dark:text-white">{copy.publicKiosk.receipt.title}</h2>
+                <p className="text-[10px] font-medium text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
+                <h2 id="petty-cash-receipt-title" className="mt-0.5 text-xl font-medium leading-tight text-slate-950 dark:text-white">{copy.publicKiosk.receipt.title}</h2>
                 <p className="mt-1 line-clamp-2 text-xs font-normal leading-4 text-slate-500 dark:text-slate-400 sm:text-sm sm:leading-5">{copy.publicKiosk.receipt.description}</p>
               </div>
             </div>
@@ -269,48 +269,48 @@ export function PettyCashReceiptModal({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/70 px-4 py-4 dark:bg-slate-900/40 sm:px-5">
-          {errorMessage ? <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{errorMessage}</div> : null}
+          {errorMessage ? <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">{errorMessage}</div> : null}
           <div className="grid gap-3">
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-4">
               <div className="mb-3 flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300"><ReceiptText className="h-5 w-5" /></span>
-                <div><p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.publicKiosk.receipt.title}</p><p className="text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.totalCaptured}</p></div>
+                <div><p className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.receipt.title}</p><p className="text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.totalCaptured}</p></div>
               </div>
               <div className="grid gap-3.5">
-                <label className="space-y-2"><span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.concept}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} onChange={event => onFormChange({ description: event.target.value })} placeholder={copy.publicKiosk.receipt.conceptPlaceholder} value={form.description} /></label>
-                <label className="space-y-2"><span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.amount}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} inputMode="decimal" onChange={event => onFormChange({ amount: event.target.value })} placeholder="0.00" value={form.amount} /></label>
-                <label className="space-y-2"><span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.reference}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} onChange={event => onFormChange({ receiptReference: event.target.value })} placeholder={copy.publicKiosk.receipt.referencePlaceholder} value={form.receiptReference} /></label>
-                <label className="space-y-2"><span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.date}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} onChange={event => onFormChange({ expenseDate: event.target.value })} type="date" value={form.expenseDate} /></label>
+                <label className="space-y-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.concept}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} onChange={event => onFormChange({ description: event.target.value })} placeholder={copy.publicKiosk.receipt.conceptPlaceholder} value={form.description} /></label>
+                <label className="space-y-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.amount}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} inputMode="decimal" onChange={event => onFormChange({ amount: event.target.value })} placeholder="0.00" value={form.amount} /></label>
+                <label className="space-y-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.reference}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} onChange={event => onFormChange({ receiptReference: event.target.value })} placeholder={copy.publicKiosk.receipt.referencePlaceholder} value={form.receiptReference} /></label>
+                <label className="space-y-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.publicKiosk.receipt.date}</span><input className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none focus:border-[#147514] focus:ring-4 focus:ring-[#147514]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={isSaving} onChange={event => onFormChange({ expenseDate: event.target.value })} type="date" value={form.expenseDate} /></label>
               </div>
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-4">
-              <div className="mb-3 flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300"><ShieldCheck className="h-5 w-5" /></span><div><p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.publicKiosk.workspace.calculation}</p><p className="text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.currency(currencyCode)}</p></div></div>
+              <div className="mb-3 flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300"><ShieldCheck className="h-5 w-5" /></span><div><p className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.workspace.calculation}</p><p className="text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.receipt.currency(currencyCode)}</p></div></div>
               <BudgetTaxControls compact draft={form} onDraftChange={updates => onFormChange(updates)} />
               <div className="mt-3 grid grid-cols-3 divide-x divide-emerald-100 overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50/70 dark:divide-emerald-500/20 dark:border-emerald-500/20 dark:bg-emerald-500/10">
                 {[
                   [copy.publicKiosk.workspace.subtotal, totals.subtotal],
                   [copy.publicKiosk.workspace.taxes, totals.taxes],
                   [copy.common.total, totals.total],
-                ].map(([label, value], index) => <div className="min-w-0 px-2 py-3 text-center" key={label}><p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</p><p className={`mt-1 truncate text-xs font-semibold ${index === 2 ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p></div>)}
+                ].map(([label, value], index) => <div className="min-w-0 px-2 py-3 text-center" key={label}><p className="truncate text-[9px] font-medium text-slate-500">{label}</p><p className={`mt-1 truncate text-xs font-medium ${index === 2 ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p></div>)}
               </div>
             </section>
 
             <section className="rounded-2xl border border-[#147514]/25 bg-white p-3.5 shadow-sm dark:border-emerald-400/20 dark:bg-slate-950 sm:p-4">
-              <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#147514] text-white shadow-sm"><Camera className="h-5 w-5" /></span><div><p className="text-sm font-semibold text-slate-950 dark:text-white">{copy.publicKiosk.workspace.evidenceTitle}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.workspace.evidenceDescription}</p></div></div>
+              <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#147514] text-white shadow-sm"><Camera className="h-5 w-5" /></span><div><p className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.workspace.evidenceTitle}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.workspace.evidenceDescription}</p></div></div>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-[#147514]/35 bg-emerald-50 px-3 py-3 text-center text-sm font-semibold text-[#147514] transition hover:bg-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-300"><Camera className="h-5 w-5" />{copy.publicKiosk.workspace.takePhoto}<input type="file" className="sr-only" accept="image/*" capture="environment" disabled={isSaving} onChange={onAttachmentChange} /></label>
-                <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"><FileUp className="h-5 w-5" />{copy.publicKiosk.workspace.chooseFile}<input type="file" className="sr-only" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={isSaving} onChange={onAttachmentChange} /></label>
+                <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-[#147514]/35 bg-emerald-50 px-3 py-3 text-center text-sm font-medium text-[#147514] transition hover:bg-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-300"><Camera className="h-5 w-5" />{copy.publicKiosk.workspace.takePhoto}<input type="file" className="sr-only" accept="image/*" capture="environment" disabled={isSaving} onChange={onAttachmentChange} /></label>
+                <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"><FileUp className="h-5 w-5" />{copy.publicKiosk.workspace.chooseFile}<input type="file" className="sr-only" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={isSaving} onChange={onAttachmentChange} /></label>
               </div>
               <p className="mt-2 text-center text-xs text-slate-500">{copy.publicKiosk.workspace.evidenceHint}</p>
-              {attachments.length > 0 ? <div className="mt-3 grid gap-2">{attachments.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-950"><Paperclip className="h-4 w-4 shrink-0 text-[#147514]" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{file.name}</p><p className="text-[11px] text-slate-500">{formatFileSize(file.size)}</p></div><button type="button" disabled={isSaving} aria-label={copy.common.deleteAttachment} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30" onClick={() => onRemoveAttachment(index)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : null}
+              {attachments.length > 0 ? <div className="mt-3 grid gap-2">{attachments.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-950"><Paperclip className="h-4 w-4 shrink-0 text-[#147514]" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{file.name}</p><p className="text-[11px] text-slate-500">{formatFileSize(file.size)}</p></div><button type="button" disabled={isSaving} aria-label={copy.common.deleteAttachment} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30" onClick={() => onRemoveAttachment(index)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : null}
             </section>
           </div>
         </div>
 
         <footer className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-2 border-t border-slate-100 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950 sm:px-5 sm:py-4">
-          <Button type="button" variant="outline" className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50" disabled={isSaving} onClick={onClear}>{copy.publicKiosk.receipt.clear}</Button>
-          <Button type="button" className="h-12 rounded-xl bg-[#147514] px-5 text-sm font-semibold text-white hover:bg-[#0f5f0f]" disabled={!canSave} onClick={onSubmit}>{isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}{copy.publicKiosk.receipt.submit}</Button>
+          <Button type="button" variant="outline" className="h-12 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50" disabled={isSaving} onClick={onClear}>{copy.publicKiosk.receipt.clear}</Button>
+          <Button type="button" className="h-12 rounded-xl bg-[#147514] px-5 text-sm font-medium text-white hover:bg-[#0f5f0f]" disabled={!canSave} onClick={onSubmit}>{isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}{copy.publicKiosk.receipt.submit}</Button>
         </footer>
       </section>
     </div>

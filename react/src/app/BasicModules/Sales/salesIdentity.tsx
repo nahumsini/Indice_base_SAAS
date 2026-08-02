@@ -123,7 +123,7 @@ const toneClasses: Record<SalesTone, {
   aqua: {
     accent: 'bg-[#59C3A5]',
     border: 'border-[#59C3A5]/35',
-    icon: 'bg-[#59C3A5] text-white',
+    icon: 'bg-[#59C3A5] text-[#222831]',
     soft: 'bg-[#59C3A5]/10',
     text: 'text-[#177d66]',
   },
@@ -137,7 +137,7 @@ const toneClasses: Record<SalesTone, {
   coral: {
     accent: 'bg-[#FF6B5E]',
     border: 'border-[#FF6B5E]/35',
-    icon: 'bg-[#FF6B5E] text-white',
+    icon: 'bg-[#FF6B5E] text-[#222831]',
     soft: 'bg-[#FF6B5E]/10',
     text: 'text-[#b63b32]',
   },
@@ -421,8 +421,8 @@ export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) 
               <span className="text-2xl leading-none" aria-hidden="true">{tab.emoji}</span>
             </div>
             <div className="min-w-0">
-              <p className={cn('text-xs font-bold uppercase tracking-normal', tone.text)}>{blueprint.eyebrow}</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-normal text-slate-950 dark:text-white">{blueprint.title}</h2>
+              <p className={cn('text-xs font-medium tracking-normal', tone.text)}>{blueprint.eyebrow}</p>
+              <h2 className="mt-2 text-2xl font-medium tracking-normal text-slate-950 dark:text-white">{blueprint.title}</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{blueprint.description}</p>
             </div>
           </div>
@@ -452,8 +452,8 @@ export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) 
         {blueprint.metrics.map((metric, index) => (
           <article key={metric.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className={cn('mb-4 h-1 w-12 rounded-full', toneClass(salesModuleTabs[index]?.tone ?? tab.tone).accent)} />
-            <p className="text-xs font-semibold uppercase tracking-normal text-slate-500 dark:text-slate-400">{metric.label}</p>
-            <p className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{metric.value}</p>
+            <p className="text-xs font-medium tracking-normal text-slate-500 dark:text-slate-400">{metric.label}</p>
+            <p className="mt-3 text-2xl font-medium text-slate-950 dark:text-white">{metric.value}</p>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{metric.detail}</p>
           </article>
         ))}
@@ -463,7 +463,7 @@ export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) 
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.activeLabel}</h3>
+              <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.activeLabel}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{blueprint.title}</p>
             </div>
             <TrendingUp className={cn('h-5 w-5', tone.text)} />
@@ -472,8 +472,8 @@ export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             {blueprint.lanes.map((lane) => (
               <article key={lane.label} className={cn('rounded-lg border p-4', tone.border, tone.soft)}>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{lane.label}</p>
-                <p className="mt-4 text-3xl font-bold text-slate-950 dark:text-white">{lane.value}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">{lane.label}</p>
+                <p className="mt-4 text-3xl font-medium text-slate-950 dark:text-white">{lane.value}</p>
                 <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">{lane.detail}</p>
               </article>
             ))}
@@ -486,7 +486,7 @@ export function SalesWorkspacePlaceholder({ section }: { section: SalesTabId }) 
               <ShieldCheck className="h-5 w-5" />
             </span>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{blueprint.signalTitle}</h3>
+              <h3 className="text-base font-medium text-slate-900 dark:text-white">{blueprint.signalTitle}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.controlLabel}</p>
             </div>
           </div>

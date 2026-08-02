@@ -13,7 +13,7 @@ export function StepHeader({ icon: Icon, title, description }: StepHeaderProps) 
         <Icon className="h-5 w-5" />
       </span>
       <div>
-        <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+        <h3 className="text-base font-medium text-slate-900 dark:text-white">{title}</h3>
         {description ? (
           <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
         ) : null}

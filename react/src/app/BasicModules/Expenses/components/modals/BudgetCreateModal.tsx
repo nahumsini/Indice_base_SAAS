@@ -305,13 +305,13 @@ function BudgetScheduleStep({
         />
       </FieldGroup>
       <div className="rounded-lg border border-[#147514]/20 bg-[#147514]/5 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
-        <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.budgets.modal.scheduleSummary}</p>
+        <p className="text-sm font-medium text-slate-900 dark:text-white">{t.budgets.modal.scheduleSummary}</p>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <SummaryMetric label={t.budgets.budgetLine} value={String(scheduleCount)} />
           <SummaryMetric label={t.budgets.columns.total.label} value={formatCurrency(totalPerOrder, currency)} />
           <SummaryMetric label={t.budgets.period} value={formatCurrency(plannedTotal, currency)} />
         </div>
-        <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">
           {scheduleCount > 0
             ? (mode === 'edit' ? t.budgets.modal.editSubtitle : t.budgets.modal.scheduleDescription)
             : t.budgets.modal.scheduleEmpty}
@@ -329,7 +329,7 @@ function StepCard({ children, description, icon: Icon, title }: { children: Reac
           <Icon className="h-5 w-5" />
         </span>
         <div>
-          <h3 className="text-base font-bold text-slate-950 dark:text-white">{title}</h3>
+          <h3 className="text-base font-medium text-slate-950 dark:text-white">{title}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
         </div>
       </div>
@@ -341,14 +341,14 @@ function StepCard({ children, description, icon: Icon, title }: { children: Reac
 function FieldGroup({ children, title }: { children: ReactNode; title: string }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/45">
-      <h4 className="mb-4 text-sm font-bold text-slate-950 dark:text-white">{title}</h4>
+      <h4 className="mb-4 text-sm font-medium text-slate-950 dark:text-white">{title}</h4>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{children}</div>
     </section>
   );
 }
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
-  return <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}{required ? ' *' : ''}</span>;
+  return <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{label}{required ? ' *' : ''}</span>;
 }
 
 function BudgetTextInput({ label, onChange, placeholder, required, value }: { label: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; value: string }) {
@@ -414,7 +414,7 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-white bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-base font-semibold text-[#147514] dark:text-emerald-300">{value}</p>
+      <p className="mt-1 text-base font-medium text-[#147514] dark:text-emerald-300">{value}</p>
     </div>
   );
 }

@@ -43,7 +43,7 @@ export function ReceivablesTable({ receivables, onRegisterPayment }: Receivables
           <thead className="bg-gray-50 dark:bg-gray-900/40">
             <tr>
               {['Cliente', 'Venta', 'Monto original', 'Saldo', 'Vencimiento', 'Politica', 'Estado', ''].map((header) => (
-                <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{header}</th>
+                <th key={header} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{header}</th>
               ))}
             </tr>
           </thead>
@@ -51,34 +51,34 @@ export function ReceivablesTable({ receivables, onRegisterPayment }: Receivables
             {receivablesPagination.paginatedRows.map((receivable) => (
               <tr key={receivable.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                 <td className="px-4 py-3">
-                  <p className="font-bold text-gray-950 dark:text-white">{receivable.customerName}</p>
+                  <p className="font-medium text-gray-950 dark:text-white">{receivable.customerName}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{receivable.customerId}</p>
                 </td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                  <p className="font-semibold">{receivable.saleNumber}</p>
+                  <p className="font-medium">{receivable.saleNumber}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{receivable.source.toUpperCase()} · {receivable.issuedAt}</p>
                 </td>
-                <td className="px-4 py-3 font-bold text-gray-950 dark:text-white">{formatCurrency(receivable.originalAmount, receivable.currency)}</td>
+                <td className="px-4 py-3 font-medium text-gray-950 dark:text-white">{formatCurrency(receivable.originalAmount, receivable.currency)}</td>
                 <td className="px-4 py-3">
-                  <p className="font-bold text-gray-950 dark:text-white">{formatCurrency(receivable.balance, receivable.currency)}</p>
+                  <p className="font-medium text-gray-950 dark:text-white">{formatCurrency(receivable.balance, receivable.currency)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(receivable.paidAmount, receivable.currency)} pagado</p>
                 </td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                  <p className="font-semibold">{receivable.dueDate}</p>
+                  <p className="font-medium">{receivable.dueDate}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{receivable.termDays} dias</p>
                 </td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                  <p className="font-semibold">{receivable.creditRuleName ?? 'N/D'}</p>
+                  <p className="font-medium">{receivable.creditRuleName ?? 'N/D'}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{receivable.creditDecision ?? 'Sin decision'}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-md px-2 py-1 text-xs font-bold ${statusClasses[receivable.status]}`}>{statusLabels[receivable.status]}</span>
+                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${statusClasses[receivable.status]}`}>{statusLabels[receivable.status]}</span>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={() => onRegisterPayment(receivable)}
                     disabled={receivable.balance <= 0}
-                    className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200"
+                    className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200"
                   >
                     <CircleDollarSign className="h-4 w-4" />
                     Abono
@@ -90,7 +90,7 @@ export function ReceivablesTable({ receivables, onRegisterPayment }: Receivables
         </table>
         {receivables.length === 0 && (
           <div className="p-8 text-center">
-            <p className="font-semibold text-gray-700 dark:text-gray-200">Sin cuentas por cobrar</p>
+            <p className="font-medium text-gray-700 dark:text-gray-200">Sin cuentas por cobrar</p>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Las ventas POS a credito apareceran aqui cuando se cierre el ticket.</p>
           </div>
         )}

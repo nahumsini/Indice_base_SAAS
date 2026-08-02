@@ -34,7 +34,7 @@ export function CategoryLibraryPanel({
   return (
     <section className="flex min-h-[460px] min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 xl:min-h-0">
       <div>
-        <h3 className="text-lg font-semibold text-slate-950">{t.categoryManager.libraryTitle}</h3>
+        <h3 className="text-lg font-medium text-slate-950">{t.categoryManager.libraryTitle}</h3>
         <p className="mt-1 text-sm leading-5 text-slate-500">{t.categoryManager.libraryDescription}</p>
       </div>
       <div className="mt-4">
@@ -69,7 +69,7 @@ export function CategoryLibraryPanel({
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+        <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-medium text-slate-500">
           {t.categoryManager.emptyLibrary}
         </div>
       )}
@@ -77,7 +77,7 @@ export function CategoryLibraryPanel({
       <div className="mt-3 grid shrink-0 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
         <Button
           type="button"
-          className="h-10 w-full gap-2 rounded-lg bg-[#FF6B5E] text-sm font-semibold text-white hover:bg-[#E85C50]"
+          className="h-10 w-full gap-2 rounded-lg bg-[#FF6B5E] text-sm font-medium text-[#222831] hover:bg-[#E85C50]"
           onClick={onImportSelected}
         >
           <UploadCloud className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function CategoryLibraryPanel({
         <Button
           type="button"
           variant="outline"
-          className="h-10 w-full gap-2 rounded-lg border-[#FF6B5E]/25 bg-white text-sm font-semibold text-[#B63B32] hover:bg-[#FF6B5E]/10"
+          className="h-10 w-full gap-2 rounded-lg border-[#FF6B5E]/25 bg-white text-sm font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10"
           onClick={onImportAll}
         >
           <UploadCloud className="h-4 w-4" />

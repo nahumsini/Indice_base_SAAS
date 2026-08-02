@@ -30,8 +30,8 @@ export function PublicCatalogEditor({
     return (
       <section className="flex min-h-full items-center justify-center bg-white p-8">
         <div className="max-w-sm rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-          <h3 className="text-lg font-bold text-slate-950">{t.publicCatalog.emptyManagerTitle}</h3>
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">{t.publicCatalog.emptyManagerDescription}</p>
+          <h3 className="text-lg font-medium text-slate-950">{t.publicCatalog.emptyManagerTitle}</h3>
+          <p className="mt-2 text-sm font-medium leading-6 text-slate-500">{t.publicCatalog.emptyManagerDescription}</p>
         </div>
       </section>
     );
@@ -49,12 +49,12 @@ export function PublicCatalogEditor({
       <div className="space-y-4 p-4 sm:p-5">
         <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
           <div>
-            <h3 className="text-lg font-semibold text-slate-950">{t.publicCatalog.identity}</h3>
+            <h3 className="text-lg font-medium text-slate-950">{t.publicCatalog.identity}</h3>
             <p className="mt-1 text-sm text-slate-500">{t.publicCatalog.configDescription}</p>
           </div>
           <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.unitLabel}</span>
+              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.unitLabel}</span>
               <Select
                 value={catalog.unitId ? String(catalog.unitId) : undefined}
                 onValueChange={(value) => onChange({ unitId: Number(value), businessId: undefined })}
@@ -66,7 +66,7 @@ export function PublicCatalogEditor({
               </Select>
             </label>
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.businessLabel}</span>
+              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.businessLabel}</span>
               <Select
                 disabled={!catalog.unitId}
                 value={catalog.businessId ? String(catalog.businessId) : undefined}
@@ -79,11 +79,11 @@ export function PublicCatalogEditor({
               </Select>
             </label>
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.catalogTitle}</span>
+              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.catalogTitle}</span>
               <Input className="h-10 bg-slate-50 shadow-none" value={catalog.title} onChange={(event) => onChange({ title: event.target.value })} placeholder={t.publicCatalog.catalogTitle} />
             </label>
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.contactMethod}</span>
+              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.contactMethod}</span>
               <Select
                 value={catalog.contactMethod}
                 onValueChange={(value) => onChange({
@@ -101,7 +101,7 @@ export function PublicCatalogEditor({
               </Select>
             </label>
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold text-slate-500">{contactField.label}</span>
+              <span className="text-xs font-medium text-slate-500">{contactField.label}</span>
               <Input
                 className="h-10 bg-slate-50 shadow-none"
                 type={contactInputType}
@@ -113,7 +113,7 @@ export function PublicCatalogEditor({
               />
             </label>
             <label className="grid gap-1.5 md:col-span-2">
-              <span className="text-xs font-semibold text-slate-500">{t.publicCatalog.catalogDescription}</span>
+              <span className="text-xs font-medium text-slate-500">{t.publicCatalog.catalogDescription}</span>
               <Textarea className="min-h-20 resize-none bg-slate-50 shadow-none" value={catalog.description} onChange={(event) => onChange({ description: event.target.value })} placeholder={t.publicCatalog.catalogDescription} />
             </label>
           </div>

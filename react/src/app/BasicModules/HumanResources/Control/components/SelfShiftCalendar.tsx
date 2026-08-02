@@ -278,7 +278,7 @@ export function SelfShiftCalendar() {
               <CalendarDays className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="truncate text-xl font-semibold text-slate-950 dark:text-white">{copy.title}</h2>
+              <h2 className="truncate text-xl font-medium text-slate-950 dark:text-white">{copy.title}</h2>
               {calendar?.user.full_name ? (
                 <p className="truncate text-sm text-slate-500 dark:text-slate-400">{calendar.user.full_name}</p>
               ) : null}
@@ -286,7 +286,7 @@ export function SelfShiftCalendar() {
           </div>
         </div>
 
-        <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400 sm:min-w-[220px]">
+        <label className="flex flex-col gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 sm:min-w-[220px]">
           {copy.month}
           <input
             type="month"
@@ -310,7 +310,7 @@ export function SelfShiftCalendar() {
             <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-base font-semibold capitalize text-slate-950 dark:text-white">
+            <h3 className="text-base font-medium capitalize text-slate-950 dark:text-white">
               {formatMonthLabel(calendarMonth, locale)}
             </h3>
             <Button variant="outline" size="icon" onClick={() => shiftMonth(1)} aria-label="Next month">
@@ -320,7 +320,7 @@ export function SelfShiftCalendar() {
 
           <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
             {weekdayLabels.map((weekday) => (
-              <div key={weekday} className="py-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
+              <div key={weekday} className="py-2 text-center text-xs font-medium text-slate-500 dark:text-slate-400">
                 {weekday}
               </div>
             ))}
@@ -358,9 +358,9 @@ export function SelfShiftCalendar() {
                   >
                     <div className="flex h-full flex-col">
                       <div className="flex items-start justify-between gap-1">
-                        <span className="text-sm font-semibold">{dayNumber}</span>
+                        <span className="text-sm font-medium">{dayNumber}</span>
                         {today ? (
-                          <span className="rounded-full bg-[#59C3A5]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#217f6b] dark:text-[#8FE0CA]">
+                          <span className="rounded-full bg-[#59C3A5]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#217f6b] dark:text-[#8FE0CA]">
                             {copy.today}
                           </span>
                         ) : null}
@@ -368,13 +368,13 @@ export function SelfShiftCalendar() {
                       <div className="mt-auto space-y-1 pt-2">
                         {dayHasShift ? (
                           <>
-                            <span className="block truncate text-xs font-semibold">{copy.shift}</span>
+                            <span className="block truncate text-xs font-medium">{copy.shift}</span>
                             <span className="block truncate text-[11px] text-slate-600 dark:text-slate-300">
                               {formatScheduleTime(day?.schedule_rule?.start_time, locale) ?? copy.flexible}
                             </span>
                           </>
                         ) : dayIsRest ? (
-                          <span className="block truncate text-xs font-semibold">{copy.restDay}</span>
+                          <span className="block truncate text-xs font-medium">{copy.restDay}</span>
                         ) : (
                           <span className="block truncate text-xs">{copy.noShift}</span>
                         )}
@@ -390,10 +390,10 @@ export function SelfShiftCalendar() {
         <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 {copy.selectedDay}
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">
+              <h3 className="mt-1 text-lg font-medium text-slate-950 dark:text-white">
                 {selectedDate ? formatFullDate(selectedDate, locale) : copy.pickDay}
               </h3>
             </div>
@@ -415,17 +415,17 @@ export function SelfShiftCalendar() {
           {selectedHasShift ? (
             <div className="space-y-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-white">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-950 dark:text-white">
                   <Clock3 className="h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
                   {copy.schedule}
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.start}</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.start}</p>
                     <p className="mt-1 font-medium text-slate-950 dark:text-white">{selectedStartTime ?? copy.flexible}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.end}</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.end}</p>
                     <p className="mt-1 font-medium text-slate-950 dark:text-white">{selectedEndTime ?? copy.flexible}</p>
                   </div>
                 </div>
@@ -437,7 +437,7 @@ export function SelfShiftCalendar() {
                   <div className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-4 w-4 text-[#59C3A5]" />
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.workSite}</p>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.workSite}</p>
                       <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{selectedWorkSiteName}</p>
                     </div>
                   </div>
@@ -449,7 +449,7 @@ export function SelfShiftCalendar() {
                   <div className="flex items-start gap-2">
                     <BriefcaseBusiness className="mt-0.5 h-4 w-4 text-[#143675] dark:text-[#8bb3ff]" />
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.template}</p>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.template}</p>
                       <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{selectedTemplateName}</p>
                     </div>
                   </div>
@@ -458,13 +458,13 @@ export function SelfShiftCalendar() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/40">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.meal}</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.meal}</p>
                   <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">
                     {selectedDay?.schedule_rule?.meal_minutes ?? 0} {copy.minutes}
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/40">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{copy.rest}</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.rest}</p>
                   <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">
                     {selectedDay?.schedule_rule?.rest_minutes ?? 0} {copy.minutes}
                   </p>

@@ -29,7 +29,7 @@ export function ProductBulkActionsBar({
   return (
     <section className="rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 py-3 shadow-sm">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800">
+        <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
           <Badge variant="outline" className="rounded-full border-[#F4C84A]/40 bg-white px-3 py-1 text-[#9A6B05]">
             {t.table.selection.selected(selectedCount)}
           </Badge>
@@ -39,7 +39,7 @@ export function ProductBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-lg border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 shadow-none hover:bg-emerald-100"
+            className="h-9 rounded-lg border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-700 shadow-none hover:bg-emerald-100"
             onClick={onSetActive}
           >
             <CheckCircle2 className="h-4 w-4" />
@@ -48,7 +48,7 @@ export function ProductBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-lg border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100"
+            className="h-9 rounded-lg border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100"
             onClick={onSetInactive}
           >
             <Power className="h-4 w-4" />
@@ -57,7 +57,7 @@ export function ProductBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-lg border-[#FF6B5E]/25 bg-white px-3 text-sm font-semibold text-[#B63B32] shadow-none hover:bg-[#FF6B5E]/10"
+            className="h-9 rounded-lg border-[#FF6B5E]/25 bg-white px-3 text-sm font-medium text-[#B63B32] shadow-none hover:bg-[#FF6B5E]/10"
             onClick={onMarkAvailableForSales}
           >
             {t.table.selection.markAvailableForSales}
@@ -65,7 +65,7 @@ export function ProductBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-lg border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-100"
+            className="h-9 rounded-lg border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-100"
             onClick={onRemoveFromPublicCatalog}
           >
             <EyeOff className="h-4 w-4" />
@@ -74,7 +74,7 @@ export function ProductBulkActionsBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-lg border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-none hover:bg-slate-100"
+            className="h-9 rounded-lg border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-none hover:bg-slate-100"
             onClick={onClearSelection}
           >
             <X className="h-4 w-4" />

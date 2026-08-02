@@ -77,7 +77,7 @@ function RowActionButton({
       <TooltipContent
         side="top"
         sideOffset={8}
-        className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold leading-4 text-white shadow-xl"
+        className="max-w-[220px] rounded-lg bg-slate-950 px-3 py-2 text-xs font-medium leading-4 text-white shadow-xl"
       >
         {label}
       </TooltipContent>
@@ -134,24 +134,24 @@ export function SalesTableRow({
       {isVisible('saleNumber') ? (
         <TableCell className={salesCellClassName}>
           <div className="min-w-0 max-w-full">
-            <p className="break-all font-semibold text-slate-950 dark:text-white">{record.saleNumber}</p>
-            <p className="mt-1 break-all text-xs font-semibold text-[#B63B32]">{record.id}</p>
+            <p className="break-all font-medium text-slate-950 dark:text-white">{record.saleNumber}</p>
+            <p className="mt-1 break-all text-xs font-medium text-[#B63B32]">{record.id}</p>
           </div>
         </TableCell>
       ) : null}
       {isVisible('customer') ? (
         <TableCell className={salesCellClassName}>
           <div className="min-w-0 max-w-full">
-            <p className="break-words font-bold text-slate-950 dark:text-white">{record.customerName}</p>
-            <p className="mt-1 break-all text-xs font-semibold text-slate-500">{record.quoteReference}</p>
+            <p className="break-words font-medium text-slate-950 dark:text-white">{record.customerName}</p>
+            <p className="mt-1 break-all text-xs font-medium text-slate-500">{record.quoteReference}</p>
           </div>
         </TableCell>
       ) : null}
       {isVisible('seller') ? (
         <TableCell className={salesCellClassName}>
           <div className="min-w-0 max-w-full">
-            <p className="break-words text-sm font-bold text-slate-800 dark:text-slate-100">{record.sellerName}</p>
-            <p className="mt-1 break-words text-xs font-semibold text-slate-500">
+            <p className="break-words text-sm font-medium text-slate-800 dark:text-slate-100">{record.sellerName}</p>
+            <p className="mt-1 break-words text-xs font-medium text-slate-500">
               {[record.businessUnitName, record.businessName].filter(Boolean).join(' · ') || t.common.notAvailable}
             </p>
           </div>
@@ -159,21 +159,21 @@ export function SalesTableRow({
       ) : null}
       {isVisible('total') ? (
         <TableCell className={salesCellClassName}>
-          <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.totalAmount, record.currency)}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">{record.currency}</p>
+          <p className="break-words text-sm font-medium text-slate-950 dark:text-white">{formatSalesCurrency(record.totalAmount, record.currency)}</p>
+          <p className="mt-1 text-xs font-medium text-slate-500">{record.currency}</p>
         </TableCell>
       ) : null}
-      {isVisible('saleDate') ? <TableCell className={cn(salesCellClassName, 'text-sm font-semibold text-slate-700 dark:text-slate-200')}>{formatSalesDate(record.saleDate)}</TableCell> : null}
+      {isVisible('saleDate') ? <TableCell className={cn(salesCellClassName, 'text-sm font-medium text-slate-700 dark:text-slate-200')}>{formatSalesDate(record.saleDate)}</TableCell> : null}
       {isVisible('relationship') ? (
         <TableCell className={salesCellClassName}>
-          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-bold', relationshipClasses[relationship])}>
+          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-medium', relationshipClasses[relationship])}>
             {t.lifecycle.relationship[relationship]}
           </span>
         </TableCell>
       ) : null}
       {isVisible('customerHealth') ? (
         <TableCell className={salesCellClassName}>
-          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-bold', healthClasses[health])}>
+          <span className={cn('inline-flex h-auto max-w-full whitespace-normal break-words rounded-full border px-3 py-1 text-xs font-medium', healthClasses[health])}>
             {t.lifecycle.health[health]}
           </span>
         </TableCell>
@@ -191,7 +191,7 @@ export function SalesTableRow({
         <TableCell className={salesCellClassName}>
           <div className="space-y-2">
             <ValidationStatusBadge label={t.statuses.commission[record.commissionStatus]} tone={record.commissionStatus} />
-            <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
+            <p className="break-words text-sm font-medium text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
           </div>
         </TableCell>
       ) : null}
@@ -199,18 +199,18 @@ export function SalesTableRow({
         <TableCell className={salesCellClassName}>
           <div className="space-y-2">
             <ValidationStatusBadge label={t.statuses.commission[record.commissionStatus]} tone={record.commissionStatus} />
-            <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
+            <p className="break-words text-sm font-medium text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
           </div>
         </TableCell>
       ) : null}
-      {isVisible('quoteReference') ? <TableCell className={cn(salesCellClassName, 'break-all text-sm font-semibold text-slate-700 dark:text-slate-200')}>{record.quoteReference}</TableCell> : null}
+      {isVisible('quoteReference') ? <TableCell className={cn(salesCellClassName, 'break-all text-sm font-medium text-slate-700 dark:text-slate-200')}>{record.quoteReference}</TableCell> : null}
       {isVisible('paymentMethod') ? <TableCell className={cn(salesCellClassName, 'text-sm')}><OptionalText value={record.paymentMethod} fallback={t.common.notAvailable} /></TableCell> : null}
       {isVisible('paymentEvidence') ? <TableCell className={salesCellClassName}><ValidationStatusBadge label={t.statuses.paymentEvidence[record.paymentEvidenceStatus]} tone={record.paymentEvidenceStatus} /></TableCell> : null}
       {isVisible('deliveryStatus') ? <TableCell className={salesCellClassName}><ValidationStatusBadge label={t.statuses.delivery[record.deliveryStatus]} tone={record.deliveryStatus} /></TableCell> : null}
       {isVisible('commissionAmount') ? (
         <TableCell className={salesCellClassName}>
-          <p className="break-words text-sm font-semibold text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-500">{formatCommissionRate(record.commissionRate)}</p>
+          <p className="break-words text-sm font-medium text-slate-950 dark:text-white">{formatSalesCurrency(record.commissionAmount, record.currency)}</p>
+          <p className="mt-1 text-xs font-medium text-slate-500">{formatCommissionRate(record.commissionRate)}</p>
         </TableCell>
       ) : null}
       {isVisible('movementReference') ? <TableCell className={cn(salesCellClassName, 'text-sm')}><OptionalText value={record.inventoryMovementReference} fallback={t.common.notAvailable} /></TableCell> : null}

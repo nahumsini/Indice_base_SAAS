@@ -55,10 +55,10 @@ export function SaleSidePanel({
       <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col border-l border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-start justify-between border-b border-gray-200 bg-blue-700 px-5 py-4 text-white dark:border-gray-700">
           <div>
-            <p className="text-xs font-semibold uppercase text-blue-100">
+            <p className="text-xs font-medium text-blue-100">
               Panel de decision
             </p>
-            <h2 className="mt-1 text-lg font-bold">
+            <h2 className="mt-1 text-lg font-medium">
               {panel.type === 'product' ? panel.product.name : 'Control de ticket'}
             </h2>
           </div>
@@ -116,7 +116,7 @@ function ProductPanel({
       <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <Package className="h-4 w-4 text-orange-500" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Señal de inventario</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Señal de inventario</h3>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
           <div
@@ -132,7 +132,7 @@ function ProductPanel({
       <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-blue-500" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Historial comercial</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Historial comercial</h3>
         </div>
         <div className="mt-3 space-y-3 text-sm">
           <TimelineItem title="Precio actualizado" description={`${formatCurrency(product.salePrice)} como precio activo`} />
@@ -176,7 +176,7 @@ function SalePanel({
       <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <Receipt className="h-4 w-4 text-orange-500" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Productos</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Productos</h3>
         </div>
         <div className="mt-3 space-y-2">
           {panel.cart.length === 0 ? (
@@ -185,10 +185,10 @@ function SalePanel({
             panel.cart.map((item) => (
               <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{item.name}</p>
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{item.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">x{item.quantity} · {formatCurrency(item.price)}</p>
                 </div>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(item.subtotal)}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(item.subtotal)}</p>
               </div>
             ))
           )}
@@ -198,7 +198,7 @@ function SalePanel({
       <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <WalletCards className="h-4 w-4 text-emerald-500" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Pagos</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Pagos</h3>
         </div>
         <div className="mt-3 space-y-2">
           {panel.payments.length === 0 ? (
@@ -206,8 +206,8 @@ function SalePanel({
           ) : (
             panel.payments.map((payment) => (
               <div key={payment.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{paymentLabel(payment.method)}</span>
-                <span className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(payment.amount)}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{paymentLabel(payment.method)}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(payment.amount)}</span>
               </div>
             ))
           )}
@@ -217,7 +217,7 @@ function SalePanel({
       <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <RotateCcw className="h-4 w-4 text-red-500" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Linea de tiempo</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Linea de tiempo</h3>
         </div>
         <div className="mt-3 space-y-3 text-sm">
           <TimelineItem title="Ticket abierto" description={`Cajero: ${panel.cashierName}`} />
@@ -249,7 +249,7 @@ function Metric({
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
-      <p className={`mt-1 text-lg font-bold ${toneClass}`}>{value}</p>
+      <p className={`mt-1 text-lg font-medium ${toneClass}`}>{value}</p>
     </div>
   );
 }
@@ -292,7 +292,7 @@ function DecisionRecommendation({
           <Icon className="h-4 w-4" />
         </span>
         <div>
-          <h3 className={`text-sm font-bold ${toneClass.text}`}>{title}</h3>
+          <h3 className={`text-sm font-medium ${toneClass.text}`}>{title}</h3>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{description}</p>
         </div>
       </div>
@@ -303,7 +303,7 @@ function DecisionRecommendation({
 function TimelineItem({ title, description }: { title: string; description: string }) {
   return (
     <div className="border-l-2 border-blue-200 pl-3 dark:border-blue-800">
-      <p className="font-semibold text-gray-900 dark:text-white">{title}</p>
+      <p className="font-medium text-gray-900 dark:text-white">{title}</p>
       <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
     </div>
   );

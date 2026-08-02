@@ -105,7 +105,7 @@ export function ScheduleModalFrame({
             type="button"
             variant="outline"
             onClick={onClose}
-            className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+            className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
           >
             {copy.schedule.cancel}
           </Button>

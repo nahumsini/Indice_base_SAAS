@@ -76,11 +76,11 @@ export function CashAuditDetailPanel({
         <section className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-500/30 dark:bg-orange-500/10">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase text-orange-700 dark:text-orange-200">Estado de revision</p>
-              <p className="mt-1 text-xl font-black text-gray-950 dark:text-white">
+              <p className="text-xs font-medium text-orange-700 dark:text-orange-200">Estado de revision</p>
+              <p className="mt-1 text-xl font-medium text-gray-950 dark:text-white">
                 {auditStatusLabels[record.auditStatus]}
               </p>
-              <p className="mt-1 text-sm font-semibold text-gray-600 dark:text-gray-300">
+              <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
                 {record.requiresReview
                   ? 'Este cierre requiere validacion operativa antes de darlo por atendido.'
                   : 'Este cierre no tiene diferencias abiertas para seguimiento.'}
@@ -112,13 +112,13 @@ export function CashAuditDetailPanel({
           </div>
 
           <label className="mt-4 block">
-            <span className="mb-1 block text-xs font-black uppercase text-gray-500 dark:text-gray-400">Nota de supervisor</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Nota de supervisor</span>
             <textarea
               value={auditNote}
               onChange={(event) => setAuditNote(event.target.value)}
               rows={3}
               placeholder="Registra validacion, correccion solicitada o evidencia revisada."
-              className="w-full rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-orange-500/30 dark:bg-gray-900 dark:text-white"
+              className="w-full rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-orange-500/30 dark:bg-gray-900 dark:text-white"
             />
           </label>
         </section>
@@ -155,8 +155,8 @@ export function CashAuditDetailPanel({
 
         {record.notes ? (
           <section className="rounded-lg bg-white p-4 dark:bg-gray-900">
-            <p className="text-xs font-black uppercase text-gray-500 dark:text-gray-400">Notas</p>
-            <p className="mt-1 text-sm font-semibold text-gray-700 dark:text-gray-200">{record.notes}</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Notas</p>
+            <p className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-200">{record.notes}</p>
           </section>
         ) : null}
       </div>
@@ -188,7 +188,7 @@ function ReviewButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${toneClasses}`}
+      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${toneClasses}`}
     >
       <Icon className="h-4 w-4" />
       {label}
@@ -199,8 +199,8 @@ function ReviewButton({
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-white p-3 dark:bg-gray-900">
-      <p className="text-xs font-black uppercase text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-1 truncate text-sm font-black text-gray-950 dark:text-white">{value}</p>
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1 truncate text-sm font-medium text-gray-950 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -218,9 +218,9 @@ function DetailRow({
 }) {
   return (
     <div className="grid grid-cols-3 gap-3 border-b border-gray-100 px-4 py-3 text-sm last:border-b-0 dark:border-gray-700">
-      <span className="font-black text-gray-700 dark:text-gray-200">{label}</span>
-      <span className="text-right font-semibold text-gray-600 dark:text-gray-300">{formatCurrency(expected)}</span>
-      <span className="text-right font-black text-gray-950 dark:text-white">{formatCurrency(counted)}</span>
+      <span className="font-medium text-gray-700 dark:text-gray-200">{label}</span>
+      <span className="text-right font-medium text-gray-600 dark:text-gray-300">{formatCurrency(expected)}</span>
+      <span className="text-right font-medium text-gray-950 dark:text-white">{formatCurrency(counted)}</span>
     </div>
   );
 }
@@ -242,8 +242,8 @@ function SummaryItem({
 
   return (
     <div className={`rounded-lg p-3 ${toneClasses}`}>
-      <p className="text-xs font-black uppercase opacity-80">{label}</p>
-      <p className="mt-1 truncate text-lg font-black">{value}</p>
+      <p className="text-xs font-medium opacity-80">{label}</p>
+      <p className="mt-1 truncate text-lg font-medium">{value}</p>
     </div>
   );
 }

@@ -53,10 +53,10 @@ export function IndiceTitleBar({
             </span>
             <div className="min-w-0">
               {eyebrow ? (
-                <p className={cn('mb-1 text-xs font-semibold uppercase tracking-[0.08em]', theme.text, theme.darkText)}>{eyebrow}</p>
+                <p className={cn('mb-1 text-xs font-medium', theme.text, theme.darkText)}>{eyebrow}</p>
               ) : null}
-              <h2 className="text-xl font-bold leading-tight text-slate-950 dark:text-white">{title}</h2>
-              <p className="mt-1 max-w-3xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{subtitle}</p>
+              <h2 className="text-xl font-medium leading-tight text-slate-950 dark:text-white">{title}</h2>
+              <p className="mt-1 max-w-3xl text-sm font-normal leading-5 text-slate-600 dark:text-slate-300">{subtitle}</p>
             </div>
           </div>
           {actionLayout}

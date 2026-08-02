@@ -43,11 +43,11 @@ const toneStyles: Record<IndiceModalTone, {
   title: string;
 }> = {
   aqua: {
-    close: 'border-white/30 bg-white/10 text-white hover:bg-white/20',
-    description: 'text-white/85',
+    close: 'border-[#222831]/20 bg-white/20 text-[#222831] hover:bg-white/35 dark:border-white/30 dark:text-white',
+    description: 'text-[#222831]/75 dark:text-white/85',
     footer: 'bg-[#269C82] dark:bg-[#176a59]',
-    header: 'bg-[#59C3A5] text-white dark:bg-[#269C82]',
-    title: 'text-white',
+    header: 'bg-[#59C3A5] text-[#222831] dark:bg-[#269C82] dark:text-white',
+    title: 'text-[#222831] dark:text-white',
   },
   blue: {
     close: 'border-white/30 bg-white/10 text-white hover:bg-white/20',
@@ -57,11 +57,11 @@ const toneStyles: Record<IndiceModalTone, {
     title: 'text-white',
   },
   coral: {
-    close: 'border-white/35 bg-white/15 text-white hover:bg-white/25',
-    description: 'text-white/90',
+    close: 'border-[#222831]/20 bg-white/20 text-[#222831] hover:bg-white/35 dark:border-white/35 dark:text-white',
+    description: 'text-[#222831]/75 dark:text-white/90',
     footer: 'bg-[#FF6B5E] dark:bg-[#b63b32]',
-    header: 'bg-[#FF6B5E] text-white dark:bg-[#b63b32]',
-    title: 'text-white',
+    header: 'bg-[#FF6B5E] text-[#222831] dark:bg-[#b63b32] dark:text-white',
+    title: 'text-[#222831] dark:text-white',
   },
   green: {
     close: 'border-white/30 bg-white/10 text-white hover:bg-white/20',
@@ -71,11 +71,11 @@ const toneStyles: Record<IndiceModalTone, {
     title: 'text-white',
   },
   yellow: {
-    close: 'border-white/35 bg-white/15 text-white hover:bg-white/25',
-    description: 'text-white/90',
+    close: 'border-[#222831]/20 bg-white/20 text-[#222831] hover:bg-white/35 dark:border-white/35 dark:text-white',
+    description: 'text-[#222831]/75 dark:text-white/90',
     footer: 'bg-[#F8C842] dark:bg-[#9c7110]',
-    header: 'bg-[#F8C842] text-white dark:bg-[#9c7110]',
-    title: 'text-white',
+    header: 'bg-[#F8C842] text-[#222831] dark:bg-[#9c7110] dark:text-white',
+    title: 'text-[#222831] dark:text-white',
   },
 };
 
@@ -150,7 +150,7 @@ export function IndiceModalFrame({
             </span>
             <div className="min-w-0 flex-1">
               {eyebrow ? <p className={cn('mb-0.5 text-xs font-medium tracking-normal', styles.description)}>{eyebrow}</p> : null}
-              <DialogTitle className={cn('text-xl font-semibold leading-7', styles.title)}>{title}</DialogTitle>
+              <DialogTitle className={cn('text-xl font-medium leading-7', styles.title)}>{title}</DialogTitle>
               <DialogDescription className={cn('mt-0.5 text-sm leading-5', styles.description)}>{description}</DialogDescription>
             </div>
           </div>

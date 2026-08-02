@@ -450,13 +450,13 @@ export function PublicCatalogConfigModal({
       >
         <div className="flex h-full min-h-0 flex-col">
           {error ? (
-            <div role="alert" className="m-4 mb-0 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            <div role="alert" className="m-4 mb-0 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               <span>{error}</span>
               <Button size="sm" variant="outline" className="gap-1" disabled={loading} onClick={() => void loadCatalogs()}><RefreshCw className="h-4 w-4" /> {t.publicCatalog.retry}</Button>
             </div>
           ) : null}
           {loading && catalogs.length === 0 ? (
-            <div className="grid flex-1 place-items-center text-sm font-semibold text-slate-500"><span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {t.publicCatalog.loadingCatalogs}</span></div>
+            <div className="grid flex-1 place-items-center text-sm font-medium text-slate-500"><span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {t.publicCatalog.loadingCatalogs}</span></div>
           ) : (
             <div className={`min-h-0 flex-1 overflow-hidden ${operationBusy ? 'pointer-events-none opacity-70' : ''}`}>
               <PublicCatalogCardsPanel
@@ -531,7 +531,7 @@ export function PublicCatalogConfigModal({
           </>
         )}
       >
-        <div className="rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 shadow-sm">
+        <div className="rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 shadow-sm">
           {destructiveAction?.catalog.title}
         </div>
       </SalesModalFrame>
@@ -556,7 +556,7 @@ export function PublicCatalogConfigModal({
           </>
         )}
       >
-        <div className="rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm font-semibold text-amber-800 shadow-sm">
+        <div className="rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm font-medium text-amber-800 shadow-sm">
           {rotateCatalog?.title}
         </div>
       </SalesModalFrame>

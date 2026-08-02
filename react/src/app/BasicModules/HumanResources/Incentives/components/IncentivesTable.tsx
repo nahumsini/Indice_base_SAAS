@@ -123,7 +123,7 @@ export function IncentivesTable({
             leading={<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EAF8F4] text-xl dark:bg-[#13362F]">🎁</div>}
             title={incentive.nombre}
             subtitle={incentive.id}
-            badges={<span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClasses[incentive.estado]}`}>{copy.statuses[incentive.estado]}</span>}
+            badges={<span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${statusClasses[incentive.estado]}`}>{copy.statuses[incentive.estado]}</span>}
             details={[
               { label: copy.columns.type, value: copy.types[incentive.tipo] },
               { label: copy.columns.scope, value: incentive.alcance },
@@ -173,7 +173,7 @@ export function IncentivesTable({
                   </td>
                   {visibleColumnSet.has('incentive') ? (
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-gray-900 dark:text-white">{incentive.nombre}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{incentive.nombre}</p>
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{incentive.id}</p>
                     </td>
                   ) : null}
@@ -188,7 +188,7 @@ export function IncentivesTable({
                     <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{incentive.alcance}</td>
                   ) : null}
                   {visibleColumnSet.has('amount') ? (
-                    <td className="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">{incentive.monto}</td>
+                    <td className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white">{incentive.monto}</td>
                   ) : null}
                   {visibleColumnSet.has('application') ? (
                     <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{incentive.aplicacion}</td>
@@ -243,7 +243,7 @@ function TableHeader({
       <button
         type="button"
         onClick={() => onSort(field)}
-        className="inline-flex items-center gap-2 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        className="inline-flex items-center gap-2 text-left text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
       >
         <span>{label}</span>
         <StandardSortIcon active={sortField === field} direction={sortDirection} />

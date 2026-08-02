@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 import type { AttendanceFilterOption } from './EmployeeAttendanceList';
 
-const controlInputClassName = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
+const controlInputClassName = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
 
 function FilterField({
   children,
@@ -14,7 +14,7 @@ function FilterField({
 }) {
   return (
     <label className="block space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       {children}
     </label>
   );
@@ -59,7 +59,7 @@ export function AttendanceControlFilters({
 
   return (
     <section className="mb-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-white">{copy.labels.filtersTitle}</h3>
+      <h3 className="mb-4 text-base font-medium text-slate-800 dark:text-white">{copy.labels.filtersTitle}</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <FilterField label={copy.labels.searchLabel}>
           <div className="relative">

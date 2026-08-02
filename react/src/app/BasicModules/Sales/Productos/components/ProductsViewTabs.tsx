@@ -32,9 +32,9 @@ export function ProductsViewTabs({
             type="button"
             onClick={() => onViewChange(view.id)}
             className={cn(
-              'inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-bold transition-all',
+              'inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all',
               active
-                ? 'bg-[#FF6B5E] text-white shadow-md shadow-[#FF6B5E]/25'
+                ? 'bg-[#FF6B5E] text-[#222831] shadow-sm shadow-[#FF6B5E]/20'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
             )}
           >

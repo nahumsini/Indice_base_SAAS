@@ -100,7 +100,7 @@ export function QuoteTaxJurisdictionPanel({
     <section className="rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-4">
       <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
         <div className="max-w-2xl">
-          <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+          <h3 className="flex items-center gap-2 text-base font-medium text-slate-950">
             <Globe2 className="h-5 w-5 text-[#FF6B5E]" />
             {t.taxBuilder.title}
           </h3>
@@ -201,7 +201,7 @@ export function QuoteTaxJurisdictionPanel({
           <div key={preset.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="min-w-0 truncate text-sm font-medium text-slate-950">{preset.label}</p>
-              <span className="shrink-0 rounded-full bg-[#FF6B5E]/10 px-2.5 py-1 text-xs font-semibold text-[#B63B32]">
+              <span className="shrink-0 rounded-full bg-[#FF6B5E]/10 px-2.5 py-1 text-xs font-medium text-[#B63B32]">
                 {preset.rateEditable ? t.taxBuilder.variableRate : `${preset.defaultRate}%`}
               </span>
             </div>

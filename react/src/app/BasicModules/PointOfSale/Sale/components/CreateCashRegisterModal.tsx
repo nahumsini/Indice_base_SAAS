@@ -128,18 +128,18 @@ export function CreateCashRegisterModal({
       )}
     >
       <div className="space-y-5">
-        <section className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+        <section className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
           Cada caja opera desde un almacen. El inventario y los cierres POS usan esa relacion como base operativa.
         </section>
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
             {error}
           </div>
         ) : null}
 
         <section>
-          <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Almacen
           </label>
           <div className="relative">
@@ -148,7 +148,7 @@ export function CreateCashRegisterModal({
               value={warehouseId}
               onChange={(event) => setWarehouseId(event.target.value)}
               disabled={isSubmitting || warehouses.length === 0}
-              className="min-h-14 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              className="min-h-14 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             >
               {warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={String(warehouse.id)}>
@@ -158,7 +158,7 @@ export function CreateCashRegisterModal({
               ))}
             </select>
           </div>
-          <p className="mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
             {selectedWarehouse?.unitName || selectedWarehouse?.businessName
               ? `${selectedWarehouse.unitName ?? 'Unidad no asignada'} - ${selectedWarehouse.businessName ?? 'Negocio no asignado'}`
               : 'La caja heredara la unidad y negocio del almacen seleccionado.'}
@@ -167,7 +167,7 @@ export function CreateCashRegisterModal({
 
         <section className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Codigo de caja
             </label>
             <input
@@ -176,11 +176,11 @@ export function CreateCashRegisterModal({
               disabled={isSubmitting}
               maxLength={64}
               placeholder="POS-01"
-              className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-black uppercase text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Nombre de caja
             </label>
             <input
@@ -189,7 +189,7 @@ export function CreateCashRegisterModal({
               disabled={isSubmitting}
               maxLength={160}
               placeholder="Caja principal"
-              className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
           </div>
         </section>

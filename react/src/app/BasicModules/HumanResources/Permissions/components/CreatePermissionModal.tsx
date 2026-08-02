@@ -263,7 +263,7 @@ export function CreatePermissionModal({ copy, isOpen, onClose, onSubmit }: Creat
                   <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-[#159A7D]" />
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modal.totalDays}</span>
-                    <span className="text-lg font-bold text-[#159A7D]">{totalDays}</span>
+                    <span className="text-lg font-medium text-[#159A7D]">{totalDays}</span>
                   </div>
                 </div>
               ) : null}

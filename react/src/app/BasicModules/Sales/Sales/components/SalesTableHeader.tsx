@@ -102,7 +102,7 @@ export function SalesTableHeader({
           <TableHead
             key={column}
             className={cn(
-              'relative whitespace-normal px-5 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400',
+              'relative whitespace-normal px-5 py-5 text-sm font-medium text-slate-500 dark:text-slate-400',
               column === 'actions' && 'text-center',
             )}
             style={{ width: `${columnWidth}px`, minWidth: `${columnWidth}px`, maxWidth: `${columnWidth}px` }}
@@ -110,7 +110,7 @@ export function SalesTableHeader({
             {isSortable ? (
               <button
                 type="button"
-                className="inline-flex max-w-full items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+                className="inline-flex max-w-full items-center gap-2 text-left text-sm font-medium text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
                 onClick={() => onSort(column)}
               >
                 <span className="min-w-0 whitespace-normal break-words">{label}</span>

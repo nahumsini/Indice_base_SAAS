@@ -670,7 +670,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       />
 
       {serviceNotice ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {serviceNotice}
         </div>
       ) : null}
@@ -789,7 +789,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {fundsPagination.paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-6 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+                <td colSpan={11} className="px-6 py-12 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
                   {copy.funds.filters.result(0)}
                 </td>
               </tr>
@@ -806,24 +806,24 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
               return (
                 <tr key={fund.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/70">
                   <td className="px-5 py-4">
-                    <p className="font-extrabold text-slate-900 dark:text-white">{fund.name}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{fundAccountName}</p>
+                    <p className="font-medium text-slate-900 dark:text-white">{fund.name}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{fundAccountName}</p>
                   </td>
-                  <td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{fund.unitName}</td>
-                  <td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{fund.businessName}</td>
-                  <td className="px-5 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{fund.responsibleName}</td>
+                  <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.unitName}</td>
+                  <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.businessName}</td>
+                  <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.responsibleName}</td>
                   <td className="px-5 py-4">
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{fund.fundingSourceName}</p>
-                    <p className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{fund.fundingSourceName}</p>
+                    <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</p>
                   </td>
                   <td className="px-5 py-4">
-                    <p className="text-sm font-black text-slate-900 dark:text-white">{formatPettyCashCurrency(fund.limitAmount, fund.currencyCode)}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{budgetLineName}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{formatPettyCashCurrency(fund.limitAmount, fund.currencyCode)}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{budgetLineName}</p>
                   </td>
-                  <td className={`px-5 py-4 text-sm font-extrabold tabular-nums ${fund.currentBalanceAmount < 0 ? 'text-red-600 dark:text-red-300' : 'text-[#147514] dark:text-emerald-300'}`}>{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</td>
-                  <td className="px-5 py-4 text-sm font-extrabold tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>
+                  <td className={`px-5 py-4 text-sm font-medium tabular-nums ${fund.currentBalanceAmount < 0 ? 'text-red-600 dark:text-red-300' : 'text-[#147514] dark:text-emerald-300'}`}>{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</td>
+                  <td className="px-5 py-4 text-sm font-medium tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>
                   <td className="px-5 py-4">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${fund.kioskEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${fund.kioskEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
                       {fund.kioskEnabled ? copy.common.enabled : copy.common.disabled}
                     </span>
                   </td>
@@ -1079,7 +1079,7 @@ function CreateFundModal({
             type="button"
             disabled={!canCreate || isSaving}
             onClick={handleSubmit}
-            className="min-h-11 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {initialFund ? copy.funds.modal.update : copy.funds.modal.submit}
           </button>
@@ -1096,7 +1096,7 @@ function CreateFundModal({
       <div className="space-y-4">
         {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.funds.modal.dataTitle}</h4>
+            <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.dataTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <PettyCashField label={copy.funds.modal.name}>
                 <input
@@ -1149,11 +1149,11 @@ function CreateFundModal({
                   value={draft.limitAmount}
                 />
                 {selectedBudgetLine ? (
-                  <p className={`mt-2 text-xs font-semibold ${isLimitAboveBudget ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                  <p className={`mt-2 text-xs font-medium ${isLimitAboveBudget ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}>
                     {copy.funds.modal.budgetAvailable(getBudgetLineDisplayName(selectedBudgetLine, copy.funds.defaults.budgetLine), formatPettyCashCurrency(selectedBudgetLimit, toPettyCashCurrency(selectedBudgetLine.currencyCode)))} {isLimitAboveBudget ? copy.funds.modal.budgetExceededHint : copy.funds.modal.budgetNormalHint}
                   </p>
                 ) : (
-                  <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
                     {copy.funds.modal.budgetMissingHint}
                   </p>
                 )}
@@ -1172,7 +1172,7 @@ function CreateFundModal({
           </section>
 
           <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.funds.modal.responsibilityTitle}</h4>
+            <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.responsibilityTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <PettyCashField label={copy.funds.modal.responsible}>
                 <select
@@ -1240,7 +1240,7 @@ function CreateFundModal({
           </section>
 
           <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
-            <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{copy.funds.modal.fundingTitle}</h4>
+            <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.fundingTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <PettyCashField label={copy.funds.modal.fundAccount}>
                 <select
@@ -1269,7 +1269,7 @@ function CreateFundModal({
                   ))}
                 </select>
                 {!fundAccountCurrencyMatches ? (
-                  <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">{copy.funds.modal.fundAccountCurrencyWarning}</p>
+                  <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{copy.funds.modal.fundAccountCurrencyWarning}</p>
                 ) : null}
               </PettyCashField>
               <PettyCashField label={copy.funds.modal.sourceAccount}>
@@ -1291,7 +1291,7 @@ function CreateFundModal({
                   ))}
                 </select>
                 {!hasDistinctFundingAccounts || !fundingSourceCurrencyMatches ? (
-                  <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">{copy.funds.modal.sourceAccountWarning}</p>
+                  <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{copy.funds.modal.sourceAccountWarning}</p>
                 ) : null}
               </PettyCashField>
               <div>
@@ -1500,7 +1500,7 @@ function KioskModal({
         footer={editorFundId ? (
           <>
             <button type="button" onClick={closeEditor} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">{copy.common.cancel}</button>
-            <button type="button" disabled={!canSave} onClick={() => void handleSaveEditor()} className="h-10 rounded-xl bg-[#147514] px-5 text-sm font-semibold text-white transition hover:bg-[#105F10] disabled:cursor-not-allowed disabled:opacity-50">{copy.funds.kiosk.save}</button>
+            <button type="button" disabled={!canSave} onClick={() => void handleSaveEditor()} className="h-10 rounded-xl bg-[#147514] px-5 text-sm font-medium text-white transition hover:bg-[#105F10] disabled:cursor-not-allowed disabled:opacity-50">{copy.funds.kiosk.save}</button>
           </>
         ) : (
           <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">{copy.common.cancel}</button>
@@ -1561,7 +1561,7 @@ function KioskModal({
                     </PettyCashField>
                   </div>
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{copy.funds.kiosk.universalPinTitle}</p>
+                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">{copy.funds.kiosk.universalPinTitle}</p>
                     <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                       {copy.funds.kiosk.universalPinDescription(selectedFund?.responsibleName ?? copy.funds.modal.responsible)}
                     </p>
@@ -1578,13 +1578,13 @@ function KioskModal({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-500">Accesos configurados</p>
-                <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{activeKiosks} activos de {funds.length}</p>
+                <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{activeKiosks} activos de {funds.length}</p>
               </div>
               <button
                 type="button"
                 disabled={!nextFundToConfigure}
                 onClick={() => nextFundToConfigure ? openEditor(nextFundToConfigure.id) : undefined}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f5f10] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#147514] px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-[#0f5f10] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span className="text-lg leading-none">+</span>
                 Nuevo acceso
@@ -1605,7 +1605,7 @@ function KioskModal({
 
           <div className="mt-4 space-y-3">
             {funds.length === 0 ? (
-              <div className="rounded-[22px] border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+              <div className="rounded-[22px] border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                 Crea un fondo para habilitar su kiosko móvil.
               </div>
             ) : null}
@@ -1628,8 +1628,8 @@ function KioskModal({
                         </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="truncate text-lg font-semibold text-slate-950 dark:text-white">{fund.name}</h4>
-                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${fund.kioskEnabled ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                            <h4 className="truncate text-lg font-medium text-slate-950 dark:text-white">{fund.name}</h4>
+                            <span className={`rounded-full px-3 py-1 text-xs font-medium ${fund.kioskEnabled ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                               {fund.kioskEnabled ? 'Activo' : 'Apagado'}
                             </span>
                           </div>
@@ -1664,14 +1664,14 @@ function KioskModal({
                           <Landmark className="h-4 w-4 text-[#147514]" />
                           Alcance
                         </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{fundUnitLabel} · {fundBusinessLabel}</p>
+                        <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{fundUnitLabel} · {fundBusinessLabel}</p>
                       </div>
                       <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
                         <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
                           <ShieldCheck className="h-4 w-4 text-[#147514]" />
                           Configuración
                         </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{fund.currencyCode} · PIN universal</p>
+                        <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{fund.currencyCode} · PIN universal</p>
                       </div>
                     </div>
 
@@ -1722,7 +1722,7 @@ function KioskModal({
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#147514]"><Link2 className="h-5 w-5" /></span>
-                <div className="min-w-0"><p className="text-sm font-semibold text-slate-950 dark:text-white">{shareFund.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{shareFund.responsibleName} · {shareFund.currencyCode}</p></div>
+                <div className="min-w-0"><p className="text-sm font-medium text-slate-950 dark:text-white">{shareFund.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{shareFund.responsibleName} · {shareFund.currencyCode}</p></div>
               </div>
             </div>
             {getKioskUrl(shareFund) ? (

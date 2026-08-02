@@ -29,7 +29,7 @@ function updateBundleItems(
 
 function SectionHelper({ children }: { children: string }) {
   return (
-    <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 px-4 py-3 text-sm font-semibold leading-6 text-slate-600">
+    <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 px-4 py-3 text-sm font-medium leading-6 text-slate-600">
       {children}
     </div>
   );
@@ -43,7 +43,7 @@ function PresentationExamples({ examples }: { examples: string[] }) {
   return (
     <div className="flex flex-wrap gap-2">
       {examples.map((example) => (
-        <span key={example} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
+        <span key={example} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600">
           {example}
         </span>
       ))}
@@ -64,7 +64,7 @@ function TextField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <label className="text-sm font-medium text-slate-700">{label}</label>
       <Input
         className={productFieldClassName}
         value={value}
@@ -88,7 +88,7 @@ function NotesField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <label className="text-sm font-medium text-slate-700">{label}</label>
       <Textarea
         className={productFieldClassName}
         value={value}
@@ -219,13 +219,13 @@ export function ProductPresentationSection({
       <div className="rounded-lg border border-slate-200 bg-white p-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h4 className="text-sm font-bold text-slate-950">{t.packaging.bundleTitle}</h4>
-            <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{t.packaging.bundleDescription}</p>
+            <h4 className="text-sm font-medium text-slate-950">{t.packaging.bundleTitle}</h4>
+            <p className="mt-1 text-xs font-medium leading-5 text-slate-500">{t.packaging.bundleDescription}</p>
           </div>
           <Button
             type="button"
             variant="outline"
-            className="h-9 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-3 text-sm font-bold text-[#B63B32] hover:bg-[#FF6B5E]/10"
+            className="h-9 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-3 text-sm font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10"
             onClick={addBundleItem}
           >
             <Plus className="h-4 w-4" />
@@ -240,7 +240,7 @@ export function ProductPresentationSection({
         </datalist>
 
         {form.bundleItems.length === 0 ? (
-          <div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm font-semibold text-slate-500">
+          <div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm font-medium text-slate-500">
             {t.packaging.emptyBundle}
           </div>
         ) : (
@@ -266,7 +266,7 @@ export function ProductPresentationSection({
                   value={item.unit}
                   onValueChange={(value) => updateBundleItems(onFormChange, (current) => current.map((currentItem) => (currentItem.id === item.id ? { ...currentItem, unit: value as SalesProductBaseUnit } : currentItem)))}
                 >
-                  <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 shadow-none focus:ring-[#FF6B5E]/20">
+                  <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 shadow-none focus:ring-[#FF6B5E]/20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -300,8 +300,8 @@ export function ProductPresentationSection({
       </div>
 
       <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-3">
-        <p className="text-xs font-semibold text-[#B63B32]">{t.presentation.packageSummary}</p>
-        <p className="mt-1 text-sm font-semibold text-slate-600">
+        <p className="text-xs font-medium text-[#B63B32]">{t.presentation.packageSummary}</p>
+        <p className="mt-1 text-sm font-medium text-slate-600">
           {t.presentation.packageSummaryValue(form.bundleItems.length, estimatedBundlePrice)}
         </p>
       </div>
@@ -392,11 +392,11 @@ export function ProductPresentationSection({
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="flex items-center gap-2 text-base font-bold text-slate-950">
+        <h3 className="flex items-center gap-2 text-base font-medium text-slate-950">
           <Boxes className="h-5 w-5 text-[#B63B32]" />
           {t.packaging.title}
         </h3>
-        <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">{t.packaging.description}</p>
+        <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-500">{t.packaging.description}</p>
       </div>
 
       <SectionHelper>{t.presentation.helpers[form.type]}</SectionHelper>

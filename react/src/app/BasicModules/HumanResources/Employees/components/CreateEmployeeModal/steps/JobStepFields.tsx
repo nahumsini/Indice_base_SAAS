@@ -200,14 +200,14 @@ export function JobStepFields({
             <input type="hidden" name="payrollTreatment" value={activePayrollTreatment.value} />
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   Ruta de pago
                 </p>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   {activePayrollTreatment.label}
                 </p>
               </div>
-              <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300">
+              <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300">
                 Motor de nómina
               </span>
             </div>
@@ -235,8 +235,8 @@ export function JobStepFields({
                       <Icon size={17} strokeWidth={2.4} />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-sm font-black">{label}</span>
-                      <span className="mt-1 block text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+                      <span className="block text-sm font-medium">{label}</span>
+                      <span className="mt-1 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">
                         {description}
                       </span>
                     </span>

@@ -220,8 +220,8 @@ export function RecordsList({
               subtitle={record.recordNumber || copy.list.recordFallback(record.id)}
               badges={(
                 <>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${typeInfo.bgColor} ${typeInfo.color}`}>{typeInfo.icon}{copy.types[record.type]}</span>
-                  {severityInfo ? <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${severityInfo.bgColor} ${severityInfo.color}`}>{copy.severity[record.severity!]}</span> : null}
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${typeInfo.bgColor} ${typeInfo.color}`}>{typeInfo.icon}{copy.types[record.type]}</span>
+                  {severityInfo ? <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${severityInfo.bgColor} ${severityInfo.color}`}>{copy.severity[record.severity!]}</span> : null}
                 </>
               )}
               details={[
@@ -268,7 +268,7 @@ export function RecordsList({
                   <button
                     onClick={() => handleSort(column.id as SortField)}
                     disabled={!sortableColumnIds.has(column.id)}
-                    className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                    className="flex items-center gap-1.5 text-xs font-medium text-slate-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   >
                     {column.label}
                     {sortableColumnIds.has(column.id) ? (
@@ -278,7 +278,7 @@ export function RecordsList({
                 </th>
               ))}
               {showActions ? (
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-gray-400">
+                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-gray-400">
                   {copy.columns.actions}
                 </th>
               ) : null}
@@ -312,14 +312,14 @@ export function RecordsList({
                     </td>
                   ) : null}
                   {visibleColumnSet.has('id') ? (
-                    <td className="whitespace-nowrap px-4 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                    <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-gray-900 dark:text-white">
                       {record.recordNumber || copy.list.recordFallback(record.id)}
                     </td>
                   ) : null}
                   {visibleColumnSet.has('employee') ? (
                     <td className="whitespace-nowrap px-4 py-4">
                       <div className="text-sm">
-                        <div className="font-semibold text-gray-900 dark:text-white">{record.user.name}</div>
+                        <div className="font-medium text-gray-900 dark:text-white">{record.user.name}</div>
                         <div className="text-gray-500 dark:text-gray-400">{record.user.position || copy.list.noPosition}</div>
                       </div>
                     </td>

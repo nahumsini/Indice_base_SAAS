@@ -117,7 +117,7 @@ export function CreateKioskModal({
                 onChange={(value) => onKioskTypeChange(value === 'closed' ? 'business_unit' : 'open_attendance')}
               />
               <div className="mt-4 rounded-md border border-[#59C3A5]/20 bg-[#59C3A5]/8 px-4 py-3 text-sm text-slate-700 dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10 dark:text-slate-200">
-                <p className="font-semibold text-slate-950 dark:text-white">{copy.kiosk.form.attendanceModeHelpTitle}</p>
+                <p className="font-medium text-slate-950 dark:text-white">{copy.kiosk.form.attendanceModeHelpTitle}</p>
                 <p className="mt-1 leading-6">
                   {hasScopedLocations
                     ? copy.kiosk.form.attendanceModeHelpDescription
@@ -133,7 +133,7 @@ export function CreateKioskModal({
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
                       {copy.labels.unit} <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -149,7 +149,7 @@ export function CreateKioskModal({
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
                       {copy.labels.business} <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -168,16 +168,16 @@ export function CreateKioskModal({
 
                 <div className="mt-4 grid gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/60 sm:grid-cols-2">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       {copy.kiosk.form.availableForLabel}
                     </p>
-                    <p className="mt-1 font-semibold text-slate-950 dark:text-white">{selectedScopeLabel}</p>
+                    <p className="mt-1 font-medium text-slate-950 dark:text-white">{selectedScopeLabel}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       {copy.kiosk.form.registrationDiameterLabel}
                     </p>
-                    <p className="mt-1 font-semibold text-slate-950 dark:text-white">{selectedRadiusLabel}</p>
+                    <p className="mt-1 font-medium text-slate-950 dark:text-white">{selectedRadiusLabel}</p>
                   </div>
                 </div>
               </KioskFormSection>
@@ -187,7 +187,7 @@ export function CreateKioskModal({
                 description={copy.kiosk.form.openAttendanceDescription}
               >
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-100">
-                  <p className="font-semibold">{copy.kiosk.form.allEmployeesNoLocationScope}</p>
+                  <p className="font-medium">{copy.kiosk.form.allEmployeesNoLocationScope}</p>
                   <p className="mt-1 leading-6">{copy.kiosk.form.openAttendanceDescription}</p>
                 </div>
               </KioskFormSection>
@@ -198,7 +198,7 @@ export function CreateKioskModal({
               description={copy.kiosk.form.pointInformationDescription}
             >
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
                   {copy.kiosk.form.nameLabel} <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -223,7 +223,7 @@ export function CreateKioskModal({
               </div>
 
               <div className="mt-4">
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
                   {copy.kiosk.form.notesLabel}
                 </label>
                 <textarea
@@ -326,14 +326,14 @@ function AttendanceModeOption({
       <div className="flex items-start gap-3">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
           isSelected
-            ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
+            ? 'bg-[#59C3A5] text-slate-950 dark:bg-[#8FE0CA] dark:text-slate-950'
             : 'bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300'
         }`}
         >
           <Icon className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-start justify-between gap-2 text-sm font-semibold">
+          <span className="flex items-start justify-between gap-2 text-sm font-medium">
             <span>{title}</span>
             <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
               isSelected ? 'border-[#59C3A5] bg-white text-[#59C3A5]' : 'border-slate-300 bg-white text-transparent dark:border-slate-700 dark:bg-slate-950'

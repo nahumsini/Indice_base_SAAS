@@ -120,7 +120,7 @@ function EmployeesTableHeader({
               <button
                 type="button"
                 onClick={() => onSort(column.id as EmployeeColumnId)}
-                className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-slate-500 transition-colors hover:text-[#177d66] dark:text-slate-400"
+                className="flex min-w-0 items-center gap-2 text-left text-sm font-medium text-slate-500 transition-colors hover:text-[#177d66] dark:text-slate-400"
               >
                 <span className="truncate">{column.label}</span>
                 {(() => {
@@ -157,7 +157,7 @@ function EmployeesTableHeader({
           </TableHead>
         ))}
         <TableHead
-          className="group relative px-5 py-5 text-sm font-semibold uppercase text-slate-500 dark:text-slate-400"
+          className="group relative px-5 py-5 text-sm font-medium text-slate-500 dark:text-slate-400"
           style={{ width: getColumnWidth('actions'), minWidth: getColumnWidth('actions') }}
         >
           <div className="flex min-w-0 items-center justify-between gap-3 pr-2">

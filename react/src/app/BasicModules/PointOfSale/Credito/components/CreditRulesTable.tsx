@@ -95,7 +95,7 @@ export function CreditRulesTable({
           <thead className="bg-gray-50 dark:bg-gray-900/40">
             <tr>
               {['Politica', 'Cliente / grupo', 'Linea', 'Plazo', 'Mora', 'Control', 'Preview', 'Riesgo', 'Estado', ''].map((header) => (
-                <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{header}</th>
+                <th key={header} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{header}</th>
               ))}
             </tr>
           </thead>
@@ -103,15 +103,15 @@ export function CreditRulesTable({
             {rowsPagination.paginatedRows.map(({ rule, customer, evaluation }) => (
               <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                 <td className="px-4 py-3">
-                  <p className="font-bold text-gray-950 dark:text-white">{rule.name}</p>
+                  <p className="font-medium text-gray-950 dark:text-white">{rule.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{rule.id}</p>
                 </td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                  <p className="font-semibold">{customer?.name ?? getRuleSubject(rule, customerById)}</p>
+                  <p className="font-medium">{customer?.name ?? getRuleSubject(rule, customerById)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{customer?.customerType === 'business' ? 'Empresa' : customer ? 'Persona' : 'Regla por grupo'}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <p className="font-bold text-gray-950 dark:text-white">{formatCurrency(rule.creditLimit, rule.currency)}</p>
+                  <p className="font-medium text-gray-950 dark:text-white">{formatCurrency(rule.creditLimit, rule.currency)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(evaluation.availableCredit, rule.currency)} disponible</p>
                 </td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
@@ -134,7 +134,7 @@ export function CreditRulesTable({
                 <td className="px-4 py-3"><Badge className={statusClasses[rule.status]}>{statusLabels[rule.status]}</Badge></td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => onToggleStatus(rule)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                    <button onClick={() => onToggleStatus(rule)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
                       {rule.status === 'active' ? 'Pausar' : 'Activar'}
                     </button>
                     <button onClick={() => onEdit(rule)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
@@ -148,7 +148,7 @@ export function CreditRulesTable({
         </table>
         {rows.length === 0 && (
           <div className="p-8 text-center">
-            <p className="font-semibold text-gray-700 dark:text-gray-200">Sin politicas con esos filtros</p>
+            <p className="font-medium text-gray-700 dark:text-gray-200">Sin politicas con esos filtros</p>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Ajusta filtros o crea una politica de credito.</p>
           </div>
         )}
@@ -159,5 +159,5 @@ export function CreditRulesTable({
 }
 
 function Badge({ className, children }: { className: string; children: ReactNode }) {
-  return <span className={`rounded-md px-2 py-1 text-xs font-bold ${className}`}>{children}</span>;
+  return <span className={`rounded-md px-2 py-1 text-xs font-medium ${className}`}>{children}</span>;
 }

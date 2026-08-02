@@ -749,7 +749,7 @@ export default function Profile() {
 
         <div className="bg-white dark:bg-gray-800 mb-4 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
           <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {profileCopy.sections.identityTitle}
             </h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -769,7 +769,7 @@ export default function Profile() {
                   className="h-16 w-16 rounded-full border-2 border-blue-200 object-cover shadow-md dark:border-blue-700/50"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-sky-500 text-xl font-semibold text-white shadow-md">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-sky-500 text-xl font-medium text-white shadow-md">
                   {initials}
                 </div>
               )}
@@ -860,7 +860,7 @@ export default function Profile() {
 
         <div className="bg-white dark:bg-gray-800 mb-4 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
           <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {profileCopy.sections.contactTitle}
             </h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -883,7 +883,7 @@ export default function Profile() {
               <button
                 type="button"
                 onClick={handleAddPhoneNumber}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-700/40 dark:text-blue-200 dark:hover:bg-blue-900/20"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-700/40 dark:text-blue-200 dark:hover:bg-blue-900/20"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {phoneCopy.add}
@@ -893,14 +893,14 @@ export default function Profile() {
             {formValues.phoneNumbers.map((phone, index) => (
                 <div key={phone.key} className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                       {index === 0 ? phoneCopy.primary : `${t.panelInicial.profile.fields.phone} ${index + 1}`}
                     </span>
                     {formValues.phoneNumbers.length > 1 ? (
                       <button
                         type="button"
                         onClick={() => handleRemovePhoneNumber(phone.key)}
-                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/20"
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/20"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         {phoneCopy.remove}
@@ -939,7 +939,7 @@ export default function Profile() {
 
         <div className="bg-white dark:bg-gray-800 mb-4 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
           <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {profileCopy.sections.securityTitle}
             </h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -989,7 +989,7 @@ export default function Profile() {
                 }`}>
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
                         1
                       </span>
                       <div>
@@ -1046,7 +1046,7 @@ export default function Profile() {
                 }`}>
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
                         2
                       </span>
                       <div>
@@ -1112,7 +1112,7 @@ export default function Profile() {
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
           <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {profileCopy.sections.preferencesTitle}
             </h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">

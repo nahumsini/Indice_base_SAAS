@@ -2426,8 +2426,8 @@ const translations: Translations = {
           inactive: 'Inactivos',
         },
         roles: {
-          superAdmin: 'Super Admin',
-          admin: 'Admin',
+          superAdmin: 'Superadministrador',
+          admin: 'Administrador',
           user: 'Usuario',
         },
         status: {
@@ -2439,7 +2439,7 @@ const translations: Translations = {
           name: 'Nombre',
           email: 'Email',
           role: 'Rol',
-          status: 'Estatus',
+          status: 'Estado',
           modules: 'Módulos',
           actions: 'Acciones',
         },
@@ -3397,8 +3397,8 @@ const translations: Translations = {
           inactive: 'Inactivos',
         },
         roles: {
-          superAdmin: 'Super Admin',
-          admin: 'Admin',
+          superAdmin: 'Superadministrador',
+          admin: 'Administrador',
           user: 'Usuario',
         },
         status: {
@@ -3410,7 +3410,7 @@ const translations: Translations = {
           name: 'Nombre',
           email: 'Email',
           role: 'Rol',
-          status: 'Estatus',
+          status: 'Estado',
           modules: 'Módulos',
           actions: 'Acciones',
         },

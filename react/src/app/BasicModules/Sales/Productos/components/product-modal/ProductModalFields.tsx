@@ -22,9 +22,9 @@ export function ProductFormSelect({
 }) {
   return (
     <div className={cn('space-y-2', className)}>
-      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <label className="text-sm font-medium text-slate-700">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white px-4 text-base font-semibold text-slate-950 shadow-none focus:ring-[#FF6B5E]/20">
+        <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white px-4 text-base font-medium text-slate-950 shadow-none focus:ring-[#FF6B5E]/20">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

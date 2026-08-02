@@ -32,11 +32,11 @@ export function AnnouncementFilters({
 }: AnnouncementFiltersProps) {
   return (
     <div className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="text-base font-semibold text-slate-900 dark:text-white">{copy.title}</h3>
+      <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.title}</h3>
 
       <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <label>
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.searchLabel}
           </span>
           <div className="relative">
@@ -87,7 +87,7 @@ function FilterSelect({
 }) {
   return (
     <label>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
         {label}
       </span>
       <select

@@ -9,17 +9,15 @@ public final class ConfigCenterUserMutationGuard {
 
     private static final Set<String> PROTECTED_ROLES = Set.of("root", "superadmin");
     private static final Set<String> ADMIN_ASSIGNABLE_ROLES = Set.of("admin", "user");
-    private static final Set<String> USER_SELF_SERVICE_TAB_PERMISSIONS = Set.of(
+    private static final Set<String> USER_SELF_SERVICE_SCOPES = Set.of(
         "config_center.profile",
         "config_center.personal-performance",
-        "human_resources.announcements",
-        "human_resources.assets",
         "human_resources.attendance",
         "human_resources.control",
+        "human_resources.announcements",
+        "human_resources.assets",
         "human_resources.permissions"
     );
-    private static final String USER_SELF_SERVICE_ERROR =
-        "User role can only receive personal HR permissions. Choose Admin for unit management access.";
 
     public void validateInvite(ActorAccess actor, String targetRole, Map<String, Object> payload, List<String> moduleSlugs,
         List<String> tabPermissionKeys, AccessScope scope, boolean hasTabPermissionPayload) {
@@ -46,25 +44,33 @@ public final class ConfigCenterUserMutationGuard {
     }
 
     private void ensureRoleTabPermissionCompatibility(String targetRole, List<String> tabPermissionKeys) {
-        if (!"user".equals(normalizeRole(targetRole))) {
+        if (isProtected(targetRole)) {
             return;
         }
         for (var permissionKey : tabPermissionKeys == null ? List.<String>of() : tabPermissionKeys) {
-            if (!USER_SELF_SERVICE_TAB_PERMISSIONS.contains(permissionKey)) {
-                throw new IllegalArgumentException(USER_SELF_SERVICE_ERROR);
+            if (ConfigCenterTabPermissionCatalog.isProtectedScope(permissionKey)) {
+                throw new IllegalArgumentException("Protected tab permissions can only be assigned to Super Admin.");
+            }
+            if ("user".equals(normalizeRole(targetRole)) && isAdministrativeSelfServiceModule(permissionKey)
+                && !USER_SELF_SERVICE_SCOPES.contains(permissionKey)) {
+                throw new IllegalArgumentException(
+                    "User role cannot receive administrative Panel Inicial or HR permissions. Choose Admin for management access."
+                );
             }
         }
+    }
+
+    private boolean isAdministrativeSelfServiceModule(String permissionKey) {
+        return permissionKey != null
+            && (permissionKey.startsWith("config_center.") || permissionKey.startsWith("human_resources."));
     }
 
     private void ensureAccessPayload(Map<String, Object> payload, List<String> moduleSlugs, boolean hasTabPermissionPayload) {
         if (text(payload, "role").isBlank()) {
             throw new IllegalArgumentException("Role is required.");
         }
-        if (!hasLong(payload, "unit_id", "unitId")) {
-            throw new IllegalArgumentException("Business unit is required.");
-        }
-        if (!hasLong(payload, "business_id", "businessId")) {
-            throw new IllegalArgumentException("Business is required.");
+        if (!hasAnyKey(payload, "unit_id", "unitId") || !hasAnyKey(payload, "business_id", "businessId")) {
+            throw new IllegalArgumentException("Organizational scope is required.");
         }
         if (!payload.containsKey("module_slugs") || moduleSlugs == null || moduleSlugs.isEmpty()) {
             throw new IllegalArgumentException("At least one module permission is required.");
@@ -125,13 +131,9 @@ public final class ConfigCenterUserMutationGuard {
             || payload.containsKey("businessId");
     }
 
-    private boolean hasLong(Map<String, Object> payload, String... keys) {
+    private boolean hasAnyKey(Map<String, Object> payload, String... keys) {
         for (var key : keys) {
-            var value = payload.get(key);
-            if (value instanceof Number) {
-                return true;
-            }
-            if (value instanceof String text && !text.isBlank()) {
+            if (payload.containsKey(key)) {
                 return true;
             }
         }

@@ -132,10 +132,10 @@ export function EmployeeCalendarPanel({
             <span aria-hidden="true">‹</span>
           </Button>
           <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
               {copy.labels.attendanceCalendar}
             </p>
-            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{calendarMonthLabel}</p>
+            <p className="mt-1 text-xl font-medium text-gray-900 dark:text-white">{calendarMonthLabel}</p>
           </div>
           <Button
             variant="outline"
@@ -196,7 +196,7 @@ export function EmployeeCalendarPanel({
                   <MousePointer2 className="h-4 w-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                  <p className="text-sm font-medium text-slate-950 dark:text-white">
                     {copy.labels.bulkCalendarTitle}
                   </p>
                   <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -208,13 +208,13 @@ export function EmployeeCalendarPanel({
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto_auto_auto] sm:items-end">
-              <label className="flex flex-col gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+              <label className="flex flex-col gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">
                 <span>{copy.labels.bulkCalendarStatusLabel}</span>
                 <select
                   value={bulkActions.bulkCalendarStatus}
                   disabled={bulkActions.isUpdatingCalendarDay}
                   onChange={(event) => bulkActions.onBulkStatusChange(event.target.value as AttendanceCorrectionStatus | '')}
-                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
                   <option value="on_time">{copy.labels.markAsAttendance}</option>
                   <option value="absence">{copy.labels.markAsAbsent}</option>
@@ -227,7 +227,7 @@ export function EmployeeCalendarPanel({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-10 rounded-lg border-white/60 bg-white/80 text-xs font-semibold text-slate-700 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="h-10 rounded-lg border-white/60 bg-white/80 text-xs font-medium text-slate-700 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 disabled={bulkActions.isUpdatingCalendarDay || bulkActions.selectedCount === 0}
                 onClick={bulkActions.onClearSelection}
               >
@@ -237,7 +237,7 @@ export function EmployeeCalendarPanel({
               <Button
                 type="button"
                 size="sm"
-                className="h-10 rounded-lg bg-[#59C3A5] text-xs font-semibold text-white hover:bg-[#3AAE90]"
+                className="h-10 rounded-lg bg-[#59C3A5] text-xs font-medium text-slate-950 hover:bg-[#3AAE90]"
                 disabled={bulkActions.isUpdatingCalendarDay || bulkActions.selectedCount === 0}
                 onClick={bulkActions.onBulkApply}
               >
@@ -248,7 +248,7 @@ export function EmployeeCalendarPanel({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-10 rounded-lg text-xs font-semibold text-slate-600 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-900"
+                className="h-10 rounded-lg text-xs font-medium text-slate-600 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-900"
                 disabled={bulkActions.isUpdatingCalendarDay}
                 onClick={bulkActions.onExitSelectionMode}
               >
@@ -261,7 +261,7 @@ export function EmployeeCalendarPanel({
 
       <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
         {weekdayLabels.map((label) => (
-          <div key={label} className="px-0.5 text-center text-[10px] font-medium uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400 sm:px-2 sm:text-xs sm:tracking-[0.12em]">
+          <div key={label} className="px-0.5 text-center text-[10px] font-medium text-gray-500 dark:text-gray-400 sm:px-2 sm:text-xs">
             {label}
           </div>
         ))}

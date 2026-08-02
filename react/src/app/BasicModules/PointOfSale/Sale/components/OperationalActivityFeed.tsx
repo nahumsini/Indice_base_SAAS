@@ -73,10 +73,10 @@ export function OperationalActivityFeed({ activities }: { activities: Operationa
     <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Bitacora operativa</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Bitacora operativa</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">Eventos que explican la caja</p>
         </div>
-        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
           Controlada
         </span>
       </div>
@@ -99,19 +99,19 @@ export function OperationalActivityFeed({ activities }: { activities: Operationa
                 <div className="min-w-0 flex-1 rounded-lg border border-gray-100 bg-gray-50/70 p-3 dark:border-gray-700 dark:bg-gray-900/30">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{activity.title}</p>
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{activity.title}</p>
                       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{activity.description}</p>
                     </div>
 
                     {activity.badge && (
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${toneClasses[activity.tone]}`}>
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${toneClasses[activity.tone]}`}>
                         {activity.badge}
                       </span>
                     )}
                   </div>
 
                   <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                       {getInitials(activity.actor)}
                     </span>
                     <span>{activity.actor}</span>

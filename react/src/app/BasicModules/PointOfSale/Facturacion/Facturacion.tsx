@@ -126,7 +126,7 @@ export default function Facturacion() {
             <Kpi icon={FileText} label="Impuesto" value={formatCurrency(kpis.tax)} tone="green" />
             <Kpi icon={AlertTriangle} label="Pendientes" value={String(kpis.pending)} tone={kpis.pending > 0 ? 'orange' : 'green'} />
           </div>
-          <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-semibold text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
+          <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-medium text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
             {kpis.pending > 0
               ? `${kpis.pending} tickets necesitan cliente fiscal antes de emitir factura.`
               : 'Los tickets filtrados tienen informacion suficiente para preparar facturacion.'}
@@ -135,13 +135,13 @@ export default function Facturacion() {
       ) : null}
 
       {notice && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
           {notice}
         </div>
       )}
 
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-gray-800">
-        <h3 className="text-base font-bold text-slate-800 dark:text-white">Filtros</h3>
+        <h3 className="text-base font-medium text-slate-800 dark:text-white">Filtros</h3>
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_repeat(2,minmax(180px,1fr))]">
           <label className="relative min-w-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -149,14 +149,14 @@ export default function Facturacion() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar ticket, cliente, metodo o divisa"
-              className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
             />
           </label>
           <Select value={period} onChange={(value) => setPeriod(value as PeriodFilter)} options={periodLabels} />
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as FiscalStatusFilter)}
-            className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+            className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
           >
             <option value="all">Todos los estados</option>
             {Object.entries(fiscalStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -170,7 +170,7 @@ export default function Facturacion() {
             <thead className="bg-slate-50 dark:bg-gray-900/40">
               <tr>
                 {['Ticket', 'Cliente', 'Fecha', 'Metodo', 'Subtotal', 'Impuesto', 'Total', 'Estado fiscal', 'Acciones'].map((header) => (
-                  <th key={header} className={`px-5 py-5 text-sm font-semibold text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>{header}</th>
+                  <th key={header} className={`px-5 py-5 text-sm font-medium text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>{header}</th>
                 ))}
               </tr>
             </thead>
@@ -179,15 +179,15 @@ export default function Facturacion() {
                 const fiscalStatus = getFiscalStatus(sale);
                 return (
                   <tr key={sale.id} className="transition hover:bg-slate-50/80 dark:hover:bg-gray-700/40">
-                    <td className="px-5 py-4 font-bold text-slate-950 dark:text-white">{sale.saleDocumentReference ?? sale.saleNumber}</td>
-                    <td className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-200">{sale.customerName}</td>
+                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{sale.saleDocumentReference ?? sale.saleNumber}</td>
+                    <td className="px-5 py-4 font-medium text-slate-700 dark:text-slate-200">{sale.customerName}</td>
                     <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatDate(sale.saleDate)}</td>
                     <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{sale.paymentMethod}</td>
                     <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(sale.subtotal)}</td>
                     <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(sale.taxTotal)}</td>
-                    <td className="px-5 py-4 font-semibold text-slate-950 dark:text-white">{formatCurrency(sale.totalAmount)}</td>
+                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{formatCurrency(sale.totalAmount)}</td>
                     <td className="px-5 py-4">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${fiscalStatusClasses[fiscalStatus]}`}>
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${fiscalStatusClasses[fiscalStatus]}`}>
                         {fiscalStatusLabels[fiscalStatus]}
                       </span>
                     </td>
@@ -218,7 +218,7 @@ export default function Facturacion() {
           </table>
           {filteredSales.length === 0 && (
             <div className="p-8 text-center">
-              <p className="font-semibold text-slate-700 dark:text-slate-200">Sin tickets POS con esos filtros</p>
+              <p className="font-medium text-slate-700 dark:text-slate-200">Sin tickets POS con esos filtros</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Registra ventas o cambia el periodo.</p>
             </div>
           )}
@@ -246,7 +246,7 @@ function Kpi({ icon: Icon, label, value, tone = 'gray' }: {
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-gray-800">
       <div className="flex items-center gap-3">
         <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${tones[tone]}`}><Icon className="h-5 w-5" /></span>
-        <div><p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{label}</p><p className="text-lg font-bold text-slate-950 dark:text-white">{value}</p></div>
+        <div><p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p><p className="text-lg font-medium text-slate-950 dark:text-white">{value}</p></div>
       </div>
     </div>
   );
@@ -263,7 +263,7 @@ function Select({ value, onChange, options }: {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
+        className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-gray-900 dark:text-white"
       >
         {Object.entries(options).map(([optionValue, label]) => <option key={optionValue} value={optionValue}>{label}</option>)}
       </select>

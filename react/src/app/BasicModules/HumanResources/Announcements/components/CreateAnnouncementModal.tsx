@@ -219,7 +219,7 @@ export function CreateAnnouncementModal({
           <div className="space-y-5">
             <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.basicInformation.title}</h3>
+                <h3 className="text-base font-medium text-gray-900 dark:text-white">{copy.basicInformation.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {copy.basicInformation.helper}
                 </p>
@@ -346,7 +346,7 @@ export function CreateAnnouncementModal({
 
             <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.message.title}</h3>
+                <h3 className="text-base font-medium text-gray-900 dark:text-white">{copy.message.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {copy.message.helper}
                 </p>
@@ -365,7 +365,7 @@ export function CreateAnnouncementModal({
 
             <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
               <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">{copy.publishing.title}</h3>
+                <h3 className="text-base font-medium text-gray-900 dark:text-white">{copy.publishing.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {copy.publishing.helper}
                 </p>
@@ -443,7 +443,7 @@ function AudienceOptionSection({
 }) {
   return (
     <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-      <h3 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h3>
+      <h3 className="text-base font-medium text-gray-900 dark:text-white">{title}</h3>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
       <div className="mt-4">{children}</div>
     </section>
@@ -516,7 +516,7 @@ function RadioCard({
           className="mt-1 h-4 w-4 border-gray-300 text-[#59C3A5] focus:ring-[#59C3A5]"
         />
         <div>
-          <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
           <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{description}</p>
         </div>
       </div>

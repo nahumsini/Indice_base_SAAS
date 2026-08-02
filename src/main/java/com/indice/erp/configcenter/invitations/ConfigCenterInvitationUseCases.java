@@ -3,6 +3,7 @@ package com.indice.erp.configcenter.invitations;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessUseCases;
+import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessAudit.Snapshot;
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessScope;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -20,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAccessUseCases {
 
-    private static final Set<String> MODULES_WITH_TABS = Set.of("config_center", "human_resources");
+    private static final Set<String> MODULES_WITH_TABS = ConfigCenterTabPermissionCatalog.moduleSlugsWithTabs();
 
     protected ConfigCenterInvitationUseCases(
         JdbcTemplate jdbcTemplate,
@@ -77,7 +78,7 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var role = normalizeRole(value(payload, "role"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
         var membership = resolveInvitationMembership(companyId, payload);
-        ensureModuleSlugsExist(moduleSlugs);
+        moduleAccessRegistry.ensureAssignableToCompany(companyId, moduleSlugs);
         var shouldPersistTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
         var tabPermissionKeys = shouldPersistTabPermissions
             ? tabPermissionAccess.normalizeTabPermissionKeys(payload)
@@ -163,6 +164,7 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
             throw new IllegalArgumentException("This invitation has expired.");
         }
         ensureInvitationHasRequiredAccess(invitation);
+        moduleAccessRegistry.ensureAssignableToCompany(invitation.companyId(), invitation.moduleSlugs());
 
         var password = value(payload, "password", "new_password");
         var confirmPassword = value(payload, "confirm_password", "confirm_new_password", "password_confirmation");

@@ -659,17 +659,17 @@ export default function Records() {
           {selectedRecords.length > 0 ? (
             <div className="flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/30 bg-[#EAF8F4] px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-[#59C3A5]/25 dark:bg-[#10231F]">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#1F8A70] shadow-sm dark:bg-white/10 dark:text-[#9BE4D0]">
+                <span className="inline-flex rounded-full bg-white px-3 py-1 text-sm font-medium text-[#1F8A70] shadow-sm dark:bg-white/10 dark:text-[#9BE4D0]">
                   {copy.bulk.selected(selectedRecords.length)}
                 </span>
-                <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.bulk.actions}</span>
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{copy.bulk.actions}</span>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleBulkDownload}
-                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-[#1F8A70] shadow-sm hover:bg-white/90"
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-medium text-[#1F8A70] shadow-sm hover:bg-white/90"
                 >
                   <Download className="h-4 w-4" />
                   {copy.bulk.downloadPdf}
@@ -680,7 +680,7 @@ export default function Records() {
                   onClick={() => {
                     void handleBulkStatusUpdate('reviewed');
                   }}
-                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-[#1F8A70] shadow-sm hover:bg-white/90"
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-medium text-[#1F8A70] shadow-sm hover:bg-white/90"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {copy.bulk.markReviewed}
@@ -691,7 +691,7 @@ export default function Records() {
                   onClick={() => {
                     void handleBulkStatusUpdate('resolved');
                   }}
-                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-[#1F8A70] shadow-sm hover:bg-white/90"
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-medium text-[#1F8A70] shadow-sm hover:bg-white/90"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {copy.bulk.markResolved}
@@ -700,7 +700,7 @@ export default function Records() {
                   type="button"
                   variant="outline"
                   onClick={() => setIsBulkDeleteConfirmOpen(true)}
-                  className="h-10 rounded-xl border-red-100 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 hover:text-red-700"
+                  className="h-10 rounded-xl border-red-100 bg-white px-4 text-sm font-medium text-red-600 shadow-sm hover:bg-red-50 hover:text-red-700"
                 >
                   <Trash2 className="h-4 w-4" />
                   {copy.bulk.delete}
@@ -709,7 +709,7 @@ export default function Records() {
                   type="button"
                   variant="outline"
                   onClick={clearSelection}
-                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm hover:bg-white/90"
+                  className="h-10 rounded-xl border-white bg-white px-4 text-sm font-medium text-slate-600 shadow-sm hover:bg-white/90"
                 >
                   <X className="h-4 w-4" />
                   {copy.bulk.clear}

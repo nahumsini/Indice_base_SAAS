@@ -54,14 +54,14 @@ export function AgendaKanbanView({
       <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.kanban.title}</h3>
+            <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.kanban.title}</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {copy.kanban.visibleTasks(sortedTaskCount)}
             </p>
           </div>
           <Badge
             variant="outline"
-            className="w-fit rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-semibold text-[#9A6B05]"
+            className="w-fit rounded-full border-[#F4C84A]/30 bg-[#F4C84A]/10 px-3 py-1 font-medium text-[#9A6B05]"
           >
             {copy.kanban.filteredBadge}
           </Badge>
@@ -106,7 +106,7 @@ export function AgendaKanbanView({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className={cn('h-2.5 w-2.5 rounded-full', column.dotClassName)} />
-                        <h4 className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                        <h4 className="truncate text-sm font-medium text-slate-900 dark:text-white">
                           {column.label}
                         </h4>
                       </div>
@@ -114,7 +114,7 @@ export function AgendaKanbanView({
                         {column.description}
                       </p>
                     </div>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
                       {columnTasks.length}
                     </span>
                   </div>
@@ -146,14 +146,14 @@ export function AgendaKanbanView({
                           <div className="flex items-start justify-between gap-3">
                             <Badge
                               variant="outline"
-                              className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+                              className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
                             >
                               {task.folio}
                             </Badge>
                             <Badge
                               variant="outline"
                               className={cn(
-                                'rounded-full px-2.5 py-1 text-xs font-semibold',
+                                'rounded-full px-2.5 py-1 text-xs font-medium',
                                 displayStatusClasses[displayStatus],
                               )}
                             >
@@ -161,7 +161,7 @@ export function AgendaKanbanView({
                             </Badge>
                           </div>
 
-                          <h4 className="mt-3 line-clamp-2 text-sm font-bold leading-5 text-slate-900 dark:text-white">
+                          <h4 className="mt-3 line-clamp-2 text-sm font-medium leading-5 text-slate-900 dark:text-white">
                             {task.title}
                           </h4>
                           <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -170,18 +170,18 @@ export function AgendaKanbanView({
 
                           <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
                             <p className="truncate">
-                              {copy.kanban.responsible}: <span className="font-semibold">{task.assignedName ?? copy.common.unassigned}</span>
+                              {copy.kanban.responsible}: <span className="font-medium">{task.assignedName ?? copy.common.unassigned}</span>
                             </p>
-                            <p className={cn('truncate', displayStatus === 'overdue' && 'font-semibold text-rose-600 dark:text-rose-300')}>
+                            <p className={cn('truncate', displayStatus === 'overdue' && 'font-medium text-rose-600 dark:text-rose-300')}>
                               {copy.kanban.due}: {task.dueDate ? formatDate(task.dueDate) : copy.common.noDate}
                             </p>
                             <p className="truncate">
-                              {copy.kanban.priority}: <span className="font-semibold">{copy.priorities[task.priority]}</span>
+                              {copy.kanban.priority}: <span className="font-medium">{copy.priorities[task.priority]}</span>
                             </p>
                           </div>
 
                           <div className="mt-3">
-                            <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
                               <span>{copy.kanban.progress}</span>
                               <span>{clampPercent(task.completionPercent)}%</span>
                             </div>
@@ -196,13 +196,13 @@ export function AgendaKanbanView({
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             <Badge
                               variant="outline"
-                              className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+                              className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
                             >
                               {task.attachments} {copy.columns.attachments.label.toLowerCase()}
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+                              className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
                             >
                               {formatWeightingScore(task.weighting, copy.table.noWeighting)}
                             </Badge>

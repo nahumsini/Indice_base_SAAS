@@ -210,9 +210,9 @@ export function CreditSaleModal({
               }))}
             />
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-sm font-black text-slate-950 dark:text-white">{selectedSale.customerName}</p>
-              <p className="mt-1 text-sm font-semibold text-slate-500">{selectedSale.unit} - {selectedSale.business}</p>
-              <p className={cn('mt-3 text-2xl font-black', financeTextClass)}>
+              <p className="text-sm font-medium text-slate-950 dark:text-white">{selectedSale.customerName}</p>
+              <p className="mt-1 text-sm font-medium text-slate-500">{selectedSale.unit} - {selectedSale.business}</p>
+              <p className={cn('mt-3 text-2xl font-medium', financeTextClass)}>
                 {formatMoney(selectedSale.amount, selectedSale.currency)}
               </p>
             </div>
@@ -229,18 +229,18 @@ export function CreditSaleModal({
                     }))}
                   />
                 ) : (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                     {copy.modals.creditSale.noActiveCreditCustomers}
                   </div>
                 )}
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {copy.modals.creditSale.creditCustomerHelp}
                 </p>
               </div>
             ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditSale.financedAmount}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditSale.financedAmount}</span>
                 <Input
                   type="number"
                   min="0"
@@ -250,7 +250,7 @@ export function CreditSaleModal({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditSale.firstDueDate}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditSale.firstDueDate}</span>
                 <Input
                   type="date"
                   value={firstDueDate}
@@ -259,7 +259,7 @@ export function CreditSaleModal({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditSale.months}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditSale.months}</span>
                 <Input
                   type="number"
                   min="1"
@@ -269,7 +269,7 @@ export function CreditSaleModal({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.creditSale.annualInterest}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.creditSale.annualInterest}</span>
                 <Input
                   type="number"
                   min="0"
@@ -281,7 +281,7 @@ export function CreditSaleModal({
             </div>
             <div
               className={cn(
-                'rounded-2xl border p-4 text-sm font-semibold',
+                'rounded-2xl border p-4 text-sm font-medium',
                 !selectedPolicy || overLimit
                   ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
                   : financeSoftSurfaceClass,
@@ -295,7 +295,7 @@ export function CreditSaleModal({
             </div>
           </div>
           <div className="space-y-3">
-            <h3 className="text-lg font-black text-slate-950 dark:text-white">{copy.modals.creditSale.simulations}</h3>
+            <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.modals.creditSale.simulations}</h3>
             {simulations.map((simulation) => {
               const selected = selectedSimulationId === simulation.id;
 
@@ -314,19 +314,19 @@ export function CreditSaleModal({
                   <div>
                     <div className="flex items-center gap-2">
                       {selected ? <Check className={cn('h-4 w-4', financeTextClass)} /> : null}
-                      <p className="font-black text-slate-950 dark:text-white">{simulation.name}</p>
+                      <p className="font-medium text-slate-950 dark:text-white">{simulation.name}</p>
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                    <p className="mt-1 text-sm font-medium text-slate-500">
                       {simulation.termMonths} {copy.modals.creditSale.months.toLowerCase()} - {formatPercent(simulation.annualInterestRate)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-500">{copy.modals.creditSale.monthlyPayment}</p>
-                    <p className="mt-1 font-black text-slate-950 dark:text-white">{formatMoney(simulation.monthlyPayment, selectedSale.currency)}</p>
+                    <p className="text-xs font-medium text-slate-500">{copy.modals.creditSale.monthlyPayment}</p>
+                    <p className="mt-1 font-medium text-slate-950 dark:text-white">{formatMoney(simulation.monthlyPayment, selectedSale.currency)}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-500">{copy.modals.creditSale.totalInterest}</p>
-                    <p className={cn('mt-1 font-black', financeTextClass)}>{formatMoney(simulation.totalInterest, selectedSale.currency)}</p>
+                    <p className="text-xs font-medium text-slate-500">{copy.modals.creditSale.totalInterest}</p>
+                    <p className={cn('mt-1 font-medium', financeTextClass)}>{formatMoney(simulation.totalInterest, selectedSale.currency)}</p>
                   </div>
                 </button>
               );
@@ -335,7 +335,7 @@ export function CreditSaleModal({
           </div>
         </div>
       ) : (
-        <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+        <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900">
           {copy.modals.creditSale.noSales}
         </p>
       )}

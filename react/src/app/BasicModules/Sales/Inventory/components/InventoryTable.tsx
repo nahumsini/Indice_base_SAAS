@@ -65,7 +65,7 @@ function InventoryThumbnail({ item }: { item: InventoryStockItem }) {
 function BooleanBadge({ value, t }: { value?: boolean; t: InventoryTranslations }) {
   return (
     <Badge className={cn(
-      'rounded-full border px-2 py-1 text-xs font-bold',
+      'rounded-full border px-2 py-1 text-xs font-medium',
       value
         ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200'
         : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300',
@@ -84,8 +84,8 @@ function LocationCell({ item, t }: { item: InventoryStockItem; t: InventoryTrans
 
   return (
     <div>
-      <p className="font-black text-slate-950 dark:text-white">{item.locationName}</p>
-      <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-300">{breadcrumb}</p>
+      <p className="font-medium text-slate-950 dark:text-white">{item.locationName}</p>
+      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">{breadcrumb}</p>
       {item.locationType ? (
         <Badge className="mt-2 rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB5AD]">
           {t.locationTypes[item.locationType]}
@@ -130,7 +130,7 @@ export function InventoryTable({
       <div className="border-b border-slate-100 p-5 dark:border-slate-700">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-[#FF6B5E]" />
-          <h3 className="text-xl font-black text-slate-950 dark:text-white">{t.table.title}</h3>
+          <h3 className="text-xl font-medium text-slate-950 dark:text-white">{t.table.title}</h3>
         </div>
         <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{t.table.description}</p>
       </div>
@@ -143,7 +143,7 @@ export function InventoryTable({
                 <TableHead
                   key={column}
                   className={cn(
-                    'px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300',
+                    'px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300',
                     column === 'item' && 'w-[360px]',
                     column === 'actions' && 'w-[190px]',
                   )}
@@ -156,7 +156,7 @@ export function InventoryTable({
           <TableBody>
             {items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={visibleColumns.length} className="px-5 py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-300">
+                <TableCell colSpan={visibleColumns.length} className="px-5 py-12 text-center text-sm font-medium text-slate-500 dark:text-slate-300">
                   {t.table.empty}
                 </TableCell>
               </TableRow>
@@ -167,10 +167,10 @@ export function InventoryTable({
                     <div className="flex min-w-0 items-start gap-3">
                       <InventoryThumbnail item={item} />
                       <div className="min-w-0">
-                        <p className="truncate font-black text-slate-950 dark:text-white">{item.name}</p>
+                        <p className="truncate font-medium text-slate-950 dark:text-white">{item.name}</p>
                         <p className="mt-1 line-clamp-2 max-w-[280px] text-sm leading-5 text-slate-500 dark:text-slate-300">{item.description}</p>
                         {item.isPackage ? (
-                          <p className="mt-2 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-2 py-1 text-xs font-semibold text-[#9a6b05] dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#F8D86A]">
+                          <p className="mt-2 rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-2 py-1 text-xs font-medium text-[#9a6b05] dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#F8D86A]">
                             {t.table.packageWarning}
                           </p>
                         ) : null}
@@ -178,25 +178,25 @@ export function InventoryTable({
                     </div>
                   </TableCell>
                 ) : null}
-                {isVisible('sku') ? <TableCell className="truncate px-5 py-5 font-semibold text-slate-700 dark:text-slate-300">{item.sku ?? t.common.notAvailable}</TableCell> : null}
-                {isVisible('category') ? <TableCell className="truncate px-5 py-5 font-semibold text-slate-700 dark:text-slate-300">{item.category ?? t.common.notAvailable}</TableCell> : null}
+                {isVisible('sku') ? <TableCell className="truncate px-5 py-5 font-medium text-slate-700 dark:text-slate-300">{item.sku ?? t.common.notAvailable}</TableCell> : null}
+                {isVisible('category') ? <TableCell className="truncate px-5 py-5 font-medium text-slate-700 dark:text-slate-300">{item.category ?? t.common.notAvailable}</TableCell> : null}
                 {isVisible('location') ? <TableCell className="px-5 py-5"><LocationCell item={item} t={t} /></TableCell> : null}
-                {isVisible('availableStock') ? <TableCell className="px-5 py-5 font-black text-slate-950 dark:text-white">{formatInventoryNumber(item.availableStock)}</TableCell> : null}
-                {isVisible('reservedStock') ? <TableCell className="px-5 py-5 font-semibold text-slate-600 dark:text-slate-300">{formatInventoryNumber(item.reservedStock)}</TableCell> : null}
-                {isVisible('minimumStock') ? <TableCell className="px-5 py-5 font-semibold text-slate-600 dark:text-slate-300">{formatInventoryNumber(item.minimumStock)}</TableCell> : null}
+                {isVisible('availableStock') ? <TableCell className="px-5 py-5 font-medium text-slate-950 dark:text-white">{formatInventoryNumber(item.availableStock)}</TableCell> : null}
+                {isVisible('reservedStock') ? <TableCell className="px-5 py-5 font-medium text-slate-600 dark:text-slate-300">{formatInventoryNumber(item.reservedStock)}</TableCell> : null}
+                {isVisible('minimumStock') ? <TableCell className="px-5 py-5 font-medium text-slate-600 dark:text-slate-300">{formatInventoryNumber(item.minimumStock)}</TableCell> : null}
                 {isVisible('status') ? (
                   <TableCell className="px-5 py-5">
-                    <Badge className={cn('rounded-full border px-2 py-1 text-xs font-bold', inventoryStatusTone[item.status])}>
+                    <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', inventoryStatusTone[item.status])}>
                       {t.status[item.status]}
                     </Badge>
                     <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">{t.statusHelpers[item.status]}</p>
                   </TableCell>
                 ) : null}
-                {isVisible('estimatedValue') ? <TableCell className="px-5 py-5 font-black text-slate-950 dark:text-white">{formatInventoryCurrency(item.estimatedValue)}</TableCell> : null}
-                {isVisible('lastMovement') ? <TableCell className="truncate px-5 py-5 font-semibold text-slate-600 dark:text-slate-300">{item.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}
-                {isVisible('itemType') ? <TableCell className="truncate px-5 py-5 font-semibold text-slate-700 dark:text-slate-300">{item.type}</TableCell> : null}
-                {isVisible('unit') ? <TableCell className="truncate px-5 py-5 font-semibold text-slate-700 dark:text-slate-300">{item.unit}</TableCell> : null}
-                {isVisible('averageCost') ? <TableCell className="px-5 py-5 font-semibold text-slate-700 dark:text-slate-300">{formatInventoryCurrency(item.averageCost)}</TableCell> : null}
+                {isVisible('estimatedValue') ? <TableCell className="px-5 py-5 font-medium text-slate-950 dark:text-white">{formatInventoryCurrency(item.estimatedValue)}</TableCell> : null}
+                {isVisible('lastMovement') ? <TableCell className="truncate px-5 py-5 font-medium text-slate-600 dark:text-slate-300">{item.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}
+                {isVisible('itemType') ? <TableCell className="truncate px-5 py-5 font-medium text-slate-700 dark:text-slate-300">{item.type}</TableCell> : null}
+                {isVisible('unit') ? <TableCell className="truncate px-5 py-5 font-medium text-slate-700 dark:text-slate-300">{item.unit}</TableCell> : null}
+                {isVisible('averageCost') ? <TableCell className="px-5 py-5 font-medium text-slate-700 dark:text-slate-300">{formatInventoryCurrency(item.averageCost)}</TableCell> : null}
                 {isVisible('usesInventory') ? <TableCell className="px-5 py-5"><BooleanBadge value={item.usesInventory} t={t} /></TableCell> : null}
                 {isVisible('readyForPOS') ? <TableCell className="px-5 py-5"><BooleanBadge value={item.readyForPOS} t={t} /></TableCell> : null}
                 {isVisible('readyForSales') ? <TableCell className="px-5 py-5"><BooleanBadge value={item.readyForSales} t={t} /></TableCell> : null}

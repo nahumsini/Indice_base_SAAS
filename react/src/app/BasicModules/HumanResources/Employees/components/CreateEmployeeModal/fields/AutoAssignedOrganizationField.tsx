@@ -35,7 +35,7 @@ export function AutoAssignedOrganizationField({
             {helperText}
           </span>
         </span>
-        <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2.5 py-1 text-[10px] font-bold uppercase text-[#59C3A5] ring-1 ring-[#59C3A5]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20">
+        <span className="shrink-0 rounded-full bg-[#59C3A5]/10 px-2.5 py-1 text-[10px] font-medium text-[#59C3A5] ring-1 ring-[#59C3A5]/15 dark:bg-blue-400/15 dark:text-blue-200 dark:ring-blue-300/20">
           {badge}
         </span>
       </div>

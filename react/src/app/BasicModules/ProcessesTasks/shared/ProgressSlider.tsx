@@ -54,8 +54,8 @@ export function ProgressSlider({
   return (
     <div className={cn('w-full space-y-2', className)}>
       <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-        <span className="min-w-[3.5rem] rounded-full border border-slate-200 bg-white px-2.5 py-1 text-center text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+        <span className="font-medium text-slate-700 dark:text-slate-200">{label}</span>
+        <span className="min-w-[3.5rem] rounded-full border border-slate-200 bg-white px-2.5 py-1 text-center text-sm font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
           {draftValue}%
         </span>
       </div>

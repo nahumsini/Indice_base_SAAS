@@ -278,7 +278,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
     <TableHead className={cn('whitespace-normal px-5 py-5', className)}>
       <button
         type="button"
-        className="inline-flex max-w-full items-center gap-2 text-left text-xs font-bold uppercase tracking-normal text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
+        className="inline-flex max-w-full items-center gap-2 text-left text-xs font-medium tracking-normal text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
         onClick={() => handleSort(columnId)}
       >
         <span className="min-w-0 whitespace-normal break-words">{label}</span>
@@ -574,10 +574,10 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
               {canShowContactColumn('email') ? renderSortableHead('email', t.table.columns.email, 'w-[230px]') : null}
               {canShowContactColumn('source') ? renderSortableHead('source', t.table.columns.source, 'w-[170px]') : null}
               {canShowContactColumn('owner') ? renderSortableHead('owner', t.table.columns.owner, 'w-[220px]') : null}
-              {canShowContactColumn('relationship') ? <TableHead className="w-[190px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.relationship}</TableHead> : null}
-              {canShowContactColumn('fiscal') ? <TableHead className="w-[170px] whitespace-normal px-5 py-5 text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.fiscal}</TableHead> : null}
+              {canShowContactColumn('relationship') ? <TableHead className="w-[190px] whitespace-normal px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.relationship}</TableHead> : null}
+              {canShowContactColumn('fiscal') ? <TableHead className="w-[170px] whitespace-normal px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.fiscal}</TableHead> : null}
               {canShowContactColumn('notes') ? renderSortableHead('notes', t.table.columns.notes, 'w-[300px]') : null}
-              <TableHead className="w-[170px] whitespace-normal px-4 py-5 text-center text-xs font-bold uppercase tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
+              <TableHead className="w-[170px] whitespace-normal px-4 py-5 text-center text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -585,7 +585,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
               <TableRow>
                 <TableCell colSpan={contactTableColumnCount} className="px-5 py-12 text-center">
                   <div className="mx-auto max-w-md space-y-2">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
                     <p className="text-sm text-slate-500 dark:text-slate-300">
                       {t.table.emptyDescription}
                     </p>
@@ -606,12 +606,12 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
                 <TableRow key={contact.id} className="border-slate-100 hover:bg-[#FF6B5E]/[0.025] dark:border-slate-700 dark:hover:bg-slate-700/40">
                   <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                     <div className="min-w-0 max-w-full space-y-1">
-                      <p className="break-words font-bold text-slate-950 dark:text-white">{contact.contactPerson}</p>
-                      <p className="break-all text-xs font-semibold text-[#B63B32]">{contact.id}</p>
+                      <p className="break-words font-medium text-slate-950 dark:text-white">{contact.contactPerson}</p>
+                      <p className="break-all text-xs font-medium text-[#B63B32]">{contact.id}</p>
                       <p className="break-words text-xs text-slate-500">{contact.role}</p>
                     </div>
                   </TableCell>
-                  {canShowContactColumn('company') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top text-sm font-semibold text-slate-900 dark:text-slate-200">
+                  {canShowContactColumn('company') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top text-sm font-medium text-slate-900 dark:text-slate-200">
                     <div className="min-w-0 max-w-full">
                       <p className={cn('break-words', !contact.company && 'text-slate-400')}>{contact.company || t.table.noCompany}</p>
                       {contact.fiscalTaxId ? (
@@ -626,13 +626,13 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
                     <span className={cn('block min-w-0 break-all leading-6', !hasEmail && 'font-medium text-slate-400')}>{hasEmail ? contact.email : t.table.noEmail}</span>
                   </TableCell> : null}
                   {canShowContactColumn('source') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                    <Badge variant="outline" className="h-auto max-w-full whitespace-normal rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                    <Badge variant="outline" className="h-auto max-w-full whitespace-normal rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                       {t.sources[contact.source]}
                     </Badge>
                   </TableCell> : null}
                   {canShowContactColumn('owner') ? <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                     <Select value={ownerValue} onValueChange={(value) => handleOwnerChange(contact, value)}>
-                      <SelectTrigger className="h-10 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 shadow-none focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate">
+                      <SelectTrigger className="h-10 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 shadow-none focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white [&>span]:truncate">
                         <SelectValue placeholder={t.table.ownerPlaceholder} />
                       </SelectTrigger>
                       <SelectContent>

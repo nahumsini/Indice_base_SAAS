@@ -164,10 +164,10 @@ export function AddInventoryModal({
           <InventoryModalSection>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">{t.operational.modals.files}</h3>
+                <h3 className="text-sm font-medium text-slate-900">{t.operational.modals.files}</h3>
                 <p className="mt-1 text-xs font-medium text-slate-500">{draft.attachments.length} {t.operational.modals.files.toLocaleLowerCase()}</p>
               </div>
-              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-white px-3 text-xs font-semibold text-[#B63B32] hover:bg-[#FF6B5E]/10">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-white px-3 text-xs font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10">
                 <FileUp className="h-4 w-4" />
                 {t.operational.modals.addFiles}
                 <input type="file" multiple className="hidden" onChange={(event) => handleFilesChange(event.target.files)} />

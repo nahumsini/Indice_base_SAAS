@@ -140,17 +140,17 @@ export function CustomerDisplaySetupModal({
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs font-black uppercase tracking-normal text-[#FF6B5E]">{copy.customerDisplaySetup.fixedPairing}</p>
-          <h3 className="mt-1 text-xl font-black text-[#222831] dark:text-white">
+          <p className="text-xs font-medium tracking-normal text-[#FF6B5E]">{copy.customerDisplaySetup.fixedPairing}</p>
+          <h3 className="mt-1 text-xl font-medium text-[#222831] dark:text-white">
             {cashRegisterCode ? copy.customerDisplaySetup.register(cashRegisterCode) : copy.customerDisplaySetup.noActiveShift}
           </h3>
-          <p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
+          <p className="mt-2 text-sm font-medium text-gray-600 dark:text-gray-300">
             {copy.customerDisplaySetup.description}
           </p>
 
           <div className="mt-5 rounded-lg border border-dashed border-[#59C3A5]/50 bg-[#F7F8FA] p-4 dark:border-[#59C3A5]/30 dark:bg-gray-950/40">
-            <p className="text-xs font-black uppercase text-gray-500 dark:text-gray-400">{copy.customerDisplaySetup.pairingLink}</p>
-            <p className="mt-2 break-all text-sm font-bold text-[#222831] dark:text-white">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.customerDisplaySetup.pairingLink}</p>
+            <p className="mt-2 break-all text-sm font-medium text-[#222831] dark:text-white">
               {pairingUrl || copy.customerDisplaySetup.preparingLink}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -158,7 +158,7 @@ export function CustomerDisplaySetupModal({
                 type="button"
                 onClick={copyPairingLink}
                 disabled={!pairingUrl}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-black text-[#222831] shadow-sm transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
               >
                 <Copy className="h-4 w-4" />
                 {copied ? copy.customerDisplaySetup.copied : copy.customerDisplaySetup.copyLink}
@@ -167,7 +167,7 @@ export function CustomerDisplaySetupModal({
                 type="button"
                 onClick={openDisplay}
                 disabled={!displayUrl}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#59C3A5] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#4ab295] disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#59C3A5] px-4 py-2 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#4ab295] disabled:opacity-50"
               >
                 <ExternalLink className="h-4 w-4" />
                 {copy.customerDisplaySetup.openDisplay}
@@ -176,7 +176,7 @@ export function CustomerDisplaySetupModal({
                 type="button"
                 onClick={() => { void loadPairingCode(); }}
                 disabled={isLoading || !cashRegisterId}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#222831] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#222831] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 {copy.customerDisplaySetup.regenerate}
@@ -185,26 +185,26 @@ export function CustomerDisplaySetupModal({
           </div>
 
           {error ? (
-            <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+            <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
               {error}
             </div>
           ) : null}
         </section>
 
         <aside className="rounded-lg border border-[#F4C84A]/50 bg-[#F4C84A]/15 p-5 text-center dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10">
-          <p className="text-xs font-black uppercase tracking-normal text-[#8A6500] dark:text-[#F4C84A]">{copy.customerDisplaySetup.codeForTv}</p>
+          <p className="text-xs font-medium tracking-normal text-[#8A6500] dark:text-[#F4C84A]">{copy.customerDisplaySetup.codeForTv}</p>
           <div className="mt-4 rounded-lg bg-white px-4 py-6 shadow-sm dark:bg-gray-950">
-            <p className="select-all break-all text-3xl font-black tracking-normal text-[#222831] dark:text-white sm:text-5xl">
+            <p className="select-all break-all text-3xl font-medium tracking-normal text-[#222831] dark:text-white sm:text-5xl">
               {pairing?.pairingCode ?? '------'}
             </p>
           </div>
-          <p className="mt-4 text-sm font-bold text-gray-700 dark:text-gray-200">
+          <p className="mt-4 text-sm font-medium text-gray-700 dark:text-gray-200">
             {copy.customerDisplaySetup.externalScreen}
           </p>
-          <p className="mt-1 break-all text-xs font-black text-[#222831] dark:text-white">
+          <p className="mt-1 break-all text-xs font-medium text-[#222831] dark:text-white">
             {toAbsoluteUrl('/pos-display/pair')}
           </p>
-          <p className="mt-4 text-xs font-semibold text-gray-600 dark:text-gray-300">
+          <p className="mt-4 text-xs font-medium text-gray-600 dark:text-gray-300">
             {copy.customerDisplaySetup.expirationHelp}
           </p>
         </aside>

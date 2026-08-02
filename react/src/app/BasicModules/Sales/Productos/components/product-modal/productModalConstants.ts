@@ -1,11 +1,9 @@
 export const productFieldClassName = 'border-slate-200 bg-white shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20';
 
-export const productModalTabIds = [
-  'general',
+export const productModalWizardStepIds = [
+  'basics',
   'commercial',
-  'presentation',
-  'media',
-  'usage',
+  'review',
 ] as const;
 
-export type ProductModalTabId = typeof productModalTabIds[number];
+export type ProductModalWizardStepId = typeof productModalWizardStepIds[number];

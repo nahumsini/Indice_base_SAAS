@@ -32,8 +32,8 @@ const paymentIcons = {
 export function ShiftStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900/40">
-      <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-1 truncate text-lg font-black text-gray-950 dark:text-white">{value}</p>
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1 truncate text-lg font-medium text-gray-950 dark:text-white">{value}</p>
     </div>
   );
 }
@@ -60,8 +60,8 @@ export function SummaryCard({
 
   return (
     <div className={`rounded-lg border p-4 ${toneClass}`}>
-      <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</p>
-      <p className={`mt-1 ${strong ? 'text-2xl' : 'text-xl'} font-black text-gray-950 dark:text-white`}>
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      <p className={`mt-1 ${strong ? 'text-2xl' : 'text-xl'} font-medium text-gray-950 dark:text-white`}>
         {formatClosingCurrency(toClosingNumber(value), currency)}
       </p>
     </div>
@@ -78,15 +78,15 @@ export function PaymentSummaryRow({ payment, currency }: { payment: PosPaymentMe
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
+          <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
             {paymentLabels[payment.paymentMethod] ?? payment.paymentMethod}
           </p>
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
             {payment.count} movimiento{payment.count === 1 ? '' : 's'}
           </p>
         </div>
       </div>
-      <p className="text-right text-sm font-black text-gray-950 dark:text-white">
+      <p className="text-right text-sm font-medium text-gray-950 dark:text-white">
         {formatClosingCurrency(toClosingNumber(payment.amount), currency)}
       </p>
     </div>
@@ -106,8 +106,8 @@ export function ClosingTotal({
 }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</p>
-      <p className={`mt-1 text-xl font-black ${highlight ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-100'}`}>
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      <p className={`mt-1 text-xl font-medium ${highlight ? 'text-gray-950 dark:text-white' : 'text-gray-800 dark:text-gray-100'}`}>
         {value > 0 && highlight ? '+' : ''}{formatClosingCurrency(value, currency)}
       </p>
     </div>

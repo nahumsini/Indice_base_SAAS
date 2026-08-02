@@ -329,7 +329,7 @@ export function TaskAttachmentsDialog({
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4C84A]/15 text-[#9A6B05]">
                   {isUploading ? <Loader2 className="h-7 w-7 animate-spin" /> : <Upload className="h-7 w-7" />}
                 </div>
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                <h3 className="text-base font-medium text-slate-900 dark:text-white">
                   {isUploading ? copy.uploadingTitle : copy.addTitle}
                 </h3>
                 <p className="mt-2 text-sm leading-5 text-slate-500 dark:text-slate-400">
@@ -345,7 +345,7 @@ export function TaskAttachmentsDialog({
                 />
                 <Button
                   type="button"
-                  className="mt-5 h-10 rounded-xl bg-[#F4C84A] px-4 text-sm font-semibold text-slate-950 hover:bg-[#E5B835]"
+                  className="mt-5 h-10 rounded-xl bg-[#F4C84A] px-4 text-sm font-medium text-slate-950 hover:bg-[#E5B835]"
                   disabled={isUploading}
                   onClick={() => inputRef.current?.click()}
                 >
@@ -360,21 +360,21 @@ export function TaskAttachmentsDialog({
             <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="text-base font-semibold text-slate-900 dark:text-white">{copy.filesTitle}</h3>
+                  <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.filesTitle}</h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {copy.filesCount(attachments.length, formatFileSize(totalSize))}
                   </p>
                 </div>
                 <Badge
                   variant="outline"
-                  className="w-fit rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+                  className="w-fit rounded-full border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
                 >
                   {commonCopy.evidence}
                 </Badge>
               </div>
 
               {isLoading ? (
-                <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
+                <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {copy.loading}
                 </div>

@@ -115,7 +115,7 @@ export function ProductImageCarouselModal({
           </div>
 
           <aside className="overflow-y-auto border-l border-slate-200 bg-white p-5">
-            <p className="text-xs font-semibold text-slate-500">{t.gallery.thumbnails}</p>
+            <p className="text-xs font-medium text-slate-500">{t.gallery.thumbnails}</p>
             <div className="mt-3 space-y-2">
               {hasImages ? images.map((image, index) => (
                 <button
@@ -131,12 +131,12 @@ export function ProductImageCarouselModal({
                 >
                   <img src={image.url} alt={image.alt || product?.name || t.gallery.title} className="h-20 w-24 rounded-md object-cover" />
                   <span className="min-w-0">
-                    <span className="block text-sm font-bold text-slate-900">{t.gallery.imageLabel(index + 1)}</span>
-                    <span className="block truncate text-xs font-semibold text-slate-500">{image.alt || product?.name}</span>
+                    <span className="block text-sm font-medium text-slate-900">{t.gallery.imageLabel(index + 1)}</span>
+                    <span className="block truncate text-xs font-medium text-slate-500">{image.alt || product?.name}</span>
                   </span>
                 </button>
               )) : (
-                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-medium text-slate-500">
                   {t.gallery.empty}
                 </div>
               )}

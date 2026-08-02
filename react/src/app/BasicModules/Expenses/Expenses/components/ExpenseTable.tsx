@@ -645,7 +645,7 @@ function ExpenseTablePagination({
 function MoneySummaryStrip({ emphasis = false, label, summaries }: { emphasis?: boolean; label: string; summaries: MoneySummary[] }) {
   return (
     <div className={`flex flex-col gap-2 px-4 py-3 ${emphasis ? 'bg-[#147514]/5 dark:bg-emerald-400/10' : ''} lg:flex-row lg:items-center lg:justify-between`}>
-      <span className={`text-xs font-extrabold uppercase tracking-[0.18em] ${emphasis ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}>
+      <span className={`text-xs font-medium ${emphasis ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}>
         {label}
       </span>
       <div className="flex flex-wrap gap-2">
@@ -658,8 +658,8 @@ function MoneySummaryStrip({ emphasis = false, label, summaries }: { emphasis?: 
                 : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
             }`}
           >
-            <span className="font-bold text-slate-500 dark:text-slate-400">{summary.label}</span>
-            <strong className="font-extrabold text-slate-900 dark:text-white">{summary.value}</strong>
+            <span className="font-medium text-slate-500 dark:text-slate-400">{summary.label}</span>
+            <strong className="font-medium text-slate-900 dark:text-white">{summary.value}</strong>
           </span>
         ))}
       </div>

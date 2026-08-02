@@ -7,7 +7,7 @@ export default function Plan() {
   return (
     <div className="space-y-6">
       <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg p-6 border border-blue-200 dark:border-blue-700/30 text-center">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+        <h2 className="text-2xl font-medium text-gray-900 dark:text-white mb-2">
           {t.panelInicial.plan.title}
         </h2>
         <p className="text-gray-600 dark:text-gray-400">{t.panelInicial.plan.subtitle}</p>
@@ -19,14 +19,14 @@ export default function Plan() {
             <div className="w-16 h-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
               <span className="text-3xl">🟢</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-white mb-2">
               {t.panelInicial.plan.plans.inicio.name}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {t.panelInicial.plan.plans.inicio.description}
             </p>
             <div className="mb-4">
-              <span className="text-4xl font-bold text-green-600 dark:text-green-400">$65</span>
+              <span className="text-4xl font-medium text-green-600 dark:text-green-400">$65</span>
               <span className="text-gray-600 dark:text-gray-400"> USD/mes</span>
             </div>
           </div>
@@ -76,14 +76,14 @@ export default function Plan() {
             <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
               <span className="text-3xl">🔵</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-white mb-2">
               {t.panelInicial.plan.plans.controla.name}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {t.panelInicial.plan.plans.controla.description}
             </p>
             <div className="mb-4">
-              <span className="text-4xl font-bold text-blue-600 dark:text-blue-400">$129</span>
+              <span className="text-4xl font-medium text-blue-600 dark:text-blue-400">$129</span>
               <span className="text-gray-600 dark:text-gray-400"> USD/mes</span>
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function Plan() {
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border-2 border-cyan-400 dark:border-cyan-500 p-6 transition-all hover:shadow-2xl hover:scale-105 relative">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-            <span className="bg-cyan-500 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
+            <span className="bg-cyan-500 text-white text-xs font-medium px-4 py-1 rounded-full shadow-lg">
               {t.panelInicial.plan.mostPopular}
             </span>
           </div>
@@ -138,14 +138,14 @@ export default function Plan() {
             <div className="w-16 h-16 mx-auto mb-4 bg-cyan-100 dark:bg-cyan-900/30 rounded-full flex items-center justify-center">
               <span className="text-3xl">🚀</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-white mb-2">
               {t.panelInicial.plan.plans.escala.name}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {t.panelInicial.plan.plans.escala.description}
             </p>
             <div className="mb-4">
-              <span className="text-4xl font-bold text-cyan-600 dark:text-cyan-400">$229</span>
+              <span className="text-4xl font-medium text-cyan-600 dark:text-cyan-400">$229</span>
               <span className="text-gray-600 dark:text-gray-400"> USD/mes</span>
             </div>
           </div>
@@ -199,14 +199,14 @@ export default function Plan() {
             <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
               <span className="text-3xl">🏢</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-white mb-2">
               {t.panelInicial.plan.plans.corporativiza.name}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {t.panelInicial.plan.plans.corporativiza.description}
             </p>
             <div className="mb-4">
-              <span className="text-4xl font-bold text-orange-600 dark:text-orange-400">$395</span>
+              <span className="text-4xl font-medium text-orange-600 dark:text-orange-400">$395</span>
               <span className="text-gray-600 dark:text-gray-400"> USD/mes</span>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function Plan() {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="text-center space-y-4">
-          <h3 className="font-semibold text-gray-900 dark:text-white">
+          <h3 className="font-medium text-gray-900 dark:text-white">
             ℹ️ {t.panelInicial.plan.additionalInfo.title}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">

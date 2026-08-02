@@ -28,7 +28,7 @@ interface PosFiscalSettingsModalProps {
   formatCurrency: (amount: number) => string;
 }
 
-const fieldClassName = 'min-h-14 w-full rounded-lg border border-gray-200 bg-white px-4 text-base font-black text-gray-950 outline-none transition focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-900 dark:text-white';
+const fieldClassName = 'min-h-14 w-full rounded-lg border border-gray-200 bg-white px-4 text-base font-medium text-gray-950 outline-none transition focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-900 dark:text-white';
 
 export function PosFiscalSettingsModal({
   isOpen,
@@ -132,14 +132,14 @@ export function PosFiscalSettingsModal({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-14 rounded-lg border border-gray-200 px-6 py-3 text-base font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+            className="min-h-14 rounded-lg border border-gray-200 px-6 py-3 text-base font-medium text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={() => onConfirm({ ...draft, currencyCode: visibleCurrency })}
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-6 py-3 text-base font-black text-white shadow-sm transition hover:bg-[#E85F54] active:scale-[0.98]"
+            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-6 py-3 text-base font-medium text-[#222831] shadow-sm transition hover:bg-[#E85F54] active:scale-[0.98]"
           >
             <Check className="h-5 w-5" />
             Aplicar al ticket
@@ -155,8 +155,8 @@ export function PosFiscalSettingsModal({
                   <Globe2 className="h-6 w-6" />
                 </span>
                 <div>
-                  <h3 className="text-lg font-black text-gray-950 dark:text-white">Configuracion fiscal</h3>
-                  <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">
+                  <h3 className="text-lg font-medium text-gray-950 dark:text-white">Configuracion fiscal</h3>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-300">
                     El impuesto elegido se aplica a las partidas del ticket activo.
                   </p>
                 </div>
@@ -164,7 +164,7 @@ export function PosFiscalSettingsModal({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2">
-                  <span className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">Pais fiscal</span>
+                  <span className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">Pais fiscal</span>
                   <select
                     className={fieldClassName}
                     value={draft.taxJurisdiction}
@@ -179,11 +179,11 @@ export function PosFiscalSettingsModal({
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
+                  <span className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">
                     {lockedCurrency ? 'Divisa del turno' : 'Divisa de venta'}
                   </span>
                   {lockedCurrency ? (
-                    <div className="flex min-h-14 items-center justify-between rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-black text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
+                    <div className="flex min-h-14 items-center justify-between rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-medium text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
                       <span>{lockedCurrency}</span>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs text-[#7A5B00] shadow-sm dark:bg-gray-900 dark:text-[#F8E08A]">POS</span>
                     </div>
@@ -198,7 +198,7 @@ export function PosFiscalSettingsModal({
                       ))}
                     </select>
                   ) : (
-                    <div className="flex min-h-14 items-center justify-between rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-black text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
+                    <div className="flex min-h-14 items-center justify-between rounded-lg border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-4 text-base font-medium text-gray-950 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10 dark:text-white">
                       <span>{automaticCurrency ?? draft.currencyCode}</span>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs text-[#7A5B00] shadow-sm dark:bg-gray-900 dark:text-[#F8E08A]">POS</span>
                     </div>
@@ -207,7 +207,7 @@ export function PosFiscalSettingsModal({
               </div>
 
               {showCurrencyLockNote && (
-                <div className="mt-4 rounded-lg border border-[#F4C84A]/40 bg-[#F4C84A]/15 px-4 py-3 text-sm font-bold leading-6 text-[#7A5B00] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#F8E08A]">
+                <div className="mt-4 rounded-lg border border-[#F4C84A]/40 bg-[#F4C84A]/15 px-4 py-3 text-sm font-medium leading-6 text-[#7A5B00] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#F8E08A]">
                   El pais fiscal sugiere {automaticCurrency}, pero este turno opera en {lockedCurrency}. Para cambiar divisa abre un turno con otra moneda.
                 </div>
               )}
@@ -219,8 +219,8 @@ export function PosFiscalSettingsModal({
                   %
                 </span>
                 <div>
-                  <h3 className="text-lg font-black text-gray-950 dark:text-white">Impuesto de venta</h3>
-                  <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">
+                  <h3 className="text-lg font-medium text-gray-950 dark:text-white">Impuesto de venta</h3>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-300">
                     Selecciona la tasa que se cargara al cerrar la venta.
                   </p>
                 </div>
@@ -241,12 +241,12 @@ export function PosFiscalSettingsModal({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <span className="min-w-0 text-base font-black">{preset.label}</span>
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-black ${isSelected ? 'bg-white text-[#B63B32]' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
+                        <span className="min-w-0 text-base font-medium">{preset.label}</span>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isSelected ? 'bg-white text-[#B63B32]' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
                           {preset.rateEditable ? 'Variable' : `${preset.defaultRate}%`}
                         </span>
                       </div>
-                      <p className="mt-2 text-xs font-bold text-gray-500 dark:text-gray-400">
+                      <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                         {preset.rateEditable ? 'Permite ajustar tasa para este ticket.' : 'Tasa fija del pais fiscal.'}
                       </p>
                     </button>
@@ -256,7 +256,7 @@ export function PosFiscalSettingsModal({
 
               {selectedPreset.rateEditable && (
                 <label className="mt-4 block max-w-xs space-y-2">
-                  <span className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">Tasa aplicada</span>
+                  <span className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">Tasa aplicada</span>
                   <div className="relative">
                     <Percent className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                     <input
@@ -278,8 +278,8 @@ export function PosFiscalSettingsModal({
               <div className="mb-4 flex items-center gap-3">
                 <Globe2 className="h-5 w-5 text-[#FF6B5E]" />
                 <div>
-                  <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">Resumen fiscal</p>
-                  <p className="text-lg font-black text-gray-950 dark:text-white">{visibleCurrency}</p>
+                  <p className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">Resumen fiscal</p>
+                  <p className="text-lg font-medium text-gray-950 dark:text-white">{visibleCurrency}</p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -291,15 +291,15 @@ export function PosFiscalSettingsModal({
             </div>
 
             <div className="rounded-lg border border-[#59C3A5]/25 bg-[#59C3A5]/10 p-4 shadow-sm dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10">
-              <p className="text-xs font-black uppercase tracking-normal text-[#146B58] dark:text-[#A7F3D0]">Vista del ticket</p>
-              <div className="mt-3 space-y-2 text-sm font-bold text-gray-700 dark:text-gray-200">
+              <p className="text-xs font-medium tracking-normal text-[#146B58] dark:text-[#A7F3D0]">Vista del ticket</p>
+              <div className="mt-3 space-y-2 text-sm font-medium text-gray-700 dark:text-gray-200">
                 <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
                 <SummaryRow label="Impuesto" value={formatCurrency(estimatedTax)} />
                 <SummaryRow label="Total estimado" value={formatCurrency(estimatedTotal)} strong />
               </div>
             </div>
 
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm font-bold leading-6 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm font-medium leading-6 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
               Los productos stock siguen descontando inventario al cerrar. Servicios, digitales y lineas custom no afectan stock.
             </div>
           </aside>
@@ -312,8 +312,8 @@ export function PosFiscalSettingsModal({
 function SummaryRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">{label}</span>
-      <span className={`min-w-0 text-right ${strong ? 'text-lg font-black text-gray-950 dark:text-white' : 'text-sm font-black text-gray-800 dark:text-gray-100'}`}>
+      <span className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">{label}</span>
+      <span className={`min-w-0 text-right ${strong ? 'text-lg font-medium text-gray-950 dark:text-white' : 'text-sm font-medium text-gray-800 dark:text-gray-100'}`}>
         {value}
       </span>
     </div>

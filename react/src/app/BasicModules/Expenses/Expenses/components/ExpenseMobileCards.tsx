@@ -54,7 +54,7 @@ export function ExpenseMobileCards({
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-10 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800 md:hidden">
         <Search className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-        <p className="text-base font-bold text-slate-800 dark:text-slate-100">{emptyTitle}</p>
+        <p className="text-base font-medium text-slate-800 dark:text-slate-100">{emptyTitle}</p>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</p>
       </div>
     );
@@ -146,19 +146,19 @@ function ExpenseMobileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                 {expense.folio}
               </p>
-              <h3 className="mt-1 line-clamp-2 text-base font-extrabold text-slate-950 dark:text-white">
+              <h3 className="mt-1 line-clamp-2 text-base font-medium text-slate-950 dark:text-white">
                 {expense.concept || '-'}
               </h3>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadgeColor(effectiveStatus)}`}>
+              <span className={`rounded-full border px-3 py-1 text-xs font-medium ${getStatusBadgeColor(effectiveStatus)}`}>
                 {statusLabel}
               </span>
               {hasOverduePartialBalance ? (
-                <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
                   {t.expenses.table.statuses.overdue}
                 </span>
               ) : null}
@@ -199,7 +199,7 @@ function ExpenseMobileCard({
         <button
           type="button"
           onClick={onOpenAttachments}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
         >
           <Paperclip className="h-4 w-4" />
           {t.expenses.columns.attachments?.label ?? t.common.addFiles}: {attachmentsCount}
@@ -229,8 +229,8 @@ function ExpenseMobileCard({
 function MobileValue({ label, strong = false, value }: { label?: string; strong?: boolean; value: string }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className={`mt-1 truncate text-sm ${strong ? 'font-extrabold text-[#147514]' : 'font-bold text-slate-900 dark:text-white'}`}>{value}</p>
+      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`mt-1 truncate text-sm ${strong ? 'font-medium text-[#147514]' : 'font-medium text-slate-900 dark:text-white'}`}>{value}</p>
     </div>
   );
 }
@@ -238,8 +238,8 @@ function MobileValue({ label, strong = false, value }: { label?: string; strong?
 function MobilePair({ label, value }: { label?: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</span>
-      <span className="min-w-0 flex-1 truncate text-right font-semibold text-slate-800 dark:text-slate-100">{value || '-'}</span>
+      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-right font-medium text-slate-800 dark:text-slate-100">{value || '-'}</span>
     </div>
   );
 }

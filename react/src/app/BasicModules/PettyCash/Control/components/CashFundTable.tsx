@@ -53,18 +53,18 @@ export function CashFundTable({
               return (
                 <tr key={fund.id} className="transition odd:bg-white even:bg-gray-50/60 hover:bg-green-50/50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30 dark:hover:bg-green-900/10">
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-gray-900 dark:text-white">{fund.name}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{fund.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{fund.businessUnit} / {fund.business}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-gray-900 dark:text-white">{fund.custodian}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{fund.custodian}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{fund.department}</p>
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                  <td className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">
                     {formatPettyCashCurrency(fund.limit, fund.currency)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{formatPettyCashCurrency(fund.currentBalance, fund.currency)}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{formatPettyCashCurrency(fund.currentBalance, fund.currency)}</p>
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                       <div
                         className={`h-full rounded-full ${balanceRate < 25 ? 'bg-amber-500' : 'bg-[#147514]'}`}
@@ -72,11 +72,11 @@ export function CashFundTable({
                       />
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-amber-700 dark:text-amber-300">
+                  <td className="px-4 py-3 text-right text-sm font-medium text-amber-700 dark:text-amber-300">
                     {formatPettyCashCurrency(fund.pendingReceipts, fund.currency)}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
                       {fund.openRequests}
                     </span>
                   </td>
@@ -84,7 +84,7 @@ export function CashFundTable({
                     {formatPettyCashDate(fund.lastReconciliation)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${cashFundStatusClasses[fund.status]}`}>
+                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${cashFundStatusClasses[fund.status]}`}>
                       {cashFundStatusLabels[fund.status]}
                     </span>
                   </td>
@@ -141,7 +141,7 @@ export function CashFundTable({
 function Header({ label, align = 'left' }: { label: string; align?: 'left' | 'right' | 'center' }) {
   return (
     <th
-      className={`px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 ${
+      className={`px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 ${
         align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
       }`}
     >

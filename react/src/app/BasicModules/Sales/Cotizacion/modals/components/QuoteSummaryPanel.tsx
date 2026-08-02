@@ -37,7 +37,7 @@ export function QuoteSummaryPanel({
     <aside className="min-h-0 overflow-visible border-t border-slate-200 bg-slate-50 p-5 xl:overflow-y-auto xl:border-l xl:border-t-0">
       <div className="space-y-4 xl:sticky xl:top-0">
         <div>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-950">
+          <h3 className="flex items-center gap-2 text-lg font-medium text-slate-950">
             <FileText className="h-5 w-5 text-[#FF6B5E]" />
             {t.summary.title}
           </h3>
@@ -100,8 +100,8 @@ export function QuoteSummaryPanel({
               <span className="font-medium text-slate-950">{formatCurrency(totals.taxTotal, form.currency)}</span>
             </div>
             <div className="mt-2 flex justify-between border-t border-slate-200 pt-3 text-lg">
-              <span className="font-semibold text-slate-950">{t.labels.total}</span>
-              <span className="font-bold text-[#B63B32]">{formatCurrency(totals.total, form.currency)}</span>
+              <span className="font-medium text-slate-950">{t.labels.total}</span>
+              <span className="font-medium text-[#B63B32]">{formatCurrency(totals.total, form.currency)}</span>
             </div>
           </div>
         </section>

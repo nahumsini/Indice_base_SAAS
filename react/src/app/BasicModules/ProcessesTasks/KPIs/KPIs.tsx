@@ -363,7 +363,7 @@ function KpiMetric({
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
         {icon}
       </span>
-      <span className={cn('font-semibold', valueClassName)}>{value}</span>
+      <span className={cn('font-medium', valueClassName)}>{value}</span>
       <span>{label}</span>
     </div>
   );
@@ -371,7 +371,7 @@ function KpiMetric({
 
 function StatusBadge({ copy, status }: { copy: KpisTranslations; status: ProcessTaskKpiStatus }) {
   return (
-    <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold', statusClasses[status])}>
+    <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-xs font-medium', statusClasses[status])}>
       {copy.statuses[status]}
     </span>
   );
@@ -384,7 +384,7 @@ function ScoreBar({ score, status }: { score: number; status?: ProcessTaskKpiSta
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
         <div className={cn('h-full rounded-full', scoreBarClasses[resolvedStatus])} style={{ width: `${score}%` }} />
       </div>
-      <span className="w-10 text-right text-sm font-semibold text-slate-900 dark:text-white">{score}%</span>
+      <span className="w-10 text-right text-sm font-medium text-slate-900 dark:text-white">{score}%</span>
     </div>
   );
 }
@@ -412,15 +412,15 @@ function KpiCard({ card, copy, progress }: { card: ProcessTaskKpiCard; copy: Kpi
         </span>
         <StatusBadge copy={copy} status={card.status} />
       </div>
-      <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">{card.title}</p>
-      <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{card.value}</p>
+      <p className="mt-4 text-sm font-medium text-slate-600 dark:text-slate-300">{card.title}</p>
+      <p className="mt-1 text-3xl font-medium tracking-tight text-slate-900 dark:text-white">{card.value}</p>
       <div className="mt-4 flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
           <div className={cn('h-full rounded-full', scoreBarClasses[card.status])} style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
         </div>
-        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{progress}%</span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{progress}%</span>
       </div>
-      <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">{card.target}</p>
+      <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">{card.target}</p>
       <p className="mt-2 text-sm leading-5 text-slate-600 dark:text-slate-300">{card.description}</p>
     </article>
   );
@@ -443,7 +443,7 @@ function DeltaPill({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold',
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium',
         isGood && 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300',
         isBad && 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300',
         isFlat && 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300',
@@ -469,7 +469,7 @@ function SignalAction({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:bg-slate-700"
+      className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:bg-slate-700"
     >
       <ExternalLink className="h-3.5 w-3.5" />
       {label}
@@ -514,7 +514,7 @@ function OperationalSignals({
     <section className="mb-6">
       <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">{copy.signals.title}</h3>
+          <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.signals.title}</h3>
           <p className="text-sm text-slate-600 dark:text-slate-300">{copy.signals.subtitle}</p>
         </div>
       </div>
@@ -523,14 +523,14 @@ function OperationalSignals({
         <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.comparison.title}</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{copy.signals.comparison.title}</p>
+              <p className="mt-2 text-3xl font-medium text-slate-900 dark:text-white">
                 {comparison.available ? `${comparison.productivityScore}%` : copy.common.notApplicable}
               </p>
             </div>
             {comparison.available ? <DeltaPill value={comparison.productivityDelta} suffix={` ${copy.common.points}`} /> : null}
           </div>
-          <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">
             {comparison.available && comparison.from && comparison.to
               ? copy.signals.comparison.previousRange(
                   formatDate(comparison.from, copy.common.noDate, copy.locale),
@@ -543,21 +543,21 @@ function OperationalSignals({
               <div>
                 <p className="text-slate-500 dark:text-slate-400">{copy.signals.comparison.completion}</p>
                 <div className="mt-1 flex items-center gap-1">
-                  <span className="font-semibold text-slate-900 dark:text-white">{comparison.completionRate}%</span>
+                  <span className="font-medium text-slate-900 dark:text-white">{comparison.completionRate}%</span>
                   <DeltaPill value={comparison.completionDelta} suffix={` ${copy.common.points}`} />
                 </div>
               </div>
               <div>
                 <p className="text-slate-500 dark:text-slate-400">{copy.signals.comparison.overdue}</p>
                 <div className="mt-1 flex items-center gap-1">
-                  <span className="font-semibold text-slate-900 dark:text-white">{comparison.overdueTasks}</span>
+                  <span className="font-medium text-slate-900 dark:text-white">{comparison.overdueTasks}</span>
                   <DeltaPill value={comparison.overdueDelta} positiveIsGood={false} />
                 </div>
               </div>
               <div>
                 <p className="text-slate-500 dark:text-slate-400">{copy.signals.comparison.total}</p>
                 <div className="mt-1 flex items-center gap-1">
-                  <span className="font-semibold text-slate-900 dark:text-white">{comparison.totalTasks}</span>
+                  <span className="font-medium text-slate-900 dark:text-white">{comparison.totalTasks}</span>
                   <DeltaPill value={comparison.totalDelta} positiveIsGood />
                 </div>
               </div>
@@ -568,8 +568,8 @@ function OperationalSignals({
         <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.unassigned.title}</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{summary.unassignedOpenTasks}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{copy.signals.unassigned.title}</p>
+              <p className="mt-2 text-3xl font-medium text-slate-900 dark:text-white">{summary.unassignedOpenTasks}</p>
             </div>
             <UserX className="h-5 w-5 text-rose-500" />
           </div>
@@ -586,8 +586,8 @@ function OperationalSignals({
         <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.overdueAging.title}</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{summary.overdueTasks}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{copy.signals.overdueAging.title}</p>
+              <p className="mt-2 text-3xl font-medium text-slate-900 dark:text-white">{summary.overdueTasks}</p>
             </div>
             <Clock3 className="h-5 w-5 text-orange-500" />
           </div>
@@ -605,7 +605,7 @@ function OperationalSignals({
           <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
             {overdueBuckets.map((bucket) => (
               <div key={bucket.label}>
-                <p className="font-semibold text-slate-900 dark:text-white">{bucket.value}</p>
+                <p className="font-medium text-slate-900 dark:text-white">{bucket.value}</p>
                 <p className="text-slate-500 dark:text-slate-400">{bucket.label}</p>
               </div>
             ))}
@@ -616,8 +616,8 @@ function OperationalSignals({
         <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.signals.pendingAudit.title}</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{summary.pendingAuditTasks}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{copy.signals.pendingAudit.title}</p>
+              <p className="mt-2 text-3xl font-medium text-slate-900 dark:text-white">{summary.pendingAuditTasks}</p>
             </div>
             <ListChecks className="h-5 w-5 text-violet-500" />
           </div>
@@ -699,10 +699,10 @@ function SummaryStrip({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', statusClasses[status])}>
+          <span className={cn('rounded-full border px-3 py-1 text-xs font-medium', statusClasses[status])}>
             {copy.summary.labels.productivity(summary.productivityScore)}
           </span>
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
             {copy.summary.labels.weighting(formatWeighting(summary.averageWeighting, copy.common.notApplicable))}
           </span>
         </div>
@@ -741,7 +741,7 @@ function RankingPanel({
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h4 className="text-base font-bold text-slate-900 dark:text-white">{title}</h4>
+      <h4 className="text-base font-medium text-slate-900 dark:text-white">{title}</h4>
       <div className="mt-4 space-y-3">
         {rows.length === 0 ? <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">{emptyLabel}</p> : rows.map((row, index) => (
           <button
@@ -751,15 +751,15 @@ function RankingPanel({
             disabled={!row.onClick}
             className="grid w-full grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl p-2 text-left transition enabled:hover:bg-[#F4C84A]/10 disabled:cursor-default"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">{index + 1}</span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">{index + 1}</span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold text-slate-900 dark:text-white">{row.label}</span>
+              <span className="block truncate text-sm font-medium text-slate-900 dark:text-white">{row.label}</span>
               <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{row.detail}</span>
               <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <span className="block h-full rounded-full bg-[#E4AD18]" style={{ width: `${Math.max(4, Math.min(100, row.progress))}%` }} />
               </span>
             </span>
-            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{row.value}</span>
+            <span className="text-sm font-medium text-slate-800 dark:text-slate-100">{row.value}</span>
           </button>
         ))}
       </div>
@@ -1132,7 +1132,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         variant="outline"
         disabled={isLoading}
         onClick={() => setRefreshKey((current) => current + 1)}
-        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
+        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
       >
         <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
         {standardCopy.refresh}
@@ -1143,7 +1143,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         disabled={!dashboard || isPrintingPdf || !isCompanyPrintIdentityReady}
         title={copy.pdf.print}
         onClick={handlePrintPdf}
-        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-semibold text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
       >
         <Printer className="h-4 w-4" />
         {copy.pdf.print}
@@ -1161,7 +1161,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
                 {headerCopy.emoji}
               </span>
               <div className="min-w-0">
-                <h2 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{standardCopy.title}</h2>
+                <h2 className="text-xl font-medium tracking-tight text-slate-950 dark:text-white sm:text-2xl">{standardCopy.title}</h2>
                 <p className="mt-1 max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{standardCopy.subtitle}</p>
               </div>
             </div>
@@ -1174,9 +1174,9 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-[#B98508]" />
-            <h3 className="text-base font-bold text-slate-800 dark:text-white">{standardCopy.filterTitle}</h3>
+            <h3 className="text-base font-medium text-slate-800 dark:text-white">{standardCopy.filterTitle}</h3>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
             <span>{standardCopy.results(dashboard?.summary.totalTasks ?? 0)}</span>
             <button type="button" onClick={handleClearFilters} className="inline-flex items-center gap-1.5 transition hover:text-[#9A6B05] dark:hover:text-[#FEF3C7]">
               <RefreshCw className="h-3.5 w-3.5" />{standardCopy.clear}
@@ -1185,7 +1185,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4">
           <label className="flex min-w-0 flex-col gap-2 sm:col-span-2">
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{standardCopy.search}</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{standardCopy.search}</span>
             <span className="relative block min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
@@ -1254,11 +1254,11 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
           {period === 'custom' ? (
             <>
               <div className="space-y-2">
-                <label htmlFor="kpis-date-from" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.from}</label>
+                <label htmlFor="kpis-date-from" className="text-sm font-medium text-slate-700 dark:text-slate-200">{agendaCopy.filters.from}</label>
                 <Input id="kpis-date-from" type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
               </div>
               <div className="space-y-2">
-                <label htmlFor="kpis-date-to" className="text-sm font-semibold text-slate-700 dark:text-slate-200">{agendaCopy.filters.to}</label>
+                <label htmlFor="kpis-date-to" className="text-sm font-medium text-slate-700 dark:text-slate-200">{agendaCopy.filters.to}</label>
                 <Input id="kpis-date-to" type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
               </div>
             </>
@@ -1267,7 +1267,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
       </section>
 
       {error ? (
-        <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+        <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
           {error}
         </div>
       ) : null}
@@ -1279,10 +1279,10 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
           <section className="mb-6 rounded-2xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{standardCopy.contextTitle}</h3>
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{standardCopy.contextTitle}</h3>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.contextSubtitle}</p>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+              <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
                 <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.selectedRange}: {formatDate(dashboard.range.from, copy.common.noDate, copy.locale)} – {formatDate(dashboard.range.to, copy.common.noDate, copy.locale)}</span>
                 <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.selectedScope}: {agendaCopy.focus[focusFilter]}</span>
                 <span className="rounded-full border border-[#F4C84A]/30 bg-white/80 px-3 py-1.5 dark:bg-slate-800/80">{standardCopy.updated}: {dashboard.generatedAt ? new Intl.DateTimeFormat(copy.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dashboard.generatedAt)) : '—'}</span>
@@ -1314,7 +1314,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800" aria-labelledby="kpis-trend-title">
             <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 id="kpis-trend-title" className="text-lg font-semibold text-slate-900 dark:text-white">{copy.chart.title}</h3>
+                <h3 id="kpis-trend-title" className="text-lg font-medium text-slate-900 dark:text-white">{copy.chart.title}</h3>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   {copy.chart.subtitle}
                 </p>
@@ -1355,7 +1355,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
 
           <section className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{standardCopy.compositionTitle}</h3>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white">{standardCopy.compositionTitle}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.compositionSubtitle}</p>
               <div className="mt-4 h-80">
                 {compositionData.length > 0 ? (
@@ -1375,7 +1375,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
             </article>
 
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{standardCopy.unitsTitle}</h3>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white">{standardCopy.unitsTitle}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.unitsSubtitle}</p>
               <div className="mt-4 h-80">
                 {dashboard.units.length > 0 ? (
@@ -1396,7 +1396,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
 
           <section className="mb-6">
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{standardCopy.topsTitle}</h3>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white">{standardCopy.topsTitle}</h3>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{standardCopy.topsSubtitle}</p>
             </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">

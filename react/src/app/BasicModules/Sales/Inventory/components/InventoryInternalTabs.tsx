@@ -34,7 +34,7 @@ export function InventoryInternalTabs({
             className={cn(
               'inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all',
               active
-                ? 'bg-[#FF6B5E] text-white shadow-sm shadow-[#FF6B5E]/25'
+                ? 'bg-[#FF6B5E] text-[#222831] shadow-sm shadow-[#FF6B5E]/25'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
             )}
           >

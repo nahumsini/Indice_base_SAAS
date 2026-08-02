@@ -16,17 +16,17 @@ export function StockBulkActionsBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-4 py-3">
-      <span className="mr-2 text-sm font-semibold text-[#B63B32]">{selectedCount} selected</span>
-      <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg bg-white text-xs font-bold">
+      <span className="mr-2 text-sm font-medium text-[#B63B32]">{selectedCount} selected</span>
+      <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg bg-white text-xs font-medium">
         {t.operational.actions.setMinimumStock}
       </Button>
-      <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg bg-white text-xs font-bold">
+      <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg bg-white text-xs font-medium">
         {t.operational.actions.markAsReviewed}
       </Button>
-      <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg bg-white text-xs font-bold">
+      <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg bg-white text-xs font-medium">
         {t.operational.actions.exportVisible}
       </Button>
-      <Button type="button" size="sm" variant="ghost" className="h-8 rounded-lg text-xs font-bold text-[#B63B32]" onClick={onClearSelection}>
+      <Button type="button" size="sm" variant="ghost" className="h-8 rounded-lg text-xs font-medium text-[#B63B32]" onClick={onClearSelection}>
         {t.operational.actions.clearSelection}
       </Button>
     </div>

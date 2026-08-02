@@ -41,7 +41,7 @@ function OpportunityFormField({
 }) {
   return (
     <div className={cn('space-y-2', className)}>
-      <label className="text-sm font-semibold text-slate-700">
+      <label className="text-sm font-medium text-slate-700">
         {label}
         {required ? <span className="ml-1 text-[#B63B32]">*</span> : null}
       </label>
@@ -67,7 +67,7 @@ function OpportunitySection({
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 text-[#B63B32]">
           <Icon className="h-4 w-4" />
         </span>
-        <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+        <h3 className="text-lg font-medium text-slate-950">{title}</h3>
       </div>
       {children}
     </section>

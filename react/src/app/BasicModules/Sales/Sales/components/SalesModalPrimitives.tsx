@@ -5,7 +5,7 @@ export const salesFieldClassName = 'h-11 rounded-lg border-slate-200 bg-white te
 export function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
       <p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">{value}</p>
     </div>
   );
@@ -27,7 +27,7 @@ export function FormField({
 }
 
 export function SectionTitle({ title }: { title: string }) {
-  return <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400">{title}</h3>;
+  return <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</h3>;
 }
 
 export function SectionCard({

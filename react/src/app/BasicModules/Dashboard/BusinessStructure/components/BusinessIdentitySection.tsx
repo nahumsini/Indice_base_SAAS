@@ -208,7 +208,7 @@ export function BusinessIdentitySection({
       className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6"
     >
       <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-5">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           {estructuraType === 'simple' ? structure.identity.simple : structure.identity.holding}
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -227,7 +227,7 @@ export function BusinessIdentitySection({
         </div>
       )}
 
-      <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+      <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
         {structure.headquarters.basicInfo}
       </h4>
 
@@ -331,14 +331,14 @@ export function BusinessIdentitySection({
       </div>
 
       <div className="mt-5">
-        <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+        <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
           {structure.headquarters.locationTitle}
         </h4>
         <p className="mb-3 text-xs text-gray-500 dark:text-gray-500">
           {structure.headquarters.locationHelper}
         </p>
         <div className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
-          <h5 className="text-sm font-semibold text-gray-900 dark:text-white">
+          <h5 className="text-sm font-medium text-gray-900 dark:text-white">
             {structure.headquarters.addressTitle}
           </h5>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">

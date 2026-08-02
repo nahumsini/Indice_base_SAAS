@@ -31,8 +31,8 @@ export function ScheduleWorkflowTabs({
                 : 'border-transparent bg-white/50 text-slate-600 hover:bg-white dark:bg-slate-900/30 dark:text-slate-300 dark:hover:bg-slate-900'
             }`}
           >
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">{copy.schedule.builder.stepLabel(index + 1)}</span>
-            <span className="mt-1 block text-sm font-semibold">{step.label}</span>
+            <span className="text-[11px] font-medium">{copy.schedule.builder.stepLabel(index + 1)}</span>
+            <span className="mt-1 block text-sm font-medium">{step.label}</span>
             <span className="mt-0.5 block text-xs opacity-75">{step.description}</span>
           </button>
         );

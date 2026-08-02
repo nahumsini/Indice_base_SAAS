@@ -170,22 +170,22 @@ export default function Credito() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-blue-100 px-2.5 py-1 text-xs font-semibold uppercase text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
             <WalletCards className="h-3.5 w-3.5" />
             Motor de credito y cobranza POS
           </div>
-          <h2 className="text-2xl font-black text-gray-950 dark:text-white">Credito y cobranza</h2>
+          <h2 className="text-2xl font-medium text-gray-950 dark:text-white">Credito y cobranza</h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Administra limites, plazos, cartera, vencimientos y abonos de ventas POS a credito.
           </p>
         </div>
         {activeView === 'policies' && (
           <div className="flex flex-wrap gap-2">
-            <button onClick={restoreDefaults} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
+            <button onClick={restoreDefaults} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
               <RefreshCw className="h-4 w-4" />
               Restaurar
             </button>
-            <button onClick={() => setEditingRule(createEmptyRule())} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+            <button onClick={() => setEditingRule(createEmptyRule())} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
               <Plus className="h-4 w-4" />
               Nueva politica
             </button>
@@ -197,14 +197,14 @@ export default function Credito() {
         <button
           type="button"
           onClick={() => setActiveView('policies')}
-          className={`min-h-10 rounded-md px-4 text-sm font-black transition ${activeView === 'policies' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+          className={`min-h-10 rounded-md px-4 text-sm font-medium transition ${activeView === 'policies' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'}`}
         >
           Politicas
         </button>
         <button
           type="button"
           onClick={() => setActiveView('receivables')}
-          className={`min-h-10 rounded-md px-4 text-sm font-black transition ${activeView === 'receivables' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+          className={`min-h-10 rounded-md px-4 text-sm font-medium transition ${activeView === 'receivables' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'}`}
         >
           Cuentas por cobrar
         </button>
@@ -223,7 +223,7 @@ export default function Credito() {
 
       <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:grid-cols-[1.5fr_repeat(3,minmax(160px,1fr))]">
         <label className="relative min-w-0">
-          <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Buscar</span>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Buscar</span>
           <Search className="absolute left-3 top-[34px] h-4 w-4 text-gray-400" />
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cliente, grupo, regla o nota" className="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
         </label>
@@ -250,11 +250,11 @@ export default function Credito() {
           <div className="bg-gray-400" style={{ width: `${distribution.inactive}%` }} />
           <div className="bg-red-500" style={{ width: `${distribution.suspended}%` }} />
         </div>
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-100">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-100">
           {filteredRows.length} politicas visibles; {kpis.reviewCount} requieren revision y {kpis.blockedCount} bloquean el ticket preview de {formatCurrency(previewAmount)}.
         </div>
         {notice && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-100">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-100">
             {notice}
           </div>
         )}
@@ -279,7 +279,7 @@ export default function Credito() {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1 block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
       {children}
     </label>
   );

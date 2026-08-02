@@ -65,7 +65,7 @@ export function ActiveCategoryCard({
         <div className="min-w-0 flex-1">
           <Input
             value={category.name}
-            className="h-8 min-w-0 border-0 bg-transparent px-1 text-sm font-semibold shadow-none focus:bg-slate-50 focus:ring-1 focus:ring-[#FF6B5E]/20"
+            className="h-8 min-w-0 border-0 bg-transparent px-1 text-sm font-medium shadow-none focus:bg-slate-50 focus:ring-1 focus:ring-[#FF6B5E]/20"
             onChange={(event) => onUpdate(category.id, (current) => ({
               ...current,
               name: event.target.value,
@@ -74,12 +74,12 @@ export function ActiveCategoryCard({
           />
           <div className="flex min-w-0 flex-wrap gap-1 px-1 pt-1">
             {category.supportedTypes.slice(0, 3).map((type) => (
-              <span key={type} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+              <span key={type} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
                 {t.typeLabels[type]}
               </span>
             ))}
             {category.supportedTypes.length > 3 ? (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
                 +{category.supportedTypes.length - 3}
               </span>
             ) : null}

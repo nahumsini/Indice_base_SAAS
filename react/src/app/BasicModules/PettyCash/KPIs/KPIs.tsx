@@ -147,21 +147,21 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
               <TrendingUp className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Petty Cash KPIs</h2>
+              <h2 className="text-xl font-medium text-gray-900 dark:text-white">Petty Cash KPIs</h2>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                 Control issued cash, collaborator balances, receipt risk, and fund health.
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#147514] shadow-sm dark:bg-gray-900 dark:text-green-300">
+            <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-medium text-[#147514] shadow-sm dark:bg-gray-900 dark:text-green-300">
               {settlementRate}% settlement rate
             </span>
             <button
               type="button"
               disabled={!isCompanyPrintIdentityReady}
               onClick={handlePrint}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#147514]/20 bg-white px-3 text-sm font-semibold text-[#147514] transition hover:bg-[#147514]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-green-300"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#147514]/20 bg-white px-3 text-sm font-medium text-[#147514] transition hover:bg-[#147514]/5 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-green-300"
             >
               <Printer className="h-4 w-4" /> Print report
             </button>
@@ -183,7 +183,7 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
           <div className="mb-4 flex items-center gap-2">
             <Users className="h-5 w-5 text-[#147514]" />
             <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">Collaborator exposure</h3>
+              <h3 className="text-base font-medium text-gray-900 dark:text-white">Collaborator exposure</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Open petty cash balances by collaborator</p>
             </div>
           </div>
@@ -192,10 +192,10 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
               <div key={item.collaborator} className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900/40">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{item.collaborator}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{item.collaborator}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{item.count} movement{item.count === 1 ? '' : 's'} / {formatPettyCashCurrency(item.issued)} issued</p>
                   </div>
-                  <p className={`text-sm font-bold ${item.balance > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-green-700 dark:text-green-300'}`}>
+                  <p className={`text-sm font-medium ${item.balance > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-green-700 dark:text-green-300'}`}>
                     {formatPettyCashCurrency(item.balance)}
                   </p>
                 </div>
@@ -208,7 +208,7 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
           <div className="mb-4 flex items-center gap-2">
             <Wallet className="h-5 w-5 text-[#147514]" />
             <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">Fund utilization</h3>
+              <h3 className="text-base font-medium text-gray-900 dark:text-white">Fund utilization</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Cash available and pending receipts by box</p>
             </div>
           </div>
@@ -217,10 +217,10 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
               <div key={fund.id}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-gray-900 dark:text-white">{fund.name}</p>
+                    <p className="truncate font-medium text-gray-900 dark:text-white">{fund.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{fund.custodian}</p>
                   </div>
-                  <span className="shrink-0 font-bold text-gray-900 dark:text-white">{fund.balanceRate}%</span>
+                  <span className="shrink-0 font-medium text-gray-900 dark:text-white">{fund.balanceRate}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                   <div
@@ -249,7 +249,7 @@ export default function KPIs({ expenses, funds }: KPIsProps) {
                   <Icon className="h-4 w-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-bold">{insight.title}</p>
+                  <p className="text-sm font-medium">{insight.title}</p>
                   <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">{insight.description}</p>
                 </div>
               </div>
@@ -285,8 +285,8 @@ function KpiMetric({
     <div className={`rounded-lg border p-5 shadow-sm ${toneClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-75">{label}</p>
-          <p className="mt-2 text-3xl font-black">{value}</p>
+          <p className="text-xs font-medium opacity-75">{label}</p>
+          <p className="mt-2 text-3xl font-medium">{value}</p>
           <p className="mt-1 text-xs opacity-80">{detail}</p>
         </div>
         <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/70 dark:bg-gray-950/30">

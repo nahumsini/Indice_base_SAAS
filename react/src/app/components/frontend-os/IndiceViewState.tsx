@@ -67,7 +67,7 @@ export function IndiceViewState({
       >
         {icon ?? defaultIcon}
       </span>
-      <h3 className="mt-4 text-base font-semibold text-slate-950 dark:text-white">{title}</h3>
+      <h3 className="mt-4 text-base font-medium text-slate-950 dark:text-white">{title}</h3>
       {description ? <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p> : null}
       {action ? <div className="mt-4 flex flex-wrap justify-center gap-2">{action}</div> : null}
     </section>

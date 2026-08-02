@@ -101,14 +101,14 @@ export function PublicCatalogRequestsModal({
           </Button>
         </div>
 
-        {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div> : null}
+        {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {loading && requests.length === 0 ? (
-            <div className="grid min-h-64 place-items-center text-sm font-semibold text-slate-500">{t.publicCatalog.requests.loading}</div>
+            <div className="grid min-h-64 place-items-center text-sm font-medium text-slate-500">{t.publicCatalog.requests.loading}</div>
           ) : null}
           {!loading && visible.length === 0 ? (
-            <div className="grid min-h-64 place-items-center rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+            <div className="grid min-h-64 place-items-center rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-medium text-slate-500">
               {t.publicCatalog.requests.empty}
             </div>
           ) : null}
@@ -121,16 +121,16 @@ export function PublicCatalogRequestsModal({
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-mono text-sm font-black text-slate-950">{request.requestNumber}</h3>
-                        <span className={`rounded-full px-2 py-1 text-xs font-bold ${statusClass[request.status]}`}>{t.publicCatalog.requests.statuses[request.status]}</span>
+                        <h3 className="font-mono text-sm font-medium text-slate-950">{request.requestNumber}</h3>
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass[request.status]}`}>{t.publicCatalog.requests.statuses[request.status]}</span>
                       </div>
-                      <p className="mt-2 font-black text-slate-900">{request.customerName}</p>
-                      <p className="mt-1 break-all text-sm font-semibold text-slate-500">{request.contact} · {request.preferredContactMethod}</p>
+                      <p className="mt-2 font-medium text-slate-900">{request.customerName}</p>
+                      <p className="mt-1 break-all text-sm font-medium text-slate-500">{request.contact} · {request.preferredContactMethod}</p>
                       {request.message ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">{request.message}</p> : null}
                     </div>
                     <div className="shrink-0 rounded-lg bg-slate-50 px-4 py-3 text-right">
-                      <p className="text-xs font-bold text-slate-500">{t.publicCatalog.requests.lineItems(request.itemCount)}</p>
-                      <p className="mt-1 text-lg font-black text-slate-950">{money(request.estimatedTotal, request.currencyCode, locale)}</p>
+                      <p className="text-xs font-medium text-slate-500">{t.publicCatalog.requests.lineItems(request.itemCount)}</p>
+                      <p className="mt-1 text-lg font-medium text-slate-950">{money(request.estimatedTotal, request.currencyCode, locale)}</p>
                       <p className="mt-1 text-xs text-slate-500">{new Date(request.createdAt).toLocaleString(locale)}</p>
                     </div>
                   </div>
@@ -141,10 +141,10 @@ export function PublicCatalogRequestsModal({
                         <tbody>
                           {request.items.map((item) => (
                             <tr key={item.productId} className="border-t border-slate-100 text-slate-700">
-                              <td className="px-3 py-2 font-semibold">{item.productName}<span className="ml-2 text-slate-400">{item.sku}</span></td>
+                              <td className="px-3 py-2 font-medium">{item.productName}<span className="ml-2 text-slate-400">{item.sku}</span></td>
                               <td className="px-3 py-2 text-right">{Number(item.quantity)}</td>
                               <td className="px-3 py-2 text-right">{money(item.unitPrice, request.currencyCode, locale)}</td>
-                              <td className="px-3 py-2 text-right font-bold">{money(item.lineTotal, request.currencyCode, locale)}</td>
+                              <td className="px-3 py-2 text-right font-medium">{money(item.lineTotal, request.currencyCode, locale)}</td>
                             </tr>
                           ))}
                         </tbody>

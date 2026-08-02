@@ -78,15 +78,15 @@ export function SalePaymentPanel({
     <>
       <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-[#222831]/10 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <section className="space-y-2.5 border-b border-gray-200 p-3 dark:border-gray-700">
-          <div className={`rounded-lg p-3 text-white shadow-sm ${totals.isPaid ? 'bg-[#59C3A5]' : 'bg-[#222831]'}`}>
+          <div className={`rounded-lg p-3 shadow-sm ${totals.isPaid ? 'bg-[#59C3A5] text-[#222831]' : 'bg-[#222831] text-white'}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-bold opacity-90">Cobro</p>
-                <p className="mt-1 break-words text-3xl font-black leading-none">
+                <p className="text-sm font-medium opacity-90">Cobro</p>
+                <p className="mt-1 break-words text-3xl font-medium leading-none">
                   {formatCurrency(totals.total)}
                 </p>
               </div>
-              <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-black uppercase">
+              <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-medium">
                 {totals.isPaid ? 'Listo' : 'Pendiente'}
               </span>
             </div>
@@ -112,10 +112,10 @@ export function SalePaymentPanel({
               <AlertCircle className="mt-1 h-5 w-5 shrink-0 text-[#B77900] dark:text-[#F4C84A]" />
             )}
             <div className="min-w-0">
-              <p className="text-sm font-black text-[#222831] dark:text-white">
+              <p className="text-sm font-medium text-[#222831] dark:text-white">
                 {totals.isPaid ? 'Pago completo' : 'Listo para cobrar'}
               </p>
-              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
                 {totals.isPaid
                   ? 'Abre el cobro para revisar y finalizar la venta.'
                   : 'Abre el modal touch para elegir método de pago.'}
@@ -125,8 +125,8 @@ export function SalePaymentPanel({
 
           {payments.length > 0 && (
             <div className="rounded-lg border border-gray-200 bg-[#F7F8FA] px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
-              <p className="text-xs font-black uppercase text-gray-500 dark:text-gray-400">Pagos registrados</p>
-              <p className="text-base font-black text-[#222831] dark:text-white">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Pagos registrados</p>
+              <p className="text-base font-medium text-[#222831] dark:text-white">
                 {payments.length} pago{payments.length === 1 ? '' : 's'} · {formatCurrency(totals.paid)}
               </p>
             </div>
@@ -136,7 +136,7 @@ export function SalePaymentPanel({
             type="button"
             onClick={() => setIsCheckoutOpen(true)}
             disabled={!canOpenCheckout || isCompletingSale}
-            className="min-h-12 w-full rounded-lg bg-[#FF6B5E] px-5 py-2.5 text-lg font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ff5a4b] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-12 w-full rounded-lg bg-[#FF6B5E] px-5 py-2.5 text-lg font-medium text-[#222831] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ff5a4b] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {cartItemCount === 0 && payments.length === 0
               ? 'Agrega productos'
@@ -166,7 +166,7 @@ export function SalePaymentPanel({
         <div className="border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
           <button
             onClick={() => setIsActivityOpen((current) => !current)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
             aria-expanded={isActivityOpen}
           >
             <span>Actividad reciente</span>
@@ -231,7 +231,7 @@ function CompactPosActions({
   return (
     <section className="space-y-2.5">
       <div>
-        <p className="mb-1.5 text-[10px] font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
+        <p className="mb-1.5 text-[10px] font-medium tracking-normal text-gray-500 dark:text-gray-400">
           Cantidad rápida
         </p>
         <div className="grid grid-cols-5 gap-2">
@@ -240,9 +240,9 @@ function CompactPosActions({
               key={quantity}
               type="button"
               onClick={() => onQuantityChange(quantity)}
-              className={`min-h-9 rounded-lg text-sm font-black transition active:scale-95 ${
+              className={`min-h-9 rounded-lg text-sm font-medium transition active:scale-95 ${
                 selectedQuickQuantity === quantity
-                  ? 'bg-[#FF6B5E] text-white shadow-sm'
+                  ? 'bg-[#FF6B5E] text-[#222831] shadow-sm'
                   : 'bg-[#F7F8FA] text-gray-700 ring-1 ring-gray-200 hover:bg-[#FF6B5E]/10 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700'
               }`}
             >
@@ -263,15 +263,15 @@ function CompactPosActions({
       <div className="rounded-lg border border-gray-200 bg-[#F7F8FA] p-3 dark:border-gray-700 dark:bg-gray-900/40">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-black text-[#222831] dark:text-white">Tickets pausados</p>
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            <p className="text-sm font-medium text-[#222831] dark:text-white">Tickets pausados</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
               {suspendedSales.length === 0
                 ? 'Sin tickets en espera'
                 : `${suspendedSales.length} ticket${suspendedSales.length === 1 ? '' : 's'} en espera`}
             </p>
           </div>
           {suspendedSales.length > 0 && (
-            <span className="rounded-full bg-[#F4C84A]/20 px-2 py-1 text-xs font-black text-[#8A6500] dark:text-[#F4C84A]">
+            <span className="rounded-full bg-[#F4C84A]/20 px-2 py-1 text-xs font-medium text-[#8A6500] dark:text-[#F4C84A]">
               {suspendedSales.length}
             </span>
           )}
@@ -282,14 +282,14 @@ function CompactPosActions({
             {visibleSuspendedSales.map((sale) => (
               <div key={sale.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 dark:bg-gray-950/40">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-black text-[#222831] dark:text-white">{sale.title}</p>
-                  <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{formatCurrency(sale.total)}</p>
+                  <p className="truncate text-xs font-medium text-[#222831] dark:text-white">{sale.title}</p>
+                  <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{formatCurrency(sale.total)}</p>
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <button
                     type="button"
                     onClick={() => onResume(sale.id)}
-                    className="rounded-lg bg-[#222831] px-2 py-1 text-[11px] font-black text-white"
+                    className="rounded-lg bg-[#222831] px-2 py-1 text-[11px] font-medium text-white"
                   >
                     Abrir
                   </button>
@@ -305,7 +305,7 @@ function CompactPosActions({
               </div>
             ))}
             {suspendedSales.length > visibleSuspendedSales.length && (
-              <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
+              <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                 +{suspendedSales.length - visibleSuspendedSales.length} ticket{(suspendedSales.length - visibleSuspendedSales.length) === 1 ? '' : 's'} en espera
               </p>
             )}
@@ -332,7 +332,7 @@ function QuickActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-xs font-black text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#59C3A5]/10 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700"
+      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#59C3A5]/10 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700"
     >
       <span aria-hidden="true">{icon}</span>
       {label}
@@ -357,8 +357,8 @@ function StatusTile({
 
   return (
     <div className={`rounded-lg px-3 py-2.5 ${toneClass}`}>
-      <p className="text-[10px] font-black uppercase tracking-normal opacity-75">{label}</p>
-      <p className="mt-0.5 break-words text-base font-black leading-tight">{value}</p>
+      <p className="text-[10px] font-medium tracking-normal opacity-75">{label}</p>
+      <p className="mt-0.5 break-words text-base font-medium leading-tight">{value}</p>
     </div>
   );
 }

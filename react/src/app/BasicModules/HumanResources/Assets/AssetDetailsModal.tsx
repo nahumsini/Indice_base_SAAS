@@ -359,7 +359,7 @@ function SummaryStat({
           >
             {label}
           </div>
-          <div className={cn('mt-1 text-sm font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
+          <div className={cn('mt-1 text-sm font-medium', isDarkMode ? 'text-white' : 'text-slate-900')}>
             {value}
           </div>
         </div>
@@ -398,7 +398,7 @@ function SectionCard({
           {icon}
         </span>
         <div className="min-w-0">
-          <h3 className={cn('text-lg font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
+          <h3 className={cn('text-lg font-medium', isDarkMode ? 'text-white' : 'text-slate-900')}>
             {title}
           </h3>
           {subtitle ? (
@@ -469,7 +469,7 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
   const statusBadge = (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold',
+        'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium',
         getStatusClasses(asset.status),
       )}
     >
@@ -551,7 +551,7 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span
                       className={cn(
-                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
                         isDarkMode ? 'bg-white/10 text-white/85' : 'bg-[#E5F8F2] text-[#1F8A70]',
                       )}
                     >
@@ -559,7 +559,7 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
                     </span>
                     {statusBadge}
                   </div>
-                  <h3 className={cn('text-2xl font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
+                  <h3 className={cn('text-2xl font-medium', isDarkMode ? 'text-white' : 'text-slate-900')}>
                     {asset.name}
                   </h3>
                   <p className={cn('mt-2 max-w-2xl text-sm leading-7', isDarkMode ? 'text-slate-300' : 'text-slate-600')}>
@@ -576,7 +576,7 @@ export function AssetDetailsModal({ isOpen, asset, onClose }: AssetDetailsModalP
                   <div className="text-xs font-medium text-slate-500">
                     {copy.fields.code}
                   </div>
-                  <div className={cn('mt-2 text-lg font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
+                  <div className={cn('mt-2 text-lg font-medium', isDarkMode ? 'text-white' : 'text-slate-900')}>
                     {asset.asset_code}
                   </div>
                 </div>

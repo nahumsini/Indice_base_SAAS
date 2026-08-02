@@ -29,8 +29,8 @@ export function ActiveCategoriesList({
     <section className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="shrink-0 px-0.5">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="min-w-0 truncate text-lg font-semibold text-slate-950">{t.categoryManager.activeTitle}</h3>
-          <span className="shrink-0 rounded-full bg-slate-200/70 px-2 py-0.5 text-xs font-semibold text-slate-600">
+          <h3 className="min-w-0 truncate text-lg font-medium text-slate-950">{t.categoryManager.activeTitle}</h3>
+          <span className="shrink-0 rounded-full bg-slate-200/70 px-2 py-0.5 text-xs font-medium text-slate-600">
             {activeCount}
           </span>
         </div>
@@ -42,8 +42,8 @@ export function ActiveCategoriesList({
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500">
             <FolderOpen className="h-5 w-5" />
           </div>
-          <h4 className="mt-3 text-base font-semibold text-slate-950">{t.categoryManager.emptyActiveTitle}</h4>
-          <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-slate-500">
+          <h4 className="mt-3 text-base font-medium text-slate-950">{t.categoryManager.emptyActiveTitle}</h4>
+          <p className="mx-auto mt-2 max-w-xs text-sm font-medium leading-6 text-slate-500">
             {t.categoryManager.emptyActiveDescription}
           </p>
         </div>

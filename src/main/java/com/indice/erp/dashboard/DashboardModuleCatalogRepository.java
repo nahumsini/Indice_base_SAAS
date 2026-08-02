@@ -11,24 +11,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 class DashboardModuleCatalogRepository {
 
-    private static final Set<String> BASIC_SLUGS = Set.of(
-        "config_center",
-        "human_resources",
-        "expenses",
-        "petty_cash",
-        "pos",
-        "processes",
-        "sales",
-        "kpis"
-    );
-
-    private static final Set<String> AI_SLUGS = Set.of(
-        "agente_ventas",
-        "indice_analitica",
-        "capacitacion",
-        "coach"
-    );
-
     private final JdbcTemplate jdbcTemplate;
 
     DashboardModuleCatalogRepository(JdbcTemplate jdbcTemplate) {
@@ -60,9 +42,12 @@ class DashboardModuleCatalogRepository {
 
         return jdbcTemplate.query(
             String.format("""
-                SELECT slug, name, description, icon, badge_text, tier, sort_order, is_core, is_active
+                SELECT slug, name, description, icon, badge_text, tier, sort_order, is_core, is_active,
+                       COALESCE(module_category, 'complementary') AS module_category,
+                       COALESCE(route_key, '') AS route_key
                 FROM modules
                 WHERE COALESCE(is_active, 1) = 1
+                  AND LOWER(COALESCE(lifecycle_status, 'released')) IN ('pilot', 'released')
                   %s
                 ORDER BY sort_order ASC, id ASC
                 """, moduleFilter),
@@ -72,26 +57,18 @@ class DashboardModuleCatalogRepository {
                     slug,
                     rs.getString("name"),
                     rs.getString("description"),
-                    resolveCategory(slug, rs.getBoolean("is_core")),
+                    rs.getString("module_category"),
                     rs.getString("badge_text") != null ? rs.getString("badge_text") : rs.getString("tier"),
                     rs.getString("icon") != null ? rs.getString("icon") : "bi-grid",
                     null,
                     favorites.contains(slug),
                     false,
-                    "/modules/" + slug + "/"
+                    rs.getString("route_key").isBlank()
+                        ? "/modules/" + slug + "/"
+                        : "/" + rs.getString("route_key")
                 );
             },
             params.toArray()
         );
-    }
-
-    private String resolveCategory(String slug, boolean isCore) {
-        if (AI_SLUGS.contains(slug)) {
-            return "ai";
-        }
-        if (isCore || BASIC_SLUGS.contains(slug)) {
-            return "basic";
-        }
-        return "complementary";
     }
 }

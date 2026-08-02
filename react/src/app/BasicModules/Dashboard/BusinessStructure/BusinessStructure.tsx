@@ -1649,7 +1649,7 @@ export default function BusinessStructure() {
               type="button"
               variant="outline"
               onClick={closeUnidadModal}
-              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {structure.modal.cancel}
             </Button>
@@ -1671,7 +1671,7 @@ export default function BusinessStructure() {
             >
               <div className="space-y-5">
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.basicInfo}
                   </h4>
                   <div className="grid grid-cols-1 gap-4">
@@ -1772,7 +1772,7 @@ export default function BusinessStructure() {
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.location}
                   </h4>
                   <div className="grid grid-cols-1 gap-4">
@@ -1833,7 +1833,7 @@ export default function BusinessStructure() {
                   </div>
 
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.contact}{' '}
                     <span className="text-xs text-gray-500 font-normal">
                       ({structure.fields.optional})
@@ -1898,7 +1898,7 @@ export default function BusinessStructure() {
               type="button"
               variant="outline"
               onClick={closeNegocioModal}
-              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+              className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
               {structure.modal.cancel}
             </Button>
@@ -1920,7 +1920,7 @@ export default function BusinessStructure() {
             >
               <div className="space-y-5">
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.basicInfo}
                   </h4>
                   <div className="grid grid-cols-1 gap-4">
@@ -2021,7 +2021,7 @@ export default function BusinessStructure() {
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.location}
                   </h4>
                   <div className="grid grid-cols-1 gap-4">
@@ -2082,7 +2082,7 @@ export default function BusinessStructure() {
                   </div>
 
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                     {structure.fields.operationalInfo}{' '}
                     <span className="text-xs text-gray-500 font-normal">
                       ({structure.fields.optional})

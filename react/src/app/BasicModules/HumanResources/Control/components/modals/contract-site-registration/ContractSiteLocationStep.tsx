@@ -48,7 +48,7 @@ export function ContractSiteLocationStep({
       <div className="flex items-start gap-3 rounded-md border border-[#59C3A5]/15 bg-[#59C3A5]/5 p-4 dark:border-blue-400/20 dark:bg-blue-400/10">
         <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#59C3A5] dark:text-blue-300" />
         <div>
-          <p className="text-sm font-semibold text-[#59C3A5] dark:text-blue-200">{copy.location.title}</p>
+          <p className="text-sm font-medium text-[#59C3A5] dark:text-blue-200">{copy.location.title}</p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             {copy.location.description}
           </p>
@@ -57,7 +57,7 @@ export function ContractSiteLocationStep({
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.googleMapsLink}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.location.googleMapsLink}</label>
           <input
             type="text"
             value={enlaceGoogleMaps}
@@ -83,7 +83,7 @@ export function ContractSiteLocationStep({
       <div className="rounded-md border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/60">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.radiusLabel}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.location.radiusLabel}</label>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {copy.location.radiusHint}
             </p>
@@ -123,7 +123,7 @@ export function ContractSiteLocationStep({
       <button
         type="button"
         onClick={onAdvancedFieldsToggle}
-        className="text-sm font-semibold text-[#59C3A5] hover:underline dark:text-blue-300"
+        className="text-sm font-medium text-[#59C3A5] hover:underline dark:text-blue-300"
       >
         {showAdvancedLocationFields ? copy.location.hideAdvanced : copy.location.showAdvanced}
       </button>
@@ -131,7 +131,7 @@ export function ContractSiteLocationStep({
       {showAdvancedLocationFields ? (
         <div className="grid grid-cols-1 gap-4 rounded-md border border-dashed border-slate-300 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-3">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.latitude}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.location.latitude}</label>
             <input
               type="text"
               value={latitud}
@@ -141,7 +141,7 @@ export function ContractSiteLocationStep({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.longitude}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.location.longitude}</label>
             <input
               type="text"
               value={longitud}
@@ -151,7 +151,7 @@ export function ContractSiteLocationStep({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">{copy.location.altitudeOptional}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.location.altitudeOptional}</label>
             <input
               type="text"
               value={altitud}

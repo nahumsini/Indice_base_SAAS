@@ -31,7 +31,7 @@ export function FilterSelect<T extends string>({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <label id={`${fieldId}-label`} className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <label id={`${fieldId}-label`} className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
         <SelectTrigger aria-labelledby={`${fieldId}-label`} className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
           <SelectValue />

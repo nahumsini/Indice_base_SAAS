@@ -116,7 +116,7 @@ export function AgendaTableView({
         {!isAgendaViewLoading && filteredTasks.length === 0 ? (
           <div className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400">
             <span className="mb-3 block text-3xl" aria-hidden="true">📋</span>
-            <p className="font-semibold">{agendaCopy.table.empty}</p>
+            <p className="font-medium">{agendaCopy.table.empty}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <Button type="button" variant="outline" onClick={onClearFilters}>{agendaCopy.filters.clear}</Button>
               <Button type="button" className="bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={onCreateTask}>{agendaCopy.header.actions.create}</Button>
@@ -147,7 +147,7 @@ export function AgendaTableView({
                     />
                     {primaryMobileColumn ? (
                       <div className="min-w-0 flex-1">
-                        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                        <p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                           {primaryMobileColumn.label}
                         </p>
                         {renderAgendaTaskCell(task, primaryMobileColumn.id as AgendaColumnId)}
@@ -162,7 +162,7 @@ export function AgendaTableView({
                           key={`${task.taskId}-${column.id}`}
                           className="rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 dark:border-slate-700 dark:bg-slate-900/50"
                         >
-                          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                          <p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                             {column.label}
                           </p>
                           <div className="min-w-0">
@@ -174,7 +174,7 @@ export function AgendaTableView({
                   ) : null}
 
                   <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700">
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    <p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       {actionsMobileLabel}
                     </p>
                     {renderTaskActions(task)}
@@ -316,7 +316,7 @@ export function AgendaTableView({
                   className="px-6 py-16 text-center text-base text-slate-500 dark:text-slate-400"
                 >
                   <span className="mb-3 block text-3xl" aria-hidden="true">📋</span>
-                  <span className="font-semibold">{agendaCopy.table.empty}</span>
+                  <span className="font-medium">{agendaCopy.table.empty}</span>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
                     <Button type="button" variant="outline" onClick={onClearFilters}>{agendaCopy.filters.clear}</Button>
                     <Button type="button" className="bg-[#F4C84A] text-slate-950 hover:bg-[#E5B835]" onClick={onCreateTask}>{agendaCopy.header.actions.create}</Button>

@@ -46,10 +46,10 @@ export function PublicCatalogCardsPanel({
       <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 lg:p-5">
         <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
-            <h3 className="truncate text-lg font-bold text-slate-950">{t.publicCatalog.managerTitle}</h3>
-            <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">{t.publicCatalog.managerDescription}</p>
+            <h3 className="truncate text-lg font-medium text-slate-950">{t.publicCatalog.managerTitle}</h3>
+            <p className="mt-1 max-w-3xl text-sm font-medium text-slate-500">{t.publicCatalog.managerDescription}</p>
           </div>
-          <Button type="button" className="h-10 shrink-0 gap-2 rounded-lg bg-[#FF6B5E] text-white hover:bg-[#E85C50]" onClick={onCreate}>
+          <Button type="button" className="h-10 shrink-0 gap-2 rounded-lg bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]" onClick={onCreate}>
             <Plus className="h-4 w-4" />
             {t.publicCatalog.createPublicCatalog}
           </Button>
@@ -58,9 +58,9 @@ export function PublicCatalogCardsPanel({
         {catalogs.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
             <div className="max-w-md">
-              <h3 className="text-xl font-bold text-slate-950">{t.publicCatalog.noCatalogsTitle}</h3>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">{t.publicCatalog.noCatalogsDescription}</p>
-              <Button type="button" className="mt-5 h-10 gap-2 rounded-lg bg-[#FF6B5E] text-white hover:bg-[#E85C50]" onClick={onCreate}>
+              <h3 className="text-xl font-medium text-slate-950">{t.publicCatalog.noCatalogsTitle}</h3>
+              <p className="mt-2 text-sm font-medium leading-6 text-slate-500">{t.publicCatalog.noCatalogsDescription}</p>
+              <Button type="button" className="mt-5 h-10 gap-2 rounded-lg bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]" onClick={onCreate}>
                 <Plus className="h-4 w-4" />
                 {t.publicCatalog.createPublicCatalog}
               </Button>

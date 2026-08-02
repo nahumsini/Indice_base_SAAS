@@ -48,7 +48,7 @@ export function ReceivablesTableShell({
               <TableRow>
                 <TableCell
                   colSpan={emptyColSpan}
-                  className="px-6 py-16 text-center text-sm font-semibold text-slate-500 dark:text-slate-300"
+                  className="px-6 py-16 text-center text-sm font-medium text-slate-500 dark:text-slate-300"
                 >
                   {emptyLabel}
                 </TableCell>

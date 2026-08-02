@@ -71,7 +71,7 @@ export function PettyCashHeaderBanner({
         <button
           type="button"
           onClick={onSecondaryAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
         >
           {SecondaryActionIcon ? <SecondaryActionIcon className="h-4 w-4" /> : null}
           {secondaryActionLabel}
@@ -81,7 +81,7 @@ export function PettyCashHeaderBanner({
         <button
           type="button"
           onClick={onTertiaryAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
         >
           {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
           {tertiaryActionLabel}
@@ -91,7 +91,7 @@ export function PettyCashHeaderBanner({
         <button
           type="button"
           onClick={onColumns}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
         >
           <Columns3 className="h-4 w-4" />
           <HeaderColumnsLabel />
@@ -101,7 +101,7 @@ export function PettyCashHeaderBanner({
         <button
           type="button"
           onClick={onAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#147514] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#105010] dark:bg-emerald-600 dark:hover:bg-emerald-500"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#147514] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#105010] dark:bg-emerald-600 dark:hover:bg-emerald-500"
         >
           <Plus className="h-4 w-4" />
           {actionLabel}
@@ -143,14 +143,14 @@ export function PettyCashFilterShell({
   const resolvedClearLabel = clearLabel ?? copy.common.clear;
   const summary = (
     <div className="flex flex-wrap items-center gap-3">
-      <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-bold text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
+      <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-medium text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
         {resultLabel}
       </span>
       {onClear ? (
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
         >
           <RefreshCcw className="h-3.5 w-3.5" />
           {resolvedClearLabel}
@@ -249,13 +249,13 @@ export function PettyCashSortableHeader<K extends string>({
         <button
           type="button"
           onClick={() => onSort(columnKey)}
-          className={`inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors hover:text-slate-900 dark:hover:text-white ${isActive ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}
+          className={`inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium transition-colors hover:text-slate-900 dark:hover:text-white ${isActive ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}
         >
           <span>{label}</span>
           <SortIcon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-400'}`} />
         </button>
       ) : (
-        <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{label}</span>
+        <span className="whitespace-nowrap text-[11px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
       )}
     </th>
   );
@@ -286,8 +286,8 @@ export function PettyCashMetric({
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">
-        <p className={`truncate text-base font-black ${toneClass}`}>{value}</p>
-        <p className="truncate text-sm font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+        <p className={`truncate text-base font-medium ${toneClass}`}>{value}</p>
+        <p className="truncate text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </div>
   );
@@ -303,7 +303,7 @@ export function PettyCashStatusPill({ kind, status }: { kind: StatusKind; status
       : translations.status.statement[status as PettyCashStatementStatus];
 
   return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${copy.className}`}>
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${copy.className}`}>
       {label}
     </span>
   );

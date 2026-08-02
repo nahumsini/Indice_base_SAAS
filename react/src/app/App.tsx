@@ -23,9 +23,11 @@ import {
 import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { dashboardApi } from './api/dashboard';
 import { authApi } from './api/auth';
+import type { AuthSessionResponse } from './api/auth.types';
 import { buildDefaultModuleCatalog, FRONTEND_OWNED_BASIC_MODULE_ROUTES, routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
 import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
+import { allowedModuleTabIds, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 
 const getNavigationSuccessToast = (state: unknown) => {
@@ -402,6 +404,7 @@ export default function App() {
   const [allowedModuleRoutes, setAllowedModuleRoutes] = useState<Set<PageId> | null>(null);
   const [isModuleAccessLoaded, setIsModuleAccessLoaded] = useState(false);
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionSessionInfo>(null);
+  const [sessionTabAccess, setSessionTabAccess] = useState<AuthSessionResponse | null>();
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
   const moduleNavigationStartedAtRef = useRef(0);
@@ -418,6 +421,23 @@ export default function App() {
     && !canAccessModulePage(currentPage, allowedModuleRoutes),
   );
   const isSubscriptionBlocked = Boolean(subscriptionInfo && !subscriptionInfo.access_allowed && !isBillingPage);
+  const currentTabScopeDefinition = currentPage ? MODULE_TAB_SCOPE_CATALOG[currentPage] : undefined;
+  const requestedTabId = wildcardPath?.split('/').filter(Boolean)[0];
+  const allowedCurrentTabIds = currentPage && currentTabScopeDefinition && sessionTabAccess !== undefined
+    ? allowedModuleTabIds(currentPage, Object.keys(currentTabScopeDefinition.tabs), sessionTabAccess)
+    : [];
+  const isDeniedTabPage = Boolean(
+    currentPage
+    && currentTabScopeDefinition
+    && isModuleAccessLoaded
+    && sessionTabAccess !== undefined
+    && (
+      allowedCurrentTabIds.length === 0
+      || !requestedTabId
+      || !currentTabScopeDefinition.tabs[requestedTabId]
+      || !allowedCurrentTabIds.includes(requestedTabId)
+    ),
+  );
 
   const clearModuleNavigationTimeout = () => {
     if (moduleNavigationTimeoutRef.current !== null) {
@@ -501,6 +521,7 @@ export default function App() {
       const session = await authApi.getSessionOrNull().catch(() => null);
       if (active) {
         setSubscriptionInfo(session?.company.subscription ?? null);
+        setSessionTabAccess(session);
       }
 
       try {
@@ -594,6 +615,14 @@ export default function App() {
       navigate('/dashboard', { replace: true });
     }
   }, [isDeniedModulePage, navigate]);
+
+  useEffect(() => {
+    if (!isDeniedTabPage || !currentPage) {
+      return;
+    }
+    const fallbackTab = allowedCurrentTabIds[0];
+    navigate(fallbackTab ? getPagePath(currentPage, fallbackTab) : '/dashboard', { replace: true });
+  }, [allowedCurrentTabIds, currentPage, isDeniedTabPage, navigate]);
 
   const toggleLearningMode = () => {
     setLearningModeActive((current) => {
@@ -692,7 +721,7 @@ export default function App() {
       </StandaloneModuleShell>
     ) : null;
 
-  if (!currentPage || needsPageRedirect || isModuleAccessPending || isDeniedModulePage) {
+  if (!currentPage || needsPageRedirect || isModuleAccessPending || isDeniedModulePage || isDeniedTabPage) {
     return null;
   }
 

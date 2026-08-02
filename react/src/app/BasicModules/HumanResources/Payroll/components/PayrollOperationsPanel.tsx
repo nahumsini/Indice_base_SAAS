@@ -166,7 +166,7 @@ export function PayrollOperationsPanel({
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
                   <metric.Icon className="h-4 w-4" />
                 </span>
-                <span className={`font-semibold ${metric.valueClassName}`}>{metric.value}</span>
+                <span className={`font-medium ${metric.valueClassName}`}>{metric.value}</span>
                 <span>{metric.label}</span>
               </div>
             </div>
@@ -175,16 +175,16 @@ export function PayrollOperationsPanel({
 
         <div className="flex flex-wrap items-center gap-2">
           {blockedCount > 0 ? (
-            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
+            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300">
               {blockedCount} {operations.badges.blocked}
             </span>
           ) : null}
           {approvedCount > 0 ? (
-            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300">
+            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300">
               {approvedCount} {operations.badges.pendingPayment}
             </span>
           ) : null}
-          <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-semibold text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+          <span className="rounded-full border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-3 py-1 text-xs font-medium text-[#59C3A5] dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
             {paidRate} {operations.badges.paidRate}
           </span>
         </div>
@@ -212,7 +212,7 @@ export function PayrollOperationsPanel({
             <span key={item.key} className="flex items-center gap-1">
               <span className={`h-2 w-2 rounded-full ${statusStyleConfig[item.key].dotClassName}`} />
               {operations.statuses[item.key]}
-              <span className="font-semibold text-slate-500 dark:text-slate-400">{item.count}</span>
+              <span className="font-medium text-slate-500 dark:text-slate-400">{item.count}</span>
             </span>
           ))}
         </div>

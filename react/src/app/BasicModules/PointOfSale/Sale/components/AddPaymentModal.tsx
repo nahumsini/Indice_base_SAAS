@@ -234,22 +234,22 @@ export function AddPaymentModal({
     >
         <div className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
 
           {/* Remaining Amount Display */}
           <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 p-4 dark:border-[#F4C84A]/25 dark:bg-[#F4C84A]/10">
-            <p className="mb-1 text-sm font-black text-[#7A5B00] dark:text-[#F8E08A]">Falta por pagar</p>
-            <p className="text-3xl font-black text-gray-950 dark:text-white">
+            <p className="mb-1 text-sm font-medium text-[#7A5B00] dark:text-[#F8E08A]">Falta por pagar</p>
+            <p className="text-3xl font-medium text-gray-950 dark:text-white">
               {formatCurrency(remainingAmount)}
             </p>
           </div>
 
           {/* Amount Input */}
           <div>
-            <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Monto a pagar con {paymentMethod === 'cash' ? 'efectivo' : paymentMethod === 'card' ? 'tarjeta' : paymentMethod === 'transfer' ? 'transferencia' : 'credito'}
             </label>
             <div className="relative">
@@ -261,42 +261,42 @@ export function AddPaymentModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
           </div>
 
           {/* Quick Amount Buttons */}
           <div>
-            <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Montos rapidos</p>
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Montos rapidos</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <button
                 onClick={() => handleQuickAmount(remainingAmount)}
-                className="min-h-12 rounded-lg border-2 border-orange-500 bg-orange-50 px-3 py-2 text-sm font-black text-orange-700 transition hover:bg-orange-100 active:scale-[0.98] dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
+                className="min-h-12 rounded-lg border-2 border-orange-500 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 transition hover:bg-orange-100 active:scale-[0.98] dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
               >
                 Restante
               </button>
               <button
                 onClick={() => handleQuickAmount(100)}
-                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $100
               </button>
               <button
                 onClick={() => handleQuickAmount(200)}
-                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $200
               </button>
               <button
                 onClick={() => handleQuickAmount(500)}
-                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $500
               </button>
               <button
                 onClick={() => handleQuickAmount(1000)}
-                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 $1,000
               </button>
@@ -307,7 +307,7 @@ export function AddPaymentModal({
           {paymentMethod === 'cash' && (
             <>
               <div>
-                <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Con cuanto paga el cliente
                 </label>
                 <div className="relative">
@@ -318,42 +318,42 @@ export function AddPaymentModal({
                     value={cashReceived}
                     onChange={(e) => setCashReceived(e.target.value)}
                     placeholder="0.00"
-                    className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-black text-gray-900 focus:border-transparent focus:ring-2 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-10 pr-4 text-xl font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
               </div>
 
               {/* Quick Cash Buttons */}
               <div>
-                <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Efectivo recibido</p>
+                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Efectivo recibido</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <button
                     onClick={() => handleQuickCash(parseFloat(amount) || 0)}
-                    className="min-h-12 rounded-lg border-2 border-green-500 bg-green-50 px-3 py-2 text-sm font-black text-green-700 transition hover:bg-green-100 active:scale-[0.98] dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30"
+                    className="min-h-12 rounded-lg border-2 border-green-500 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100 active:scale-[0.98] dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30"
                   >
                     Exacto
                   </button>
                   <button
                     onClick={() => handleQuickCash(100)}
-                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $100
                   </button>
                   <button
                     onClick={() => handleQuickCash(200)}
-                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $200
                   </button>
                   <button
                     onClick={() => handleQuickCash(500)}
-                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $500
                   </button>
                   <button
                     onClick={() => handleQuickCash(1000)}
-                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                    className="min-h-12 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 active:scale-[0.98] dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     $1,000
                   </button>
@@ -371,13 +371,13 @@ export function AddPaymentModal({
                     <Calculator className={`w-5 h-5 ${
                       change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`} />
-                    <p className={`text-sm font-black ${
+                    <p className={`text-sm font-medium ${
                       change > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                     }`}>
                       {change > 0 ? 'Cambio a devolver' : 'Monto insuficiente'}
                     </p>
                   </div>
-                  <p className={`text-3xl font-black ${
+                  <p className={`text-3xl font-medium ${
                     change > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                   }`}>
                     {formatCurrency(change > 0 ? change : (parseFloat(amount) || 0) - (parseFloat(cashReceived) || 0))}
@@ -390,13 +390,13 @@ export function AddPaymentModal({
           {paymentMethod === 'credit' && (
             <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
               <div>
-                <label className="mb-2 block text-sm font-black text-amber-900 dark:text-amber-100">
+                <label className="mb-2 block text-sm font-medium text-amber-900 dark:text-amber-100">
                   Cliente con linea de credito
                 </label>
                 <select
                   value={selectedCustomerId}
                   onChange={(event) => setSelectedCustomerId(event.target.value)}
-                  className="min-h-14 w-full rounded-lg border-2 border-amber-200 bg-white px-4 py-3 text-base font-black text-gray-900 focus:ring-2 focus:ring-amber-500 dark:border-amber-500/30 dark:bg-gray-900 dark:text-white"
+                  className="min-h-14 w-full rounded-lg border-2 border-amber-200 bg-white px-4 py-3 text-base font-medium text-gray-900 focus:ring-2 focus:ring-amber-500 dark:border-amber-500/30 dark:bg-gray-900 dark:text-white"
                 >
                   <option value="">Selecciona cliente</option>
                   {creditCustomers
@@ -421,7 +421,7 @@ export function AddPaymentModal({
               )}
 
               {creditEvaluation && (
-                <div className={`rounded-lg px-4 py-3 text-xs font-bold ${
+                <div className={`rounded-lg px-4 py-3 text-xs font-medium ${
                   creditEvaluation.decision === 'blocked'
                     ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
                     : creditEvaluation.decision === 'review'
@@ -440,14 +440,14 @@ export function AddPaymentModal({
               {!showReferenceField ? (
                 <button
                   onClick={() => setShowReferenceField(true)}
-                  className="min-h-12 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-black text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 active:scale-[0.98] dark:border-gray-600 dark:text-gray-400 dark:hover:text-white"
+                  className="min-h-12 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 active:scale-[0.98] dark:border-gray-600 dark:text-gray-400 dark:hover:text-white"
                 >
                   + Agregar referencia (opcional)
                 </button>
               ) : (
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className="block text-sm font-black text-gray-700 dark:text-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       {paymentMethod === 'card' ? 'Ultimos 4 digitos / Autorizacion' : paymentMethod === 'credit' ? 'Referencia de autorizacion' : 'Numero de referencia'}
                     </label>
                     <button
@@ -455,7 +455,7 @@ export function AddPaymentModal({
                         setShowReferenceField(false);
                         setReference('');
                       }}
-                      className="min-h-10 rounded-lg px-3 text-xs font-black text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                      className="min-h-10 rounded-lg px-3 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-300"
                     >
                       Quitar
                     </button>
@@ -465,7 +465,7 @@ export function AddPaymentModal({
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     placeholder={paymentMethod === 'card' ? '1234 / AUTH123' : paymentMethod === 'credit' ? 'AUT-CRED-001' : 'REF123456'}
-                    className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    className="min-h-14 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   />
                 </div>
               )}
@@ -479,8 +479,8 @@ export function AddPaymentModal({
 function CreditStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-white p-3 dark:bg-gray-900/60">
-      <p className="text-[11px] font-black uppercase tracking-[0.08em] text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-1 text-sm font-black text-gray-950 dark:text-white">{value}</p>
+      <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1 text-sm font-medium text-gray-950 dark:text-white">{value}</p>
     </div>
   );
 }

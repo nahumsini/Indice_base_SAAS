@@ -91,23 +91,23 @@ export default function Control({
               <ShieldCheck className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Cash Control</h2>
+              <h2 className="text-xl font-medium text-gray-900 dark:text-white">Cash Control</h2>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                 Administer petty cash boxes, custodians, balances, replenishments, and reconciliation status.
               </p>
             </div>
           </div>
-          <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-[#147514] shadow-sm dark:bg-gray-900 dark:text-green-300">
+          <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-medium text-[#147514] shadow-sm dark:bg-gray-900 dark:text-green-300">
             {summary.riskFunds} fund risk{summary.riskFunds === 1 ? '' : 's'}
           </span>
         </div>
       </section>
 
       <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Filters</h3>
+        <h3 className="text-sm font-medium text-gray-900 dark:text-white">Filters</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(260px,1fr)_220px]">
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Search fund</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Search fund</span>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -120,7 +120,7 @@ export default function Control({
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Status</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Status</span>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as CashFundStatus | 'all')}
@@ -184,8 +184,8 @@ function ControlMetric({
     <div className={`rounded-lg border p-4 shadow-sm ${toneClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
-          <p className="mt-2 text-2xl font-black">{value}</p>
+          <p className="text-xs font-medium opacity-70">{label}</p>
+          <p className="mt-2 text-2xl font-medium">{value}</p>
         </div>
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/70 text-[#147514] dark:bg-gray-950/30">
           <Icon className="h-4 w-4" />

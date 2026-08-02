@@ -30,6 +30,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
     protected final ConfigCenterUserDeactivationGuard userDeactivationGuard;
     protected final ConfigCenterInvitationAccessGuard invitationAccessGuard;
     protected final ConfigCenterUserAccessAudit userAccessAudit;
+    protected final ConfigCenterModuleAccessRegistry moduleAccessRegistry;
 
     protected ConfigCenterUserAccessUseCases(
         JdbcTemplate jdbcTemplate,
@@ -45,6 +46,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         this.userDeactivationGuard = new ConfigCenterUserDeactivationGuard();
         this.invitationAccessGuard = new ConfigCenterInvitationAccessGuard();
         this.userAccessAudit = new ConfigCenterUserAccessAudit(jdbcTemplate, objectMapper);
+        this.moduleAccessRegistry = new ConfigCenterModuleAccessRegistry(jdbcTemplate);
     }
 
     public Map<String, Object> getUsers(AuthSessionUser currentUser) {
@@ -189,6 +191,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         );
 
         users.addAll(invitations);
+        users.forEach(user -> user.put("capabilities", capabilitiesFor(user, actor)));
 
         var catalogUnitId = !userOnly && !protectedActor ? actor.scope().unitId() : null;
         var catalogBusinessId = !userOnly && !protectedActor ? actor.scope().businessId() : null;
@@ -236,17 +239,9 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
             catalogBusinessId == null ? catalogUnitId : null
         );
 
-        var catalogModules = userOnly ? List.<LinkedHashMap<String, Object>>of() : jdbcTemplate.query(
-            "SELECT slug, name FROM modules WHERE COALESCE(is_active, 1) = 1 ORDER BY sort_order ASC, name ASC",
-            (rs, rowNum) -> {
-                var module = new LinkedHashMap<String, Object>();
-                module.put("slug", safe(rs.getString("slug")));
-                module.put("name", safe(rs.getString("name")));
-                return module;
-            }
-        ).stream()
-            .filter(module -> protectedActor || actor.moduleSlugs().contains(safe(String.valueOf(module.get("slug")))))
-            .toList();
+        var catalogModules = userOnly
+            ? List.<LinkedHashMap<String, Object>>of()
+            : moduleAccessRegistry.catalogForCompany(companyId, protectedActor, actor.moduleSlugs());
         var catalogTabs = userOnly ? List.of() : tabPermissionAccess.catalogTabs().stream()
             .filter(tab -> protectedActor || actor.tabPermissionKeys().contains(String.valueOf(tab.get("permission_key"))))
             .toList();
@@ -260,9 +255,16 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var result = new LinkedHashMap<String, Object>();
         result.put("users", users);
         result.put("catalog", catalog);
+        result.put("company_id", companyId);
+        result.put("capabilities", Map.of(
+            "can_manage_users", ADMIN_ROLES.contains(actor.role()),
+            "can_invite", ADMIN_ROLES.contains(actor.role()),
+            "can_assign_super_admin", protectedActor
+        ));
         return result;
     }
 
+    @Transactional
     public Map<String, Object> updateUser(
         long companyId,
         long actorUserId,
@@ -273,7 +275,6 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var role = normalizeRole(value(payload, "role"));
         var status = normalizeStatus(value(payload, "status"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
-        ensureModuleSlugsExist(moduleSlugs);
         var shouldReplaceTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
         var tabPermissionKeys = shouldReplaceTabPermissions ? tabPermissionAccess.normalizeTabPermissionKeys(payload) : List.<String>of();
         tabPermissionAccess.ensureTabPermissionKeysValid(tabPermissionKeys, moduleSlugs);
@@ -304,6 +305,10 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
 
         var target = rows.get(0);
         var before = loadUserAccessSnapshot(companyId, target.userCompanyId());
+        moduleAccessRegistry.ensureAssignableToCompany(companyId, moduleSlugs, before.modules());
+        if (!before.status().equals(status)) {
+            throw new IllegalArgumentException("Use the dedicated activate or deactivate action to change user status.");
+        }
         var membership = resolveRequestedMembership(
             companyId,
             payload,
@@ -352,6 +357,101 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var result = new LinkedHashMap<String, Object>();
         result.put("success", true);
         return result;
+    }
+
+    @Transactional
+    public Map<String, Object> activateUser(long companyId, long actorUserId, String actorRole, long userId) {
+        var target = requireAuthorizedActivationTarget(companyId, actorUserId, actorRole, userId);
+        var userCompanyId = target.target().userCompanyId();
+        var before = loadUserAccessSnapshot(companyId, userCompanyId);
+        if ("active".equals(before.status())) {
+            return Map.of("success", true, "active", true);
+        }
+
+        jdbcTemplate.update(
+            "UPDATE user_companies SET status = 'active' WHERE id = ? AND company_id = ?",
+            userCompanyId,
+            companyId
+        );
+        upsertUserMembership(
+            companyId,
+            userCompanyId,
+            userId,
+            "active",
+            new UserMembership(target.scope().unitId(), target.scope().businessId()),
+            actorUserId
+        );
+        userAccessAudit.recordUserChange(
+            companyId,
+            actorUserId,
+            target.target().userId(),
+            userCompanyId,
+            "user_activated",
+            before,
+            new Snapshot(
+                before.role(),
+                "active",
+                before.unitId(),
+                before.businessId(),
+                before.modules(),
+                before.tabPermissions()
+            )
+        );
+
+        return Map.of("success", true, "active", true);
+    }
+
+    public void requireCanActivateUser(long companyId, long actorUserId, String actorRole, long userId) {
+        requireAuthorizedActivationTarget(companyId, actorUserId, actorRole, userId);
+    }
+
+    private UserAccessTarget requireAuthorizedActivationTarget(
+        long companyId,
+        long actorUserId,
+        String actorRole,
+        long userId
+    ) {
+        if (userId == actorUserId) {
+            throw new IllegalArgumentException("You cannot activate your own user.");
+        }
+        var actor = loadActorAccess(companyId, actorUserId, actorRole);
+        var rows = jdbcTemplate.query(
+            """
+                SELECT uc.user_id,
+                       uc.id AS user_company_id,
+                       COALESCE(uc.role, 'user') AS role,
+                       wp.unit_id,
+                       wp.business_id
+                FROM user_companies uc
+                LEFT JOIN user_work_profiles wp
+                  ON wp.company_id = uc.company_id
+                 AND wp.user_company_id = uc.id
+                WHERE uc.user_id = ?
+                  AND uc.company_id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new UserAccessTarget(
+                new TargetUser(
+                    rs.getLong("user_id"),
+                    rs.getLong("user_company_id"),
+                    normalizeRole(rs.getString("role"))
+                ),
+                new AccessScope(getNullableLong(rs, "unit_id"), getNullableLong(rs, "business_id"))
+            ),
+            userId,
+            companyId
+        );
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("User not found.");
+        }
+
+        var target = rows.getFirst();
+        var userCompanyId = target.target().userCompanyId();
+        var moduleSlugs = listModuleSlugs(userCompanyId);
+        var tabPermissionKeys = tabPermissionAccess.listUserTabPermissionKeys(userCompanyId);
+        userDeactivationGuard.validate(actor, target.target(), moduleSlugs, tabPermissionKeys, target.scope());
+        return target;
     }
 
     @Transactional
@@ -631,6 +731,57 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
             || payload.containsKey("unitId")
             || payload.containsKey("business_id")
             || payload.containsKey("businessId");
+    }
+
+    private Map<String, Object> capabilitiesFor(Map<String, Object> user, ActorAccess actor) {
+        var actorProtected = PROTECTED_ROLES.contains(actor.role());
+        var actorCanManage = ADMIN_ROLES.contains(actor.role());
+        var source = safe(String.valueOf(user.get("source")));
+        var targetRole = normalizeRole(safe(String.valueOf(user.get("role"))));
+        var targetProtected = PROTECTED_ROLES.contains(targetRole);
+        var targetModules = stringList(user.get("module_slugs"));
+        var targetTabs = stringList(user.get("tab_permission_keys"));
+        var targetScope = new AccessScope(number(user.get("unit_id")), number(user.get("business_id")));
+        var withinCeiling = actorProtected || (
+            "admin".equals(actor.role())
+                && !targetProtected
+                && actor.moduleSlugs().containsAll(targetModules)
+                && actor.tabPermissionKeys().containsAll(targetTabs)
+                && withinScope(actor.scope(), targetScope)
+        );
+        var targetUserId = number(user.get("id"));
+        var isSelf = "user".equals(source) && targetUserId != null && targetUserId == actor.userId();
+        var canManageTarget = actorCanManage && withinCeiling;
+        var status = normalizeStatus(safe(String.valueOf(user.get("status"))));
+
+        var capabilities = new LinkedHashMap<String, Object>();
+        capabilities.put("can_edit_access", "user".equals(source) && canManageTarget && (!isSelf || actorProtected));
+        capabilities.put("can_activate", "user".equals(source) && canManageTarget && !isSelf && "inactive".equals(status));
+        capabilities.put("can_deactivate", "user".equals(source) && canManageTarget && !isSelf && "active".equals(status));
+        capabilities.put("can_resend_invitation", "invitation".equals(source) && canManageTarget);
+        capabilities.put("can_cancel_invitation", "invitation".equals(source) && canManageTarget);
+        return capabilities;
+    }
+
+    private boolean withinScope(AccessScope actorScope, AccessScope requestedScope) {
+        if (actorScope.businessId() != null) {
+            return actorScope.businessId().equals(requestedScope.businessId());
+        }
+        if (actorScope.unitId() != null) {
+            return actorScope.unitId().equals(requestedScope.unitId());
+        }
+        return true;
+    }
+
+    private List<String> stringList(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream().map(String::valueOf).toList();
+    }
+
+    private Long number(Object value) {
+        return value instanceof Number numeric ? numeric.longValue() : null;
     }
 
     private Long loadScopedUnit(long companyId, long unitId) {

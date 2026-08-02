@@ -17,10 +17,10 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
 
   return (
     <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">{copy.filters.title}</h3>
+      <h3 className="mb-4 text-base font-medium text-slate-900 dark:text-white">{copy.filters.title}</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="md:col-span-2">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.searchLabel}
           </label>
           <div className="relative">
@@ -36,7 +36,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.unit}
           </label>
           <select
@@ -52,7 +52,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.business}
           </label>
           <select
@@ -68,7 +68,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.status}
           </label>
           <select
@@ -84,7 +84,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.type}
           </label>
           <select
@@ -102,7 +102,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.severity}
           </label>
           <select
@@ -118,7 +118,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.dateFrom}
           </label>
           <input
@@ -130,7 +130,7 @@ export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, bus
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             {copy.filters.dateTo}
           </label>
           <input

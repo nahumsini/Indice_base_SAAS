@@ -37,10 +37,10 @@ export function ProductMediaSection({
     <section className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-base font-bold text-slate-950">{t.media.title}</h3>
-          <p className="mt-1 text-sm font-semibold text-slate-500">{t.media.description}</p>
+          <h3 className="text-base font-medium text-slate-950">{t.media.title}</h3>
+          <p className="mt-1 text-sm font-medium text-slate-500">{t.media.description}</p>
         </div>
-        <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-white px-4 text-sm font-bold text-[#B63B32] transition hover:bg-[#FF6B5E]/10">
+        <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-white px-4 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/10">
           <ImagePlus className="h-4 w-4" />
           {t.media.upload}
           <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => void handleFilesChange(event.target.files)} />
@@ -48,7 +48,7 @@ export function ProductMediaSection({
       </div>
 
       {form.uploadedImages.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm font-semibold text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-500">
           {t.media.empty}
         </div>
       ) : (

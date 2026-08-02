@@ -949,7 +949,7 @@ export default function PublicTaskKioskPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="mx-auto mt-3 flex h-11 rounded-xl border-[#F4C84A]/60 px-4 text-sm font-semibold text-[#7A5204] hover:bg-[#F4C84A]/10"
+                      className="mx-auto mt-3 flex h-11 rounded-xl border-[#F4C84A]/60 px-4 text-sm font-medium text-[#7A5204] hover:bg-[#F4C84A]/10"
                       onClick={() => {
                         setFocusFilter('mine');
                         setPeriodFilter('today');

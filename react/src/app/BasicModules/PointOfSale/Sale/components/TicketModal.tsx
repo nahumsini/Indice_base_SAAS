@@ -112,7 +112,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
       footer={(
         <div className="space-y-3">
           {notice ? (
-            <div className="rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-xs font-bold text-white">
+            <div className="rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-xs font-medium text-white">
               {notice}
             </div>
           ) : null}
@@ -135,7 +135,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
     >
       <div className="space-y-4">
         {!isHovering && countdown > 0 ? (
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
               <div
                 className="h-full rounded-full bg-[#FF6B5E] transition-all duration-1000"
@@ -149,7 +149,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
         <section ref={ticketRef} className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
           <div className="space-y-4 font-mono text-sm">
             <div className="border-b border-gray-300 pb-3 text-center dark:border-gray-600">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white">Mi tienda</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Mi tienda</h3>
               <p className="text-xs text-gray-600 dark:text-gray-400">RFC: ABC123456789</p>
               <p className="text-xs text-gray-600 dark:text-gray-400">Calle Principal #123</p>
               <p className="text-xs text-gray-600 dark:text-gray-400">Tel: (555) 123-4567</p>
@@ -163,12 +163,12 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
             </div>
 
             <div className="border-b border-gray-300 pb-3 dark:border-gray-600">
-              <div className="mb-2 text-xs font-black text-gray-900 dark:text-white">PRODUCTOS</div>
+              <div className="mb-2 text-xs font-medium text-gray-900 dark:text-white">PRODUCTOS</div>
               {items.map((item, index) => (
                 <div key={`${item.id}-${index}`} className="mb-2">
                   <div className="flex justify-between gap-3 text-gray-900 dark:text-white">
-                    <span className="font-bold">{item.name}</span>
-                    <span className="font-black">{formatCurrency(item.subtotal)}</span>
+                    <span className="font-medium">{item.name}</span>
+                    <span className="font-medium">{formatCurrency(item.subtotal)}</span>
                   </div>
                   <div className="text-xs text-gray-600 dark:text-gray-400">
                     <span>{item.quantity} x {formatCurrency(item.price)}</span>
@@ -180,14 +180,14 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
             <div className="space-y-1 border-b border-gray-300 pb-3 text-xs dark:border-gray-600">
               <TicketInfo label="Subtotal" value={formatCurrency(totals.subtotal)} />
               <TicketInfo label="IVA (16%)" value={formatCurrency(totals.tax)} />
-              <div className="flex justify-between gap-3 pt-2 text-base font-black text-gray-900 dark:text-white">
+              <div className="flex justify-between gap-3 pt-2 text-base font-medium text-gray-900 dark:text-white">
                 <span>TOTAL:</span>
                 <span>{formatCurrency(totals.total)}</span>
               </div>
             </div>
 
             <div className="border-b border-gray-300 pb-3 text-xs dark:border-gray-600">
-              <div className="mb-2 font-black text-gray-900 dark:text-white">FORMA DE PAGO</div>
+              <div className="mb-2 font-medium text-gray-900 dark:text-white">FORMA DE PAGO</div>
               {payments.map((payment) => (
                 <div key={payment.id} className="flex justify-between gap-3 text-gray-700 dark:text-gray-300">
                   <span>
@@ -211,7 +211,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
                 </div>
               ) : null}
               {totals.change > 0 ? (
-                <div className="mt-2 flex justify-between gap-3 border-t border-gray-200 pt-2 font-black text-gray-900 dark:border-gray-700 dark:text-white">
+                <div className="mt-2 flex justify-between gap-3 border-t border-gray-200 pt-2 font-medium text-gray-900 dark:border-gray-700 dark:text-white">
                   <span>CAMBIO:</span>
                   <span>{formatCurrency(totals.change)}</span>
                 </div>
@@ -233,7 +233,7 @@ function TicketInfo({ label, value, strong = false }: { label: string; value: st
   return (
     <div className="flex justify-between gap-3">
       <span>{label}:</span>
-      <span className={strong ? 'font-black' : undefined}>{value}</span>
+      <span className={strong ? 'font-medium' : undefined}>{value}</span>
     </div>
   );
 }

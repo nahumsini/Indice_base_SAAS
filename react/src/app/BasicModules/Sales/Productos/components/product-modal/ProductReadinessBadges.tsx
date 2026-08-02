@@ -29,7 +29,7 @@ export function ProductReadinessBadges({
           <Badge
             key={key}
             className={cn(
-              'rounded-full border px-3 py-1 text-xs font-bold',
+              'rounded-full border px-3 py-1 text-xs font-medium',
               active
                 ? key === 'requiresReview'
                   ? 'border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05]'

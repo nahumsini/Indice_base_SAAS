@@ -24,7 +24,7 @@ function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
       <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#59C3A5] shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {icon}
       </span>
-      <span className={`text-base font-bold ${valueClassName}`}>{value}</span>
+      <span className={`text-base font-medium ${valueClassName}`}>{value}</span>
       <span>{label}</span>
     </span>
   );
@@ -48,17 +48,17 @@ export function PermissionKpiStrip({ approved, copy, paid, pending, rejected, to
         <Metric icon={<XCircle className="h-4 w-4" />} label={copy.kpis.rejected} value={rejected} valueClassName="text-rose-600" />
         <span className="text-slate-300 dark:text-slate-600">•</span>
         <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visible} />
-        <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-[#59C3A5] dark:bg-slate-800 dark:text-blue-100">
+        <span className="ml-auto rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-[#59C3A5] dark:bg-slate-800 dark:text-blue-100">
           {copy.kpis.approvalRate(approvalRate)}
         </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
           <BadgeDollarSign className="h-4 w-4" />
           {paid} {copy.kpis.paid}
         </span>
-        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           <WalletCards className="h-4 w-4" />
           {unpaid} {copy.kpis.unpaid}
         </span>

@@ -301,15 +301,6 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
               </DropdownMenu>
             ) : null}
 
-            <Button
-              variant="ghost"
-              className="hidden rounded-full px-3 text-[#4B5563] transition-all hover:bg-white/70 hover:text-[#222831] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white sm:flex"
-              onClick={() => navigate('/billing')}
-            >
-              <CreditCard className="h-4 w-4" />
-              <span className="ml-2 text-sm font-medium">Billing</span>
-            </Button>
-
             <PreferredCurrencyControl />
 
             {/* Notificaciones */}

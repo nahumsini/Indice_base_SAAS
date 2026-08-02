@@ -12,17 +12,17 @@ export default function RecepcionesTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">📥</div>
-          <p className="text-3xl font-bold">{pendingReceptions.length}</p>
+          <p className="text-3xl font-medium">{pendingReceptions.length}</p>
           <p className="text-sm opacity-90">Pendientes</p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">✅</div>
-          <p className="text-3xl font-bold">{mockTransfers.filter(t => t.status === 'received' && !hasTransferDifferences(t)).length}</p>
+          <p className="text-3xl font-medium">{mockTransfers.filter(t => t.status === 'received' && !hasTransferDifferences(t)).length}</p>
           <p className="text-sm opacity-90">Sin Diferencias</p>
         </div>
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-6 text-white">
           <div className="text-2xl mb-2">⚠️</div>
-          <p className="text-3xl font-bold">{mockTransfers.filter(hasTransferDifferences).length}</p>
+          <p className="text-3xl font-medium">{mockTransfers.filter(hasTransferDifferences).length}</p>
           <p className="text-sm opacity-90">Con Diferencias</p>
         </div>
       </div>
@@ -32,7 +32,7 @@ export default function RecepcionesTab() {
           <div key={transfer.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">{transfer.folio}</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white">{transfer.folio}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   De: {transfer.originNodeName}
                 </p>

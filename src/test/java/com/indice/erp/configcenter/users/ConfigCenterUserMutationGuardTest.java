@@ -8,6 +8,7 @@ import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessSco
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.ActorAccess;
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.TargetUser;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -16,13 +17,53 @@ class ConfigCenterUserMutationGuardTest {
     private final ConfigCenterUserMutationGuard guard = new ConfigCenterUserMutationGuard();
 
     @Test
-    void inviteRequiresUnitBusinessModulesAndTabPayload() {
+    void inviteRequiresExplicitOrganizationalScopeModulesAndTabPayload() {
         var error = assertThrows(
             IllegalArgumentException.class,
             () -> guard.validateInvite(adminActor(), "user", Map.of("role", "user"), List.of(), List.of(), scope(), false)
         );
 
-        assertEquals("Business unit is required.", error.getMessage());
+        assertEquals("Organizational scope is required.", error.getMessage());
+    }
+
+    @Test
+    void corporateScopeAcceptsExplicitNullUnitAndBusiness() {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("role", "admin");
+        payload.put("unit_id", null);
+        payload.put("business_id", null);
+        payload.put("module_slugs", List.of("config_center"));
+        payload.put("tab_permission_keys", List.of("config_center.users"));
+
+        assertDoesNotThrow(() -> guard.validateInvite(
+            superAdminActor(),
+            "admin",
+            payload,
+            List.of("config_center"),
+            List.of("config_center.users"),
+            new AccessScope(null, null),
+            true
+        ));
+    }
+
+    @Test
+    void unitScopeAcceptsExplicitNullBusiness() {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("role", "admin");
+        payload.put("unit_id", 1L);
+        payload.put("business_id", null);
+        payload.put("module_slugs", List.of("config_center"));
+        payload.put("tab_permission_keys", List.of("config_center.users"));
+
+        assertDoesNotThrow(() -> guard.validateInvite(
+            superAdminActor(),
+            "admin",
+            payload,
+            List.of("config_center"),
+            List.of("config_center.users"),
+            new AccessScope(1L, null),
+            true
+        ));
     }
 
     @Test
@@ -246,7 +287,7 @@ class ConfigCenterUserMutationGuardTest {
         ));
 
         assertEquals(
-            "User role can only receive personal HR permissions. Choose Admin for unit management access.",
+            "User role cannot receive administrative Panel Inicial or HR permissions. Choose Admin for management access.",
             error.getMessage()
         );
     }
@@ -272,9 +313,53 @@ class ConfigCenterUserMutationGuardTest {
         ));
 
         assertEquals(
-            "User role can only receive personal HR permissions. Choose Admin for unit management access.",
+            "User role cannot receive administrative Panel Inicial or HR permissions. Choose Admin for management access.",
             error.getMessage()
         );
+    }
+
+    @Test
+    void userCanReceiveOperationalModuleTabPermissions() {
+        var payload = Map.<String, Object>of(
+            "role", "user",
+            "unit_id", 1L,
+            "business_id", 2L,
+            "module_slugs", List.of("inventory", "crm", "pos"),
+            "tab_permission_keys", List.of("inventory.products", "crm.sales", "pos.sale")
+        );
+
+        assertDoesNotThrow(() -> guard.validateInvite(
+            superAdminActor(),
+            "user",
+            payload,
+            List.of("inventory", "crm", "pos"),
+            List.of("inventory.products", "crm.sales", "pos.sale"),
+            scope(),
+            true
+        ));
+    }
+
+    @Test
+    void userCannotReceiveProtectedPlanPermission() {
+        var payload = Map.<String, Object>of(
+            "role", "user",
+            "unit_id", 1L,
+            "business_id", 2L,
+            "module_slugs", List.of("config_center"),
+            "tab_permission_keys", List.of("config_center.plan")
+        );
+
+        var error = assertThrows(IllegalArgumentException.class, () -> guard.validateInvite(
+            superAdminActor(),
+            "user",
+            payload,
+            List.of("config_center"),
+            List.of("config_center.plan"),
+            scope(),
+            true
+        ));
+
+        assertEquals("Protected tab permissions can only be assigned to Super Admin.", error.getMessage());
     }
 
     @Test

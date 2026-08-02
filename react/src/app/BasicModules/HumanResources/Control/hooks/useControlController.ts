@@ -29,9 +29,9 @@ export function useControlController(): ControlControllerResult {
     [copy.kpi],
   );
   const headerActionButtonClassName =
-    "h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-[#59C3A5] shadow-none hover:bg-[#59C3A5] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto";
+    "h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-[#59C3A5] shadow-none hover:bg-[#59C3A5] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto";
   const headerPrimaryActionButtonClassName =
-    "h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl bg-[#59C3A5] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#3AAE90] sm:w-auto";
+    "h-11 w-full justify-center gap-2 whitespace-nowrap rounded-xl bg-[#59C3A5] px-4 text-sm font-medium text-white shadow-sm hover:bg-[#3AAE90] sm:w-auto";
   const [pendingCalendarStatus, setPendingCalendarStatus] = useState<
     AttendanceCorrectionStatus | ""
   >("");

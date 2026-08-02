@@ -109,7 +109,7 @@ export function SalesDataStateBoundary({ children }: { children: ReactNode }) {
   if (hasFatalLoadError) {
     return (
       <IndiceViewState
-        action={<button type="button" onClick={() => void reloadAll()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-semibold text-white transition hover:bg-[#e85a4f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/40">
+        action={<button type="button" onClick={() => void reloadAll()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] transition hover:bg-[#e85a4f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/40">
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
           {copy.retry}
         </button>}
@@ -144,9 +144,9 @@ export function SalesDataStateBoundary({ children }: { children: ReactNode }) {
         )} role="alert">
           <AlertTriangle className={cn('mt-0.5 h-5 w-5 shrink-0', notice.tone === 'error' ? 'text-rose-600' : 'text-amber-600')} aria-hidden="true" />
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-slate-950 dark:text-white">{notice.title}</p>
+            <p className="font-medium text-slate-950 dark:text-white">{notice.title}</p>
             <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">{notice.description}</p>
-            <button type="button" onClick={() => void reloadAll()} className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800 underline-offset-4 hover:underline dark:text-white">
+            <button type="button" onClick={() => void reloadAll()} className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-slate-800 underline-offset-4 hover:underline dark:text-white">
               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               {copy.retry}
             </button>

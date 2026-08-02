@@ -19,7 +19,7 @@ export function DashboardTitleBar({ actions, emoji, helper, subtitle, title }: D
               {emoji}
             </span>
             <div>
-              <h2 className="text-xl font-semibold text-slate-950 dark:text-white sm:text-2xl">{title}</h2>
+              <h2 className="text-xl font-medium text-slate-950 dark:text-white sm:text-2xl">{title}</h2>
               <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{subtitle}</p>
               {helper ? <p className="mt-2 text-sm leading-6 text-blue-700 dark:text-blue-200">{helper}</p> : null}
             </div>

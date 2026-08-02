@@ -5,8 +5,8 @@ import type { InventoryTranslations as Translations } from '../../translations';
 import { getWarehouseInventoryEntries } from '../../utils/inventoryCalculations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
 
-const headerClass = 'h-12 whitespace-nowrap px-3 text-sm font-semibold text-slate-500 dark:text-slate-300';
-const numberClass = 'px-3 py-3 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-white';
+const headerClass = 'h-12 whitespace-nowrap px-3 text-sm font-medium text-slate-500 dark:text-slate-300';
+const numberClass = 'px-3 py-3 text-right text-sm font-medium tabular-nums text-slate-900 dark:text-white';
 const healthTone = {
   healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   lowStock: 'border-amber-200 bg-amber-50 text-amber-700',
@@ -33,7 +33,7 @@ export function WarehouseInventoryProducts({
     return (
       <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
         <PackageSearch className="mx-auto h-8 w-8 text-slate-300" />
-        <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-300">{t.operational.noWarehouseProducts}</p>
+        <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-300">{t.operational.noWarehouseProducts}</p>
       </div>
     );
   }
@@ -63,7 +63,7 @@ export function WarehouseInventoryProducts({
               <TableRow key={row.id} className="border-slate-100 hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-800/80">
                 {canShow('photo') ? (
                   <TableCell className="px-3 py-3">
-                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400">
+                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-medium text-slate-400">
                       {row.thumbnailUrl ? (
                         <img src={row.thumbnailUrl} alt={row.thumbnailAlt ?? row.name} className="h-full w-full object-cover" loading="lazy" />
                       ) : (
@@ -74,26 +74,26 @@ export function WarehouseInventoryProducts({
                 ) : null}
                 {canShow('product') ? (
                   <TableCell className="min-w-[240px] px-3 py-3">
-                    <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{row.name}</p>
-                    <p className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{row.description}</p>
+                    <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{row.name}</p>
+                    <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-300">{row.description}</p>
                   </TableCell>
                 ) : null}
-                {canShow('sku') ? <TableCell className="px-3 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">{row.sku}</TableCell> : null}
-                {canShow('category') ? <TableCell className="px-3 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">{row.category}</TableCell> : null}
-                {canShow('type') ? <TableCell className="px-3 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">{row.type}</TableCell> : null}
+                {canShow('sku') ? <TableCell className="px-3 py-3 text-sm font-medium text-slate-600 dark:text-slate-300">{row.sku}</TableCell> : null}
+                {canShow('category') ? <TableCell className="px-3 py-3 text-sm font-medium text-slate-600 dark:text-slate-300">{row.category}</TableCell> : null}
+                {canShow('type') ? <TableCell className="px-3 py-3 text-sm font-medium text-slate-600 dark:text-slate-300">{row.type}</TableCell> : null}
                 {canShow('totalStock') ? <TableCell className={numberClass}>{formatInventoryNumber(totalUnits)}</TableCell> : null}
                 {canShow('available') ? <TableCell className={numberClass}>{formatInventoryNumber(distribution.available)}</TableCell> : null}
                 {canShow('reserved') ? <TableCell className={numberClass}>{formatInventoryNumber(distribution.reserved)}</TableCell> : null}
                 {canShow('minimum') ? <TableCell className={numberClass}>{formatInventoryNumber(distribution.minimum)}</TableCell> : null}
                 {canShow('status') ? (
                   <TableCell className="px-3 py-3">
-                    <span className={`rounded-full border px-3 py-1 text-xs font-bold ${healthTone[health]}`}>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-medium ${healthTone[health]}`}>
                       {t.operational.statuses[health]}
                     </span>
                   </TableCell>
                 ) : null}
                 {canShow('estimatedValue') ? <TableCell className={numberClass}>{formatInventoryCurrency(estimatedValue)}</TableCell> : null}
-                {canShow('lastMovement') ? <TableCell className="px-3 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">{row.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}
+                {canShow('lastMovement') ? <TableCell className="px-3 py-3 text-sm font-medium text-slate-600 dark:text-slate-300">{row.lastMovementAt ?? t.common.notAvailable}</TableCell> : null}
               </TableRow>
             ))}
           </TableBody>

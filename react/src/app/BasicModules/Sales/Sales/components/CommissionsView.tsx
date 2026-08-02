@@ -40,8 +40,8 @@ export function CommissionsView({
             <BadgePercent className="h-6 w-6" />
           </span>
           <div className="min-w-0">
-            <h3 className="text-xl font-black text-slate-950 dark:text-white">{t.commissions.view.title}</h3>
-            <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{t.commissions.view.subtitle}</p>
+            <h3 className="text-xl font-medium text-slate-950 dark:text-white">{t.commissions.view.title}</h3>
+            <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{t.commissions.view.subtitle}</p>
           </div>
         </div>
       </section>

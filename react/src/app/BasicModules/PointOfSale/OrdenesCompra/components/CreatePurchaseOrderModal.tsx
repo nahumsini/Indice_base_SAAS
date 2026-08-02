@@ -385,7 +385,7 @@ export function CreatePurchaseOrderModal({
         <div className="grid min-h-0 bg-slate-50 dark:bg-slate-950 lg:grid-cols-[1fr_340px]">
           <main className="space-y-4 p-6">
             {saveError ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
                 {saveError}
               </div>
             ) : null}
@@ -425,8 +425,8 @@ export function CreatePurchaseOrderModal({
 
               <label className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-4 py-3">
                 <div>
-                  <span className="block text-sm font-black text-slate-950 dark:text-white">Registrar factura vinculada</span>
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Si hay factura, debe cuadrar contra las partidas antes de crear.</span>
+                  <span className="block text-sm font-medium text-slate-950 dark:text-white">Registrar factura vinculada</span>
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Si hay factura, debe cuadrar contra las partidas antes de crear.</span>
                 </div>
                 <input type="checkbox" checked={registerInvoice} onChange={(event) => {
                   setRegisterInvoice(event.target.checked);
@@ -439,16 +439,16 @@ export function CreatePurchaseOrderModal({
                   <div className="mt-4 rounded-2xl border border-[#FF6B5E]/25 bg-gradient-to-r from-[#FF6B5E]/10 to-[#FFF3F1] p-4 dark:from-[#FF6B5E]/10 dark:to-[#FF6B5E]/10">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#B63B32]">Conciliacion de factura</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <p className="text-xs font-medium text-[#B63B32]">Conciliacion de factura</p>
+                        <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
                           Total factura {formatMoney(invoiceTotal, currencyCode)} contra partidas {formatMoney(totals.total, currencyCode)}.
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full px-3 py-1 text-xs font-black ${reconciled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200'}`}>
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${reconciled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200'}`}>
                           {reconciled ? 'Cuadra' : `Diferencia ${formatMoney(difference, currencyCode)}`}
                         </span>
-                        <button type="button" onClick={syncInvoiceWithItems} className="h-10 rounded-xl border border-[#FF6B5E]/30 bg-white px-4 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10 dark:bg-slate-950">
+                        <button type="button" onClick={syncInvoiceWithItems} className="h-10 rounded-xl border border-[#FF6B5E]/30 bg-white px-4 text-sm font-medium text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10 dark:bg-slate-950">
                           Empatar partidas
                         </button>
                       </div>
@@ -471,7 +471,7 @@ export function CreatePurchaseOrderModal({
               ) : null}
 
               <label className="mt-4 block space-y-2">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Notas</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Notas</span>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
@@ -484,22 +484,22 @@ export function CreatePurchaseOrderModal({
               <SectionTitle icon={<PackagePlus className="h-5 w-5" />} title="Inventario de productos" subtitle="Arma las partidas hasta que el total coincida con la factura o presupuesto." />
               <div className="mt-4 grid gap-3 rounded-2xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4 text-center dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 md:grid-cols-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Movimiento</p>
-                  <p className="mt-1 text-lg font-black text-[#B63B32]">Entrada por compra</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Movimiento</p>
+                  <p className="mt-1 text-lg font-medium text-[#B63B32]">Entrada por compra</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Partidas</p>
-                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{lines.length}</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Partidas</p>
+                  <p className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{lines.length}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total entrada</p>
-                  <p className="mt-1 text-2xl font-black text-[#B63B32]">{formatMoney(totals.total, currencyCode)}</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total entrada</p>
+                  <p className="mt-1 text-2xl font-medium text-[#B63B32]">{formatMoney(totals.total, currencyCode)}</p>
                 </div>
               </div>
               <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_140px_160px_160px_auto]">
                 <label className="space-y-2">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Buscar producto</span>
-                  <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Buscar producto</span>
+                  <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                     <Search className="h-4 w-4 text-slate-400" />
                     <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Nombre, SKU o codigo" className="min-w-0 flex-1 bg-transparent outline-none" />
                   </div>
@@ -509,7 +509,7 @@ export function CreatePurchaseOrderModal({
                 <Select label={`Impuesto (${taxCountry})`} value={String(taxRate)} onChange={(value) => setTaxRate(Number(value))}>
                   {productTaxRateOptions.map((option) => <option key={`${option.label}-${option.value}`} value={option.value}>{option.label}</option>)}
                 </Select>
-                <button type="button" onClick={() => addLine()} disabled={!selectedProduct} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950">
+                <button type="button" onClick={() => addLine()} disabled={!selectedProduct} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950">
                   <Plus className="h-4 w-4" />
                   Agregar
                 </button>
@@ -523,9 +523,9 @@ export function CreatePurchaseOrderModal({
                     onClick={() => selectProduct(product)}
                     className={`rounded-2xl border p-4 text-left transition hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/5 ${String(product.salesProductBackendId) === selectedProductId ? 'border-[#FF6B5E] bg-[#FF6B5E]/10' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950'}`}
                   >
-                    <p className="line-clamp-2 font-black text-slate-950 dark:text-white">{product.name}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{product.sku || product.barcode || 'Sin SKU'}</p>
-                    <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold">
+                    <p className="line-clamp-2 font-medium text-slate-950 dark:text-white">{product.name}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{product.sku || product.barcode || 'Sin SKU'}</p>
+                    <div className="mt-3 flex items-center justify-between gap-2 text-xs font-medium">
                       <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{formatMoney(product.costPrice || 0, currencyCode)}</span>
                       <span className="text-[#B63B32]">{product.taxRate ?? defaultTaxRate}%</span>
                     </div>
@@ -537,7 +537,7 @@ export function CreatePurchaseOrderModal({
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                   <Input label="Producto nuevo" value={newProductName} onChange={setNewProductName} />
                   <Input label="SKU / codigo" value={newProductSku} onChange={setNewProductSku} />
-                  <button type="button" onClick={() => void createProductAndSelect()} disabled={creatingProduct || !(newProductName.trim() || productSearch.trim())} className="h-11 rounded-xl bg-[#FF6B5E] px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="button" onClick={() => void createProductAndSelect()} disabled={creatingProduct || !(newProductName.trim() || productSearch.trim())} className="h-11 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] disabled:cursor-not-allowed disabled:opacity-50">
                     {creatingProduct ? 'Creando...' : 'Agregar producto al catalogo'}
                   </button>
                 </div>
@@ -545,7 +545,7 @@ export function CreatePurchaseOrderModal({
 
               <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
                 {lines.length === 0 ? (
-                  <div className="p-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  <div className="p-8 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
                     Agrega productos para controlar inventario, costos y precios reales.
                   </div>
                 ) : lines.map((line) => {
@@ -554,13 +554,13 @@ export function CreatePurchaseOrderModal({
                   return (
                     <div key={line.id} className="grid gap-3 border-b border-slate-100 bg-white p-3 text-sm last:border-b-0 dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_90px_120px_120px_120px_40px]">
                       <div>
-                        <p className="font-bold text-slate-950 dark:text-white">{line.productName}</p>
-                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{line.sku || 'Sin SKU'}</p>
+                        <p className="font-medium text-slate-950 dark:text-white">{line.productName}</p>
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{line.sku || 'Sin SKU'}</p>
                       </div>
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">{line.quantity}</span>
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">{formatMoney(line.unitCost, currencyCode)}</span>
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">{formatMoney(lineTax, currencyCode)}</span>
-                      <span className="font-bold text-slate-950 dark:text-white">{formatMoney(lineSubtotal + lineTax, currencyCode)}</span>
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{line.quantity}</span>
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{formatMoney(line.unitCost, currencyCode)}</span>
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{formatMoney(lineTax, currencyCode)}</span>
+                      <span className="font-medium text-slate-950 dark:text-white">{formatMoney(lineSubtotal + lineTax, currencyCode)}</span>
                       <button type="button" onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))} className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10" aria-label="Eliminar partida">
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -583,13 +583,13 @@ export function CreatePurchaseOrderModal({
                 <div className={`rounded-2xl border p-4 ${reconciled ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100'}`}>
                   <div className="flex items-center gap-2">
                     {reconciled ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-                    <p className="font-black">{reconciled ? 'Conciliado' : 'Falta conciliar'}</p>
+                    <p className="font-medium">{reconciled ? 'Conciliado' : 'Falta conciliar'}</p>
                   </div>
-                  <p className="mt-2 text-sm font-semibold">Diferencia: {formatMoney(difference, currencyCode)}</p>
+                  <p className="mt-2 text-sm font-medium">Diferencia: {formatMoney(difference, currencyCode)}</p>
                 </div>
               </>
             ) : (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
                 Sin factura: se crea orden y compromiso operativo con el total de partidas.
               </div>
             )}
@@ -604,7 +604,7 @@ function SectionTitle({ icon, subtitle, title }: { icon: ReactNode; subtitle: st
     <div className="flex items-center gap-3">
       <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FF6B5E]/10 text-[#B63B32]">{icon}</span>
       <div>
-        <h4 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h4>
+        <h4 className="text-lg font-medium text-slate-950 dark:text-white">{title}</h4>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{subtitle}</p>
       </div>
     </div>
@@ -614,8 +614,8 @@ function SectionTitle({ icon, subtitle, title }: { icon: ReactNode; subtitle: st
 function Select({ children, label, onChange, value }: { children: ReactNode; label: string; onChange: (value: string) => void; value: string }) {
   return (
     <label className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
         {children}
       </select>
     </label>
@@ -625,8 +625,8 @@ function Select({ children, label, onChange, value }: { children: ReactNode; lab
 function Input({ label, onChange, type = 'text', value }: { label: string; onChange: (value: string) => void; type?: string; value: string }) {
   return (
     <label className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
     </label>
   );
 }
@@ -634,8 +634,8 @@ function Input({ label, onChange, type = 'text', value }: { label: string; onCha
 function FileInput({ fileName, label, onChange }: { fileName: string; label: string; onChange: (file: File | null) => void }) {
   return (
     <div className="space-y-2">
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-      <div className="flex h-11 items-center overflow-hidden rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-950 focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
+      <div className="flex h-11 items-center overflow-hidden rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-950 focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
         <label className="flex h-full shrink-0 cursor-pointer items-center gap-2 bg-[#FF6B5E]/10 px-3 text-[#B63B32] transition hover:bg-[#FF6B5E]/15">
           <Upload className="h-4 w-4" />
           Subir
@@ -650,7 +650,7 @@ function FileInput({ fileName, label, onChange }: { fileName: string; label: str
           {fileName || 'Sin archivo seleccionado'}
         </span>
         {fileName ? (
-          <button type="button" onClick={() => onChange(null)} className="mr-2 rounded-lg px-2 py-1 text-xs font-black text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+          <button type="button" onClick={() => onChange(null)} className="mr-2 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
             Quitar
           </button>
         ) : null}
@@ -662,8 +662,8 @@ function FileInput({ fileName, label, onChange }: { fileName: string; label: str
 function Summary({ highlight = false, label, value }: { highlight?: boolean; label: string; value: string }) {
   return (
     <div className={`rounded-2xl border p-4 ${highlight ? 'border-[#FF6B5E]/25 bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-[#FF6B5E]/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950'}`}>
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-2 text-lg font-bold text-slate-950 dark:text-white">{value}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-2 text-lg font-medium text-slate-950 dark:text-white">{value}</p>
     </div>
   );
 }

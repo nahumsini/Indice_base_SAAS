@@ -80,8 +80,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
   ], [t.panelInicial.tabs]);
   const visibleSubTabs = sessionAccess.loaded
     ? subTabs.filter((tab) => (
-        tab.id !== 'plan'
-        && canAccessHomePanelTab(
+        canAccessHomePanelTab(
           sessionAccess.role,
           tab.id as HomePanelTabId,
           sessionAccess.tabPermissionKeys,

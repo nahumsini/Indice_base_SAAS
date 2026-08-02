@@ -258,15 +258,15 @@ export function PayablesKioskManagementModal({
                     <ShieldCheck className="h-5 w-5" />
                   </span>
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{copyText.biometricPolicy.title}</h4>
+                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">{copyText.biometricPolicy.title}</h4>
                     <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">{copyText.biometricPolicy.description}</p>
                     {!biometricPolicy.environmentAvailable && (
-                      <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">{copyText.biometricPolicy.environmentUnavailable}</p>
+                      <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">{copyText.biometricPolicy.environmentUnavailable}</p>
                     )}
                   </div>
                 </div>
                 <label className="inline-flex shrink-0 cursor-pointer items-center gap-3 rounded-xl border border-emerald-200 bg-white px-3 py-2 dark:border-emerald-800 dark:bg-slate-950">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
                     {biometricPolicy.enabled ? copyText.biometricPolicy.enabled : copyText.biometricPolicy.disabled}
                   </span>
                   <input
@@ -293,8 +293,8 @@ export function PayablesKioskManagementModal({
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/55">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{copyText.configuredAccess}</h4>
-                  <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{copyText.activeCount(activeCount, kiosks.length)}</p>
+                  <h4 className="text-sm font-medium text-slate-700 dark:text-slate-200">{copyText.configuredAccess}</h4>
+                  <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{copyText.activeCount(activeCount, kiosks.length)}</p>
                 </div>
                 <Button type="button" onClick={openCreate} className="h-10 rounded-xl bg-[#147514] px-4 text-white hover:bg-[#105f10]">
                   <Plus className="h-4 w-4" />
@@ -308,7 +308,7 @@ export function PayablesKioskManagementModal({
               </div>
             ) : kiosks.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-                <p className="text-base font-semibold text-slate-900 dark:text-slate-100">{copyText.emptyTitle}</p>
+                <p className="text-base font-medium text-slate-900 dark:text-slate-100">{copyText.emptyTitle}</p>
                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copyText.emptyDescription}</p>
               </div>
             ) : (
@@ -323,13 +323,13 @@ export function PayablesKioskManagementModal({
                         </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-base font-semibold text-slate-950 dark:text-white">{kiosk.name}</p>
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                            <p className="truncate text-base font-medium text-slate-950 dark:text-white">{kiosk.name}</p>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${kiosk.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                               {kiosk.status === 'ACTIVE' ? t.common.active : t.common.inactive}
                             </span>
                           </div>
-                          <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{copyText.mobilePortal}</p>
+                          <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copyText.mobilePortal}</p>
                         </div>
                       </div>
 
@@ -388,7 +388,7 @@ export function PayablesKioskManagementModal({
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#147514]"><Link2 className="h-5 w-5" /></span>
-                <div className="min-w-0"><p className="text-sm font-semibold text-slate-950 dark:text-white">{shareKiosk.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{shareKiosk.currencyCode} · {shareKiosk.status === 'ACTIVE' ? t.common.active : t.common.inactive}</p></div>
+                <div className="min-w-0"><p className="text-sm font-medium text-slate-950 dark:text-white">{shareKiosk.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{shareKiosk.currencyCode} · {shareKiosk.status === 'ACTIVE' ? t.common.active : t.common.inactive}</p></div>
               </div>
             </div>
             <IndiceModalValidation tone="info" title="Liga disponible" messages={['Puedes abrirla, copiarla o convertirla en código QR. Reemplazarla invalida inmediatamente la liga anterior.']} />
@@ -504,7 +504,7 @@ export function PayablesKioskManagementModal({
 
 function KioskMeta({ icon, label }: { icon?: React.ReactNode; label: string }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
       {icon}
       <span className="truncate">{label}</span>
     </span>
@@ -515,7 +515,7 @@ function KioskInfoPanel({ icon, label, value }: { icon: React.ReactNode; label: 
   return (
     <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
       <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400"><span className="text-[#147514]">{icon}</span>{label}</div>
-      <p className="mt-2 text-sm font-semibold leading-5 text-slate-900 dark:text-white">{value}</p>
+      <p className="mt-2 text-sm font-medium leading-5 text-slate-900 dark:text-white">{value}</p>
     </div>
   );
 }

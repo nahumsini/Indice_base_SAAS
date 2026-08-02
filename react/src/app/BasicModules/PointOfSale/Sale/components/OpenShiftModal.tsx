@@ -271,7 +271,7 @@ export function OpenShiftModal({
           </div>
 
           {(error || hasWarehouseBlocker || hasRegisterBlocker) && (
-            <div className="mb-5 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+            <div className="mb-5 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
               <span className="flex gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
@@ -287,14 +287,14 @@ export function OpenShiftModal({
           <section className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900/40">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">
                   Contexto operativo
                 </p>
-                <h3 className="mt-1 text-lg font-black text-gray-950 dark:text-white">
+                <h3 className="mt-1 text-lg font-medium text-gray-950 dark:text-white">
                   Dónde va a operar esta caja
                 </h3>
               </div>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300">
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300">
                 Accesos disponibles
               </span>
             </div>
@@ -345,16 +345,16 @@ export function OpenShiftModal({
           <div className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
             <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-4">
-                <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">
                   Divisa y fondo inicial
                 </p>
-                <h3 className="mt-1 text-lg font-black text-gray-950 dark:text-white">
+                <h3 className="mt-1 text-lg font-medium text-gray-950 dark:text-white">
                   Moneda del turno y efectivo inicial
                 </h3>
               </div>
 
               <label className="mb-4 block">
-                <span className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+                <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Divisa del turno
                 </span>
                 <span className="relative block">
@@ -366,7 +366,7 @@ export function OpenShiftModal({
                       setError('');
                     }}
                     disabled={isSubmitting}
-                    className="min-h-14 w-full rounded-lg border border-gray-300 bg-white py-3 pl-14 pr-4 text-lg font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    className="min-h-14 w-full rounded-lg border border-gray-300 bg-white py-3 pl-14 pr-4 text-lg font-medium text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     {businessCurrencyOptions.map((option) => (
                       <option key={option.code} value={option.code}>
@@ -375,12 +375,12 @@ export function OpenShiftModal({
                     ))}
                   </select>
                 </span>
-                <span className="mt-2 block rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                <span className="mt-2 block rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                   Esta divisa controla pagos, corte de caja y cierre del turno. Si cambias país fiscal después, debe coincidir con esta moneda.
                 </span>
               </label>
 
-              <label className="mb-2 block text-sm font-black text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Fondo inicial en caja
               </label>
               <div className="relative">
@@ -393,19 +393,19 @@ export function OpenShiftModal({
                   onChange={(event) => setInitialCash(event.target.value)}
                   disabled={isSubmitting}
                   placeholder="0.00"
-                  className="min-h-16 w-full rounded-lg border-2 border-gray-300 bg-white py-4 pl-14 pr-4 text-3xl font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="min-h-16 w-full rounded-lg border-2 border-gray-300 bg-white py-4 pl-14 pr-4 text-3xl font-medium text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
 
               <div className="mt-4">
-                <p className="mb-2 text-sm font-black text-gray-700 dark:text-gray-300">Montos rápidos</p>
+                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Montos rápidos</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                   {quickAmounts.map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setInitialCash(amount.toFixed(2))}
                       disabled={isSubmitting}
-                      className="min-h-12 rounded-lg bg-gray-100 px-2 text-sm font-black text-gray-900 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                      className="min-h-12 rounded-lg bg-gray-100 px-2 text-sm font-medium text-gray-900 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                     >
                       {amount === 0 ? formatCurrency(0, selectedCurrencyCode).replace('.00', '') : formatCurrency(amount, selectedCurrencyCode).replace('.00', '')}
                     </button>
@@ -413,7 +413,7 @@ export function OpenShiftModal({
                 </div>
               </div>
 
-              <label className="mb-2 mt-5 block text-sm font-black text-gray-700 dark:text-gray-300">
+              <label className="mb-2 mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Nota de apertura
               </label>
               <div className="relative">
@@ -424,20 +424,20 @@ export function OpenShiftModal({
                   disabled={isSubmitting}
                   placeholder="Opcional"
                   rows={3}
-                  className="w-full resize-none rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-semibold text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                  className="w-full resize-none rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
             </section>
 
             <section className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-4">
-                <p className="text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">
                   Modo operativo
                 </p>
-                <h3 className="mt-1 text-lg font-black text-gray-950 dark:text-white">
+                <h3 className="mt-1 text-lg font-medium text-gray-950 dark:text-white">
                   Turno principal
                 </h3>
-                <p className="mt-2 text-sm font-semibold leading-6 text-gray-600 dark:text-gray-300">
+                <p className="mt-2 text-sm font-medium leading-6 text-gray-600 dark:text-gray-300">
                   En esta versión el usuario que abre caja crea el turno principal. Las sesiones multiusuario deben vivir como cortes de cajero dentro del turno en una fase backend posterior.
                 </p>
               </div>
@@ -479,8 +479,8 @@ function SetupTile({
         <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-black">{label}</p>
-        <p className="text-xs font-bold opacity-70">{complete ? 'Listo' : active ? 'Requiere atención' : 'Pendiente'}</p>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs font-medium opacity-70">{complete ? 'Listo' : active ? 'Requiere atención' : 'Pendiente'}</p>
       </div>
       {complete && <CheckCircle2 className="ml-auto h-5 w-5 shrink-0" />}
     </div>
@@ -506,7 +506,7 @@ function SelectField({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-black uppercase tracking-normal text-gray-500 dark:text-gray-400">
+      <span className="mb-2 block text-xs font-medium tracking-normal text-gray-500 dark:text-gray-400">
         {label}
       </span>
       <span className="relative block">
@@ -515,7 +515,7 @@ function SelectField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
-          className="min-h-12 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-black text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+          className="min-h-12 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-medium text-gray-950 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
         >
           <option value="">{placeholder}</option>
           {options.map((option) => (
@@ -542,8 +542,8 @@ function ContextPill({
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">
-        <p className="text-[11px] font-black uppercase text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="truncate text-sm font-black text-gray-900 dark:text-white">{value}</p>
+        <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{value}</p>
       </div>
     </div>
   );

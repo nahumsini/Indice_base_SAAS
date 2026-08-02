@@ -265,6 +265,7 @@ public class ConfigCenterTabPermissionAccess {
             case "businessstructure" -> "business-structure";
             case "businessprofile" -> "business-profile";
             case "personalperformance" -> "personal-performance";
+            case "paymentaccounts" -> "payment-accounts";
             default -> normalized;
         };
     }

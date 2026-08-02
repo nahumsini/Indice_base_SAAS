@@ -45,7 +45,7 @@ export function AssetPhotosModal({
 
           {isLoading ? (
             <div className={cn(
-              'rounded-2xl border px-4 py-12 text-center text-sm font-semibold',
+              'rounded-2xl border px-4 py-12 text-center text-sm font-medium',
               isDarkMode ? 'border-white/10 bg-slate-900 text-slate-300' : 'border-slate-200 bg-white text-slate-500',
             )}
             >
@@ -69,7 +69,7 @@ export function AssetPhotosModal({
                     />
                   </div>
                   <div className="space-y-2 px-4 py-3">
-                    <p className={cn('truncate text-sm font-semibold', isDarkMode ? 'text-white' : 'text-slate-900')}>
+                    <p className={cn('truncate text-sm font-medium', isDarkMode ? 'text-white' : 'text-slate-900')}>
                       {photo.file_name}
                     </p>
                     <p className={cn('text-xs', isDarkMode ? 'text-slate-400' : 'text-slate-500')}>
@@ -80,7 +80,7 @@ export function AssetPhotosModal({
                       href={photo.download_url || photo.data_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 text-xs font-semibold text-[#137F68] hover:text-[#0f6c59]"
+                      className="inline-flex items-center gap-2 text-xs font-medium text-[#137F68] hover:text-[#0f6c59]"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       {copy.openImage}
@@ -91,7 +91,7 @@ export function AssetPhotosModal({
             </div>
           ) : (
             <div className={cn(
-              'rounded-2xl border border-dashed px-4 py-12 text-center text-sm font-semibold',
+              'rounded-2xl border border-dashed px-4 py-12 text-center text-sm font-medium',
               isDarkMode ? 'border-white/15 text-slate-400' : 'border-slate-300 text-slate-500',
             )}
             >

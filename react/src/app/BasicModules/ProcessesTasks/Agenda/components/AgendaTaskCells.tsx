@@ -77,10 +77,10 @@ export function AgendaTaskCell({
 
   switch (columnId) {
     case 'folio':
-      return <div className="w-full whitespace-normal break-words text-sm font-semibold text-slate-900 [overflow-wrap:anywhere] dark:text-white">{task.folio}</div>;
+      return <div className="w-full whitespace-normal break-words text-sm font-medium text-slate-900 [overflow-wrap:anywhere] dark:text-white">{task.folio}</div>;
     case 'type':
       return (
-        <Badge variant="outline" className="w-full rounded-full border-slate-200 bg-slate-50 px-3 py-1 text-center font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+        <Badge variant="outline" className="w-full rounded-full border-slate-200 bg-slate-50 px-3 py-1 text-center font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
           {copy.taskTypes[task.taskType]}
         </Badge>
       );
@@ -190,7 +190,7 @@ export function AgendaTaskCell({
           title={copy.actions.files}
           disabled={isPending}
           onClick={() => onOpenAttachments(task)}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-sm font-semibold text-[#9A6B05] transition-colors hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-3 py-2 text-sm font-medium text-[#9A6B05] transition-colors hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
         >
           <FolderOpen className="h-4 w-4" />
           {task.attachments}
@@ -235,7 +235,7 @@ function ReadonlyValue({ children, muted = false }: { children: ReactNode; muted
   return (
     <div
       className={cn(
-        'w-full whitespace-normal rounded-xl border border-transparent px-3 py-2 text-sm font-semibold leading-5 break-words [overflow-wrap:anywhere]',
+        'w-full whitespace-normal rounded-xl border border-transparent px-3 py-2 text-sm font-medium leading-5 break-words [overflow-wrap:anywhere]',
         muted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100',
       )}
     >

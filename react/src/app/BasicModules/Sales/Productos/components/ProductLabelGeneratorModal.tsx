@@ -66,22 +66,22 @@ export function ProductLabelGeneratorModal({
     >
         <div className="grid gap-4 p-6 md:grid-cols-[1fr_140px_140px]">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.labelsGenerator.prefix}</label>
-            <Input className="h-11 border-slate-200 bg-white font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
+            <label className="text-sm font-medium text-slate-700">{t.labelsGenerator.prefix}</label>
+            <Input className="h-11 border-slate-200 bg-white font-medium shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.labelsGenerator.quantity}</label>
-            <Input className="h-11 border-slate-200 bg-white font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" type="number" min={1} max={50} value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+            <label className="text-sm font-medium text-slate-700">{t.labelsGenerator.quantity}</label>
+            <Input className="h-11 border-slate-200 bg-white font-medium shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" type="number" min={1} max={50} value={quantity} onChange={(event) => setQuantity(event.target.value)} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">{t.labelsGenerator.digits}</label>
-            <Input className="h-11 border-slate-200 bg-white font-semibold shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" type="number" min={4} max={14} value={digits} onChange={(event) => setDigits(event.target.value)} />
+            <label className="text-sm font-medium text-slate-700">{t.labelsGenerator.digits}</label>
+            <Input className="h-11 border-slate-200 bg-white font-medium shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20" type="number" min={4} max={14} value={digits} onChange={(event) => setDigits(event.target.value)} />
           </div>
         </div>
 
         <div className="border-t border-slate-100 px-6 py-5">
           {labels.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-medium text-slate-500">
               {t.labelsGenerator.empty}
             </div>
           ) : (
@@ -91,7 +91,7 @@ export function ProductLabelGeneratorModal({
                   key={label}
                   type="button"
                   onClick={() => handleApply(label)}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-900 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10"
                 >
                   <span>{label}</span>
                   <Barcode className="h-4 w-4 text-[#B63B32]" />

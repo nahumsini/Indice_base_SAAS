@@ -208,6 +208,38 @@ public class SeatService {
         return state.isEmpty() ? SeatSnapshot.unlimited(companyId) : snapshotLocked(companyId);
     }
 
+    @Transactional
+    public SeatSnapshot requireAvailableSeatForActivation(long companyId, long userId) {
+        var state = lockState(companyId);
+        if (state == null) {
+            return SeatSnapshot.unlimited(companyId);
+        }
+        expireAndSynchronize(companyId);
+        var snapshot = snapshotLocked(companyId);
+        var alreadyActive = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM user_companies
+                WHERE company_id = ?
+                  AND user_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                """,
+            Integer.class,
+            companyId,
+            userId
+        );
+        if (alreadyActive != null && alreadyActive > 0) {
+            return snapshot;
+        }
+        if (snapshot.usedAndReserved() >= snapshot.limit()) {
+            throw new SeatCapacityExceededException(
+                "The company has reached its seat limit. Purchase another seat before activating this user.",
+                snapshot
+            );
+        }
+        return snapshot;
+    }
+
     private State lockState(long companyId) {
         return jdbcTemplate.query(
             """

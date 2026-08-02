@@ -696,7 +696,7 @@ function OperationalNotice({
   onDismiss?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
       <span className="flex min-w-0 items-center gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         <span className="min-w-0">{message}</span>
@@ -705,7 +705,7 @@ function OperationalNotice({
         <button
           type="button"
           onClick={onDismiss}
-          className="rounded-lg px-2 py-1 text-xs font-black uppercase tracking-[0.08em] text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
+          className="rounded-lg px-2 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
         >
           Cerrar
         </button>

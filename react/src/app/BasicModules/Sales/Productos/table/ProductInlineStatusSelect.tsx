@@ -27,7 +27,7 @@ export function ProductInlineStatusSelect({
     <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as SalesCatalogItem['status'])}>
       <SelectTrigger
         className={cn(
-          'h-10 w-full rounded-lg border px-3 text-sm font-bold shadow-none focus:ring-[#FF6B5E]/20',
+          'h-10 w-full rounded-lg border px-3 text-sm font-medium shadow-none focus:ring-[#FF6B5E]/20',
           productStatusClasses[value],
         )}
       >

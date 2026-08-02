@@ -156,14 +156,14 @@ export function PaymentModal({
             }))}
           />
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-sm font-bold text-slate-500">{copy.modals.payment.pendingBalance}</p>
-            <p className={cn('mt-1 text-2xl font-black', financeTextClass)}>
+            <p className="text-sm font-medium text-slate-500">{copy.modals.payment.pendingBalance}</p>
+            <p className={cn('mt-1 text-2xl font-medium', financeTextClass)}>
               {formatMoney(selectedAccount.balance, selectedAccount.currency)}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.payment.amount}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.payment.amount}</span>
               <Input
                 type="number"
                 min="0"
@@ -180,7 +180,7 @@ export function PaymentModal({
               options={Object.entries(copy.paymentMethods).map(([value, label]) => ({ value, label }))}
             />
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.payment.reference}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.payment.reference}</span>
               <Input
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
@@ -188,7 +188,7 @@ export function PaymentModal({
               />
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.payment.registeredBy}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.payment.registeredBy}</span>
               <Input
                 value={registeredBy}
                 onChange={(event) => setRegisteredBy(event.target.value)}
@@ -199,8 +199,8 @@ export function PaymentModal({
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{copy.modals.payment.receipt}</p>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.modals.payment.receiptHint}</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.payment.receipt}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.modals.payment.receiptHint}</p>
               </div>
               {receiptFile ? (
                 <Button
@@ -216,7 +216,7 @@ export function PaymentModal({
                 </Button>
               ) : null}
             </div>
-            <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#147514]/30 bg-[#147514]/5 px-4 py-4 text-center text-sm font-bold text-[#147514] transition hover:border-[#147514]/50 hover:bg-[#147514]/10 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300 dark:hover:bg-emerald-400/15">
+            <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#147514]/30 bg-[#147514]/5 px-4 py-4 text-center text-sm font-medium text-[#147514] transition hover:border-[#147514]/50 hover:bg-[#147514]/10 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300 dark:hover:bg-emerald-400/15">
               {receiptDataUrl ? (
                 <div className="flex w-full items-center gap-4 text-left">
                   {isReceiptImage ? (
@@ -231,8 +231,8 @@ export function PaymentModal({
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black text-slate-800 dark:text-white">{receiptFile?.name}</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <p className="truncate text-sm font-medium text-slate-800 dark:text-white">{receiptFile?.name}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                       {copy.modals.payment.replaceReceipt}
                     </p>
                   </div>
@@ -259,7 +259,7 @@ export function PaymentModal({
           </div>
         </div>
       ) : (
-        <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+        <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900">
           {copy.modals.payment.noAccounts}
         </p>
       )}

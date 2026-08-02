@@ -109,7 +109,7 @@ export function AgendaScheduleTaskCard({
             </span>
             <h4
               className={cn(
-                'min-w-0 font-bold leading-5 text-slate-900 dark:text-white',
+                'min-w-0 font-medium leading-5 text-slate-900 dark:text-white',
                 options.compact && !isSidebarCard ? 'line-clamp-2 text-xs' : 'line-clamp-2 text-sm',
                 isSidebarCard && 'w-full min-w-full break-words text-base leading-6',
               )}
@@ -119,7 +119,7 @@ export function AgendaScheduleTaskCard({
             {options.compact && !isSidebarCard ? null : (
               <Badge
                 variant="outline"
-                className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', displayStatusClasses[displayStatus])}
+                className={cn('rounded-full px-2.5 py-1 text-xs font-medium', displayStatusClasses[displayStatus])}
               >
                 {copy.statuses[displayStatus]}
               </Badge>
@@ -127,7 +127,7 @@ export function AgendaScheduleTaskCard({
             {isSidebarCard ? (
               <Badge
                 variant="outline"
-                className="rounded-full border-[#F4C84A]/40 bg-[#F4C84A]/10 px-2.5 py-1 text-xs font-bold text-[#9A6B05]"
+                className="rounded-full border-[#F4C84A]/40 bg-[#F4C84A]/10 px-2.5 py-1 text-xs font-medium text-[#9A6B05]"
               >
                 {scheduleCopy.noHourLabel}
               </Badge>
@@ -136,7 +136,7 @@ export function AgendaScheduleTaskCard({
           <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
             {task.assignedName ?? copy.common.unassigned}
           </p>
-          <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <p className="mt-1 line-clamp-1 text-xs font-medium text-slate-500 dark:text-slate-400">
             {task.projectName ?? task.businessName ?? task.unitName ?? copy.common.noRecord}
           </p>
         </div>
@@ -149,7 +149,7 @@ export function AgendaScheduleTaskCard({
               onChange={(event) =>
                 onUpdateTaskSchedulePlacement(task.taskId, event.target.value || selectedScheduleDate, schedule.hour)
               }
-              className="h-9 rounded-lg border-slate-200 bg-slate-50 text-xs font-semibold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900"
+              className="h-9 rounded-lg border-slate-200 bg-slate-50 text-xs font-medium shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900"
             />
             <Input
               type="time"
@@ -162,7 +162,7 @@ export function AgendaScheduleTaskCard({
                   normalizeScheduleHourInput(event.target.value),
                 )
               }
-              className="h-9 rounded-lg border-slate-200 bg-slate-50 text-xs font-semibold shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900"
+              className="h-9 rounded-lg border-slate-200 bg-slate-50 text-xs font-medium shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-700 dark:bg-slate-900"
             />
           </div>
         ) : null}
@@ -170,7 +170,7 @@ export function AgendaScheduleTaskCard({
 
       <div
         className={cn(
-          'flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400',
+          'flex items-center justify-between gap-3 text-[11px] font-medium text-slate-500 dark:text-slate-400',
           isSidebarCard &&
             'rounded-lg border border-[#F4C84A]/25 bg-white/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50',
         )}
@@ -201,7 +201,7 @@ export function AgendaScheduleTaskCard({
         >
           <SelectTrigger
             className={cn(
-              'h-8 shrink-0 rounded-full px-3 text-xs font-semibold shadow-none',
+              'h-8 shrink-0 rounded-full px-3 text-xs font-medium shadow-none',
               isSidebarCard ? 'w-full justify-between' : 'w-[126px]',
               displayStatusClasses[displayStatus],
             )}

@@ -68,11 +68,11 @@ export function KioskTypeSelector({ copy, value, allowedTypes, onChange }: Kiosk
               className="sr-only"
               onChange={() => onChange(optionValue)}
             />
-            <span className="flex items-start justify-between gap-3 text-sm font-semibold">
+            <span className="flex items-start justify-between gap-3 text-sm font-medium">
               <span className="flex min-w-0 items-center gap-2">
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                   isSelected
-                    ? 'bg-[#59C3A5] text-white dark:bg-[#8FE0CA] dark:text-slate-950'
+                    ? 'bg-[#59C3A5] text-slate-950 dark:bg-[#8FE0CA] dark:text-slate-950'
                     : 'bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300'
                 }`}
                 >

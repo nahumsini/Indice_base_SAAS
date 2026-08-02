@@ -28,9 +28,9 @@ function InventoryMetricCard({
       <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
         {icon}
       </span>
-      <span className="text-sm font-semibold">
-        <span className={cn('mr-2 font-semibold', valueClassName)}>{value}</span>
-        <span className="font-semibold text-slate-600 dark:text-slate-300">{label}</span>
+      <span className="text-sm font-medium">
+        <span className={cn('mr-2 font-medium', valueClassName)}>{value}</span>
+        <span className="font-medium text-slate-600 dark:text-slate-300">{label}</span>
       </span>
     </span>
   );

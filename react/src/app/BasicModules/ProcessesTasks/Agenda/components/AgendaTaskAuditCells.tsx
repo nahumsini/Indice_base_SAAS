@@ -25,7 +25,7 @@ export function NotesCell({ copy, isPending, onEditTask, task }: TaskAuditCellPr
         type="button"
         variant="outline"
         disabled={isPending}
-        className="h-8 rounded-xl border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-700 shadow-none hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+        className="h-8 rounded-xl border-amber-200 bg-amber-50 px-3 text-xs font-medium text-amber-700 shadow-none hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
         onClick={() => onEditTask(task)}
       >
         <Pencil className="h-3.5 w-3.5" />
@@ -41,7 +41,7 @@ export function WeightingCell({ copy, isPending, onAuditTask, task }: TaskAuditC
       <Badge
         variant="outline"
         className={cn(
-          'w-fit rounded-full px-3 py-1 font-semibold',
+          'w-fit rounded-full px-3 py-1 font-medium',
           task.audited
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300'
             : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300',
@@ -54,7 +54,7 @@ export function WeightingCell({ copy, isPending, onAuditTask, task }: TaskAuditC
           type="button"
           variant="outline"
           disabled={isPending}
-          className="h-8 rounded-xl border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-700 shadow-none hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/60"
+          className="h-8 rounded-xl border-violet-200 bg-violet-50 px-3 text-xs font-medium text-violet-700 shadow-none hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/60"
           onClick={() => onAuditTask(task)}
         >
           <ClipboardCheck className="h-3.5 w-3.5" />
@@ -70,7 +70,7 @@ export function WeightingCell({ copy, isPending, onAuditTask, task }: TaskAuditC
 export function AuditNotesCell({ auditStatusClasses, copy, isPending, onAuditTask, task }: TaskAuditCellProps) {
   return (
     <div className="flex w-full flex-col items-start gap-2">
-      <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', auditStatusClasses[task.auditStatus])}>
+      <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-medium', auditStatusClasses[task.auditStatus])}>
         {copy.auditStatuses[task.auditStatus]}
       </Badge>
       {task.audited ? (
@@ -88,7 +88,7 @@ export function AuditNotesCell({ auditStatusClasses, copy, isPending, onAuditTas
           type="button"
           variant="outline"
           disabled={isPending}
-          className="h-9 rounded-xl border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 shadow-none hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/60"
+          className="h-9 rounded-xl border-violet-200 bg-violet-50 px-3 text-sm font-medium text-violet-700 shadow-none hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/60 dark:text-violet-300 dark:hover:bg-violet-900/60"
           onClick={() => onAuditTask(task)}
         >
           <ClipboardCheck className="h-4 w-4" />

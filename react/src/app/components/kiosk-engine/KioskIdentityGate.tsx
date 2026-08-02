@@ -64,7 +64,7 @@ export function KioskIdentityGate({
           >
             <LockKeyhole className="h-6 w-6" />
           </span>
-          <h2 className="mt-5 text-2xl font-black tracking-tight text-slate-950 dark:text-white">{title}</h2>
+          <h2 className="mt-5 text-2xl font-medium tracking-tight text-slate-950 dark:text-white">{title}</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{description}</p>
         </div>
 
@@ -122,7 +122,7 @@ export function KioskIdentityGate({
           </div>
 
           <button
-            className={`mt-5 inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[var(--kiosk-accent)] px-5 text-base font-black shadow-[0_12px_24px_-16px_rgba(15,23,42,0.7)] transition hover:bg-[var(--kiosk-accent-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--kiosk-accent-soft)] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none ${usesDarkActionText ? 'text-slate-950' : 'text-white'} ${submitClassName ?? ''}`}
+            className={`mt-5 inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[var(--kiosk-accent)] px-5 text-base font-medium shadow-[0_12px_24px_-16px_rgba(15,23,42,0.7)] transition hover:bg-[var(--kiosk-accent-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--kiosk-accent-soft)] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none ${usesDarkActionText ? 'text-slate-950' : 'text-white'} ${submitClassName ?? ''}`}
             disabled={!canSubmit}
             type="submit"
           >
@@ -138,10 +138,10 @@ export function KioskIdentityGate({
         </div>
       </section>
 
-      <footer className="px-4 pb-[env(safe-area-inset-bottom)] pt-5 text-center text-[11px] font-medium tracking-wide text-slate-400 dark:text-slate-500">
+      <footer className="px-4 pb-[env(safe-area-inset-bottom)] pt-5 text-center text-[11px] font-medium text-slate-400 dark:text-slate-500">
         Powered by{' '}
         <a
-          className="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-4 transition hover:text-[#147514] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147514]/30 dark:text-slate-400 dark:decoration-slate-700 dark:hover:text-emerald-300"
+          className="font-medium text-slate-500 underline decoration-slate-300 underline-offset-4 transition hover:text-[#147514] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147514]/30 dark:text-slate-400 dark:decoration-slate-700 dark:hover:text-emerald-300"
           href="https://www.indiceapp.com"
           rel="noreferrer"
           target="_blank"

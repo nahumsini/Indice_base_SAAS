@@ -96,7 +96,7 @@ function PreviewInsightCard({
     <div className="rounded-lg border border-slate-200 bg-white p-5">
       <div className="flex items-center gap-3">
         <span className={cn('h-3 w-3 rounded-full', accentClassName)} aria-hidden="true" />
-        <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+        <h3 className="text-base font-medium text-slate-950">{title}</h3>
       </div>
       <p className="mt-5 text-sm font-normal leading-6 text-slate-500">{body}</p>
     </div>
@@ -118,7 +118,7 @@ function PreviewMetricCard({
         <span className={cn('w-2 shrink-0', accentClassName)} aria-hidden="true" />
         <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
           <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="truncate text-xl font-semibold text-slate-950">{value}</p>
+          <p className="truncate text-xl font-medium text-slate-950">{value}</p>
         </div>
       </div>
     </div>
@@ -271,7 +271,7 @@ export function QuotePreviewModal({
             <Button
               type="button"
               variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', previewActionClassNames.secondary)}
+              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
               onClick={onClose}
               disabled={isSharing}
             >
@@ -279,7 +279,7 @@ export function QuotePreviewModal({
             </Button>
             <Button
               variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', previewActionClassNames.secondary)}
+              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
               onClick={handleDownload}
             >
               <Download className="h-4 w-4" />
@@ -287,7 +287,7 @@ export function QuotePreviewModal({
             </Button>
             <Button
               variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', previewActionClassNames.secondary)}
+              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
               onClick={handlePrint}
             >
               <Printer className="h-4 w-4" />
@@ -295,7 +295,7 @@ export function QuotePreviewModal({
             </Button>
             <Button
               variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', previewActionClassNames.secondary)}
+              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
               asChild={Boolean(whatsappHref)}
               disabled={!whatsappHref}
               title={!whatsappHref ? copy.previewModal.noPhone : undefined}
@@ -314,7 +314,7 @@ export function QuotePreviewModal({
             </Button>
             <Button
               variant="outline"
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', previewActionClassNames.secondary)}
+              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.secondary)}
               asChild={Boolean(emailHref)}
               disabled={!emailHref}
               title={!emailHref ? copy.previewModal.noEmail : undefined}
@@ -332,7 +332,7 @@ export function QuotePreviewModal({
               )}
             </Button>
             <Button
-              className={cn('h-10 gap-2 px-4 text-sm font-semibold', previewActionClassNames.primary)}
+              className={cn('h-10 gap-2 px-4 text-sm font-medium', previewActionClassNames.primary)}
               onClick={handleSharePdf}
               disabled={isSharing}
             >
@@ -350,7 +350,7 @@ export function QuotePreviewModal({
                   <p className="mt-1 text-lg font-medium text-slate-950">{quote.quoteNumber}</p>
                 </div>
                 <div className="text-left md:text-center">
-                  <p className="text-2xl font-bold text-slate-950">{copy.previewModal.documentTitle}</p>
+                  <p className="text-2xl font-medium text-slate-950">{copy.previewModal.documentTitle}</p>
                   <p className="mt-1 text-xs font-medium text-slate-500">
                     {copy.previewModal.documentEyebrow}
                   </p>
@@ -370,7 +370,7 @@ export function QuotePreviewModal({
                   <p className="text-xs font-medium text-[#B63B32]">
                     {copy.previewModal.documentLabel}
                   </p>
-                  <h1 className="mt-3 text-5xl font-bold leading-[0.95] text-slate-950">
+                  <h1 className="mt-3 text-5xl font-medium leading-[0.95] text-slate-950">
                     {copy.previewModal.documentTitle}
                   </h1>
                   <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
@@ -381,7 +381,7 @@ export function QuotePreviewModal({
                   <p className="text-xs font-medium text-[#B63B32]">
                     {copy.labels.total} · {quoteCurrency}
                   </p>
-                  <p className="mt-2 text-3xl font-bold text-slate-950">{formatCurrency(quote.total, quoteCurrency)}</p>
+                  <p className="mt-2 text-3xl font-medium text-slate-950">{formatCurrency(quote.total, quoteCurrency)}</p>
                 </div>
               </div>
             </header>
@@ -418,7 +418,7 @@ export function QuotePreviewModal({
             <section className="grid gap-4 border-b border-slate-200 py-7 md:grid-cols-2">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <p className="text-xs font-medium text-slate-500">{copy.previewModal.clientBlock}</p>
-                <h2 className="mt-3 text-xl font-semibold text-slate-950">{quote.clientName}</h2>
+                <h2 className="mt-3 text-xl font-medium text-slate-950">{quote.clientName}</h2>
                 <p className="mt-1 font-medium text-slate-600">{quote.contactPerson}</p>
                 <div className="mt-4 space-y-1 text-sm font-medium text-slate-500">
                   <p>{copy.previewModal.phone}: {contact?.phone ?? copy.common.unassigned}</p>
@@ -427,7 +427,7 @@ export function QuotePreviewModal({
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <p className="text-xs font-medium text-slate-500">{copy.previewModal.commercialBlock}</p>
-                <h2 className="mt-3 text-xl font-semibold text-slate-950">{quote.assignedSeller}</h2>
+                <h2 className="mt-3 text-xl font-medium text-slate-950">{quote.assignedSeller}</h2>
                 <div className="mt-4 grid gap-2 text-sm font-medium text-slate-500">
                   <p>{copy.labels.opportunity}: {opportunity?.opportunityName ?? copy.common.unassigned}</p>
                   <p>{copy.labels.status}: {copy.statusLabels[quote.status]}</p>
@@ -439,7 +439,7 @@ export function QuotePreviewModal({
 
             <section className="py-7">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-                <h2 className="text-xl font-semibold text-slate-950">{copy.previewModal.itemsTitle}</h2>
+                <h2 className="text-xl font-medium text-slate-950">{copy.previewModal.itemsTitle}</h2>
                 <span className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-medium text-[#B63B32]">
                   {copy.statusLabels[quote.status]}
                 </span>
@@ -449,13 +449,13 @@ export function QuotePreviewModal({
                 <table className="w-full border-collapse text-left text-xs">
                   <thead className="bg-slate-50 text-slate-700">
                     <tr>
-                      <th className="px-3 py-3 font-semibold">{copy.labels.product}</th>
-                      <th className="px-3 py-3 font-semibold">{copy.labels.section}</th>
-                      <th className="px-3 py-3 text-center font-semibold">{copy.labels.quantity}</th>
-                      <th className="px-3 py-3 text-right font-semibold">{copy.labels.unitPrice}</th>
-                      <th className="px-3 py-3 text-center font-semibold">{copy.labels.discount}</th>
-                      <th className="px-3 py-3 text-center font-semibold">{copy.labels.tax}</th>
-                      <th className="px-3 py-3 text-right font-semibold">{copy.previewModal.lineTotal}</th>
+                      <th className="px-3 py-3 font-medium">{copy.labels.product}</th>
+                      <th className="px-3 py-3 font-medium">{copy.labels.section}</th>
+                      <th className="px-3 py-3 text-center font-medium">{copy.labels.quantity}</th>
+                      <th className="px-3 py-3 text-right font-medium">{copy.labels.unitPrice}</th>
+                      <th className="px-3 py-3 text-center font-medium">{copy.labels.discount}</th>
+                      <th className="px-3 py-3 text-center font-medium">{copy.labels.tax}</th>
+                      <th className="px-3 py-3 text-right font-medium">{copy.previewModal.lineTotal}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -468,7 +468,7 @@ export function QuotePreviewModal({
                     ) : quote.items.map((item) => (
                       <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
                         <td className="max-w-[240px] px-3 py-4">
-                          <p className="font-semibold text-slate-950">{item.productName}</p>
+                          <p className="font-medium text-slate-950">{item.productName}</p>
                           <p className="mt-1 font-medium text-slate-500">{item.sku}</p>
                           {hasCurrencyConversion(item, quoteCurrency) ? (
                             <p className="mt-1 font-medium leading-5 text-[#7C5604]">
@@ -483,7 +483,7 @@ export function QuotePreviewModal({
                         <td className="px-3 py-4 text-center font-medium text-slate-700">
                           {item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`}
                         </td>
-                        <td className="px-3 py-4 text-right font-semibold text-slate-950">{formatCurrency(getLineTotal(item), quoteCurrency)}</td>
+                        <td className="px-3 py-4 text-right font-medium text-slate-950">{formatCurrency(getLineTotal(item), quoteCurrency)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -510,8 +510,8 @@ export function QuotePreviewModal({
                         index === rows.length - 1 && 'mt-2 border-t border-[#FF6B5E]/25 pt-4 text-lg text-slate-950',
                       )}
                     >
-                      <span className={cn(index === rows.length - 1 ? 'font-semibold text-slate-950' : 'font-medium text-slate-600')}>{label}</span>
-                      <span className={cn(index === rows.length - 1 ? 'font-bold' : 'font-medium', 'text-slate-950')}>{formatCurrency(Number(value), quoteCurrency)}</span>
+                      <span className={cn(index === rows.length - 1 ? 'font-medium text-slate-950' : 'font-medium text-slate-600')}>{label}</span>
+                      <span className={cn(index === rows.length - 1 ? 'font-medium' : 'font-medium', 'text-slate-950')}>{formatCurrency(Number(value), quoteCurrency)}</span>
                     </div>
                   ))}
                 </div>

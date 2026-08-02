@@ -439,8 +439,8 @@ export default function Billing() {
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-700 shadow-sm"><AlertTriangle className="h-5 w-5" /></span>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Estado comercial</p>
-                <h3 className="mt-1 font-semibold text-slate-950">{recovery.lifecycle?.state || 'Sincronizando'}</h3>
+                <p className="text-xs font-medium text-slate-500">Estado comercial</p>
+                <h3 className="mt-1 font-medium text-slate-950">{recovery.lifecycle?.state || 'Sincronizando'}</h3>
                 <p className="mt-1 text-sm text-slate-600">{recovery.lifecycle?.allows_operational_write ? 'La operación de la cuenta está habilitada.' : 'Regulariza la facturación para restaurar la operación completa.'}</p>
               </div>
             </div>
@@ -463,8 +463,8 @@ export default function Billing() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Almacenamiento de la cuenta</p>
-                  <h3 className="mt-1 font-semibold text-slate-950">{formatStorage(storage.used_bytes + storage.reserved_bytes)} de {formatStorage(storage.limit_bytes)}</h3>
+                  <p className="text-xs font-medium text-slate-500">Almacenamiento de la cuenta</p>
+                  <h3 className="mt-1 font-medium text-slate-950">{formatStorage(storage.used_bytes + storage.reserved_bytes)} de {formatStorage(storage.limit_bytes)}</h3>
                 </div>
                 <span className="text-xs font-medium text-slate-500">5 GB incluidos · {storage.purchased_blocks} comprado(s) · {storage.benefit_blocks} cortesía</span>
               </div>
@@ -477,7 +477,7 @@ export default function Billing() {
         </div>
       ) : null}
       <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 p-4 dark:border-blue-700/30 sm:p-6">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+        <h2 className="text-2xl font-medium text-gray-900 dark:text-white mb-1 flex items-center gap-2">
           <span className="text-2xl">🧾</span>
           {t.panelInicial.billing.title}
         </h2>
@@ -491,7 +491,7 @@ export default function Billing() {
               📋
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">
+              <h3 className="font-medium text-gray-900 dark:text-white">
                 {t.panelInicial.billing.fiscalData.title}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -534,7 +534,7 @@ export default function Billing() {
                 <CreditCard className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
+                <h3 className="font-medium text-gray-900 dark:text-white">
                   {t.panelInicial.billing.paymentMethod.title}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -799,7 +799,7 @@ export default function Billing() {
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">
+              <h3 className="font-medium text-gray-900 dark:text-white">
                 {t.panelInicial.billing.invoices.title}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">

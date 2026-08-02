@@ -168,7 +168,7 @@ export function SalesTable({
                 <TableRow>
                   <TableCell colSpan={visibleColumns.length + 1} className="px-5 py-12 text-center">
                     <div className="mx-auto max-w-md space-y-2">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">{t.table.emptyDescription}</p>
                     </div>
                   </TableCell>

@@ -163,7 +163,7 @@ export function AnnouncementTable({
               />
             )}
             leading={(
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EAF8F4] text-sm font-bold text-[#177d66] dark:bg-[#13362F] dark:text-[#8DE1CB]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EAF8F4] text-sm font-medium text-[#177d66] dark:bg-[#13362F] dark:text-[#8DE1CB]">
                 {announcement.title.slice(0, 2).toUpperCase()}
               </div>
             )}
@@ -171,10 +171,10 @@ export function AnnouncementTable({
             subtitle={announcement.preview || copy.table.noPreview}
             badges={(
               <>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getTypeClasses(announcement.type)}`}>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getTypeClasses(announcement.type)}`}>
                   {copy.typeLabels[announcement.type]}
                 </span>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusClasses(announcement.status)}`}>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusClasses(announcement.status)}`}>
                   {copy.statusLabels[announcement.status]}
                 </span>
               </>
@@ -246,11 +246,11 @@ export function AnnouncementTable({
                     </td>
                     <td className="min-w-[320px] px-5 py-5 align-middle">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-[#59C3A5] dark:bg-slate-700 dark:text-blue-200">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-medium text-[#59C3A5] dark:bg-slate-700 dark:text-blue-200">
                           {announcement.title.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">
                             {announcement.title}
                           </p>
                           <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -372,7 +372,7 @@ function TableHeader({
         <button
           type="button"
           onClick={onSort}
-          className={`inline-flex items-center gap-2 ${buttonAlignClass} text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white`}
+          className={`inline-flex items-center gap-2 ${buttonAlignClass} text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white`}
         >
           <span>{children}</span>
           <StandardSortIcon active={sortActive} direction={sortDirection} />
@@ -382,7 +382,7 @@ function TableHeader({
   }
 
   return (
-    <th className={`px-5 py-4 ${headerAlignClass} text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400`}>
+    <th className={`px-5 py-4 ${headerAlignClass} text-[11px] font-medium text-slate-500 dark:text-slate-400`}>
       {children}
     </th>
   );

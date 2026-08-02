@@ -202,7 +202,7 @@ export function TaskKioskManagementModal({
         <div className="space-y-4">
           <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Puntos de acceso para trabajo en campo</h3>
+              <h3 className="text-sm font-medium text-slate-950 dark:text-white">Puntos de acceso para trabajo en campo</h3>
               <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">Cada enlace abre una pantalla pública con PIN, sin exponer el ERP completo.</p>
             </div>
             <Button type="button" className="h-10 rounded-xl bg-[#F4C84A] px-4 text-[#5F4500] hover:bg-[#E5B835]" onClick={handleStartCreate}>
@@ -233,15 +233,15 @@ export function TaskKioskManagementModal({
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <h3 className="min-w-0 truncate text-sm font-semibold text-slate-950 dark:text-white">{kiosk.name}</h3>
+                            <h3 className="min-w-0 truncate text-sm font-medium text-slate-950 dark:text-white">{kiosk.name}</h3>
                             <span className={kioskStatusClassName(kiosk.engine_status)}>{kioskStateLabel(kiosk.engine_status)}</span>
-                            {kiosk.expires_at ? <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">Expira {new Date(kiosk.expires_at).toLocaleString('es-MX')}</span> : null}
+                            {kiosk.expires_at ? <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">Expira {new Date(kiosk.expires_at).toLocaleString('es-MX')}</span> : null}
                           </div>
                           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-slate-500">
                             <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Building2 className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{kiosk.scope_label}</span></span>
                             <span aria-hidden="true" className="text-slate-300">·</span>
                             <span className="max-w-full truncate">{kiosk.code}</span>
-                            <span className={kiosk.public_access_token ? 'rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700' : kiosk.public_token_hint ? 'rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800' : 'rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500'}>
+                            <span className={kiosk.public_access_token ? 'rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700' : kiosk.public_token_hint ? 'rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800' : 'rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500'}>
                               {kiosk.public_access_token ? 'Liga disponible ahora' : kiosk.public_token_hint ? 'Liga protegida' : 'Liga no emitida'}
                             </span>
                             {kiosk.public_token_hint ? <Link2 className="h-3 w-3 text-slate-400" /> : null}
@@ -354,7 +354,7 @@ export function TaskKioskManagementModal({
                   <Link2 className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-950 dark:text-white">{shareKiosk.name}</p>
+                  <p className="text-sm font-medium text-slate-950 dark:text-white">{shareKiosk.name}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">{shareKiosk.scope_label}</p>
                 </div>
               </div>
@@ -577,9 +577,9 @@ function KioskPanelAction({
 }
 
 function kioskStatusClassName(status: ProcessTaskKiosk['engine_status']) {
-  if (status === 'ACTIVE') return 'rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700';
-  if (status === 'DISABLED') return 'rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800';
-  return 'rounded-full bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700';
+  if (status === 'ACTIVE') return 'rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700';
+  if (status === 'DISABLED') return 'rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800';
+  return 'rounded-full bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700';
 }
 
 function kioskStateLabel(status: ProcessTaskKiosk['engine_status']) {

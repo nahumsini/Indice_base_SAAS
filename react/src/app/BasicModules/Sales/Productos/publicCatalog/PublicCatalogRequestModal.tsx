@@ -133,37 +133,37 @@ export function PublicCatalogRequestModal({
         <div className="space-y-4 bg-slate-50/70 p-6 dark:bg-slate-950">
           {success ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-emerald-700">
-              <h3 className="flex items-center gap-2 font-bold">
+              <h3 className="flex items-center gap-2 font-medium">
                 <CheckCircle2 className="h-5 w-5" />
                 {t.publicCatalog.requestModal.successTitle}
               </h3>
-              <p className="mt-2 text-sm font-semibold leading-6">{t.publicCatalog.requestModal.successDescription}</p>
+              <p className="mt-2 text-sm font-medium leading-6">{t.publicCatalog.requestModal.successDescription}</p>
               {requestNumber ? (
-                <p className="mt-3 rounded-lg border border-emerald-200 bg-white px-3 py-3 text-center font-mono text-lg font-black tracking-wide text-emerald-800">
+                <p className="mt-3 rounded-lg border border-emerald-200 bg-white px-3 py-3 text-center font-mono text-lg font-medium text-emerald-800">
                   {requestNumber}
                 </p>
               ) : null}
-              <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-emerald-700">{t.publicCatalog.futureOpportunityNote}</p>
+              <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-medium text-emerald-700">{t.publicCatalog.futureOpportunityNote}</p>
             </div>
           ) : (
             <>
               {error ? (
-                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
                   {error}
                 </div>
               ) : null}
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
-                  <label htmlFor={customerNameId} className="text-sm font-bold text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.customerName}</label>
+                  <label htmlFor={customerNameId} className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.customerName}</label>
                   <Input id={customerNameId} required maxLength={180} autoComplete="name" className="h-11 rounded-lg" value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor={contactId} className="text-sm font-bold text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.contact}</label>
+                  <label htmlFor={contactId} className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.contact}</label>
                   <Input id={contactId} required maxLength={240} type={contactInputType} autoComplete={contactAutoComplete} className="h-11 rounded-lg" value={contact} onChange={(event) => setContact(event.target.value)} />
                 </div>
               </div>
               <div className="space-y-1">
-                <label htmlFor={preferredContactId} className="text-sm font-bold text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.preferredContactMethod}</label>
+                <label htmlFor={preferredContactId} className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.preferredContactMethod}</label>
                 <Select value={preferredContactMethod} onValueChange={(value) => setPreferredContactMethod(value as PublicCatalogContactMethod)}>
                   <SelectTrigger id={preferredContactId} className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -175,13 +175,13 @@ export function PublicCatalogRequestModal({
                 </Select>
               </div>
               <div className="space-y-1">
-                <label htmlFor={messageId} className="text-sm font-bold text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.message}</label>
+                <label htmlFor={messageId} className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.publicCatalog.requestModal.message}</label>
                 <Textarea id={messageId} maxLength={4000} className="min-h-24 rounded-lg" value={message} onChange={(event) => setMessage(event.target.value)} />
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                 {t.publicCatalog.requestModal.estimatedTotal}: {showPrices ? formatProductCurrency(estimatedTotal, estimatedCurrency) : t.publicCatalog.pricePending} · {cartItems.length} {t.publicCatalog.requestModal.items}
               </div>
-              <p className="text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">
                 {t.publicCatalog.requestModal.totalDisclaimer}
               </p>
             </>

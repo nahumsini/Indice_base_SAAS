@@ -27,8 +27,8 @@ export function DiscountKpiCard({
           <Icon className="h-5 w-5" />
         </span>
         <div>
-          <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="text-lg font-bold text-slate-950 dark:text-white">{value}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="text-lg font-medium text-slate-950 dark:text-white">{value}</p>
         </div>
       </div>
     </div>

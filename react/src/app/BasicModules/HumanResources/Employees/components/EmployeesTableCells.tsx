@@ -67,7 +67,7 @@ export function EmployeesTableCellContent({
     case 'employee':
       return <EmployeeIdentityCell employee={employee} />;
     case 'employeeNumber':
-      return <span className="block w-full truncate text-base font-semibold text-slate-900 dark:text-white" title={employee.code || '-'}>{employee.code || '-'}</span>;
+      return <span className="block w-full truncate text-base font-medium text-slate-900 dark:text-white" title={employee.code || '-'}>{employee.code || '-'}</span>;
     case 'firstName':
       return <EmployeeTextCell fallback={copy.fieldFallback} value={employee.firstName} />;
     case 'lastName':

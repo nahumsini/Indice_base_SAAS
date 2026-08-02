@@ -205,13 +205,13 @@ export function VariablePayModal({
         <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/50">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.name}</p>
                     <span className="mt-1 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         {badgeLabel}
                     </span>
                 </div>
                 <div className="min-w-[120px] text-right">
-                    <p className="text-sm font-bold text-[#59C3A5] dark:text-blue-300">${money(item.amount)}</p>
+                    <p className="text-sm font-medium text-[#59C3A5] dark:text-blue-300">${money(item.amount)}</p>
                 </div>
             </div>
 
@@ -265,7 +265,7 @@ export function VariablePayModal({
 
                             <TabsContent value="bonuses" className="space-y-3">
                                 <div className="flex justify-end">
-                                    <Button type="button" size="sm" className="h-8 bg-[#59C3A5] px-2 text-white hover:bg-[#3AAE90]" onClick={() => setAddMode('bonus')}>
+                                    <Button type="button" size="sm" className="h-8 bg-[#59C3A5] px-2 text-slate-950 hover:bg-[#3AAE90]" onClick={() => setAddMode('bonus')}>
                                         <Plus className="mr-1 h-3.5 w-3.5" />
                                         {copy.actions.addBonus}
                                     </Button>
@@ -282,7 +282,7 @@ export function VariablePayModal({
 
                             <TabsContent value="commissions" className="space-y-3">
                                 <div className="flex justify-end">
-                                    <Button type="button" size="sm" className="h-8 bg-[#59C3A5] px-2 text-white hover:bg-[#3AAE90]" onClick={() => setAddMode('commission')}>
+                                    <Button type="button" size="sm" className="h-8 bg-[#59C3A5] px-2 text-slate-950 hover:bg-[#3AAE90]" onClick={() => setAddMode('commission')}>
                                         <Plus className="mr-1 h-3.5 w-3.5" />
                                         {copy.actions.addCommission}
                                     </Button>
@@ -302,7 +302,7 @@ export function VariablePayModal({
                                     <Button
                                         type="button"
                                         size="sm"
-                                        className="h-8 bg-[#59C3A5] px-2 text-white hover:bg-[#3AAE90]"
+                                        className="h-8 bg-[#59C3A5] px-2 text-slate-950 hover:bg-[#3AAE90]"
                                         onClick={() => {
                                             setAdjustmentDraft(defaultAdjustmentDraft);
                                             setAddMode('adjustment');
@@ -349,7 +349,7 @@ export function VariablePayModal({
                                 onClick={() => applyBonusTemplate(template)}
                                 className={`w-full rounded-xl border p-3 text-left ${selectedBonusTemplateId === template.id ? 'border-[#59C3A5] bg-[#59C3A5]/5' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/60'}`}
                             >
-                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{template.name}</p>
+                                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{template.name}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">{template.description}</p>
                             </button>
                         ))}
@@ -384,12 +384,12 @@ export function VariablePayModal({
                                 onClick={() => applyCommissionTemplate(template)}
                                 className={`w-full rounded-xl border p-3 text-left ${selectedCommissionTemplateId === template.id ? 'border-[#59C3A5] bg-[#59C3A5]/5' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/60'}`}
                             >
-                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{template.name}</p>
+                                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{template.name}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">{template.description}</p>
                             </button>
                         ))}
                         <div className="rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
-                            {copy.labels.commissionAmount}: <span className="font-semibold text-slate-900 dark:text-slate-100">${money(selectedCommissionAmount)}</span>
+                            {copy.labels.commissionAmount}: <span className="font-medium text-slate-900 dark:text-slate-100">${money(selectedCommissionAmount)}</span>
                         </div>
                     </div>
             </IndiceModalFrame>

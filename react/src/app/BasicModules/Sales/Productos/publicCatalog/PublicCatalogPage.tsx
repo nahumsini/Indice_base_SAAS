@@ -1,26 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Globe2, RefreshCw, WifiOff } from 'lucide-react';
 import { useParams } from 'react-router';
 import { KioskPublicShell } from '../../../../components/kiosk-engine/KioskPublicShell';
 import { Button } from '../../../../components/ui/button';
 import { useIsMobile } from '../../../../components/ui/use-mobile';
 import type { SalesCatalogItem } from '../../types';
-import { productTypes } from '../../types';
 import { useProductsTranslations } from '../translations';
 import { publicCatalogApi, type PublicCatalogBootstrap } from './publicCatalogApi';
-import type { PublicCatalogCartItem, PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
+import type { PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
 import { createDefaultPublicCatalogConfig, getProductsForPublicCatalog } from './utils/publicCatalogAdapters';
-import { filterPublicCatalogItems } from './utils/publicCatalogFilters';
-import { calculatePublicCatalogCartTotal, getPublicCatalogUnitPrice } from './utils/publicCatalogPricing';
-import { applyPublicCatalogPriceVisibility } from './utils/publicCatalogVisibility';
-import { PublicCatalogCart } from './PublicCatalogCart';
-import { PublicCatalogFilters } from './PublicCatalogFilters';
-import { PublicCatalogGrid } from './PublicCatalogGrid';
 import { PublicCatalogHeader } from './PublicCatalogHeader';
-import { PublicCatalogMobileCard } from './PublicCatalogMobileCard';
-import { PublicCatalogMobileCart } from './PublicCatalogMobileCart';
-import { PublicCatalogMobileFilters } from './PublicCatalogMobileFilters';
-import { PublicCatalogRequestModal } from './PublicCatalogRequestModal';
+import { PublicCatalogWorkspace } from './PublicCatalogWorkspace';
 
 const numberValue = (value: number | string | null | undefined) => Number(value ?? 0);
 
@@ -65,182 +55,6 @@ const itemsFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogIte
   publicInventoryStatus: item.publicInventoryStatus ?? 'askAvailability',
   readyForSales: item.readyForSales,
 }));
-
-type CatalogExperienceProps = {
-  config: PublicCatalogConfig;
-  items: PublicCatalogItem[];
-  embedded: boolean;
-  online?: boolean;
-  token?: string;
-  csrfToken?: string;
-};
-
-function CatalogExperience({ config, items, embedded, online = true, token, csrfToken }: CatalogExperienceProps) {
-  const t = useProductsTranslations();
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
-  const [type, setType] = useState('all');
-  const [cartItems, setCartItems] = useState<PublicCatalogCartItem[]>([]);
-  const [requestOpen, setRequestOpen] = useState(false);
-  const [mobileCartOpen, setMobileCartOpen] = useState(false);
-  const isMobile = useIsMobile();
-  const experienceItems = useMemo(() => applyPublicCatalogPriceVisibility(items, config), [config, items]);
-
-  const filteredItems = useMemo(() => filterPublicCatalogItems({
-    items: experienceItems,
-    search,
-    category,
-    type,
-  }), [category, experienceItems, search, type]);
-  const categories = useMemo(() => Array.from(new Set(experienceItems.map((item) => item.category).filter(Boolean))) as NonNullable<PublicCatalogItem['category']>[], [experienceItems]);
-  const availableTypes = useMemo(
-    () => config.showItemTypeBadges
-      ? productTypes.filter((itemType) => experienceItems.some((item) => item.type === itemType))
-      : [],
-    [config.showItemTypeBadges, experienceItems],
-  );
-  const estimatedTotal = calculatePublicCatalogCartTotal(experienceItems, cartItems);
-
-  const handleAddToCart = (item: PublicCatalogItem) => {
-    if (!config.allowCart && !config.allowPurchaseRequest) return;
-    const existingItem = cartItems.find((cartItem) => cartItem.itemId === item.id);
-    const nextQuantity = existingItem ? existingItem.quantity + 1 : 1;
-    const pricing = getPublicCatalogUnitPrice(item, nextQuantity);
-
-    if (!config.allowCart) {
-      setCartItems([{ itemId: item.id, quantity: 1, ...pricing }]);
-      setRequestOpen(true);
-      return;
-    }
-
-    setCartItems((current) => (
-      existingItem
-        ? current.map((cartItem) => (
-            cartItem.itemId === item.id
-              ? { ...cartItem, quantity: nextQuantity, ...pricing }
-              : cartItem
-          ))
-        : [...current, { itemId: item.id, quantity: 1, ...pricing }]
-    ));
-  };
-
-  const handleChangeQuantity = (itemId: string, quantity: number) => {
-    const item = experienceItems.find((candidate) => candidate.id === itemId);
-    if (!item) return;
-    const pricing = getPublicCatalogUnitPrice(item, quantity);
-    setCartItems((current) => current.map((cartItem) => (
-      cartItem.itemId === itemId ? { ...cartItem, quantity, ...pricing } : cartItem
-    )));
-  };
-
-  const removeCartItem = (itemId: string) => {
-    setCartItems((current) => current.filter((item) => item.itemId !== itemId));
-  };
-
-  const content = (
-    <>
-      {isMobile ? (
-        <div className={`min-h-full w-full min-w-0 max-w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 ${cartItems.length > 0 ? 'pb-28' : 'pb-5'}`}>
-          <PublicCatalogMobileFilters
-            search={search}
-            category={category}
-            type={type}
-            categories={config.showCategories ? categories : []}
-            types={availableTypes}
-            resultCount={filteredItems.length}
-            t={t}
-            onSearchChange={setSearch}
-            onCategoryChange={setCategory}
-            onTypeChange={setType}
-          />
-          <div className="w-full min-w-0 max-w-full space-y-3 px-4 py-4">
-            {filteredItems.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
-                {t.publicCatalog.emptyCatalog}
-              </div>
-            ) : filteredItems.map((item) => (
-              <PublicCatalogMobileCard key={item.id} item={item} config={config} t={t} onAddToCart={handleAddToCart} />
-            ))}
-          </div>
-          {config.allowCart ? (
-            <PublicCatalogMobileCart
-              open={mobileCartOpen}
-              items={experienceItems}
-              cartItems={cartItems}
-              config={config}
-              total={estimatedTotal}
-              t={t}
-              onOpenChange={setMobileCartOpen}
-              onChangeQuantity={handleChangeQuantity}
-              onRemoveItem={removeCartItem}
-              onRequestPurchase={() => setRequestOpen(true)}
-            />
-          ) : null}
-        </div>
-      ) : (
-        <div className="space-y-6 bg-slate-50 py-6 dark:bg-slate-950">
-          <PublicCatalogFilters
-            search={search}
-            category={category}
-            type={type}
-            categories={config.showCategories ? categories : []}
-            types={availableTypes}
-            t={t}
-            onSearchChange={setSearch}
-            onCategoryChange={setCategory}
-            onTypeChange={setType}
-          />
-
-          <div className="mx-auto grid max-w-7xl gap-6 px-5 md:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="-mx-5 md:-mx-8 lg:mx-0">
-              <PublicCatalogGrid items={filteredItems} config={config} t={t} onAddToCart={handleAddToCart} />
-            </div>
-            {config.allowCart ? (
-              <PublicCatalogCart
-                items={experienceItems}
-                cartItems={cartItems}
-                config={config}
-                t={t}
-                onChangeQuantity={handleChangeQuantity}
-                onRemoveItem={removeCartItem}
-                onRequestPurchase={() => setRequestOpen(true)}
-              />
-            ) : null}
-          </div>
-        </div>
-      )}
-
-      <PublicCatalogRequestModal
-        open={requestOpen}
-        cartItems={cartItems}
-        estimatedTotal={estimatedTotal}
-        t={t}
-        showPrices={config.showPrices}
-        online={online}
-        onOpenChange={setRequestOpen}
-        onSubmit={token && csrfToken ? async (request, idempotencyKey) => {
-          const result = await publicCatalogApi.submitRequest(token, csrfToken, {
-            ...request,
-            items: cartItems.map((item) => ({ productId: Number(item.itemId), quantity: item.quantity })),
-          }, idempotencyKey);
-          setCartItems([]);
-          return { requestNumber: result.requestNumber };
-        } : undefined}
-      />
-    </>
-  );
-
-  if (embedded) {
-    return (
-      <main className="min-h-0 bg-slate-50 dark:bg-slate-950">
-        <PublicCatalogHeader config={config} t={t} />
-        {content}
-      </main>
-    );
-  }
-
-  return content;
-}
 
 export function PublicCatalogPage({
   config,
@@ -309,7 +123,7 @@ export function PublicCatalogPage({
       contactCta: t.publicCatalog.contactCta,
     });
     return (
-      <CatalogExperience
+      <PublicCatalogWorkspace
         config={activeConfig}
         items={getProductsForPublicCatalog(products, activeConfig)}
         embedded
@@ -323,35 +137,37 @@ export function PublicCatalogPage({
   return (
     <KioskPublicShell
       maxWidthClassName="max-w-[1500px]"
+      minimalContent
+      moduleScope="inventory"
       errorMessage={viewError || null}
       banners={!online ? (
-        <div role="status" className="flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-bold text-amber-800">
+        <div role="status" className="flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">
           <WifiOff className="h-4 w-4" /> {t.publicCatalog.publicOffline}
         </div>
       ) : null}
       header={activeConfig ? (
-        <PublicCatalogHeader config={activeConfig} t={t} compact={isMobile} />
+        <PublicCatalogHeader config={activeConfig} itemCount={publicItems.length} t={t} compact={isMobile} />
       ) : (
         <header className="border-b border-slate-200 bg-white px-5 py-6 dark:border-slate-800 dark:bg-slate-950 md:px-8">
           <div className="mx-auto flex max-w-7xl items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-lg bg-[#FF6B5E]/10 text-[#B63B32]"><Globe2 /></span>
             <div>
-              <p className="text-xs font-black uppercase tracking-wide text-[#B63B32]">{t.publicCatalog.moduleEyebrow}</p>
-              <h1 className="text-xl font-black text-slate-950 dark:text-white">{viewLoading ? t.publicCatalog.preparingCatalog : t.publicCatalog.catalogUnavailable}</h1>
+              <p className="text-xs font-medium text-[#B63B32]">{t.publicCatalog.moduleEyebrow}</p>
+              <h1 className="text-xl font-medium text-slate-950 dark:text-white">{viewLoading ? t.publicCatalog.preparingCatalog : t.publicCatalog.catalogUnavailable}</h1>
             </div>
           </div>
         </header>
       )}
     >
       {viewLoading ? (
-        <div className="grid flex-1 place-items-center py-24 text-sm font-bold text-slate-500">
+        <div className="grid flex-1 place-items-center py-24 text-sm font-medium text-slate-500">
           {t.publicCatalog.loadingProducts}
         </div>
       ) : null}
       {!viewLoading && !activeConfig ? (
         <div className="grid flex-1 place-items-center py-16 text-center">
           <div className="max-w-md">
-            <p className="text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{t.publicCatalog.publicConnectionHelp}</p>
+            <p className="text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{t.publicCatalog.publicConnectionHelp}</p>
             <Button type="button" variant="outline" className="mt-5 h-11 gap-2" disabled={!online} onClick={() => setReloadKey((value) => value + 1)}>
               <RefreshCw className="h-4 w-4" /> {t.publicCatalog.tryAgain}
             </Button>
@@ -359,7 +175,7 @@ export function PublicCatalogPage({
         </div>
       ) : null}
       {!viewLoading && activeConfig && bootstrap ? (
-        <CatalogExperience
+        <PublicCatalogWorkspace
           config={activeConfig}
           items={publicItems}
           embedded={false}

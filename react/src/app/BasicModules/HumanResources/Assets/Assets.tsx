@@ -610,7 +610,7 @@ export default function Assets() {
               leading={<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF8F4] text-2xl dark:bg-[#13362F]">{getAssetTypeIcon(asset.assetType)}</div>}
               title={asset.name}
               subtitle={`${asset.assetCode} · ${getAssetTypeLabel(asset.assetType, t)}`}
-              badges={<span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getAssetStatusClasses(asset.status)}`}>{getAssetStatusLabel(asset.status, t)}</span>}
+              badges={<span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getAssetStatusClasses(asset.status)}`}>{getAssetStatusLabel(asset.status, t)}</span>}
               details={[
                 { label: assetColumnConfig.find((column) => column.id === 'responsible')?.label ?? '—', value: asset.responsibleName || t.emptyValue },
                 { label: assetColumnConfig.find((column) => column.id === 'unit')?.label ?? '—', value: asset.unitName || t.emptyValue },
@@ -639,7 +639,7 @@ export default function Assets() {
                   .map((column) => (
                     <th
                       key={column.id}
-                      className={`px-5 py-4 ${column.id === 'actions' ? 'text-right' : 'text-left'} text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400`}
+                      className={`px-5 py-4 ${column.id === 'actions' ? 'text-right' : 'text-left'} text-[11px] font-medium text-slate-500 dark:text-slate-400`}
                     >
                       {column.id === 'actions' ? (
                         column.label
@@ -647,7 +647,7 @@ export default function Assets() {
                         <button
                           type="button"
                           onClick={() => handleSort(column.id as AssetSortField)}
-                          className="inline-flex items-center gap-2 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                          className="inline-flex items-center gap-2 text-left text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                         >
                           <span>{column.label}</span>
                           <StandardSortIcon
@@ -695,7 +695,7 @@ export default function Assets() {
                     className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/35"
                   >
                     {visibleColumnSet.has('id') ? (
-                      <td className="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">{asset.assetCode}</td>
+                      <td className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white">{asset.assetCode}</td>
                     ) : null}
                     {visibleColumnSet.has('type') ? (
                       <td className="px-5 py-4">
@@ -707,7 +707,7 @@ export default function Assets() {
                     ) : null}
                     {visibleColumnSet.has('asset') ? (
                       <td className="px-5 py-4">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{asset.name}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{asset.name}</p>
                       </td>
                     ) : null}
                     {visibleColumnSet.has('model') ? (
@@ -741,7 +741,7 @@ export default function Assets() {
                       </td>
                     ) : null}
                     {visibleColumnSet.has('value') ? (
-                      <td className="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                      <td className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white">
                         {formatAssetNativeValue(asset.valueAmount, asset.valueCurrency)}
                       </td>
                     ) : null}
@@ -752,7 +752,7 @@ export default function Assets() {
                           aria-label={`${t.actionsMenu.viewPhotos}: ${asset.name}`}
                           title={t.actionsMenu.viewPhotos}
                           onClick={() => void handleViewPhotos(asset)}
-                          className="inline-flex h-10 items-center gap-2 rounded-full border border-[#bfeee3] bg-[#f0fbf8] px-3 text-sm font-semibold text-[#137F68] transition hover:border-[#59C3A5] hover:bg-[#e4f8f2] disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#82e2cb]"
+                          className="inline-flex h-10 items-center gap-2 rounded-full border border-[#bfeee3] bg-[#f0fbf8] px-3 text-sm font-medium text-[#137F68] transition hover:border-[#59C3A5] hover:bg-[#e4f8f2] disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#82e2cb]"
                         >
                           <Images className="h-4 w-4" />
                           {asset.photoCount}

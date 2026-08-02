@@ -25,11 +25,11 @@ export function TouchKeypad({
     <section className="rounded-lg border border-[#222831]/10 bg-[#F7F8FA] p-3 dark:border-gray-700 dark:bg-gray-900/40">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Controles tactiles</h3>
+          <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">Controles tactiles</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">Acciones rapidas de caja</p>
         </div>
         {suspendedCount > 0 && (
-          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
             {suspendedCount} en espera
           </span>
         )}
@@ -41,9 +41,9 @@ export function TouchKeypad({
             key={quantity}
             type="button"
             onClick={() => onQuantityChange(quantity)}
-            className={`min-h-12 rounded-lg text-sm font-black transition active:scale-95 ${
+            className={`min-h-12 rounded-lg text-sm font-medium transition active:scale-95 ${
             selectedQuantity === quantity
-                ? 'bg-[#FF6B5E] text-white shadow-md'
+                ? 'bg-[#FF6B5E] text-[#222831] shadow-md'
                 : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-[#FF6B5E]/10 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700'
             }`}
           >
@@ -57,7 +57,7 @@ export function TouchKeypad({
           type="button"
           onClick={onSuspendSale}
           disabled={!canSuspendSale}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#F4C84A]/15 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#F4C84A]/15 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
         >
           <Archive className="h-4 w-4" />
           Pausar
@@ -65,7 +65,7 @@ export function TouchKeypad({
         <button
           type="button"
           onClick={onOpenSalePanel}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-gray-700 ring-1 ring-gray-200 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
         >
           <Eye className="h-4 w-4" />
           Ticket
@@ -73,7 +73,7 @@ export function TouchKeypad({
         <button
           type="button"
           onClick={onOpenReturn}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#FF6B5E]/10 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#FF6B5E]/10 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
         >
           <RotateCcw className="h-4 w-4" />
           Devolucion
@@ -81,7 +81,7 @@ export function TouchKeypad({
         <button
           type="button"
           onClick={onFullscreen}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#222831]/5 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#222831]/5 dark:bg-gray-800 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-gray-700"
         >
           <Maximize2 className="h-4 w-4" />
           Pantalla

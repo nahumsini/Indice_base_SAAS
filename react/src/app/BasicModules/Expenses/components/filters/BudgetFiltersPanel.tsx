@@ -60,15 +60,15 @@ export function BudgetFiltersPanel({
     <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-bold text-slate-950 dark:text-white">{t.filters.title}</h3>
+          <h3 className="text-base font-medium text-slate-950 dark:text-white">{t.filters.title}</h3>
           <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{t.budgets.filters.defaultHelp}</p>
         </div>
-        <span className="inline-flex w-fit items-center rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-xs font-bold text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">{t.common.results(resultCount)}</span>
+        <span className="inline-flex w-fit items-center rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-xs font-medium text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">{t.common.results(resultCount)}</span>
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <div className="xl:col-span-2">
-          <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{t.common.search}</label>
+          <label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">{t.common.search}</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input type="text" value={searchTerm} onChange={(event) => onSearchChange(event.target.value)} placeholder={t.budgets.filters.searchPlaceholder} className={`${filterInputClass} pl-10 pr-10`} />
@@ -106,7 +106,7 @@ export function BudgetFiltersPanel({
 function DateField({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>
       <input type="date" value={value} onChange={(event) => onChange(event.target.value)} className={filterInputClass} />
     </div>
   );
@@ -115,7 +115,7 @@ function DateField({ label, onChange, value }: { label: string; onChange: (value
 function Select({ label, onChange, options, value }: { label: string; onChange: (value: string) => void; options: string[][]; value: string }) {
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>
       <select value={value} onChange={(event) => onChange(event.target.value)} className={filterInputClass}>
         {options.map(([optionValue, labelText]) => <option key={optionValue} value={optionValue}>{labelText}</option>)}
       </select>

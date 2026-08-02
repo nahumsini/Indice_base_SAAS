@@ -28,9 +28,9 @@ export function ExecutiveSignalList({ alerts, emptyMessage }: { alerts: Financia
         <article key={alert.id} className={cn('rounded-xl border p-4', signalToneClasses[alert.tone])}>
           <div className="mb-2 flex items-center gap-2">
             {alert.tone === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em]">{alert.title}</p>
+            <p className="text-xs font-medium">{alert.title}</p>
           </div>
-          <p className="text-sm font-bold leading-5">{alert.message}</p>
+          <p className="text-sm font-medium leading-5">{alert.message}</p>
         </article>
       ))}
     </div>
@@ -58,14 +58,14 @@ export function ConcentrationRiskList({
         <article key={`${risk.driverType}-${risk.id}`} className={cn('rounded-xl border p-4', signalToneClasses[risk.tone])}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] opacity-80">{labels[risk.driverType]}</p>
-              <p className="mt-1 truncate text-sm font-bold">{risk.name}</p>
+              <p className="text-xs font-medium opacity-80">{labels[risk.driverType]}</p>
+              <p className="mt-1 truncate text-sm font-medium">{risk.name}</p>
             </div>
-            <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-900/40 dark:text-slate-100">
+            <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-900/40 dark:text-slate-100">
               {formatKpiPercent(risk.percentage)}
             </span>
           </div>
-          <p className="mt-3 text-sm font-bold">{formatKpiCurrency(risk.total, currency, locale)}</p>
+          <p className="mt-3 text-sm font-medium">{formatKpiCurrency(risk.total, currency, locale)}</p>
         </article>
       ))}
     </div>
@@ -90,7 +90,7 @@ export function FinancialSummaryCard({
       {lines.map(line => (
         <div key={line} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/50">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#147514] dark:text-emerald-300" />
-          <p className="text-sm font-semibold leading-5 text-slate-700 dark:text-slate-200">{line}</p>
+          <p className="text-sm font-medium leading-5 text-slate-700 dark:text-slate-200">{line}</p>
         </div>
       ))}
     </div>

@@ -178,7 +178,7 @@ export default function Incentives() {
       />
 
       {loadError ? (
-        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
           {loadError}
         </div>
       ) : null}

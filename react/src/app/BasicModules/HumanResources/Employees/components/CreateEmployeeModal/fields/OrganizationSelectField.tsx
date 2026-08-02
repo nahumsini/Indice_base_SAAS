@@ -177,7 +177,7 @@ export function OrganizationSelectField({
         <span className="flex shrink-0 items-center gap-2">
           {selectedOption?.badge ? (
             <span className={cn(
-              'hidden rounded-full px-2.5 py-1 text-[11px] font-bold uppercase ring-1 sm:inline-flex',
+              'hidden rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 sm:inline-flex',
               getOrganizationToneClassNames(selectedOption.tone).badge,
             )}>
               {selectedOption.badge}
@@ -198,7 +198,7 @@ export function OrganizationSelectField({
                   onChange('');
                   setIsOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
               >
                 <span>{placeholder}</span>
                 {!value ? <Check className="h-4 w-4 shrink-0" /> : null}
@@ -224,7 +224,7 @@ export function OrganizationSelectField({
                   )}
                 >
                   <span className="min-w-0">
-                    <span className="block font-semibold">{option.label}</span>
+                    <span className="block font-medium">{option.label}</span>
                     {option.description ? (
                       <span className="mt-0.5 block text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">
                         {option.description}
@@ -234,7 +234,7 @@ export function OrganizationSelectField({
                   <span className="flex shrink-0 items-center gap-2">
                     {option.badge ? (
                       <span className={cn(
-                        'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ring-1',
+                        'rounded-full px-2.5 py-1 text-[10px] font-medium ring-1',
                         toneClassNames.badge,
                       )}>
                         {option.badge}

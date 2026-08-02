@@ -42,7 +42,7 @@ export function AttendanceDailyBoard({
       <div className="border-b border-[#59C3A5]/10 px-5 py-5 dark:border-gray-800">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{copy.labels.dailyAttendance}</h3>
+            <h3 className="text-xl font-medium text-gray-900 dark:text-white">{copy.labels.dailyAttendance}</h3>
             <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{controlDateLabel}</p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {visibleCount} / {filteredCount}

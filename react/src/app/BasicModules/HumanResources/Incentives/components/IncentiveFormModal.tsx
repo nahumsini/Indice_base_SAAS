@@ -140,7 +140,7 @@ export function IncentiveFormModal({
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Ej. Bono por puntualidad"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 />
               </Field>
 
@@ -148,7 +148,7 @@ export function IncentiveFormModal({
                 <select
                   value={status}
                   onChange={(event) => setStatus(event.target.value as CreateHrIncentivePayload['status'])}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
                   <option value="active">Activo</option>
                   <option value="scheduled">Programado</option>
@@ -162,7 +162,7 @@ export function IncentiveFormModal({
                   onChange={(event) => setAmount(event.target.value)}
                   inputMode="decimal"
                   placeholder="Ej. 1500"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 />
               </Field>
 
@@ -171,7 +171,7 @@ export function IncentiveFormModal({
                   <select
                     value={currency}
                     onChange={(event) => setCurrency(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   >
                     {currencyOptions.map((option) => (
                       <option key={option} value={option}>{option}</option>
@@ -185,7 +185,7 @@ export function IncentiveFormModal({
                       type="date"
                       value={effectiveDate}
                       onChange={(event) => setEffectiveDate(event.target.value)}
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     />
                   </div>
                 </Field>
@@ -208,7 +208,7 @@ export function IncentiveFormModal({
                 <Users className="h-4 w-4 text-[#59C3A5]" />
                 Colaboradores
               </h3>
-              <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                 <input
                   type="checkbox"
                   checked={scopeAll}
@@ -240,7 +240,7 @@ export function IncentiveFormModal({
                         className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                       />
                       <span className="flex-1">
-                        <span className="block text-sm font-semibold text-slate-900">{employee.full_name}</span>
+                        <span className="block text-sm font-medium text-slate-900">{employee.full_name}</span>
                         <span className="block text-xs font-medium text-slate-500">{employee.position_title || employee.position || 'Sin puesto'} · {employee.unit_name || 'Sin unidad'}</span>
                       </span>
                     </label>

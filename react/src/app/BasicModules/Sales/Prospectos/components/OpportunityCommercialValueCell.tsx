@@ -48,13 +48,13 @@ export function OpportunityCommercialValueCell({
           inputMode="decimal"
           onChange={(event) => onEstimatedValueChange(normalizeEstimatedValueInput(event.target.value))}
           placeholder="0"
-          className="h-9 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          className="h-9 w-full min-w-0 max-w-full rounded-full border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none focus:border-[#2563EB] focus:ring-[#2563EB]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
         />
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className={cn('h-auto rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-normal', valueBadgeClassNames.estimated)}>
+          <Badge variant="outline" className={cn('h-auto rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-normal', valueBadgeClassNames.estimated)}>
             {copy.editableEstimate}
           </Badge>
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{opportunityCurrency}</span>
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{opportunityCurrency}</span>
         </div>
       </div>
     );
@@ -62,17 +62,17 @@ export function OpportunityCommercialValueCell({
 
   return (
     <div className="min-w-0 max-w-full space-y-1.5">
-      <p className="break-words text-sm font-black text-slate-950 dark:text-white">{primaryValue}</p>
+      <p className="break-words text-sm font-medium text-slate-950 dark:text-white">{primaryValue}</p>
       <div className="flex flex-wrap items-center gap-1.5">
-        <Badge variant="outline" className={cn('h-auto max-w-full whitespace-normal rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-normal', valueBadgeClassNames[badgeTone])}>
+        <Badge variant="outline" className={cn('h-auto max-w-full whitespace-normal rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-normal', valueBadgeClassNames[badgeTone])}>
           {badgeLabel}
         </Badge>
         {hasQuotedValue ? (
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.quoteCount(pipeline.quoteCount)}</span>
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.quoteCount(pipeline.quoteCount)}</span>
         ) : null}
       </div>
       {hasQuotedValue && pipeline.totalsByCurrency.length > 1 ? (
-        <p className="text-xs font-bold text-[#B63B32] dark:text-[#FFB0AA]">{copy.converted(pipeline.convertedLabel)}</p>
+        <p className="text-xs font-medium text-[#B63B32] dark:text-[#FFB0AA]">{copy.converted(pipeline.convertedLabel)}</p>
       ) : null}
     </div>
   );

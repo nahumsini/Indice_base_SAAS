@@ -16,7 +16,7 @@ type ChartRow = { label: string; value: number };
 function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <article className="min-w-0 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <h3 className="text-base font-bold text-slate-950 dark:text-white">{title}</h3>
+      <h3 className="text-base font-medium text-slate-950 dark:text-white">{title}</h3>
       <p className="mt-1 min-h-10 text-sm leading-5 text-slate-500 dark:text-slate-400">{subtitle}</p>
       <div className="mt-4 h-64">{children}</div>
     </article>
@@ -25,7 +25,7 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle: str
 
 function EmptyChart({ label }: { label: string }) {
   return (
-    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-400">
+    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-400">
       0 {label.toLocaleLowerCase()}
     </div>
   );

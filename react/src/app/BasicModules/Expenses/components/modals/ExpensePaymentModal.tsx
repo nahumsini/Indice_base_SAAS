@@ -70,7 +70,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
           <button type="button" onClick={handleClose} disabled={isSubmitting} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-50">
             {t.common.cancel}
           </button>
-          <button form="expense-payment-form" type="submit" disabled={!canSubmit} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#147514] transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">
+          <button form="expense-payment-form" type="submit" disabled={!canSubmit} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#147514] transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {t.expenses.payment.save}
           </button>
@@ -94,10 +94,10 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
             <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="truncate text-base font-bold text-slate-950 dark:text-white">{expense.concept}</p>
-                  <p className="mt-1 truncate text-sm font-semibold text-slate-500 dark:text-slate-400">{expense.folio}</p>
+                  <p className="truncate text-base font-medium text-slate-950 dark:text-white">{expense.concept}</p>
+                  <p className="mt-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">{expense.folio}</p>
                 </div>
-                <span className="shrink-0 rounded-full border border-[#147514]/20 bg-[#147514]/8 px-3 py-1 text-xs font-bold text-[#147514]">
+                <span className="shrink-0 rounded-full border border-[#147514]/20 bg-[#147514]/8 px-3 py-1 text-xs font-medium text-[#147514]">
                   {expense.currency}
                 </span>
               </div>
@@ -123,9 +123,9 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
                     type="number"
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
-                    className={`${inputClass} pr-16 text-lg font-bold`}
+                    className={`${inputClass} pr-16 text-lg font-medium`}
                   />
-                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs font-bold text-slate-400">{expense.currency}</span>
+                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs font-medium text-slate-400">{expense.currency}</span>
                 </div>
               </label>
 
@@ -163,21 +163,21 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3">
                 <div>
                   <p className="text-xs font-medium text-slate-500">{t.expenses.payment.newBalance}</p>
-                  <p className="mt-1 text-xl font-semibold text-[#147514]">{formatCurrency(newBalance, expense.currency)}</p>
+                  <p className="mt-1 text-xl font-medium text-[#147514]">{formatCurrency(newBalance, expense.currency)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-medium text-slate-500">{t.paymentAccounts.columns.balance?.label ?? t.paymentAccounts.headerTitle}</p>
-                  <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
+                  <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
                     {selectedPaymentAccount ? formatCurrency(selectedPaymentAccount.balance - paymentAmount, selectedPaymentAccount.currency) : '-'}
                   </p>
                 </div>
               </div>
 
               {remainingBalance <= 0 && (
-                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">{t.expenses.payment.noBalance}</p>
+                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">{t.expenses.payment.noBalance}</p>
               )}
               {exceedsBalance && (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">{t.expenses.payment.amountExceedsBalance}</p>
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">{t.expenses.payment.amountExceedsBalance}</p>
               )}
             </div>
           </section>
@@ -187,14 +187,14 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
 }
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
-  return <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}{required ? ' *' : ''}</span>;
+  return <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{label}{required ? ' *' : ''}</span>;
 }
 
 function PaymentMetric({ label, strong, value, warning }: { label: string; strong?: boolean; value: string; warning?: boolean }) {
   return (
     <div className="min-w-0 px-3 py-4 text-center sm:px-4">
       <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className={`mt-1 truncate text-sm ${strong ? 'font-semibold text-[#147514]' : warning ? 'font-semibold text-amber-700 dark:text-amber-300' : 'font-semibold text-slate-900 dark:text-slate-100'}`}>{value}</p>
+      <p className={`mt-1 truncate text-sm ${strong ? 'font-medium text-[#147514]' : warning ? 'font-medium text-amber-700 dark:text-amber-300' : 'font-medium text-slate-900 dark:text-slate-100'}`}>{value}</p>
     </div>
   );
 }

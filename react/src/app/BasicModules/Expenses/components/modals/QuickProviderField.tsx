@@ -48,7 +48,7 @@ export function QuickProviderField({ emptyLabel, label, onChange, onCreateProvid
 
   return (
     <div>
-      <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
         <option value="">{emptyLabel}</option>
         {providers.filter(provider => provider.status !== 'inactive').map(provider => (
@@ -64,7 +64,7 @@ export function QuickProviderField({ emptyLabel, label, onChange, onCreateProvid
             setIsOpen(current => !current);
             setErrorMessage('');
           }}
-          className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#147514] transition hover:text-[#105010] dark:text-emerald-300"
+          className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-[#147514] transition hover:text-[#105010] dark:text-emerald-300"
         >
           <UserPlus className="h-4 w-4" />
           {copy.quickProviderAction}
@@ -75,7 +75,7 @@ export function QuickProviderField({ emptyLabel, label, onChange, onCreateProvid
         <div className="mt-3 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
           <div className="grid gap-3">
             <label>
-              <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">{copy.quickProviderName} *</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{copy.quickProviderName} *</span>
               <Input
                 autoFocus
                 maxLength={160}
@@ -99,7 +99,7 @@ export function QuickProviderField({ emptyLabel, label, onChange, onCreateProvid
             </Button>
           </div>
           <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.quickProviderHint}</p>
-          {errorMessage ? <p className="mt-2 text-sm font-semibold text-red-600 dark:text-red-300">{errorMessage}</p> : null}
+          {errorMessage ? <p className="mt-2 text-sm font-medium text-red-600 dark:text-red-300">{errorMessage}</p> : null}
         </div>
       ) : null}
     </div>

@@ -709,7 +709,7 @@ export default function PersonalPerformance() {
         ) : null}
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
-          <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+          <h3 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
             {performanceUi.centerTitle}
           </h3>
           <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
@@ -744,7 +744,7 @@ export default function PersonalPerformance() {
         </div>
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
-          <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+          <h3 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
             {performanceUi.progress}
           </h3>
           <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
@@ -795,7 +795,7 @@ export default function PersonalPerformance() {
                       {section.emoji}
                     </div>
                     <div className="flex-1">
-                      <h3 className={`mb-1 font-semibold ${colors.text}`}>{section.onboardingTitle}</h3>
+                      <h3 className={`mb-1 font-medium ${colors.text}`}>{section.onboardingTitle}</h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">{section.description}</p>
                     </div>
                   </div>
@@ -816,7 +816,7 @@ export default function PersonalPerformance() {
                 {isActive ? (
                   <div className="mt-4 rounded-lg border-2 border-blue-600 bg-white p-4 shadow-lg dark:bg-gray-800 sm:p-8">
                     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
                         {section.emoji} {section.onboardingTitle}
                       </h4>
                       <Button
@@ -867,7 +867,7 @@ export default function PersonalPerformance() {
                           key={`${section.id}-${activeQuestionIndex}`}
                           className="mb-8 transform-gpu transition-all duration-150 ease-in-out"
                         >
-                          <p className="mb-6 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">
+                          <p className="mb-6 text-lg font-medium text-gray-900 dark:text-white sm:text-xl">
                             {activeQuestionIndex + 1}. {currentQ.question}
                           </p>
                           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

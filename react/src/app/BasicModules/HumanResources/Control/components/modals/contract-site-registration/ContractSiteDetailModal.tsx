@@ -48,19 +48,19 @@ export function ContractSiteDetailModal({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
             <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.table.unit}</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{location.unitName || copy.detail.undefined}</p>
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{location.unitName || copy.detail.undefined}</p>
             </div>
             <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.table.business}</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{location.businessName || copy.detail.undefined}</p>
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{location.businessName || copy.detail.undefined}</p>
             </div>
             <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.detail.assignedEmployees}</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{location.assignedEmployeeCount}</p>
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{location.assignedEmployeeCount}</p>
             </div>
             <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.table.status}</p>
-              <p className={`mt-1 text-sm font-semibold ${location.status === 'active' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>
+              <p className={`mt-1 text-sm font-medium ${location.status === 'active' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>
                 {location.status === 'active' ? copy.status.active : copy.status.inactive}
               </p>
             </div>
@@ -69,7 +69,7 @@ export function ContractSiteDetailModal({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.table.contractWindow}</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
                 {location.contractStartDate} - {location.contractEndDate}
               </p>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -78,11 +78,11 @@ export function ContractSiteDetailModal({
             </div>
             <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.table.radius}</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{copy.meters(location.radio)}</p>
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{copy.meters(location.radio)}</p>
             </div>
             <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{copy.detail.coordinates}</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+              <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
                 {location.latitud}, {location.longitud}
               </p>
             </div>
@@ -90,7 +90,7 @@ export function ContractSiteDetailModal({
 
           <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
             <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/60">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">{copy.detail.dailyActivity}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{copy.detail.dailyActivity}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{copy.detail.dailyActivityDescription}</p>
             </div>
             {activity.length > 0 ? (

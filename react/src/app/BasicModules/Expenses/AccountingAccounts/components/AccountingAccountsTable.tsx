@@ -68,7 +68,7 @@ export function AccountingAccountsTable({
               {tableColumns.map(header => (
                 <SortableHeader key={header.key} field={header.sortField} label={header.label} width={defaultAccountingColumnWidths[header.key]} sortIcon={getSortIcon(header.sortField)} onSort={onSort} />
               ))}
-              <th className="px-5 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400" style={{ width: defaultAccountingColumnWidths.actions, minWidth: defaultAccountingColumnWidths.actions }}>{t.common.actions}</th>
+              <th className="px-5 py-4 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400" style={{ width: defaultAccountingColumnWidths.actions, minWidth: defaultAccountingColumnWidths.actions }}>{t.common.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -168,21 +168,21 @@ function renderAccountCell(
   typeLabels: Record<string, string>,
 ) {
   if (columnKey === 'code') return <span className="font-mono font-medium text-slate-900 dark:text-slate-100">{account.code}</span>;
-  if (columnKey === 'name') return <span className="font-semibold text-slate-900 dark:text-slate-100">{account.name}</span>;
-  if (columnKey === 'type') return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getTypeBadgeColor(account.type)}`}>{typeLabels[account.type] ?? account.type}</span>;
+  if (columnKey === 'name') return <span className="font-medium text-slate-900 dark:text-slate-100">{account.name}</span>;
+  if (columnKey === 'type') return <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getTypeBadgeColor(account.type)}`}>{typeLabels[account.type] ?? account.type}</span>;
   if (columnKey === 'countryCode') return <ReferencePill value={getCountryLabel(account.countryCode)} />;
   if (columnKey === 'localStandard') return <ReferencePill value={account.localStandard ?? '-'} />;
   if (columnKey === 'statementSection') return <ReferencePill value={account.statementSection ? statementSectionLabels[account.statementSection] : '-'} />;
   if (columnKey === 'unitId') return <ReferencePill value={getReferenceLabel(unitOptions, account.unitId)} />;
   if (columnKey === 'businessId') return <ReferencePill value={getReferenceLabel(businessOptions, account.businessId)} />;
   if (columnKey === 'description') return <span className="block max-w-[240px] truncate text-slate-600 dark:text-slate-400">{account.description || '-'}</span>;
-  if (columnKey === 'balance') return <span className="font-semibold text-slate-900 dark:text-slate-100">{formatAccountingCurrency(account.balance)}</span>;
+  if (columnKey === 'balance') return <span className="font-medium text-slate-900 dark:text-slate-100">{formatAccountingCurrency(account.balance)}</span>;
   return <StatusBadge activeLabel={labels.active} inactiveLabel={labels.inactive} isActive={account.isActive} />;
 }
 
 function ReferencePill({ value }: { value: string }) {
   return (
-    <span className="inline-flex max-w-[150px] items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+    <span className="inline-flex max-w-[150px] items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
       <span className="truncate">{value}</span>
     </span>
   );
@@ -190,7 +190,7 @@ function ReferencePill({ value }: { value: string }) {
 
 function StatusBadge({ activeLabel, inactiveLabel, isActive }: { activeLabel: string; inactiveLabel: string; isActive: boolean }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-400'}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-400'}`}>
       {isActive ? activeLabel : inactiveLabel}
     </span>
   );
@@ -221,7 +221,7 @@ function SortableHeader({
 }) {
   return (
     <th className="px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
-      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
         <span>{label}</span>
         {sortIcon}
       </button>
@@ -235,7 +235,7 @@ function EmptyRow({ colSpan, message }: { colSpan: number; message: string }) {
       <td colSpan={colSpan} className="px-6 py-12 text-center">
         <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
           <Search className="mb-4 h-12 w-12 opacity-50" />
-          <p className="text-lg font-semibold">{message}</p>
+          <p className="text-lg font-medium">{message}</p>
         </div>
       </td>
     </tr>

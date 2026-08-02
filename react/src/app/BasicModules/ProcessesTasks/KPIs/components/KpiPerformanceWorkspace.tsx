@@ -106,14 +106,14 @@ function ScoreBar({ score, status }: { score: number; status?: ProcessTaskKpiSta
           style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
         />
       </div>
-      <span className="w-10 text-right text-sm font-semibold text-slate-900 dark:text-white">{score}%</span>
+      <span className="w-10 text-right text-sm font-medium text-slate-900 dark:text-white">{score}%</span>
     </div>
   );
 }
 
 function StatusBadge({ copy, status }: { copy: KpisTranslations; status: ProcessTaskKpiStatus }) {
   return (
-    <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold', statusClasses[status])}>
+    <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-xs font-medium', statusClasses[status])}>
       {copy.statuses[status]}
     </span>
   );
@@ -135,7 +135,7 @@ function SortableHead({
       <button
         type="button"
         onClick={onSort}
-        className="flex min-h-8 items-center gap-2 rounded-md text-left text-xs font-bold uppercase tracking-[0.08em] text-slate-500 transition hover:text-[#9A6B05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-[#FEF3C7] dark:focus-visible:ring-offset-slate-800"
+        className="flex min-h-8 items-center gap-2 rounded-md text-left text-xs font-medium text-slate-500 transition hover:text-[#9A6B05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A] focus-visible:ring-offset-2 dark:text-slate-400 dark:hover:text-[#FEF3C7] dark:focus-visible:ring-offset-slate-800"
       >
         {children}
         <ArrowUpDown className={cn('h-3.5 w-3.5', active ? 'text-[#9A6B05] dark:text-[#FEF3C7]' : 'opacity-45')} />
@@ -162,7 +162,7 @@ function ColumnsMenu({
         <Button
           type="button"
           variant="outline"
-          className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
         >
           <Columns3 className="h-4 w-4" />
           {agendaCopy.header.actions.columns}
@@ -316,10 +316,10 @@ function CollaboratorsTable({
           <TableBody>
             {pagination.paginatedRows.map((row) => (
               <TableRow key={`${row.collaboratorId ?? 'unassigned'}-${row.rank}`} className="border-slate-100 dark:border-slate-700">
-                {visibleColumns.has('rank') ? <TableCell className="px-4 py-3 font-semibold">#{row.rank}</TableCell> : null}
+                {visibleColumns.has('rank') ? <TableCell className="px-4 py-3 font-medium">#{row.rank}</TableCell> : null}
                 {visibleColumns.has('collaborator') ? (
                   <TableCell className="px-4 py-3">
-                    <p className="font-semibold text-slate-900 dark:text-white">{row.collaboratorName}</p>
+                    <p className="font-medium text-slate-900 dark:text-white">{row.collaboratorName}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{copy.collaboratorsTable.details.openOverdue(row.openTasks, row.overdueTasks)}</p>
                   </TableCell>
                 ) : null}
@@ -343,7 +343,7 @@ function CollaboratorsTable({
                     variant="outline"
                     disabled={row.collaboratorId == null}
                     onClick={() => row.collaboratorId != null && onOpenAgenda({ collaborator: `user-company:${row.collaboratorId}` })}
-                    className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-semibold shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700"
+                    className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-medium shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700"
                   >
                     {agendaCopy.header.title}
                     <ChevronRight className="h-4 w-4" />
@@ -413,13 +413,13 @@ function ProcessesTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }:
           <TableBody>
             {pagination.paginatedRows.map((row) => (
               <TableRow key={row.processId} className="border-slate-100 dark:border-slate-700">
-                {visibleColumns.has('process') ? <TableCell className="px-4 py-3"><p className="font-semibold text-slate-900 dark:text-white">{row.processTitle}</p><p className="text-xs text-slate-500 dark:text-slate-400">{row.processFolio ?? copy.common.noFolio}</p></TableCell> : null}
+                {visibleColumns.has('process') ? <TableCell className="px-4 py-3"><p className="font-medium text-slate-900 dark:text-white">{row.processTitle}</p><p className="text-xs text-slate-500 dark:text-slate-400">{row.processFolio ?? copy.common.noFolio}</p></TableCell> : null}
                 {visibleColumns.has('score') ? <TableCell className="px-4 py-3"><ScoreBar score={row.productivityScore} status={row.status} /></TableCell> : null}
                 {visibleColumns.has('tasks') ? <TableCell className="px-4 py-3 text-sm">{copy.processesTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)}</TableCell> : null}
                 {visibleColumns.has('audit') ? <TableCell className="px-4 py-3 text-sm">{copy.processesTable.details.audit(row.auditRate, formatWeighting(row.averageWeighting, copy.common.notApplicable))}</TableCell> : null}
                 {visibleColumns.has('next') ? <TableCell className="px-4 py-3 text-sm">{row.nextOccurrenceDate ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${row.nextOccurrenceDate}T00:00:00`)) : copy.common.noDate}</TableCell> : null}
-                {visibleColumns.has('engine') ? <TableCell className="px-4 py-3"><span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', row.isActive ? statusClasses.healthy : statusClasses.watch)}>{row.isActive ? copy.statuses.active : copy.statuses.paused}</span></TableCell> : null}
-                <TableCell className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => onOpenAgenda({ search: row.processFolio ?? row.processTitle })} className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-semibold shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700">{agendaCopy.header.title}<ChevronRight className="h-4 w-4" /></Button></TableCell>
+                {visibleColumns.has('engine') ? <TableCell className="px-4 py-3"><span className={cn('rounded-full border px-2.5 py-1 text-xs font-medium', row.isActive ? statusClasses.healthy : statusClasses.watch)}>{row.isActive ? copy.statuses.active : copy.statuses.paused}</span></TableCell> : null}
+                <TableCell className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => onOpenAgenda({ search: row.processFolio ?? row.processTitle })} className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-medium shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700">{agendaCopy.header.title}<ChevronRight className="h-4 w-4" /></Button></TableCell>
               </TableRow>
             ))}
             {pagination.totalCount === 0 ? <TableRow><TableCell colSpan={visibleColumns.size + 1} className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">{copy.processesTable.empty}</TableCell></TableRow> : null}
@@ -482,13 +482,13 @@ function ProjectsTable({ agendaCopy, copy, locale, onOpenAgenda, query, rows }: 
           <TableBody>
             {pagination.paginatedRows.map((row) => (
               <TableRow key={row.projectId} className="border-slate-100 dark:border-slate-700">
-                {visibleColumns.has('project') ? <TableCell className="px-4 py-3"><p className="font-semibold text-slate-900 dark:text-white">{row.projectName}</p><p className="text-xs text-slate-500 dark:text-slate-400">{row.projectFolio ?? copy.common.noFolio}</p></TableCell> : null}
+                {visibleColumns.has('project') ? <TableCell className="px-4 py-3"><p className="font-medium text-slate-900 dark:text-white">{row.projectName}</p><p className="text-xs text-slate-500 dark:text-slate-400">{row.projectFolio ?? copy.common.noFolio}</p></TableCell> : null}
                 {visibleColumns.has('health') ? <TableCell className="px-4 py-3"><ScoreBar score={row.healthScore} status={row.status} /></TableCell> : null}
                 {visibleColumns.has('progress') ? <TableCell className="px-4 py-3 text-sm">{row.averageCompletion}%</TableCell> : null}
                 {visibleColumns.has('tasks') ? <TableCell className="px-4 py-3 text-sm">{copy.projectsTable.details.tasks(row.closedTasks, row.totalTasks, row.overdueTasks)}</TableCell> : null}
                 {visibleColumns.has('audit') ? <TableCell className="px-4 py-3 text-sm">{copy.projectsTable.details.audit(row.auditRate, row.pendingAuditTasks)}</TableCell> : null}
                 {visibleColumns.has('dueDate') ? <TableCell className="px-4 py-3 text-sm">{row.dueDate ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${row.dueDate}T00:00:00`)) : copy.common.noDate}</TableCell> : null}
-                <TableCell className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => onOpenAgenda({ search: row.projectFolio ?? row.projectName })} className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-semibold shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700">{agendaCopy.header.title}<ChevronRight className="h-4 w-4" /></Button></TableCell>
+                <TableCell className="px-4 py-3 text-right"><Button type="button" variant="outline" onClick={() => onOpenAgenda({ search: row.projectFolio ?? row.projectName })} className="h-9 gap-1 rounded-xl border-slate-200 px-3 text-sm font-medium shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-700">{agendaCopy.header.title}<ChevronRight className="h-4 w-4" /></Button></TableCell>
               </TableRow>
             ))}
             {pagination.totalCount === 0 ? <TableRow><TableCell colSpan={visibleColumns.size + 1} className="px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">{copy.projectsTable.empty}</TableCell></TableRow> : null}
@@ -529,7 +529,7 @@ export function KpiPerformanceWorkspace({
       <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-700 sm:px-5">
         <div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{activeTabCopy.label}</h3>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white">{activeTabCopy.label}</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{activeTabCopy.subtitle}</p>
           </div>
         </div>
@@ -540,7 +540,7 @@ export function KpiPerformanceWorkspace({
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A]',
+                'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4C84A]',
                 activeTab === tab.id
                   ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-700 dark:text-white'
                   : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white',

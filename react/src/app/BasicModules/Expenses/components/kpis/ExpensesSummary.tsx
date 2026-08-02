@@ -146,7 +146,7 @@ export function ExpensesSummary({
         </div>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             {statusMetrics.map(metric => (
               <span key={metric.status} className="flex items-center gap-1">
                 <span className={`h-2 w-2 rounded-full ${metric.dotClass}`} />
@@ -154,7 +154,7 @@ export function ExpensesSummary({
               </span>
             ))}
           </div>
-          <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-slate-200">
+          <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-3 py-2 text-xs font-medium text-slate-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-slate-200">
             {showNativeBreakdown ? `${insight} ${t.expenses.summary.nativeBalance(nativeOpenAmountLabel)}` : insight}
           </div>
         </div>
@@ -180,8 +180,8 @@ function Metric({
         {icon}
       </span>
       <div className="min-w-0">
-        <p className={`truncate text-sm font-extrabold ${valueClassName}`}>{value}</p>
-        <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+        <p className={`truncate text-sm font-medium ${valueClassName}`}>{value}</p>
+        <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </div>
   );
@@ -195,7 +195,7 @@ function AlertChip({ children, icon, tone }: { children: ReactNode; icon: ReactN
       : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300';
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold ${toneClass}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${toneClass}`}>
       {icon}
       {children}
     </span>

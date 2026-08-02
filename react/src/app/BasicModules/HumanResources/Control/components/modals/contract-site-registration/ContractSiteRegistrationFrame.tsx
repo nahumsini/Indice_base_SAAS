@@ -82,7 +82,7 @@ export function ContractSiteRegistrationFrame({
           <Button
             onClick={onClose}
             variant="outline"
-            className="h-11 rounded-xl border-white bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-white/90"
+            className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             disabled={isSaving}
           >
             {copy.actions.close}

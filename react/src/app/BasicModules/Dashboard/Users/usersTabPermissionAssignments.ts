@@ -5,6 +5,12 @@ export interface TabPermissionModuleOption {
   slug: string;
   name: string;
   emoji: string;
+  category?: 'basic' | 'complementary' | 'ai';
+  lifecycleStatus?: 'planned' | 'development' | 'pilot' | 'released' | 'retired';
+  accessModel?: 'module' | 'tabs';
+  assignable?: boolean;
+  entitled?: boolean;
+  description?: string;
 }
 
 export function buildTabPermissionModuleOptions(
@@ -15,6 +21,12 @@ export function buildTabPermissionModuleOptions(
     slug: module.slug,
     name: module.name,
     emoji: module.emoji,
+    category: module.category,
+    lifecycleStatus: module.lifecycleStatus,
+    accessModel: module.accessModel,
+    assignable: module.assignable,
+    entitled: module.entitled,
+    description: module.description,
   }));
 }
 

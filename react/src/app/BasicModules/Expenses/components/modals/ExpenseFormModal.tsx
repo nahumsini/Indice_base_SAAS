@@ -343,7 +343,7 @@ export function ExpenseFormModal({
             </div>
 
             {existingAttachmentCount > 0 ? (
-              <p className="mt-3 text-xs font-semibold text-slate-500">
+              <p className="mt-3 text-xs font-medium text-slate-500">
                 {existingAttachmentCount} {existingAttachmentCount === 1 ? 'archivo guardado' : 'archivos guardados'} en este gasto.
               </p>
             ) : null}
@@ -359,7 +359,7 @@ export function ExpenseFormModal({
                       <File className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{file.name}</p>
+                      <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{file.name}</p>
                       <p className="text-xs font-medium text-slate-500">{formatFileSize(file.size)}</p>
                     </div>
                     <button
@@ -374,7 +374,7 @@ export function ExpenseFormModal({
                 ))}
               </div>
             ) : null}
-            {attachmentError ? <p className="mt-3 text-sm font-semibold text-red-600">{attachmentError}</p> : null}
+            {attachmentError ? <p className="mt-3 text-sm font-medium text-red-600">{attachmentError}</p> : null}
           </div>
         </FinanceModalSection>
       </form>

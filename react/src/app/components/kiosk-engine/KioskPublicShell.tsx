@@ -96,6 +96,7 @@ interface KioskPublicShellProps {
   loadingOverlay?: ReactNode;
   maxWidthClassName?: string;
   minimalContent?: boolean;
+  moduleScope?: string;
   sessionExpiredMessage?: string | null;
   successMessage?: string | null;
 }
@@ -109,6 +110,7 @@ export function KioskPublicShell({
   loadingOverlay,
   maxWidthClassName = 'max-w-4xl',
   minimalContent = false,
+  moduleScope,
   sessionExpiredMessage,
   successMessage,
 }: KioskPublicShellProps) {
@@ -151,6 +153,7 @@ export function KioskPublicShell({
       className={`min-h-dvh bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white [&_button]:min-h-11 [&_button]:min-w-11 sm:px-4 sm:py-4 ${accessibilityPreferences.largeText ? '[&_button]:!min-h-12 [&_button]:!text-[1.05rem] [&_h1]:!text-[1.75rem] [&_h2]:!text-[1.625rem] [&_h3]:!text-[1.375rem] [&_input]:!min-h-12 [&_input]:!text-[1.05rem] [&_label]:!text-base [&_p]:!text-base [&_select]:!min-h-12 [&_select]:!text-base [&_textarea]:!text-[1.05rem]' : ''} ${accessibilityPreferences.highContrast ? 'contrast-125 [&_button]:focus-visible:ring-4 [&_a]:focus-visible:ring-4 [&_input]:focus-visible:ring-4 [&_select]:focus-visible:ring-4 [&_textarea]:focus-visible:ring-4' : ''} ${accessibilityPreferences.reduceMotion ? '[&_*]:!animate-none [&_*]:!scroll-auto [&_*]:!transition-none' : ''}`}
       data-kiosk-accessibility={accessibilityEnabled ? 'enhanced' : 'standard'}
       data-kiosk-reduce-motion={accessibilityPreferences.reduceMotion}
+      data-module={moduleScope}
     >
       {loadingOverlay}
       <main
@@ -159,7 +162,7 @@ export function KioskPublicShell({
         inert={accessibilityPanelOpen || undefined}
       >
         <div className="grid min-h-14 grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950 sm:flex sm:justify-end sm:px-4">
-          <label className="flex min-w-0 items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+          <label className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
             <Languages aria-hidden="true" className="h-4 w-4 shrink-0" />
             <span className="sr-only sm:not-sr-only">{copy.language}</span>
             <select
@@ -169,7 +172,7 @@ export function KioskPublicShell({
                 const language = languages.find(item => item.code === event.target.value);
                 if (language) setCurrentLanguage(language);
               }}
-              className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:max-w-[190px]"
+              className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:max-w-[190px]"
             >
               {languages.map(language => (
                 <option key={language.code} value={language.code}>
@@ -184,7 +187,7 @@ export function KioskPublicShell({
             aria-expanded={accessibilityPanelOpen}
             title={copy.accessibility}
             onClick={() => setAccessibilityPanelOpen(true)}
-            className={`inline-flex h-11 w-11 items-center justify-center gap-2 rounded-lg border bg-white px-0 text-xs font-bold text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto sm:px-3 ${accessibilityEnabled ? 'border-[#147514]/35 text-[#147514] dark:border-emerald-400/40 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700'}`}
+            className={`inline-flex h-11 w-11 items-center justify-center gap-2 rounded-lg border bg-white px-0 text-xs font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto sm:px-3 ${accessibilityEnabled ? 'border-[#147514]/35 text-[#147514] dark:border-emerald-400/40 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700'}`}
           >
             <Accessibility aria-hidden="true" className="h-4 w-4" />
             <span className="hidden sm:inline">{copy.accessibility}</span>
@@ -197,17 +200,17 @@ export function KioskPublicShell({
             ? 'flex min-h-0 flex-1 flex-col overflow-y-auto bg-transparent'
             : 'flex min-h-0 flex-1 flex-col overflow-y-auto rounded-none border-0 bg-transparent p-0 shadow-none dark:bg-transparent sm:rounded-lg sm:border sm:border-slate-200 sm:bg-white sm:p-5 sm:shadow-sm sm:dark:border-slate-800 sm:dark:bg-slate-950'}>
             {errorMessage ? (
-              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
                 {errorMessage}
               </div>
             ) : null}
             {successMessage ? (
-              <div role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <div role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
                 {successMessage}
               </div>
             ) : null}
             {sessionExpiredMessage ? (
-              <div role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+              <div role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
                 {sessionExpiredMessage}
               </div>
             ) : null}
@@ -236,7 +239,7 @@ export function KioskPublicShell({
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#147514]/10 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">
                   <Accessibility aria-hidden="true" className="h-5 w-5" />
                 </div>
-                <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white" id="kiosk-accessibility-title">{copy.accessibility}</h2>
+                <h2 className="mt-4 text-xl font-medium text-slate-950 dark:text-white" id="kiosk-accessibility-title">{copy.accessibility}</h2>
                 <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">{copy.accessibilityDescription}</p>
               </div>
               <button
@@ -272,7 +275,7 @@ export function KioskPublicShell({
             </div>
 
             <button
-              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#147514]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
               onClick={() => setAccessibilityPreferences(defaultAccessibilityPreferences)}
               type="button"
             >
@@ -300,7 +303,7 @@ function AccessibilityOption({
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-[#147514]/30 dark:border-slate-700 dark:bg-slate-900/70">
       <span>
-        <span className="block text-sm font-black text-slate-950 dark:text-white">{label}</span>
+        <span className="block text-sm font-medium text-slate-950 dark:text-white">{label}</span>
         <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</span>
       </span>
       <input

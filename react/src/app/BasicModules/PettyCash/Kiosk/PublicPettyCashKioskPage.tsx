@@ -528,11 +528,11 @@ export default function PublicPettyCashKioskPage() {
   return (
     <>
       <KioskPublicShell
-        banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900">{copy.publicKiosk.session.offline}</div> : null}
+        banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900">{copy.publicKiosk.session.offline}</div> : null}
         errorMessage={isReceiptModalOpen ? '' : errorMessage}
         header={(<header className="border-b border-slate-200 bg-white px-4 py-3.5 dark:border-slate-800 dark:bg-slate-950">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
-          <h1 className="mt-1 line-clamp-2 break-words text-xl font-semibold leading-tight tracking-tight text-slate-950 dark:text-white">
+          <p className="text-[10px] font-medium text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
+          <h1 className="mt-1 line-clamp-2 break-words text-xl font-medium leading-tight tracking-tight text-slate-950 dark:text-white">
             {fund?.name ?? copy.publicKiosk.header.defaultFund}
           </h1>
           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -615,8 +615,8 @@ export default function PublicPettyCashKioskPage() {
             {activeTab === 'expenses' ? (
               <section className="space-y-2" role="tabpanel" aria-label={copy.publicKiosk.history.expensesTitle}>
                 <div className="flex items-end justify-between gap-3 px-1">
-                  <div className="min-w-0"><h2 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.publicKiosk.history.expensesTitle}</h2><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.history.expensesDescription}</p></div>
-                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900">{filteredExpenses.length}</span>
+                  <div className="min-w-0"><h2 className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.history.expensesTitle}</h2><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.history.expensesDescription}</p></div>
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-500 shadow-sm dark:bg-slate-900">{filteredExpenses.length}</span>
                 </div>
                 {filteredExpenses.length === 0 ? (
                   <PettyCashKioskEmptyState body={copy.publicKiosk.history.expensesDescription} icon={<ReceiptText className="h-6 w-6" />} title={copy.publicKiosk.history.emptyExpenses} />
@@ -646,8 +646,8 @@ export default function PublicPettyCashKioskPage() {
             {activeTab === 'income' ? (
               <section className="space-y-2" role="tabpanel" aria-label={copy.publicKiosk.history.incomeTitle}>
                 <div className="flex items-end justify-between gap-3 px-1">
-                  <div className="min-w-0"><h2 className="text-sm font-semibold text-slate-950 dark:text-white">{copy.publicKiosk.history.incomeTitle}</h2><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.history.incomeDescription}</p></div>
-                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-900">{filteredIncomeMovements.length}</span>
+                  <div className="min-w-0"><h2 className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.history.incomeTitle}</h2><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{copy.publicKiosk.history.incomeDescription}</p></div>
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-500 shadow-sm dark:bg-slate-900">{filteredIncomeMovements.length}</span>
                 </div>
                 {filteredIncomeMovements.length === 0 ? (
                   <PettyCashKioskEmptyState body={copy.publicKiosk.history.incomeDescription} icon={<Banknote className="h-6 w-6" />} title={copy.publicKiosk.history.emptyIncome} />
