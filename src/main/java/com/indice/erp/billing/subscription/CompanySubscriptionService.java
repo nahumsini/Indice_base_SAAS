@@ -1,8 +1,10 @@
 package com.indice.erp.billing.subscription;
 
+import com.indice.erp.billing.lifecycle.CommercialLifecycleProperties;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -12,10 +14,16 @@ public class CompanySubscriptionService implements CompanySubscriptionStatusProv
 
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
+    private final CommercialLifecycleProperties lifecycleProperties;
 
-    public CompanySubscriptionService(JdbcTemplate jdbcTemplate, Clock clock) {
+    public CompanySubscriptionService(
+        JdbcTemplate jdbcTemplate,
+        Clock clock,
+        CommercialLifecycleProperties lifecycleProperties
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
+        this.lifecycleProperties = lifecycleProperties;
     }
 
     @Override
@@ -74,19 +82,24 @@ public class CompanySubscriptionService implements CompanySubscriptionStatusProv
     }
 
     public int expireTrials() {
+        var now = clock.instant();
+        var retentionUntil = now.plus(lifecycleProperties.getRetentionDays(), ChronoUnit.DAYS);
         return jdbcTemplate.update(
             """
                 UPDATE company_commercial_states
-                SET state = 'SUSPENDED',
-                    access_mode = 'BILLING_ONLY',
+                SET state = 'READ_ONLY',
+                    access_mode = 'READ_ONLY',
                     reason_code = 'trial_expired',
-                    suspended_at = COALESCE(suspended_at, CURRENT_TIMESTAMP(6)),
+                    read_only_started_at = COALESCE(read_only_started_at, ?),
+                    read_only_ends_at = COALESCE(read_only_ends_at, ?),
+                    retention_until = COALESCE(retention_until, ?),
                     updated_at = CURRENT_TIMESTAMP(6),
                     version = version + 1
                 WHERE state = 'TRIAL'
                   AND trial_ends_at IS NOT NULL
                   AND trial_ends_at < CURRENT_TIMESTAMP(6)
-                """
+                """,
+            Timestamp.from(now), Timestamp.from(retentionUntil), Timestamp.from(retentionUntil)
         );
     }
 

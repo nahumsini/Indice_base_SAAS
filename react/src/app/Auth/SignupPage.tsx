@@ -44,6 +44,7 @@ const emptyForm: BillingSignupRequest = {
   billingInterval: 'MONTH',
   extraSeats: 0,
   selectedProductCodes: [],
+  courtesyCode: '',
 };
 
 const brandInputClasses = 'h-12 rounded-xl focus-visible:border-[var(--indice-brand-aqua)] focus-visible:ring-[var(--indice-brand-aqua)]/25';
@@ -142,7 +143,7 @@ const esSignupCopy: SignupCopy = {
   loadPlansError: 'No pudimos cargar los planes disponibles.',
   accountIncompleteError: 'Completa nombre, empresa, correo y contraseña antes de continuar.',
   paymentAccountIncompleteError: 'Regresa y completa los datos de la cuenta antes del pago.',
-  checkoutIncompleteError: 'Completa tus datos y elige 1, 2, 3 o todos los productos disponibles.',
+  checkoutIncompleteError: 'Completa tus datos y elige al menos un producto disponible.',
   checkoutError: 'No pudimos iniciar el pago seguro. Intenta nuevamente.',
   premiumBadge: 'Prueba premium',
   heroTitle: 'Crea tu cuenta sin perder tus datos.',
@@ -166,7 +167,7 @@ const esSignupCopy: SignupCopy = {
   pendingEmail: 'Correo pendiente',
   chooseProductsTitle: '1. Elige los productos que conservarás',
   trialAccess: 'Durante la prueba tendrás acceso a todos, sin importar tu selección.',
-  invalidSelection: 'Elige 1, 2, 3 o todos los productos.',
+  invalidSelection: 'Elige al menos un producto disponible.',
   pendingCompletePrice: 'El precio del paquete completo aún está pendiente de publicación.',
   frequencyTitle: '2. Frecuencia y equipo',
   monthly: 'Mensual',
@@ -199,6 +200,9 @@ const esSignupCopy: SignupCopy = {
   countryLabels: {
     MX: 'México',
     CA: 'Canadá',
+    US: 'Estados Unidos',
+    CO: 'Colombia',
+    BR: 'Brasil',
   },
   industryLabels: {
     restaurant_hospitality: 'Restaurantes y hospitalidad',
@@ -235,7 +239,7 @@ const enSignupCopy: SignupCopy = {
   loadPlansError: 'We could not load the available plans.',
   accountIncompleteError: 'Complete name, company, email, and password before continuing.',
   paymentAccountIncompleteError: 'Go back and complete the account details before payment.',
-  checkoutIncompleteError: 'Complete your details and choose 1, 2, 3, or all available products.',
+  checkoutIncompleteError: 'Complete your details and choose at least one available product.',
   checkoutError: 'We could not start secure payment. Try again.',
   premiumBadge: 'Premium trial',
   heroTitle: 'Create your account without losing your details.',
@@ -259,7 +263,7 @@ const enSignupCopy: SignupCopy = {
   pendingEmail: 'Email pending',
   chooseProductsTitle: '1. Choose the products you will keep',
   trialAccess: 'During the trial you get access to everything, regardless of this selection.',
-  invalidSelection: 'Choose 1, 2, 3, or all products.',
+  invalidSelection: 'Choose at least one available product.',
   pendingCompletePrice: 'The full package price is still pending publication.',
   frequencyTitle: '2. Billing frequency and team',
   monthly: 'Monthly',
@@ -292,6 +296,9 @@ const enSignupCopy: SignupCopy = {
   countryLabels: {
     MX: 'Mexico',
     CA: 'Canada',
+    US: 'United States',
+    CO: 'Colombia',
+    BR: 'Brazil',
   },
   industryLabels: {
     restaurant_hospitality: 'Restaurants and hospitality',
@@ -337,7 +344,7 @@ const signupCopies: Record<string, SignupCopy> = {
     loadPlansError: "Impossible de charger les forfaits disponibles.",
     accountIncompleteError: "Complétez le nom, l'entreprise, le courriel et le mot de passe avant de continuer.",
     paymentAccountIncompleteError: 'Retournez compléter les détails du compte avant le paiement.',
-    checkoutIncompleteError: 'Complétez vos informations et choisissez 1, 2, 3 ou tous les produits disponibles.',
+    checkoutIncompleteError: 'Complétez vos informations et choisissez au moins un produit disponible.',
     checkoutError: "Impossible de lancer le paiement sécurisé. Réessayez.",
     premiumBadge: 'Essai premium',
     heroTitle: 'Créez votre compte sans perdre vos informations.',
@@ -361,7 +368,7 @@ const signupCopies: Record<string, SignupCopy> = {
     pendingEmail: 'Courriel en attente',
     chooseProductsTitle: '1. Choisissez les produits à conserver',
     trialAccess: "Pendant l'essai, vous avez accès à tout, peu importe votre sélection.",
-    invalidSelection: 'Choisissez 1, 2, 3 ou tous les produits.',
+    invalidSelection: 'Choisissez au moins un produit disponible.',
     pendingCompletePrice: "Le prix du forfait complet n'est pas encore publié.",
     frequencyTitle: '2. Fréquence de facturation et équipe',
     monthly: 'Mensuel',
@@ -393,6 +400,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabels: {
       MX: 'Mexique',
       CA: 'Canada',
+      US: 'États-Unis',
+      CO: 'Colombie',
+      BR: 'Brésil',
     },
     industryLabels: {
       restaurant_hospitality: 'Restaurants et hôtellerie',
@@ -429,7 +439,7 @@ const signupCopies: Record<string, SignupCopy> = {
     loadPlansError: 'Não foi possível carregar os planos disponíveis.',
     accountIncompleteError: 'Complete nome, empresa, e-mail e senha antes de continuar.',
     paymentAccountIncompleteError: 'Volte e complete os dados da conta antes do pagamento.',
-    checkoutIncompleteError: 'Complete seus dados e escolha 1, 2, 3 ou todos os produtos disponíveis.',
+    checkoutIncompleteError: 'Complete seus dados e escolha pelo menos um produto disponível.',
     checkoutError: 'Não foi possível iniciar o pagamento seguro. Tente novamente.',
     premiumBadge: 'Teste premium',
     heroTitle: 'Crie sua conta sem perder seus dados.',
@@ -453,7 +463,7 @@ const signupCopies: Record<string, SignupCopy> = {
     pendingEmail: 'E-mail pendente',
     chooseProductsTitle: '1. Escolha os produtos que você manterá',
     trialAccess: 'Durante o teste você terá acesso a tudo, independentemente da seleção.',
-    invalidSelection: 'Escolha 1, 2, 3 ou todos os produtos.',
+    invalidSelection: 'Escolha pelo menos um produto disponível.',
     pendingCompletePrice: 'O preço do pacote completo ainda está pendente de publicação.',
     frequencyTitle: '2. Frequência de cobrança e equipe',
     monthly: 'Mensal',
@@ -485,6 +495,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabels: {
       MX: 'México',
       CA: 'Canadá',
+      US: 'Estados Unidos',
+      CO: 'Colômbia',
+      BR: 'Brasil',
     },
     industryLabels: {
       restaurant_hospitality: 'Restaurantes e hospitalidade',
@@ -545,7 +558,7 @@ const signupCopies: Record<string, SignupCopy> = {
     pendingEmail: '이메일 미입력',
     chooseProductsTitle: '1. 유지할 제품 선택',
     trialAccess: '체험 기간에는 선택과 관계없이 모든 제품을 사용할 수 있습니다.',
-    invalidSelection: '1개, 2개, 3개 또는 모든 제품을 선택하세요.',
+    invalidSelection: '사용 가능한 제품을 하나 이상 선택하세요.',
     pendingCompletePrice: '전체 패키지 가격이 아직 게시되지 않았습니다.',
     frequencyTitle: '2. 결제 주기 및 팀',
     monthly: '월간',
@@ -577,6 +590,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabels: {
       MX: '멕시코',
       CA: '캐나다',
+      US: '미국',
+      CO: '콜롬비아',
+      BR: '브라질',
     },
     industryLabels: {
       restaurant_hospitality: '레스토랑 및 접객',
@@ -613,7 +629,7 @@ const signupCopies: Record<string, SignupCopy> = {
     loadPlansError: '无法加载可用套餐。',
     accountIncompleteError: '继续前请填写姓名、公司、邮箱和密码。',
     paymentAccountIncompleteError: '付款前请返回并完成账户信息。',
-    checkoutIncompleteError: '请填写信息，并选择 1、2、3 个或全部可用产品。',
+    checkoutIncompleteError: '请填写信息，并至少选择一个可用产品。',
     checkoutError: '无法启动安全付款。请重试。',
     premiumBadge: '高级试用',
     heroTitle: '创建账户，同时保留你的信息。',
@@ -637,7 +653,7 @@ const signupCopies: Record<string, SignupCopy> = {
     pendingEmail: '邮箱待填写',
     chooseProductsTitle: '1. 选择要保留的产品',
     trialAccess: '试用期间无论如何选择，都可以访问全部产品。',
-    invalidSelection: '请选择 1、2、3 个或全部产品。',
+    invalidSelection: '请至少选择一个可用产品。',
     pendingCompletePrice: '完整套餐价格尚未发布。',
     frequencyTitle: '2. 账单周期和团队',
     monthly: '按月',
@@ -669,6 +685,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabels: {
       MX: '墨西哥',
       CA: '加拿大',
+      US: '美国',
+      CO: '哥伦比亚',
+      BR: '巴西',
     },
     industryLabels: {
       restaurant_hospitality: '餐饮与酒店',
@@ -726,12 +745,12 @@ const enModulePlanCopy: ModulePlanCopy = {
   twoDescription: (includedSeats) => `Two selected modules with the same trial rules. Includes ${includedSeats} users.`,
   threeTitle: 'Three modules',
   threeDescription: (includedSeats) => `Three selected modules with the same trial rules. Includes ${includedSeats} users.`,
-  allTitle: 'All Basic modules',
-  allDescription: (includedSeats) => `Launch offer package with the full Basic module suite and ${includedSeats} users.`,
+  allTitle: 'Four or more modules',
+  allDescription: (includedSeats) => `Choose four, five, or all six Basic products for the same launch rate. Includes ${includedSeats} users.`,
   launchOffer: 'Launch offer',
   moduleSelectionTitle: 'Module selection',
   moduleInstruction: (targetCount, allSelected) => {
-    if (allSelected) return 'All paid modules are included. Config Center is included automatically.';
+    if (allSelected) return 'Choose any four or more paid products. Config Center is included automatically.';
     if (targetCount === 1) return 'Choose one paid module. Config Center is included automatically.';
     return `Choose ${targetCount} paid modules. Config Center is included automatically.`;
   },
@@ -748,12 +767,12 @@ const esModulePlanCopy: ModulePlanCopy = {
   twoDescription: (includedSeats) => `Dos módulos seleccionados con las mismas reglas de prueba. Incluye ${includedSeats} usuarios.`,
   threeTitle: 'Tres módulos',
   threeDescription: (includedSeats) => `Tres módulos seleccionados con las mismas reglas de prueba. Incluye ${includedSeats} usuarios.`,
-  allTitle: 'Todos los módulos Basic',
-  allDescription: (includedSeats) => `Paquete de lanzamiento con toda la suite Basic y ${includedSeats} usuarios.`,
+  allTitle: 'Cuatro o más módulos',
+  allDescription: (includedSeats) => `Elige cuatro, cinco o los seis productos Basic por la misma tarifa de lanzamiento. Incluye ${includedSeats} usuarios.`,
   launchOffer: 'Oferta de lanzamiento',
   moduleSelectionTitle: 'Selección de módulos',
   moduleInstruction: (targetCount, allSelected) => {
-    if (allSelected) return 'Todos los módulos pagados están incluidos. Config Center se incluye automáticamente.';
+    if (allSelected) return 'Elige cuatro o más productos pagados. Config Center se incluye automáticamente.';
     if (targetCount === 1) return 'Elige un módulo pagado. Config Center se incluye automáticamente.';
     return `Elige ${targetCount} módulos pagados. Config Center se incluye automáticamente.`;
   },
@@ -770,12 +789,12 @@ const frModulePlanCopy: ModulePlanCopy = {
   twoDescription: (includedSeats) => `Deux modules sélectionnés avec les mêmes règles d'essai. Inclut ${includedSeats} utilisateurs.`,
   threeTitle: 'Trois modules',
   threeDescription: (includedSeats) => `Trois modules sélectionnés avec les mêmes règles d'essai. Inclut ${includedSeats} utilisateurs.`,
-  allTitle: 'Tous les modules Basic',
-  allDescription: (includedSeats) => `Offre de lancement avec toute la suite Basic et ${includedSeats} utilisateurs.`,
+  allTitle: 'Quatre modules ou plus',
+  allDescription: (includedSeats) => `Choisissez quatre, cinq ou les six produits Basic au même tarif de lancement. Inclut ${includedSeats} utilisateurs.`,
   launchOffer: 'Offre de lancement',
   moduleSelectionTitle: 'Sélection des modules',
   moduleInstruction: (targetCount, allSelected) => {
-    if (allSelected) return 'Tous les modules payants sont inclus. Config Center est inclus automatiquement.';
+    if (allSelected) return 'Choisissez au moins quatre produits payants. Config Center est inclus automatiquement.';
     if (targetCount === 1) return 'Choisissez un module payant. Config Center est inclus automatiquement.';
     return `Choisissez ${targetCount} modules payants. Config Center est inclus automatiquement.`;
   },
@@ -792,12 +811,12 @@ const ptModulePlanCopy: ModulePlanCopy = {
   twoDescription: (includedSeats) => `Dois módulos selecionados com as mesmas regras de teste. Inclui ${includedSeats} usuários.`,
   threeTitle: 'Três módulos',
   threeDescription: (includedSeats) => `Três módulos selecionados com as mesmas regras de teste. Inclui ${includedSeats} usuários.`,
-  allTitle: 'Todos os módulos Basic',
-  allDescription: (includedSeats) => `Oferta de lançamento com toda a suíte Basic e ${includedSeats} usuários.`,
+  allTitle: 'Quatro ou mais módulos',
+  allDescription: (includedSeats) => `Escolha quatro, cinco ou os seis produtos Basic pela mesma tarifa de lançamento. Inclui ${includedSeats} usuários.`,
   launchOffer: 'Oferta de lançamento',
   moduleSelectionTitle: 'Seleção de módulos',
   moduleInstruction: (targetCount, allSelected) => {
-    if (allSelected) return 'Todos os módulos pagos estão incluídos. Config Center é incluído automaticamente.';
+    if (allSelected) return 'Escolha quatro ou mais produtos pagos. Config Center é incluído automaticamente.';
     if (targetCount === 1) return 'Escolha um módulo pago. Config Center é incluído automaticamente.';
     return `Escolha ${targetCount} módulos pagos. Config Center é incluído automaticamente.`;
   },
@@ -814,12 +833,12 @@ const koModulePlanCopy: ModulePlanCopy = {
   twoDescription: (includedSeats) => `같은 체험 규칙으로 모듈 2개를 선택합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
   threeTitle: '모듈 3개',
   threeDescription: (includedSeats) => `같은 체험 규칙으로 모듈 3개를 선택합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
-  allTitle: '모든 Basic 모듈',
-  allDescription: (includedSeats) => `전체 Basic 모듈 제품군과 사용자 ${includedSeats}명이 포함된 출시 혜택입니다.`,
+  allTitle: '모듈 4개 이상',
+  allDescription: (includedSeats) => `Basic 제품 4개, 5개 또는 6개를 같은 출시 요금으로 선택합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
   launchOffer: '출시 혜택',
   moduleSelectionTitle: '모듈 선택',
   moduleInstruction: (targetCount, allSelected) => {
-    if (allSelected) return '모든 유료 모듈이 포함됩니다. Config Center는 자동으로 포함됩니다.';
+    if (allSelected) return '유료 제품을 4개 이상 선택하세요. Config Center는 자동으로 포함됩니다.';
     if (targetCount === 1) return '유료 모듈 1개를 선택하세요. Config Center는 자동으로 포함됩니다.';
     return `유료 모듈 ${targetCount}개를 선택하세요. Config Center는 자동으로 포함됩니다.`;
   },
@@ -836,12 +855,12 @@ const zhModulePlanCopy: ModulePlanCopy = {
   twoDescription: (includedSeats) => `选择两个模块，试用规则相同。包含 ${includedSeats} 位用户。`,
   threeTitle: '三个模块',
   threeDescription: (includedSeats) => `选择三个模块，试用规则相同。包含 ${includedSeats} 位用户。`,
-  allTitle: '所有 Basic 模块',
-  allDescription: (includedSeats) => `发布优惠套餐，包含完整 Basic 模块套件和 ${includedSeats} 位用户。`,
+  allTitle: '四个或更多模块',
+  allDescription: (includedSeats) => `以相同发布优惠价选择四个、五个或全部六个 Basic 产品。包含 ${includedSeats} 位用户。`,
   launchOffer: '发布优惠',
   moduleSelectionTitle: '模块选择',
   moduleInstruction: (targetCount, allSelected) => {
-    if (allSelected) return '所有付费模块均已包含。Config Center 会自动包含。';
+    if (allSelected) return '请选择四个或更多付费产品。Config Center 会自动包含。';
     if (targetCount === 1) return '选择一个付费模块。Config Center 会自动包含。';
     return `选择 ${targetCount} 个付费模块。Config Center 会自动包含。`;
   },
@@ -899,8 +918,11 @@ const signupEstimatedAmount = (
   extraSeats: number,
   interval: 'MONTH' | 'YEAR',
 ) => {
-  const monthlyAmount = signupBaseAmount(tier) + Math.max(0, extraSeats) * 1200;
-  return interval === 'YEAR' ? Math.round(monthlyAmount * 12 * 0.8) : monthlyAmount;
+  const packageAmount = signupBaseAmount(tier);
+  const seatAmount = Math.max(0, extraSeats) * 1200;
+  return interval === 'YEAR'
+    ? Math.round(packageAmount * 12 * 0.8) + seatAmount * 12
+    : packageAmount + seatAmount;
 };
 
 const planTargetCount = (tier: SignupPlanTier, availableCount: number) => {
@@ -911,8 +933,8 @@ const planTargetCount = (tier: SignupPlanTier, availableCount: number) => {
 };
 
 const tierForSelection = (selectedCount: number, availableCount: number): SignupPlanTier => {
-  if (availableCount > 0 && selectedCount === availableCount) return 'basic_all';
-  if (selectedCount >= 3) return 'basic_3';
+  if (availableCount > 0 && selectedCount >= 4 && selectedCount <= availableCount) return 'basic_all';
+  if (selectedCount === 3) return 'basic_3';
   if (selectedCount === 2) return 'basic_2';
   return 'basic_1';
 };
@@ -935,6 +957,7 @@ const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
     selectedProductCodes: Array.isArray(draft.selectedProductCodes)
       ? draft.selectedProductCodes.filter((code): code is string => typeof code === 'string')
       : [],
+    courtesyCode: typeof draft.courtesyCode === 'string' ? draft.courtesyCode : '',
   };
 };
 
@@ -967,6 +990,7 @@ const saveSignupDraft = (form: BillingSignupRequest) => {
   window.localStorage.setItem(SIGNUP_DRAFT_STORAGE_KEY, JSON.stringify({
     ...sanitizedForm,
     password: '',
+    courtesyCode: '',
   }));
 };
 
@@ -1021,7 +1045,7 @@ export default function SignupPage() {
   }, [form]);
 
   const selectedCount = form.selectedProductCodes.length;
-  const offerCode = config && selectedCount === config.products.length
+  const offerCode = config && selectedCount >= 4 && selectedCount <= config.products.length
     ? 'basic_all'
     : `basic_${selectedCount}`;
   const basePrice = config?.prices.find((price) => (
@@ -1037,11 +1061,13 @@ export default function SignupPage() {
   const estimatedAmount = basePrice?.unitAmountCents == null || seatPrice?.unitAmountCents == null
     ? null
     : basePrice.unitAmountCents + seatPrice.unitAmountCents * form.extraSeats;
-  const validSelection = selectedCount === 1
-    || selectedCount === 2
-    || selectedCount === 3
-    || selectedCount === config?.products.length;
-  const platformReady = Boolean(config?.checkoutEnabled && config?.provisioningEnabled);
+  const validSelection = selectedCount >= 1
+    && selectedCount <= (config?.products.length ?? 0);
+  const courtesyRequested = form.courtesyCode.trim().length > 0;
+  const platformReady = Boolean(
+    config?.provisioningEnabled
+    && (config.checkoutEnabled || (config.courtesyEnabled && courtesyRequested)),
+  );
   const accountDetailsComplete = useMemo(() => (
     form.fullName.trim().length >= 2
     && form.companyName.trim().length >= 2
@@ -1081,24 +1107,13 @@ export default function SignupPage() {
 
   const toggleProduct = (code: string) => {
     if (!availableProductCodes.includes(code)) return;
-    if (selectedTier === 'basic_all') {
-      update('selectedProductCodes', availableProductCodes.filter((productCode) => productCode !== code).slice(0, 3));
-      return;
-    }
-    const targetCount = selectedTargetCount || 1;
     const currentSelection = form.selectedProductCodes.filter((productCode) => availableProductCodes.includes(productCode));
     if (currentSelection.includes(code)) {
       if (currentSelection.length <= 1) return;
       update('selectedProductCodes', currentSelection.filter((current) => current !== code));
       return;
     }
-    const nextSelection = currentSelection.length >= targetCount
-      ? [...currentSelection.slice(1), code]
-      : [...currentSelection, code];
-    update(
-      'selectedProductCodes',
-      nextSelection,
-    );
+    update('selectedProductCodes', [...currentSelection, code]);
   };
 
   const continueToBilling = (event: FormEvent<HTMLFormElement>) => {
@@ -1134,7 +1149,11 @@ export default function SignupPage() {
         companySize: form.companySize.trim(),
       }, idempotencyKey.current);
       sessionStorage.setItem(BILLING_SIGNUP_REFERENCE_STORAGE_KEY, checkout.signupReference);
-      window.location.assign(checkout.checkoutUrl);
+      if (checkout.checkoutUrl) {
+        window.location.assign(checkout.checkoutUrl);
+      } else {
+        navigate(`/signup/complete?reference=${encodeURIComponent(checkout.signupReference)}`);
+      }
     } catch (reason) {
       idempotencyKey.current = newIdempotencyKey();
       setError(reason instanceof Error ? reason.message : copy.checkoutError);
@@ -1333,6 +1352,23 @@ export default function SignupPage() {
                     {!validSelection && selectedCount > 0 ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.invalidSelection}</p> : null}
                     {basePrice?.status === 'PENDING_PRICE' ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
                   </fieldset>
+
+                  <label className="block space-y-2 text-sm font-medium text-slate-700">
+                    {currentLanguage.code.startsWith('es') ? 'Código de cortesía' : 'Courtesy code'}
+                    <Input
+                      value={form.courtesyCode}
+                      onChange={(event) => update('courtesyCode', event.target.value.toUpperCase())}
+                      maxLength={40}
+                      className={brandInputClasses}
+                      placeholder="IND-XXXX-XXXX-XXXX-XXXX"
+                      autoComplete="off"
+                    />
+                    <span className="block text-xs font-normal leading-5 text-slate-500">
+                      {currentLanguage.code.startsWith('es')
+                        ? 'Sólo úsalo si el equipo de Índice te otorgó una cortesía. Permite crear la cuenta sin registrar tarjeta.'
+                        : 'Use this only when the Indice team granted a courtesy. It creates the account without collecting a card.'}
+                    </span>
+                  </label>
 
                   <fieldset>
                     <legend className="text-sm font-black text-slate-800">{copy.frequencyTitle}</legend>

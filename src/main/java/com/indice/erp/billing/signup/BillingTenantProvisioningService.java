@@ -1,6 +1,7 @@
 package com.indice.erp.billing.signup;
 
 import com.indice.erp.billing.audit.BillingAuditService;
+import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
 import com.indice.erp.billing.storage.StorageQuotaService;
 import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
@@ -68,7 +69,8 @@ public class BillingTenantProvisioningService {
         if ("REQUIRES_REVIEW".equals(intent.provisioningStatus())) {
             return new ProvisioningResult(intentId, "REQUIRES_REVIEW", null, null, false);
         }
-        if (!"CHECKOUT_COMPLETED".equals(intent.checkoutStatus())) {
+        var courtesySignup = "COURTESY_COMPLETED".equals(intent.checkoutStatus());
+        if (!"CHECKOUT_COMPLETED".equals(intent.checkoutStatus()) && !courtesySignup) {
             return new ProvisioningResult(intentId, "NOT_ELIGIBLE", null, null, false);
         }
 
@@ -106,11 +108,23 @@ public class BillingTenantProvisioningService {
 
         var moduleSlugs = provisionOwnerModules(intent.catalogVersionId(), companyId, membershipId);
         provisionOwnerTabs(membershipId, moduleSlugs);
-        var trial = resolveTrialWindow(intent);
-        provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial);
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
         entitlementProjection.enrollPremiumSignup(companyId, intent.catalogVersionId(), ownerUserId);
-        commercialLifecycle.initializeTrial(companyId, trial.endsAt());
+        TrialWindow trial = null;
+        var courtesy = courtesySignup ? signupIntents.courtesyProvisioningSpec(intentId) : null;
+        if (courtesySignup) {
+            if (courtesy == null) {
+                throw new IllegalStateException("Courtesy provisioning details are missing.");
+            }
+            provisionCourtesyBenefits(intent.catalogVersionId(), intentId, companyId, courtesy);
+            entitlementProjection.refreshIfEnrolled(companyId);
+            commercialLifecycle.initializeCourtesy(companyId, courtesy.accessEndsAt());
+            signupIntents.markCourtesyProvisioned(intentId, companyId);
+        } else {
+            trial = resolveTrialWindow(intent);
+            provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial);
+            commercialLifecycle.initializeTrial(companyId, trial.endsAt());
+        }
         storageQuota.initializeCompany(companyId);
         jdbcTemplate.update(
             """
@@ -123,19 +137,25 @@ public class BillingTenantProvisioningService {
                 """,
             companyId,
             Math.max(5, intent.includedSeats()),
-            Math.max(0, intent.requestedExtraSeats())
+            courtesySignup ? 0 : Math.max(0, intent.requestedExtraSeats())
         );
         signupIntents.markProvisioned(intentId, companyId, ownerUserId, membershipId);
 
+        var auditDetail = new java.util.LinkedHashMap<String, Object>();
+        auditDetail.put("ownerRole", "superadmin");
+        auditDetail.put("scope", "corporate_office");
+        auditDetail.put("signupChannel", courtesySignup ? "COURTESY" : "STRIPE");
+        auditDetail.put("moduleCount", moduleSlugs.size());
+        if (courtesySignup) {
+            auditDetail.put("courtesyPermanent", courtesy.permanent());
+            if (courtesy.accessEndsAt() != null) auditDetail.put("accessEndsAt", courtesy.accessEndsAt().toString());
+        } else {
+            auditDetail.put("trialEndsAt", trial.endsAt().toString());
+        }
         audit.record(
             "PROVISIONING", "TENANT_PROVISIONED", "SUCCESS", null, null,
             intent.stripeCustomerId(), companyId, intentId,
-            Map.of(
-                "ownerRole", "superadmin",
-                "scope", "corporate_office",
-                "trialEndsAt", trial.endsAt().toString(),
-                "moduleCount", moduleSlugs.size()
-            )
+            auditDetail
         );
         return new ProvisioningResult(intentId, "PROVISIONED", companyId, ownerUserId, true);
     }
@@ -325,6 +345,68 @@ public class BillingTenantProvisioningService {
             Timestamp.from(trial.startsAt()),
             Timestamp.from(trial.endsAt()),
             catalogVersionId
+        );
+    }
+
+    private void provisionCourtesyBenefits(
+        long catalogVersionId,
+        long intentId,
+        long companyId,
+        BillingSignupIntentRepository.CourtesyProvisioningSpec courtesy
+    ) {
+        var allowedCodes = Set.copyOf(courtesy.productCodes());
+        var products = jdbcTemplate.query(
+            """
+                SELECT id, product_code
+                FROM billing_catalog_products
+                WHERE catalog_version_id = ? AND product_type = 'BASIC' AND active = 1
+                ORDER BY sort_order, id
+                """,
+            (rs, rowNum) -> Map.entry(rs.getLong("id"), rs.getString("product_code")),
+            catalogVersionId
+        );
+        for (var product : products) {
+            if (!courtesy.allBasicProducts() && !allowedCodes.contains(product.getValue())) continue;
+            insertCourtesyBenefit(
+                intentId, companyId, "PRODUCT", product.getKey(), 1, courtesy,
+                "product:" + product.getValue()
+            );
+        }
+        if (courtesy.includedExtraSeats() > 0) {
+            insertCourtesyBenefit(
+                intentId, companyId, "SEAT", null, courtesy.includedExtraSeats(), courtesy, "seats"
+            );
+        }
+    }
+
+    private void insertCourtesyBenefit(
+        long intentId,
+        long companyId,
+        String benefitType,
+        Long productId,
+        int quantity,
+        BillingSignupIntentRepository.CourtesyProvisioningSpec courtesy,
+        String suffix
+    ) {
+        jdbcTemplate.update(
+            """
+                INSERT IGNORE INTO company_benefit_grants (
+                    public_reference, company_id, benefit_type, catalog_product_id,
+                    quantity, source_type, status, starts_at, ends_at, reason,
+                    campaign_code, idempotency_key_hash, created_by_user_id
+                ) VALUES (?, ?, ?, ?, ?, 'COURTESY', 'ACTIVE', ?, ?, ?, ?, ?, ?)
+                """,
+            BillingHashing.randomReference().substring(0, 32),
+            companyId,
+            benefitType,
+            productId,
+            quantity,
+            Timestamp.from(clock.instant()),
+            courtesy.accessEndsAt() == null ? null : Timestamp.from(courtesy.accessEndsAt()),
+            courtesy.reason(),
+            "SIGNUP-COURTESY",
+            BillingHashing.sha256("courtesy-signup:" + intentId + ":" + suffix),
+            courtesy.createdByUserId()
         );
     }
 

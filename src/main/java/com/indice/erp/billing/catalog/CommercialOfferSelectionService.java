@@ -173,14 +173,14 @@ public class CommercialOfferSelectionService {
     }
 
     private String offerCode(int selectedCount, int availableCount) {
-        if (selectedCount == availableCount) {
+        if (selectedCount >= 4 && selectedCount <= availableCount) {
             return "basic_all";
         }
         return switch (selectedCount) {
             case 1 -> "basic_1";
             case 2 -> "basic_2";
             case 3 -> "basic_3";
-            default -> throw new IllegalArgumentException("Select 1, 2, 3, or all basic products.");
+            default -> throw new IllegalArgumentException("Select between 1 and " + availableCount + " basic products.");
         };
     }
 

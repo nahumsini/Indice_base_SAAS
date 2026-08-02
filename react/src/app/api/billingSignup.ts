@@ -20,6 +20,7 @@ export type BillingSignupPrice = {
 export type BillingSignupConfig = {
   csrfToken: string;
   checkoutEnabled: boolean;
+  courtesyEnabled: boolean;
   provisioningEnabled: boolean;
   trialDays: number;
   cardRequired: boolean;
@@ -43,14 +44,15 @@ export type BillingSignupRequest = {
   billingInterval: 'MONTH' | 'YEAR';
   extraSeats: number;
   selectedProductCodes: string[];
+  courtesyCode: string;
 };
 
 export type BillingSignupCheckout = {
   signupReference: string;
   status: string;
-  checkoutSessionId: string;
-  checkoutUrl: string;
-  expiresAt: string;
+  checkoutSessionId: string | null;
+  checkoutUrl: string | null;
+  expiresAt: string | null;
   replayed: boolean;
   provisioned: boolean;
 };

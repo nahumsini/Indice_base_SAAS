@@ -24,15 +24,18 @@ public class PlatformAdminApiController {
     private final SessionAuthService auth;
     private final SessionCsrfService csrf;
     private final PlatformAdminService service;
+    private final CourtesyCodeService courtesyCodes;
 
     public PlatformAdminApiController(
         SessionAuthService auth,
         SessionCsrfService csrf,
-        PlatformAdminService service
+        PlatformAdminService service,
+        CourtesyCodeService courtesyCodes
     ) {
         this.auth = auth;
         this.csrf = csrf;
         this.service = service;
+        this.courtesyCodes = courtesyCodes;
     }
 
     @GetMapping("/context")
@@ -52,6 +55,53 @@ public class PlatformAdminApiController {
     @GetMapping("/companies/{companyId}")
     public ResponseEntity<?> company(HttpSession session, @PathVariable long companyId) {
         return withUser(session, userId -> service.company(userId, companyId));
+    }
+
+    @GetMapping("/courtesy-codes")
+    public ResponseEntity<?> courtesyCodes(HttpSession session) {
+        return withUser(session, courtesyCodes::list);
+    }
+
+    @PostMapping("/courtesy-codes")
+    public ResponseEntity<?> createCourtesyCode(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+        @RequestBody CourtesyCodeService.CreateRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                courtesyCodes.create(current.userId(), idempotencyKey, request)
+            );
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @DeleteMapping("/courtesy-codes/{reference}")
+    public ResponseEntity<?> revokeCourtesyCode(
+        HttpSession session,
+        @PathVariable String reference,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody(required = false) CourtesyCodeService.RevokeRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(courtesyCodes.revoke(
+                current.userId(), reference, request == null ? null : request.reason()
+            ));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
     }
 
     @PostMapping("/companies/{companyId}/benefits")

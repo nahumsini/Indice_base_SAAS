@@ -178,7 +178,7 @@ public class BillingSignupIntentRepository {
             """
                 SELECT id
                 FROM billing_signup_intents
-                WHERE status = 'CHECKOUT_COMPLETED'
+                WHERE status IN ('CHECKOUT_COMPLETED', 'COURTESY_COMPLETED')
                   AND provisioning_status IN ('NOT_STARTED', 'IN_PROGRESS')
                 ORDER BY completed_at, id
                 LIMIT ?
@@ -241,6 +241,43 @@ public class BillingSignupIntentRepository {
         return jdbcTemplate.query(
             "SELECT catalog_product_id FROM billing_signup_intent_products WHERE signup_intent_id = ? ORDER BY catalog_product_id",
             (rs, rowNum) -> rs.getLong(1),
+            intentId
+        );
+    }
+
+    public CourtesyProvisioningSpec courtesyProvisioningSpec(long intentId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT c.id, c.all_basic_products, c.product_codes_csv,
+                       c.included_extra_seats, c.created_by_user_id, c.reason,
+                       i.courtesy_access_ends_at, i.courtesy_permanent
+                FROM billing_signup_intents i
+                JOIN billing_courtesy_codes c ON c.id = i.courtesy_code_id
+                WHERE i.id = ? AND i.signup_channel = 'COURTESY'
+                """,
+            (rs, rowNum) -> new CourtesyProvisioningSpec(
+                rs.getLong("id"),
+                rs.getBoolean("all_basic_products"),
+                splitCsv(rs.getString("product_codes_csv")),
+                rs.getInt("included_extra_seats"),
+                rs.getLong("created_by_user_id"),
+                rs.getString("reason"),
+                instant(rs.getTimestamp("courtesy_access_ends_at")),
+                rs.getBoolean("courtesy_permanent")
+            ),
+            intentId
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    public void markCourtesyProvisioned(long intentId, long companyId) {
+        jdbcTemplate.update(
+            """
+                UPDATE billing_courtesy_redemptions
+                SET company_id = ?, status = 'PROVISIONED', provisioned_at = CURRENT_TIMESTAMP(6)
+                WHERE signup_intent_id = ?
+                """,
+            companyId,
             intentId
         );
     }
@@ -461,6 +498,14 @@ public class BillingSignupIntentRepository {
         return value.length() <= max ? value : value.substring(0, max);
     }
 
+    private List<String> splitCsv(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return java.util.Arrays.stream(value.split(","))
+            .map(String::trim)
+            .filter(item -> !item.isBlank())
+            .toList();
+    }
+
     public record CheckoutSpec(
         long id,
         String publicReference,
@@ -496,6 +541,18 @@ public class BillingSignupIntentRepository {
         Long companyId,
         Long ownerUserId,
         Long ownerUserCompanyId
+    ) {
+    }
+
+    public record CourtesyProvisioningSpec(
+        long courtesyCodeId,
+        boolean allBasicProducts,
+        List<String> productCodes,
+        int includedExtraSeats,
+        long createdByUserId,
+        String reason,
+        Instant accessEndsAt,
+        boolean permanent
     ) {
     }
 }
