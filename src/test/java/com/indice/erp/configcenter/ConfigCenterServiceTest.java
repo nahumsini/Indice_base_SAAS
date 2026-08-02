@@ -541,9 +541,10 @@ class ConfigCenterServiceTest {
             eq(3L),
             eq(1L)
         )).thenReturn(List.of(3L));
-        when(jdbcTemplate.queryForList(
-            eq("SELECT slug FROM modules WHERE slug IN (?)"),
-            eq(String.class),
+        when(jdbcTemplate.query(
+            contains("FROM modules module_row"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L),
             eq("config_center")
         )).thenReturn(List.of("config_center"));
         when(jdbcTemplate.query(
