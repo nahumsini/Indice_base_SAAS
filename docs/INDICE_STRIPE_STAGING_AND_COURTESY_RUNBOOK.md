@@ -313,7 +313,84 @@ El barrido del contenido rastreado por Git no encontró llaves Stripe reales.
 Los secretos, credenciales sintéticas y referencias de certificación viven
 únicamente en archivos `0600` bajo `/root/indice-apptest`.
 
-## 9. Rollback de staging
+## 9. Certificación incremental del 3 de agosto de 2026
+
+Versión desplegada: `fc69327b`, integrada por avance rápido en `main` y en la
+rama `feature/nuevo-trabajo-2026-08-02`.
+
+### Artefactos, respaldo y migraciones
+
+- Respaldo previo verificado en
+  `/root/indice-apptest/backups/20260803T001714Z`, con base de datos, entorno,
+  Compose, inventario de producción y sumas de comprobación.
+- Frontend de staging: `indice-erp-web:apptest-fc69327b`.
+- Backend de staging: `indice-erp-backend:apptest-fc69327b-r2`.
+- El JAR realmente ejecutado dentro del contenedor tiene SHA-256
+  `fe377479f0e22531f9288c2e05dc2177f569aef0a13b54551d5efbcbe64a977d`.
+  Éste es el artefacto de referencia; el JAR suelto que pudiera quedar en el
+  directorio remoto `target/` no demuestra qué binario está ejecutando Docker.
+- Flyway aplicó correctamente V158, `complete module tab scope catalog`, y
+  V159, `module access registry`.
+
+### Administración raíz y módulos globales
+
+- El acceso de plataforma se certificó con un usuario `PLATFORM_ROOT`
+  exclusivo de staging. Un usuario normal recibió HTTP 403 al consultar el
+  contexto administrativo.
+- Se validaron el catálogo de scopes, el panel enriquecido de clientes,
+  facturación, productos, precios, módulos, cortesías y auditoría.
+- Al desactivar globalmente un módulo de prueba, dejó de aparecer para sus
+  usuarios; sus asignaciones, roles y derechos se conservaron. Al reactivarlo,
+  volvió a mostrarse sin reprovisionar ni reconstruir accesos.
+- `Panel Inicial` se confirmó como estructural: el intento de desactivarlo
+  respondió HTTP 409 y permaneció activo.
+- Los cambios globales quedaron visibles en la auditoría de plataforma.
+
+### Stripe TEST, Checkout e idempotencia
+
+- El entorno permanece estrictamente en `APP_BILLING_STRIPE_MODE=test`; la
+  llave activa es de tipo `sk_test_` y `livemode=false` fue comprobado contra
+  Stripe. Procesador y aprovisionamiento están habilitados sólo en `apptest`.
+- La configuración pública respondió con Checkout y aprovisionamiento activos,
+  tarjeta y cobro automático obligatorios, 30 días de prueba, seis productos
+  elegibles y los importes de lanzamiento aprobados.
+- Una nueva intención de dos productos y un asiento adicional creó una sesión
+  alojada real con Stripe Tax, paquete mensual de USD 109 y asiento de USD 12.
+  Durante la prueba Stripe informa un total actual de cero; los importes de las
+  partidas permanecen en la suscripción y no deben validarse contra
+  `amount_subtotal` de la sesión durante el periodo gratuito.
+- Repetir la creación con la misma llave de idempotencia devolvió la misma
+  sesión y registró `CHECKOUT_REPLAYED`. La sesión de certificación se expiró
+  después de inspeccionarla para impedir su uso accidental.
+- Una sesión real completada quedó en Stripe con `status=complete`, tarjeta
+  presente, suscripción `trialing`, cobro automático y 30 días exactos. El
+  backend la aprovisionó una sola vez y entregó diez derechos básicos activos
+  a la empresa de certificación.
+- El archivo histórico `test-certification.env` conserva una referencia de
+  sesión expirada asociada a una suscripción válida. Para auditorías futuras se
+  debe localizar la sesión completada desde `billing_signup_intents` y no
+  asumir que `CERT_CHECKOUT_SESSION_ID` es la evidencia más reciente.
+- Un evento real `checkout.session.completed` se reenvió con firma válida. El
+  endpoint respondió HTTP 200 con `duplicate=true`; sólo aumentó
+  `duplicate_count`, mantuvo `attempt_count` y `status`, y no cambió el número
+  de empresas, intenciones ni suscripciones.
+- Una firma deliberadamente inválida respondió HTTP 400 y no creó ninguna fila
+  en `stripe_webhook_events`.
+
+### Regresión e aislamiento de producción
+
+- Backend: 955 de 955 pruebas aprobadas.
+- Frontend: typecheck, pruebas y build aprobados.
+- `apptest.indiceapp.com/api/v1/health` y
+  `app.indiceapp.com/api/v1/health` respondieron HTTP 200 al cierre.
+- Los contenedores de producción conservaron exactamente sus imágenes,
+  identificadores y fechas de inicio anteriores al despliegue. No se modificó
+  Stripe LIVE, el entorno de producción ni sus datos.
+- La inspección visual automatizada no estuvo disponible en esta ejecución;
+  la certificación se realizó contra las APIs públicas, Stripe TEST, la base de
+  datos aislada y los artefactos que ejecuta Docker.
+
+## 10. Rollback de staging
 
 1. Guardar copia del archivo secreto, Compose y configuración Apache antes de cada cambio.
 2. Reapuntar `apptest.indiceapp.com` al puerto anterior si el smoke test falla.
