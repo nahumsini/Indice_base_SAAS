@@ -423,7 +423,34 @@ Las imágenes anteriores de staging permanecen etiquetadas como
 `apptest-rollback-invitation` para una reversión inmediata sin reconstruir
 artefactos.
 
-## 11. Rollback de staging
+## 11. Disponibilidad global de módulos
+
+Versión frontend desplegada en staging: `3b3c6329`.
+
+- La escritura del root ya funcionaba: `modules.is_active=0` y los eventos
+  `MODULE_GLOBALLY_DEACTIVATED` quedaban persistidos correctamente. El defecto
+  estaba en tres catálogos estáticos del frontend que podían reconstruir un
+  módulo ausente de la respuesta del backend.
+- El catálogo entregado por el backend es ahora la única autoridad para
+  dashboards, favoritos, navegación, rutas directas, KPIs y asignación de
+  módulos a usuarios. Si la consulta falla, la interfaz falla cerrada y no
+  publica el catálogo local.
+- Desactivar no borra asignaciones, derechos ni datos. El root conserva el
+  módulo visible en `/platform-admin/modules` para poder auditarlo y
+  reactivarlo; los usuarios de empresas dejan de verlo y de poder abrirlo.
+- El frontend ejecuta `indice-erp-web:apptest-3b3c6329`. El backend permaneció
+  sin reinicio y conserva el artefacto `apptest-5c9e6a83-r2`; existe además el
+  alias idéntico `apptest-3b3c6329` para que el archivo de entorno sea
+  reproducible.
+- El respaldo previo está en
+  `/root/indice-apptest/backups/20260803T070920Z-global-module-visibility` y la
+  imagen anterior está etiquetada como `apptest-rollback-global-modules`.
+- Pasaron typecheck, build y las regresiones de dashboard y usuarios. El hash
+  del `index.html` público coincide con el artefacto local, el activo principal
+  respondió HTTP 200 y frontend/backend permanecieron saludables. Los
+  identificadores de ambos contenedores de producción no cambiaron.
+
+## 12. Rollback de staging
 
 1. Guardar copia del archivo secreto, Compose y configuración Apache antes de cada cambio.
 2. Reapuntar `apptest.indiceapp.com` al puerto anterior si el smoke test falla.
