@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskTokenService;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskRegistryService;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import java.security.SecureRandom;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -227,6 +228,49 @@ public class ProcessTaskKioskService {
         return body;
     }
 
+    public Map<String, Object> employeeBootstrap(KioskResolvedDefinition definition, long userId) {
+        var context = requireEmployeeContext(definition, userId);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("kiosk", views.publicKiosk(context.kiosk()));
+        body.put("scope_label", views.scopeLabel(context.kiosk()));
+        body.put("user", views.employee(context.employee()));
+        body.put("tasks", queries.listTasks(context.kiosk(), context.employee()));
+        body.put("assignment_options", queries.assignmentOptions(context.kiosk(), context.employee().userId()));
+        body.put("inactivity_timeout_seconds", inactivityTimeoutSeconds);
+        body.put("authentication", "INDEX_SESSION");
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> employeeCreateTask(
+            KioskResolvedDefinition definition, long userId, Map<String, Object> payload) {
+        return commands.create(requireEmployeeContext(definition, userId), payload);
+    }
+
+    @Transactional
+    public Map<String, Object> employeeAssignTaskResponsible(
+            KioskResolvedDefinition definition, long userId, long taskId, Map<String, Object> payload) {
+        return commands.assignResponsible(requireEmployeeContext(definition, userId), taskId, payload);
+    }
+
+    @Transactional
+    public Map<String, Object> employeeCreateAttachmentUpload(
+            KioskResolvedDefinition definition, long userId, long taskId, Map<String, Object> payload) {
+        return files.presign(requireEmployeeContext(definition, userId), taskId, payload);
+    }
+
+    @Transactional
+    public Map<String, Object> employeeRegisterAttachment(
+            KioskResolvedDefinition definition, long userId, long taskId, Map<String, Object> payload) {
+        return files.register(requireEmployeeContext(definition, userId), taskId, payload);
+    }
+
+    @Transactional
+    public Map<String, Object> employeeCompleteTask(
+            KioskResolvedDefinition definition, long userId, long taskId, Map<String, Object> payload) {
+        return commands.complete(requireEmployeeContext(definition, userId), taskId, payload);
+    }
+
     @Transactional(noRollbackFor = IllegalArgumentException.class)
     public Map<String, Object> publicIdentify(String deviceToken, Map<String, Object> payload) {
         var kiosk = getActiveKioskByPublicAccessToken(deviceToken);
@@ -296,6 +340,20 @@ public class ProcessTaskKioskService {
         var identificationToken = stringValue(payload == null ? Map.of() : payload, "identification_token");
         var claims = tokenService.verifyIdentificationToken(deviceToken, identificationToken);
         var employee = identityService.loadEmployee(kiosk.companyId(), claims.userCompanyId());
+        identityService.requireScope(kiosk, employee);
+        return new ProcessTaskPublicKioskContext(kiosk, employee);
+    }
+
+    private ProcessTaskPublicKioskContext requireEmployeeContext(
+            KioskResolvedDefinition definition,
+            long userId) {
+        if (definition == null
+                || !ProcessTaskKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+                || definition.legacyReferenceId() == null) {
+            throw new NoSuchElementException("Task kiosk not found.");
+        }
+        var kiosk = getKiosk(definition.companyId(), definition.legacyReferenceId());
+        var employee = identityService.loadEmployeeByUserId(definition.companyId(), userId);
         identityService.requireScope(kiosk, employee);
         return new ProcessTaskPublicKioskContext(kiosk, employee);
     }

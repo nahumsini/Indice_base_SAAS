@@ -36,6 +36,17 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public boolean supportsEmployeeCenter(com.indice.erp.kiosk.engine.KioskResolvedDefinition definition) {
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        requireEmployeeContext(context);
+        return kioskService.employeeBootstrap(context.definition(), context.session().identityId());
+    }
+
+    @Override
     public KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
         requireContext(context);
         if (context.definition() == null) {
@@ -82,6 +93,44 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
             default -> throw new IllegalArgumentException(
                 "Unsupported process-task kiosk capability: " + request.capabilityKey());
         };
+    }
+
+    @Override
+    public Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        requireEmployeeContext(context);
+        ProcessTaskKioskCapabilities.require(request.capabilityKey());
+        var userId = context.session().identityId();
+        return switch (request.capabilityKey()) {
+            case ProcessTaskKioskCapabilities.TASKS_READ -> Map.of(
+                "items", kioskService.employeeBootstrap(context.definition(), userId).get("tasks"));
+            case ProcessTaskKioskCapabilities.TASK_CREATE ->
+                kioskService.employeeCreateTask(context.definition(), userId, request.payload());
+            case ProcessTaskKioskCapabilities.TASK_COMPLETE ->
+                kioskService.employeeCompleteTask(
+                    context.definition(), userId, requireResourceId(request), request.payload());
+            case ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN ->
+                kioskService.employeeAssignTaskResponsible(
+                    context.definition(), userId, requireResourceId(request), request.payload());
+            case ProcessTaskKioskCapabilities.TASK_ATTACHMENT_PRESIGN ->
+                kioskService.employeeCreateAttachmentUpload(
+                    context.definition(), userId, requireResourceId(request), request.payload());
+            case ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER ->
+                kioskService.employeeRegisterAttachment(
+                    context.definition(), userId, requireResourceId(request), request.payload());
+            default -> throw new IllegalArgumentException(
+                "Unsupported employee process-task capability: " + request.capabilityKey());
+        };
+    }
+
+    private void requireEmployeeContext(KioskExecutionContext context) {
+        requireContext(context);
+        if (!"AUTHENTICATED_WEB".equals(context.channel())
+                || context.definition() == null || context.session() == null
+                || !"USER".equals(context.session().identityType())) {
+            throw new SecurityException("Authenticated employee kiosk session is required.");
+        }
     }
 
     private void requireContext(KioskExecutionContext context) {

@@ -311,11 +311,12 @@ public class KioskRegistryService {
             """
                 INSERT INTO kiosk_definitions (
                     company_id, owner_module, kiosk_type, legacy_reference_id, code, name,
-                    status, unit_id, business_id, location_id, access_level, expires_at,
+                    status, unit_id, business_id, location_id, access_level,
+                    audience, employee_center_enabled, employee_assignment_policy, expires_at,
                     public_token_hash, public_token_hint, legacy_token_recoverable,
                     theme_key, default_locale, configuration_version, adapter_version,
                     created_by, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     kiosk_type = VALUES(kiosk_type), code = VALUES(code), name = VALUES(name),
                     status = VALUES(status), unit_id = VALUES(unit_id), business_id = VALUES(business_id)%s,
@@ -325,7 +326,9 @@ public class KioskRegistryService {
                     configuration_version = configuration_version + 1
                 """.formatted(locationUpdate),
             companyId, ownerModule, kioskType, legacyReferenceId, code, name, status.name(),
-            unitId, businessId, locationId, accessLevel.name(), timestamp(expiresAt),
+            unitId, businessId, locationId, accessLevel.name(),
+            employeeCenterDefault(ownerModule, kioskType) ? "EMPLOYEE" : "EXTERNAL",
+            employeeCenterDefault(ownerModule, kioskType), "EXPLICIT", timestamp(expiresAt),
             sha256(publicToken), tokenHint(publicToken),
             legacyTokenRecoverable, themeKey, defaultLocale, actorId, actorId
         );
@@ -632,6 +635,13 @@ public class KioskRegistryService {
         return "active".equalsIgnoreCase(status)
             ? KioskDefinitionStatus.ACTIVE
             : KioskDefinitionStatus.DISABLED;
+    }
+
+    private boolean employeeCenterDefault(String ownerModule, String kioskType) {
+        return switch (ownerModule == null ? "" : ownerModule) {
+            case "PROCESS_TASKS", "HUMAN_RESOURCES", "PETTY_CASH" -> true;
+            default -> false;
+        };
     }
 
     private Timestamp timestamp(Instant value) {

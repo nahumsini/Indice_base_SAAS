@@ -91,6 +91,28 @@ public class KioskRateLimitService {
             KioskRateLimitType.PIN_VERIFICATION.maximumRequests());
     }
 
+    /**
+     * Stable PIN bucket for a multi-kiosk link. The guessed PIN and browser cookie are
+     * deliberately excluded, so changing either cannot reset the attempt budget.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void requireMultiKioskPinAllowed(
+            long companyId,
+            long multiKioskId,
+            String networkSignal) {
+        if (companyId <= 0 || multiKioskId <= 0) {
+            throw new IllegalArgumentException("A resolved multi-kiosk is required for PIN throttling.");
+        }
+        consume(
+            KioskRateLimitType.PIN_VERIFICATION,
+            sha256(String.join("\n",
+                String.valueOf(companyId),
+                String.valueOf(multiKioskId),
+                networkSignal == null || networkSignal.isBlank() ? "unknown" : networkSignal.trim(),
+                "multi-kiosk-pin-challenge")),
+            KioskRateLimitType.PIN_VERIFICATION.maximumRequests());
+    }
+
     private void consume(KioskRateLimitType type, String scopeHash, int maximumRequests) {
         var now = Instant.now();
         var resetBefore = now.minus(type.window());

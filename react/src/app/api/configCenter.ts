@@ -76,6 +76,7 @@ export interface ConfigCenterUser {
   business_id?: number | null;
   business_name?: string | null;
   module_slugs: string[];
+  kiosk_definition_ids?: number[];
   tab_permission_keys?: string[];
   tab_permissions_configured?: boolean;
   is_protected: boolean;
@@ -94,6 +95,7 @@ export interface UpdateConfigCenterUserPayload {
   status: string;
   module_slugs: string[];
   tab_permission_keys?: string[];
+  kiosk_definition_ids?: number[];
   unit_id?: number | null;
   business_id?: number | null;
 }
@@ -104,6 +106,7 @@ export interface InviteConfigCenterUserPayload {
   role: string;
   module_slugs?: string[];
   tab_permission_keys?: string[];
+  kiosk_definition_ids?: number[];
   unit_id?: number | null;
   business_id?: number | null;
 }
@@ -177,6 +180,19 @@ export interface ConfigCenterCatalogBusiness {
   id: number;
   unit_id?: number | null;
   name: string;
+}
+
+export interface ConfigCenterEmployeeKiosk {
+  id: number;
+  name: string;
+  owner_module: string;
+  module_slug: string;
+  kiosk_type: string;
+  unit_id?: number | null;
+  unit_name?: string | null;
+  business_id?: number | null;
+  business_name?: string | null;
+  access_level: string;
 }
 
 export interface ConfigCenterEmpresaMapBusiness {
@@ -282,6 +298,7 @@ interface UsersResponse {
     businesses: ConfigCenterCatalogBusiness[];
     modules: ConfigCenterCatalogModule[];
     tabs?: ConfigCenterCatalogTab[];
+    employee_kiosks?: ConfigCenterEmployeeKiosk[];
   };
 }
 

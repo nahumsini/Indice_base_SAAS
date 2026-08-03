@@ -223,6 +223,52 @@ class KioskSessionServiceTest {
             .isTrue();
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void employeeCenterUsesTheEightHourWorkdayInactivityWindow() {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of());
+
+        assertThatThrownBy(() -> service.requireAuthenticatedIndexSession(
+            definition(), "employee-session-token", "browser-17", 81L))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Employee kiosk authentication is required.");
+
+        var invocation = org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(candidate -> "query".equals(candidate.getMethod().getName()))
+            .filter(candidate -> String.valueOf((Object) candidate.getArgument(0))
+                .contains("channel = 'AUTHENTICATED_WEB'"))
+            .findFirst()
+            .orElseThrow();
+        var arguments = invocation.getArguments();
+        assertThat(arguments).hasSize(6);
+        assertThat(arguments[5]).isEqualTo(-28800L);
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void mobileChildSessionIsBoundToTheMultiKioskThatLaunchedIt() {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of());
+
+        assertThatThrownBy(() -> service.requireMobileMultiKioskSession(
+            definition(), 44L, "mobile-child-token", "browser-17", 81L, 91L))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Mobile kiosk authentication is required.");
+
+        var invocation = org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(candidate -> "query".equals(candidate.getMethod().getName()))
+            .filter(candidate -> String.valueOf((Object) candidate.getArgument(0))
+                .contains("channel = 'MOBILE_MULTI_KIOSK'"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(String.valueOf((Object) invocation.getArgument(0)))
+            .contains("$.multi_kiosk_id");
+        assertThat(invocation.getArguments()[5]).isEqualTo(44L);
+    }
+
     private ResultSet sessionRow(String capabilities, long expiresInSeconds) throws Exception {
         var rs = mock(ResultSet.class);
         lenient().when(rs.getString("session_id")).thenReturn("session-1");

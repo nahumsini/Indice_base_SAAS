@@ -21,6 +21,15 @@ public interface KioskModuleAdapter {
 
     Map<String, Object> bootstrap(KioskExecutionContext context);
 
+    /** Whether this adapter exposes a workspace protected by an authenticated employee session. */
+    default boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        return false;
+    }
+
+    default Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        throw new UnsupportedOperationException("This kiosk does not expose an employee workspace.");
+    }
+
     default KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
         return KioskAuthorization.allow();
     }
@@ -30,4 +39,10 @@ public interface KioskModuleAdapter {
     }
 
     Map<String, Object> execute(KioskExecutionContext context, KioskActionRequest request);
+
+    default Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        throw new UnsupportedOperationException("This kiosk action is not available in the employee workspace.");
+    }
 }

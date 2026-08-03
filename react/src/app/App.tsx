@@ -27,7 +27,7 @@ import { authApi } from './api/auth';
 import type { AuthSessionResponse } from './api/auth.types';
 import { routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
-import { canAccessModulePage } from './access/accessRules';
+import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
 import { allowedModuleTabIds, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 
@@ -69,6 +69,7 @@ const Analitica = lazy(() => import('./AIModules/Analytics'));
 const Capacitacion = lazy(() => import('./AIModules/Training'));
 const Coach = lazy(() => import('./AIModules/Coach'));
 const SubscriptionManagementPage = lazy(() => import('./Billing/SubscriptionManagementPage'));
+const KioskCenter = lazy(() => import('./KioskCenter/MultiKioskCenterPage'));
 
 type StandaloneModuleComponent = ComponentType | LazyExoticComponent<ComponentType>;
 type SubscriptionSessionInfo = {
@@ -543,6 +544,10 @@ export default function App() {
             routes.add(route);
           }
         }
+        if (isAdminAccessRole(session?.user.role)) {
+          routes.add('kiosk-center');
+          routes.add('kiosk-management');
+        }
         setAllowedModuleRoutes(routes);
       } catch {
         if (active) {
@@ -699,6 +704,10 @@ export default function App() {
       <Cartera learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
       <Kpis learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'kiosk-center' ? (
+      <KioskCenter />
+    ) : currentPage === 'kiosk-management' ? (
+      <KioskCenter />
     ) : currentPage === 'inventory' ? (
       <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
         <Inventarios learningModeActive={learningModeActive} />

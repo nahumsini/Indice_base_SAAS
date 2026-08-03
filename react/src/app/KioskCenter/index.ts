@@ -1,1 +1,1 @@
-export { default } from './KioskCenterPage';
+export { default } from './MultiKioskCenterPage';

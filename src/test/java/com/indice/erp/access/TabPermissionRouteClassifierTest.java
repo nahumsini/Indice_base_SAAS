@@ -50,9 +50,20 @@ class TabPermissionRouteClassifierTest {
     @Test
     void excludesPublicAndPreflightSurfaces() {
         assertTrue(classify("GET", "/api/v2/kiosks/public/token").isEmpty());
+        assertTrue(classify("GET", "/api/v2/multi-kiosks/public/token").isEmpty());
         assertTrue(classify("GET", "/api/v1/hr/attendance/public-kiosk/token/config").isEmpty());
         assertTrue(classify("GET", "/api/v1/auth/me").isEmpty());
         assertTrue(classify("OPTIONS", "/api/v1/config-center/users").isEmpty());
+        assertTrue(classify("GET", "/api/v2/me/kiosks").isEmpty());
+        assertTrue(classify("POST", "/api/v2/me/kiosks/12/sessions").isEmpty());
+    }
+
+    @Test
+    void keepsEmployeeCenterSeparateFromAdministrativeKioskAuthority() {
+        assertTrue(classify("GET", "/api/v2/me/kiosks/12/workspace").isEmpty());
+        assertAnyOf(
+            "GET", "/api/v2/kiosk-center/kiosks",
+            "human_resources.control", "processes.calendar", "petty_cash.cash");
     }
 
     @Test

@@ -12,6 +12,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -27,9 +29,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
     SalesPublicCatalogAdminV2Controller.class,
     PublicKioskAttendanceApiController.class,
     KioskCenterV2Controller.class,
-    KioskMultiDashboardV2Controller.class
+    KioskMultiDashboardV2Controller.class,
+    MultiKioskAdminV2Controller.class,
+    MultiKioskPublicV2Controller.class
 })
 public class KioskPublicV2ExceptionHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(KioskPublicV2ExceptionHandler.class);
 
     /*
      * Keep the advice self-contained. Spring MVC test slices discover global
@@ -111,6 +117,8 @@ public class KioskPublicV2ExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> unexpected(RuntimeException failure) {
+        LOGGER.error("Unexpected kiosk engine failure type={} message={}",
+            failure.getClass().getSimpleName(), failure.getMessage(), failure);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
             responses.error("KIOSK_INTERNAL_ERROR", "No fue posible completar la operación.", true));
     }

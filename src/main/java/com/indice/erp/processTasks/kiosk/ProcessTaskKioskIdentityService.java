@@ -132,6 +132,23 @@ class ProcessTaskKioskIdentityService {
         return employee;
     }
 
+    ProcessTaskKioskEmployee loadEmployeeByUserId(long companyId, long userId) {
+        var userCompanyIds = jdbcTemplate.query(
+            """
+                SELECT id FROM user_companies
+                WHERE company_id = ? AND user_id = ?
+                  AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                ORDER BY id DESC LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getLong("id"),
+            companyId, userId
+        );
+        if (userCompanyIds.isEmpty()) {
+            throw new NoSuchElementException("Active employee membership not found.");
+        }
+        return loadEmployee(companyId, userCompanyIds.getFirst());
+    }
+
     void requireScope(ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee) {
         assignmentScopeService.requireKioskScopeAccess(
             kiosk.companyId(), employee.userId(), kiosk.unitId(), kiosk.businessId());

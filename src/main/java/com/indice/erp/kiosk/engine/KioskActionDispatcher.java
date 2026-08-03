@@ -99,7 +99,13 @@ public class KioskActionDispatcher {
                     || !featureFlags.auditEnabled() || !featureFlags.adapterEnabled(context.ownerModule())) {
                 throw new KioskUnavailableException();
             }
-            var definition = definitionRegistry.resolvePublic(context.ownerModule(), context.accessReference());
+            var definition = context.definition() == null
+                ? definitionRegistry.resolvePublic(context.ownerModule(), context.accessReference())
+                : definitionRegistry.requireById(
+                    context.definition().companyId(), context.definition().id());
+            if (!definition.ownerModule().equals(context.ownerModule())) {
+                throw new SecurityException("Kiosk definition does not belong to this module.");
+            }
             var definitionCapabilities = adapter.capabilities(definition);
             if (definitionCapabilities.stream()
                     .noneMatch(candidate -> candidate.versionedKey().equals(capability.versionedKey()))) {
@@ -158,7 +164,9 @@ public class KioskActionDispatcher {
             actionId = auditService.beginAction(executionContext, request, capability, normalizedKey);
             MDC.put("actionId", actionId);
 
-            var response = adapter.execute(executionContext, request);
+            var response = "AUTHENTICATED_WEB".equals(executionContext.channel())
+                ? adapter.executeEmployee(executionContext, request)
+                : adapter.execute(executionContext, request);
             fileIntentService.captureOutcome(executionContext, request, capability, response);
             if (isIdentityEstablishment(request)) {
                 response = establishControlledSession(executionContext, definitionCapabilities, response);

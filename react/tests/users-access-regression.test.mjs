@@ -23,6 +23,10 @@ const tabPermissionPickerSource = readFileSync(
   resolve(root, 'src/app/BasicModules/Dashboard/Users/UsersTabPermissionPicker.tsx'),
   'utf8',
 );
+const kioskPermissionPickerSource = readFileSync(
+  resolve(root, 'src/app/BasicModules/Dashboard/Users/UsersKioskPermissionPicker.tsx'),
+  'utf8',
+);
 const moduleRegistryMigrationSource = readFileSync(
   resolve(root, '../src/main/resources/db/migration/V159__module_access_registry.sql'),
   'utf8',
@@ -113,4 +117,22 @@ test('rutas y navegacion ocultan y bloquean pestañas sin scope', () => {
   assert.match(appSource, /sessionTabAccess/);
   assert.match(moduleShellSource, /canAccessModuleTab/);
   assert.match(moduleShellSource, /visibleTabs/);
+});
+
+test('usuarios asigna kioscos de empleado como acceso exacto e independiente', () => {
+  assert.match(configCenterApiSource, /kiosk_definition_ids/);
+  assert.match(configCenterApiSource, /employee_kiosks/);
+  assert.match(usersSource, /selectedKioskDefinitionDraft/);
+  assert.match(usersSource, /inviteKioskDefinitionIds/);
+  assert.match(usersSource, /kiosk_definition_ids:/);
+  assert.match(usersSource, /UsersKioskPermissionPicker/);
+});
+
+test('selector de kioscos respeta modulo y alcance organizacional', () => {
+  assert.match(kioskPermissionPickerSource, /selectedModuleIds/);
+  assert.match(kioskPermissionPickerSource, /unitId/);
+  assert.match(kioskPermissionPickerSource, /businessId/);
+  assert.match(kioskPermissionPickerSource, /moduleAllowed/);
+  assert.match(kioskPermissionPickerSource, /scopeAllows/);
+  assert.doesNotMatch(kioskPermissionPickerSource, /return businessId == null \|\| kiosk\.business_id == null/);
 });

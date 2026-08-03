@@ -217,3 +217,35 @@ test('administrative kiosk managers share replacement views without portaled act
   assert.match(pettyCashSource, /Compartir y administrar liga/);
   assert.match(expensesSource, /Compartir y administrar liga/);
 });
+
+test('kiosk center is an administrative multi-kiosk builder and never an in-app employee workspace', async () => {
+  const [appSource, navigationSource, centerSource, mobileSource] = await Promise.all([
+    readFile(new URL('../src/app/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/config/navigation.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskCenterPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(appSource, /KioskCenter\/MultiKioskCenterPage/);
+  assert.match(appSource, /currentPage === 'kiosk-center'/);
+  assert.match(appSource, /currentPage === 'kiosk-management'/);
+  assert.match(navigationSource, /'kiosk-management'/);
+  assert.match(centerSource, /Crear Multikiosco/);
+  assert.match(centerSource, /multiKioskAdminApi\.create/);
+  assert.match(centerSource, /kiosk_definition_ids/);
+  assert.match(centerSource, /employee_ids/);
+  assert.doesNotMatch(centerSource, /employeeKiosksApi|AUTHENTICATED_WEB/);
+  assert.match(mobileSource, /useDesktopViewport/);
+  assert.match(mobileSource, /Abre este Multikiosco en tu celular/);
+});
+
+test('multi-kiosk mobile client binds parent and child sessions without exposing child public links', async () => {
+  const source = await readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8');
+  assert.match(source, /\/api\/v2\/multi-kiosks\/public/);
+  assert.match(source, /sessionStorage/);
+  assert.match(source, /X-Multi-Kiosk-Session-Token/);
+  assert.match(source, /X-Kiosk-Session-Token/);
+  assert.match(source, /X-CSRF-Token/);
+  assert.match(source, /Idempotency-Key/);
+  assert.doesNotMatch(source, /public_token.*child|child.*public_token/i);
+});
