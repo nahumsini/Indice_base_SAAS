@@ -28,6 +28,10 @@ export const endpoints = {
     context: '/api/v1/platform-admin/context',
     overview: '/api/v1/platform-admin/overview',
     companies: '/api/v1/platform-admin/companies',
+    billing: '/api/v1/platform-admin/billing',
+    catalog: '/api/v1/platform-admin/catalog',
+    modules: '/api/v1/platform-admin/modules',
+    audit: '/api/v1/platform-admin/audit',
   },
   notifications: {
     list: '/api/v1/notifications',

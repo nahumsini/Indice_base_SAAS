@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -50,6 +51,51 @@ public class PlatformAdminApiController {
         @RequestParam(name = "limit", defaultValue = "50") int limit
     ) {
         return withUser(session, userId -> service.overview(userId, query, limit));
+    }
+
+    @GetMapping("/billing")
+    public ResponseEntity<?> billing(
+        HttpSession session,
+        @RequestParam(name = "limit", defaultValue = "100") int limit
+    ) {
+        return withUser(session, userId -> service.billing(userId, limit));
+    }
+
+    @GetMapping("/catalog")
+    public ResponseEntity<?> catalog(HttpSession session) {
+        return withUser(session, service::catalog);
+    }
+
+    @GetMapping("/modules")
+    public ResponseEntity<?> modules(HttpSession session) {
+        return withUser(session, service::modules);
+    }
+
+    @PatchMapping("/modules/{moduleId}/availability")
+    public ResponseEntity<?> updateModuleAvailability(
+        HttpSession session,
+        @PathVariable long moduleId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformAdminService.ModuleAvailabilityRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(service.updateModuleAvailability(current.userId(), moduleId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @GetMapping("/audit")
+    public ResponseEntity<?> audit(
+        HttpSession session,
+        @RequestParam(name = "limit", defaultValue = "100") int limit
+    ) {
+        return withUser(session, userId -> service.audit(userId, limit));
     }
 
     @GetMapping("/companies/{companyId}")

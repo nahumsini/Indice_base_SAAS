@@ -281,6 +281,7 @@ class HrFirstRunIntegrationTest {
         var createResponse = mockMvc.perform(
             post("/api/v1/hr/users")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.ofEntries(
                     Map.entry("first_name", "Test"),
@@ -311,6 +312,7 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(
             put("/api/v1/hr/users/{userCompanyId}", userCompanyId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.ofEntries(
                     Map.entry("first_name", "Test"),
@@ -337,6 +339,7 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(
             post("/api/v1/hr/users/{userCompanyId}/terminate", userCompanyId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "exit_date", "2026-04-20",
@@ -350,7 +353,11 @@ class HrFirstRunIntegrationTest {
             .andExpect(jsonPath("$.status").value("terminated"))
             .andExpect(jsonPath("$.termination_reason_type").value("resignation"));
 
-        mockMvc.perform(delete("/api/v1/hr/users/{userCompanyId}", userCompanyId).session(session))
+        mockMvc.perform(
+            delete("/api/v1/hr/users/{userCompanyId}", userCompanyId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session))
+        )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
 
@@ -388,7 +395,11 @@ class HrFirstRunIntegrationTest {
             "test/hr-delete/" + uniqueSuffix + "/contract.pdf"
         );
 
-        mockMvc.perform(delete("/api/v1/hr/users/{userCompanyId}", userCompanyId).session(session))
+        mockMvc.perform(
+            delete("/api/v1/hr/users/{userCompanyId}", userCompanyId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session))
+        )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
 
@@ -415,6 +426,7 @@ class HrFirstRunIntegrationTest {
         var createResponse = mockMvc.perform(
             post("/api/v1/hr/users")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "user", Map.ofEntries(
@@ -484,6 +496,7 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(
             post("/api/v1/hr/users/{userCompanyId}/documents/presign-upload", userCompanyId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "document_type", "resume",
@@ -1544,6 +1557,7 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(
             put("/api/v1/hr/users/{userCompanyId}", userCompanyId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.ofEntries(
                     Map.entry("first_name", "Attendance"),
@@ -2417,6 +2431,7 @@ class HrFirstRunIntegrationTest {
         var response = mockMvc.perform(
             post("/api/v1/hr/users")
                 .session((MockHttpSession) session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.ofEntries(
                     Map.entry("first_name", "Attendance"),
@@ -2490,6 +2505,7 @@ class HrFirstRunIntegrationTest {
         var response = mockMvc.perform(
             post("/api/v1/hr/users")
                 .session((MockHttpSession) session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.ofEntries(
                     Map.entry("first_name", "Hourly"),
@@ -2956,7 +2972,12 @@ class HrFirstRunIntegrationTest {
         session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 1L);
         session.setAttribute(SessionAuthService.SESSION_USER_NAME, "HR Integration Admin");
         session.setAttribute(SessionAuthService.SESSION_ROLE, "superadmin");
+        session.setAttribute(SessionAuthService.SESSION_LOGIN_CSRF, "hr-first-run-integration-csrf");
         return session;
+    }
+
+    private String csrf(HttpSession session) {
+        return String.valueOf(session.getAttribute(SessionAuthService.SESSION_LOGIN_CSRF));
     }
 
     private void grantHrTabs(long userCompanyId, String role, List<String> tabKeys) {
