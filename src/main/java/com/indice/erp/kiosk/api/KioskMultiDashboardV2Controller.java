@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -53,8 +54,40 @@ public class KioskMultiDashboardV2Controller {
             result, String.valueOf(result.get("kiosk_session_id")), null));
     }
 
+    @GetMapping("/{kioskId}/workspace")
+    public ResponseEntity<?> workspace(
+            HttpSession session,
+            @RequestHeader(name = "X-Kiosk-Session-Token") String kioskSessionToken,
+            @PathVariable long kioskId) {
+        requireEnabled();
+        var user = guard.requireAuthenticated(session);
+        var result = dashboard.workspace(user, kioskId, kioskSessionToken, session.getId());
+        return ResponseEntity.ok(responses.success(
+            result,
+            result.get("session") instanceof Map<?, ?> sessionData
+                ? String.valueOf(sessionData.get("id")) : null,
+            null));
+    }
+
+    @PostMapping("/{kioskId}/actions/{capabilityKey}")
+    public ResponseEntity<?> action(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "X-Kiosk-Session-Token") String kioskSessionToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @PathVariable long kioskId,
+            @PathVariable String capabilityKey,
+            @RequestBody Map<String, Object> payload) {
+        requireEnabled();
+        var user = guard.requireAuthenticatedWrite(session, csrfToken);
+        var result = dashboard.executeAction(
+            user, kioskId, capabilityKey, kioskSessionToken, session.getId(), payload, idempotencyKey);
+        return ResponseEntity.ok(responses.success(
+            result.data(), result.kioskSessionId(), result.versionedCapability()));
+    }
+
     private void requireEnabled() {
-        if (!flags.registryEnabled() || !flags.sessionsEnabled() || !flags.multiDashboardEnabled()) {
+        if (!flags.registryEnabled() || !flags.sessionsEnabled() || !flags.employeeCenterEnabled()) {
             throw new KioskUnavailableException();
         }
     }

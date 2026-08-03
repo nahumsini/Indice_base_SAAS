@@ -14,7 +14,7 @@ final class LogSanitizer {
         "(?i)(password|passwd|pwd|pin|secret|token|csrf|authorization|cookie|set-cookie|session|api[-_]?key|access[-_]?key|secret[-_]?key|credential(?:[-_][a-z0-9]+)*|(?:upload|download|presigned|signed)[-_]?url|biometric(?:[-_][a-z0-9]+)*|face[-_]?(?:image|template)|latitude|longitude)(\\s*[:=]\\s*)([^\\s,;&]+)"
     );
     private static final Pattern KIOSK_ACCESS_PATH_SEGMENT = Pattern.compile(
-        "(?i)(/(?:public-kiosk|public-payable-kiosks|kiosk|kiosks/public|"
+        "(?i)(/(?:public-kiosk|public-payable-kiosks|multi-kiosk|multi-kiosks/public|kiosk|kiosks/public|"
             + "public-catalog|pos-self-service|pos-display|customer-displays/public|"
             + "(?:pos/public/)?supplier-portal)/)([^/?#\\s]+)"
     );

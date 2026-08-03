@@ -36,6 +36,7 @@ import {
   type ConfigCenterCatalogModule,
   type ConfigCenterCatalogTab,
   type ConfigCenterCatalogUnit,
+  type ConfigCenterEmployeeKiosk,
   type ConfigCenterUser,
 } from '../../../api/configCenter';
 import { ApiClientError } from '../../../lib/apiClient';
@@ -50,6 +51,7 @@ import {
 } from '../../../config/moduleCatalog';
 import { validateEmail } from '../../../shared/validation/email';
 import { UsersTabPermissionPicker } from './UsersTabPermissionPicker';
+import { UsersKioskPermissionPicker } from './UsersKioskPermissionPicker';
 import {
   buildTabPermissionModuleOptions,
   mergeDefaultTabPermissions,
@@ -77,6 +79,7 @@ interface User {
   scopeType: 'corporate_office' | 'unit_headquarters' | 'business_office';
   modules: string[];
   tabPermissionKeys: string[];
+  kioskDefinitionIds: number[];
   isProtected: boolean;
   capabilities: {
     canEditAccess: boolean;
@@ -160,6 +163,7 @@ export default function Users() {
   const [availableUnits, setAvailableUnits] = useState<BusinessUnitOption[]>([]);
   const [availableBusinesses, setAvailableBusinesses] = useState<BusinessOption[]>([]);
   const [catalogTabs, setCatalogTabs] = useState<ConfigCenterCatalogTab[]>([]);
+  const [availableEmployeeKiosks, setAvailableEmployeeKiosks] = useState<ConfigCenterEmployeeKiosk[]>([]);
   const [sortState, setSortState] = useState<SortState>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [unitFilter, setUnitFilter] = useState('');
@@ -180,6 +184,7 @@ export default function Users() {
   const [inviteForm, setInviteForm] = useState<InviteFormState>(emptyInviteForm);
   const [inviteModuleIds, setInviteModuleIds] = useState<string[]>([]);
   const [inviteTabPermissionKeys, setInviteTabPermissionKeys] = useState<string[]>([]);
+  const [inviteKioskDefinitionIds, setInviteKioskDefinitionIds] = useState<number[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -203,6 +208,7 @@ export default function Users() {
   });
   const [selectedModulesDraft, setSelectedModulesDraft] = useState<string[]>([]);
   const [selectedTabPermissionDraft, setSelectedTabPermissionDraft] = useState<string[]>([]);
+  const [selectedKioskDefinitionDraft, setSelectedKioskDefinitionDraft] = useState<number[]>([]);
   const [selectedRoleDraft, setSelectedRoleDraft] = useState<User['role']>('User');
   const [selectedScopeTypeDraft, setSelectedScopeTypeDraft] = useState<User['scopeType']>('business_office');
   const [selectedUnitDraft, setSelectedUnitDraft] = useState('');
@@ -518,6 +524,7 @@ export default function Users() {
     setAvailableUnits(mappedUnits);
     setAvailableBusinesses(mappedBusinesses);
     setCatalogTabs(response.catalog.tabs ?? []);
+    setAvailableEmployeeKiosks(response.catalog.employee_kiosks ?? []);
     setAvailableModules(mappedModules);
   };
 
@@ -563,6 +570,7 @@ export default function Users() {
         setAvailableUnits(mappedUnits);
         setAvailableBusinesses(mappedBusinesses);
         setCatalogTabs(response.catalog.tabs ?? []);
+        setAvailableEmployeeKiosks(response.catalog.employee_kiosks ?? []);
         setAvailableModules(mappedModules);
       })
       .catch((error) => {
@@ -634,6 +642,28 @@ export default function Users() {
     return Number.isFinite(numericValue) ? numericValue : null;
   };
 
+  const eligibleKioskIds = (
+    kioskIds: number[],
+    moduleIds: string[],
+    scopeType: User['scopeType'],
+    unitValue: string | number | null,
+    businessValue: string | number | null,
+  ) => {
+    const selectedModules = new Set(moduleIds);
+    const unitId = scopeType === 'corporate_office' ? null : numberOrNull(unitValue);
+    const businessId = scopeType === 'business_office' ? numberOrNull(businessValue) : null;
+    return kioskIds.filter((id) => {
+      const kiosk = availableEmployeeKiosks.find(candidate => candidate.id === id);
+      if (!kiosk) return false;
+      const route = routeForBackendSlug(kiosk.module_slug);
+      if (!route || !selectedModules.has(route)) return false;
+      if (scopeType === 'corporate_office') return true;
+      if (kiosk.unit_id != null && kiosk.unit_id !== unitId) return false;
+      if (businessId != null && kiosk.business_id != null && kiosk.business_id !== businessId) return false;
+      return businessId == null || kiosk.business_id == null || kiosk.business_id === businessId;
+    });
+  };
+
   const buildUserAccessPayload = (
     user: User,
     overrides: Partial<{
@@ -641,6 +671,8 @@ export default function Users() {
       status: User['status'];
       moduleIds: string[];
       tabPermissionKeys: string[];
+      kioskDefinitionIds: number[];
+      scopeType: User['scopeType'];
       unitId: string | number | null;
       businessId: string | number | null;
     }> = {},
@@ -651,13 +683,23 @@ export default function Users() {
       role,
       overrides.tabPermissionKeys ?? user.tabPermissionKeys,
     );
+    const scopeType = overrides.scopeType ?? user.scopeType;
+    const unitId = overrides.unitId ?? user.unitId;
+    const businessId = overrides.businessId ?? user.businessId;
     return {
       role: toBackendRole(role),
       status: overrides.status ?? user.status,
       module_slugs: moduleSlugsForIds(moduleIds),
       tab_permission_keys: tabPermissionKeys,
-      unit_id: numberOrNull(overrides.unitId ?? user.unitId),
-      business_id: numberOrNull(overrides.businessId ?? user.businessId),
+      kiosk_definition_ids: eligibleKioskIds(
+        overrides.kioskDefinitionIds ?? user.kioskDefinitionIds,
+        moduleIds,
+        scopeType,
+        unitId,
+        businessId,
+      ),
+      unit_id: numberOrNull(unitId),
+      business_id: numberOrNull(businessId),
     };
   };
 
@@ -725,6 +767,13 @@ export default function Users() {
                 inviteTabPermissionKeys,
                 inviteModuleIds,
               ),
+            ),
+            kiosk_definition_ids: eligibleKioskIds(
+              inviteKioskDefinitionIds,
+              inviteModuleIds,
+              inviteForm.scopeType,
+              inviteForm.businessUnitId,
+              inviteForm.businessId,
             ),
           });
           await refreshUsers();
@@ -860,6 +909,7 @@ export default function Users() {
         user.tabPermissionKeys.filter((key) => assignableTabPermissionKeys.has(key)),
       ),
     );
+    setSelectedKioskDefinitionDraft(user.kioskDefinitionIds);
   };
 
   const handleSaveSelectedModules = async () => {
@@ -882,6 +932,8 @@ export default function Users() {
           role: selectedRoleDraft,
           moduleIds: selectedModulesDraft,
           tabPermissionKeys,
+          kioskDefinitionIds: selectedKioskDefinitionDraft,
+          scopeType: selectedScopeTypeDraft,
           unitId: selectedScopeTypeDraft === 'corporate_office' ? null : selectedUnitDraft,
           businessId: selectedScopeTypeDraft === 'business_office' ? selectedBusinessDraft : null,
         }),
@@ -1125,6 +1177,7 @@ export default function Users() {
         setInviteForm(emptyInviteForm);
         setInviteModuleIds([]);
         setInviteTabPermissionKeys([]);
+        setInviteKioskDefinitionIds([]);
         setInviteLink('');
         setInviteEmailStatus(null);
         setCopiedLink(false);
@@ -1436,7 +1489,7 @@ export default function Users() {
               {t.panelInicial.users.modal.cancel}
             </Button>
           )}
-          footerSummary={`${usersCopy.accessEditor.review}: ${formatSelectedModulesCount(selectedModulesDraft.length)}`}
+          footerSummary={`${usersCopy.accessEditor.review}: ${formatSelectedModulesCount(selectedModulesDraft.length)} · ${selectedKioskDefinitionDraft.length} ${currentLanguage.code.startsWith('es') ? 'kioscos' : 'kiosks'}`}
           icon={<Layers3 className="h-5 w-5" />}
           modalType="operational-workspace"
           onOpenChange={(open) => {
@@ -1529,6 +1582,21 @@ export default function Users() {
 	                  onChange={(permissionKeys) =>
                         setSelectedTabPermissionDraft(pruneTabPermissionKeysForRole(selectedRoleDraft, permissionKeys))
                       }
+	                />
+	                <UsersKioskPermissionPicker
+	                  kiosks={availableEmployeeKiosks}
+	                  selectedIds={eligibleKioskIds(
+	                    selectedKioskDefinitionDraft,
+	                    selectedModulesDraft,
+	                    selectedScopeTypeDraft,
+	                    selectedUnitDraft,
+	                    selectedBusinessDraft,
+	                  )}
+	                  selectedModuleIds={selectedModulesDraft}
+	                  unitId={selectedScopeTypeDraft === 'corporate_office' ? null : numberOrNull(selectedUnitDraft)}
+	                  businessId={selectedScopeTypeDraft === 'business_office' ? numberOrNull(selectedBusinessDraft) : null}
+	                  onChange={setSelectedKioskDefinitionDraft}
+	                  languageCode={currentLanguage.code}
 	                />
 	              </div>
         </IndiceModalFrame>
@@ -1721,6 +1789,21 @@ export default function Users() {
                       selectedPermissionKeys={inviteTabPermissionKeys}
                       onModuleChange={toggleInviteModule}
                       onChange={(permissionKeys) => setInviteTabPermissionKeys(pruneTabPermissionKeysForRole(inviteForm.role, permissionKeys))}
+                    />
+                    <UsersKioskPermissionPicker
+                      kiosks={availableEmployeeKiosks}
+                      selectedIds={eligibleKioskIds(
+                        inviteKioskDefinitionIds,
+                        inviteModuleIds,
+                        inviteForm.scopeType,
+                        inviteForm.businessUnitId,
+                        inviteForm.businessId,
+                      )}
+                      selectedModuleIds={inviteModuleIds}
+                      unitId={inviteForm.scopeType === 'corporate_office' ? null : numberOrNull(inviteForm.businessUnitId)}
+                      businessId={inviteForm.scopeType === 'business_office' ? numberOrNull(inviteForm.businessId) : null}
+                      onChange={setInviteKioskDefinitionIds}
+                      languageCode={currentLanguage.code}
                     />
                     <IndiceModalSummary
                       columns={3}
@@ -1999,6 +2082,7 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
       canCancelInvitation: user.capabilities?.can_cancel_invitation ?? false,
     },
     tabPermissionKeys: user.tab_permission_keys ?? [],
+    kioskDefinitionIds: user.kiosk_definition_ids ?? [],
     modules: user.module_slugs
       .flatMap((slug) => {
         const route = routeForBackendSlug(slug);

@@ -77,6 +77,9 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var email = normalizeEmail(value(payload, "email"));
         var role = normalizeRole(value(payload, "role"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
+        var kioskDefinitionIds = employeeKioskAccess.hasAssignmentPayload(payload)
+            ? employeeKioskAccess.normalizeDefinitionIds(payload.get("kiosk_definition_ids"))
+            : List.<Long>of();
         var membership = resolveInvitationMembership(companyId, payload);
         moduleAccessRegistry.ensureAssignableToCompany(companyId, moduleSlugs);
         var shouldPersistTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
@@ -130,6 +133,16 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         }
         if (shouldPersistTabPermissions) {
             tabPermissionAccess.replaceInvitationTabPermissions(invitationId, tabPermissionKeys, moduleSlugs);
+        }
+        if (employeeKioskAccess.hasAssignmentPayload(payload)) {
+            employeeKioskAccess.replaceInvitationAssignments(
+                companyId,
+                invitationId,
+                Set.copyOf(moduleSlugs),
+                membership.unitId(),
+                membership.businessId(),
+                kioskDefinitionIds
+            );
         }
         userAccessAudit.recordInvitationChange(
             companyId,
@@ -246,6 +259,8 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
         var invitationTabPermissions = tabPermissionAccess.listInvitationTabPermissionKeys(invitation.id());
         tabPermissionAccess.ensureTabPermissionKeysValid(invitationTabPermissions, invitation.moduleSlugs());
         tabPermissionAccess.copyInvitationTabPermissionsToUserCompany(invitation.id(), userCompanyId);
+        employeeKioskAccess.copyInvitationAssignments(
+            invitation.companyId(), invitation.id(), userId, userId);
 
         jdbcTemplate.update(
             "UPDATE user_invitations SET status = 'accepted' WHERE id = ?",

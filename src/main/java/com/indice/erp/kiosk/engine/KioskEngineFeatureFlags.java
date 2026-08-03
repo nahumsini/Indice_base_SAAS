@@ -18,6 +18,7 @@ public class KioskEngineFeatureFlags {
     private final boolean salesAdapterEnabled;
     private final boolean globalCenterEnabled;
     private final boolean multiDashboardEnabled;
+    private final boolean employeeCenterEnabled;
 
     public KioskEngineFeatureFlags(
             @Value("${kiosk.engine.registry.enabled:true}") boolean registryEnabled,
@@ -31,7 +32,8 @@ public class KioskEngineFeatureFlags {
             @Value("${kiosk.engine.adapter.point-of-sale.enabled:true}") boolean pointOfSaleAdapterEnabled,
             @Value("${kiosk.engine.adapter.sales.enabled:true}") boolean salesAdapterEnabled,
             @Value("${kiosk.global-center.enabled:false}") boolean globalCenterEnabled,
-            @Value("${kiosk.multi-dashboard.enabled:false}") boolean multiDashboardEnabled) {
+            @Value("${kiosk.multi-dashboard.enabled:false}") boolean multiDashboardEnabled,
+            @Value("${kiosk.employee-center.enabled:false}") boolean employeeCenterEnabled) {
         this.registryEnabled = registryEnabled;
         this.sessionsEnabled = sessionsEnabled;
         this.auditEnabled = auditEnabled;
@@ -44,6 +46,7 @@ public class KioskEngineFeatureFlags {
         this.salesAdapterEnabled = salesAdapterEnabled;
         this.globalCenterEnabled = globalCenterEnabled;
         this.multiDashboardEnabled = multiDashboardEnabled;
+        this.employeeCenterEnabled = employeeCenterEnabled;
     }
 
     public boolean registryEnabled() {
@@ -77,5 +80,9 @@ public class KioskEngineFeatureFlags {
 
     public boolean multiDashboardEnabled() {
         return multiDashboardEnabled;
+    }
+
+    public boolean employeeCenterEnabled() {
+        return employeeCenterEnabled;
     }
 }

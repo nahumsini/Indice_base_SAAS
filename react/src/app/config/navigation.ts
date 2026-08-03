@@ -28,6 +28,7 @@ const canonicalPageIds = [
   'training',
   'coach',
   'kiosk-center',
+  'kiosk-management',
 ] as const;
 
 export type PageId = (typeof canonicalPageIds)[number];
@@ -89,6 +90,8 @@ export const legacyPageAliases: Record<string, PageId> = {
   kpis: 'kpis',
   'kiosk-center': 'kiosk-center',
   kiosk_center: 'kiosk-center',
+  'kiosk-management': 'kiosk-management',
+  kiosk_management: 'kiosk-management',
 };
 
 export const moduleRoutes: Record<string, PageId> = {

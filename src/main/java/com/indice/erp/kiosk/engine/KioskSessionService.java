@@ -34,6 +34,7 @@ public class KioskSessionService {
     private final Duration expensesInactivityTimeout;
     private final Duration pettyCashInactivityTimeout;
     private final Duration processTasksInactivityTimeout;
+    private final Duration employeeCenterInactivityTimeout;
 
     @Autowired
     public KioskSessionService(
@@ -42,17 +43,19 @@ public class KioskSessionService {
             @Value("${app.hr.kiosk.inactivity-timeout-seconds:180}") int hrInactivityTimeoutSeconds,
             @Value("${app.expenses.kiosk.inactivity-timeout-seconds:300}") int expensesInactivityTimeoutSeconds,
             @Value("${app.petty-cash.kiosk.inactivity-timeout-seconds:900}") int pettyCashInactivityTimeoutSeconds,
-            @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int processTasksInactivityTimeoutSeconds) {
+            @Value("${app.process-tasks.kiosk.inactivity-timeout-seconds:1800}") int processTasksInactivityTimeoutSeconds,
+            @Value("${app.kiosk.employee-center.inactivity-timeout-seconds:28800}") int employeeCenterInactivityTimeoutSeconds) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.hrInactivityTimeout = durationSeconds(hrInactivityTimeoutSeconds, 180);
         this.expensesInactivityTimeout = durationSeconds(expensesInactivityTimeoutSeconds, 300);
         this.pettyCashInactivityTimeout = durationSeconds(pettyCashInactivityTimeoutSeconds, 900);
         this.processTasksInactivityTimeout = durationSeconds(processTasksInactivityTimeoutSeconds, 1800);
+        this.employeeCenterInactivityTimeout = durationSeconds(employeeCenterInactivityTimeoutSeconds, 28800);
     }
 
     KioskSessionService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
-        this(jdbcTemplate, objectMapper, 180, 300, 900, 1800);
+        this(jdbcTemplate, objectMapper, 180, 300, 900, 1800, 28800);
     }
 
     @Transactional
@@ -165,6 +168,52 @@ public class KioskSessionService {
     }
 
     @Transactional
+    public KioskSessionLaunch createMobileMultiKioskSession(
+            KioskResolvedDefinition definition,
+            long multiKioskId,
+            long userIdentityId,
+            long userCompanyId,
+            String browserSessionReference,
+            Set<String> grantedCapabilities) {
+        if (multiKioskId <= 0 || userIdentityId <= 0 || userCompanyId <= 0
+                || grantedCapabilities == null || grantedCapabilities.isEmpty()
+                || !hasMobileMultiKioskGrant(
+                    definition, multiKioskId, userIdentityId, userCompanyId)) {
+            throw new SecurityException("No mobile kiosk capability is available for this employee.");
+        }
+        var rawToken = randomToken();
+        var sessionId = UUID.randomUUID().toString();
+        var expiresAt = Instant.now().plus(Duration.ofHours(8));
+        jdbcTemplate.update(
+            """
+                INSERT INTO kiosk_sessions (
+                    session_id, kiosk_definition_id, company_id, channel, access_level,
+                    identity_type, identity_id, access_token_hash, browser_session_hash,
+                    verified_factors_json, granted_capabilities_json, scope_snapshot_json,
+                    expires_at
+                ) VALUES (?, ?, ?, 'MOBILE_MULTI_KIOSK', 'CONTROLLED', 'USER', ?, ?, ?, ?, ?, ?,
+                          TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP))
+                """,
+            sessionId, definition.id(), definition.companyId(), userIdentityId,
+            sha256(rawToken), hashNullable(browserSessionReference), json(List.of("PIN")),
+            json(grantedCapabilities),
+            json(Map.of(
+                "company_id", definition.companyId(),
+                "multi_kiosk_id", multiKioskId,
+                "user_company_id", userCompanyId,
+                "unit_id", definition.unitId() == null ? "" : definition.unitId(),
+                "business_id", definition.businessId() == null ? "" : definition.businessId()
+            )),
+            remainingLifetimeSeconds(expiresAt)
+        );
+        auditSession(definition, sessionId, "EMPLOYEE", userCompanyId,
+            "MOBILE_KIOSK_SESSION_CREATED", "SUCCEEDED");
+        return new KioskSessionLaunch(new KioskSessionPrincipal(
+            sessionId, definition.id(), definition.companyId(), "USER", userIdentityId,
+            Set.copyOf(grantedCapabilities), expiresAt), rawToken);
+    }
+
+    @Transactional
     public KioskSessionPrincipal requireSession(
             KioskResolvedDefinition definition,
             KioskCapabilityDescriptor capability,
@@ -216,6 +265,108 @@ public class KioskSessionService {
             "UPDATE kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
             session.sessionId()
         );
+        return session;
+    }
+
+    @Transactional
+    public KioskSessionPrincipal requireAuthenticatedIndexSession(
+            KioskResolvedDefinition definition,
+            String accessToken,
+            String browserSessionReference,
+            long expectedUserId) {
+        if (accessToken == null || accessToken.isBlank() || expectedUserId <= 0) {
+            throw new SecurityException("Employee kiosk authentication is required.");
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT session_id, kiosk_definition_id, company_id, identity_type, identity_id,
+                       granted_capabilities_json, browser_session_hash,
+                       GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at))
+                           AS expires_in_seconds
+                FROM kiosk_sessions
+                WHERE kiosk_definition_id = ? AND access_token_hash = ?
+                  AND channel = 'AUTHENTICATED_WEB'
+                  AND identity_type = 'USER' AND identity_id = ?
+                  AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                  AND last_activity_at >= TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)
+                LIMIT 1
+                """,
+            (rs, rowNum) -> {
+                var browserHash = rs.getString("browser_session_hash");
+                if (browserHash != null && !browserHash.equals(hashNullable(browserSessionReference))) {
+                    throw new SecurityException("Employee kiosk session does not belong to this browser.");
+                }
+                return new KioskSessionPrincipal(
+                    rs.getString("session_id"), rs.getLong("kiosk_definition_id"),
+                    rs.getLong("company_id"), rs.getString("identity_type"),
+                    rs.getLong("identity_id"), stringSet(rs.getString("granted_capabilities_json")),
+                    Instant.now().plusSeconds(rs.getLong("expires_in_seconds"))
+                );
+            },
+            definition.id(), sha256(accessToken.trim()), expectedUserId,
+            -employeeCenterInactivityTimeout.getSeconds()
+        );
+        if (rows.isEmpty() || !hasGrant(definition.id(), "USER", expectedUserId, "*")) {
+            throw new SecurityException("Employee kiosk authentication is required.");
+        }
+        var session = rows.getFirst();
+        jdbcTemplate.update(
+            "UPDATE kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
+            session.sessionId()
+        );
+        return session;
+    }
+
+    @Transactional
+    public KioskSessionPrincipal requireMobileMultiKioskSession(
+            KioskResolvedDefinition definition,
+            long expectedMultiKioskId,
+            String accessToken,
+            String browserSessionReference,
+            long expectedUserId,
+            long expectedUserCompanyId) {
+        if (expectedMultiKioskId <= 0 || accessToken == null || accessToken.isBlank()
+                || expectedUserId <= 0 || expectedUserCompanyId <= 0) {
+            throw new SecurityException("Mobile kiosk authentication is required.");
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT session_id, kiosk_definition_id, company_id, identity_type, identity_id,
+                       granted_capabilities_json, browser_session_hash,
+                       GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at))
+                           AS expires_in_seconds
+                FROM kiosk_sessions
+                WHERE kiosk_definition_id = ? AND access_token_hash = ?
+                  AND channel = 'MOBILE_MULTI_KIOSK'
+                  AND identity_type = 'USER' AND identity_id = ?
+                  AND JSON_UNQUOTE(JSON_EXTRACT(scope_snapshot_json, '$.multi_kiosk_id')) = CAST(? AS CHAR)
+                  AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                  AND last_activity_at >= TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)
+                LIMIT 1
+                """,
+            (rs, rowNum) -> {
+                var browserHash = rs.getString("browser_session_hash");
+                if (browserHash != null && !browserHash.equals(hashNullable(browserSessionReference))) {
+                    throw new SecurityException("Mobile kiosk session does not belong to this browser.");
+                }
+                return new KioskSessionPrincipal(
+                    rs.getString("session_id"), rs.getLong("kiosk_definition_id"),
+                    rs.getLong("company_id"), rs.getString("identity_type"),
+                    rs.getLong("identity_id"), stringSet(rs.getString("granted_capabilities_json")),
+                    Instant.now().plusSeconds(rs.getLong("expires_in_seconds")));
+            },
+            definition.id(), sha256(accessToken.trim()), expectedUserId, expectedMultiKioskId,
+            -inactivityTimeout(definition).getSeconds()
+        );
+        if (rows.isEmpty()
+                || !hasMobileMultiKioskGrant(
+                    definition, expectedMultiKioskId, expectedUserId, expectedUserCompanyId)) {
+            throw new SecurityException("Mobile kiosk authentication is required.");
+        }
+        var session = rows.getFirst();
+        jdbcTemplate.update(
+            "UPDATE kiosk_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?",
+            session.sessionId());
         return session;
     }
 
@@ -288,7 +439,12 @@ public class KioskSessionService {
                     kiosk_definition_id, identity_type, identity_id, capability_key, status, source
                 ) VALUES (?, 'USER', ?, '*', 'ACTIVE', 'INTERNAL_POLICY')
                 ON DUPLICATE KEY UPDATE
-                    status = 'ACTIVE', source = 'INTERNAL_POLICY', revoked_at = NULL
+                    status = 'ACTIVE',
+                    source = CASE
+                        WHEN source IN ('ADMIN', 'INVITATION') THEN source
+                        ELSE 'INTERNAL_POLICY'
+                    END,
+                    revoked_at = NULL
                 """,
             definitionId, identityId
         );
@@ -297,13 +453,66 @@ public class KioskSessionService {
     private boolean hasGrant(long definitionId, String identityType, long identityId, String capabilityKey) {
         var count = jdbcTemplate.queryForObject(
             """
-                SELECT COUNT(*) FROM kiosk_grants
-                WHERE kiosk_definition_id = ? AND identity_type = ? AND identity_id = ?
-                  AND status = 'ACTIVE' AND capability_key IN ('*', ?)
+                SELECT (
+                    EXISTS(
+                        SELECT 1 FROM kiosk_grants
+                        WHERE kiosk_definition_id = ? AND identity_type = ? AND identity_id = ?
+                          AND status = 'ACTIVE' AND capability_key IN ('*', ?)
+                    ) OR (
+                        ? = 'USER' AND EXISTS(
+                            SELECT 1
+                            FROM multi_kiosk_items item
+                            INNER JOIN multi_kiosk_definitions parent
+                              ON parent.id = item.multi_kiosk_id
+                             AND parent.status = 'ACTIVE'
+                             AND (parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP)
+                            INNER JOIN multi_kiosk_assignments assignment
+                              ON assignment.multi_kiosk_id = parent.id
+                             AND assignment.status = 'ACTIVE'
+                            INNER JOIN user_companies membership
+                              ON membership.id = assignment.user_company_id
+                             AND membership.company_id = parent.company_id
+                             AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                            WHERE item.kiosk_definition_id = ? AND membership.user_id = ?
+                        )
+                    )
+                )
                 """,
             Integer.class,
-            definitionId, identityType, identityId, capabilityKey
+            definitionId, identityType, identityId, capabilityKey,
+            identityType, definitionId, identityId
         );
+        return count != null && count > 0;
+    }
+
+    private boolean hasMobileMultiKioskGrant(
+            KioskResolvedDefinition definition,
+            long multiKioskId,
+            long userId,
+            long userCompanyId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM multi_kiosk_items item
+                INNER JOIN multi_kiosk_definitions parent
+                  ON parent.id = item.multi_kiosk_id
+                 AND parent.id = ?
+                 AND parent.company_id = ?
+                 AND parent.status = 'ACTIVE'
+                 AND (parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP)
+                INNER JOIN multi_kiosk_assignments assignment
+                  ON assignment.multi_kiosk_id = parent.id
+                 AND assignment.user_company_id = ?
+                 AND assignment.status = 'ACTIVE'
+                INNER JOIN user_companies membership
+                  ON membership.id = assignment.user_company_id
+                 AND membership.company_id = parent.company_id
+                 AND membership.user_id = ?
+                 AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                WHERE item.kiosk_definition_id = ?
+                """,
+            Integer.class,
+            multiKioskId, definition.companyId(), userCompanyId, userId, definition.id());
         return count != null && count > 0;
     }
 

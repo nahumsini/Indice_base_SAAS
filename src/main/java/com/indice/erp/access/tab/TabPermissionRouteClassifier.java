@@ -144,7 +144,8 @@ public class TabPermissionRouteClassifier {
     }
 
     private Optional<TabPermissionRequirement> classifyKioskAdmin(String path) {
-        if (path.startsWith("/api/v2/kiosks/public/")) {
+        if (path.startsWith("/api/v2/kiosks/public/")
+                || path.startsWith("/api/v2/multi-kiosks/public/")) {
             return Optional.empty();
         }
         if (path.startsWith("/api/v2/hr/attendance/kiosks")) {
@@ -168,7 +169,12 @@ public class TabPermissionRouteClassifier {
         if (path.startsWith("/api/v2/point-of-sale/kiosks")) {
             return one("pos.kiosks");
         }
-        if (path.startsWith("/api/v2/kiosk-center/") || path.startsWith("/api/v2/me/kiosks")) {
+        if (path.startsWith("/api/v2/me/kiosks")) {
+            // Employee Center authorization is calculated per definition from module, scope,
+            // exact grant, lifecycle and capability. It must not inherit admin tab requirements.
+            return Optional.empty();
+        }
+        if (path.startsWith("/api/v2/kiosk-center")) {
             return any(KIOSK_ADMIN_ANY);
         }
         return Optional.empty();
@@ -397,6 +403,7 @@ public class TabPermissionRouteClassifier {
             || path.startsWith("/api/v1/platform")
             || path.contains("/public-kiosk/")
             || path.contains("/public-payable-kiosks/")
-            || path.startsWith("/api/v2/kiosks/public/");
+            || path.startsWith("/api/v2/kiosks/public/")
+            || path.startsWith("/api/v2/multi-kiosks/public/");
     }
 }

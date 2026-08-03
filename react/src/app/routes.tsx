@@ -15,6 +15,7 @@ const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDi
 const SupplierPortal = lazy(() => import('./BasicModules/PointOfSale/SupplierPortal'));
 const SelfServiceKiosk = lazy(() => import('./BasicModules/PointOfSale/SelfServiceKiosk'));
 const PlatformAdminPage = lazy(() => import('./PlatformAdmin/PlatformAdminPage'));
+const MultiKioskMobilePage = lazy(() => import('./KioskCenter/MultiKioskMobilePage'));
 
 const chunkReloadStorageKey = 'indice:route-chunk-reload-attempted';
 const renderChunkReloadStorageKey = 'indice:render-chunk-reload-attempted';
@@ -267,6 +268,14 @@ function SelfServiceKioskRoute() {
   );
 }
 
+function MultiKioskMobileRoute() {
+  return (
+    <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando Multikiosco" description="Preparando tus accesos de trabajo." />}>
+      <MultiKioskMobilePage />
+    </Suspense>
+  );
+}
+
 function PrivateAppRoute() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -420,6 +429,10 @@ export const router = createBrowserRouter([
   {
     path: '/pos-self-service/:publicAccessToken',
     element: <SelfServiceKioskRoute />,
+  },
+  {
+    path: '/multi-kiosk/:publicAccessToken',
+    element: <MultiKioskMobileRoute />,
   },
   {
     path: '/platform-admin',

@@ -8,6 +8,7 @@ import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.AccessSco
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.ActorAccess;
 import com.indice.erp.configcenter.users.ConfigCenterUserMutationGuard.TargetUser;
 import com.indice.erp.configcenter.users.ConfigCenterUserAccessAudit.Snapshot;
+import com.indice.erp.kiosk.engine.KioskEmployeeAccessService;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.util.Arrays;
@@ -16,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
     protected final ConfigCenterInvitationAccessGuard invitationAccessGuard;
     protected final ConfigCenterUserAccessAudit userAccessAudit;
     protected final ConfigCenterModuleAccessRegistry moduleAccessRegistry;
+    protected final KioskEmployeeAccessService employeeKioskAccess;
 
     protected ConfigCenterUserAccessUseCases(
         JdbcTemplate jdbcTemplate,
@@ -47,6 +50,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         this.invitationAccessGuard = new ConfigCenterInvitationAccessGuard();
         this.userAccessAudit = new ConfigCenterUserAccessAudit(jdbcTemplate, objectMapper);
         this.moduleAccessRegistry = new ConfigCenterModuleAccessRegistry(jdbcTemplate);
+        this.employeeKioskAccess = new KioskEmployeeAccessService(jdbcTemplate);
     }
 
     public Map<String, Object> getUsers(AuthSessionUser currentUser) {
@@ -117,6 +121,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 user.put("module_slugs", listModuleSlugs(userCompanyId));
                 user.put("tab_permission_keys", tabPermissionAccess.listUserTabPermissionKeys(userCompanyId));
                 user.put("tab_permissions_configured", tabPermissionAccess.hasUserTabPermissionRows(userCompanyId));
+                user.put("kiosk_definition_ids", employeeKioskAccess.assignedToUser(companyId, rs.getLong("id")));
                 user.put("is_protected", PROTECTED_ROLES.contains(safe(rs.getString("role"))));
                 user.put("source", "user");
                 return user;
@@ -179,6 +184,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
                 invitation.put("module_slugs", parseStoredModuleSlugs(safe(rs.getString("module_slugs_json"))));
                 invitation.put("tab_permission_keys", tabPermissionAccess.listInvitationTabPermissionKeys(invitationId));
                 invitation.put("tab_permissions_configured", tabPermissionAccess.hasInvitationTabPermissionRows(invitationId));
+                invitation.put("kiosk_definition_ids", employeeKioskAccess.assignedToInvitation(invitationId));
                 invitation.put("is_protected", false);
                 invitation.put("source", "invitation");
                 return invitation;
@@ -251,6 +257,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         catalog.put("businesses", catalogBusinesses);
         catalog.put("modules", catalogModules);
         catalog.put("tabs", catalogTabs);
+        catalog.put("employee_kiosks", userOnly ? List.of() : employeeKioskAccess.catalog(companyId));
 
         var result = new LinkedHashMap<String, Object>();
         result.put("users", users);
@@ -276,6 +283,10 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         var status = normalizeStatus(value(payload, "status"));
         var moduleSlugs = normalizeModuleSlugs(payload.get("module_slugs"));
         var shouldReplaceTabPermissions = tabPermissionAccess.hasTabPermissionPayload(payload);
+        var shouldReplaceKioskAssignments = employeeKioskAccess.hasAssignmentPayload(payload);
+        var kioskDefinitionIds = shouldReplaceKioskAssignments
+            ? employeeKioskAccess.normalizeDefinitionIds(payload.get("kiosk_definition_ids"))
+            : List.<Long>of();
         var tabPermissionKeys = shouldReplaceTabPermissions ? tabPermissionAccess.normalizeTabPermissionKeys(payload) : List.<String>of();
         tabPermissionAccess.ensureTabPermissionKeysValid(tabPermissionKeys, moduleSlugs);
         var actor = loadActorAccess(companyId, actorUserId, actorRole);
@@ -343,6 +354,17 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         }
         if (shouldReplaceTabPermissions) {
             tabPermissionAccess.replaceUserTabPermissions(userCompanyId, tabPermissionKeys, moduleSlugs);
+        }
+        if (shouldReplaceKioskAssignments) {
+            employeeKioskAccess.replaceUserAssignments(
+                companyId,
+                target.userId(),
+                Set.copyOf(moduleSlugs),
+                membership.unitId(),
+                membership.businessId(),
+                kioskDefinitionIds,
+                actorUserId
+            );
         }
         userAccessAudit.recordUserChange(
             companyId,
@@ -537,6 +559,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
             userCompanyId,
             companyId
         );
+        employeeKioskAccess.revokeUserSessions(companyId, target.target().userId());
         userAccessAudit.recordUserChange(
             companyId,
             actorUserId,

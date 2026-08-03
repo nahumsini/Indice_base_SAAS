@@ -1285,76 +1285,76 @@ Las acciones profundas redirigen a la administración del módulo.
 
 ---
 
-## 24. Multi Kiosk Dashboard
+## 24. Multikiosco móvil para empleados
 
 ### 24.1 Propósito
 
-Launcher personalizado para usuarios autenticados de Índice. No es un superkiosko y no reemplaza la aplicación móvil.
+El Multikiosco es un launcher móvil curado para empleados. Reúne accesos directos a varios
+kioscos existentes, pero no es un superkiosco: no combina formularios, capacidades, datos ni
+reglas de negocio de los kioscos hijos.
 
-### 24.2 Audiencia
+El `Centro de kioscos` dentro de Índice es exclusivamente administrativo. Desde ahí se crea el
+Multikiosco, se ordenan sus accesos, se asignan empleados y se administra el enlace o QR. El
+trabajo operativo nunca se realiza dentro de la aplicación normal de Índice.
 
-Principalmente:
+### 24.2 Audiencia y exclusiones
 
-- empleados;
-- administradores;
-- usuarios internos.
+- Solo empleados con membresía activa y PIN personal vigente.
+- Solo definiciones con `audience = EMPLOYEE` y `employee_center_enabled = true`.
+- Proveedores, clientes, público anónimo, citas y experiencias POS continúan por sus enlaces
+  específicos y no aparecen en un Multikiosco de empleados.
 
-Clientes y proveedores continúan usando enlaces específicos.
-
-### 24.3 Catálogo efectivo
-
-Un kiosko aparece cuando se cumple la intersección:
-
-```text
-ACTIVE
-+ no expirado
-+ módulo habilitado para la compañía
-+ alcance compatible con el usuario
-+ grant o política interna aplicable
-+ al menos una capacidad autorizada
-```
-
-### 24.4 Experiencia
+### 24.3 Experiencia
 
 ```text
-Login Índice
-→ Mis kioskos
-→ cards agrupadas por módulo o necesidad
-→ seleccionar kiosko
-→ crear sesión contextual
-→ abrir Full Workspace
-→ regresar a Mis kioskos
+Enlace especial o QR del Multikiosco
+→ validación de estado y vigencia
+→ PIN personal del empleado
+→ launcher móvil con cards autorizadas
+→ seleccionar un kiosco
+→ crear sesión contextual del kiosco hijo
+→ abrir su Full Workspace
+→ regresar al launcher
 ```
 
-Cada card muestra únicamente información segura:
+El enlace representa al Multikiosco, no al empleado. La identificación personal ocurre con PIN;
+rostro se conserva como segundo factor especializado cuando el módulo propietario lo exige.
 
-- nombre;
-- módulo;
-- propósito;
-- alcance;
-- estado de disponibilidad;
-- acción principal.
+### 24.4 Catálogo efectivo
 
-### 24.5 Reutilización de sesión
+Una card aparece únicamente por la intersección de:
 
-- La sesión de Índice satisface `CONTROLLED` cuando la capacidad lo permite.
-- No se repite login.
-- Una capacidad sensible puede exigir PIN o rostro reciente.
-- La elevación dura un periodo corto y se limita a capacidades declaradas.
+```text
+Multikiosco ACTIVE y no expirado
++ asignación ACTIVE del empleado
++ kiosco hijo incluido en la composición
++ kiosco hijo ACTIVE y no expirado
++ membresía y módulo habilitados
++ alcance organizacional compatible
++ adapter y capacidades habilitados
+```
 
-### 24.6 Navegación
+La asignación al Multikiosco es una fuente de grant, nunca una elevación. Si cualquiera de las
+condiciones deja de cumplirse, la card desaparece y las sesiones dejan de ser válidas.
 
-Cada kiosko conserva su experiencia independiente. El dashboard comparte:
+### 24.5 Sesiones
 
-- identidad;
-- sesión;
-- navegación de regreso;
-- diseño;
-- seguridad;
-- auditoría;
-- contratos.
+- La sesión del Multikiosco está ligada al navegador móvil.
+- Inactividad predeterminada: ocho horas.
+- Vida absoluta predeterminada: doce horas.
+- Cada kiosco hijo crea una sesión Engine propia `MOBILE_MULTI_KIOSK`.
+- El kiosco hijo conserva su límite de inactividad, capacidades, idempotencia, auditoría y
+  verificaciones especializadas.
+- Rotar el enlace, deshabilitar, revocar o retirar al empleado cierra las sesiones relacionadas.
 
-No mezcla formularios de diferentes kioskos en una sola pantalla.
+### 24.6 Superficie y rutas
+
+- Administración: `/kiosk-center`, solo para roles administrativos.
+- API administrativa: `/api/v2/kiosk-center/multi-kiosks`.
+- Experiencia móvil: `/multi-kiosk/{publicAccessToken}`.
+- API pública: `/api/v2/multi-kiosks/public/{publicAccessToken}`.
+- Escritorio muestra únicamente instrucción y QR; no habilita acciones operativas.
+- Tokens de kioscos hijos nunca se exponen en el catálogo del launcher.
 
 ---
 
@@ -1792,15 +1792,18 @@ Estado ejecutado al 18 de julio de 2026:
 - feature flag independiente `kiosk.global-center.enabled`, activado y verificado en el ambiente local de cierre;
 - smoke final: ruta SPA `200`, API sin sesión `401`, backend/web healthy y Nginx válido.
 
-### Fase 9 — Multi Kiosk Dashboard
+### Fase 9 — Multikiosco móvil
 
-- Catálogo `/me/kiosks`.
-- Cards autorizadas.
-- Sesión contextual.
-- Elevación para acciones sensibles.
-- Navegación móvil.
+- Constructor administrativo en el Centro de kioscos.
+- Composición ordenada de definiciones existentes.
+- Asignaciones explícitas a empleados con PIN.
+- Enlace y QR propios del Multikiosco.
+- Launcher y Full Workspace exclusivamente móviles.
+- Sesión contextual independiente por kiosco hijo.
 
-Estado al 18 de julio de 2026: **fase deshabilitada y no certificada**. El scaffolding de `/api/v2/me/kiosks` no constituye por sí solo el producto Multi Kiosk. `kiosk.multi-dashboard.enabled=false` permanece como candado explícito y el smoke final devuelve `404`; launcher, cards efectivas, navegación, elevación y UAT deben cerrarse como proyecto independiente antes de activar esta fase.
+Estado al 3 de agosto de 2026: contrato e implementación base cerrados bajo el candado
+`kiosk.multi-dashboard.enabled`. La activación por ambiente requiere migración `V161`, secretos
+de protección válidos y smoke de enlace, PIN, catálogo efectivo, sesión hija y revocación.
 
 ### Fase 10 — Nuevos kioskos
 
@@ -1876,7 +1879,7 @@ El Engine v2 se considera establecido cuando:
 - Audio y video quedan deshabilitados.
 - Todo opera en línea.
 - Global Kiosk Center coordina, no posee lógica funcional.
-- Multi Kiosk Dashboard es exclusivo para usuarios internos autenticados.
+- Multikiosco es exclusivo para empleados asignados e identificados por su enlace y PIN personal.
 - Clientes y proveedores continúan por enlaces específicos.
 - Petty Cash guía el diseño público.
 - El sistema React `indice-modal` guía la administración.

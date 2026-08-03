@@ -68,6 +68,7 @@ const Analitica = lazy(() => import('./AIModules/Analytics'));
 const Capacitacion = lazy(() => import('./AIModules/Training'));
 const Coach = lazy(() => import('./AIModules/Coach'));
 const SubscriptionManagementPage = lazy(() => import('./Billing/SubscriptionManagementPage'));
+const KioskCenter = lazy(() => import('./KioskCenter/MultiKioskCenterPage'));
 
 type StandaloneModuleComponent = ComponentType | LazyExoticComponent<ComponentType>;
 type SubscriptionSessionInfo = {
@@ -540,6 +541,10 @@ export default function App() {
         for (const route of FRONTEND_OWNED_BASIC_MODULE_ROUTES) {
           routes.add(route);
         }
+        if (isAdminAccessRole(session?.user.role)) {
+          routes.add('kiosk-center');
+          routes.add('kiosk-management');
+        }
         if (routes.size === 0 && isAdminAccessRole(session?.user.role)) {
           for (const module of buildDefaultModuleCatalog(t)) {
             routes.add(module.route);
@@ -553,6 +558,10 @@ export default function App() {
             for (const module of buildDefaultModuleCatalog(t)) {
               routes.add(module.route);
             }
+          }
+          if (isAdminAccessRole(session?.user.role)) {
+            routes.add('kiosk-center');
+            routes.add('kiosk-management');
           }
           setAllowedModuleRoutes(routes);
         }
@@ -705,6 +714,10 @@ export default function App() {
       <Cartera learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
     ) : currentPage === 'kpis' ? (
       <Kpis learningModeActive={learningModeActive} onNavigate={handleModuleNavigation} />
+    ) : currentPage === 'kiosk-center' ? (
+      <KioskCenter />
+    ) : currentPage === 'kiosk-management' ? (
+      <KioskCenter />
     ) : currentPage === 'inventory' ? (
       <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
         <Inventarios learningModeActive={learningModeActive} />
