@@ -76,7 +76,7 @@ require_env SPRING_DATASOURCE_PASSWORD
 prepare_backend_env() {
   local output="$1"
 
-  grep -v -E '^(SERVER_PORT|SERVER_ADDRESS|JAVA_OPTS|APP_STORAGE_MINIO_ENDPOINT|APP_STORAGE_MINIO_PUBLIC_ENDPOINT|APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT|APP_HR_FACE_SERVICE_BASE_URL|APP_WEB_ALLOWED_ORIGINS|APP_WEB_PUBLIC_URL|APP_WEB_INVITATION_BASE_URL|APP_WEB_PASSWORD_RESET_BASE_URL)=' \
+  grep -v -E '^(SERVER_PORT|SERVER_ADDRESS|JAVA_OPTS|APP_STORAGE_MINIO_ENDPOINT|APP_STORAGE_MINIO_PUBLIC_ENDPOINT|APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT|APP_HR_FACE_SERVICE_BASE_URL|APP_WEB_ALLOWED_ORIGINS|APP_WEB_PUBLIC_URL|APP_WEB_INVITATION_BASE_URL|APP_WEB_PASSWORD_RESET_BASE_URL|APP_BILLING_STRIPE_SECRET_KEY_FILE|APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE)=' \
     "${ENV_FILE}" >"${output}"
 
   {
@@ -91,6 +91,12 @@ prepare_backend_env() {
     printf 'APP_WEB_PUBLIC_URL=%s\n' "${APP_WEB_PUBLIC_URL:-${PUBLIC_URL}}"
     printf 'APP_WEB_INVITATION_BASE_URL=%s\n' "${APP_WEB_INVITATION_BASE_URL:-${APP_WEB_PUBLIC_URL:-${PUBLIC_URL}}}"
     printf 'APP_WEB_PASSWORD_RESET_BASE_URL=%s\n' "${APP_WEB_PASSWORD_RESET_BASE_URL:-${APP_WEB_PUBLIC_URL:-${PUBLIC_URL}}}"
+    if [[ -n "${APP_BILLING_STRIPE_SECRET_KEY_FILE:-}" ]]; then
+      printf 'APP_BILLING_STRIPE_SECRET_KEY_FILE=%s\n' "${APP_BILLING_STRIPE_SECRET_KEY_FILE}"
+    fi
+    if [[ -n "${APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE:-}" ]]; then
+      printf 'APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE=%s\n' "${APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE}"
+    fi
   } >>"${output}"
 }
 
@@ -153,6 +159,35 @@ docker run -d \
 sleep 8
 curl --fail --silent --show-error "http://127.0.0.1:${HOST_MINIO_API_PORT}/minio/health/live" >/dev/null
 
+BACKEND_SECRET_MOUNTS=()
+prepare_backend_secret_mount() {
+  local variable_name="$1"
+  local container_path="$2"
+  local host_path="${!variable_name:-}"
+  local prepared_host_path
+
+  [[ -z "${host_path}" ]] && return 0
+  if [[ "${host_path}" != /* || ! -f "${host_path}" || ! -r "${host_path}" ]]; then
+    echo "${variable_name} must reference a readable absolute host file." >&2
+    exit 1
+  fi
+
+  # The backend image runs as an unprivileged user. Keep the durable source
+  # secret root-only, then expose a read-only copy through a root-only host
+  # directory. Mode 0444 is visible only inside the container because the host
+  # parent directory cannot be traversed by unprivileged users.
+  install -d -m 0700 "${BACKEND_SECRET_RUNTIME_DIR}"
+  prepared_host_path="${BACKEND_SECRET_RUNTIME_DIR}/$(basename "${container_path}")"
+  install -m 0444 "${host_path}" "${prepared_host_path}"
+  BACKEND_SECRET_MOUNTS+=(--volume "${prepared_host_path}:${container_path}:ro")
+  printf -v "${variable_name}" '%s' "${container_path}"
+  export "${variable_name}"
+}
+
+BACKEND_SECRET_RUNTIME_DIR="${BACKEND_SECRET_RUNTIME_DIR:-/run/indice-erp-secrets/${BACKEND_CONTAINER}}"
+prepare_backend_secret_mount APP_BILLING_STRIPE_SECRET_KEY_FILE /run/secrets/indice-stripe-secret-key
+prepare_backend_secret_mount APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE /run/secrets/indice-stripe-webhook-secret
+
 BACKEND_ENV_FILE="$(mktemp)"
 trap 'rm -f "${BACKEND_ENV_FILE}"' EXIT
 prepare_backend_env "${BACKEND_ENV_FILE}"
@@ -163,6 +198,7 @@ docker run -d \
   --restart unless-stopped \
   --network host \
   --env-file "${BACKEND_ENV_FILE}" \
+  "${BACKEND_SECRET_MOUNTS[@]}" \
   "${BACKEND_IMAGE}" >/dev/null
 
 sleep "${BACKEND_STARTUP_WAIT_SECONDS:-45}"

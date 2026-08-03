@@ -44,6 +44,32 @@ require_env_value() {
   fi
 }
 
+require_env_true() {
+  local key="$1"
+  if [[ "$(read_env_value "${key}")" != "true" ]]; then
+    echo "${key} must be true for this production configuration." >&2
+    return 1
+  fi
+}
+
+resolve_protected_value() {
+  local direct_key="$1"
+  local file_key="$2"
+  local direct_value file_path
+  direct_value="$(read_env_value "${direct_key}")"
+  file_path="$(read_env_value "${file_key}")"
+
+  if [[ -n "${file_path}" ]]; then
+    if [[ "${file_path}" != /* || ! -r "${file_path}" ]]; then
+      echo "${file_key} must reference a readable absolute host file." >&2
+      return 1
+    fi
+    tr -d '\r\n' <"${file_path}"
+    return 0
+  fi
+  printf '%s' "${direct_value}"
+}
+
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
   required_keys=(
     MINIO_ROOT_USER
@@ -111,6 +137,101 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
   if [[ "${public_url}" == https://* && "$(read_env_value APP_SESSION_COOKIE_SECURE)" != "true" ]]; then
     echo "APP_SESSION_COOKIE_SECURE must be true when WEB_PUBLIC_URL uses HTTPS." >&2
     exit 1
+  fi
+
+  if [[ "$(read_env_value APP_BILLING_STRIPE_ENABLED)" == "true" ]]; then
+    stripe_mode="$(read_env_value APP_BILLING_STRIPE_MODE)"
+    if [[ "${stripe_mode}" != "test" && "${stripe_mode}" != "live" ]]; then
+      echo "APP_BILLING_STRIPE_MODE must be test or live." >&2
+      exit 1
+    fi
+
+    stripe_secret="$(resolve_protected_value APP_BILLING_STRIPE_SECRET_KEY APP_BILLING_STRIPE_SECRET_KEY_FILE)"
+    webhook_secret="$(resolve_protected_value APP_BILLING_STRIPE_WEBHOOK_SECRET APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE)"
+    if [[ "${stripe_mode}" == "live" ]]; then
+      [[ "${stripe_secret}" == sk_live_* || "${stripe_secret}" == rk_live_* ]] || {
+        echo "Stripe live mode requires a protected sk_live_ or rk_live_ key." >&2
+        exit 1
+      }
+    else
+      [[ "${stripe_secret}" == sk_test_* || "${stripe_secret}" == rk_test_* ]] || {
+        echo "Stripe test mode requires a protected sk_test_ or rk_test_ key." >&2
+        exit 1
+      }
+    fi
+    [[ "${webhook_secret}" == whsec_* ]] || {
+      echo "Stripe billing requires a whsec_ webhook signing secret." >&2
+      exit 1
+    }
+
+    stripe_required_keys=(
+      APP_BILLING_STRIPE_SUCCESS_URL
+      APP_BILLING_STRIPE_CANCEL_URL
+      APP_BILLING_STRIPE_PORTAL_RETURN_URL
+      APP_BILLING_STRIPE_PRICE_BASIC_1_MONTHLY
+      APP_BILLING_STRIPE_PRICE_BASIC_1_ANNUAL
+      APP_BILLING_STRIPE_PRICE_BASIC_2_MONTHLY
+      APP_BILLING_STRIPE_PRICE_BASIC_2_ANNUAL
+      APP_BILLING_STRIPE_PRICE_BASIC_3_MONTHLY
+      APP_BILLING_STRIPE_PRICE_BASIC_3_ANNUAL
+      APP_BILLING_STRIPE_PRICE_BASIC_ALL_MONTHLY
+      APP_BILLING_STRIPE_PRICE_BASIC_ALL_ANNUAL
+      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_MONTHLY
+      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_ANNUAL
+      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_MONTHLY
+      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_ANNUAL
+    )
+    for key in "${stripe_required_keys[@]}"; do
+      require_env_value "${key}"
+    done
+    for key in "${stripe_required_keys[@]:3}"; do
+      [[ "$(read_env_value "${key}")" == price_* ]] || {
+        echo "${key} must contain a Stripe price_ ID." >&2
+        exit 1
+      }
+    done
+
+    if [[ "${stripe_mode}" == "live" ]]; then
+      if [[ -n "$(read_env_value APP_BILLING_STRIPE_SECRET_KEY)" ]]; then
+        echo "Live Stripe secrets must not be stored directly in the environment file." >&2
+        exit 1
+      fi
+      require_env_value APP_BILLING_STRIPE_SECRET_KEY_FILE
+      require_env_value APP_BILLING_STRIPE_WEBHOOK_SECRET_FILE
+      success_url="$(read_env_value APP_BILLING_STRIPE_SUCCESS_URL)"
+      cancel_url="$(read_env_value APP_BILLING_STRIPE_CANCEL_URL)"
+      portal_url="$(read_env_value APP_BILLING_STRIPE_PORTAL_RETURN_URL)"
+      [[ "${success_url}" == https://app.indiceapp.com/signup/complete* ]] || {
+        echo "Live Stripe success URL must use app.indiceapp.com/signup/complete." >&2
+        exit 1
+      }
+      [[ "${cancel_url}" == https://app.indiceapp.com/signup* ]] || {
+        echo "Live Stripe cancel URL must use app.indiceapp.com/signup." >&2
+        exit 1
+      }
+      [[ "${portal_url}" == https://app.indiceapp.com/home-panel/billing* ]] || {
+        echo "Live Stripe portal return URL must use app.indiceapp.com/home-panel/billing." >&2
+        exit 1
+      }
+
+      live_required_true=(
+        APP_BILLING_STRIPE_PROCESSOR_ENABLED
+        APP_BILLING_PROVISIONING_ENABLED
+        APP_BILLING_STRIPE_AUTOMATIC_TAX_ENABLED
+        APP_BILLING_STRIPE_TAX_ID_COLLECTION_ENABLED
+        APP_ENTITLEMENTS_ENFORCEMENT_ENABLED
+        APP_BILLING_LIFECYCLE_ENABLED
+        APP_BILLING_LIFECYCLE_SCHEDULER_ENABLED
+      )
+      for key in "${live_required_true[@]}"; do
+        require_env_true "${key}"
+      done
+      require_env_value APP_BILLING_LIFECYCLE_RETENTION_DAYS
+      if (( $(read_env_value APP_BILLING_LIFECYCLE_RETENTION_DAYS) < 90 )); then
+        echo "APP_BILLING_LIFECYCLE_RETENTION_DAYS must be at least 90 in live mode." >&2
+        exit 1
+      fi
+    fi
   fi
 fi
 

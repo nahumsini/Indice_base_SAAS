@@ -18,18 +18,28 @@ public class StripeSecretProvider {
         if (!properties.isEnabled()) {
             throw new StripePhaseTwoUnavailableException("Stripe phase two is disabled.");
         }
-        if (!"test".equalsIgnoreCase(properties.getMode())) {
-            throw new StripePhaseTwoUnavailableException("Phase two only accepts Stripe test mode.");
+        if (!isTestMode() && !isLiveMode()) {
+            throw new StripePhaseTwoUnavailableException("Stripe mode must be either test or live.");
         }
     }
 
     public String secretKey() {
         requireEnabled();
         var value = resolve(properties.getSecretKeyFile(), properties.getSecretKey());
-        if (!value.startsWith("sk_test_")) {
-            throw new StripePhaseTwoUnavailableException("A Stripe test secret key is required.");
+        if (!matchesConfiguredMode(value)) {
+            throw new StripePhaseTwoUnavailableException(
+                "The Stripe API key does not match the configured Stripe mode."
+            );
         }
         return value;
+    }
+
+    public boolean isLiveMode() {
+        return "live".equalsIgnoreCase(properties.getMode());
+    }
+
+    public boolean isTestMode() {
+        return "test".equalsIgnoreCase(properties.getMode());
     }
 
     public String webhookSecret() {
@@ -50,5 +60,12 @@ public class StripeSecretProvider {
             }
         }
         return directValue == null ? "" : directValue.trim();
+    }
+
+    private boolean matchesConfiguredMode(String value) {
+        if (isLiveMode()) {
+            return value.startsWith("sk_live_") || value.startsWith("rk_live_");
+        }
+        return value.startsWith("sk_test_") || value.startsWith("rk_test_");
     }
 }

@@ -36,6 +36,9 @@ class StripePhaseTwoIntegrationTest {
     private StripeWebhookIngressService ingress;
 
     @Autowired
+    private StripePhaseTwoProperties stripeProperties;
+
+    @Autowired
     private StripeWebhookEventRepository events;
 
     @Autowired
@@ -87,6 +90,35 @@ class StripePhaseTwoIntegrationTest {
 
         assertThatThrownBy(() -> ingress.receive(payload, signature(payload, created, "wrong_secret")))
             .isInstanceOf(StripeWebhookSignatureException.class);
+    }
+
+    @Test
+    void acceptsOnlyWebhookEventsThatMatchTheConfiguredStripeMode() throws Exception {
+        var created = Instant.now().getEpochSecond();
+        stripeProperties.setMode("live");
+        try {
+            var livePayload = event("evt_live_ingress", "customer.created", created, true, """
+                {"id":"cus_live","object":"customer"}
+                """);
+            var signature = signature(livePayload, created, "whsec_phase_two_test");
+
+            assertThat(ingress.receive(livePayload, signature).durablyStored()).isTrue();
+            assertThat(jdbc.queryForObject(
+                "SELECT livemode FROM stripe_webhook_events WHERE stripe_event_id = 'evt_live_ingress'",
+                Boolean.class
+            )).isTrue();
+
+            var testPayload = event("evt_test_mismatch", "customer.created", created, false, """
+                {"id":"cus_test_mismatch","object":"customer"}
+                """);
+            assertThatThrownBy(() -> ingress.receive(
+                testPayload,
+                signature(testPayload, created, "whsec_phase_two_test")
+            )).isInstanceOf(StripeWebhookIntegrityException.class)
+                .hasMessageContaining("does not match");
+        } finally {
+            stripeProperties.setMode("test");
+        }
     }
 
     @Test
@@ -220,10 +252,14 @@ class StripePhaseTwoIntegrationTest {
     }
 
     private String event(String id, String type, long created, String objectJson) {
+        return event(id, type, created, false, objectJson);
+    }
+
+    private String event(String id, String type, long created, boolean livemode, String objectJson) {
         return """
-            {"id":"%s","object":"event","api_version":"2025-06-30.basil","created":%d,"livemode":false,
+            {"id":"%s","object":"event","api_version":"2025-06-30.basil","created":%d,"livemode":%s,
              "type":"%s","data":{"object":%s}}
-            """.formatted(id, created, type, objectJson).trim();
+            """.formatted(id, created, livemode, type, objectJson).trim();
     }
 
     private String signature(String payload, long timestamp, String secret) throws Exception {
