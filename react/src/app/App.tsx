@@ -25,9 +25,9 @@ import { useLearningModePreferences } from './hooks/useLearningModePreferences';
 import { dashboardApi } from './api/dashboard';
 import { authApi } from './api/auth';
 import type { AuthSessionResponse } from './api/auth.types';
-import { buildDefaultModuleCatalog, FRONTEND_OWNED_BASIC_MODULE_ROUTES, routeForBackendSlug } from './config/moduleCatalog';
+import { routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
-import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
+import { canAccessModulePage } from './access/accessRules';
 import { allowedModuleTabIds, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 
@@ -543,24 +543,12 @@ export default function App() {
             routes.add(route);
           }
         }
-        for (const route of FRONTEND_OWNED_BASIC_MODULE_ROUTES) {
-          routes.add(route);
-        }
-        if (routes.size === 0 && isAdminAccessRole(session?.user.role)) {
-          for (const module of buildDefaultModuleCatalog(t)) {
-            routes.add(module.route);
-          }
-        }
         setAllowedModuleRoutes(routes);
       } catch {
         if (active) {
-          const routes = new Set<PageId>();
-          if (isAdminAccessRole(session?.user.role)) {
-            for (const module of buildDefaultModuleCatalog(t)) {
-              routes.add(module.route);
-            }
-          }
-          setAllowedModuleRoutes(routes);
+          // Fail closed. The backend registry is the source of truth for
+          // global availability, company assignment, and entitlements.
+          setAllowedModuleRoutes(new Set<PageId>());
         }
       } finally {
         if (active) {

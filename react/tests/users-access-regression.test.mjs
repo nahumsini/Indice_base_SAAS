@@ -46,6 +46,9 @@ test('acciones y modulos visibles provienen de capacidades del backend', () => {
   assert.match(usersSource, /user\.capabilities\.canActivate/);
   assert.match(usersSource, /user\.capabilities\.canDeactivate/);
   assert.match(usersSource, /setAvailableModules\(mappedModules\)/);
+  assert.match(usersSource, /useState<AvailableModule\[\]>\(\[\]\)/);
+  assert.doesNotMatch(usersSource, /buildAvailableModules/);
+  assert.doesNotMatch(usersSource, /buildDefaultModuleCatalog/);
   assert.doesNotMatch(usersSource, /mergeAvailableModules/);
   assert.match(configCenterApiSource, /activateUser\(id: number\)[\s\S]*?\/activate/);
 });
