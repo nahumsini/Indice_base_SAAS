@@ -403,8 +403,10 @@ Versión desplegada en staging: `5c9e6a83`.
   cuatro pilares, tipografía, espaciado, controles de idioma y jerarquía visual
   de Índice. También se comprobó en presentación compacta.
 - Backend y frontend ejecutan las imágenes
-  `indice-erp-backend:apptest-5c9e6a83` e
-  `indice-erp-web:apptest-5c9e6a83`.
+  `indice-erp-backend:apptest-5c9e6a83-r2` e
+  `indice-erp-web:apptest-5c9e6a83-r2`. El sufijo `r2` identifica la
+  reconstrucción del JAR posterior a las pruebas; evita reutilizar el artefacto
+  compilado antes de la corrección de alcance.
 - El respaldo previo está en
   `/root/indice-apptest/backups/20260803T051059Z-invitation` e incluye base de
   datos, entorno, fuente anterior e inventario de contenedores.
@@ -413,6 +415,9 @@ Versión desplegada en staging: `5c9e6a83`.
   `apptest` coincide exactamente con el artefacto probado.
 - Salud de API, web, MySQL y MinIO permaneció correcta. Las imágenes e
   identificadores de los contenedores de producción no cambiaron.
+- La invitación pendiente de certificación conserva 10 módulos y 54 permisos
+  de pestaña. El bytecode cargado en el contenedor `r2` sólo valida esos dos
+  requisitos y ya no exige unidad o negocio para una invitación corporativa.
 
 Las imágenes anteriores de staging permanecen etiquetadas como
 `apptest-rollback-invitation` para una reversión inmediata sin reconstruir
