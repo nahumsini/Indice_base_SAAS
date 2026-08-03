@@ -21,6 +21,7 @@ import {
   type PageId,
 } from './config/navigation';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
+import { useLearningModePreferences } from './hooks/useLearningModePreferences';
 import { dashboardApi } from './api/dashboard';
 import { authApi } from './api/auth';
 import type { AuthSessionResponse } from './api/auth.types';
@@ -395,16 +396,21 @@ export default function App() {
   const { t } = useLanguage();
   const { pathname, state } = location;
   const { pageId, '*': wildcardPath } = useParams();
-  const [learningModeActive, setLearningModeActive] = useLocalStorageState('indice.app.learningModeActive', true);
-  const [learningModeVisible, setLearningModeVisible] = useLocalStorageState('indice.app.learningModeVisible', true);
-  const [learningStep, setLearningStep] = useLocalStorageState('indice.app.learningStep', 0);
+  const [sessionTabAccess, setSessionTabAccess] = useState<AuthSessionResponse | null>();
+  const {
+    learningModeActive,
+    learningModeVisible,
+    learningStep,
+    setLearningModeActive,
+    setLearningModeVisible,
+    setLearningStep,
+  } = useLearningModePreferences(sessionTabAccess);
   const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [isModuleNavigationLoading, setIsModuleNavigationLoading] = useState(false);
   const [allowedModuleRoutes, setAllowedModuleRoutes] = useState<Set<PageId> | null>(null);
   const [isModuleAccessLoaded, setIsModuleAccessLoaded] = useState(false);
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionSessionInfo>(null);
-  const [sessionTabAccess, setSessionTabAccess] = useState<AuthSessionResponse | null>();
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
   const moduleNavigationStartedAtRef = useRef(0);
