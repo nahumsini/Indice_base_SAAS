@@ -43,7 +43,6 @@ import { ApiClientError } from '../../../lib/apiClient';
 import { isTabScopeAssignableToRole } from '../../../access/tabScopeCatalog';
 import {
   backendSlugForRoute,
-  buildDefaultModuleCatalog,
   mapBackendModuleToCard,
   routeForBackendSlug,
   type DashboardModuleCategory,
@@ -157,9 +156,7 @@ export default function Users() {
     [currentLanguage.code],
   );
   const [users, setUsers] = useState<User[]>([]);
-  const [availableModules, setAvailableModules] = useState<AvailableModule[]>(() =>
-    buildAvailableModules(t),
-  );
+  const [availableModules, setAvailableModules] = useState<AvailableModule[]>([]);
   const [availableUnits, setAvailableUnits] = useState<BusinessUnitOption[]>([]);
   const [availableBusinesses, setAvailableBusinesses] = useState<BusinessOption[]>([]);
   const [catalogTabs, setCatalogTabs] = useState<ConfigCenterCatalogTab[]>([]);
@@ -530,9 +527,8 @@ export default function Users() {
 
   useEffect(() => {
     let active = true;
-    const fallbackModules = buildAvailableModules(t);
 
-    setAvailableModules(fallbackModules);
+    setAvailableModules([]);
     setIsLoading(true);
     setLoadError('');
 
@@ -577,6 +573,7 @@ export default function Users() {
         if (!active) {
           return;
         }
+        setAvailableModules([]);
         setLoadError(error instanceof Error ? error.message : usersCopy.errors.load);
       })
       .finally(() => {
@@ -1985,22 +1982,6 @@ export default function Users() {
       </ConfirmDeleteDialog>
     </div>
   );
-}
-
-function buildAvailableModules(t: any): AvailableModule[] {
-  return buildDefaultModuleCatalog(t).map((module) => ({
-    id: module.route,
-    slug: module.slug,
-    name: module.title,
-    emoji: module.emoji,
-    color: module.color,
-    category: module.category,
-    lifecycleStatus: 'released',
-    accessModel: 'module',
-    assignable: true,
-    entitled: true,
-    description: '',
-  }));
 }
 
 function mapCatalogModule(module: ConfigCenterCatalogModule, t: any): AvailableModule | null {

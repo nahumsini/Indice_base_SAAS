@@ -70,7 +70,7 @@ public class StorageQuotaService {
         if (properties.isEnforcementEnabled()
                 && saturatingAdd(snapshot.usedAndReservedBytes(), declaredBytes) > snapshot.limitBytes()) {
             throw new StorageQuotaExceededException(
-                "The company storage limit has been reached. Add another 5 GB block before uploading this file.",
+                "The company storage limit has been reached. Add another storage block before uploading this file.",
                 snapshot
             );
         }

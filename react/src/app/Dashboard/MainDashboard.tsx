@@ -15,6 +15,7 @@ import { OperationalJourney } from "./components/OperationalJourney";
 import { OperationalModulesSection } from "./components/OperationalModulesSection";
 import {
   buildDashboardAvailableKpis,
+  dashboardKpiModuleRouteById,
   defaultDashboardKpiIds,
 } from "./dashboardData";
 import { useDashboardLiveKpis } from "./hooks/useDashboardLiveKpis";
@@ -73,13 +74,20 @@ export function MainDashboard({
   };
 
   const liveKpiDataMap = useDashboardLiveKpis(copy, currentLanguage.code);
+  const accessibleModuleRoutes = useMemo(
+    () => new Set(availableModules.map((module) => module.route)),
+    [availableModules],
+  );
   const kpiData = useMemo(
     () =>
-      selectedKPIIds.flatMap((id) => {
+      selectedKPIIds.filter((id) => {
+        const moduleRoute = dashboardKpiModuleRouteById[id];
+        return !moduleRoute || accessibleModuleRoutes.has(moduleRoute);
+      }).flatMap((id) => {
         const kpi = liveKpiDataMap[id];
         return kpi ? [{ ...kpi, id }] : [];
       }),
-    [liveKpiDataMap, selectedKPIIds],
+    [accessibleModuleRoutes, liveKpiDataMap, selectedKPIIds],
   );
   const availableKPIs = useMemo(
     () =>
@@ -94,8 +102,11 @@ export function MainDashboard({
         maintenance: t.modules.mantenimiento,
         invoicing: t.modules.facturacion,
         workClimate: t.modules.climaLaboral,
+      }).filter((kpi) => {
+        const moduleRoute = dashboardKpiModuleRouteById[kpi.id];
+        return !moduleRoute || accessibleModuleRoutes.has(moduleRoute);
       }),
-    [copy, t],
+    [accessibleModuleRoutes, copy, t],
   );
 
   const mainModules = useMemo(

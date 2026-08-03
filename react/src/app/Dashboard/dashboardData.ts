@@ -1,4 +1,5 @@
 import type { KPIItem } from '../components/KPIConfiguration';
+import type { PageId } from '../config/navigation';
 import type { MainDashboardTranslations } from './translations';
 
 export interface DashboardKpiCardData {
@@ -57,6 +58,28 @@ const liveDashboardKpiIds = new Set<string>([
   'taskCompletionRate',
   'overdueTasks',
 ]);
+
+export const dashboardKpiModuleRouteById: Readonly<Record<string, PageId>> = {
+  weeklyRevenue: 'sales',
+  monthlyRevenue: 'sales',
+  averageTicket: 'sales',
+  salesConversion: 'sales',
+  activeClients: 'sales',
+  monthlyExpenses: 'expenses',
+  pendingExpenses: 'expenses',
+  overdueExpenses: 'expenses',
+  budgetAvailable: 'expenses',
+  budgetUtilization: 'expenses',
+  cashDue7Days: 'expenses',
+  activeEmployees: 'human-resources',
+  newHires: 'human-resources',
+  absenteeismRate: 'human-resources',
+  payrollCost: 'human-resources',
+  pendingTasks: 'processes-tasks',
+  completedTasks: 'processes-tasks',
+  taskCompletionRate: 'processes-tasks',
+  overdueTasks: 'processes-tasks',
+};
 
 export function buildDashboardKpiDataMap(copy: MainDashboardTranslations): Record<string, DashboardKpiCardData> {
   const { kpis } = copy;

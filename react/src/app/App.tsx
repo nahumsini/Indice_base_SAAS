@@ -21,10 +21,11 @@ import {
   type PageId,
 } from './config/navigation';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
+import { useLearningModePreferences } from './hooks/useLearningModePreferences';
 import { dashboardApi } from './api/dashboard';
 import { authApi } from './api/auth';
 import type { AuthSessionResponse } from './api/auth.types';
-import { buildDefaultModuleCatalog, FRONTEND_OWNED_BASIC_MODULE_ROUTES, routeForBackendSlug } from './config/moduleCatalog';
+import { routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
 import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
 import { allowedModuleTabIds, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
@@ -396,16 +397,21 @@ export default function App() {
   const { t } = useLanguage();
   const { pathname, state } = location;
   const { pageId, '*': wildcardPath } = useParams();
-  const [learningModeActive, setLearningModeActive] = useLocalStorageState('indice.app.learningModeActive', true);
-  const [learningModeVisible, setLearningModeVisible] = useLocalStorageState('indice.app.learningModeVisible', true);
-  const [learningStep, setLearningStep] = useLocalStorageState('indice.app.learningStep', 0);
+  const [sessionTabAccess, setSessionTabAccess] = useState<AuthSessionResponse | null>();
+  const {
+    learningModeActive,
+    learningModeVisible,
+    learningStep,
+    setLearningModeActive,
+    setLearningModeVisible,
+    setLearningStep,
+  } = useLearningModePreferences(sessionTabAccess);
   const [darkMode, setDarkMode] = useLocalStorageState('indice.app.darkMode', false);
   const [successToastMessage, setSuccessToastMessage] = useState('');
   const [isModuleNavigationLoading, setIsModuleNavigationLoading] = useState(false);
   const [allowedModuleRoutes, setAllowedModuleRoutes] = useState<Set<PageId> | null>(null);
   const [isModuleAccessLoaded, setIsModuleAccessLoaded] = useState(false);
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionSessionInfo>(null);
-  const [sessionTabAccess, setSessionTabAccess] = useState<AuthSessionResponse | null>();
   const moduleNavigationTimeoutRef = useRef<number | null>(null);
   const moduleNavigationAnimationFrameCleanupRef = useRef<(() => void) | null>(null);
   const moduleNavigationStartedAtRef = useRef(0);
@@ -538,32 +544,16 @@ export default function App() {
             routes.add(route);
           }
         }
-        for (const route of FRONTEND_OWNED_BASIC_MODULE_ROUTES) {
-          routes.add(route);
-        }
         if (isAdminAccessRole(session?.user.role)) {
           routes.add('kiosk-center');
           routes.add('kiosk-management');
         }
-        if (routes.size === 0 && isAdminAccessRole(session?.user.role)) {
-          for (const module of buildDefaultModuleCatalog(t)) {
-            routes.add(module.route);
-          }
-        }
         setAllowedModuleRoutes(routes);
       } catch {
         if (active) {
-          const routes = new Set<PageId>();
-          if (isAdminAccessRole(session?.user.role)) {
-            for (const module of buildDefaultModuleCatalog(t)) {
-              routes.add(module.route);
-            }
-          }
-          if (isAdminAccessRole(session?.user.role)) {
-            routes.add('kiosk-center');
-            routes.add('kiosk-management');
-          }
-          setAllowedModuleRoutes(routes);
+          // Fail closed. The backend registry is the source of truth for
+          // global availability, company assignment, and entitlements.
+          setAllowedModuleRoutes(new Set<PageId>());
         }
       } finally {
         if (active) {

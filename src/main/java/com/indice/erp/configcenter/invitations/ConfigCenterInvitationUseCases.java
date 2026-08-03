@@ -282,14 +282,22 @@ public abstract class ConfigCenterInvitationUseCases extends ConfigCenterUserAcc
     }
 
     private void ensureInvitationHasRequiredAccess(com.indice.erp.configcenter.support.InvitationRecord invitation) {
-        if (invitation.unitId() == null || invitation.businessId() == null) {
-            throw new IllegalArgumentException("Invitation is missing business unit or business access.");
-        }
+        var requiresTabRows = invitation.moduleSlugs() != null
+            && invitation.moduleSlugs().stream().anyMatch(MODULES_WITH_TABS::contains);
+        var hasRequiredTabRows = !requiresTabRows
+            || tabPermissionAccess.hasInvitationTabPermissionRows(invitation.id());
+        validateInvitationPermissions(invitation, hasRequiredTabRows);
+    }
+
+    static void validateInvitationPermissions(
+        com.indice.erp.configcenter.support.InvitationRecord invitation,
+        boolean hasRequiredTabRows
+    ) {
         if (invitation.moduleSlugs() == null || invitation.moduleSlugs().isEmpty()) {
             throw new IllegalArgumentException("Invitation is missing module permissions.");
         }
         var requiresTabRows = invitation.moduleSlugs().stream().anyMatch(MODULES_WITH_TABS::contains);
-        if (requiresTabRows && !tabPermissionAccess.hasInvitationTabPermissionRows(invitation.id())) {
+        if (requiresTabRows && !hasRequiredTabRows) {
             throw new IllegalArgumentException("Invitation is missing tab permissions.");
         }
     }

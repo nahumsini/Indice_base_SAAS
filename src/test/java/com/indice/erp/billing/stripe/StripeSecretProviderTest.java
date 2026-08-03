@@ -14,7 +14,7 @@ class StripeSecretProviderTest {
     Path tempDir;
 
     @Test
-    void remainsUnavailableUntilExplicitlyEnabledInTestMode() {
+    void remainsUnavailableUntilExplicitlyEnabledWithAKnownMode() {
         var properties = new StripePhaseTwoProperties();
         properties.setSecretKey("sk_test_safe");
         var provider = new StripeSecretProvider(properties);
@@ -24,14 +24,14 @@ class StripeSecretProviderTest {
             .hasMessageContaining("disabled");
 
         properties.setEnabled(true);
-        properties.setMode("live");
+        properties.setMode("unexpected");
         assertThatThrownBy(provider::secretKey)
             .isInstanceOf(StripePhaseTwoUnavailableException.class)
-            .hasMessageContaining("test mode");
+            .hasMessageContaining("test or live");
     }
 
     @Test
-    void rejectsLiveKeysAndPrefersMountedSecretFiles() throws Exception {
+    void requiresKeyModeAlignmentAndPrefersMountedSecretFiles() throws Exception {
         var keyFile = tempDir.resolve("stripe-key");
         var webhookFile = tempDir.resolve("stripe-webhook");
         Files.writeString(keyFile, "sk_test_from_file\n");
@@ -52,6 +52,17 @@ class StripeSecretProviderTest {
         properties.setSecretKeyFile("");
         assertThatThrownBy(provider::secretKey)
             .isInstanceOf(StripePhaseTwoUnavailableException.class)
-            .hasMessageContaining("test secret key");
+            .hasMessageContaining("does not match");
+
+        properties.setMode("live");
+        assertThat(provider.secretKey()).isEqualTo("sk_live_must_not_be_used");
+
+        properties.setSecretKey("rk_live_restricted");
+        assertThat(provider.secretKey()).isEqualTo("rk_live_restricted");
+
+        properties.setMode("test");
+        assertThatThrownBy(provider::secretKey)
+            .isInstanceOf(StripePhaseTwoUnavailableException.class)
+            .hasMessageContaining("does not match");
     }
 }

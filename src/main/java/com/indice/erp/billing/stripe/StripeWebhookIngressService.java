@@ -52,8 +52,10 @@ public class StripeWebhookIngressService {
         var eventId = requiredText(root, "id");
         var eventType = requiredText(root, "type");
         var livemode = root.path("livemode").asBoolean(false);
-        if (livemode) {
-            throw new StripeWebhookSignatureException("Live-mode Stripe events are rejected during phase two.", null);
+        if (livemode != secrets.isLiveMode()) {
+            throw new StripeWebhookIntegrityException(
+                "Stripe event mode does not match the configured Stripe mode."
+            );
         }
         var object = root.path("data").path("object");
         var created = root.path("created").asLong(0);
@@ -63,7 +65,7 @@ public class StripeWebhookIngressService {
         var result = repository.ingest(new StripeWebhookEnvelope(
             eventId,
             eventType,
-            false,
+            livemode,
             text(root, "api_version"),
             text(object, "id"),
             text(object, "object"),

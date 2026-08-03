@@ -44,12 +44,6 @@ const basicModuleOperationalOrderIndex = new Map<PageId, number>(
   BASIC_MODULE_OPERATIONAL_ORDER.map((route, index) => [route, index] as const),
 );
 
-export const FRONTEND_OWNED_BASIC_MODULE_ROUTES: readonly PageId[] = [
-  'inventory',
-  'receivables',
-  'kiosk-center',
-];
-
 const moduleMetaBySlug: Record<
   string,
   {
@@ -372,7 +366,7 @@ export function mergeDashboardModules(
   const fallbackOrder = new Map(
     fallbackModules.map((module, index) => [module.id, index] as const),
   );
-  const includeMissingFallbacks = options.includeMissingFallbacks ?? true;
+  const includeMissingFallbacks = options.includeMissingFallbacks ?? false;
 
   for (const module of apiModules) {
     merged.set(module.id, module);
