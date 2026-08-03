@@ -390,7 +390,35 @@ rama `feature/nuevo-trabajo-2026-08-02`.
   la certificación se realizó contra las APIs públicas, Stripe TEST, la base de
   datos aislada y los artefactos que ejecuta Docker.
 
-## 10. Rollback de staging
+## 10. Invitaciones corporativas y experiencia de acceso
+
+Versión desplegada en staging: `5c9e6a83`.
+
+- Se corrigió la aceptación de invitaciones corporativas y por unidad. Estos
+  alcances no requieren un `business_id`; continúan siendo obligatorios los
+  módulos y los permisos de pestaña correspondientes.
+- La invitación usada para validar el despliegue permaneció pendiente y no se
+  consumió durante las comprobaciones técnicas.
+- La pantalla pública de invitación usa el logotipo oficial, colores, rail de
+  cuatro pilares, tipografía, espaciado, controles de idioma y jerarquía visual
+  de Índice. También se comprobó en presentación compacta.
+- Backend y frontend ejecutan las imágenes
+  `indice-erp-backend:apptest-5c9e6a83` e
+  `indice-erp-web:apptest-5c9e6a83`.
+- El respaldo previo está en
+  `/root/indice-apptest/backups/20260803T051059Z-invitation` e incluye base de
+  datos, entorno, fuente anterior e inventario de contenedores.
+- Pasaron las pruebas dirigidas de invitaciones, la suite completa de backend,
+  las regresiones de frontend, typecheck y build. El bundle servido por
+  `apptest` coincide exactamente con el artefacto probado.
+- Salud de API, web, MySQL y MinIO permaneció correcta. Las imágenes e
+  identificadores de los contenedores de producción no cambiaron.
+
+Las imágenes anteriores de staging permanecen etiquetadas como
+`apptest-rollback-invitation` para una reversión inmediata sin reconstruir
+artefactos.
+
+## 11. Rollback de staging
 
 1. Guardar copia del archivo secreto, Compose y configuración Apache antes de cada cambio.
 2. Reapuntar `apptest.indiceapp.com` al puerto anterior si el smoke test falla.
