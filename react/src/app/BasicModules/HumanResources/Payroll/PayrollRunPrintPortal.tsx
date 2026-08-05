@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { buildDocumentFileName } from '../../shared/print/documentFileName';
 import {
   PayrollRunPdfDocument,
   type PayrollRunPdfDocumentProps,
@@ -13,6 +14,19 @@ type PayrollRunPrintPortalProps = {
 
 const PRINT_HOST_CLASS = 'bdpdf-print-host';
 const PRINT_HOST_ID = 'bdpdf-print-host-payroll-run';
+
+const waitForPrintImages = async (host: HTMLElement) => {
+  const pendingImages = Array.from(host.querySelectorAll('img')).filter((image) => !image.complete);
+  if (pendingImages.length === 0) return;
+
+  await Promise.race([
+    Promise.all(pendingImages.map((image) => new Promise<void>((resolve) => {
+      image.addEventListener('load', () => resolve(), { once: true });
+      image.addEventListener('error', () => resolve(), { once: true });
+    }))),
+    new Promise<void>((resolve) => window.setTimeout(resolve, 1500)),
+  ]);
+};
 
 export function PayrollRunPrintPortal({
   job,
@@ -49,21 +63,37 @@ export function PayrollRunPrintPortal({
     }
 
     hasTriggeredRef.current = true;
+    const originalTitle = document.title;
+    const period = `${job.detail.run.period_start_date}_${job.detail.run.period_end_date}`;
+    document.title = buildDocumentFileName({
+      documentType: job.lineId === undefined ? 'payroll-run' : 'payroll-breakdown',
+      identifier: job.lineId === undefined
+        ? job.reportId
+        : `${job.reportId}-L${job.lineId}`,
+      period,
+      printedAt: job.generatedAt,
+    }).replace(/\.pdf$/i, '');
 
     const handleAfterPrint = () => {
       hasTriggeredRef.current = false;
+      document.title = originalTitle;
       onComplete();
     };
 
     window.addEventListener('afterprint', handleAfterPrint, { once: true });
 
+    let cancelled = false;
     const triggerId = window.setTimeout(() => {
-      window.print();
+      void waitForPrintImages(host).then(() => {
+        if (!cancelled) window.print();
+      });
     }, 80);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(triggerId);
       window.removeEventListener('afterprint', handleAfterPrint);
+      document.title = originalTitle;
     };
   }, [host, job, onComplete]);
 

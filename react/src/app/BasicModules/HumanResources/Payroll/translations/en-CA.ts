@@ -628,8 +628,21 @@ export const enCA = {
   header: {
     title: 'Payroll Operations',
     subtitle: 'Review, approve, and execute payroll runs across your workforce structure and jurisdictions.',
+    createRun: 'Create payroll run',
     regenerateRuns: 'Regenerate payroll',
     preferences: 'Preferences',
+  },
+  createRunDialog: {
+    title: 'Create payroll run',
+    description: 'Choose the payroll frequency, organization view, and first day of the period.',
+    frequency: 'Pay frequency',
+    grouping: 'Organization view',
+    startDate: 'Period start',
+    endDateHint: 'The end date is calculated from the configured payroll calendar.',
+    cohortHint: 'Countries, jurisdictions, currencies, and pay frequencies are always separated automatically.',
+    cancel: 'Cancel',
+    create: 'Create run',
+    creating: 'Creating run',
   },
   filterBar: {
     title: 'Filters',
@@ -720,6 +733,9 @@ export const enCA = {
     openDetails: 'Open details',
     exportCsv: 'Export CSV',
     cancel: 'Cancel',
+    cancelTitle: 'Cancel payroll run?',
+    cancelDescription: 'The draft or processed run will be closed and cannot continue to approval.',
+    confirmCancel: 'Cancel run',
   },
   editRun: {
     noRows: 'No HR users available for this run.',

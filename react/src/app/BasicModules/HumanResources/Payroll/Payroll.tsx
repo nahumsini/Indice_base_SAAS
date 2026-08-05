@@ -28,6 +28,16 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../components/ui/alert-dialog';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { Skeleton } from '../../../components/ui/skeleton';
@@ -57,6 +67,7 @@ import {
   type PayrollManualItemPayload,
   type PayrollOverviewResponse,
   type PayrollPreferences,
+  type PayrollCreateRunsPayload,
   type PayrollRunDetailResponse,
   type PayrollRunLine,
   type PayrollRunSummary,
@@ -71,6 +82,7 @@ import {
   type BusinessExchangeRatesPerUsd,
 } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { usePayrollTranslations } from './hooks/usePayrollTranslations';
 import type { PayrollTranslations } from './translations';
 import {
@@ -80,9 +92,15 @@ import type { PayrollRunPdfDocumentProps } from './PayrollRunPdfDocument';
 import { SelectField, DateField } from './components/PayrollFormFields';
 import { DetailMetric } from './components/DetailMetric';
 import { PayrollHeaderBar } from './components/PayrollHeaderBar';
+import { PayrollCreateRunDialog } from './components/PayrollCreateRunDialog';
 import { PayrollOperationsPanel } from './components/PayrollOperationsPanel';
 import { PayrollRunActionsMenu } from './components/PayrollRunActionsMenu';
 import { PayrollSetupGuide } from './components/PayrollSetupGuide';
+import {
+  arePayrollLineDraftsEqual,
+  buildPayrollLineDraft,
+  PayrollRunWorkspaceDialog,
+} from './components/payroll-run-workspace';
 import { StandardPaginationFooter, StandardSortIcon } from '../shared/StandardTableControls';
 import { HrMobileDataCard } from '../shared/HrMobileDataCard';
 import {
@@ -93,6 +111,12 @@ import {
 } from './utils/payrollGrouping';
 
 const PAYROLL_PRINT_REPORT_ID_PREFIX = 'IDX-PR';
+const localDateInputValue = () => {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${today.getFullYear()}-${month}-${day}`;
+};
 const payrollRateFieldKeys = [
   'isr_rate',
   'imss_user_rate',
@@ -578,6 +602,7 @@ const toErrorMessage = (error: unknown, copy: PayrollCopy) => {
 type PayrollBusyKind =
   | 'refresh'
   | 'open-run'
+  | 'create-run'
   | 'save-preferences'
   | 'regenerate-runs'
   | 'save-line'
@@ -644,6 +669,7 @@ export default function Payroll() {
   const { currentLanguage } = useLanguage();
   const copy = usePayrollTranslations();
   const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
 
   const [overview, setOverview] = useState<PayrollOverviewResponse | null>(null);
   const [runs, setRuns] = useState<PayrollRunSummary[]>([]);
@@ -674,12 +700,20 @@ export default function Payroll() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isPreferencesDialogOpen, setIsPreferencesDialogOpen] = useState(false);
+  const [isCreateRunDialogOpen, setIsCreateRunDialogOpen] = useState(false);
+  const [runToCancel, setRunToCancel] = useState<PayrollRunSummary | null>(null);
+  const [resumeRunDialogAfterCancel, setResumeRunDialogAfterCancel] = useState(false);
   const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
   const [isGovernmentReportingDialogOpen, setIsGovernmentReportingDialogOpen] = useState(false);
   const [isColombiaSetupDialogOpen, setIsColombiaSetupDialogOpen] = useState(false);
   const [printJob, setPrintJob] = useState<PayrollRunPdfDocumentProps | null>(null);
   const [runDialogNotice, setRunDialogNotice] = useState<PayrollDialogNotice | null>(null);
   const [preferencesForm, setPreferencesForm] = useState<PayrollPreferences>(defaultPayrollPreferences);
+  const [createRunForm, setCreateRunForm] = useState<PayrollCreateRunsPayload>(() => ({
+    pay_period: 'weekly',
+    grouping_mode: 'single',
+    period_start_date: localDateInputValue(),
+  }));
   const [filters, setFilters] = useState({
     period_range: 'all_year',
     period_from: '',
@@ -702,15 +736,19 @@ export default function Payroll() {
     column: string;
     direction: 'asc' | 'desc';
   } | null>(null);
-  const [lineDraft, setLineDraft] = useState<PayrollLineDraft>({
-    payroll_treatment: 'fiscal_payroll',
-    include_in_fiscal: true,
-    notes: '',
-    manual_items: [],
-  });
+  const [lineDraftsByLineId, setLineDraftsByLineId] = useState<Record<number, PayrollLineDraft>>({});
 
   const isSaving = busyState !== null;
   const activeBusyKind = busyState?.kind ?? null;
+  const capabilities = overview?.capabilities ?? {
+    can_prepare: false,
+    can_approve: false,
+    can_pay: false,
+    can_cancel: false,
+    can_configure: false,
+    can_manage_reporting: false,
+    can_override_separation_of_duties: false,
+  };
   const unitsById = useMemo(
     () => new Map(units.map((unit) => [String(unit.id), unit.name])),
     [units],
@@ -771,6 +809,10 @@ export default function Payroll() {
 
       setOverview(overviewResponse);
       setPreferencesForm(normalizePayrollPreferences(overviewResponse.preferences));
+      setCreateRunForm((current) => ({
+        ...current,
+        grouping_mode: overviewResponse.preferences.grouping_mode,
+      }));
       setRuns(runsResponse.items);
       setJurisdictionsByRunId({});
       setUnits(unitsResponse);
@@ -800,29 +842,28 @@ export default function Payroll() {
     () => selectedRunDetail?.lines.find((line) => line.id === selectedLineId) ?? null,
     [selectedLineId, selectedRunDetail?.lines],
   );
+  const selectedLineDraft = selectedLine
+    ? lineDraftsByLineId[selectedLine.id] ?? buildPayrollLineDraft(selectedLine)
+    : null;
+  const dirtyLineIds = useMemo(() => new Set(
+    (selectedRunDetail?.lines ?? [])
+      .filter((line) => {
+        const draft = lineDraftsByLineId[line.id];
+        return draft ? !arePayrollLineDraftsEqual(draft, buildPayrollLineDraft(line)) : false;
+      })
+      .map((line) => line.id),
+  ), [lineDraftsByLineId, selectedRunDetail?.lines]);
 
-  useEffect(() => {
-    if (!selectedLine) {
-      return;
-    }
-    const payrollTreatment = normalizePayrollTreatmentValue(
-      selectedLine.payroll_treatment,
-      selectedLine.include_in_fiscal,
-    );
+  const changeSelectedLineDraft = (draft: PayrollLineDraft) => {
+    if (!selectedLine) return;
+    setLineDraftsByLineId((current) => ({ ...current, [selectedLine.id]: draft }));
+  };
 
-    setLineDraft({
-      payroll_treatment: payrollTreatment,
-      include_in_fiscal: includeFiscalForPayrollTreatment(payrollTreatment),
-      notes: selectedLine.notes || '',
-      manual_items: selectedLine.items
-        .filter((item) => item.source_type === 'manual')
-        .map((item) => ({
-          category: item.category,
-          label: item.label,
-          amount: item.amount,
-        })),
-    });
-  }, [selectedLine]);
+  const discardRunLineDrafts = () => {
+    setLineDraftsByLineId(Object.fromEntries(
+      (selectedRunDetail?.lines ?? []).map((line) => [line.id, buildPayrollLineDraft(line)]),
+    ));
+  };
 
   const runBusyTask = async <T,>(
     nextBusyState: PayrollBusyState,
@@ -839,7 +880,8 @@ export default function Payroll() {
     }
   };
 
-  const buildPrintJob = (detail: PayrollRunDetailResponse): PayrollRunPdfDocumentProps => ({
+  const buildPrintJob = (detail: PayrollRunDetailResponse, lineId?: number): PayrollRunPdfDocumentProps => ({
+    companyIdentity: companyPrintIdentity,
     detail,
     preferences: overview?.preferences ?? preferencesForm,
     title: `${copy.title} ${detail.run.grouping_label || copy.groupingModes[detail.run.grouping_mode]}`,
@@ -851,11 +893,15 @@ export default function Payroll() {
     groupingLabel: detail.run.grouping_label || copy.groupingModes[detail.run.grouping_mode],
     payPeriodLabel: copy.frequencies[detail.run.pay_period],
     copy: copy.pdf,
+    lineId,
   });
 
   const fetchRunDetail = async (runId: number) => {
     const detail = await humanResourcesApi.getPayrollRun(runId);
     setSelectedRunDetail(detail);
+    setLineDraftsByLineId(Object.fromEntries(
+      detail.lines.map((line) => [line.id, buildPayrollLineDraft(line)]),
+    ));
     setSelectedLineId((current) => (
       current && detail.lines.some((line) => line.id === current)
         ? current
@@ -889,6 +935,7 @@ export default function Payroll() {
       }, async () => {
         const reportingDetail = await humanResourcesApi.listPayrollGovernmentReportingSnapshots(runId);
         setGovernmentReportingDetail(reportingDetail);
+        setIsRunDialogOpen(false);
         setIsGovernmentReportingDialogOpen(true);
       }, 500);
     } catch (error) {
@@ -933,6 +980,7 @@ export default function Payroll() {
         description: 'Leyendo configuración, perfil fiscal y novedades del colaborador.',
       }, async () => {
         await loadColombiaSetup(run, line);
+        setIsRunDialogOpen(false);
         setIsColombiaSetupDialogOpen(true);
       }, 500);
     } catch (error) {
@@ -1049,6 +1097,7 @@ export default function Payroll() {
         const response = await humanResourcesApi.regeneratePayrollRuns();
         setSelectedRunDetail(null);
         setSelectedLineId(null);
+        setLineDraftsByLineId({});
         setRunDialogNotice(null);
         setIsRunDialogOpen(false);
         setSuccessMessage(
@@ -1063,8 +1112,54 @@ export default function Payroll() {
     }
   };
 
+  const handleCreateRun = async () => {
+    try {
+      await runBusyTask({
+        kind: 'create-run',
+        title: copy.busy.generateTitle,
+        description: copy.busy.generateDescription,
+      }, async () => {
+        await humanResourcesApi.createPayrollRuns(createRunForm);
+        setIsCreateRunDialogOpen(false);
+        setSuccessMessage(copy.success.runsCreated);
+        await loadPayroll(filters, { background: true });
+      });
+    } catch (error) {
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const handleCancelRun = async (run: PayrollRunSummary) => {
+    try {
+      await runBusyTask({
+        kind: 'cancel-run',
+        title: copy.busy.cancelTitle,
+        description: copy.busy.cancelDescription,
+      }, async () => {
+        await humanResourcesApi.cancelPayrollRun(run.id);
+        setRunToCancel(null);
+        if (selectedRunDetail?.run.id === run.id) {
+          setIsRunDialogOpen(false);
+          setSelectedRunDetail(null);
+          setSelectedLineId(null);
+          setLineDraftsByLineId({});
+        }
+        setResumeRunDialogAfterCancel(false);
+        setSuccessMessage(copy.success.cancelled);
+        await loadPayroll(filters, { background: true });
+      });
+    } catch (error) {
+      setRunToCancel(null);
+      if (resumeRunDialogAfterCancel && selectedRunDetail?.run.id === run.id) {
+        setIsRunDialogOpen(true);
+      }
+      setResumeRunDialogAfterCancel(false);
+      setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
   const handleSaveLine = async () => {
-    if (!selectedRunDetail || !selectedLine) {
+    if (!selectedRunDetail || !selectedLine || !selectedLineDraft) {
       return;
     }
 
@@ -1075,11 +1170,20 @@ export default function Payroll() {
         title: copy.busy.saveLineTitle,
         description: copy.busy.saveLineDescription,
       }, async () => {
-        await humanResourcesApi.updatePayrollRunLine(selectedRunDetail.run.id, selectedLine.id, lineDraft);
-        setIsRunDialogOpen(false);
-        setSelectedRunDetail(null);
-        setSelectedLineId(null);
-        setRunDialogNotice(null);
+        const updatedDetail = await humanResourcesApi.updatePayrollRunLine(
+          selectedRunDetail.run.id,
+          selectedLine.id,
+          selectedLineDraft,
+        );
+        setSelectedRunDetail(updatedDetail);
+        const updatedLine = updatedDetail.lines.find((line) => line.id === selectedLine.id);
+        if (updatedLine) {
+          setLineDraftsByLineId((current) => ({
+            ...current,
+            [updatedLine.id]: buildPayrollLineDraft(updatedLine),
+          }));
+        }
+        setRunDialogNotice({ tone: 'success', message: copy.success.lineSaved });
         setSuccessMessage(copy.success.lineSaved);
         await loadPayroll(filters, { background: true });
       });
@@ -1147,6 +1251,13 @@ export default function Payroll() {
         return;
       }
 
+      if (!isCompanyPrintIdentityReady) {
+        setErrorMessage(currentLanguage.code.toLowerCase().startsWith('es')
+          ? 'La identidad de la empresa todavía se está preparando para impresión.'
+          : 'The company identity is still being prepared for printing.');
+        return;
+      }
+
       await runBusyTask({
         kind: 'download-pdf',
         title: copy.busy.pdfTitle,
@@ -1160,6 +1271,31 @@ export default function Payroll() {
       }, 650);
     } catch (error) {
       setErrorMessage(toErrorMessage(error, copy));
+    }
+  };
+
+  const handlePrintLine = async (line: PayrollRunLine) => {
+    if (!selectedRunDetail) return;
+    if (!isCompanyPrintIdentityReady) {
+      setRunDialogNotice({
+        tone: 'error',
+        message: currentLanguage.code.toLowerCase().startsWith('es')
+          ? 'La identidad de la empresa todavía se está preparando para impresión.'
+          : 'The company identity is still being prepared for printing.',
+      });
+      return;
+    }
+
+    try {
+      await runBusyTask({
+        kind: 'download-pdf',
+        title: copy.busy.pdfTitle,
+        description: copy.busy.pdfDescription,
+      }, async () => {
+        setPrintJob(buildPrintJob(selectedRunDetail, line.id));
+      }, 450);
+    } catch (error) {
+      setRunDialogNotice({ tone: 'error', message: toErrorMessage(error, copy) });
     }
   };
 
@@ -1557,6 +1693,9 @@ export default function Payroll() {
         copy={copy.header}
         isBusy={isSaving}
         isRegenerating={activeBusyKind === 'regenerate-runs'}
+        canPrepare={capabilities.can_prepare}
+        canConfigure={capabilities.can_configure}
+        onCreateRun={() => setIsCreateRunDialogOpen(true)}
         onRegenerateRuns={() => void handleRegenerateRuns()}
         onOpenPreferences={() => setIsPreferencesDialogOpen(true)}
       />
@@ -1741,10 +1880,15 @@ export default function Payroll() {
                         copy={copy.runActions}
                         run={run}
                         isBusy={isSaving}
+                        canPrepareAction={capabilities.can_prepare}
+                        canApproveAction={capabilities.can_approve}
+                        canPayAction={capabilities.can_pay}
+                        canCancelAction={capabilities.can_cancel}
                         onOpen={() => void openRunDetail(run.id)}
                         onProcess={() => void handleProcessRunFromTable(run)}
                         onApprove={() => void handleApproveRunFromTable(run)}
                         onMarkPaid={() => void handlePayRunFromTable(run)}
+                        onCancel={() => setRunToCancel(run)}
                         onExportPdf={() => void handleDownload('pdf', run)}
                         onExportCsv={() => void handleDownload('csv', run)}
                       />
@@ -1966,10 +2110,15 @@ export default function Payroll() {
                               copy={copy.runActions}
                               run={run}
                               isBusy={isSaving}
+                              canPrepareAction={capabilities.can_prepare}
+                              canApproveAction={capabilities.can_approve}
+                              canPayAction={capabilities.can_pay}
+                              canCancelAction={capabilities.can_cancel}
                               onOpen={() => void openRunDetail(run.id)}
                               onProcess={() => void handleProcessRunFromTable(run)}
                               onApprove={() => void handleApproveRunFromTable(run)}
                               onMarkPaid={() => void handlePayRunFromTable(run)}
+                              onCancel={() => setRunToCancel(run)}
                               onExportPdf={() => void handleDownload('pdf', run)}
                               onExportCsv={() => void handleDownload('csv', run)}
                             />
@@ -2012,6 +2161,54 @@ export default function Payroll() {
         />
       ) : null}
 
+      {isCreateRunDialogOpen ? (
+        <PayrollCreateRunDialog
+          open={isCreateRunDialogOpen}
+          busy={activeBusyKind === 'create-run'}
+          copy={copy.createRunDialog}
+          frequencyLabels={copy.frequencies}
+          groupingLabels={copy.groupingModes}
+          form={createRunForm}
+          onChange={setCreateRunForm}
+          onClose={() => setIsCreateRunDialogOpen(false)}
+          onCreate={() => void handleCreateRun()}
+        />
+      ) : null}
+
+      <AlertDialog
+        open={Boolean(runToCancel)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRunToCancel(null);
+            if (resumeRunDialogAfterCancel && selectedRunDetail) {
+              setIsRunDialogOpen(true);
+            }
+            setResumeRunDialogAfterCancel(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-medium">{copy.runActions.cancelTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{copy.runActions.cancelDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSaving}>{copy.labels.close}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSaving || !runToCancel}
+              className="bg-rose-600 text-white hover:bg-rose-700"
+              onClick={(event) => {
+                event.preventDefault();
+                if (runToCancel) void handleCancelRun(runToCancel);
+              }}
+            >
+              {activeBusyKind === 'cancel-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+              {copy.runActions.confirmCancel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {isPreferencesDialogOpen ? (
         <PayrollPreferencesDialog
           copy={copy}
@@ -2024,8 +2221,8 @@ export default function Payroll() {
         />
       ) : null}
 
-      {isRunDialogOpen ? (
-        <PayrollRunDialog
+      {selectedRunDetail ? (
+        <PayrollRunWorkspaceDialog
           copy={copy}
           locale={currentLanguage.code}
           isOpen={isRunDialogOpen}
@@ -2033,23 +2230,43 @@ export default function Payroll() {
           activeBusyKind={activeBusyKind}
           notice={runDialogNotice}
           detail={selectedRunDetail}
+          canPrepareAction={capabilities.can_prepare}
+          canApproveAction={capabilities.can_approve}
+          canPayAction={capabilities.can_pay}
+          canCancelAction={capabilities.can_cancel}
+          canManageReporting={capabilities.can_manage_reporting}
+          canPrint={isCompanyPrintIdentityReady}
+          dirtyLineIds={dirtyLineIds}
           selectedLineId={selectedLineId}
           selectedLine={selectedLine}
-          lineDraft={lineDraft}
+          lineDraft={selectedLineDraft}
           onClose={() => {
             setIsRunDialogOpen(false);
             setRunDialogNotice(null);
+            setSelectedRunDetail(null);
+            setSelectedLineId(null);
+            setLineDraftsByLineId({});
           }}
+          onDiscardDrafts={discardRunLineDrafts}
           onSelectLine={setSelectedLineId}
-          onChangeDraft={setLineDraft}
+          onChangeDraft={changeSelectedLineDraft}
           onSaveLine={() => void handleSaveLine()}
           onProcess={() => void handleRunAction('process')}
           onApprove={() => void handleRunAction('approve')}
           onPay={() => void handleRunAction('pay')}
+          onCancel={(run) => {
+            setResumeRunDialogAfterCancel(true);
+            setIsRunDialogOpen(false);
+            setRunToCancel(run);
+          }}
           onDownloadCsv={(run) => void handleDownload('csv', run)}
           onDownloadPdf={(run) => void handleDownload('pdf', run)}
+          onIncentiveApplied={(detail) => {
+            setSelectedRunDetail(detail);
+            setRunDialogNotice({ tone: 'success', message: copy.success.lineSaved });
+          }}
+          onPrintLine={(line) => void handlePrintLine(line)}
           onOpenGovernmentReporting={(run) => void openGovernmentReporting(run.id)}
-          onOpenColombiaSetup={(run, line) => void openColombiaSetup(run, line)}
         />
       ) : null}
 
@@ -2071,6 +2288,7 @@ export default function Payroll() {
             setIsColombiaSetupDialogOpen(false);
             setColombiaSetupContext(null);
             setColombiaSetupNotice(null);
+            if (selectedRunDetail) setIsRunDialogOpen(true);
           }}
         />
       ) : null}
@@ -2082,6 +2300,7 @@ export default function Payroll() {
           onClose={() => {
             setIsGovernmentReportingDialogOpen(false);
             setGovernmentReportingDetail(null);
+            if (selectedRunDetail) setIsRunDialogOpen(true);
           }}
         />
       ) : null}
@@ -2795,6 +3014,11 @@ function PayrollRunDialog({
   activeBusyKind,
   notice,
   detail,
+  canPrepareAction,
+  canApproveAction,
+  canPayAction,
+  canCancelAction,
+  canManageReporting,
   selectedLineId,
   selectedLine,
   lineDraft,
@@ -2805,6 +3029,7 @@ function PayrollRunDialog({
   onProcess,
   onApprove,
   onPay,
+  onCancel,
   onDownloadCsv,
   onDownloadPdf,
   onOpenGovernmentReporting,
@@ -2817,6 +3042,11 @@ function PayrollRunDialog({
   activeBusyKind: PayrollBusyKind | null;
   notice: PayrollDialogNotice | null;
   detail: PayrollRunDetailResponse | null;
+  canPrepareAction: boolean;
+  canApproveAction: boolean;
+  canPayAction: boolean;
+  canCancelAction: boolean;
+  canManageReporting: boolean;
   selectedLineId: number | null;
   selectedLine: PayrollRunLine | null;
   lineDraft: PayrollLineDraft;
@@ -2827,15 +3057,21 @@ function PayrollRunDialog({
   onProcess: () => void;
   onApprove: () => void;
   onPay: () => void;
+  onCancel: (run: PayrollRunSummary) => void;
   onDownloadCsv: (run: PayrollRunSummary) => void;
   onDownloadPdf: (run: PayrollRunSummary) => void;
   onOpenGovernmentReporting: (run: PayrollRunSummary) => void;
   onOpenColombiaSetup: (run: PayrollRunSummary, line: PayrollRunLine) => void;
 }) {
-  const isDraft = detail?.run.status === 'draft';
-  const canProcess = detail?.run.status === 'draft';
-  const canApprove = detail?.run.status === 'processed';
-  const canPay = detail?.run.status === 'approved';
+  const isDraft = detail?.run.status === 'draft' && canPrepareAction;
+  const canProcess = detail?.run.status === 'draft' && canPrepareAction;
+  const canApprove = detail?.run.status === 'processed' && canApproveAction;
+  const canPay = detail?.run.status === 'approved' && canPayAction;
+  const canCancel = Boolean(
+    detail
+      && canCancelAction
+      && (detail.run.status === 'draft' || detail.run.status === 'processed'),
+  );
   const runCurrency = detail?.run.currency_code || 'USD';
   const selectedLineCurrency = selectedLine?.currency_code || runCurrency;
   const selectedLineHasIncentives = selectedLine?.items.some((item) => item.source_type === 'incentive') ?? false;
@@ -2882,7 +3118,7 @@ function PayrollRunDialog({
             {activeBusyKind === 'download-pdf' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
             {copy.labels.exportPdf}
           </Button>
-          {runHasColombiaFiscalLines ? (
+          {runHasColombiaFiscalLines && canManageReporting ? (
             <Button variant="outline" onClick={() => onOpenGovernmentReporting(detail.run)} disabled={isSaving}>
               {activeBusyKind === 'government-reporting' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
               PILA / DIAN
@@ -2904,6 +3140,12 @@ function PayrollRunDialog({
             <Button onClick={onPay} disabled={isSaving}>
               {activeBusyKind === 'mark-paid' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {copy.labels.pay}
+            </Button>
+          ) : null}
+          {canCancel && detail ? (
+            <Button variant="outline" onClick={() => onCancel(detail.run)} disabled={isSaving} className="text-rose-600">
+              <Ban className="h-4 w-4" />
+              {copy.runActions.cancel}
             </Button>
           ) : null}
           {isDraft ? (

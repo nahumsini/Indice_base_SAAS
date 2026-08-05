@@ -60,6 +60,7 @@ export const zhCA = {
     cancelled: '已取消',
   },
   header: {
+    ...enCA.header,
     title: '薪资运营',
     subtitle: '按组织结构和辖区规则审核并执行薪资批次。',
     regenerateRuns: '重新生成薪资',

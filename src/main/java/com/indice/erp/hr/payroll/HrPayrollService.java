@@ -88,6 +88,7 @@ public class HrPayrollService {
     private final ColombiaPayrollReportingService colombiaPayrollReportingService;
     private final HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService;
     private final ExpenseService expenseService;
+    private final HrPayrollAuthorizationService authorizationService;
 
     public HrPayrollService(
         JdbcTemplate jdbcTemplate,
@@ -100,7 +101,8 @@ public class HrPayrollService {
         PayrollRuleResolver payrollRuleResolver,
         ColombiaPayrollReportingService colombiaPayrollReportingService,
         HrIncentivePayrollSupplyService hrIncentivePayrollSupplyService,
-        ExpenseService expenseService
+        ExpenseService expenseService,
+        HrPayrollAuthorizationService authorizationService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.hrPayrollScopeAccess = hrPayrollScopeAccess;
@@ -113,6 +115,7 @@ public class HrPayrollService {
         this.colombiaPayrollReportingService = colombiaPayrollReportingService;
         this.hrIncentivePayrollSupplyService = hrIncentivePayrollSupplyService;
         this.expenseService = expenseService;
+        this.authorizationService = authorizationService;
     }
 
     public Map<String, Object> overview(long companyId) {
@@ -132,8 +135,8 @@ public class HrPayrollService {
         int approvedCount = 0;
         int paidCount = 0;
         int cancelledCount = 0;
-        BigDecimal totalGross = BigDecimal.ZERO;
-        BigDecimal totalNet = BigDecimal.ZERO;
+        var grossTotalsByCurrency = new LinkedHashMap<String, BigDecimal>();
+        var netTotalsByCurrency = new LinkedHashMap<String, BigDecimal>();
 
         for (var run : runs) {
             switch (run.status()) {
@@ -146,9 +149,22 @@ public class HrPayrollService {
                 }
             }
 
-            totalGross = totalGross.add(run.grossAmount());
-            totalNet = totalNet.add(run.netAmount());
+            if (!"cancelled".equals(run.status())) {
+                for (var signal : loadRunCurrencySignals(run.id())) {
+                    var currency = resolveCurrencyCode(signal.country());
+                    grossTotalsByCurrency.merge(currency, signal.grossAmount(), BigDecimal::add);
+                    netTotalsByCurrency.merge(currency, signal.netAmount(), BigDecimal::add);
+                }
+            }
         }
+
+        var singleCurrency = netTotalsByCurrency.size() == 1;
+        var totalGross = singleCurrency
+            ? grossTotalsByCurrency.values().stream().findFirst().orElse(BigDecimal.ZERO)
+            : BigDecimal.ZERO;
+        var totalNet = singleCurrency
+            ? netTotalsByCurrency.values().stream().findFirst().orElse(BigDecimal.ZERO)
+            : BigDecimal.ZERO;
 
         var summary = new LinkedHashMap<String, Object>();
         summary.put("runs_count", runs.size());
@@ -159,6 +175,9 @@ public class HrPayrollService {
         summary.put("cancelled_count", cancelledCount);
         summary.put("total_gross_amount", scaled(totalGross));
         summary.put("total_net_amount", scaled(totalNet));
+        summary.put("mixed_currency", netTotalsByCurrency.size() > 1);
+        summary.put("gross_totals_by_currency", scaledCurrencyTotals(grossTotalsByCurrency));
+        summary.put("net_totals_by_currency", scaledCurrencyTotals(netTotalsByCurrency));
 
         var body = new LinkedHashMap<String, Object>();
         body.put("summary", summary);
@@ -235,6 +254,7 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> saveColombiaConfig(AuthSessionUser currentUser, Map<String, Object> payload) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.CONFIGURE);
         var current = loadCompanyCountryConfig(currentUser.companyId(), "CO");
         var defaultArlClass = normalizeArlClass(
             parseBigDecimal(payload, "default_arl_class", "defaultArlClass"),
@@ -291,6 +311,7 @@ public class HrPayrollService {
         long userCompanyId,
         Map<String, Object> payload
     ) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         requireHrUserInScope(currentUser, userCompanyId);
         var current = loadEmployeeCountryProfile(currentUser.companyId(), userCompanyId, "CO");
         var contributorType = payloadText(payload, current == null ? "" : current.contributorType(), "contributor_type", "contributorType");
@@ -461,6 +482,7 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> createColombiaNovelty(AuthSessionUser currentUser, Map<String, Object> payload) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         var userCompanyId = parseLong(payload, "user_company_id", "userCompanyId");
         if (userCompanyId == null) {
             throw new IllegalArgumentException("user_company_id is required.");
@@ -525,6 +547,7 @@ public class HrPayrollService {
         long noveltyId,
         Map<String, Object> payload
     ) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         var current = loadColombiaNoveltyInScope(currentUser, noveltyId);
         var noveltyCode = payloadHasAny(payload, "novelty_code", "noveltyCode", "code")
             ? normalizeColombiaNoveltyCode(stringValue(payload, "novelty_code", "noveltyCode", "code"))
@@ -664,6 +687,7 @@ public class HrPayrollService {
         long snapshotId,
         Map<String, Object> payload
     ) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.REPORTING);
         var scope = hrPayrollScopeAccess.resolve(currentUser);
         var snapshot = loadGovernmentReportingSnapshotInScope(currentUser, snapshotId, scope);
         var status = normalizeGovernmentResponseStatus(payloadText(
@@ -888,32 +912,40 @@ public class HrPayrollService {
     }
 
     public Map<String, Object> listRuns(long companyId, Map<String, String> filters) {
-        return listRuns(companyId, filters, HrOperationalScope.corporateOffice(), null);
+        return listRuns(companyId, filters, HrOperationalScope.corporateOffice());
     }
 
     public Map<String, Object> listRuns(AuthSessionUser currentUser, Map<String, String> filters) {
         return listRuns(
             currentUser.companyId(),
             filters,
-            hrPayrollScopeAccess.resolve(currentUser),
-            currentUser.userId()
+            hrPayrollScopeAccess.resolve(currentUser)
         );
     }
 
     private Map<String, Object> listRuns(
         long companyId,
         Map<String, String> filters,
-        HrOperationalScope scope,
-        Long actorUserId
+        HrOperationalScope scope
     ) {
-        ensureAutomaticPayrollRuns(companyId, actorUserId, scope);
-
         var items = loadRuns(companyId, scope).stream()
             .filter((run) -> matchesRunFilters(run, filters))
             .map(this::toRunSummaryMap)
             .toList();
 
         return Map.of("items", items);
+    }
+
+    /**
+     * Serializes run generation per company in the database. Unlike a JVM monitor,
+     * this lock also protects deployments with multiple backend replicas.
+     */
+    private void lockPayrollGeneration(long companyId) {
+        jdbcTemplate.queryForObject(
+            "SELECT id FROM companies WHERE id = ? FOR UPDATE",
+            Long.class,
+            companyId
+        );
     }
 
     @Transactional
@@ -923,6 +955,7 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> createRuns(AuthSessionUser currentUser, Map<String, Object> payload) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         return createRuns(
             currentUser.companyId(),
             currentUser.userId(),
@@ -940,25 +973,34 @@ public class HrPayrollService {
         var preferences = ensurePreferences(companyId);
         var payPeriod = normalizePayPeriod(stringValue(payload, "pay_period"));
         var periodStartDate = parseDate(payload, "period_start_date", "start_date");
-        var periodEndDate = parseDate(payload, "period_end_date", "end_date");
+        var requestedPeriodEndDate = parseDate(payload, "period_end_date", "end_date");
 
-        if (periodStartDate == null || periodEndDate == null) {
-            throw new IllegalArgumentException("period_start_date and period_end_date are required.");
+        if (periodStartDate == null) {
+            throw new IllegalArgumentException("period_start_date is required.");
         }
-        if (periodEndDate.isBefore(periodStartDate)) {
+        if (requestedPeriodEndDate != null && requestedPeriodEndDate.isBefore(periodStartDate)) {
             throw new IllegalArgumentException("period_end_date must be on or after period_start_date.");
+        }
+        var calculatedPeriodEndDate = normalizeRunPeriodEndDate(payPeriod, periodStartDate, preferences);
+        if (requestedPeriodEndDate != null && !requestedPeriodEndDate.equals(calculatedPeriodEndDate)) {
+            throw new IllegalArgumentException(
+                "period_end_date does not match the configured payroll calendar. Expected " + calculatedPeriodEndDate + "."
+            );
         }
 
         var groupingMode = normalizeGroupingMode(stringValue(payload, "grouping_mode"), preferences.groupingMode());
+        lockPayrollGeneration(companyId);
         return createRunsForPeriod(companyId, userId, preferences, payPeriod, periodStartDate, groupingMode, scope);
     }
 
     @Transactional
     public synchronized Map<String, Object> regenerateOpenRuns(AuthSessionUser currentUser) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         var companyId = currentUser.companyId();
         var userId = currentUser.userId();
         var scope = hrPayrollScopeAccess.resolve(currentUser);
         var preferences = ensurePreferences(companyId);
+        lockPayrollGeneration(companyId);
         var runs = loadRuns(companyId, scope);
 
         var regeneratableRuns = runs.stream()
@@ -1018,28 +1060,6 @@ public class HrPayrollService {
             "regenerated_count", regeneratedRuns.size(),
             "skipped_locked_count", skippedLockedCount
         );
-    }
-
-    private synchronized void ensureAutomaticPayrollRuns(long companyId, Long actorUserId, HrOperationalScope scope) {
-        var preferences = ensurePreferences(companyId);
-        var payPeriods = loadEligibleHrUsers(companyId, "", false, scope).stream()
-            .map(PayrollHrUserRow::payPeriod)
-            .map(this::normalizePayPeriod)
-            .distinct()
-            .toList();
-        var today = LocalDate.now();
-
-        for (var payPeriod : payPeriods) {
-            createRunsForPeriod(
-                companyId,
-                actorUserId,
-                preferences,
-                payPeriod,
-                resolveAutomaticPeriodStartDate(payPeriod, today, preferences),
-                preferences.groupingMode(),
-                scope
-            );
-        }
     }
 
     private Map<String, Object> createRunsForPeriod(
@@ -1138,7 +1158,9 @@ public class HrPayrollService {
 
     private Map<String, Object> getRunDetail(long companyId, long runId, HrOperationalScope scope) {
         var run = loadRun(companyId, runId, scope);
-        var lines = loadRunLines(companyId, runId, scope).stream()
+        var runLines = loadRunLines(companyId, runId, scope);
+        var itemsByLineId = loadRunLineItems(runLines.stream().map(PayrollRunLineRow::id).toList());
+        var lines = runLines.stream()
             .map((line) -> {
                 var body = new LinkedHashMap<String, Object>();
                 body.put("id", line.id());
@@ -1193,7 +1215,10 @@ public class HrPayrollService {
                 body.put("calculation_results", line.calculationResults());
                 body.put("rule_snapshot", line.ruleSnapshot());
                 body.put("attendance_warnings", line.attendanceWarnings());
-                body.put("items", loadRunLineItems(line.id()).stream().map(this::toRunLineItemMap).toList());
+                body.put(
+                    "items",
+                    itemsByLineId.getOrDefault(line.id(), List.of()).stream().map(this::toRunLineItemMap).toList()
+                );
                 return body;
             })
             .toList();
@@ -1211,6 +1236,7 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> updateRunLine(AuthSessionUser currentUser, long runId, long lineId, Map<String, Object> payload) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         return updateRunLine(
             currentUser.companyId(),
             runId,
@@ -1312,6 +1338,102 @@ public class HrPayrollService {
         return getRunDetail(companyId, runId, scope);
     }
 
+    public Map<String, Object> listRunLineIncentives(AuthSessionUser currentUser, long runId, long lineId) {
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var run = loadRun(currentUser.companyId(), runId, scope);
+        hrPayrollScopeAccess.requireRunLineInScope(currentUser.companyId(), scope, runId, lineId);
+        var line = loadRunLine(runId, lineId);
+        var currency = isBlank(line.currencyCodeSnapshot())
+            ? resolveCurrencyCode(line.countryCodeSnapshot())
+            : line.currencyCodeSnapshot();
+        var items = hrIncentivePayrollSupplyService.listPayrollLineIncentives(
+            currentUser.companyId(),
+            line.userCompanyId(),
+            line.id(),
+            run.periodStartDate(),
+            run.periodEndDate(),
+            currency
+        );
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("run_status", run.status());
+        body.put("editable", "draft".equals(run.status()) && authorizationService.can(currentUser, HrPayrollAuthorizationService.Action.PREPARE));
+        body.put("items", items);
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> applyRunLineIncentive(
+        AuthSessionUser currentUser,
+        long runId,
+        long lineId,
+        long applicationId
+    ) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
+        var scope = hrPayrollScopeAccess.resolve(currentUser);
+        var run = loadRun(currentUser.companyId(), runId);
+        requireRunStatus(run, "draft");
+        hrPayrollScopeAccess.requireRunLineInScope(currentUser.companyId(), scope, runId, lineId);
+        var line = loadRunLine(runId, lineId);
+        var jurisdiction = resolvePayrollJurisdiction(currentUser.companyId(), line.userCompanyId());
+        var country = payrollRuleResolver.normalizeCountry(
+            isBlank(line.countryCodeSnapshot()) ? jurisdiction.country() : line.countryCodeSnapshot()
+        );
+        var jurisdictionCode = isBlank(line.jurisdictionCodeSnapshot())
+            ? resolvePayrollJurisdictionCode(country, jurisdiction.province())
+            : line.jurisdictionCodeSnapshot();
+        var currency = isBlank(line.currencyCodeSnapshot())
+            ? resolveCurrencyCode(country)
+            : line.currencyCodeSnapshot();
+        var resolved = hrIncentivePayrollSupplyService.claimApprovedApplication(
+            currentUser.companyId(),
+            applicationId,
+            line.userCompanyId(),
+            runId,
+            lineId,
+            run.periodStartDate(),
+            run.periodEndDate(),
+            currency
+        );
+        var adjustment = resolved.adjustment();
+        var itemExists = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM payroll_run_line_items WHERE run_line_id = ? AND code = ? AND source_type = 'incentive'",
+            Integer.class,
+            lineId,
+            adjustment.code()
+        );
+        if (itemExists == null || itemExists == 0) {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO payroll_run_line_items
+                    (run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code, tax_treatment,
+                     taxable, exempt, affects_social_security, affects_employer_cost, legal_classification, calculation_formula,
+                     calculation_base, currency_code, display_order)
+                    VALUES (?, ?, ?, ?, ?, 'incentive', ?, ?, ?, ?, 0, ?, ?, ?, 'approved incentive amount', ?, ?, ?)
+                    """,
+                lineId,
+                adjustment.code(),
+                adjustment.category(),
+                adjustment.label(),
+                scaled(adjustment.amount()),
+                country,
+                jurisdictionCode,
+                adjustment.taxTreatment(),
+                adjustment.taxable(),
+                adjustment.affectsSocialSecurity(),
+                adjustment.affectsEmployerCost(),
+                adjustment.legalClassification(),
+                scaled(adjustment.amount()),
+                adjustment.currency(),
+                900 + Math.toIntExact(Math.min(resolved.applicationId(), 99L))
+            );
+        }
+
+        recomputeRunLineFromStoredItems(lineId, ensurePreferences(currentUser.companyId()));
+        recomputeRunTotals(runId);
+        return getRunDetail(currentUser.companyId(), runId, scope);
+    }
+
     @Transactional
     public Map<String, Object> processRun(long companyId, long userId, long runId) {
         return processRun(companyId, userId, runId, HrOperationalScope.corporateOffice());
@@ -1319,6 +1441,7 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> processRun(AuthSessionUser currentUser, long runId) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PREPARE);
         return processRun(
             currentUser.companyId(),
             currentUser.userId(),
@@ -1327,7 +1450,12 @@ public class HrPayrollService {
         );
     }
 
-    private Map<String, Object> processRun(long companyId, long userId, long runId, HrOperationalScope scope) {
+    private Map<String, Object> processRun(
+        long companyId,
+        long userId,
+        long runId,
+        HrOperationalScope scope
+    ) {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "draft");
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
@@ -1339,23 +1467,33 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> approveRun(long companyId, long userId, long runId) {
-        return approveRun(companyId, userId, runId, HrOperationalScope.corporateOffice());
+        return approveRun(companyId, userId, "root", runId, HrOperationalScope.corporateOffice());
     }
 
     @Transactional
     public Map<String, Object> approveRun(AuthSessionUser currentUser, long runId) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.APPROVE);
         return approveRun(
             currentUser.companyId(),
             currentUser.userId(),
+            currentUser.role(),
             runId,
             hrPayrollScopeAccess.resolve(currentUser)
         );
     }
 
-    private Map<String, Object> approveRun(long companyId, long userId, long runId, HrOperationalScope scope) {
+    private Map<String, Object> approveRun(
+        long companyId,
+        long userId,
+        String actorRole,
+        long runId,
+        HrOperationalScope scope
+    ) {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "processed");
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
+        ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.APPROVE);
+        ensureStatutoryComplianceForApproval(runId);
         ensureColombiaGovernmentReportingReadyForApproval(companyId, runId);
         updateRunStatus(runId, "approved", userId);
         createPayrollPayablesForApprovedRun(companyId, userId, runId);
@@ -1364,23 +1502,32 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> markRunPaid(long companyId, long userId, long runId) {
-        return markRunPaid(companyId, userId, runId, HrOperationalScope.corporateOffice());
+        return markRunPaid(companyId, userId, "root", runId, HrOperationalScope.corporateOffice());
     }
 
     @Transactional
     public Map<String, Object> markRunPaid(AuthSessionUser currentUser, long runId) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.PAY);
         return markRunPaid(
             currentUser.companyId(),
             currentUser.userId(),
+            currentUser.role(),
             runId,
             hrPayrollScopeAccess.resolve(currentUser)
         );
     }
 
-    private Map<String, Object> markRunPaid(long companyId, long userId, long runId, HrOperationalScope scope) {
+    private Map<String, Object> markRunPaid(
+        long companyId,
+        long userId,
+        String actorRole,
+        long runId,
+        HrOperationalScope scope
+    ) {
         var run = loadRun(companyId, runId);
         requireRunStatus(run, "approved");
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
+        ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.PAY);
         ensurePayrollAccountsPayableLinesArePaid(companyId, runId);
         updateRunStatus(runId, "paid", userId);
         return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
@@ -1393,6 +1540,7 @@ public class HrPayrollService {
 
     @Transactional
     public Map<String, Object> cancelRun(AuthSessionUser currentUser, long runId) {
+        authorizationService.require(currentUser, HrPayrollAuthorizationService.Action.CANCEL);
         return cancelRun(
             currentUser.companyId(),
             currentUser.userId(),
@@ -1404,8 +1552,10 @@ public class HrPayrollService {
     private Map<String, Object> cancelRun(long companyId, long userId, long runId, HrOperationalScope scope) {
         var run = loadRun(companyId, runId);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
-        if ("paid".equals(run.status())) {
-            throw new IllegalArgumentException("Paid payroll runs cannot be cancelled.");
+        if ("approved".equals(run.status()) || "paid".equals(run.status())) {
+            throw new IllegalArgumentException(
+                "Approved or paid payroll runs cannot be cancelled because they may have linked financial obligations."
+            );
         }
         if ("cancelled".equals(run.status())) {
             throw new IllegalArgumentException("Payroll run is already cancelled.");
@@ -1441,6 +1591,57 @@ public class HrPayrollService {
             runId,
             companyId
         );
+    }
+
+    private void ensureDifferentTransitionActor(
+        long runId,
+        long actorUserId,
+        String actorRole,
+        PayrollTransition transition
+    ) {
+        if (authorizationService.canOverrideSeparationOfDuties(actorRole)) {
+            return;
+        }
+        var rows = jdbcTemplate.query(
+            "SELECT processed_by, approved_by FROM payroll_runs WHERE id = ? LIMIT 1",
+            (rs, rowNum) -> new PayrollRunActors(
+                getNullableLong(rs, "processed_by"),
+                getNullableLong(rs, "approved_by")
+            ),
+            runId
+        );
+        if (rows.isEmpty()) {
+            return;
+        }
+        var previousActor = transition == PayrollTransition.APPROVE
+            ? rows.getFirst().processedBy()
+            : rows.getFirst().approvedBy();
+        if (previousActor != null && previousActor == actorUserId) {
+            var message = transition == PayrollTransition.APPROVE
+                ? "The user who processed the payroll run cannot approve it."
+                : "The user who approved the payroll run cannot mark it as paid.";
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private void ensureStatutoryComplianceForApproval(long runId) {
+        var unsupportedFiscalLines = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM payroll_run_lines
+                WHERE run_id = ?
+                  AND payroll_treatment_snapshot = 'fiscal_payroll'
+                  AND calculation_source = 'GENERIC_UNSUPPORTED_COUNTRY'
+                """,
+            Integer.class,
+            runId
+        );
+        if (unsupportedFiscalLines != null && unsupportedFiscalLines > 0) {
+            throw new IllegalArgumentException(
+                "Fiscal payroll cannot be approved while it contains unsupported countries. "
+                    + "Change those lines to operational payroll or configure a supported statutory provider."
+            );
+        }
     }
 
     public String exportRunCsv(long companyId, long runId) {
@@ -1602,12 +1803,12 @@ public class HrPayrollService {
 	                rs.getInt("biweekly_first_day"),
 	                rs.getInt("biweekly_second_day"),
 	                rs.getInt("monthly_start_day"),
-	                scaled(rs.getBigDecimal("isr_rate")),
-                scaled(rs.getBigDecimal("imss_user_rate")),
-                scaled(rs.getBigDecimal("infonavit_user_rate")),
-                scaled(rs.getBigDecimal("imss_employer_rate")),
-                scaled(rs.getBigDecimal("infonavit_employer_rate")),
-                scaled(rs.getBigDecimal("sar_employer_rate"))
+	                percentageValue(rs.getBigDecimal("isr_rate")),
+                percentageValue(rs.getBigDecimal("imss_user_rate")),
+                percentageValue(rs.getBigDecimal("infonavit_user_rate")),
+                percentageValue(rs.getBigDecimal("imss_employer_rate")),
+                percentageValue(rs.getBigDecimal("infonavit_employer_rate")),
+                percentageValue(rs.getBigDecimal("sar_employer_rate"))
             ),
             companyId
         );
@@ -1965,22 +2166,41 @@ public class HrPayrollService {
         var labels = new LinkedHashMap<String, String>();
 
         for (var hrUser : users) {
-            String key;
-            String label;
+            String organizationalKey;
+            String organizationalLabel;
             switch (groupingMode) {
                 case "unit" -> {
-                    key = hrUser.unitId() == null ? "unit:unassigned" : "unit:" + hrUser.unitId();
-                    label = hrUser.unitName().isBlank() ? "No unit" : hrUser.unitName();
+                    organizationalKey = hrUser.unitId() == null ? "unit:unassigned" : "unit:" + hrUser.unitId();
+                    organizationalLabel = hrUser.unitName().isBlank() ? "Sin unidad" : hrUser.unitName();
                 }
                 case "business" -> {
-                    key = hrUser.businessId() == null ? "business:unassigned" : "business:" + hrUser.businessId();
-                    label = hrUser.businessName().isBlank() ? "No business" : hrUser.businessName();
+                    organizationalKey = hrUser.businessId() == null ? "business:unassigned" : "business:" + hrUser.businessId();
+                    organizationalLabel = hrUser.businessName().isBlank() ? "Sin negocio" : hrUser.businessName();
                 }
                 default -> {
-                    key = "single";
-                    label = "Todos los colaboradores";
+                    organizationalKey = "single";
+                    organizationalLabel = "Todos los colaboradores";
                 }
             }
+
+            var country = payrollRuleResolver.normalizeCountry(hrUser.registrationCountry());
+            if (country.isBlank()) {
+                country = "UNSPECIFIED";
+            }
+            var jurisdiction = resolvePayrollJurisdictionCode(country, hrUser.stateProvince());
+            if (jurisdiction.isBlank()) {
+                jurisdiction = country;
+            }
+            var currency = resolveCurrencyCode(country);
+            var key = organizationalKey
+                + "|country:" + country
+                + "|jurisdiction:" + jurisdiction
+                + "|currency:" + currency;
+            var jurisdictionLabel = resolveJurisdictionLabel(country, jurisdiction);
+            if (jurisdictionLabel.isBlank()) {
+                jurisdictionLabel = country;
+            }
+            var label = organizationalLabel + " - " + jurisdictionLabel + " - " + currency;
 
             grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(hrUser);
             labels.putIfAbsent(key, label);
@@ -2475,6 +2695,15 @@ public class HrPayrollService {
 
     private void recomputeRunTotals(long runId) {
         var lines = loadRunLines(runId);
+        var cohorts = lines.stream()
+            .map(this::runLineCohortKey)
+            .distinct()
+            .toList();
+        if (cohorts.size() > 1) {
+            throw new IllegalStateException(
+                "A payroll run cannot mix countries, jurisdictions, currencies, or pay frequencies. Regenerate the run."
+            );
+        }
         var usersCount = lines.size();
         var grossAmount = lines.stream().map(PayrollRunLineRow::grossAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         var deductionsAmount = lines.stream().map(PayrollRunLineRow::deductionsAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -2498,6 +2727,13 @@ public class HrPayrollService {
             scaled(netAmount),
             runId
         );
+    }
+
+    private String runLineCohortKey(PayrollRunLineRow line) {
+        return payrollRuleResolver.normalizeCountry(line.countryCodeSnapshot())
+            + "|" + safe(line.jurisdictionCodeSnapshot()).toUpperCase(Locale.ROOT)
+            + "|" + safe(line.currencyCodeSnapshot()).toUpperCase(Locale.ROOT)
+            + "|" + normalizePayPeriodSafe(line.payPeriodSnapshot());
     }
 
     private void updateRunStatus(long runId, String status, long userId) {
@@ -3075,6 +3311,36 @@ public class HrPayrollService {
         );
     }
 
+    private Map<Long, List<PayrollRunLineItemRow>> loadRunLineItems(List<Long> runLineIds) {
+        if (runLineIds.isEmpty()) {
+            return Map.of();
+        }
+
+        var placeholders = runLineIds.stream().map((ignored) -> "?").collect(Collectors.joining(", "));
+        var items = jdbcTemplate.query(
+            """
+                SELECT id, run_line_id, code, category, label, amount, source_type, country_code, jurisdiction_code,
+                       tax_treatment, taxable, exempt, affects_social_security, affects_employer_cost, legal_classification,
+                       rule_code, rule_set_id, calculation_formula, calculation_base, rate_applied, currency_code, display_order
+                FROM payroll_run_line_items
+                WHERE run_line_id IN (
+                """
+                + placeholders
+                + """
+                )
+                ORDER BY run_line_id ASC, display_order ASC, id ASC
+                """,
+            (rs, rowNum) -> mapRunLineItemRow(rs),
+            runLineIds.toArray()
+        );
+
+        return items.stream().collect(Collectors.groupingBy(
+            PayrollRunLineItemRow::runLineId,
+            LinkedHashMap::new,
+            Collectors.toList()
+        ));
+    }
+
     private List<PayrollRunLineItemRow> loadRunLineItemsBySource(long runLineId, String sourceType) {
         return jdbcTemplate.query(
             """
@@ -3420,8 +3686,20 @@ public class HrPayrollService {
         };
     }
 
-    private FinanceContext payrollFinanceContext(long companyId, long actorUserId) {
-        return new FinanceContext(actorUserId, companyId, "Nómina", "admin", true, FinanceScope.corporateOffice());
+    private FinanceContext payrollFinanceContext(long companyId, long actorUserId, PayrollRunLineRow line) {
+        var financeScope = line.businessIdSnapshot() != null
+            ? FinanceScope.businessOffice(line.unitIdSnapshot(), line.businessIdSnapshot())
+            : line.unitIdSnapshot() != null
+                ? FinanceScope.unitHeadquarters(line.unitIdSnapshot())
+                : FinanceScope.corporateOffice();
+        return new FinanceContext(
+            actorUserId,
+            companyId,
+            "HR Payroll integration",
+            "payroll_system",
+            true,
+            financeScope
+        );
     }
 
     private String payrollPayableFolio(long runId, long lineId) {
@@ -3431,6 +3709,7 @@ public class HrPayrollService {
     private ObjectNode payrollPayableMetadata(PayrollRunRow run, PayrollRunLineRow line) {
         var metadata = JsonNodeFactory.instance.objectNode();
         metadata.put("source", "hr_payroll");
+        metadata.put("integration_principal", "hr_payroll");
         metadata.put("payroll_run_id", run.id());
         metadata.put("payroll_run_line_id", line.id());
         metadata.put("user_company_id", line.userCompanyId());
@@ -3482,7 +3761,6 @@ public class HrPayrollService {
 
     private void createPayrollPayablesForApprovedRun(long companyId, long userId, long runId) {
         var run = loadRun(companyId, runId);
-        var context = payrollFinanceContext(companyId, userId);
         for (var line : loadRunLines(runId)) {
             if (!PAYMENT_ROUTE_EXPENSES.equals(normalizePaymentRoute(line.paymentRoute()))) {
                 continue;
@@ -3491,6 +3769,7 @@ public class HrPayrollService {
             if (total.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
+            var context = payrollFinanceContext(companyId, userId, line);
 
             var folio = payrollPayableFolio(runId, line.id());
             var metadata = payrollPayableMetadata(run, line);
@@ -3597,7 +3876,7 @@ public class HrPayrollService {
         if (!unitId.isBlank() && !"unit".equals(run.groupingMode())) {
             return false;
         }
-        if (!unitId.isBlank() && !("unit:" + unitId).equals(run.groupingKey())) {
+        if (!unitId.isBlank() && !groupingKeyMatches(run.groupingKey(), "unit:" + unitId)) {
             return false;
         }
 
@@ -3605,11 +3884,16 @@ public class HrPayrollService {
         if (!businessId.isBlank() && !"business".equals(run.groupingMode())) {
             return false;
         }
-        if (!businessId.isBlank() && !("business:" + businessId).equals(run.groupingKey())) {
+        if (!businessId.isBlank() && !groupingKeyMatches(run.groupingKey(), "business:" + businessId)) {
             return false;
         }
 
         return true;
+    }
+
+    private boolean groupingKeyMatches(String groupingKey, String organizationalKey) {
+        var normalized = safe(groupingKey);
+        return normalized.equals(organizationalKey) || normalized.startsWith(organizationalKey + "|");
     }
 
     private Map<String, Object> toPreferencesMap(PayrollPreferencesRow preferences) {
@@ -3621,12 +3905,12 @@ public class HrPayrollService {
         body.put("biweekly_first_day", preferences.biweeklyFirstDay());
         body.put("biweekly_second_day", preferences.biweeklySecondDay());
         body.put("monthly_start_day", preferences.monthlyStartDay());
-        body.put("isr_rate", scaled(preferences.isrRate()));
-        body.put("imss_user_rate", scaled(preferences.imssUserRate()));
-        body.put("infonavit_user_rate", scaled(preferences.infonavitUserRate()));
-        body.put("imss_employer_rate", scaled(preferences.imssEmployerRate()));
-        body.put("infonavit_employer_rate", scaled(preferences.infonavitEmployerRate()));
-        body.put("sar_employer_rate", scaled(preferences.sarEmployerRate()));
+        body.put("isr_rate", percentageValue(preferences.isrRate()));
+        body.put("imss_user_rate", percentageValue(preferences.imssUserRate()));
+        body.put("infonavit_user_rate", percentageValue(preferences.infonavitUserRate()));
+        body.put("imss_employer_rate", percentageValue(preferences.imssEmployerRate()));
+        body.put("infonavit_employer_rate", percentageValue(preferences.infonavitEmployerRate()));
+        body.put("sar_employer_rate", percentageValue(preferences.sarEmployerRate()));
         return body;
     }
 
@@ -3683,6 +3967,7 @@ public class HrPayrollService {
             """
                 SELECT COALESCE(NULLIF(l.country_code_snapshot, ''), NULLIF(hu.registration_country, ''), '') AS country,
                        COALESCE(NULLIF(l.jurisdiction_code_snapshot, ''), NULLIF(hu.state_province, ''), '') AS province,
+                       COALESCE(SUM(l.gross_amount), 0) AS gross_amount,
                        COALESCE(SUM(l.net_amount), 0) AS net_amount
                 FROM payroll_run_lines l
                 LEFT JOIN hr_users hu
@@ -3696,6 +3981,7 @@ public class HrPayrollService {
             (rs, rowNum) -> new PayrollRunCurrencySignal(
                 safe(rs.getString("country")),
                 safe(rs.getString("province")),
+                scaled(rs.getBigDecimal("gross_amount")),
                 scaled(rs.getBigDecimal("net_amount"))
             ),
             runId
@@ -4015,6 +4301,10 @@ public class HrPayrollService {
         return value == null ? BigDecimal.ONE.setScale(8, RoundingMode.HALF_UP) : value.setScale(8, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal percentageValue(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(5, RoundingMode.HALF_UP);
+    }
+
     private BigDecimal firstPositive(BigDecimal primary, BigDecimal fallback) {
         if (primary != null && primary.compareTo(BigDecimal.ZERO) > 0) {
             return primary;
@@ -4042,19 +4332,6 @@ public class HrPayrollService {
         return resolveNextPeriodStartDate(payPeriod, periodStartDate, preferences).minusDays(1);
     }
 
-    private LocalDate resolveAutomaticPeriodStartDate(
-        String payPeriod,
-        LocalDate today,
-        PayrollPreferencesRow preferences
-    ) {
-        return switch (payPeriod) {
-            case "weekly" -> today.minusDays(Math.floorMod(today.getDayOfWeek().getValue() - preferences.weeklyStartDay(), 7));
-            case "biweekly", "semimonthly" -> resolveCurrentBiweeklyStartDate(today, preferences);
-            case "monthly" -> resolveCurrentMonthlyStartDate(today, preferences.monthlyStartDay());
-            default -> resolveCurrentMonthlyStartDate(today, preferences.monthlyStartDay());
-        };
-    }
-
     private LocalDate resolveNextPeriodStartDate(String payPeriod, LocalDate periodStartDate, PayrollPreferencesRow preferences) {
         return switch (payPeriod) {
             case "weekly" -> periodStartDate.plusDays(7);
@@ -4062,20 +4339,6 @@ public class HrPayrollService {
             case "monthly" -> dateWithClampedDay(YearMonth.from(periodStartDate).plusMonths(1), preferences.monthlyStartDay());
             default -> dateWithClampedDay(YearMonth.from(periodStartDate).plusMonths(1), preferences.monthlyStartDay());
         };
-    }
-
-    private LocalDate resolveCurrentBiweeklyStartDate(LocalDate today, PayrollPreferencesRow preferences) {
-        var currentMonth = YearMonth.from(today);
-        var candidates = List.of(
-            dateWithClampedDay(currentMonth.minusMonths(1), preferences.biweeklySecondDay()),
-            dateWithClampedDay(currentMonth, preferences.biweeklyFirstDay()),
-            dateWithClampedDay(currentMonth, preferences.biweeklySecondDay())
-        );
-
-        return candidates.stream()
-            .filter((candidate) -> !candidate.isAfter(today))
-            .max(LocalDate::compareTo)
-            .orElse(dateWithClampedDay(currentMonth.minusMonths(1), preferences.biweeklySecondDay()));
     }
 
     private LocalDate resolveNextBiweeklyStartDate(LocalDate periodStartDate, PayrollPreferencesRow preferences) {
@@ -4091,14 +4354,6 @@ public class HrPayrollService {
             .filter((candidate) -> candidate.isAfter(periodStartDate))
             .min(LocalDate::compareTo)
             .orElse(dateWithClampedDay(currentMonth.plusMonths(1), preferences.biweeklyFirstDay()));
-    }
-
-    private LocalDate resolveCurrentMonthlyStartDate(LocalDate today, int startDay) {
-        var currentMonthStart = dateWithClampedDay(YearMonth.from(today), startDay);
-        if (!today.isBefore(currentMonthStart)) {
-            return currentMonthStart;
-        }
-        return dateWithClampedDay(YearMonth.from(today).minusMonths(1), startDay);
     }
 
     private LocalDate dateWithClampedDay(YearMonth yearMonth, int dayOfMonth) {
@@ -4651,9 +4906,18 @@ public class HrPayrollService {
     ) {
     }
 
+    private record PayrollRunActors(Long processedBy, Long approvedBy) {
+    }
+
+    private enum PayrollTransition {
+        APPROVE,
+        PAY
+    }
+
     private record PayrollRunCurrencySignal(
         String country,
         String province,
+        BigDecimal grossAmount,
         BigDecimal netAmount
     ) {
     }

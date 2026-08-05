@@ -2,9 +2,9 @@
 
 ## Inventory status
 
-Status: Non-KPI remaster and priority document expansion implemented; representative PDF QA passed
+Status: Non-KPI remaster and priority document expansion implemented; Payroll print contracts separated and under representative QA
 
-Last updated: 2026-07-18
+Last updated: 2026-08-04
 
 Standard source: [Indice Document Print Standard — Draft](./INDICE_DOCUMENT_PRINT_STANDARD_DRAFT.md)
 
@@ -63,7 +63,8 @@ Migration states:
 
 | # | Owner module | Printable artifact | Primary category | Modifiers | Engine / page contract | Priority | Migration state | Remaining limitation or gate |
 |---:|---|---|---|---|---|---|---|---|
-| 1 | Human Resources / Payroll | Payroll run report and employee ledger | Legal Document | confidential, employee-facing, fiscal candidate | React print portal; CSS-controlled pages | P0 | Remastered | Company identity and jurisdiction-specific legal review are data/product gates; verify all locales and long ledgers |
+| 1A | Human Resources / Payroll | Payroll run report and employee ledger | Operational Report | confidential, internal, fiscal, multi-currency | React browser-print portal; A4 landscape; 10 mm safe margins; compact metadata, financial table, jurisdiction context, owned footer and page numbering; contract v1.0 | P0 | Remastered | Each run displays its stored country/jurisdiction, native currency, calculation mode, calculation cut-off, statutory references and exceptions. Backend cohort separation is preserved. Physical 100+ line verification, every-locale review, and jurisdiction-specific legal review remain gates |
+| 1B | Human Resources / Payroll | Personal payroll calculation breakdown | Legal Document | confidential, employee-facing, fiscal | React browser-print portal; A4 landscape; 10 mm safe margins; recipient metadata, attendance strip, jurisdiction context, concept ledger, owned footer and page numbering; contract v1.0 | P0 | Remastered | This is explicitly a reference breakdown, not an official tax receipt. Company name/logo, employee code, organizational scope, native currency and stored rule/tax references are present. Employee fiscal identifiers, issuer legal/tax identity, authority folio, signature/certification and verification code are API data gaps; legal review and physical print QA remain gates |
 | 2 | Human Resources / Records | Employee record / acknowledgement act | Legal Document | confidential, internal, signature-required | jsPDF; Letter portrait | P0 | Remastered | No immutable verification code; long narrative/signature visual QA pending |
 | 3 | Human Resources / Assets | Asset assignment and custody act | Legal Document | internal, signature-required | jsPDF; Letter portrait | P1 | Remastered | Issuer legal identity is not exposed to the generator; long notes QA pending |
 | 4 | Human Resources / Control | Daily timetable / attendance report | Operational Report | confidential, internal | HTML browser print; A4 landscape | P1 | Remastered | Company profile is not passed by the current call site; browser pagination QA pending |

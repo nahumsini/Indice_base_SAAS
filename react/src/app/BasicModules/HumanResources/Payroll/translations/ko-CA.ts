@@ -60,6 +60,7 @@ export const koCA = {
     cancelled: '취소됨',
   },
   header: {
+    ...enCA.header,
     title: '급여 운영',
     subtitle: '조직 구조와 관할 규칙에 따라 급여 실행을 검토하고 처리합니다.',
     regenerateRuns: '급여 재생성',

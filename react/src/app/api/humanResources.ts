@@ -855,9 +855,23 @@ export interface PayrollOverviewResponse {
     cancelled_count: number;
     total_gross_amount: number;
     total_net_amount: number;
+    mixed_currency?: boolean;
+    gross_totals_by_currency?: Record<string, number>;
+    net_totals_by_currency?: Record<string, number>;
   };
   preferences: PayrollPreferences;
   recent_runs: PayrollRunSummary[];
+  capabilities: PayrollCapabilities;
+}
+
+export interface PayrollCapabilities {
+  can_prepare: boolean;
+  can_approve: boolean;
+  can_pay: boolean;
+  can_cancel: boolean;
+  can_configure: boolean;
+  can_manage_reporting: boolean;
+  can_override_separation_of_duties: boolean;
 }
 
 export interface PayrollRunSummary {
@@ -898,7 +912,7 @@ export interface PayrollCreateRunsPayload {
   pay_period: "weekly" | "biweekly" | "semimonthly" | "monthly";
   grouping_mode: "single" | "unit" | "business";
   period_start_date: string;
-  period_end_date: string;
+  period_end_date?: string;
 }
 
 export interface PayrollLineItem {
@@ -984,6 +998,29 @@ export interface PayrollRunLine {
 export interface PayrollRunDetailResponse {
   run: PayrollRunSummary;
   lines: PayrollRunLine[];
+}
+
+export interface PayrollLineIncentiveCandidate {
+  application_id: number;
+  incentive_id: number;
+  incentive_code: string;
+  name: string;
+  description?: string | null;
+  incentive_type: "manual" | "kpi";
+  amount: number;
+  currency_code: string;
+  application_status: "approved" | "applied";
+  source_reference_type?: string | null;
+  source_reference_id?: string | null;
+  applied_to_line: boolean;
+  connector_status: "ready" | "awaiting_kpi_connector";
+  can_apply: boolean;
+}
+
+export interface PayrollLineIncentivesResponse {
+  run_status: PayrollRunSummary["status"];
+  editable: boolean;
+  items: PayrollLineIncentiveCandidate[];
 }
 
 export interface PayrollManualItemPayload {
@@ -2302,6 +2339,26 @@ export const humanResourcesApi = {
         method: "PUT",
         body: JSON.stringify(payload),
       },
+    );
+  },
+
+  listPayrollRunLineIncentives(
+    runId: string | number,
+    lineId: string | number,
+  ) {
+    return apiClient<PayrollLineIncentivesResponse>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/lines/${lineId}/incentives`,
+    );
+  },
+
+  applyPayrollRunLineIncentive(
+    runId: string | number,
+    lineId: string | number,
+    applicationId: string | number,
+  ) {
+    return apiClient<PayrollRunDetailResponse>(
+      `${endpoints.humanResources.payrollRuns}/${runId}/lines/${lineId}/incentives/${applicationId}`,
+      { method: "POST" },
     );
   },
 

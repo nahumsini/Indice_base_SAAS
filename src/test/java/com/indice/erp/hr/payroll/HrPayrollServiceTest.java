@@ -28,7 +28,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -51,38 +53,6 @@ class HrPayrollServiceTest {
         var scope = HrOperationalScope.businessOffice(4L, 9L);
 
         when(hrPayrollScopeAccess.resolve(currentUser)).thenReturn(scope);
-        when(jdbcTemplate.query(
-            contains("FROM payroll_preferences"),
-            ArgumentMatchers.<RowMapper<Object>>any(),
-            eq(1L)
-        )).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
-            ResultSet rs = mock(ResultSet.class);
-            when(rs.getLong("company_id")).thenReturn(1L);
-            when(rs.getString("grouping_mode")).thenReturn("single");
-            when(rs.getBigDecimal("default_daily_hours")).thenReturn(new BigDecimal("8.00"));
-            when(rs.getBoolean("pay_leave_days")).thenReturn(true);
-            when(rs.getInt("weekly_start_day")).thenReturn(1);
-            when(rs.getInt("biweekly_first_day")).thenReturn(1);
-            when(rs.getInt("biweekly_second_day")).thenReturn(16);
-            when(rs.getInt("monthly_start_day")).thenReturn(1);
-            when(rs.getBigDecimal("isr_rate")).thenReturn(new BigDecimal("0.10000"));
-            when(rs.getBigDecimal("imss_user_rate")).thenReturn(new BigDecimal("0.04000"));
-            when(rs.getBigDecimal("infonavit_user_rate")).thenReturn(new BigDecimal("0.03000"));
-            when(rs.getBigDecimal("imss_employer_rate")).thenReturn(new BigDecimal("0.07000"));
-            when(rs.getBigDecimal("infonavit_employer_rate")).thenReturn(new BigDecimal("0.05000"));
-            when(rs.getBigDecimal("sar_employer_rate")).thenReturn(new BigDecimal("0.02000"));
-            return List.of(rowMapper.mapRow(rs, 0));
-        });
-        when(jdbcTemplate.query(
-            contains("FROM hr_users e"),
-            ArgumentMatchers.<RowMapper<Object>>any(),
-            eq(1L),
-            eq(0),
-            eq(""),
-            eq(9L)
-        )).thenReturn(List.of());
         when(hrPayrollScopeAccess.runLineParameters(scope)).thenReturn(List.of(9L));
         when(hrPayrollScopeAccess.runLinePredicate(scope, "l")).thenReturn(" AND l.business_id_snapshot = ?");
         when(jdbcTemplate.query(
@@ -123,6 +93,11 @@ class HrPayrollServiceTest {
         assertEquals(1, items.size());
         assertEquals(30L, items.getFirst().get("id"));
         assertEquals(new BigDecimal("2250.00"), items.getFirst().get("net_amount"));
+        assertFalse(org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .map(invocation -> invocation.getArguments()[0])
+            .filter(String.class::isInstance)
+            .map(String.class::cast)
+            .anyMatch(sql -> sql.contains("FROM hr_users e")));
     }
 
     @Test
@@ -298,6 +273,11 @@ class HrPayrollServiceTest {
             eq(30L)
         )).thenReturn(List.of(77L));
         when(jdbcTemplate.query(
+            contains("SELECT processed_by, approved_by"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(30L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
             contains("FROM payroll_government_reporting_snapshots"),
             ArgumentMatchers.<RowMapper<Object>>any(),
             eq(1L),
@@ -341,6 +321,11 @@ class HrPayrollServiceTest {
             eq(30L)
         )).thenReturn(List.of(77L));
         when(jdbcTemplate.query(
+            contains("SELECT processed_by, approved_by"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(30L)
+        )).thenReturn(List.of());
+        when(jdbcTemplate.query(
             contains("FROM payroll_government_reporting_snapshots"),
             ArgumentMatchers.<RowMapper<Object>>any(),
             eq(1L),
@@ -374,6 +359,11 @@ class HrPayrollServiceTest {
             eq(1L),
             eq(30L)
         )).thenReturn(List.of(77L));
+        when(jdbcTemplate.query(
+            contains("SELECT processed_by, approved_by"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(30L)
+        )).thenReturn(List.of());
         when(jdbcTemplate.query(
             contains("FROM payroll_government_reporting_snapshots"),
             ArgumentMatchers.<RowMapper<Object>>any(),
@@ -428,6 +418,125 @@ class HrPayrollServiceTest {
         );
     }
 
+    @Test
+    void approveRunRejectsSameUserThatProcessedRun() throws Exception {
+        var service = newService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Payroll Admin", "admin");
+
+        when(hrPayrollScopeAccess.resolve(currentUser)).thenReturn(HrOperationalScope.corporateOffice());
+        when(jdbcTemplate.query(
+            contains("FROM payroll_runs"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            return List.of(rowMapper.mapRow(runResultSet(30L, "processed"), 0));
+        });
+        when(jdbcTemplate.query(
+            contains("SELECT processed_by, approved_by"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            var rs = mock(ResultSet.class);
+            when(rs.getLong("processed_by")).thenReturn(7L);
+            when(rs.wasNull()).thenReturn(false);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var error = assertThrows(IllegalArgumentException.class, () -> service.approveRun(currentUser, 30L));
+
+        assertEquals("The user who processed the payroll run cannot approve it.", error.getMessage());
+    }
+
+    @Test
+    void cancelRunRejectsApprovedRunWithFinancialObligations() throws Exception {
+        var service = newService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Payroll Admin", "admin");
+
+        when(hrPayrollScopeAccess.resolve(currentUser)).thenReturn(HrOperationalScope.corporateOffice());
+        when(jdbcTemplate.query(
+            contains("FROM payroll_runs"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            return List.of(rowMapper.mapRow(runResultSet(30L, "approved"), 0));
+        });
+
+        var error = assertThrows(IllegalArgumentException.class, () -> service.cancelRun(currentUser, 30L));
+
+        assertTrue(error.getMessage().contains("cannot be cancelled"));
+    }
+
+    @Test
+    void preferencesPreserveFiveDecimalRatePrecision() throws Exception {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            contains("FROM payroll_preferences"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            var rs = mock(ResultSet.class);
+            when(rs.getLong("company_id")).thenReturn(1L);
+            when(rs.getString("grouping_mode")).thenReturn("single");
+            when(rs.getBigDecimal("default_daily_hours")).thenReturn(new BigDecimal("8.00"));
+            when(rs.getBoolean("pay_leave_days")).thenReturn(true);
+            when(rs.getInt("weekly_start_day")).thenReturn(1);
+            when(rs.getInt("biweekly_first_day")).thenReturn(1);
+            when(rs.getInt("biweekly_second_day")).thenReturn(16);
+            when(rs.getInt("monthly_start_day")).thenReturn(1);
+            when(rs.getBigDecimal("isr_rate")).thenReturn(new BigDecimal("0.01500"));
+            when(rs.getBigDecimal("imss_user_rate")).thenReturn(new BigDecimal("0.04275"));
+            when(rs.getBigDecimal("infonavit_user_rate")).thenReturn(new BigDecimal("0.03000"));
+            when(rs.getBigDecimal("imss_employer_rate")).thenReturn(new BigDecimal("0.07125"));
+            when(rs.getBigDecimal("infonavit_employer_rate")).thenReturn(new BigDecimal("0.05000"));
+            when(rs.getBigDecimal("sar_employer_rate")).thenReturn(new BigDecimal("0.02000"));
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var result = service.getPreferences(1L);
+
+        assertEquals(new BigDecimal("0.01500"), result.get("isr_rate"));
+        assertEquals(new BigDecimal("0.04275"), result.get("imss_user_rate"));
+        assertEquals(new BigDecimal("0.07125"), result.get("imss_employer_rate"));
+    }
+
+    @Test
+    void approveRunRejectsUnsupportedFiscalCountry() throws Exception {
+        var service = newService();
+        var currentUser = new AuthSessionUser(7L, 1L, "Payroll Owner", "owner");
+
+        when(hrPayrollScopeAccess.resolve(currentUser)).thenReturn(HrOperationalScope.corporateOffice());
+        when(jdbcTemplate.query(
+            contains("FROM payroll_runs"),
+            ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L),
+            eq(30L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            return List.of(rowMapper.mapRow(runResultSet(30L, "processed"), 0));
+        });
+        when(jdbcTemplate.queryForObject(
+            contains("payroll_treatment_snapshot = 'fiscal_payroll'"),
+            eq(Integer.class),
+            eq(30L)
+        )).thenReturn(1);
+
+        var error = assertThrows(IllegalArgumentException.class, () -> service.approveRun(currentUser, 30L));
+
+        assertTrue(error.getMessage().contains("unsupported countries"));
+    }
+
     private HrPayrollService newService() {
         var ruleResolver = new PayrollRuleResolver(jdbcTemplate);
         var manualAdjustmentService = new PayrollManualAdjustmentService();
@@ -447,7 +556,8 @@ class HrPayrollServiceTest {
             ruleResolver,
             new ColombiaPayrollReportingService(jdbcTemplate, new ObjectMapper()),
             new HrIncentivePayrollSupplyService(jdbcTemplate),
-            mock(ExpenseService.class)
+            mock(ExpenseService.class),
+            new HrPayrollAuthorizationService()
         );
     }
 

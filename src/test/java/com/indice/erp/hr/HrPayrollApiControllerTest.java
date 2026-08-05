@@ -2,9 +2,11 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.payroll.HrPayrollApiController;
+import com.indice.erp.hr.payroll.HrPayrollAuthorizationService;
 import com.indice.erp.hr.payroll.HrPayrollService;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -43,9 +47,17 @@ class HrPayrollApiControllerTest {
     @MockBean
     private HrAccessService hrAccessService;
 
+    @MockBean
+    private HrPayrollAuthorizationService authorizationService;
+
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
+
     @BeforeEach
     void allowHrAccessByDefault() {
         given(hrAccessService.canAccessManagementTab(any(AuthSessionUser.class), any(HrTab.class)))
+            .willReturn(true);
+        given(authorizationService.can(any(AuthSessionUser.class), any(HrPayrollAuthorizationService.Action.class)))
             .willReturn(true);
     }
 
@@ -145,6 +157,55 @@ class HrPayrollApiControllerTest {
     }
 
     @Test
+    void createRunsReturnsForbiddenWhenRoleCannotPreparePayroll() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 1L, "Employee", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(authorizationService.can(currentUser, HrPayrollAuthorizationService.Action.PREPARE)).willReturn(false);
+
+        mockMvc.perform(
+            post("/api/v1/hr/payroll/runs")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "pay_period": "weekly",
+                      "grouping_mode": "single",
+                      "period_start_date": "2026-04-06"
+                    }
+                    """)
+        )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verifyNoInteractions(hrPayrollService);
+    }
+
+    @Test
+    void createRunsReturnsForbiddenWhenCsrfTokenIsInvalid() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), eq("invalid"));
+
+        mockMvc.perform(
+            post("/api/v1/hr/payroll/runs")
+                .header("X-CSRF-Token", "invalid")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "pay_period": "weekly",
+                      "grouping_mode": "single",
+                      "period_start_date": "2026-04-06"
+                    }
+                    """)
+        )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+
+        verifyNoInteractions(hrPayrollService);
+    }
+
+    @Test
     void regenerateRunsReturnsOpenRunRegenerationSummary() throws Exception {
         var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
@@ -178,5 +239,40 @@ class HrPayrollApiControllerTest {
         mockMvc.perform(get("/api/v1/hr/payroll/runs/9"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void runLineIncentivesRemainVisibleForAnImmutableRun() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrPayrollService.listRunLineIncentives(currentUser, 127L, 44L)).willReturn(Map.of(
+            "run_status", "cancelled",
+            "editable", false,
+            "items", List.of(Map.of(
+                "application_id", 81L,
+                "name", "Bono de puntualidad",
+                "applied_to_line", true,
+                "connector_status", "ready"
+            ))
+        ));
+
+        mockMvc.perform(get("/api/v1/hr/payroll/runs/127/lines/44/incentives"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.run_status").value("cancelled"))
+            .andExpect(jsonPath("$.editable").value(false))
+            .andExpect(jsonPath("$.items[0].name").value("Bono de puntualidad"));
+    }
+
+    @Test
+    void applyRunLineIncentiveUsesPayrollPreparationAuthorization() throws Exception {
+        var currentUser = new AuthSessionUser(2L, 1L, "Employee", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(authorizationService.can(currentUser, HrPayrollAuthorizationService.Action.PREPARE)).willReturn(false);
+
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/127/lines/44/incentives/81"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verifyNoInteractions(hrPayrollService);
     }
 }
