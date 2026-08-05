@@ -4,473 +4,678 @@ import type {
   PayrollRunDetailResponse,
   PayrollRunLine,
 } from '../../../api/humanResources';
+import type { CompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import type { PayrollTranslations } from './translations';
+import {
+  payrollLinePrintContract,
+  payrollRunPrintContract,
+  resolvePayrollPrintJurisdiction,
+  type PayrollPrintJurisdictionContext,
+} from './payrollPrintContract';
 
 import '../../Dashboard/BusinessProfile/BusinessDiagnosisPdf/businessDiagnosisPdf.css';
 import './payrollPdf.css';
 
 export type PayrollRunPdfDocumentProps = {
-  detail: PayrollRunDetailResponse;
-  preferences: PayrollPreferences;
-  title: string;
-  subtitle: string;
-  generatedAt: Date;
-  reportId: string;
-  locale: string;
-  statusLabel: string;
-  groupingLabel: string;
-  payPeriodLabel: string;
+  companyIdentity: CompanyPrintIdentity;
   copy: PayrollTranslations['pdf'];
+  detail: PayrollRunDetailResponse;
+  generatedAt: Date;
+  groupingLabel: string;
+  lineId?: number;
+  locale: string;
+  payPeriodLabel: string;
+  preferences: PayrollPreferences;
+  reportId: string;
+  statusLabel: string;
+  subtitle: string;
+  title: string;
 };
 
-const CURRENCY = 'USD';
-const LEDGER_PAGE_SIZE = 12;
+const RUN_PAGE_SIZE = 10;
+const EXCEPTION_PAGE_SIZE = 16;
+const LINE_FIRST_PAGE_ITEMS = 7;
+const LINE_CONTINUATION_ITEMS = 18;
 
-const formatCurrency = (value: number, locale: string) => new Intl.NumberFormat(locale, {
+const formatCurrency = (value: number, locale: string, currency?: string | null) => new Intl.NumberFormat(locale, {
   style: 'currency',
-  currency: CURRENCY,
+  currency: currency && /^[A-Z]{3}$/.test(currency) ? currency : 'USD',
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 }).format(value);
 
-const formatWholeNumber = (value: number, locale: string) => new Intl.NumberFormat(locale, {
+const formatNumber = (value: number, locale: string) => new Intl.NumberFormat(locale, {
   maximumFractionDigits: 2,
 }).format(value);
 
 const formatDate = (value: string, locale: string) => {
   const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' }).format(parsed);
+};
 
+const formatDateTime = (value: Date | string, locale: string) => {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
   return new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    day: 'numeric',
+    day: '2-digit',
+    month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(parsed);
 };
 
-const formatDateTime = (value: Date, locale: string) => new Intl.DateTimeFormat(locale, {
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-}).format(value);
-
-const formatShortDateTime = (value: Date, locale: string) => new Intl.DateTimeFormat(locale, {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-}).format(value);
-
-const chunkArray = <T,>(items: T[], size: number) => {
+const chunkArray = <T,>(items: T[], size: number): T[][] => {
+  if (items.length === 0) return [[]];
   const chunks: T[][] = [];
-
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
   return chunks;
 };
 
-const getManualAdjustments = (line: PayrollRunLine) => (
-  line.items.filter((item) => item.source_type === 'manual')
+const lineWarningCount = (line: PayrollRunLine) => (
+  (line.attendance_warnings?.length ?? 0) + (line.calculation_warnings?.length ?? 0)
 );
 
-const getPrimaryItems = (items: PayrollLineItem[]) => (
-  [...items]
-    .sort((left, right) => Math.abs(right.amount) - Math.abs(left.amount))
-    .slice(0, 4)
-);
+const getDocumentText = (locale: string) => {
+  const language = locale.toLowerCase().split('-')[0];
+  const english = {
+    actionsAndAlerts: 'Adjustments, incentives, and warnings',
+    adjustment: 'Manual adjustment',
+    alerts: 'Warnings',
+    amount: 'Amount',
+    absences: 'Absences',
+    attendance: 'Period attendance',
+    base: 'Base',
+    category: 'Category',
+    calculation: 'Calculation',
+    calculationCut: 'Calculation cut-off',
+    code: 'Code',
+    concept: 'Concept',
+    confidential: 'Confidential',
+    currency: 'Native currency',
+    continuation: 'Continuation',
+    deductions: 'Total deductions',
+    description: 'Detail',
+    detail: 'Employee payroll breakdown',
+    earnings: 'Total earnings',
+    employee: 'Employee',
+    employeeCode: 'Employee code',
+    employer: 'Employer obligations',
+    empty: 'There are no records for this period.',
+    generated: 'Updated',
+    incentive: 'Approved incentive',
+    itemSource: 'Source',
+    jurisdiction: 'Jurisdiction',
+    net: 'Net pay',
+    note: 'Note',
+    page: 'Page',
+    payrollRun: 'Payroll run detail',
+    period: 'Period',
+    rate: 'Rate',
+    reportSource: 'Source: Indice payroll engine',
+    documentVersion: 'Document version',
+    fiscalNotice: 'Calculated from recorded data, configured rules, and available public references. This document supports — and does not replace — review by the accounting or tax professional responsible for the applicable jurisdiction.',
+    regularHours: 'Regular hours',
+    overtimeHours: 'Overtime hours',
+    lateEvents: 'Late events',
+    leaveDays: 'Leave days',
+    daysPayable: 'Payable days',
+    scope: 'Unit / business',
+    status: 'Status',
+    treatment: 'Treatment',
+    type: 'Type',
+    workSchedule: 'Work schedule',
+    warning: 'Warning',
+  };
 
-const buildExecutiveSummary = (
-  detail: PayrollRunDetailResponse,
-  locale: string,
-  copy: PayrollTranslations['pdf'],
-) => {
-  const { run, lines } = detail;
-  const period = `${formatDate(run.period_start_date, locale)} - ${formatDate(run.period_end_date, locale)}`;
-  return copy.executiveSummaryText(period, lines.length, formatCurrency(run.net_amount, locale), run.status);
+  if (language === 'es') return {
+    ...english,
+    actionsAndAlerts: 'Ajustes, incentivos y alertas',
+    adjustment: 'Ajuste manual',
+    alerts: 'Alertas',
+    amount: 'Monto',
+    absences: 'Ausencias',
+    attendance: 'Asistencia del periodo',
+    category: 'Categoría',
+    calculation: 'Cálculo',
+    calculationCut: 'Corte de cálculo',
+    code: 'Código',
+    concept: 'Concepto',
+    confidential: 'Confidencial',
+    currency: 'Divisa nativa',
+    continuation: 'Continuación',
+    deductions: 'Total deducciones',
+    description: 'Detalle',
+    detail: 'Desglose personal de nómina',
+    earnings: 'Total percepciones',
+    employee: 'Colaborador',
+    employeeCode: 'Código del colaborador',
+    employer: 'Obligaciones patronales',
+    empty: 'No existen registros para este periodo.',
+    generated: 'Actualizado',
+    incentive: 'Incentivo aprobado',
+    itemSource: 'Origen',
+    jurisdiction: 'Jurisdicción',
+    net: 'Neto a pagar',
+    note: 'Nota',
+    page: 'Página',
+    payrollRun: 'Detalle de corrida de nómina',
+    period: 'Periodo',
+    rate: 'Tasa',
+    reportSource: 'Fuente: motor de nómina Índice',
+    documentVersion: 'Versión documental',
+    fiscalNotice: 'Cálculos elaborados con los datos registrados, reglas configuradas y referencias públicas disponibles. Este documento facilita, pero no sustituye, la revisión del profesional contable o fiscal responsable en la jurisdicción aplicable.',
+    regularHours: 'Horas regulares',
+    overtimeHours: 'Horas extra',
+    lateEvents: 'Retardos',
+    leaveDays: 'Permisos',
+    daysPayable: 'Días pagables',
+    scope: 'Unidad / negocio',
+    status: 'Estado',
+    treatment: 'Tratamiento',
+    type: 'Tipo',
+    workSchedule: 'Jornada',
+    warning: 'Alerta',
+  };
+
+  if (language === 'fr') return {
+    ...english,
+    actionsAndAlerts: 'Ajustements, primes et alertes',
+    alerts: 'Alertes',
+    amount: 'Montant',
+    absences: 'Absences',
+    attendance: 'Présence de la période',
+    calculation: 'Calcul',
+    calculationCut: 'Arrêté du calcul',
+    code: 'Code',
+    concept: 'Élément',
+    confidential: 'Confidentiel',
+    currency: 'Devise native',
+    continuation: 'Suite',
+    deductions: 'Total des retenues',
+    detail: 'Détail individuel de paie',
+    earnings: 'Total des gains',
+    employee: 'Collaborateur',
+    employeeCode: 'Code du collaborateur',
+    employer: 'Obligations de l’employeur',
+    empty: 'Aucun enregistrement pour cette période.',
+    generated: 'Mis à jour',
+    incentive: 'Prime approuvée',
+    itemSource: 'Source',
+    jurisdiction: 'Juridiction',
+    net: 'Net à payer',
+    page: 'Page',
+    payrollRun: 'Détail du cycle de paie',
+    period: 'Période',
+    rate: 'Taux',
+    reportSource: 'Source : moteur de paie Indice',
+    documentVersion: 'Version du document',
+    fiscalNotice: 'Calculé à partir des données enregistrées, des règles configurées et des références publiques disponibles. Ce document facilite, sans la remplacer, la révision du professionnel comptable ou fiscal responsable dans la juridiction applicable.',
+    regularHours: 'Heures régulières',
+    overtimeHours: 'Heures supplémentaires',
+    lateEvents: 'Retards',
+    leaveDays: 'Congés',
+    daysPayable: 'Jours payables',
+    scope: 'Unité / entreprise',
+    status: 'État',
+    treatment: 'Traitement',
+    type: 'Type',
+    workSchedule: 'Temps de travail',
+    warning: 'Alerte',
+  };
+
+  if (language === 'pt') return {
+    ...english,
+    actionsAndAlerts: 'Ajustes, incentivos e alertas',
+    adjustment: 'Ajuste manual',
+    alerts: 'Alertas',
+    amount: 'Valor',
+    absences: 'Ausências',
+    attendance: 'Frequência do período',
+    base: 'Base',
+    category: 'Categoria',
+    calculation: 'Cálculo',
+    calculationCut: 'Fechamento do cálculo',
+    code: 'Código',
+    concept: 'Rubrica',
+    confidential: 'Confidencial',
+    currency: 'Moeda nativa',
+    continuation: 'Continuação',
+    deductions: 'Total de descontos',
+    description: 'Detalhe',
+    detail: 'Demonstrativo individual da folha',
+    earnings: 'Total de proventos',
+    employee: 'Colaborador',
+    employeeCode: 'Código do colaborador',
+    employer: 'Encargos patronais',
+    empty: 'Não há registros para este período.',
+    generated: 'Atualizado',
+    incentive: 'Incentivo aprovado',
+    itemSource: 'Origem',
+    jurisdiction: 'Jurisdição',
+    net: 'Líquido a pagar',
+    note: 'Observação',
+    page: 'Página',
+    payrollRun: 'Detalhe da folha de pagamento',
+    period: 'Período',
+    rate: 'Alíquota',
+    reportSource: 'Fonte: motor de folha Indice',
+    documentVersion: 'Versão do documento',
+    fiscalNotice: 'Calculado com os dados registrados, as regras configuradas e as referências públicas disponíveis. Este documento facilita, mas não substitui, a revisão do profissional contábil ou fiscal responsável na jurisdição aplicável.',
+    regularHours: 'Horas regulares',
+    overtimeHours: 'Horas extras',
+    lateEvents: 'Atrasos',
+    leaveDays: 'Licenças',
+    daysPayable: 'Dias pagáveis',
+    scope: 'Unidade / negócio',
+    status: 'Status',
+    treatment: 'Tratamento',
+    type: 'Tipo',
+    workSchedule: 'Jornada',
+    warning: 'Alerta',
+  };
+
+  return english;
 };
 
-const buildPolicySummary = (preferences: PayrollPreferences, copy: PayrollTranslations['pdf']) => (
-  copy.policySummary(
-    preferences.grouping_mode.replace('_', ' '),
-    preferences.default_daily_hours,
-    preferences.pay_leave_days ? copy.leavePaid : copy.leaveUnpaid,
-  )
-);
+const categoryLabel = (item: PayrollLineItem, locale: string) => {
+  const language = locale.toLowerCase().split('-')[0];
+  const labels = language === 'es'
+    ? { earning: 'Percepción', deduction: 'Deducción', employer_contribution: 'Aportación patronal', provision: 'Provisión' }
+    : language === 'fr'
+      ? { earning: 'Gain', deduction: 'Retenue', employer_contribution: 'Contribution employeur', provision: 'Provision' }
+      : language === 'pt'
+        ? { earning: 'Provento', deduction: 'Desconto', employer_contribution: 'Encargo patronal', provision: 'Provisão' }
+        : { earning: 'Earning', deduction: 'Deduction', employer_contribution: 'Employer contribution', provision: 'Provision' };
+  return labels[item.category] ?? item.category;
+};
 
-const getTopLines = (lines: PayrollRunLine[]) => (
-  [...lines]
-    .sort((left, right) => right.net_amount - left.net_amount)
-    .slice(0, 6)
-);
+const sourceLabel = (item: PayrollLineItem, locale: string) => {
+  const language = locale.toLowerCase().split('-')[0];
+  const labels = language === 'es'
+    ? { computed: 'Calculado', manual: 'Manual', computed_tax: 'Fiscal', adjustment: 'Ajuste', incentive: 'Incentivo' }
+    : language === 'fr'
+      ? { computed: 'Calculé', manual: 'Manuel', computed_tax: 'Fiscal', adjustment: 'Ajustement', incentive: 'Prime' }
+      : language === 'pt'
+        ? { computed: 'Calculado', manual: 'Manual', computed_tax: 'Fiscal', adjustment: 'Ajuste', incentive: 'Incentivo' }
+        : { computed: 'Computed', manual: 'Manual', computed_tax: 'Tax', adjustment: 'Adjustment', incentive: 'Incentive' };
+  return labels[item.source_type] ?? item.source_type;
+};
 
-const getTotals = (detail: PayrollRunDetailResponse) => {
-  const totals = detail.lines.reduce((accumulator, line) => ({
-    regularHours: accumulator.regularHours + line.regular_hours,
-    overtimeHours: accumulator.overtimeHours + line.overtime_hours,
-    leaveDays: accumulator.leaveDays + line.leave_days,
-    absenceDays: accumulator.absenceDays + line.absence_days,
-    lateCount: accumulator.lateCount + line.late_count,
-  }), {
-    regularHours: 0,
-    overtimeHours: 0,
-    leaveDays: 0,
-    absenceDays: 0,
-    lateCount: 0,
+type PrintHeaderProps = {
+  companyIdentity: CompanyPrintIdentity;
+  eyebrow: string;
+  reportId: string;
+  statusLabel: string;
+  subtitle: string;
+  title: string;
+};
+
+function PrintHeader({ companyIdentity, eyebrow, reportId, statusLabel, subtitle, title }: PrintHeaderProps) {
+  return (
+    <header className="prpdf-document-header">
+      <div className="prpdf-company-identity">
+        {companyIdentity.logoUrl ? <img src={companyIdentity.logoUrl} alt="" className="prpdf-company-logo" /> : null}
+        <div>
+          <p className="prpdf-company-name">{companyIdentity.name || title}</p>
+          <p className="prpdf-eyebrow">{eyebrow}</p>
+        </div>
+      </div>
+      <div className="prpdf-document-identity">
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </div>
+      <div className="prpdf-document-status">
+        <span>{statusLabel}</span>
+        <small>{reportId}</small>
+      </div>
+    </header>
+  );
+}
+
+function PrintFooter({ generatedAt, locale, page, reportId, totalPages, version }: {
+  generatedAt: Date;
+  locale: string;
+  page: number;
+  reportId: string;
+  totalPages: number;
+  version: string;
+}) {
+  const text = getDocumentText(locale);
+  return (
+    <footer className="prpdf-document-footer">
+      <span>Powered by www.indiceapp.com · {text.generated}: {formatDateTime(generatedAt, locale)}</span>
+      <span>{text.confidential} · {reportId} · v{version} · {text.page} {page} / {totalPages}</span>
+    </footer>
+  );
+}
+
+type MetadataItem = {
+  label: string;
+  value: string;
+};
+
+function PrintMetadataStrip({ items }: { items: MetadataItem[] }) {
+  return (
+    <dl className="prpdf-metadata-strip">
+      {items.map((item) => (
+        <div key={`${item.label}-${item.value}`}>
+          <dt>{item.label}</dt>
+          <dd>{item.value || '—'}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function JurisdictionContextBlock({ context, notice }: {
+  context: PayrollPrintJurisdictionContext;
+  notice: string;
+}) {
+  return (
+    <section className="prpdf-jurisdiction-context">
+      <div>
+        <span>{context.calculationFrameworkLabel}</span>
+        <p>{context.label} · {context.framework}</p>
+      </div>
+      <div>
+        <span>{context.evidenceLabel}</span>
+        <p>{context.evidenceReferences.join(' · ')}</p>
+      </div>
+      <p className="prpdf-jurisdiction-notice">{notice}</p>
+    </section>
+  );
+}
+
+type ExceptionRow = {
+  amount?: number;
+  currency?: string | null;
+  detail: string;
+  employee: string;
+  key: string;
+  type: string;
+};
+
+const buildExceptionRows = (lines: PayrollRunLine[], locale: string): ExceptionRow[] => {
+  const text = getDocumentText(locale);
+  return lines.flatMap((line) => {
+    const conceptRows = line.items
+      .filter((item) => ['manual', 'adjustment', 'incentive'].includes(item.source_type))
+      .map((item) => ({
+        amount: item.amount,
+        currency: item.currency_code || line.currency_code,
+        detail: item.label || item.code,
+        employee: line.user_name,
+        key: `${line.id}-item-${item.id}`,
+        type: item.source_type === 'incentive' ? text.incentive : text.adjustment,
+      }));
+    const warningRows = [...(line.attendance_warnings ?? []), ...(line.calculation_warnings ?? [])].map((warning, index) => ({
+      detail: warning,
+      employee: line.user_name,
+      key: `${line.id}-warning-${index}`,
+      type: text.warning,
+    }));
+    const noteRows = line.notes ? [{
+      detail: line.notes,
+      employee: line.user_name,
+      key: `${line.id}-note`,
+      type: text.note,
+    }] : [];
+    return [...conceptRows, ...warningRows, ...noteRows];
   });
-
-  return totals;
 };
 
-const formatRate = (value: number) => `${(value * 100).toFixed(2)}%`;
-
-const levelTone = (statusLabel: string) => {
-  const normalized = statusLabel.toLowerCase();
-
-  if (normalized.includes('paid') || normalized.includes('pagad')) {
-    return 'level-5';
-  }
-  if (normalized.includes('approved') || normalized.includes('aprobad')) {
-    return 'level-4';
-  }
-  if (normalized.includes('processed') || normalized.includes('procesad')) {
-    return 'level-3';
-  }
-  if (normalized.includes('cancel')) {
-    return 'level-1';
-  }
-  return 'level-2';
-};
-
-export function PayrollRunPdfDocument({
-  detail,
-  preferences,
-  title,
-  subtitle,
-  generatedAt,
-  reportId,
-  locale,
-  statusLabel,
-  groupingLabel,
-  payPeriodLabel,
-  copy,
-}: PayrollRunPdfDocumentProps) {
-  const topLines = getTopLines(detail.lines);
-  const totals = getTotals(detail);
-  const averageNet = detail.run.users_count > 0 ? detail.run.net_amount / detail.run.users_count : 0;
-  const averageGross = detail.run.users_count > 0 ? detail.run.gross_amount / detail.run.users_count : 0;
-  const ledgerChunks = chunkArray(detail.lines, LEDGER_PAGE_SIZE);
-  const statusTone = levelTone(statusLabel);
-  const totalPages = 1 + ledgerChunks.length;
-  const footerTimestamp = formatShortDateTime(generatedAt, locale);
+function PayrollRunDocument(props: PayrollRunPdfDocumentProps) {
+  const { companyIdentity, detail, generatedAt, groupingLabel, locale, payPeriodLabel, reportId, statusLabel } = props;
+  const text = getDocumentText(locale);
+  const currency = detail.run.currency_code || 'USD';
+  const jurisdictionContexts = detail.lines.map((line) => resolvePayrollPrintJurisdiction(line, locale));
+  const firstJurisdictionContext = jurisdictionContexts[0] ?? null;
+  const runJurisdictionContext = firstJurisdictionContext ? {
+    ...firstJurisdictionContext,
+    evidenceReferences: Array.from(new Set(jurisdictionContexts.flatMap((context) => context.evidenceReferences))).slice(0, 10),
+  } : null;
+  const jurisdictionLabels = Array.from(new Set(jurisdictionContexts.map((context) => context.label)));
+  const jurisdictionLabel = detail.run.jurisdiction_label?.trim()
+    || jurisdictionLabels.join(' / ')
+    || '—';
+  const calculationModes = Array.from(new Set(jurisdictionContexts.map((context) => context.calculationModeLabel)));
+  const calculationTimestamps = detail.lines
+    .map((line) => line.calculation_timestamp)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const calculationCut = calculationTimestamps[calculationTimestamps.length - 1];
+  const ledgerChunks = chunkArray(detail.lines, RUN_PAGE_SIZE);
+  const exceptionRows = buildExceptionRows(detail.lines, locale);
+  const exceptionChunks = exceptionRows.length > 0
+    ? chunkArray(exceptionRows, EXCEPTION_PAGE_SIZE)
+    : [];
+  const totalPages = ledgerChunks.length + exceptionChunks.length;
+  const period = `${formatDate(detail.run.period_start_date, locale)} – ${formatDate(detail.run.period_end_date, locale)}`;
 
   return (
-    <div className="bdpdf-report-shell prpdf-report-shell">
-      <section className="bdpdf-report-page prpdf-report-page">
-        <div className="bdpdf-page-card">
-          <div className="bdpdf-hero prpdf-hero">
-            <div className="bdpdf-hero-topline">
-              <div className="bdpdf-brand-badge">{copy.brandBadge}</div>
-              <div className="bdpdf-report-id">{reportId}</div>
-            </div>
+    <div className="prpdf-report-shell" lang={locale}>
+      {ledgerChunks.map((lines, pageIndex) => (
+        <section className="bdpdf-report-page prpdf-landscape-page" key={`ledger-${pageIndex}`}>
+          <div className="prpdf-page-card">
+            <PrintHeader
+              companyIdentity={companyIdentity}
+              eyebrow={pageIndex === 0 ? text.payrollRun : `${text.payrollRun} · ${text.continuation}`}
+              reportId={reportId}
+              statusLabel={statusLabel}
+              subtitle={`${text.period}: ${period} · ${groupingLabel} · ${payPeriodLabel} · ${jurisdictionLabel}`}
+              title={text.payrollRun}
+            />
 
-            <h1 className="bdpdf-hero-title">{title}</h1>
-            <p className="bdpdf-hero-subtitle">{subtitle}</p>
-
-            <div className="bdpdf-hero-meta">
-              <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">{copy.runStatus}</p>
-                <p className="bdpdf-meta-value">{statusLabel}</p>
-              </div>
-              <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">{copy.grouping}</p>
-                <p className="bdpdf-meta-value">{groupingLabel}</p>
-              </div>
-              <div className="bdpdf-meta-card">
-                <p className="bdpdf-meta-label">{copy.generated}</p>
-                  <p className="bdpdf-meta-value">{formatShortDateTime(generatedAt, locale)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bdpdf-page-content">
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">{copy.executiveSummary}</h2>
-                <p className="bdpdf-section-caption">{copy.executiveSummaryCaption}</p>
-              </div>
-
-              <div className="bdpdf-summary-grid">
-                <div className="bdpdf-summary-card">
-                  <p className="bdpdf-lead">{buildExecutiveSummary(detail, locale, copy)}</p>
+            {pageIndex === 0 ? (
+              <>
+                <PrintMetadataStrip items={[
+                  { label: text.jurisdiction, value: jurisdictionLabel },
+                  { label: text.currency, value: currency },
+                  { label: text.calculation, value: calculationModes.join(' / ') || '—' },
+                  { label: text.calculationCut, value: calculationCut ? formatDateTime(calculationCut, locale) : '—' },
+                ]} />
+                <div className="prpdf-kpi-strip">
+                  <div><span>{text.employee}</span><strong>{detail.run.users_count}</strong></div>
+                  <div><span>{text.earnings}</span><strong>{formatCurrency(detail.run.gross_amount, locale, currency)}</strong></div>
+                  <div><span>{text.deductions}</span><strong>{formatCurrency(detail.run.deductions_amount, locale, currency)}</strong></div>
+                  <div><span>{text.employer}</span><strong>{formatCurrency(detail.run.employer_contributions_amount, locale, currency)}</strong></div>
+                  <div className="prpdf-kpi-accent"><span>{text.net}</span><strong>{formatCurrency(detail.run.net_amount, locale, currency)}</strong></div>
                 </div>
-                <div className="bdpdf-panel-card">
-                  <p className="bdpdf-lead">{buildPolicySummary(preferences, copy)}</p>
+                {runJurisdictionContext ? <JurisdictionContextBlock context={runJurisdictionContext} notice={text.fiscalNotice} /> : null}
+              </>
+            ) : null}
+
+            <main className="prpdf-document-body">
+              <div className="prpdf-section-heading">
+                <div>
+                  <h2>{text.payrollRun}</h2>
+                  <p>{text.reportSource} · {currency}</p>
                 </div>
+                <span>{lines.length} / {detail.lines.length}</span>
               </div>
-
-              <div className="bdpdf-highlight-grid">
-                <div className="bdpdf-highlight-card bdpdf-highlight-card--accent">
-                  <p className="bdpdf-highlight-label">{copy.netPayroll}</p>
-                  <p className="bdpdf-highlight-value">{formatCurrency(detail.run.net_amount, locale)}</p>
-                  <p className="bdpdf-highlight-text">{copy.netPayrollHint}</p>
-                </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">{copy.grossPayroll}</p>
-                  <p className="bdpdf-highlight-value">{formatCurrency(detail.run.gross_amount, locale)}</p>
-                  <p className="bdpdf-highlight-text">{copy.grossPayrollHint}</p>
-                </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">{copy.employerCost}</p>
-                  <p className="bdpdf-highlight-value">{formatCurrency(detail.run.employer_contributions_amount, locale)}</p>
-                  <p className="bdpdf-highlight-text">{copy.employerCostHint}</p>
-                </div>
-                <div className="bdpdf-highlight-card">
-                  <p className="bdpdf-highlight-label">{copy.averageNet}</p>
-                  <p className="bdpdf-highlight-value">{formatCurrency(averageNet, locale)}</p>
-                  <p className="bdpdf-highlight-text">{copy.averageNetHint(detail.run.users_count)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">{copy.runSignals}</h2>
-                <p className="bdpdf-section-caption">{copy.runSignalsCaption}</p>
-              </div>
-
-              <div className="prpdf-signal-grid">
-                <article className="prpdf-signal-card">
-                  <div className="prpdf-signal-head">
-                    <h3 className="prpdf-signal-title">{copy.workloadMix}</h3>
-                    <span className={`bdpdf-score-chip ${statusTone}`}>{payPeriodLabel}</span>
-                  </div>
-                  <div className="prpdf-signal-kpis">
-                    <div>
-                      <p className="prpdf-signal-value">{formatWholeNumber(totals.regularHours, locale)}</p>
-                      <p className="prpdf-signal-label">{copy.regularHours}</p>
-                    </div>
-                    <div>
-                      <p className="prpdf-signal-value">{formatWholeNumber(totals.overtimeHours, locale)}</p>
-                      <p className="prpdf-signal-label">{copy.overtimeHours}</p>
-                    </div>
-                  </div>
-                </article>
-
-                <article className="prpdf-signal-card">
-                  <div className="prpdf-signal-head">
-                    <h3 className="prpdf-signal-title">{copy.attendanceImpact}</h3>
-                    <span className="bdpdf-score-chip level-3">{copy.attendance}</span>
-                  </div>
-                  <div className="prpdf-signal-kpis">
-                    <div>
-                      <p className="prpdf-signal-value">{formatWholeNumber(totals.leaveDays, locale)}</p>
-                      <p className="prpdf-signal-label">{copy.leaveDays}</p>
-                    </div>
-                    <div>
-                      <p className="prpdf-signal-value">{formatWholeNumber(totals.absenceDays, locale)}</p>
-                      <p className="prpdf-signal-label">{copy.absenceDays}</p>
-                    </div>
-                    <div>
-                      <p className="prpdf-signal-value">{formatWholeNumber(totals.lateCount, locale)}</p>
-                      <p className="prpdf-signal-label">{copy.lateEvents}</p>
-                    </div>
-                  </div>
-                </article>
-
-                <article className="prpdf-signal-card">
-                  <div className="prpdf-signal-head">
-                    <h3 className="prpdf-signal-title">{copy.fiscalConfiguration}</h3>
-                    <span className="bdpdf-score-chip level-4">{preferences.pay_leave_days ? copy.leavePaid : copy.leaveUnpaid}</span>
-                  </div>
-                  <ul className="bdpdf-info-list">
-                    <li><span className="bdpdf-bullet">•</span> {copy.defaultDailyHours}: {formatWholeNumber(preferences.default_daily_hours, locale)}</li>
-                    <li><span className="bdpdf-bullet">•</span> {copy.isrRate}: {formatRate(preferences.isr_rate)}</li>
-                    <li><span className="bdpdf-bullet">•</span> {copy.employeeBurden}: {formatRate(preferences.imss_user_rate + preferences.infonavit_user_rate)}</li>
-                    <li><span className="bdpdf-bullet">•</span> {copy.employerBurden}: {formatRate(preferences.imss_employer_rate + preferences.infonavit_employer_rate + preferences.sar_employer_rate)}</li>
-                  </ul>
-                </article>
-              </div>
-            </div>
-
-            <div className="bdpdf-section">
-              <div className="bdpdf-section-heading">
-                <h2 className="bdpdf-section-title">{copy.topPayouts}</h2>
-                <p className="bdpdf-section-caption">{copy.topPayoutsCaption}</p>
-              </div>
-
-              <div className="prpdf-employee-grid">
-                {topLines.map((line) => (
-                  <article className="prpdf-employee-card" key={line.id}>
-                    <div className="prpdf-employee-head">
-                      <div>
-                        <h3 className="prpdf-employee-title">{line.user_name}</h3>
-                        <p className="prpdf-employee-subtitle">
-                          {[line.position_title, line.department, line.unit_name].filter(Boolean).join(' · ') || copy.activePayrollLine}
-                        </p>
-                      </div>
-                      <div className="prpdf-employee-chip">{formatCurrency(line.net_amount, locale)}</div>
-                    </div>
-
-                    <div className="prpdf-employee-metrics">
-                      <div>
-                        <p className="prpdf-mini-label">{copy.gross}</p>
-                        <p className="prpdf-mini-value">{formatCurrency(line.gross_amount, locale)}</p>
-                      </div>
-                      <div>
-                        <p className="prpdf-mini-label">{copy.deductions}</p>
-                        <p className="prpdf-mini-value">{formatCurrency(line.deductions_amount, locale)}</p>
-                      </div>
-                      <div>
-                        <p className="prpdf-mini-label">{copy.employer}</p>
-                        <p className="prpdf-mini-value">{formatCurrency(line.employer_contributions_amount, locale)}</p>
-                      </div>
-                    </div>
-
-                    <div className="prpdf-item-stack">
-                      {getPrimaryItems(line.items).map((item) => (
-                        <div className="prpdf-item-row" key={item.id}>
-                          <span>{item.label}</span>
-                          <strong>{formatCurrency(item.amount, locale)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            <div className="bdpdf-footer-note">
-              <span>{copy.runPeriod}: {formatDate(detail.run.period_start_date, locale)} - {formatDate(detail.run.period_end_date, locale)}</span>
-              <span>{copy.averageGross}: {formatCurrency(averageGross, locale)}</span>
-            </div>
-          </div>
-          <footer className="prpdf-owned-footer">
-            <span>Generated by Indice · {copy.printedOn} {footerTimestamp} · Confidential</span>
-            <span>1 / {totalPages}</span>
-          </footer>
-        </div>
-      </section>
-
-      {ledgerChunks.map((chunk, chunkIndex) => (
-        <section className="bdpdf-report-page prpdf-report-page" key={`ledger-${chunkIndex}`}>
-          <div className="bdpdf-page-card">
-            <div className="bdpdf-page-content">
-              <div className="bdpdf-section">
-                <div className="bdpdf-section-heading">
-                  <h2 className="bdpdf-section-title">{copy.ledger}</h2>
-                  <p className="bdpdf-section-caption">
-                    {copy.page} {chunkIndex + 1} {copy.of} {ledgerChunks.length} · {copy.payrollPeriod} {formatDate(detail.run.period_start_date, locale)} - {formatDate(detail.run.period_end_date, locale)}
-                  </p>
-                </div>
-
-                <article className="bdpdf-table-card">
-                  <h3 className="bdpdf-table-title">{copy.lineBreakdown}</h3>
-                  <table className="bdpdf-table prpdf-ledger-table">
-                    <thead>
-                      <tr>
-                        <th>{copy.employee}</th>
-                        <th>{copy.scope}</th>
-                        <th>{copy.payable}</th>
-                        <th>{copy.gross}</th>
-                        <th>{copy.deductions}</th>
-                        <th>{copy.employer}</th>
-                        <th>{copy.net}</th>
+              <div className="prpdf-table-frame">
+                <table className="prpdf-financial-table">
+                  <thead>
+                    <tr>
+                      <th>{text.employee}</th>
+                      <th>{text.scope}</th>
+                      <th>{text.workSchedule}</th>
+                      <th className="prpdf-numeric">{text.earnings}</th>
+                      <th className="prpdf-numeric">{text.deductions}</th>
+                      <th className="prpdf-numeric">{text.employer}</th>
+                      <th className="prpdf-numeric">{text.net}</th>
+                      <th className="prpdf-center">{text.alerts}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line) => (
+                      <tr key={line.id}>
+                        <td><span>{line.user_name}</span><small>{line.position_title || '—'} · {line.department || '—'}</small></td>
+                        <td><span>{line.unit_name || '—'}</span><small>{line.business_name || '—'}</small></td>
+                        <td><span>{formatNumber(line.days_payable, locale)} {text.daysPayable.toLocaleLowerCase()}</span><small>{formatNumber(line.regular_hours, locale)} h · {formatNumber(line.overtime_hours, locale)} h</small></td>
+                        <td className="prpdf-numeric">{formatCurrency(line.gross_amount, locale, line.currency_code || currency)}</td>
+                        <td className="prpdf-numeric">{formatCurrency(line.deductions_amount, locale, line.currency_code || currency)}</td>
+                        <td className="prpdf-numeric">{formatCurrency(line.employer_contributions_amount, locale, line.currency_code || currency)}</td>
+                        <td className="prpdf-numeric prpdf-net-cell">{formatCurrency(line.net_amount, locale, line.currency_code || currency)}</td>
+                        <td className="prpdf-center">{lineWarningCount(line)}</td>
                       </tr>
-                    </thead>
+                    ))}
+                    {lines.length === 0 ? <tr><td colSpan={8} className="prpdf-empty-cell">{text.empty}</td></tr> : null}
+                  </tbody>
+                </table>
+              </div>
+            </main>
+            <PrintFooter generatedAt={generatedAt} locale={locale} page={pageIndex + 1} reportId={reportId} totalPages={totalPages} version={payrollRunPrintContract.version} />
+          </div>
+        </section>
+      ))}
+
+      {exceptionChunks.map((rows, exceptionIndex) => {
+        const page = ledgerChunks.length + exceptionIndex + 1;
+        return (
+          <section className="bdpdf-report-page prpdf-landscape-page" key={`exceptions-${exceptionIndex}`}>
+            <div className="prpdf-page-card">
+              <PrintHeader
+                companyIdentity={companyIdentity}
+                eyebrow={`${text.actionsAndAlerts} · ${text.continuation}`}
+                reportId={reportId}
+                statusLabel={statusLabel}
+                subtitle={`${text.period}: ${period} · ${groupingLabel}`}
+                title={text.actionsAndAlerts}
+              />
+              <main className="prpdf-document-body">
+                <div className="prpdf-table-frame">
+                  <table className="prpdf-financial-table prpdf-exception-table">
+                    <thead><tr><th>{text.employee}</th><th>{text.type}</th><th>{text.description}</th><th className="prpdf-numeric">{text.amount}</th></tr></thead>
                     <tbody>
-                      {chunk.map((line) => (
-                        <tr key={line.id}>
-                          <td>
-                            <div className="prpdf-cell-title">{line.user_name}</div>
-                            <div className="prpdf-cell-subtitle">{line.position_title || copy.roleNotSet}</div>
-                          </td>
-                          <td>
-                            <div className="prpdf-cell-title">{line.unit_name || line.business_name || copy.singlePayroll}</div>
-                            <div className="prpdf-cell-subtitle">{line.department || copy.noDepartment}</div>
-                          </td>
-                          <td>
-                            <div className="prpdf-cell-title">{formatWholeNumber(line.days_payable, locale)} {copy.days}</div>
-                            <div className="prpdf-cell-subtitle">{formatWholeNumber(line.regular_hours, locale)} {copy.regularShort} · {formatWholeNumber(line.overtime_hours, locale)} {copy.overtimeShort}</div>
-                          </td>
-                          <td>{formatCurrency(line.gross_amount, locale)}</td>
-                          <td>{formatCurrency(line.deductions_amount, locale)}</td>
-                          <td>{formatCurrency(line.employer_contributions_amount, locale)}</td>
-                          <td>
-                            <div className="prpdf-cell-title">{formatCurrency(line.net_amount, locale)}</div>
-                            <div className="prpdf-cell-subtitle">{line.include_in_fiscal ? copy.fiscalIncluded : copy.fiscalExcluded}</div>
-                          </td>
+                      {rows.map((row) => (
+                        <tr key={row.key}>
+                          <td>{row.employee}</td>
+                          <td>{row.type}</td>
+                          <td>{row.detail}</td>
+                          <td className="prpdf-numeric">{row.amount === undefined ? '—' : formatCurrency(row.amount, locale, row.currency || currency)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </article>
-              </div>
-
-              <div className="bdpdf-section">
-                <div className="bdpdf-section-heading">
-                  <h2 className="bdpdf-section-title">{copy.adjustmentsAndNotes}</h2>
-                  <p className="bdpdf-section-caption">{copy.adjustmentsCaption}</p>
                 </div>
-
-                <div className="prpdf-adjustment-grid">
-                  {chunk.map((line) => {
-                    const manualAdjustments = getManualAdjustments(line);
-
-                    return (
-                      <article className="prpdf-adjustment-card" key={`adjustment-${line.id}`}>
-                        <div className="prpdf-adjustment-head">
-                          <h3 className="prpdf-adjustment-title">{line.user_name}</h3>
-                          <span className={`bdpdf-score-chip ${manualAdjustments.length > 0 ? 'level-4' : 'level-2'}`}>
-                            {manualAdjustments.length > 0 ? `${manualAdjustments.length} ${copy.manual}` : copy.noManualEdits}
-                          </span>
-                        </div>
-
-                        {line.notes ? (
-                          <p className="prpdf-adjustment-note">{line.notes}</p>
-                        ) : (
-                          <p className="prpdf-adjustment-note prpdf-adjustment-note--muted">{copy.noNote}</p>
-                        )}
-
-                        {manualAdjustments.length > 0 ? (
-                          <div className="prpdf-item-stack">
-                            {manualAdjustments.map((item) => (
-                              <div className="prpdf-item-row" key={item.id}>
-                                <span>{item.label}</span>
-                                <strong>{formatCurrency(item.amount, locale)}</strong>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <ul className="bdpdf-info-list">
-                            <li><span className="bdpdf-bullet">•</span>{copy.noAdjustments}</li>
-                            <li><span className="bdpdf-bullet">•</span>{copy.computedOnly}</li>
-                          </ul>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="bdpdf-footer-note">
-                <span>Run #{detail.run.id} · {groupingLabel}</span>
-                <span>{copy.printedOn} {formatDateTime(generatedAt, locale)}</span>
-              </div>
+              </main>
+              <PrintFooter generatedAt={generatedAt} locale={locale} page={page} reportId={reportId} totalPages={totalPages} version={payrollRunPrintContract.version} />
             </div>
-            <footer className="prpdf-owned-footer">
-              <span>Generated by Indice · {copy.printedOn} {footerTimestamp} · Confidential</span>
-              <span>{chunkIndex + 2} / {totalPages}</span>
-            </footer>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function PayrollLineDocument(props: PayrollRunPdfDocumentProps & { line: PayrollRunLine }) {
+  const { companyIdentity, detail, generatedAt, line, locale, reportId, statusLabel } = props;
+  const text = getDocumentText(locale);
+  const currency = line.currency_code || detail.run.currency_code || 'USD';
+  const jurisdictionContext = resolvePayrollPrintJurisdiction(line, locale);
+  const firstItems = line.items.slice(0, LINE_FIRST_PAGE_ITEMS);
+  const remainingItems = line.items.slice(LINE_FIRST_PAGE_ITEMS);
+  const itemChunks = [firstItems, ...chunkArray(remainingItems, LINE_CONTINUATION_ITEMS).filter((chunk) => chunk.length > 0)];
+  const safeItemChunks = itemChunks.length > 0 ? itemChunks : [[]];
+  const totalPages = safeItemChunks.length;
+  const period = `${formatDate(detail.run.period_start_date, locale)} – ${formatDate(detail.run.period_end_date, locale)}`;
+  const warnings = [...(line.attendance_warnings ?? []), ...(line.calculation_warnings ?? [])];
+
+  return (
+    <div className="prpdf-report-shell" lang={locale}>
+      {safeItemChunks.map((items, pageIndex) => (
+        <section className="bdpdf-report-page prpdf-landscape-page" key={`line-${pageIndex}`}>
+          <div className="prpdf-page-card">
+            <PrintHeader
+              companyIdentity={companyIdentity}
+              eyebrow={pageIndex === 0
+                ? `${jurisdictionContext.label} · ${jurisdictionContext.calculationModeLabel}`
+                : `${jurisdictionContext.label} · ${text.continuation}`}
+              reportId={`${reportId}-L${line.id}`}
+              statusLabel={statusLabel}
+              subtitle={`${line.user_name} · ${text.period}: ${period}`}
+              title={text.detail}
+            />
+
+            {pageIndex === 0 ? (
+              <>
+                <PrintMetadataStrip items={[
+                  { label: text.employee, value: `${line.user_name} · ${text.employeeCode}: ${line.user_code || '—'}` },
+                  { label: text.scope, value: `${line.unit_name || '—'} / ${line.business_name || '—'}` },
+                  { label: text.jurisdiction, value: jurisdictionContext.label },
+                  { label: text.calculation, value: `${jurisdictionContext.calculationModeLabel} · ${jurisdictionContext.complianceLabel}` },
+                  { label: text.calculationCut, value: line.calculation_timestamp ? formatDateTime(line.calculation_timestamp, locale) : '—' },
+                ]} />
+                <div className="prpdf-kpi-strip prpdf-kpi-strip--four">
+                  <div><span>{text.earnings}</span><strong>{formatCurrency(line.gross_amount, locale, currency)}</strong></div>
+                  <div><span>{text.deductions}</span><strong>{formatCurrency(line.deductions_amount, locale, currency)}</strong></div>
+                  <div><span>{text.employer}</span><strong>{formatCurrency(line.employer_contributions_amount, locale, currency)}</strong></div>
+                  <div className="prpdf-kpi-accent"><span>{text.net}</span><strong>{formatCurrency(line.net_amount, locale, currency)}</strong></div>
+                </div>
+                <div className="prpdf-attendance-strip">
+                  <span>{text.attendance}</span>
+                  <dl>
+                    <div><dt>{text.daysPayable}</dt><dd>{formatNumber(line.days_payable, locale)}</dd></div>
+                    <div><dt>{text.regularHours}</dt><dd>{formatNumber(line.regular_hours, locale)}</dd></div>
+                    <div><dt>{text.overtimeHours}</dt><dd>{formatNumber(line.overtime_hours, locale)}</dd></div>
+                    <div><dt>{text.lateEvents}</dt><dd>{formatNumber(line.late_count, locale)}</dd></div>
+                    <div><dt>{text.leaveDays}</dt><dd>{formatNumber(line.leave_days, locale)}</dd></div>
+                    <div><dt>{text.absences}</dt><dd>{formatNumber(line.absence_days, locale)}</dd></div>
+                  </dl>
+                </div>
+                <JurisdictionContextBlock context={jurisdictionContext} notice={text.fiscalNotice} />
+              </>
+            ) : null}
+
+            <main className="prpdf-document-body">
+              <div className="prpdf-section-heading">
+                <div><h2>{text.concept}</h2><p>{text.reportSource} · {currency} · {line.payroll_treatment_label || line.payroll_treatment || '—'}</p></div>
+                <span>{line.items.length} conceptos</span>
+              </div>
+              <div className="prpdf-table-frame">
+                <table className="prpdf-financial-table prpdf-concept-table">
+                  <thead><tr><th>{text.code}</th><th>{text.concept}</th><th>{text.category}</th><th>{text.itemSource}</th><th className="prpdf-numeric">{text.base}</th><th className="prpdf-numeric">{text.rate}</th><th className="prpdf-numeric">{text.amount}</th></tr></thead>
+                  <tbody>
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.code}</td>
+                        <td><span>{item.label || item.code}</span><small>{item.rule_code || item.legal_classification || '—'}</small></td>
+                        <td>{categoryLabel(item, locale)}</td>
+                        <td><span>{sourceLabel(item, locale)}</span><small>{item.tax_treatment || item.legal_classification || '—'}</small></td>
+                        <td className="prpdf-numeric">{item.calculation_base == null ? '—' : formatCurrency(item.calculation_base, locale, item.currency_code || currency)}</td>
+                        <td className="prpdf-numeric">{item.rate_applied == null ? '—' : `${formatNumber(item.rate_applied * 100, locale)}%`}</td>
+                        <td className="prpdf-numeric prpdf-net-cell">{formatCurrency(item.amount, locale, item.currency_code || currency)}</td>
+                      </tr>
+                    ))}
+                    {items.length === 0 ? <tr><td colSpan={7} className="prpdf-empty-cell">{text.empty}</td></tr> : null}
+                  </tbody>
+                  {pageIndex === totalPages - 1 ? (
+                    <tfoot><tr><td colSpan={5} /><td>{text.net}</td><td className="prpdf-numeric">{formatCurrency(line.net_amount, locale, currency)}</td></tr></tfoot>
+                  ) : null}
+                </table>
+              </div>
+
+              {pageIndex === 0 && (warnings.length > 0 || line.notes) ? (
+                <div className="prpdf-notice-grid">
+                  {warnings.length > 0 ? <div><span>{text.alerts}</span><p>{warnings.join(' · ')}</p></div> : null}
+                  {line.notes ? <div><span>{text.note}</span><p>{line.notes}</p></div> : null}
+                </div>
+              ) : null}
+            </main>
+            <PrintFooter generatedAt={generatedAt} locale={locale} page={pageIndex + 1} reportId={`${reportId}-L${line.id}`} totalPages={totalPages} version={payrollLinePrintContract.version} />
           </div>
         </section>
       ))}
     </div>
   );
+}
+
+export function PayrollRunPdfDocument(props: PayrollRunPdfDocumentProps) {
+  const selectedLine = props.lineId === undefined
+    ? null
+    : props.detail.lines.find((line) => line.id === props.lineId) ?? null;
+  return selectedLine ? <PayrollLineDocument {...props} line={selectedLine} /> : <PayrollRunDocument {...props} />;
 }

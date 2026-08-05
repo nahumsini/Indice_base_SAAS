@@ -60,6 +60,7 @@ export const frCA = {
     cancelled: 'Annulé',
   },
   header: {
+    ...enCA.header,
     title: 'Opérations de paie',
     subtitle: 'Révisez, approuvez et exécutez les cycles de paie par structure et juridiction.',
     regenerateRuns: 'Régénérer la paie',

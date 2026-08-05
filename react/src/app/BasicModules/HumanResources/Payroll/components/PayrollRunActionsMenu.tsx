@@ -1,4 +1,5 @@
 import {
+  Ban,
   CheckCircle2,
   Download,
   MoreHorizontal,
@@ -21,10 +22,15 @@ type PayrollRunActionsMenuProps = {
   copy: PayrollRunActionsCopy;
   run: PayrollRunSummary;
   isBusy: boolean;
+  canPrepareAction: boolean;
+  canApproveAction: boolean;
+  canPayAction: boolean;
+  canCancelAction: boolean;
   onOpen: () => void;
   onProcess: () => void;
   onApprove: () => void;
   onMarkPaid: () => void;
+  onCancel: () => void;
   onExportPdf: () => void;
   onExportCsv: () => void;
 };
@@ -33,10 +39,15 @@ export function PayrollRunActionsMenu({
   copy,
   run,
   isBusy,
+  canPrepareAction,
+  canApproveAction,
+  canPayAction,
+  canCancelAction,
   onOpen,
   onProcess,
   onApprove,
   onMarkPaid,
+  onCancel,
   onExportPdf,
   onExportCsv,
 }: PayrollRunActionsMenuProps) {
@@ -65,7 +76,7 @@ export function PayrollRunActionsMenu({
         <Pencil className="h-4 w-4" />
       </Button>
 
-      <Button
+      {canPrepareAction ? <Button
         type="button"
         variant="outline"
         disabled={isBusy || !canProcess}
@@ -75,9 +86,9 @@ export function PayrollRunActionsMenu({
         className={`${actionButtonClassName} border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300`}
       >
         <PlayCircle className="h-4 w-4" />
-      </Button>
+      </Button> : null}
 
-      <Button
+      {canApproveAction ? <Button
         type="button"
         variant="outline"
         disabled={isBusy || !canApprove}
@@ -87,7 +98,7 @@ export function PayrollRunActionsMenu({
         className={`${actionButtonClassName} border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300`}
       >
         <CheckCircle2 className="h-4 w-4" />
-      </Button>
+      </Button> : null}
 
       <Button
         type="button"
@@ -101,7 +112,7 @@ export function PayrollRunActionsMenu({
         <Printer className="h-4 w-4" />
       </Button>
 
-      <Button
+      {canPayAction ? <Button
         type="button"
         variant="outline"
         disabled={isBusy || !canPay || isPaid}
@@ -111,7 +122,7 @@ export function PayrollRunActionsMenu({
         className={`${actionButtonClassName} border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300`}
       >
         <Wallet className="h-4 w-4" />
-      </Button>
+      </Button> : null}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -135,6 +146,12 @@ export function PayrollRunActionsMenu({
             <Download className="mr-2 h-4 w-4 text-slate-600" />
             {copy.exportCsv}
           </DropdownMenuItem>
+          {canCancelAction && (run.status === 'draft' || run.status === 'processed') ? (
+            <DropdownMenuItem onClick={onCancel} className="text-rose-600 focus:text-rose-700">
+              <Ban className="mr-2 h-4 w-4" />
+              {copy.cancel}
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

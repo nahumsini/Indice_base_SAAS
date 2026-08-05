@@ -60,6 +60,7 @@ export const ptBR = {
     cancelled: 'Cancelada',
   },
   header: {
+    ...enCA.header,
     title: 'Operação da folha',
     subtitle: 'Revise, aprove e execute folhas por estrutura de trabalho e jurisdição.',
     regenerateRuns: 'Regenerar folhas',

@@ -596,8 +596,21 @@ export const esMX = {
   header: {
     title: 'Operación de nómina',
     subtitle: 'Revisa, aprueba y ejecuta corridas de nómina por estructura laboral y jurisdicción.',
+    createRun: 'Crear corrida',
     regenerateRuns: 'Regenerar nóminas',
     preferences: 'Preferencias',
+  },
+  createRunDialog: {
+    title: 'Crear corrida de nómina',
+    description: 'Selecciona la frecuencia, la vista organizacional y el primer día del periodo.',
+    frequency: 'Frecuencia de pago',
+    grouping: 'Vista organizacional',
+    startDate: 'Inicio del periodo',
+    endDateHint: 'La fecha final se calcula con el calendario configurado de nómina.',
+    cohortHint: 'Los países, jurisdicciones, monedas y frecuencias siempre se separan automáticamente.',
+    cancel: 'Cancelar',
+    create: 'Crear corrida',
+    creating: 'Creando corrida',
   },
   filterBar: {
     title: 'Filtros',
@@ -688,6 +701,9 @@ export const esMX = {
     openDetails: 'Abrir detalle',
     exportCsv: 'Exportar CSV',
     cancel: 'Cancelar',
+    cancelTitle: '¿Cancelar la corrida?',
+    cancelDescription: 'La corrida en borrador o procesada se cerrará y ya no podrá continuar a aprobación.',
+    confirmCancel: 'Cancelar corrida',
   },
   editRun: {
     noRows: 'No hay colaboradores disponibles para esta corrida.',
