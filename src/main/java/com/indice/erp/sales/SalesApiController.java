@@ -136,6 +136,51 @@ public class SalesApiController {
         }
     }
 
+    @PostMapping("/sales/payment-evidence/presign-upload")
+    public ResponseEntity<?> createSalePaymentEvidenceUpload(
+            HttpSession session,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) {
+            return unauthorized();
+        }
+
+        try {
+            return ResponseEntity.ok(salesService.createSalePaymentEvidenceUpload(
+                    user.get().companyId(),
+                    payload == null ? Map.<String, Object>of() : payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return storageUnavailable(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
+    @PostMapping("/sales/{saleId}/payment-evidence")
+    public ResponseEntity<?> registerSalePaymentEvidence(
+            HttpSession session,
+            @PathVariable long saleId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) {
+            return unauthorized();
+        }
+
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(salesService.registerSalePaymentEvidence(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    saleId,
+                    payload == null ? Map.<String, Object>of() : payload));
+        } catch (ObjectStorageDisabledException ex) {
+            return storageUnavailable(ex);
+        } catch (NoSuchElementException ex) {
+            return notFound(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
     @DeleteMapping("/files/{fileId}")
     public ResponseEntity<?> deleteFile(HttpSession session, @PathVariable long fileId) {
         var user = currentUser(session);

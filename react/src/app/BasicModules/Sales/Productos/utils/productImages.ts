@@ -7,12 +7,16 @@ export function isPersistableProductImageUrl(value?: string | null): boolean {
   return Boolean(normalized) && !normalized.startsWith('data:') && !normalized.startsWith('blob:');
 }
 
-export function getProductGalleryImages(product: SalesCatalogItem): SalesProductImage[] {
+export function getProductGalleryImages(
+  product: Pick<SalesCatalogItem, 'name' | 'imageUrl' | 'imageAlt'>
+    & Partial<Pick<SalesCatalogItem, 'id' | 'gallery'>>,
+): SalesProductImage[] {
   const images: SalesProductImage[] = [];
+  const productId = product.id ?? 'product';
 
   if (isPersistableProductImageUrl(product.imageUrl)) {
     images.push({
-      id: `${product.id}-primary`,
+      id: `${productId}-primary`,
       url: product.imageUrl,
       alt: product.imageAlt || product.name,
     });
@@ -24,7 +28,7 @@ export function getProductGalleryImages(product: SalesCatalogItem): SalesProduct
     }
 
     images.push({
-      id: image.id || `${product.id}-gallery-${index + 1}`,
+      id: image.id || `${productId}-gallery-${index + 1}`,
       url: image.url,
       alt: image.alt || product.imageAlt || product.name,
       objectKey: image.objectKey,

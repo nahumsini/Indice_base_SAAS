@@ -22,6 +22,7 @@ import { WarehousesTable } from './components/warehouses/WarehousesTable';
 import { buildInitialInventoryMovements, buildInventoryStockRows, initialInventoryWarehouses, syncInventoryStockRows } from './data/inventoryMockData';
 import { useInventorySelection } from './hooks/useInventorySelection';
 import { useInventoryTranslations } from './hooks/useInventoryTranslations';
+import { useLanguage } from '../../../shared/context';
 import { inventoryApi } from './services/inventoryApi';
 import type {
   InventoryOperationalColumnId,
@@ -55,6 +56,7 @@ import {
 
 export default function Inventory() {
   const t = useInventoryTranslations();
+  const { currentLanguage } = useLanguage();
   const { products } = useSalesCrm();
   const [activeView, setActiveView] = useState<InventoryOperationalView>('stock');
   const [movementViewMode, setMovementViewMode] = useState<'table' | 'kanban'>('table');
@@ -621,6 +623,7 @@ export default function Inventory() {
         movement={printingMovement}
         movementLines={getOperationalMovementGroupLines(movements, printingMovement)}
         t={t}
+        locale={currentLanguage.code}
         onClose={() => setPrintingMovement(null)}
       />
     </section>

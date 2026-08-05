@@ -35,7 +35,7 @@ function getSalePdfFileName(sale: SaleRecord) {
   return buildDocumentFileName({ documentType: 'post-sale-summary', identifier: sale.saleNumber });
 }
 
-function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
+function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations, locale: string) {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const left = 42;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -85,14 +85,14 @@ function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
       copy.saleDetail.product,
       copy.saleDetail.quantity,
       copy.saleDetail.unitPrice,
-      copy.saleDetail.margin,
+      copy.saleDetail.status,
       copy.saleDetail.warehouse,
     ]],
     body: sale.saleLines.map((line) => [
       `${line.productName}\n${line.sku}`,
       String(line.quantity),
       formatCurrency(line.unitPrice, sale.currency),
-      formatCurrency(line.marginAmount, sale.currency),
+      sale.deliveryStatus,
       line.warehouseId,
     ]),
     styles: {
@@ -132,14 +132,15 @@ function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
 
   addStandardPdfFooters(doc, {
     folio: sale.saleNumber,
-    locale: 'es-MX',
+    confidentiality: 'internal',
+    locale,
   });
 
   return doc;
 }
 
-export function openSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations) {
-  const blob = buildSaleSummaryPdf(sale, copy).output('blob');
+export function openSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations, locale: string) {
+  const blob = buildSaleSummaryPdf(sale, copy, locale).output('blob');
   const url = URL.createObjectURL(blob);
   const pdfWindow = window.open(url, '_blank');
 

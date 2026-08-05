@@ -165,6 +165,7 @@ export const zhCA = {
       notes: '备注',
     },
     placeholders: {
+      ...enCA.modal.placeholders,
       opportunitySelector: '选择商机',
       quoteSelector: '选择已接受报价',
       quoteReference: 'Q-2026-000',

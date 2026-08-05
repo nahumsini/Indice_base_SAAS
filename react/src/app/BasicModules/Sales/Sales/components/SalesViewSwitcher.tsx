@@ -1,4 +1,4 @@
-import { BadgePercent, CircleDollarSign } from 'lucide-react';
+import { BadgePercent, CircleDollarSign, CreditCard } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesRecordsTranslations } from '../translations';
@@ -16,6 +16,7 @@ export function SalesViewSwitcher({
   const views: Array<{ id: CommissionViewMode; label: string; icon: typeof CircleDollarSign }> = [
     { id: 'sales', label: t.viewSwitcher.sales, icon: CircleDollarSign },
     { id: 'commissions', label: t.viewSwitcher.commissions, icon: BadgePercent },
+    { id: 'payment-accounts', label: t.viewSwitcher.paymentAccounts, icon: CreditCard },
   ];
 
   return (

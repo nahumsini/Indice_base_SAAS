@@ -9,6 +9,7 @@ import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurren
 import { calculateCommissionAmount } from '../utils/salesFormatters';
 import { calculateSalesMetrics } from '../utils/salesMetrics';
 import { defaultVisibleSalesColumns } from '../utils/salesStatuses';
+import { salesApi } from '../../salesApi';
 
 const initialFilters: SalesFiltersState = {
   search: '',
@@ -159,6 +160,7 @@ export function useSalesRecords(
   preferredCurrency = defaultSalesCurrency,
   exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
+  const [creationWarning, setCreationWarning] = useState<'paymentEvidenceUploadFailed' | null>(null);
   const {
     salesRecords: records,
     postSaleCases,
@@ -199,9 +201,11 @@ export function useSalesRecords(
   );
 
   const createSaleRecord = async (draft: SaleRecordDraft) => {
+    setCreationWarning(null);
     const validation = validateSaleDraftForBackendReadiness(draft);
     if (!validation.valid) return null;
 
+    const { paymentEvidenceFiles = [], ...persistableDraft } = draft;
     const nextIndex = records.length + 1;
     const id = `SAL-${String(nextIndex).padStart(3, '0')}`;
     const totalAmount = Number(draft.totalAmount) || 0;
@@ -214,7 +218,7 @@ export function useSalesRecords(
         : undefined,
     }));
     const createdRecord: SaleRecord = {
-      ...draft,
+      ...persistableDraft,
       id,
       saleNumber: draft.saleNumber || `SALE-2026-${String(nextIndex).padStart(3, '0')}`,
       saleDocumentReference: draft.saleDocumentReference || `SALE-SUM-2026-${String(nextIndex).padStart(3, '0')}`,
@@ -229,7 +233,65 @@ export function useSalesRecords(
       saleLines,
     };
 
-    return addSaleRecord(createdRecord);
+    const persistedRecord = await addSaleRecord(createdRecord);
+    if (!paymentEvidenceFiles.length || persistedRecord.backendId === undefined) {
+      return persistedRecord;
+    }
+
+    let uploadedFilesCount = 0;
+    try {
+      for (const file of paymentEvidenceFiles) {
+        const upload = await salesApi.createSalePaymentEvidenceUpload({
+          fileName: file.name,
+          contentType: file.type || 'application/octet-stream',
+          sizeBytes: file.size,
+        });
+        const objectKey = upload.objectKey ?? upload.object_key;
+        const uploadUrl = upload.uploadUrl ?? upload.upload_url;
+        const uploadHeaders = upload.uploadHeaders ?? upload.upload_headers;
+        if (!objectKey || !uploadUrl) {
+          throw new Error('Payment evidence upload could not be prepared.');
+        }
+
+        await salesApi.uploadSalePaymentEvidenceFile(uploadUrl, file, uploadHeaders);
+        await salesApi.registerSalePaymentEvidence(persistedRecord.backendId, {
+          objectKey,
+          fileName: file.name,
+          contentType: file.type || upload.contentType,
+          sizeBytes: file.size,
+        });
+        uploadedFilesCount += 1;
+      }
+    } catch {
+      const warningRecord: SaleRecord = {
+        ...persistedRecord,
+        paymentEvidenceStatus: uploadedFilesCount ? 'under_review' : 'missing',
+        financeStatus: 'pending',
+        filesCount: (persistedRecord.filesCount ?? 0) + uploadedFilesCount,
+      };
+      updateSharedSaleRecord(persistedRecord.id, {
+        paymentEvidenceStatus: warningRecord.paymentEvidenceStatus,
+        financeStatus: warningRecord.financeStatus,
+        filesCount: warningRecord.filesCount,
+      });
+      // The sale already exists. Return it so retrying the wizard cannot create
+      // a duplicate sale when only the evidence upload failed.
+      setCreationWarning('paymentEvidenceUploadFailed');
+      return warningRecord;
+    }
+
+    const completedRecord: SaleRecord = {
+      ...persistedRecord,
+      paymentEvidenceStatus: 'under_review',
+      financeStatus: 'pending',
+      filesCount: (persistedRecord.filesCount ?? 0) + paymentEvidenceFiles.length,
+    };
+    updateSharedSaleRecord(persistedRecord.id, {
+      paymentEvidenceStatus: completedRecord.paymentEvidenceStatus,
+      financeStatus: completedRecord.financeStatus,
+      filesCount: completedRecord.filesCount,
+    });
+    return completedRecord;
   };
 
   const updateSaleRecord = (saleId: string, patch: Partial<SaleRecord>) => {
@@ -252,5 +314,7 @@ export function useSalesRecords(
     postSaleStatuses,
     createSaleRecord,
     updateSaleRecord,
+    creationWarning,
+    clearCreationWarning: () => setCreationWarning(null),
   };
 }

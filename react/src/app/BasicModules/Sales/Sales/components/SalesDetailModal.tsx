@@ -8,14 +8,15 @@ import {
   createSaleFromQuote,
   validateSaleDraftForBackendReadiness,
 } from '../../services/salesWorkflowBridge';
-import type { SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuote } from '../../types';
+import type { CreateContactInput, SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuote } from '../../types';
+import type { InventoryWarehouse } from '../../Inventory/types/inventoryTypes';
 import type { SalesWorkflowValidationCode } from '../../types/salesWorkflow';
 import { defaultSalesCurrency } from '../../utils/salesCurrency';
 import { salesBusinessOptions, salesBusinessUnitOptions } from '../data/salesBusinessOptions';
 import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord } from '../types/commissions';
-import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft } from '../types/salesTypes';
+import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft, SalesBusinessOption, SalesCurrentSeller } from '../types/salesTypes';
 import { formatCommissionType } from '../utils/commissionRules';
 import { calculateCommissionAmount, formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
@@ -52,18 +53,42 @@ function getDefaultBusinessScope() {
   };
 }
 
-function getInitialDraft(record?: SaleRecord | null): SaleRecordDraft {
-  return record ?? {
-    ...getDefaultBusinessScope(),
+function getWarehouseBusinessScope(warehouse?: InventoryWarehouse) {
+  if (!warehouse) return getDefaultBusinessScope();
+
+  return {
+    businessUnitId: warehouse.businessUnitId ?? '',
+    businessUnitName: warehouse.businessUnitName ?? '',
+    businessId: warehouse.businessId ?? '',
+    businessName: warehouse.businessName ?? '',
+  };
+}
+
+function getInitialDraft(
+  record?: SaleRecord | null,
+  currentSeller?: SalesCurrentSeller,
+  warehouses: InventoryWarehouse[] = [],
+): SaleRecordDraft {
+  if (record) return record;
+  const warehouse = warehouses.find((item) => item.status === 'active');
+  const businessScope = getWarehouseBusinessScope(warehouse);
+
+  return {
+    ...businessScope,
     prospectId: undefined,
     contactId: undefined,
     customerId: undefined,
-    sellerId: undefined,
+    sellerId: currentSeller?.sellerId,
+    sellerUserCompanyId: currentSeller?.sellerUserCompanyId ?? null,
     quoteId: undefined,
     quoteReference: '',
     saleDocumentReference: '',
     customerName: '',
-    sellerName: '',
+    sellerName: currentSeller?.sellerName ?? '',
+    warehouseId: warehouse?.id ?? '',
+    warehouseName: warehouse?.name ?? '',
+    paymentAccountId: undefined,
+    paymentAccountName: undefined,
     saleDate: getTodayIsoDate(),
     totalAmount: 0,
     subtotal: 0,
@@ -109,12 +134,15 @@ export function SalesDetailModal({
   record,
   quotes,
   products,
+  warehouses,
+  currentSeller,
   contacts,
   opportunities,
   lifecycle,
   commissionRecords = [],
   t,
   onOpenChange,
+  onCreateCustomer,
   onCreate,
   onUpdate,
   onQuoteConverted,
@@ -124,19 +152,22 @@ export function SalesDetailModal({
   record: SaleRecord | null;
   quotes: SalesQuote[];
   products: SalesCatalogItem[];
+  warehouses: InventoryWarehouse[];
+  currentSeller?: SalesCurrentSeller;
   contacts: SalesContact[];
   opportunities: SalesOpportunity[];
   lifecycle?: SaleLifecycleSignals;
   commissionRecords?: CommissionRecord[];
   t: SalesRecordsTranslations;
   onOpenChange: (open: boolean) => void;
+  onCreateCustomer: (contact: CreateContactInput) => Promise<SalesContact>;
   onCreate: (draft: SaleRecordDraft) => Promise<SaleRecord | null> | SaleRecord | null;
   onUpdate: (saleId: string, patch: Partial<SaleRecord>) => void;
   onQuoteConverted: (quoteId: string, opportunityId?: string) => void;
   onCreditSaleCreated?: (record: SaleRecord) => void;
 }) {
   const isCreateMode = !record;
-  const [form, setForm] = useState<SaleRecordDraft>(() => getInitialDraft(record));
+  const [form, setForm] = useState<SaleRecordDraft>(() => getInitialDraft(record, currentSeller, warehouses));
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<SalesWorkflowValidationCode[]>([]);
   const [activeCreateStep, setActiveCreateStep] = useState<SalesCreateStepId>('origin');
@@ -178,15 +209,28 @@ export function SalesDetailModal({
     () => (selectedOpportunity ? quoteOptions.filter((quote) => quote.opportunityId === selectedOpportunity.id) : quoteOptions),
     [quoteOptions, selectedOpportunity],
   );
-  const businessOptions = useMemo(
-    () => salesBusinessOptions.filter((business) => !form.businessUnitId || business.businessUnitId === form.businessUnitId),
-    [form.businessUnitId],
-  );
+  const businessOptions = useMemo(() => {
+    const warehouseBusinesses = new Map<string, SalesBusinessOption>();
+    warehouses
+      .filter((warehouse) => warehouse.status === 'active')
+      .forEach((warehouse) => {
+        if (!warehouse.businessId || !warehouse.businessName || !warehouse.businessUnitId || !warehouse.businessUnitName) return;
+        warehouseBusinesses.set(warehouse.businessId, {
+          id: warehouse.businessId,
+          name: warehouse.businessName,
+          code: warehouse.businessId,
+          businessUnitId: warehouse.businessUnitId,
+          businessUnitName: warehouse.businessUnitName,
+        });
+      });
+
+    return warehouseBusinesses.size ? [...warehouseBusinesses.values()] : salesBusinessOptions;
+  }, [warehouses]);
   const operationalContext = useMemo(() => getSalesOperationalContext(form.businessId), [form.businessId]);
 
   useEffect(() => {
     if (open) {
-      setForm(getInitialDraft(record));
+      setForm(getInitialDraft(record, currentSeller, warehouses));
       setValidationErrors([]);
       setActiveCreateStep('origin');
       setStepError('');
@@ -194,37 +238,32 @@ export function SalesDetailModal({
     } else {
       setIsSummaryPreviewOpen(false);
     }
-  }, [open, record]);
+  }, [currentSeller, open, record, warehouses]);
 
   const calculatedCommissionAmount = useMemo(
     () => calculateCommissionAmount(Number(form.totalAmount) || 0, Number(form.commissionRate) || 0),
     [form.commissionRate, form.totalAmount],
   );
-  const selectedQuoteIsConvertible = Boolean(
-    selectedQuote && (selectedQuote.status === 'Approved' || selectedQuote.status === 'Closed Won'),
-  );
   const createValidation = useMemo(
     () => validateSaleDraftForBackendReadiness(form),
     [form],
   );
-  const originStepReady = Boolean(
-    selectedQuoteIsConvertible
-    && (form.contactId || form.customerId)
-    && form.saleLines.length,
-  );
+  const originStepReady = Boolean(form.customerName.trim());
   const operationStepReady = Boolean(
     form.businessUnitId
     && form.businessUnitId !== 'none'
     && form.businessId
     && form.businessId !== 'none'
-    && form.saleDate,
+    && form.saleDate
+    && form.warehouseId
+    && form.warehouseId !== 'none',
   );
   const createReady = originStepReady && operationStepReady && createValidation.valid;
   const activeCreateStepIndex = salesCreateStepIds.indexOf(activeCreateStep);
-  const createFooterSummary = selectedQuote
+  const createFooterSummary = form.customerName.trim()
     ? t.modal.wizard.footerSummary(
       form.customerName || t.common.notAvailable,
-      form.quoteReference || t.common.notAvailable,
+      form.quoteReference || t.modal.workspace.directSale,
       form.saleLines.length,
       formatSalesCurrency(form.totalAmount, form.currency),
     )
@@ -244,7 +283,7 @@ export function SalesDetailModal({
         businessUnitName: current.businessUnitName,
         businessId: current.businessId ?? '',
         businessName: current.businessName,
-        warehouseId: context.defaultWarehouse,
+        warehouseId: current.warehouseId ?? '',
       },
       saleId: `DRAFT-${quote.id}`,
       saleDate: current.saleDate || getTodayIsoDate(),
@@ -255,18 +294,72 @@ export function SalesDetailModal({
     return {
       ...current,
       ...conversion.saleDraft,
+      sellerId: currentSeller?.sellerId ?? current.sellerId,
+      sellerUserCompanyId: currentSeller?.sellerUserCompanyId ?? current.sellerUserCompanyId,
+      sellerName: currentSeller?.sellerName ?? current.sellerName,
+      warehouseId: current.warehouseId,
+      warehouseName: current.warehouseName,
+      saleLines: withBusinessScope(
+        conversion.saleDraft.saleLines,
+        current.businessUnitId ?? '',
+        current.businessId ?? '',
+        current.warehouseId ?? '',
+      ),
       notes: t.modal.generatedFromQuote(quote.quoteNumber, quote.notes),
     };
   };
 
+  const clearCommercialSource = (current: SaleRecordDraft): SaleRecordDraft => ({
+    ...current,
+    prospectId: undefined,
+    quoteId: undefined,
+    quoteReference: '',
+    totalAmount: 0,
+    subtotal: 0,
+    discountTotal: 0,
+    taxTotal: 0,
+    marginTotal: 0,
+    saleLines: [],
+    inventoryMovementStatus: 'not_generated',
+    inventoryMovementReference: '',
+  });
+
+  const handleCustomerSelection = (contactId: string, createdContact?: SalesContact) => {
+    const contact = createdContact ?? contacts.find((item) => item.id === contactId);
+    if (!contact) return;
+
+    setForm((current) => {
+      const currentOpportunity = opportunities.find((item) => item.id === current.prospectId);
+      const currentQuote = quotes.find((item) => item.id === current.quoteId);
+      const relationContactId = currentQuote?.clientId || currentOpportunity?.contactId;
+      const compatibleWithSource = !relationContactId || relationContactId === contact.id;
+      const next = compatibleWithSource ? current : clearCommercialSource(current);
+
+      return {
+        ...next,
+        contactId: contact.id,
+        customerId: contact.id,
+        customerName: contact.company.trim() || contact.contactPerson.trim() || contact.email.trim(),
+      };
+    });
+    setValidationErrors([]);
+    setStepError('');
+  };
+
   const handleOpportunitySelection = (opportunityId: string) => {
+    if (opportunityId === 'none') {
+      setForm((current) => clearCommercialSource(current));
+      setValidationErrors([]);
+      setStepError('');
+      return;
+    }
+
     const opportunity = opportunityOptions.find((item) => item.id === opportunityId);
     if (!opportunity) return;
 
     setForm((current) => {
       const contact = contacts.find((item) => item.id === opportunity.contactId);
-      const linkedQuotes = quoteOptions.filter((quote) => quote.opportunityId === opportunity.id);
-      const linkedAcceptedQuotes = linkedQuotes.filter((quote) => quote.status === 'Approved' || quote.status === 'Closed Won');
+      const linkedAcceptedQuotes = quoteOptions.filter((quote) => quote.opportunityId === opportunity.id);
       const autoSelectedQuote = linkedAcceptedQuotes.length === 1 ? linkedAcceptedQuotes[0] : null;
       const estimatedValue = parseOpportunityValue(opportunity.estimatedValue);
       const opportunityPatch: SaleRecordDraft = {
@@ -275,16 +368,18 @@ export function SalesDetailModal({
         contactId: contact?.id ?? opportunity.contactId ?? current.contactId,
         customerId: contact?.id ?? opportunity.contactId ?? current.customerId,
         customerName: contact?.company || opportunity.company || current.customerName,
-        sellerName: opportunity.owner || current.sellerName,
-        totalAmount: autoSelectedQuote ? current.totalAmount : estimatedValue || current.totalAmount,
-        subtotal: autoSelectedQuote ? current.subtotal : estimatedValue || current.subtotal,
+        sellerId: currentSeller?.sellerId ?? current.sellerId,
+        sellerUserCompanyId: currentSeller?.sellerUserCompanyId ?? current.sellerUserCompanyId,
+        sellerName: currentSeller?.sellerName ?? current.sellerName,
+        totalAmount: autoSelectedQuote ? current.totalAmount : estimatedValue,
+        subtotal: autoSelectedQuote ? current.subtotal : estimatedValue,
         taxTotal: autoSelectedQuote ? current.taxTotal : 0,
         discountTotal: autoSelectedQuote ? current.discountTotal : 0,
         marginTotal: autoSelectedQuote ? current.marginTotal : 0,
         currency: opportunity.currency || current.currency,
-        quoteId: autoSelectedQuote ? current.quoteId : undefined,
-        quoteReference: autoSelectedQuote ? current.quoteReference : '',
-        saleLines: autoSelectedQuote ? current.saleLines : [],
+        quoteId: autoSelectedQuote?.id,
+        quoteReference: autoSelectedQuote?.quoteNumber ?? '',
+        saleLines: [],
         inventoryMovementStatus: autoSelectedQuote ? current.inventoryMovementStatus : 'not_generated',
         inventoryMovementReference: autoSelectedQuote ? current.inventoryMovementReference : '',
         notes: t.modal.generatedFromOpportunity(opportunity.opportunityName),
@@ -297,54 +392,38 @@ export function SalesDetailModal({
   };
 
   const handleQuoteSelection = (quoteId: string) => {
+    if (quoteId === 'none') {
+      setForm((current) => {
+        const opportunity = opportunities.find((item) => item.id === current.prospectId);
+        const contact = contacts.find((item) => item.id === opportunity?.contactId);
+        const estimatedValue = parseOpportunityValue(opportunity?.estimatedValue);
+
+        return {
+          ...current,
+          quoteId: undefined,
+          quoteReference: '',
+          contactId: contact?.id ?? current.contactId,
+          customerId: contact?.id ?? current.customerId,
+          customerName: contact?.company || opportunity?.company || current.customerName,
+          totalAmount: opportunity ? estimatedValue : 0,
+          subtotal: opportunity ? estimatedValue : 0,
+          discountTotal: 0,
+          taxTotal: 0,
+          marginTotal: 0,
+          saleLines: [],
+          inventoryMovementStatus: 'not_generated',
+          inventoryMovementReference: '',
+        };
+      });
+      setValidationErrors([]);
+      setStepError('');
+      return;
+    }
+
     const quote = quoteOptions.find((item) => item.id === quoteId);
     if (!quote) return;
 
     setForm((current) => buildFormFromQuote(current, quote));
-    setValidationErrors([]);
-    setStepError('');
-  };
-
-  const handleBusinessUnitSelection = (businessUnitId: string) => {
-    const businessUnit = salesBusinessUnitOptions.find((item) => item.id === businessUnitId);
-    const firstBusiness = salesBusinessOptions.find((business) => business.businessUnitId === businessUnitId);
-    const context = getSalesOperationalContext(firstBusiness?.id);
-
-    setForm((current) => ({
-      ...current,
-      businessUnitId,
-      businessUnitName: businessUnit?.name ?? '',
-      businessId: firstBusiness?.id ?? '',
-      businessName: firstBusiness?.name ?? '',
-      saleLines: withBusinessScope(
-        current.saleLines,
-        businessUnitId,
-        firstBusiness?.id ?? '',
-        context.defaultWarehouse,
-      ),
-    }));
-    setValidationErrors([]);
-    setStepError('');
-  };
-
-  const handleBusinessSelection = (businessId: string) => {
-    const business = salesBusinessOptions.find((item) => item.id === businessId);
-    const normalizedBusinessId = business?.id ?? '';
-    const context = getSalesOperationalContext(normalizedBusinessId);
-
-    setForm((current) => ({
-      ...current,
-      businessId: normalizedBusinessId,
-      businessName: business?.name ?? '',
-      businessUnitId: business?.businessUnitId ?? current.businessUnitId,
-      businessUnitName: business?.businessUnitName ?? current.businessUnitName,
-      saleLines: withBusinessScope(
-        current.saleLines,
-        business?.businessUnitId ?? current.businessUnitId ?? '',
-        normalizedBusinessId,
-        context.defaultWarehouse,
-      ),
-    }));
     setValidationErrors([]);
     setStepError('');
   };
@@ -367,13 +446,7 @@ export function SalesDetailModal({
   const handleCreateStepContinue = () => {
     if (activeCreateStep === 'origin') {
       if (!originStepReady) {
-        if (!selectedQuoteIsConvertible) {
-          setStepError(t.modal.wizard.originError);
-        } else if (!form.contactId && !form.customerId) {
-          setStepError(t.modal.validationErrors.missingCustomer);
-        } else {
-          setStepError(t.modal.validationErrors.missingLines);
-        }
+        setStepError(t.modal.wizard.originError);
         return;
       }
 
@@ -398,6 +471,9 @@ export function SalesDetailModal({
   const handleCreate = async () => {
     if (isSaving) return;
 
+    const selectedQuoteIsConvertible = !selectedQuote
+      || selectedQuote.status === 'Approved'
+      || selectedQuote.status === 'Closed Won';
     const errors = selectedQuoteIsConvertible
       ? createValidation.errors
       : [...createValidation.errors, 'quoteNotApproved' as const];
@@ -405,7 +481,7 @@ export function SalesDetailModal({
     if (errors.length) {
       setValidationErrors(Array.from(new Set(errors)));
       setStepError('');
-      if (errors.some((error) => error === 'quoteNotApproved' || error === 'missingCustomer' || error === 'missingLines')) {
+      if (errors.some((error) => error === 'quoteNotApproved' || error === 'missingCustomer')) {
         setActiveCreateStep('origin');
       } else if (errors.some((error) => error === 'missingBusinessUnit' || error === 'missingBusiness')) {
         setActiveCreateStep('operation');
@@ -427,12 +503,22 @@ export function SalesDetailModal({
       businessId: form.businessId,
       businessName: form.businessName,
       customerName: form.customerName.trim(),
-      sellerName: form.sellerName.trim(),
+      sellerId: currentSeller?.sellerId ?? form.sellerId,
+      sellerUserCompanyId: currentSeller?.sellerUserCompanyId ?? form.sellerUserCompanyId,
+      sellerName: (currentSeller?.sellerName ?? form.sellerName).trim(),
       paymentMethod,
       paymentReference: form.paymentReference.trim(),
-      paymentEvidenceStatus: closesWithImmediatePayment ? 'approved' : form.paymentEvidenceStatus,
+      // Evidence is only considered uploaded after the object and its metadata
+      // have both been persisted once the sale exists.
+      paymentEvidenceStatus: form.paymentEvidenceFiles?.length ? 'missing' : form.paymentEvidenceStatus,
       commercialStatus: closesAsCredit || closesWithImmediatePayment ? 'approved' : form.commercialStatus,
-      financeStatus: closesWithImmediatePayment ? 'approved' : 'pending',
+      financeStatus: 'pending',
+      saleLines: withBusinessScope(
+        form.saleLines,
+        form.businessUnitId ?? '',
+        form.businessId ?? '',
+        form.warehouseId ?? '',
+      ),
       inventoryMovementReference: form.inventoryMovementReference.trim(),
       commissionNotes: form.commissionNotes.trim(),
       notes: form.notes.trim(),
@@ -497,7 +583,7 @@ export function SalesDetailModal({
                 variant="outline"
                 className={actionClassNames.secondary}
                 onClick={() => setIsSummaryPreviewOpen(true)}
-                disabled={isSaving || !selectedQuote}
+                disabled={isSaving || !form.customerName.trim()}
               >
                 <FileSearch className="h-4 w-4" />
                 {t.modal.wizard.preview}
@@ -541,15 +627,18 @@ export function SalesDetailModal({
             <SalesCreateForm
               activeStep={activeCreateStep}
               form={form}
-              acceptedQuotes={acceptedQuotes}
               quoteOptions={opportunityQuoteOptions}
+              products={products}
+              warehouses={warehouses}
+              contacts={contacts}
               opportunities={opportunityOptions}
-              selectedOpportunity={selectedOpportunity}
               selectedQuote={selectedQuote}
               businessOptions={businessOptions}
               isReady={createReady}
               stepError={stepError}
               t={t}
+              onCustomerSelection={handleCustomerSelection}
+              onCreateCustomer={onCreateCustomer}
               onFormChange={(patch) => {
                 setForm((current) => ({ ...current, ...patch }));
                 setValidationErrors([]);
@@ -557,8 +646,6 @@ export function SalesDetailModal({
               }}
               onOpportunitySelection={handleOpportunitySelection}
               onQuoteSelection={handleQuoteSelection}
-              onBusinessUnitSelection={handleBusinessUnitSelection}
-              onBusinessSelection={handleBusinessSelection}
             />
           ) : (
             <>

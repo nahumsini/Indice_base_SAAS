@@ -23,6 +23,9 @@ import { useQuotesTranslations } from '../Cotizacion/translations';
 import { SalesDetailModal } from '../Sales/components/SalesDetailModal';
 import { useSalesRecords } from '../Sales/hooks/useSalesRecords';
 import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
+import type { SalesCurrentSeller } from '../Sales/types/salesTypes';
+import { inventoryApi } from '../Inventory/services/inventoryApi';
+import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
 import { ProspectosHeader } from './components/ProspectosHeader';
 import { ProspectosFilters } from './components/ProspectosFilters';
 import { ProspectosKpiStrip } from './components/ProspectosKpiStrip';
@@ -70,6 +73,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     opportunities,
     products,
     quotes,
+    createContactRecord,
     addOpportunity,
     updateOpportunity,
     deleteOpportunity,
@@ -87,6 +91,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [contextCurrentUserCompanyId, setContextCurrentUserCompanyId] = useState<number | null>(null);
   const [currentUserName, setCurrentUserName] = useState('');
+  const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusFilter, setFocusFilter] = useState<OpportunityFocusFilter>('all');
   const [periodFilter, setPeriodFilter] = useState<OpportunityPeriodFilter>('all');
@@ -165,6 +170,14 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    void inventoryApi.loadWarehouses()
+      .then((items) => { if (isMounted) setWarehouses(items); })
+      .catch(() => { if (isMounted) setWarehouses([]); });
+    return () => { isMounted = false; };
+  }, []);
+
   const ownerSelectOptions = useMemo(() => {
     const companyOwnerOptions = ownerOptions.map((owner) => ({ value: ownerOptionValue(owner), label: owner.name }));
     const fallbackOwnerNames = [...salesOwners, ...contacts.map((contact) => contact.owner), ...opportunities.map((opportunity) => opportunity.owner)]
@@ -215,6 +228,14 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     () => ownerOptions.find((owner) => owner.userCompanyId === currentUserCompanyId)?.name ?? '',
     [currentUserCompanyId, ownerOptions],
   );
+  const currentSeller = useMemo<SalesCurrentSeller | undefined>(() => {
+    if (!currentUserCompanyId) return undefined;
+    return {
+      sellerId: String(currentUserId ?? currentUserCompanyId),
+      sellerUserCompanyId: currentUserCompanyId,
+      sellerName: currentUserOwnerName || currentUserName,
+    };
+  }, [currentUserCompanyId, currentUserId, currentUserName, currentUserOwnerName]);
 
   const currentOwnerNames = useMemo(
     () => [currentUserName, currentUserOwnerName].filter(Boolean),
@@ -633,10 +654,13 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         record={null}
         quotes={quotes}
         products={products}
+        warehouses={warehouses}
+        currentSeller={currentSeller}
         contacts={contacts}
         opportunities={opportunities}
         t={salesCopy}
         onOpenChange={setIsSaleModalOpen}
+        onCreateCustomer={createContactRecord}
         onCreate={createSaleRecord}
         onUpdate={updateSaleRecord}
         onQuoteConverted={(quoteId, opportunityId) => {

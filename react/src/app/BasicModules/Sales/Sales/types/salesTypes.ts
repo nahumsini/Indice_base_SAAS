@@ -46,6 +46,10 @@ export type SaleRecord = {
   businessUnitName?: string;
   businessId?: string;
   businessName?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  paymentAccountId?: string;
+  paymentAccountName?: string;
   customerName: string;
   sellerName: string;
   saleDate: string;
@@ -76,6 +80,13 @@ export type SaleRecord = {
 export type SaleRecordDraft = Omit<SaleRecord, 'id' | 'saleNumber' | 'commissionAmount'> & {
   saleNumber?: string;
   commissionAmount?: number;
+  paymentEvidenceFiles?: File[];
+};
+
+export type SalesCurrentSeller = {
+  sellerId: string;
+  sellerUserCompanyId: number | null;
+  sellerName: string;
 };
 
 export type SalesBusinessUnitOption = {

@@ -45,6 +45,10 @@ class TabPermissionRouteClassifierTest {
         assertAnyOf("GET", "/api/v1/finance/petty-cash", "petty_cash.cash", "petty_cash.control", "petty_cash.statements", "petty_cash.kpis");
         assertAnyOf("GET", "/api/v1/pos/cash-closings", "pos.cortes", "pos.kpis");
         assertAnyOf("GET", "/api/v1/sales/products", "inventory.products", "inventory.inventory", "inventory.purchase-orders");
+        assertAnyOf("GET", "/api/v1/finance/payment-accounts", "expenses.payment-accounts", "crm.sales");
+        assertAnyOf("POST", "/api/v1/finance/payment-accounts", "expenses.payment-accounts", "crm.sales");
+        assertAnyOf("GET", "/api/v1/sales/inventory-warehouses", "inventory.inventory", "crm.sales");
+        assertRequirement("POST", "/api/v1/sales/inventory-warehouses", "inventory.inventory");
     }
 
     @Test

@@ -367,6 +367,300 @@ class SalesRepository {
         return keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
     }
 
+    void markSalePaymentEvidenceUnderReview(long companyId, long userId, long saleId) {
+        jdbcTemplate.update(
+                """
+                        UPDATE sales_records
+                        SET payment_evidence_status = 'under_review',
+                            finance_status = 'pending',
+                            updated_by_user_id = ?
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        """,
+                userId,
+                companyId,
+                saleId);
+    }
+
+    void confirmSaleInventory(long companyId, long userId, long saleId, Map<String, Object> payload) {
+        var linesValue = SalesPayloadSupport.value(payload, "saleLines");
+        if (!(linesValue instanceof List<?> lines) || lines.isEmpty()) {
+            return;
+        }
+
+        var warehouseId = selectedWarehouseId(payload, lines);
+        if (warehouseId == null) {
+            throw new IllegalArgumentException("warehouseId is required when a sale has items.");
+        }
+        var warehouse = requireActiveWarehouse(companyId, warehouseId);
+        validateWarehouseScope(payload, warehouse);
+        var movementGroup = "SALE-" + saleId;
+        var saleNumber = firstNonBlank(SalesPayloadSupport.stringValue(payload, "saleNumber"), movementGroup);
+        var saleDate = firstNonBlank(SalesPayloadSupport.stringValue(payload, "saleDate"), LocalDate.now().toString());
+        var sellerName = firstNonBlank(SalesPayloadSupport.stringValue(payload, "sellerName"), "Indice user");
+        var movementCount = 0;
+
+        for (var index = 0; index < lines.size(); index++) {
+            if (!(lines.get(index) instanceof Map<?, ?> rawLine)) {
+                continue;
+            }
+            var line = toStringMap(rawLine);
+            var productId = safeLong(SalesPayloadSupport.value(line, "productId"));
+            if (productId == null) {
+                throw new IllegalArgumentException("Each sale item must reference a saved product.");
+            }
+            var product = requireSaleProduct(companyId, productId);
+            if (!Boolean.TRUE.equals(product.get("inventoryReady"))) {
+                continue;
+            }
+
+            var quantity = SalesPayloadSupport.decimalValue(line, "quantity");
+            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Sale item quantity must be greater than zero.");
+            }
+            var balance = requireInventoryBalanceForUpdate(companyId, productId, warehouseId);
+            if (!Boolean.TRUE.equals(balance.get("usesInventory"))) {
+                throw new IllegalArgumentException("The selected product is not enabled for inventory in this warehouse.");
+            }
+            var available = (BigDecimal) balance.get("availableQuantity");
+            if (available.compareTo(quantity) < 0) {
+                throw new IllegalArgumentException("Insufficient inventory for " + product.get("name") + " in " + warehouse.get("name") + ".");
+            }
+
+            jdbcTemplate.update(
+                    """
+                            UPDATE sales_inventory_balances
+                            SET available_quantity = available_quantity - ?,
+                                last_movement_at = ?,
+                                updated_by_user_id = ?
+                            WHERE company_id = ?
+                              AND id = ?
+                              AND deleted_at IS NULL
+                            """,
+                    quantity,
+                    saleDate,
+                    userId,
+                    companyId,
+                    balance.get("id"));
+
+            var movementNumber = "SAL-" + saleId + "-" + (index + 1) + "-" + java.util.UUID.randomUUID().toString().substring(0, 8);
+            var metadata = new LinkedHashMap<String, Object>();
+            metadata.put("saleId", saleId);
+            metadata.put("saleLineId", SalesPayloadSupport.stringValue(line, "id"));
+            metadata.put("source", "sales_confirmation");
+            jdbcTemplate.update(
+                    """
+                            INSERT INTO sales_inventory_movements
+                            (company_id, movement_number, group_id, product_id, product_name, product_sku,
+                             movement_type, quantity, unit_cost, from_warehouse_id, from_warehouse_name,
+                             business_unit_id, business_unit_name, business_id, business_name,
+                             reason, reference, responsible_name, movement_date, status, metadata_json,
+                             created_by_user_id, updated_by_user_id)
+                            VALUES (?, ?, ?, ?, ?, ?, 'sale', ?, ?, ?, ?, ?, ?, ?, ?,
+                                    'Confirmed sale', ?, ?, ?, 'completed', ?, ?, ?)
+                            """,
+                    companyId,
+                    movementNumber,
+                    movementGroup,
+                    productId,
+                    product.get("name"),
+                    product.get("sku"),
+                    quantity,
+                    firstDecimal(SalesPayloadSupport.decimalValue(line, "unitCost"), (BigDecimal) balance.get("unitCost")),
+                    warehouseId,
+                    warehouse.get("name"),
+                    firstNonBlank(SalesPayloadSupport.stringValue(line, "businessUnitId"), stringValue(payloadCustomField(payload, "businessUnitId"))),
+                    stringValue(payloadCustomField(payload, "businessUnitName")),
+                    firstNonBlank(SalesPayloadSupport.stringValue(line, "businessId"), stringValue(payloadCustomField(payload, "businessId"))),
+                    stringValue(payloadCustomField(payload, "businessName")),
+                    saleNumber,
+                    sellerName,
+                    saleDate,
+                    SalesPayloadSupport.jsonValue(objectMapper, metadata),
+                    userId,
+                    userId);
+            movementCount++;
+        }
+
+        if (movementCount > 0) {
+            jdbcTemplate.update(
+                    """
+                            UPDATE sales_inventory_warehouses
+                            SET last_movement_at = ?, updated_by_user_id = ?
+                            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                            """,
+                    saleDate,
+                    userId,
+                    companyId,
+                    warehouseId);
+            jdbcTemplate.update(
+                    """
+                            UPDATE sales_records
+                            SET inventory_status = 'approved',
+                                inventory_movement_status = 'completed',
+                                inventory_movement_reference = ?,
+                                updated_by_user_id = ?
+                            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                            """,
+                    movementGroup,
+                    userId,
+                    companyId,
+                    saleId);
+        }
+    }
+
+    private Long selectedWarehouseId(Map<String, Object> payload, List<?> lines) {
+        var customWarehouse = safeLong(payloadCustomField(payload, "warehouseId"));
+        if (customWarehouse != null) {
+            return customWarehouse;
+        }
+        for (var item : lines) {
+            if (item instanceof Map<?, ?> line) {
+                var warehouseId = safeLong(toStringMap(line).get("warehouseId"));
+                if (warehouseId != null) {
+                    return warehouseId;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> requireActiveWarehouse(long companyId, long warehouseId) {
+        return jdbcTemplate.query(
+                """
+                        SELECT id, name, business_unit_id, business_unit_name, business_id, business_name
+                        FROM sales_inventory_warehouses
+                        WHERE company_id = ? AND id = ? AND deleted_at IS NULL AND LOWER(status) = 'active'
+                        FOR UPDATE
+                        """,
+                (rs, rowNum) -> {
+                    var row = new LinkedHashMap<String, Object>();
+                    row.put("id", rs.getLong("id"));
+                    row.put("name", rs.getString("name"));
+                    row.put("businessUnitId", rs.getString("business_unit_id"));
+                    row.put("businessUnitName", rs.getString("business_unit_name"));
+                    row.put("businessId", rs.getString("business_id"));
+                    row.put("businessName", rs.getString("business_name"));
+                    return row;
+                },
+                companyId,
+                warehouseId).stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("The selected warehouse is not active or does not belong to this company."));
+    }
+
+    private void validateWarehouseScope(Map<String, Object> payload, Map<String, Object> warehouse) {
+        var selectedUnitId = stringValue(payloadCustomField(payload, "businessUnitId"));
+        var selectedUnitName = stringValue(payloadCustomField(payload, "businessUnitName"));
+        var selectedBusinessId = stringValue(payloadCustomField(payload, "businessId"));
+        var selectedBusinessName = stringValue(payloadCustomField(payload, "businessName"));
+
+        if (!scopeMatches(
+                stringValue(warehouse.get("businessUnitId")),
+                stringValue(warehouse.get("businessUnitName")),
+                selectedUnitId,
+                selectedUnitName)) {
+            throw new IllegalArgumentException("The selected warehouse is not associated with the sale business unit.");
+        }
+        if (!scopeMatches(
+                stringValue(warehouse.get("businessId")),
+                stringValue(warehouse.get("businessName")),
+                selectedBusinessId,
+                selectedBusinessName)) {
+            throw new IllegalArgumentException("The selected warehouse is not associated with the sale business.");
+        }
+    }
+
+    private static boolean scopeMatches(
+            String warehouseId,
+            String warehouseName,
+            String selectedId,
+            String selectedName) {
+        if (warehouseId == null && warehouseName == null) {
+            return true;
+        }
+        return sameScopeValue(warehouseId, selectedId)
+                || sameScopeValue(warehouseId, selectedName)
+                || sameScopeValue(warehouseName, selectedId)
+                || sameScopeValue(warehouseName, selectedName);
+    }
+
+    private static boolean sameScopeValue(String left, String right) {
+        return left != null && right != null && left.equalsIgnoreCase(right);
+    }
+
+    private Map<String, Object> requireSaleProduct(long companyId, long productId) {
+        return jdbcTemplate.query(
+                """
+                        SELECT id, name, sku, inventory_ready
+                        FROM sales_products
+                        WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                        """,
+                (rs, rowNum) -> {
+                    var row = new LinkedHashMap<String, Object>();
+                    row.put("id", rs.getLong("id"));
+                    row.put("name", rs.getString("name"));
+                    row.put("sku", rs.getString("sku"));
+                    row.put("inventoryReady", rs.getBoolean("inventory_ready"));
+                    return row;
+                },
+                companyId,
+                productId).stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("A sale item references a product that does not exist."));
+    }
+
+    private Map<String, Object> requireInventoryBalanceForUpdate(long companyId, long productId, long warehouseId) {
+        return jdbcTemplate.query(
+                """
+                        SELECT id, available_quantity, unit_cost, uses_inventory
+                        FROM sales_inventory_balances
+                        WHERE company_id = ? AND product_id = ? AND warehouse_id = ? AND deleted_at IS NULL
+                        FOR UPDATE
+                        """,
+                (rs, rowNum) -> {
+                    var row = new LinkedHashMap<String, Object>();
+                    row.put("id", rs.getLong("id"));
+                    row.put("availableQuantity", rs.getBigDecimal("available_quantity"));
+                    row.put("unitCost", rs.getBigDecimal("unit_cost"));
+                    row.put("usesInventory", rs.getBoolean("uses_inventory"));
+                    return row;
+                },
+                companyId,
+                productId,
+                warehouseId).stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No inventory balance exists for a selected product in this warehouse."));
+    }
+
+    private Object payloadCustomField(Map<String, Object> payload, String field) {
+        var customFields = SalesPayloadSupport.value(payload, "customFields");
+        if (!(customFields instanceof Map<?, ?> map)) {
+            return null;
+        }
+        return toStringMap(map).get(field);
+    }
+
+    private static Map<String, Object> toStringMap(Map<?, ?> source) {
+        var result = new LinkedHashMap<String, Object>();
+        source.forEach((key, value) -> result.put(String.valueOf(key), value));
+        return result;
+    }
+
+    private static Long safeLong(Object value) {
+        try {
+            return SalesPayloadSupport.toLong(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        var normalized = String.valueOf(value).trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
     void deleteFile(long companyId, long fileId) {
         jdbcTemplate.update(
                 "UPDATE sales_files SET deleted_at = CURRENT_TIMESTAMP WHERE company_id = ? AND id = ?",

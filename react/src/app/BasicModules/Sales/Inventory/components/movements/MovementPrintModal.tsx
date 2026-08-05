@@ -14,11 +14,13 @@ export function MovementPrintModal({
   movement,
   movementLines,
   t,
+  locale,
   onClose,
 }: {
   movement: InventoryOperationalMovement | null;
   movementLines?: InventoryOperationalMovement[];
   t: InventoryTranslations;
+  locale: string;
   onClose: () => void;
 }) {
   const documentRef = useRef<HTMLElement>(null);
@@ -43,7 +45,7 @@ export function MovementPrintModal({
       `,
       documentTitle: `inventory_movement_${movement.movementNumber ?? movement.id}`,
       includeApplicationStyles: true,
-      locale: 'es-MX',
+      locale,
       pageSize: 'a4',
     });
   };
@@ -75,7 +77,7 @@ export function MovementPrintModal({
             <header className="border-b border-slate-200 pb-7">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-xs font-medium text-[#B63B32]">Índice Sales OS</p>
+                  <p className="text-xs font-medium text-[#B63B32]">{movement.businessName ?? movement.businessUnitName ?? t.operational.modals.movementDocumentTitle}</p>
                   <h1 className="mt-3 text-4xl font-medium tracking-normal text-slate-950">{documentTitle}</h1>
                   <p className="mt-2 text-sm font-medium text-slate-500">{t.operational.movementTypes[movement.movementType]}</p>
                 </div>

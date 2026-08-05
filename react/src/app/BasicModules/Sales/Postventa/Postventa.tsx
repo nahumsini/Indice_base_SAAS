@@ -765,7 +765,7 @@ export default function Postventa() {
                   <Printer className="h-4 w-4" />
                   Acta de entrega
                 </Button>
-                <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => openSaleSummaryPdf(selectedSale, t)}>
+                <Button variant="outline" className={postSaleModalActions.secondary} onClick={() => openSaleSummaryPdf(selectedSale, t, currentLanguage.code)}>
                   <FileText className="h-4 w-4" />
                   {t.saleDetail.viewPdf}
                 </Button>
