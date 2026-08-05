@@ -58,6 +58,43 @@ class PayrollCalculationEngineProviderTest {
     }
 
     @Test
+    void operationalPayrollSkipsFiscalProviderAndFiscalMetadata() {
+        var result = engine(new FakePayrollRuleResolver()).calculateLine(
+            context(
+                "MX",
+                "MX",
+                "MXN",
+                "semimonthly",
+                "10000.00",
+                PayrollCalculationContext.CountryPayrollProfile.empty("MX"),
+                null,
+                List.of(new PayrollCalculationContext.ManualAdjustment(
+                    "MANUAL_BONUS",
+                    "earning",
+                    "Bono operativo",
+                    new BigDecimal("500.00"),
+                    "manual_taxable",
+                    true,
+                    true,
+                    false,
+                    "Manual earning",
+                    "MXN"
+                )),
+                false
+            )
+        );
+
+        assertEquals("OPERATIONAL_NON_FISCAL", result.calculationSource());
+        assertFalse(result.statutoryCompliance());
+        assertEquals(0, BigDecimal.ZERO.compareTo(result.taxableBase()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(result.employerContributionsAmount()));
+        assertTrue(result.items().stream().noneMatch((item) -> "ISR".equals(item.code()) || "IMSS_EMP".equals(item.code())));
+        assertTrue(result.items().stream().noneMatch(PayrollCalculatedLineItem::taxable));
+        assertTrue(result.items().stream().noneMatch(PayrollCalculatedLineItem::affectsSocialSecurity));
+        assertTrue(result.items().stream().allMatch((item) -> !"taxable_compensation".equals(item.taxTreatment())));
+    }
+
+    @Test
     void mexicoGoldenSemimonthlySalaryCalculatesIsrImssAndEmployerCost() {
         var result = engine(new FakePayrollRuleResolver()).calculateLine(
             context("MX", "MX", "MXN", "semimonthly", "10000.00")
@@ -760,6 +797,20 @@ class PayrollCalculationEngineProviderTest {
         PayrollCalculationContext.FiscalAccumulatorSnapshot fiscalAccumulator,
         List<PayrollCalculationContext.ManualAdjustment> manualAdjustments
     ) {
+        return context(country, jurisdiction, currency, frequency, baseSalary, countryProfile, fiscalAccumulator, manualAdjustments, true);
+    }
+
+    private PayrollCalculationContext context(
+        String country,
+        String jurisdiction,
+        String currency,
+        String frequency,
+        String baseSalary,
+        PayrollCalculationContext.CountryPayrollProfile countryProfile,
+        PayrollCalculationContext.FiscalAccumulatorSnapshot fiscalAccumulator,
+        List<PayrollCalculationContext.ManualAdjustment> manualAdjustments,
+        boolean includeInFiscal
+    ) {
         var periodEnd = LocalDate.parse("2026-06-30");
         var salary = new BigDecimal(baseSalary);
         return new PayrollCalculationContext(
@@ -774,7 +825,7 @@ class PayrollCalculationEngineProviderTest {
             frequency,
             LocalDate.parse("2026-06-01"),
             periodEnd,
-            true,
+            includeInFiscal,
             new PayrollCalculationContext.EmployeeSalarySnapshot(
                 "USR-001",
                 "Ada Lovelace",

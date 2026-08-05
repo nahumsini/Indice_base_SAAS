@@ -61,11 +61,13 @@ public class PayrollCalculationEngine {
         var totalPayrollCost = money(grossAmount.add(employerContributionsAmount));
         var timestamp = LocalDateTime.now();
         var genericUnsupportedCountry = provider instanceof GenericPayrollProvider;
-        var statutoryCompliance = !genericUnsupportedCountry;
+        var statutoryCompliance = context.includeInFiscal() && !genericUnsupportedCountry;
         var calculationWarnings = calculationWarnings(context, provider, genericUnsupportedCountry, taxableBase, sortedItems);
-        var calculationSource = genericUnsupportedCountry
-            ? "GENERIC_UNSUPPORTED_COUNTRY"
-            : "payroll_calculation_engine:" + provider.providerCode();
+        var calculationSource = !context.includeInFiscal()
+            ? "OPERATIONAL_NON_FISCAL"
+            : genericUnsupportedCountry
+                ? "GENERIC_UNSUPPORTED_COUNTRY"
+                : "payroll_calculation_engine:" + provider.providerCode();
 
         var partialResult = new PayrollLineCalculationResult(
             context.salary().baseSalary(),
@@ -165,6 +167,7 @@ public class PayrollCalculationEngine {
         String legalClassification,
         boolean taxable
     ) {
+        var fiscalTaxable = context.includeInFiscal() && taxable;
         return new PayrollCalculatedLineItem(
             code,
             category,
@@ -174,10 +177,10 @@ public class PayrollCalculationEngine {
             displayOrder,
             context.country(),
             context.jurisdiction(),
-            taxable ? "taxable_compensation" : "attendance_adjustment",
-            taxable,
+            fiscalTaxable ? "taxable_compensation" : context.includeInFiscal() ? "attendance_adjustment" : "operational_adjustment",
+            fiscalTaxable,
             false,
-            taxable,
+            fiscalTaxable,
             "employer_contribution".equals(category),
             legalClassification,
             "",
@@ -270,11 +273,13 @@ public class PayrollCalculationEngine {
         List<PayrollCalculatedLineItem> items
     ) {
         var warnings = new ArrayList<String>();
-        if (genericUnsupportedCountry) {
+        if (context.includeInFiscal() && genericUnsupportedCountry) {
             warnings.add("País no soportado por proveedor fiscal. El cálculo es una estimación operativa y no debe tratarse como cumplimiento fiscal.");
         }
         warnings.addAll(context.currencySnapshot().warnings());
-        warnings.addAll(provider.calculationWarnings(context, taxableBase, items));
+        if (context.includeInFiscal()) {
+            warnings.addAll(provider.calculationWarnings(context, taxableBase, items));
+        }
         return warnings;
     }
 
