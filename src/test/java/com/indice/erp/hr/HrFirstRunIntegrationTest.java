@@ -827,12 +827,13 @@ class HrFirstRunIntegrationTest {
         var payrollRunResponse = mockMvc.perform(
             post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "weekly",
                     "grouping_mode", "business",
                     "period_start_date", overnightDate,
-                    "period_end_date", overnightDate
+                    "period_end_date", overnightDate.plusDays(6)
                 )))
         )
             .andExpect(status().isCreated())
@@ -846,7 +847,7 @@ class HrFirstRunIntegrationTest {
             .map(run -> ((Number) run.get("id")).longValue())
             .forEach(createdPayrollRunIds::add);
         var payrollRun = payrollRuns.stream()
-            .filter(run -> ("business:" + business.businessId()).equals(run.get("grouping_key")))
+            .filter(run -> String.valueOf(run.get("grouping_key")).startsWith("business:" + business.businessId() + "|"))
             .findFirst()
             .orElseThrow();
         var runId = ((Number) payrollRun.get("id")).longValue();
@@ -2083,12 +2084,13 @@ class HrFirstRunIntegrationTest {
         var createRunResponse = mockMvc.perform(
             post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "monthly",
                     "grouping_mode", "single",
                     "period_start_date", TEST_ATTENDANCE_DAY,
-                    "period_end_date", TEST_ATTENDANCE_DAY
+                    "period_end_date", "2026-08-31"
                 )))
         )
             .andExpect(status().isCreated())
@@ -2117,12 +2119,18 @@ class HrFirstRunIntegrationTest {
             .filter(line -> dailyUserCompanyId == ((Number) line.get("user_company_id")).longValue())
             .findFirst()
             .orElseThrow();
+        var hourlyLine = lines.stream()
+            .filter(line -> hourlyUserCompanyId == ((Number) line.get("user_company_id")).longValue())
+            .findFirst()
+            .orElseThrow();
 
         var dailyLineId = ((Number) dailyLine.get("id")).longValue();
+        var hourlyLineId = ((Number) hourlyLine.get("id")).longValue();
 
         mockMvc.perform(
             put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, dailyLineId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "include_in_fiscal", false,
@@ -2135,15 +2143,25 @@ class HrFirstRunIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.lines[?(@.id==" + dailyLineId + ")].include_in_fiscal").value(false));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId).session(session))
+        mockMvc.perform(
+            put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, hourlyLineId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("include_in_fiscal", false)))
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.lines[?(@.id==" + hourlyLineId + ")].include_in_fiscal").value(false));
+
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId).session(session).header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("processed"));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId).session(session).header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("approved"));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId).session(session).header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("paid"));
 
@@ -2181,6 +2199,7 @@ class HrFirstRunIntegrationTest {
         var createRunResponse = mockMvc.perform(
             post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "monthly",
@@ -2200,21 +2219,26 @@ class HrFirstRunIntegrationTest {
             .map(run -> ((Number) run.get("id")).longValue())
             .forEach(createdPayrollRunIds::add);
         var run = createdRuns.stream()
-            .filter(item -> ("business:" + business.businessId()).equals(item.get("grouping_key")))
+            .filter(item -> String.valueOf(item.get("grouping_key")).startsWith("business:" + business.businessId() + "|country:MX|"))
             .findFirst()
             .orElseThrow();
         var runId = ((Number) run.get("id")).longValue();
 
-        var detailBeforeManual = readMap(mockMvc.perform(
-            get("/api/v1/hr/payroll/runs/{runId}", runId)
-                .session(session)
-        )
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString());
-        @SuppressWarnings("unchecked")
-        var linesBeforeManual = (List<Map<String, Object>>) detailBeforeManual.get("lines");
+        var linesBeforeManual = new ArrayList<Map<String, Object>>();
+        for (var createdRun : createdRuns) {
+            var createdRunId = ((Number) createdRun.get("id")).longValue();
+            var detailBeforeManual = readMap(mockMvc.perform(
+                get("/api/v1/hr/payroll/runs/{runId}", createdRunId)
+                    .session(session)
+            )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+            @SuppressWarnings("unchecked")
+            var runLines = (List<Map<String, Object>>) detailBeforeManual.get("lines");
+            linesBeforeManual.addAll(runLines);
+        }
 
         var mxLine = payrollLineFor(linesBeforeManual, mxUserCompanyId);
         var usLine = payrollLineFor(linesBeforeManual, usUserCompanyId);
@@ -2231,6 +2255,7 @@ class HrFirstRunIntegrationTest {
         var detailAfterManualResponse = mockMvc.perform(
             put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, mxLineId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "include_in_fiscal", true,
@@ -2250,7 +2275,7 @@ class HrFirstRunIntegrationTest {
         assertThat(payrollDecimal(mxLineAfterManual.get("employer_contributions_amount"))).isGreaterThan(mxEmployerCostBefore);
         assertManualEmployerCostVisibleForFrontend(mxLineAfterManual);
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId).session(session).header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("processed"));
 
@@ -2266,11 +2291,11 @@ class HrFirstRunIntegrationTest {
         var processedLines = (List<Map<String, Object>>) processedDetail.get("lines");
         assertManualEmployerCostVisibleForFrontend(payrollLineFor(processedLines, mxUserCompanyId));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId).session(session).header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("approved"));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId).session(session).header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("paid"));
 
@@ -2310,12 +2335,13 @@ class HrFirstRunIntegrationTest {
             var createRunResponse = mockMvc.perform(
                 post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "monthly",
                     "grouping_mode", "single",
                     "period_start_date", "2099-01-01",
-                    "period_end_date", "2099-01-01"
+                    "period_end_date", "2099-01-31"
                 )))
         )
             .andExpect(status().isCreated())
