@@ -244,7 +244,7 @@ public class TabPermissionRouteClassifier {
             return one("expenses.accounting");
         }
         if (path.startsWith("/api/v1/finance/payment-accounts")) {
-            return one("expenses.payment-accounts");
+            return any("expenses.payment-accounts", "crm.sales");
         }
         if (path.startsWith("/api/v1/finance/kpis")) {
             return one("expenses.kpis");
@@ -366,7 +366,10 @@ public class TabPermissionRouteClassifier {
                 ? any("inventory.products", "inventory.inventory", "inventory.purchase-orders", "crm.quotes", "crm.sales")
                 : one("inventory.products");
             case "providers" -> one("inventory.providers");
-            case "inventory-warehouses", "inventory-balances", "inventory-movements" -> one("inventory.inventory");
+            case "inventory-warehouses" -> "GET".equals(method)
+                ? any("inventory.inventory", "crm.sales")
+                : one("inventory.inventory");
+            case "inventory-balances", "inventory-movements" -> one("inventory.inventory");
             default -> Optional.empty();
         };
     }

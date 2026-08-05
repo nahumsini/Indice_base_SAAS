@@ -45,6 +45,7 @@ export type SalesCrmContextValue = {
   postSaleCases: SalesPostSaleCase[];
   contracts: DigitalContract[];
   addContact: (contact: CreateContactInput) => SalesContact;
+  createContactRecord: (contact: CreateContactInput) => Promise<SalesContact>;
   updateContact: (contactId: string, patch: UpdateContactInput) => void;
   deleteContact: (contactId: string) => void;
   addOpportunity: (opportunity: CreateOpportunityInput) => SalesOpportunity;

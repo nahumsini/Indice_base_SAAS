@@ -8,7 +8,7 @@ export type CommissionType =
 
 export type CommissionStatus = 'pending' | 'approved' | 'paid' | 'cancelled';
 export type CommissionRuleStatus = 'active' | 'inactive';
-export type CommissionViewMode = 'sales' | 'commissions';
+export type CommissionViewMode = 'sales' | 'commissions' | 'payment-accounts';
 export type CommissionPeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
 
 export type CommissionRule = {

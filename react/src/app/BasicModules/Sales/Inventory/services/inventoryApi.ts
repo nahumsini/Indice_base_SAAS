@@ -234,6 +234,11 @@ function toMovementPayload(movement: InventoryOperationalMovement) {
 }
 
 export const inventoryApi = {
+  async loadWarehouses() {
+    const response = await salesApi.list<ApiInventoryWarehouse>('inventory-warehouses');
+    return response.items.map(toWarehouse);
+  },
+
   async loadWorkspace(products: SalesCatalogItem[]) {
     const [warehousesResponse, balancesResponse, movementsResponse] = await Promise.all([
       salesApi.list<ApiInventoryWarehouse>('inventory-warehouses'),

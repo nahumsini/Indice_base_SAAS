@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { FailureToast } from '../../../components/FailureToast';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import PaymentAccounts from '../../Expenses/PaymentAccounts';
 import { CommissionManagementModal } from './components/CommissionManagementModal';
 import { CommissionRulesModal } from './components/CommissionRulesModal';
 import { CommissionsView } from './components/CommissionsView';
@@ -18,6 +20,10 @@ import type { CommissionRule, CommissionViewMode } from './types/commissions';
 import type { SaleRecord } from './types/salesTypes';
 import { calculateCommissionRecords } from './utils/commissionRules';
 import { useSalesCrm } from '../salesCrmContext';
+import { inventoryApi } from '../Inventory/services/inventoryApi';
+import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
+import { salesApi } from '../salesApi';
+import type { SalesCurrentSeller } from './types/salesTypes';
 
 function SaleCancelDialog({
   record,
@@ -56,6 +62,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     products,
     contacts,
     opportunities,
+    createContactRecord,
     updateQuoteStatus,
     updateOpportunity,
   } = useSalesCrm();
@@ -75,6 +82,8 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     businesses,
     createSaleRecord,
     updateSaleRecord,
+    creationWarning,
+    clearCreationWarning,
   } = useSalesRecords(preferredCurrency, exchangeRatesPerUsd);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -87,7 +96,32 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   const [summaryPreviewRecord, setSummaryPreviewRecord] = useState<SaleRecord | null>(null);
   const [commissionRecord, setCommissionRecord] = useState<SaleRecord | null>(null);
   const [pendingCancelRecord, setPendingCancelRecord] = useState<SaleRecord | null>(null);
+  const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>([]);
+  const [currentSeller, setCurrentSeller] = useState<SalesCurrentSeller>();
   const commissionRecords = useMemo(() => calculateCommissionRecords(records, commissionRules), [commissionRules, records]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void Promise.allSettled([inventoryApi.loadWarehouses(), salesApi.context()])
+      .then(([warehousesResult, contextResult]) => {
+        if (cancelled) return;
+        setWarehouses(warehousesResult.status === 'fulfilled' ? warehousesResult.value : []);
+        if (contextResult.status !== 'fulfilled') return;
+        const currentUser = contextResult.value.users.find(
+          (user) => user.userCompanyId === contextResult.value.currentUserCompanyId,
+        );
+        if (currentUser) {
+          setCurrentSeller({
+            sellerId: String(currentUser.userId ?? currentUser.userCompanyId),
+            sellerUserCompanyId: currentUser.userCompanyId,
+            sellerName: currentUser.name || currentUser.email,
+          });
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, []);
 
   const handleCreateSale = () => {
     setSelectedRecord(null);
@@ -156,12 +190,14 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
 
   return (
     <section className="space-y-5">
-      <SalesHeader
-        t={t}
-        onOpenColumns={() => setIsColumnsModalOpen(true)}
-        onOpenCommissionRules={() => setIsCommissionRulesOpen(true)}
-        onCreateSale={handleCreateSale}
-      />
+      {activeView !== 'payment-accounts' ? (
+        <SalesHeader
+          t={t}
+          onOpenColumns={() => setIsColumnsModalOpen(true)}
+          onOpenCommissionRules={() => setIsCommissionRulesOpen(true)}
+          onCreateSale={handleCreateSale}
+        />
+      ) : null}
 
       <SalesViewSwitcher activeView={activeView} t={t} onViewChange={setActiveView} />
 
@@ -188,13 +224,15 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
           onSendToCredit={handleSendToCredit}
           onCancelSale={handleCancelSale}
         />
-      ) : (
+      ) : activeView === 'commissions' ? (
         <CommissionsView
           learningModeActive={learningModeActive}
           sales={records}
           rules={commissionRules}
           t={t}
         />
+      ) : (
+        <PaymentAccounts onNavigate={(page) => page && navigate(`/${page}`)} />
       )}
 
       <SalesColumnsModal
@@ -210,12 +248,15 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         record={selectedRecord}
         quotes={quotes}
         products={products}
+        warehouses={warehouses}
+        currentSeller={currentSeller}
         contacts={contacts}
         opportunities={opportunities}
         lifecycle={selectedRecord ? lifecycleByRecordId[selectedRecord.id] : undefined}
         commissionRecords={selectedRecord ? commissionRecords.filter((commission) => commission.saleId === selectedRecord.id) : []}
         t={t}
         onOpenChange={setIsDetailModalOpen}
+        onCreateCustomer={createContactRecord}
         onCreate={createSaleRecord}
         onUpdate={updateSaleRecord}
         onCreditSaleCreated={handleSendToCredit}
@@ -267,6 +308,12 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         t={t}
         onCancel={() => setPendingCancelRecord(null)}
         onConfirm={handleConfirmCancelSale}
+      />
+
+      <FailureToast
+        isVisible={creationWarning === 'paymentEvidenceUploadFailed'}
+        message={t.modal.wizard.paymentEvidenceUploadWarning}
+        onClose={clearCreationWarning}
       />
     </section>
   );

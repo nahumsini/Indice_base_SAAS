@@ -68,6 +68,43 @@ function formatCurrency(value: number, currency?: string | null) {
   return formatSalesCurrencyAmount(value, currency);
 }
 
+function getCommercialSummaryCopy(locale: string) {
+  const language = locale.toLowerCase().split('-')[0];
+  const labels = {
+    en: {
+      title: 'Commercial sale summary',
+      noteTitle: 'Document classification',
+      noteBody: 'Commercial summary only. This document is not a fiscal invoice or proof of payment.',
+    },
+    es: {
+      title: 'Resumen comercial de venta',
+      noteTitle: 'Clasificación del documento',
+      noteBody: 'Resumen comercial únicamente. Este documento no es una factura fiscal ni un comprobante de pago.',
+    },
+    fr: {
+      title: 'Sommaire commercial de la vente',
+      noteTitle: 'Classification du document',
+      noteBody: 'Sommaire commercial seulement. Ce document n’est ni une facture fiscale ni une preuve de paiement.',
+    },
+    ko: {
+      title: '판매 상업 요약',
+      noteTitle: '문서 분류',
+      noteBody: '상업용 요약 문서입니다. 세금계산서 또는 결제 증빙이 아닙니다.',
+    },
+    pt: {
+      title: 'Resumo comercial da venda',
+      noteTitle: 'Classificação do documento',
+      noteBody: 'Resumo comercial apenas. Este documento não é uma nota fiscal nem um comprovante de pagamento.',
+    },
+    zh: {
+      title: '销售商业摘要',
+      noteTitle: '文件分类',
+      noteBody: '仅供商业摘要使用。本文件不是税务发票或付款凭证。',
+    },
+  } as const;
+  return labels[language as keyof typeof labels] ?? labels.en;
+}
+
 function getLineTotal(line: InvoiceLine) {
   return line.subtotal + (line.subtotal * (line.taxPercent / 100));
 }
@@ -143,6 +180,7 @@ export function buildSaleInvoicePdf({
   const currency = sale.currency || operationalContext.currency || 'MXN';
   const invoiceNumber = sale.saleNumber || sale.saleDocumentReference || quote?.quoteNumber || copy.common.notAvailable;
   const generatedAt = new Date();
+  const documentCopy = getCommercialSummaryCopy(locale);
   const generatedDate = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(generatedAt);
   const lines = getInvoiceLines(sale, quote);
   const itemCount = lines.reduce((total, item) => total + item.quantity, 0);
@@ -178,8 +216,8 @@ export function buildSaleInvoicePdf({
   };
 
   doc.setProperties({
-    title: `${copy.invoice.documentTitle} ${invoiceNumber}`,
-    subject: copy.invoice.documentTitle,
+    title: `${documentCopy.title} ${invoiceNumber}`,
+    subject: documentCopy.title,
     creator: copy.header.title,
   });
 
@@ -189,7 +227,7 @@ export function buildSaleInvoicePdf({
   doc.setFontSize(8);
   doc.text(`${copy.invoice.number}: ${invoiceNumber}`, left, y + 2);
   doc.setFontSize(16);
-  doc.text(copy.invoice.documentTitle, pageWidth / 2, y + 2, { align: 'center' });
+  doc.text(documentCopy.title, pageWidth / 2, y + 2, { align: 'center' });
 
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
@@ -201,7 +239,7 @@ export function buildSaleInvoicePdf({
   setText(doc, brand.graphite);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
-  doc.text(copy.invoice.documentTitle, left, y);
+  doc.text(documentCopy.title, left, y);
 
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
@@ -370,11 +408,11 @@ export function buildSaleInvoicePdf({
   setText(doc, brand.graphite);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text(copy.invoice.disclaimerTitle, left + 5, y + 8);
+  doc.text(documentCopy.noteTitle, left + 5, y + 8);
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text(copy.invoice.disclaimerBody, left + 5, y + 16, { maxWidth: contentWidth - 10 });
+  doc.text(documentCopy.noteBody, left + 5, y + 16, { maxWidth: contentWidth - 10 });
 
   addStandardPdfFooters(doc, {
     folio: invoiceNumber,
@@ -385,7 +423,7 @@ export function buildSaleInvoicePdf({
 }
 
 export function getSaleInvoicePdfFileName(sale: SaleRecord | SaleRecordDraft) {
-  const reference = sale.saleNumber || sale.saleDocumentReference || sale.quoteReference || 'invoice';
+  const reference = sale.saleNumber || sale.saleDocumentReference || sale.quoteReference || 'sale';
   return buildDocumentFileName({ documentType: 'sale-summary', identifier: reference });
 }
 

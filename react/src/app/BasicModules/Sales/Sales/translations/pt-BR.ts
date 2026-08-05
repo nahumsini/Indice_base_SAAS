@@ -165,6 +165,7 @@ export const ptBR = {
       notes: 'Notas',
     },
     placeholders: {
+      ...enCA.modal.placeholders,
       opportunitySelector: 'Selecione uma oportunidade',
       quoteSelector: 'Selecione uma cotação aceita',
       quoteReference: 'Q-2026-000',

@@ -165,6 +165,7 @@ export const koCA = {
       notes: '메모',
     },
     placeholders: {
+      ...enCA.modal.placeholders,
       opportunitySelector: '기회 선택',
       quoteSelector: '승인된 견적 선택',
       quoteReference: 'Q-2026-000',

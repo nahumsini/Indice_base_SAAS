@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SalesService {
 
     private static final long MAX_PRODUCT_IMAGE_SIZE_BYTES = 10L * 1024L * 1024L;
+    private static final long MAX_PAYMENT_EVIDENCE_SIZE_BYTES = 15L * 1024L * 1024L;
     private static final Set<String> PRODUCT_IMAGE_CONTENT_TYPES = Set.of(
             "image/jpeg",
             "image/png",
@@ -30,6 +31,11 @@ public class SalesService {
             "image/avif",
             "image/heic",
             "image/heif");
+    private static final Set<String> PAYMENT_EVIDENCE_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "image/webp");
 
     private final SalesRepository salesRepository;
     private final SalesReferenceService referenceService;
@@ -94,11 +100,17 @@ public class SalesService {
     public Map<String, Object> create(long companyId, long userId, String collection, Map<String, Object> payload) {
         var definition = definition(collection);
         var normalizedPayload = normalizeBeforeSave(companyId, collection, payload);
+        if ("sales".equals(collection)) {
+            assignAuthenticatedSeller(companyId, userId, normalizedPayload);
+        }
         referenceService.validateEntityPayload(companyId, collection, normalizedPayload);
         var id = salesRepository.create(companyId, userId, definition, normalizedPayload);
         if ("quotes".equals(collection)) {
             createQuoteItemsFromPayload(companyId, id, normalizedPayload);
             refreshQuoteAmount(companyId, id);
+        }
+        if ("sales".equals(collection)) {
+            salesRepository.confirmSaleInventory(companyId, userId, id, normalizedPayload);
         }
         return get(companyId, collection, id);
     }
@@ -163,6 +175,91 @@ public class SalesService {
         body.put("fileName", fileName);
         body.put("contentType", contentType);
         body.put("sizeBytes", sizeBytes);
+        return body;
+    }
+
+    public Map<String, Object> createSalePaymentEvidenceUpload(long companyId, Map<String, Object> payload) {
+        requireProductImageStorage();
+        var fileName = requireFileName(payload, "payment-evidence");
+        var contentType = requirePaymentEvidenceContentType(
+                SalesPayloadSupport.stringValue(payload, "contentType"),
+                fileName);
+        var sizeBytes = requirePaymentEvidenceSize(payload);
+        var objectKey = paymentEvidencePrefix(companyId) + UUID.randomUUID() + "-" + sanitizeFileName(fileName);
+        var upload = storageMeter.presign(
+                companyId,
+                "SALES",
+                productImagesBucket(),
+                objectKey,
+                contentType,
+                sizeBytes,
+                storageProperties.getMinio().getPresignExpirySeconds());
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("objectKey", upload.objectKey());
+        body.put("object_key", upload.objectKey());
+        body.put("uploadUrl", upload.uploadUrl());
+        body.put("upload_url", upload.uploadUrl());
+        body.put("expiresAt", upload.expiresAt().toString());
+        body.put("expires_at", upload.expiresAt().toString());
+        body.put("uploadHeaders", upload.uploadHeaders());
+        body.put("upload_headers", upload.uploadHeaders());
+        body.put("fileName", fileName);
+        body.put("contentType", contentType);
+        body.put("sizeBytes", sizeBytes);
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> registerSalePaymentEvidence(
+            long companyId,
+            long userId,
+            long saleId,
+            Map<String, Object> payload) {
+        salesRepository.get(companyId, definition("sales"), saleId);
+        requireProductImageStorage();
+
+        var objectKey = firstNonBlank(
+                SalesPayloadSupport.stringValue(payload, "objectKey"),
+                SalesPayloadSupport.stringValue(payload, "object_key"));
+        if (objectKey == null || !objectKey.startsWith(paymentEvidencePrefix(companyId))) {
+            throw new IllegalArgumentException("A valid payment evidence objectKey is required.");
+        }
+        if (!objectStorageService.objectExists(productImagesBucket(), objectKey)) {
+            throw new IllegalArgumentException("Uploaded payment evidence was not found in storage.");
+        }
+
+        var fileName = requireFileName(Map.of(
+                "fileName",
+                firstNonBlank(
+                        SalesPayloadSupport.stringValue(payload, "fileName"),
+                        objectKey.substring(objectKey.lastIndexOf('/') + 1))),
+                "payment-evidence");
+        var contentType = requirePaymentEvidenceContentType(
+                SalesPayloadSupport.stringValue(payload, "contentType"),
+                fileName);
+        var sizeBytes = requirePaymentEvidenceSize(payload);
+        storageMeter.commit(companyId, productImagesBucket(), objectKey, sizeBytes);
+
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("contentType", contentType);
+        metadata.put("sizeBytes", sizeBytes);
+
+        var filePayload = new LinkedHashMap<String, Object>();
+        filePayload.put("entityType", "sale");
+        filePayload.put("entityId", saleId);
+        filePayload.put("fileName", fileName);
+        filePayload.put("fileKind", "payment_evidence");
+        filePayload.put("fileStatus", "under_review");
+        filePayload.put("source", "object_storage");
+        filePayload.put("objectKey", objectKey);
+        filePayload.put("url", signedProductImageUrl(objectKey));
+        filePayload.put("metadata", metadata);
+
+        var fileId = salesRepository.createFile(companyId, userId, filePayload);
+        salesRepository.markSalePaymentEvidenceUnderReview(companyId, userId, saleId);
+        var body = new LinkedHashMap<String, Object>(filePayload);
+        body.put("id", fileId);
         return body;
     }
 
@@ -233,7 +330,8 @@ public class SalesService {
     public void deleteFile(long companyId, long fileId) {
         var file = salesRepository.findFile(companyId, fileId);
         var objectKey = file == null ? null : SalesPayloadSupport.stringValue(file, "objectKey");
-        if (objectKey != null && objectKey.startsWith(productImagePrefix(companyId))) {
+        if (objectKey != null && (objectKey.startsWith(productImagePrefix(companyId))
+                || objectKey.startsWith(paymentEvidencePrefix(companyId)))) {
             objectStorageService.deleteObject(productImagesBucket(), objectKey);
             storageMeter.release(companyId, objectKey, "sales_file_deleted");
         }
@@ -554,11 +652,46 @@ public class SalesService {
     }
 
     private String requireFileName(Map<String, Object> payload) {
+        return requireFileName(payload, "product-image");
+    }
+
+    private String requireFileName(Map<String, Object> payload, String fallback) {
         var fileName = firstNonBlank(
                 SalesPayloadSupport.stringValue(payload, "fileName"),
                 SalesPayloadSupport.stringValue(payload, "file_name"),
-                "product-image");
+                fallback);
         return sanitizeFileName(fileName);
+    }
+
+    private String paymentEvidencePrefix(long companyId) {
+        return "sales/sales/" + companyId + "/payment-evidence/";
+    }
+
+    private long requirePaymentEvidenceSize(Map<String, Object> payload) {
+        var sizeBytes = SalesPayloadSupport.longValue(payload, "sizeBytes");
+        if (sizeBytes == null) {
+            sizeBytes = SalesPayloadSupport.longValue(payload, "size_bytes");
+        }
+        if (sizeBytes == null || sizeBytes <= 0) {
+            throw new IllegalArgumentException("sizeBytes is required.");
+        }
+        if (sizeBytes > MAX_PAYMENT_EVIDENCE_SIZE_BYTES) {
+            throw new IllegalArgumentException("Payment evidence cannot exceed 15 MB.");
+        }
+        return sizeBytes;
+    }
+
+    private String requirePaymentEvidenceContentType(String contentType, String fileName) {
+        var normalized = contentType == null ? null : contentType.trim().toLowerCase(Locale.ROOT);
+        if (normalized == null || normalized.isBlank() || "application/octet-stream".equals(normalized)) {
+            normalized = fileName.toLowerCase(Locale.ROOT).endsWith(".pdf")
+                    ? "application/pdf"
+                    : inferImageContentType(fileName);
+        }
+        if (!PAYMENT_EVIDENCE_CONTENT_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("Only PDF, JPEG, PNG or WebP payment evidence is supported.");
+        }
+        return normalized;
     }
 
     private long requireProductImageSize(Map<String, Object> payload) {
@@ -700,6 +833,15 @@ public class SalesService {
             putIfAbsent(payload, "unitId", contact.get("unitId"));
             putIfAbsent(payload, "businessId", contact.get("businessId"));
         }
+    }
+
+    private void assignAuthenticatedSeller(long companyId, long userId, Map<String, Object> payload) {
+        var seller = salesRepository.contextUsers(companyId).stream()
+                .filter(user -> Long.valueOf(userId).equals(user.get("userId")))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("The authenticated user is not active in this company."));
+        payload.put("sellerUserCompanyId", seller.get("userCompanyId"));
+        payload.put("sellerName", seller.get("name"));
     }
 
     private void hydratePostSaleFromRelations(long companyId, Map<String, Object> payload) {

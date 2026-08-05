@@ -189,10 +189,9 @@ export function calculateCommissionPreview({
 export function validateSaleDraftForBackendReadiness(sale: SaleRecordDraft): SalesWorkflowValidationResult {
   const errors: SalesWorkflowValidationCode[] = [];
 
-  if (!sale.contactId && !sale.customerId) errors.push('missingCustomer');
+  if (!sale.customerName.trim()) errors.push('missingCustomer');
   if (!sale.businessUnitId) errors.push('missingBusinessUnit');
   if (!sale.businessId) errors.push('missingBusiness');
-  if (!sale.saleLines.length) errors.push('missingLines');
 
   sale.saleLines.forEach((line) => {
     if (!line.productId) errors.push('missingProduct');

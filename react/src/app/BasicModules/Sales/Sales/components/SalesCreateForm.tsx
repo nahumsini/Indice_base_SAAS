@@ -1,11 +1,9 @@
-import { AlertTriangle, CheckCircle2, ExternalLink, PackageCheck } from 'lucide-react';
-import { Link } from 'react-router';
+import { AlertTriangle, CheckCircle2, FileUp, PackageCheck, X } from 'lucide-react';
 import {
   IndiceModalSummary,
   IndiceModalValidation,
   IndiceModalWizardStepper,
 } from '../../../../components/indice-modal';
-import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -16,15 +14,17 @@ import {
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
 import { cn } from '../../../../components/ui/utils';
-import type { SalesOpportunity, SalesQuote } from '../../types';
-import { salesBusinessUnitOptions } from '../data/salesBusinessOptions';
+import type { CreateContactInput, SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuote } from '../../types';
+import type { InventoryWarehouse } from '../../Inventory/types/inventoryTypes';
 import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleRecordDraft, SalesBusinessOption } from '../types/salesTypes';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, normalizeSalesPaymentMethod, salesPaymentMethodIds } from '../utils/salesPaymentMethods';
-import { paymentEvidenceStatuses } from '../utils/salesStatuses';
 import { FormField, salesFieldClassName, SectionCard } from './SalesModalPrimitives';
+import { SalesCustomerSelector } from './SalesCustomerSelector';
+import { SalesLineItemsEditor } from './SalesLineItemsEditor';
+import { SalesPaymentAccountField } from './SalesPaymentAccountField';
 
 export type SalesCreateStepId = 'origin' | 'operation' | 'review';
 
@@ -33,20 +33,21 @@ export const salesCreateStepIds: SalesCreateStepId[] = ['origin', 'operation', '
 type SalesCreateFormProps = {
   activeStep: SalesCreateStepId;
   form: SaleRecordDraft;
-  acceptedQuotes: SalesQuote[];
   quoteOptions: SalesQuote[];
+  contacts: SalesContact[];
   opportunities: SalesOpportunity[];
-  selectedOpportunity: SalesOpportunity | null;
   selectedQuote: SalesQuote | null;
+  products: SalesCatalogItem[];
+  warehouses: InventoryWarehouse[];
   businessOptions: SalesBusinessOption[];
   isReady: boolean;
   stepError?: string;
   t: SalesRecordsTranslations;
   onFormChange: (patch: Partial<SaleRecordDraft>) => void;
+  onCustomerSelection: (contactId: string, contact?: SalesContact) => void;
+  onCreateCustomer: (contact: CreateContactInput) => Promise<SalesContact>;
   onOpportunitySelection: (opportunityId: string) => void;
   onQuoteSelection: (quoteId: string) => void;
-  onBusinessUnitSelection: (businessUnitId: string) => void;
-  onBusinessSelection: (businessId: string) => void;
 };
 
 function SalesLineItemsPreview({
@@ -107,56 +108,48 @@ function SalesLineItemsPreview({
 
 function OriginStep({
   form,
-  acceptedQuotes,
   quoteOptions,
+  contacts,
   opportunities,
-  selectedOpportunity,
   selectedQuote,
   t,
+  onCustomerSelection,
+  onCreateCustomer,
   onOpportunitySelection,
   onQuoteSelection,
 }: Pick<
   SalesCreateFormProps,
   | 'form'
-  | 'acceptedQuotes'
   | 'quoteOptions'
+  | 'contacts'
   | 'opportunities'
-  | 'selectedOpportunity'
   | 'selectedQuote'
   | 't'
+  | 'onCustomerSelection'
+  | 'onCreateCustomer'
   | 'onOpportunitySelection'
   | 'onQuoteSelection'
 >) {
-  const noApprovedQuotes = acceptedQuotes.length === 0;
-  const noApprovedQuoteForOpportunity = Boolean(selectedOpportunity) && quoteOptions.length === 0;
-
   return (
     <div className="space-y-4">
-      {noApprovedQuotes ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-100">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-            <div className="min-w-0">
-              <h3 className="text-base font-medium">{t.modal.wizard.noApprovedQuotesTitle}</h3>
-              <p className="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-200">{t.modal.wizard.noApprovedQuotesDescription}</p>
-              <Button asChild variant="outline" className="mt-4 h-10 rounded-xl border-amber-300 bg-white px-4 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
-                <Link to="/sales/quotes">
-                  {t.modal.wizard.goToQuotes}
-                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       <SectionCard title={t.modal.wizard.originTitle} description={t.modal.wizard.originDescription}>
+        <FormField label={`${t.modal.fields.customerName} *`}>
+          <SalesCustomerSelector
+            contacts={contacts}
+            selectedContactId={form.contactId ?? form.customerId}
+            selectedCustomerName={form.customerName}
+            t={t}
+            onSelectCustomer={onCustomerSelection}
+            onCreateCustomer={onCreateCustomer}
+          />
+        </FormField>
+
         <section className="grid gap-4 md:grid-cols-2">
           <FormField label={t.modal.fields.opportunitySelector}>
             <Select value={form.prospectId ?? 'none'} onValueChange={onOpportunitySelection}>
               <SelectTrigger aria-label={t.modal.fields.opportunitySelector} className={salesFieldClassName}><SelectValue placeholder={t.modal.placeholders.opportunitySelector} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" disabled>{t.modal.placeholders.opportunitySelector}</SelectItem>
+                <SelectItem value="none">{t.modal.workspace.directSale}</SelectItem>
                 {opportunities.map((opportunity) => (
                   <SelectItem key={opportunity.id} value={opportunity.id}>
                     {opportunity.opportunityName} · {opportunity.company}
@@ -166,13 +159,11 @@ function OriginStep({
             </Select>
           </FormField>
 
-          <FormField label={`${t.modal.fields.quoteSelector} *`}>
-            <Select value={form.quoteId ?? 'none'} onValueChange={onQuoteSelection} disabled={noApprovedQuotes || noApprovedQuoteForOpportunity}>
+          <FormField label={t.modal.fields.quoteSelector}>
+            <Select value={form.quoteId ?? 'none'} onValueChange={onQuoteSelection}>
               <SelectTrigger aria-label={t.modal.fields.quoteSelector} className={salesFieldClassName}><SelectValue placeholder={t.modal.placeholders.quoteSelector} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" disabled>
-                  {noApprovedQuoteForOpportunity ? t.modal.workspace.noLinkedQuotes : t.modal.placeholders.quoteSelector}
-                </SelectItem>
+                <SelectItem value="none">{t.modal.workspace.directSale}</SelectItem>
                 {quoteOptions.map((quote) => (
                   <SelectItem key={quote.id} value={quote.id}>
                     {quote.quoteNumber} · {quote.clientName} · {formatSalesCurrency(quote.total, quote.currency)}
@@ -182,12 +173,6 @@ function OriginStep({
             </Select>
           </FormField>
         </section>
-
-        {noApprovedQuoteForOpportunity ? (
-          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200">
-            {t.modal.workspace.noApprovedQuoteForOpportunity}
-          </p>
-        ) : null}
 
         {selectedQuote ? (
           <IndiceModalSummary
@@ -215,41 +200,62 @@ function OriginStep({
 function OperationStep({
   form,
   businessOptions,
+  products,
+  warehouses,
   t,
   onFormChange,
-  onBusinessUnitSelection,
-  onBusinessSelection,
 }: Pick<
   SalesCreateFormProps,
   | 'form'
   | 'businessOptions'
+  | 'products'
+  | 'warehouses'
   | 't'
   | 'onFormChange'
-  | 'onBusinessUnitSelection'
-  | 'onBusinessSelection'
 >) {
   const operationalContext = getSalesOperationalContext(form.businessId);
   const selectedPaymentMethod = normalizeSalesPaymentMethod(form.paymentMethod);
+  const availableWarehouses = warehouses.filter((warehouse) => warehouse.status === 'active');
+  const evidenceFiles = form.paymentEvidenceFiles ?? [];
+
+  const updateEvidenceFiles = (files: File[]) => {
+    onFormChange({
+      paymentEvidenceFiles: files,
+      paymentEvidenceStatus: 'missing',
+    });
+  };
 
   return (
     <div className="space-y-4">
       <SectionCard title={t.modal.wizard.operationTitle} description={t.modal.wizard.operationDescription}>
-        <section className="grid gap-4 md:grid-cols-3">
-          <FormField label={`${t.modal.fields.businessUnit} *`}>
-            <Select value={form.businessUnitId || 'none'} onValueChange={onBusinessUnitSelection}>
-              <SelectTrigger aria-label={t.modal.fields.businessUnit} className={salesFieldClassName}><SelectValue /></SelectTrigger>
+        <section className="grid gap-4 md:grid-cols-2">
+          <FormField label={`${t.modal.fields.warehouse} *`}>
+            <Select
+              value={form.warehouseId || 'none'}
+              onValueChange={(warehouseId) => {
+                const warehouse = warehouses.find((item) => item.id === warehouseId);
+                onFormChange({
+                  warehouseId,
+                  warehouseName: warehouse?.name ?? '',
+                  businessUnitId: warehouse?.businessUnitId ?? '',
+                  businessUnitName: warehouse?.businessUnitName ?? '',
+                  businessId: warehouse?.businessId ?? '',
+                  businessName: warehouse?.businessName ?? '',
+                  paymentAccountId: undefined,
+                  paymentAccountName: undefined,
+                  saleLines: form.saleLines.map((line) => ({
+                    ...line,
+                    warehouseId,
+                    businessUnitId: warehouse?.businessUnitId ?? '',
+                    businessId: warehouse?.businessId ?? '',
+                  })),
+                });
+              }}
+            >
+              <SelectTrigger aria-label={t.modal.fields.warehouse} className={salesFieldClassName}><SelectValue placeholder={t.modal.fields.warehouse} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" disabled>{t.modal.fields.businessUnit}</SelectItem>
-                {salesBusinessUnitOptions.map((unit) => <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </FormField>
-          <FormField label={`${t.modal.fields.business} *`}>
-            <Select value={form.businessId || 'none'} onValueChange={onBusinessSelection}>
-              <SelectTrigger aria-label={t.modal.fields.business} className={salesFieldClassName}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none" disabled>{t.modal.fields.business}</SelectItem>
-                {businessOptions.map((business) => <SelectItem key={business.id} value={business.id}>{business.name}</SelectItem>)}
+                <SelectItem value="none" disabled>{t.modal.fields.warehouse}</SelectItem>
+                {availableWarehouses.map((warehouse) => <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </FormField>
@@ -262,12 +268,19 @@ function OperationStep({
           className="mt-5"
           columns={3}
           items={[
+            { id: 'unit', label: t.modal.fields.businessUnit, value: form.businessUnitName || t.common.notAvailable },
+            { id: 'business', label: t.modal.fields.business, value: form.businessName || t.common.notAvailable },
             { id: 'legal-name', label: t.modal.operationalContext.legalName, value: operationalContext.legalName || t.common.notAvailable },
-            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: operationalContext.defaultWarehouse || t.common.notAvailable },
+            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: form.warehouseName || operationalContext.defaultWarehouse || t.common.notAvailable },
             { id: 'items', label: t.modal.workspace.itemsLabel, value: String(form.saleLines.length) },
+            { id: 'seller', label: t.modal.fields.sellerName, value: form.sellerName || t.common.notAvailable },
           ]}
           variant="muted"
         />
+      </SectionCard>
+
+      <SectionCard title={t.modal.sections.items} description={t.modal.itemsHelper}>
+        <SalesLineItemsEditor form={form} products={products} t={t} onFormChange={onFormChange} />
       </SectionCard>
 
       <SectionCard title={t.modal.sections.payment} description={t.modal.wizard.paymentDescription}>
@@ -290,11 +303,43 @@ function OperationStep({
           <FormField label={t.modal.fields.paymentReference}>
             <Input aria-label={t.modal.fields.paymentReference} value={form.paymentReference} onChange={(event) => onFormChange({ paymentReference: event.target.value })} placeholder={t.modal.placeholders.paymentReference} className={salesFieldClassName} />
           </FormField>
+          <FormField label={t.modal.fields.paymentAccount}>
+            <SalesPaymentAccountField
+              businessId={form.businessId}
+              businessUnitId={form.businessUnitId}
+              businessOptions={businessOptions}
+              currency={form.currency}
+              selectedId={form.paymentAccountId}
+              t={t}
+              onSelect={(account) => onFormChange({ paymentAccountId: account?.id, paymentAccountName: account?.name })}
+            />
+          </FormField>
           <FormField label={t.modal.fields.paymentEvidenceStatus}>
-            <Select value={form.paymentEvidenceStatus} onValueChange={(value) => onFormChange({ paymentEvidenceStatus: value as SaleRecordDraft['paymentEvidenceStatus'] })}>
-              <SelectTrigger aria-label={t.modal.fields.paymentEvidenceStatus} className={salesFieldClassName}><SelectValue /></SelectTrigger>
-              <SelectContent>{paymentEvidenceStatuses.map((option) => <SelectItem key={option} value={option}>{t.statuses.paymentEvidence[option]}</SelectItem>)}</SelectContent>
-            </Select>
+            <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-center transition hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/5 dark:border-slate-700 dark:bg-slate-800/50">
+              <FileUp className="mb-1 h-5 w-5 text-[#B63B32]" />
+              <span className="text-sm font-medium text-slate-800 dark:text-white">{t.modal.paymentEvidence.upload}</span>
+              <span className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t.modal.paymentEvidence.helper}</span>
+              <input
+                type="file"
+                className="sr-only"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                multiple
+                onChange={(event) => updateEvidenceFiles([...evidenceFiles, ...Array.from(event.target.files ?? [])])}
+              />
+            </label>
+            {evidenceFiles.length ? (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{t.modal.paymentEvidence.selected(evidenceFiles.length)}</p>
+                {evidenceFiles.map((file, index) => (
+                  <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-slate-800">
+                    <span className="truncate text-slate-700 dark:text-slate-200">{file.name}</span>
+                    <button type="button" aria-label={t.modal.paymentEvidence.remove} onClick={() => updateEvidenceFiles(evidenceFiles.filter((_, fileIndex) => fileIndex !== index))}>
+                      <X className="h-4 w-4 text-slate-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </FormField>
           <FormField label={t.modal.fields.notes}>
             <Textarea aria-label={t.modal.fields.notes} value={form.notes} onChange={(event) => onFormChange({ notes: event.target.value })} placeholder={t.modal.placeholders.notes} className="min-h-24 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
@@ -340,9 +385,10 @@ function ReviewStep({
             { id: 'date', label: t.modal.fields.saleDate, value: formatSalesDate(form.saleDate) },
             { id: 'unit', label: t.modal.fields.businessUnit, value: form.businessUnitName || t.common.notAvailable },
             { id: 'business', label: t.modal.fields.business, value: form.businessName || t.common.notAvailable },
-            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: operationalContext.defaultWarehouse || t.common.notAvailable },
+            { id: 'warehouse', label: t.modal.operationalContext.defaultWarehouse, value: form.warehouseName || operationalContext.defaultWarehouse || t.common.notAvailable },
             { id: 'payment-method', label: t.modal.fields.paymentMethod, value: selectedPaymentMethod ? t.modal.paymentMethods[selectedPaymentMethod] : t.common.notAvailable },
             { id: 'payment-reference', label: t.modal.fields.paymentReference, value: form.paymentReference || t.common.notAvailable },
+            { id: 'payment-account', label: t.modal.fields.paymentAccount, value: form.paymentAccountName || t.common.notAvailable },
           ]}
         />
       </SectionCard>
@@ -373,20 +419,21 @@ function ReviewStep({
 export function SalesCreateForm({
   activeStep,
   form,
-  acceptedQuotes,
   quoteOptions,
+  contacts,
   opportunities,
-  selectedOpportunity,
   selectedQuote,
+  products,
+  warehouses,
   businessOptions,
   isReady,
   stepError,
   t,
+  onCustomerSelection,
+  onCreateCustomer,
   onFormChange,
   onOpportunitySelection,
   onQuoteSelection,
-  onBusinessUnitSelection,
-  onBusinessSelection,
 }: SalesCreateFormProps) {
   return (
     <div className="space-y-4">
@@ -402,12 +449,13 @@ export function SalesCreateForm({
       {activeStep === 'origin' ? (
         <OriginStep
           form={form}
-          acceptedQuotes={acceptedQuotes}
           quoteOptions={quoteOptions}
+          contacts={contacts}
           opportunities={opportunities}
-          selectedOpportunity={selectedOpportunity}
           selectedQuote={selectedQuote}
           t={t}
+          onCustomerSelection={onCustomerSelection}
+          onCreateCustomer={onCreateCustomer}
           onOpportunitySelection={onOpportunitySelection}
           onQuoteSelection={onQuoteSelection}
         />
@@ -417,10 +465,10 @@ export function SalesCreateForm({
         <OperationStep
           form={form}
           businessOptions={businessOptions}
+          products={products}
+          warehouses={warehouses}
           t={t}
           onFormChange={onFormChange}
-          onBusinessUnitSelection={onBusinessUnitSelection}
-          onBusinessSelection={onBusinessSelection}
         />
       ) : null}
 

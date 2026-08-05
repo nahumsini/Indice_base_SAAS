@@ -140,4 +140,40 @@ export const salesApi = {
       body: JSON.stringify(payload),
     });
   },
+  createSalePaymentEvidenceUpload(payload: { fileName: string; contentType: string; sizeBytes: number }) {
+    return apiClient<SalesProductImageUploadResponse>(`${endpoints.sales.base}/sales/payment-evidence/presign-upload`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  async uploadSalePaymentEvidenceFile(uploadUrl: string, file: File, uploadHeaders?: Record<string, string>) {
+    const headers = new Headers(uploadHeaders ?? {});
+    if (file.type && !headers.has('Content-Type')) {
+      headers.set('Content-Type', file.type);
+    }
+
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Payment evidence upload failed with status ${response.status}`);
+    }
+  },
+  registerSalePaymentEvidence(
+    saleId: number | string,
+    payload: {
+      objectKey: string;
+      fileName?: string;
+      contentType?: string;
+      sizeBytes?: number;
+    },
+  ) {
+    return apiClient<Record<string, unknown>>(`${endpoints.sales.base}/sales/${saleId}/payment-evidence`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };

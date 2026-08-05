@@ -165,6 +165,7 @@ export const frCA = {
       notes: 'Notes',
     },
     placeholders: {
+      ...enCA.modal.placeholders,
       opportunitySelector: 'Sélectionnez une opportunité',
       quoteSelector: 'Sélectionnez un devis accepté',
       quoteReference: 'Q-2026-000',

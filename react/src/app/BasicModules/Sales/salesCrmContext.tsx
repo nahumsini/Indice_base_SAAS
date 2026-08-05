@@ -277,6 +277,26 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         .catch((error) => handleSyncFailure('create contact', error));
       return createdContact;
     },
+    createContactRecord: async (contact) => {
+      const createdContact: SalesContact = {
+        ...contact,
+        id: createSequentialId('CNT', contacts.length + 1),
+      };
+
+      setContacts((current) => [createdContact, ...current]);
+      try {
+        const savedContact = await salesApi.create('contacts', toBackendContact(createdContact));
+        const persistedContact = toFrontendContact(savedContact as Record<string, unknown>);
+        setContacts((current) => current.map((item) => (
+          item.id === createdContact.id ? persistedContact : item
+        )));
+        return persistedContact;
+      } catch (error) {
+        setContacts((current) => current.filter((item) => item.id !== createdContact.id));
+        handleSyncFailure('create contact', error);
+        throw error;
+      }
+    },
     updateContact: (contactId, patch) => {
       const currentContact = contacts.find((contact) => contact.id === contactId);
       setContacts((current) => current.map((contact) => (

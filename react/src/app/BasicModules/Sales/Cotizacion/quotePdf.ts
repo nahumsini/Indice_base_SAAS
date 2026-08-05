@@ -95,41 +95,25 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
   const generatedTime = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(generatedAt);
   const quoteCurrency = quote.currency ?? 'MXN';
   const itemCount = quote.items.reduce((total, item) => total + item.quantity, 0);
-  const estimatedCost = quote.items.reduce((total, item) => (
-    total + item.quantity * (item.convertedUnitCost ?? item.unitCost ?? item.originalUnitCost ?? 0)
-  ), 0);
-  const estimatedProfit = quote.total - estimatedCost;
-  const estimatedMargin = quote.total > 0 ? Math.round((estimatedProfit / quote.total) * 100) : 0;
   const taxSummary = quote.items
     .map((item) => item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`)
     .filter((value, index, list) => list.indexOf(value) === index)
     .join(' / ') || copy.common.unassigned;
   const isExpired = new Date(quote.expirationDate).getTime() < new Date().setHours(0, 0, 0, 0);
-  const hasLowMargin = estimatedMargin < 20;
-  const hasMissingCosts = quote.items.some((item) => !item.unitCost && !item.convertedUnitCost && !item.originalUnitCost);
-  const mainRecommendation = quote.items.length === 0
-    ? copy.builder.emptyItems
-    : isExpired
-      ? `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.previewModal.defaultTerms}`
-      : hasLowMargin
-        ? copy.marginGuidance.messages.warning
-        : copy.marginGuidance.messages.success;
-  const intelligenceLabels = isSpanishDocument
+  const customerSummary = isSpanishDocument
     ? {
-      happened: '1. Qué pasó',
-      matters: '2. Por qué importa',
-      next: '3. Siguiente acción',
-      decisionSignal: 'Señal de decisión',
-      happenedBody: `${quote.clientName} recibió una cotización por ${formatCurrency(quote.total, quoteCurrency)} con ${quote.items.length} partida(s) comerciales.`,
-      mattersBody: `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.labels.taxTotal}: ${formatCurrency(quote.taxTotal, quoteCurrency)}. ${copy.labels.currency}: ${quoteCurrency}.`,
+      scope: 'Alcance comercial',
+      validity: 'Vigencia',
+      terms: 'Condiciones',
+      scopeBody: `${quote.items.length} partida(s) comerciales por ${formatCurrency(quote.total, quoteCurrency)}.`,
+      validityBody: isExpired ? `Cotización vencida el ${quote.expirationDate}.` : `Válida hasta el ${quote.expirationDate}.`,
     }
     : {
-      happened: '1. What happened',
-      matters: '2. Why it matters',
-      next: '3. Next action',
-      decisionSignal: 'Decision signal',
-      happenedBody: `${quote.clientName} received a quote for ${formatCurrency(quote.total, quoteCurrency)} covering ${quote.items.length} commercial line(s).`,
-      mattersBody: `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.labels.taxTotal}: ${formatCurrency(quote.taxTotal, quoteCurrency)}. ${copy.labels.currency}: ${quoteCurrency}.`,
+      scope: 'Commercial scope',
+      validity: 'Validity',
+      terms: 'Terms',
+      scopeBody: `${quote.items.length} commercial line(s) for ${formatCurrency(quote.total, quoteCurrency)}.`,
+      validityBody: isExpired ? `Quote expired on ${quote.expirationDate}.` : `Valid through ${quote.expirationDate}.`,
     };
 
   const drawBrandBar = (x: number, y: number, width: number, height = 2.5) => {
@@ -148,8 +132,6 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
       cursor += segmentWidth;
     });
   };
-
-  const formatPercent = (value: number) => `${Number.isFinite(value) ? value : 0}%`;
 
   const ensureSpace = (currentY: number, neededHeight: number) => {
     if (currentY + neededHeight <= pageHeight - 22) {
@@ -261,25 +243,25 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
     left,
     y,
     insightWidth,
-    intelligenceLabels.happened,
-    intelligenceLabels.happenedBody,
+    customerSummary.scope,
+    customerSummary.scopeBody,
     brand.coral,
   );
   drawInsightCard(
     left + insightWidth + 4,
     y,
     insightWidth,
-    intelligenceLabels.matters,
-    intelligenceLabels.mattersBody,
+    customerSummary.validity,
+    customerSummary.validityBody,
     brand.yellow,
   );
   drawInsightCard(
     left + (insightWidth + 4) * 2,
     y,
     insightWidth,
-    intelligenceLabels.next,
-    mainRecommendation,
-    hasLowMargin || isExpired ? brand.coral : brand.aqua,
+    customerSummary.terms,
+    quote.terms || copy.previewModal.defaultTerms,
+    isExpired ? brand.coral : brand.aqua,
   );
 
   y += 44;
@@ -289,10 +271,8 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
     { label: copy.labels.total, value: formatCurrency(quote.total, quoteCurrency), accent: brand.coral },
     { label: copy.labels.currency, value: quoteCurrency, accent: brand.blue },
     { label: copy.summary.items, value: String(itemCount), accent: brand.blue },
-    { label: copy.pricing.estimatedMargin, value: formatPercent(estimatedMargin), accent: hasLowMargin ? brand.coral : brand.aqua },
     { label: copy.labels.subtotal, value: formatCurrency(quote.subtotal, quoteCurrency), accent: brand.yellow },
     { label: copy.labels.taxTotal, value: formatCurrency(quote.taxTotal, quoteCurrency), accent: brand.yellow },
-    { label: copy.pricing.estimatedProfit, value: formatCurrency(estimatedProfit, quoteCurrency), accent: estimatedProfit < 0 ? brand.coral : brand.aqua },
     { label: copy.labels.expirationDate, value: quote.expirationDate, accent: isExpired ? brand.coral : brand.blue },
   ];
 
@@ -436,27 +416,6 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text(quote.terms || copy.previewModal.defaultTerms, left, y + 7, { maxWidth: contentWidth });
-
-  y += 28;
-  y = ensureSpace(y, 32);
-  setFill(doc, hasMissingCosts || hasLowMargin ? brand.coralLight : [243, 252, 248]);
-  setDraw(doc, hasMissingCosts || hasLowMargin ? [255, 199, 193] : [178, 231, 215]);
-  doc.roundedRect(left, y, contentWidth, 24, 3, 3, 'FD');
-  setText(doc, brand.graphite);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text(intelligenceLabels.decisionSignal, left + 5, y + 8);
-  setText(doc, brand.slate);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(
-    hasMissingCosts
-      ? copy.marginGuidance.messages.missingCost
-      : `${copy.pricing.estimatedMargin}: ${formatPercent(estimatedMargin)}. ${mainRecommendation}`,
-    left + 5,
-    y + 16,
-    { maxWidth: contentWidth - 10 },
-  );
 
   addStandardPdfFooters(doc, {
     folio: quote.quoteNumber,
