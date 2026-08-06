@@ -11,13 +11,7 @@ const timeTablePrintStyles = `
   .report-shell { color: #24272c; }
   .document-header { border-bottom: 1px solid #cfd4d8; padding-bottom: 13px; }
   .document-topline { align-items: center; display: flex; justify-content: space-between; gap: 18px; }
-  .brand-lockup { align-items: center; display: inline-flex; gap: 11px; min-width: 0; }
-  .indice-mark { align-items: end; display: inline-grid; gap: 3px; grid-template-columns: repeat(4, 7px); height: 25px; }
-  .indice-mark span { border-radius: 7px 7px 3px 3px; display: block; width: 7px; }
-  .indice-mark span:nth-child(1) { background: #c8756d; height: 11px; }
-  .indice-mark span:nth-child(2) { background: #c7aa55; height: 15px; }
-  .indice-mark span:nth-child(3) { background: #5f9f8d; height: 20px; }
-  .indice-mark span:nth-child(4) { background: #5879ae; height: 25px; }
+  .brand-lockup { align-items: center; display: inline-flex; min-width: 0; }
   .brand-text { align-items: baseline; display: inline-flex; gap: 12px; }
   .brand-text strong, .report-id { color: #24272c; font-size: 11px; font-weight: 500; }
   .brand-text span { color: #626a73; font-size: 10px; font-weight: 400; }

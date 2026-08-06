@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { buildDocumentFileName } from './documentFileName';
 import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from './documentPdfEngine';
 import type { DocumentPrintContract } from './documentPrintContract';
+import { notifyDocumentPrintFailure } from './documentPrintFeedback';
 
 export interface StandardDocumentField {
   label: string;
@@ -128,7 +129,7 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
   let y = 17;
 
   applyStandardPdfMetadata(doc, {
-    author: definition.issuer || 'Indice',
+    author: definition.issuer,
     subject: definition.subtitle || definition.title,
     title: definition.title,
   });
@@ -156,7 +157,9 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   setColor(doc, [92, 100, 112]);
-  doc.text(definition.issuer || 'Indice', titleX, y + 3.8, { maxWidth: contentWidth * 0.58 });
+  if (definition.issuer) {
+    doc.text(definition.issuer, titleX, y + 3.8, { maxWidth: contentWidth * 0.58 });
+  }
   doc.setFontSize(18);
   const titleLines = doc.splitTextToSize(definition.title, titleMaxWidth) as string[];
   const titleLineHeight = 6.4;
@@ -334,45 +337,19 @@ export const buildStandardDocumentPdf = (definition: StandardDocumentDefinition)
     folio: definition.folio,
     locale,
     updatedAt: generatedAt,
+    version: definition.contract.version,
   });
   return doc;
-};
-
-const generationErrorMessage = (locale: string, popupBlocked = false) => {
-  const language = locale.toLowerCase().split('-')[0];
-  if (language === 'es') {
-    return popupBlocked
-      ? 'El navegador bloqueó la vista de impresión. Habilita las ventanas emergentes e inténtalo de nuevo.'
-      : 'No se pudo generar el documento. Revisa los datos e inténtalo de nuevo.';
-  }
-  if (language === 'fr') {
-    return popupBlocked
-      ? "Le navigateur a bloqué l’aperçu. Autorisez les fenêtres contextuelles et réessayez."
-      : 'Le document n’a pas pu être généré. Vérifiez les données et réessayez.';
-  }
-  if (language === 'pt') {
-    return popupBlocked
-      ? 'O navegador bloqueou a visualização. Permita pop-ups e tente novamente.'
-      : 'Não foi possível gerar o documento. Verifique os dados e tente novamente.';
-  }
-  return popupBlocked
-    ? 'The browser blocked the print preview. Allow pop-ups and try again.'
-    : 'The document could not be generated. Check the data and try again.';
 };
 
 export const printStandardDocumentPdf = (definition: StandardDocumentDefinition) => {
   const locale = definition.locale ?? 'es-MX';
   try {
-    const opened = openStandardPdfForPrint(buildStandardDocumentPdf(definition));
-    if (!opened && typeof window !== 'undefined') {
-      window.alert(generationErrorMessage(locale, true));
-    }
+    const opened = openStandardPdfForPrint(buildStandardDocumentPdf(definition), { locale });
     return opened;
   } catch (error) {
     console.error('Unable to generate standard print document.', error);
-    if (typeof window !== 'undefined') {
-      window.alert(generationErrorMessage(locale));
-    }
+    notifyDocumentPrintFailure(locale, 'generation');
     return false;
   }
 };
@@ -384,9 +361,7 @@ export const downloadStandardDocumentPdf = (definition: StandardDocumentDefiniti
     return fileName;
   } catch (error) {
     console.error('Unable to download standard print document.', error);
-    if (typeof window !== 'undefined') {
-      window.alert(generationErrorMessage(definition.locale ?? 'es-MX'));
-    }
+    notifyDocumentPrintFailure(definition.locale ?? 'es-MX', 'generation');
     return null;
   }
 };

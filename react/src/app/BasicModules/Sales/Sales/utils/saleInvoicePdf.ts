@@ -5,7 +5,7 @@ import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLine, SaleRecord, SaleRecordDraft, SalesOperationalContext } from '../types/salesTypes';
 import { buildDocumentFileName } from '../../../shared/print/documentFileName';
-import { addStandardPdfFooters, openStandardPdfForPrint } from '../../../shared/print/documentPdfEngine';
+import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from '../../../shared/print/documentPdfEngine';
 
 const brand = {
   coral: [255, 107, 94] as const,
@@ -215,10 +215,9 @@ export function buildSaleInvoicePdf({
     return 24;
   };
 
-  doc.setProperties({
+  applyStandardPdfMetadata(doc, {
     title: `${documentCopy.title} ${invoiceNumber}`,
     subject: documentCopy.title,
-    creator: copy.header.title,
   });
 
   let y = 16;
@@ -418,6 +417,7 @@ export function buildSaleInvoicePdf({
     folio: invoiceNumber,
     locale,
     updatedAt: generatedAt,
+    version: '1.0',
   });
   return doc;
 }
@@ -442,5 +442,5 @@ export function downloadSaleInvoicePdf(context: SaleInvoicePdfContext) {
 }
 
 export function printSaleInvoicePdf(context: SaleInvoicePdfContext) {
-  return openStandardPdfForPrint(buildSaleInvoicePdf(context));
+  return openStandardPdfForPrint(buildSaleInvoicePdf(context), { locale: context.locale });
 }

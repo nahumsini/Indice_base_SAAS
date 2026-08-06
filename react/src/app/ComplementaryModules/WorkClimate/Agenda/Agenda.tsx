@@ -2733,7 +2733,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       },
     });
 
-    addStandardPdfFooters(doc, { confidentiality: 'Internal', folio: task.folio, locale });
+    addStandardPdfFooters(doc, { confidentiality: 'Internal', folio: task.folio, locale, version: '1.0' });
     doc.save(buildDocumentFileName({
       documentType: 'task-report',
       identifier: task.folio,

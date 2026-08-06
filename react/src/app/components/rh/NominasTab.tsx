@@ -379,6 +379,7 @@ export function NominasTab({ colaboradores }: NominasTabProps) {
       confidentiality: 'Confidencial',
       folio: nomina.periodo,
       locale: 'es-MX',
+      version: '1.0',
     });
     doc.save(buildDocumentFileName({
       documentType: 'nomina',

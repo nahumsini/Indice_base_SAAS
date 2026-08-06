@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, Mail, Printer } from 'lucide-react';
 import { printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
+import {
+  documentPrintAttribution,
+  formatDocumentPrintDateTime,
+  getDocumentPrintLabels,
+} from '../../../shared/print/documentPrintContract';
 import type { Payment, SaleItem } from '../types/sale.types';
 import type { Shift } from '../types/shift.types';
 import {
@@ -30,11 +35,16 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   const [isHovering, setIsHovering] = useState(false);
   const [countdown, setCountdown] = useState(2);
   const [notice, setNotice] = useState('');
+  const locale = 'es-MX';
+  const currency = shift?.currencyCode?.trim();
+  const issuerName = shift?.companyName?.trim()
+    || shift?.businessName?.trim()
+    || shift?.cashRegisterName?.trim()
+    || 'Identidad comercial no disponible';
 
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-  }).format(amount);
+  const formatCurrency = (amount: number) => currency
+    ? new Intl.NumberFormat(locale, { currency, style: 'currency' }).format(amount)
+    : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(amount)} · divisa no disponible`;
 
   useEffect(() => {
     if (!isOpen) {
@@ -73,7 +83,8 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
       `,
       documentTitle: `ticket_${saleNumber}`,
       includeApplicationStyles: true,
-      locale: 'es-MX',
+      locale,
+      notifyOnBlocked: false,
       pageSize: '80mm',
     });
     if (!opened) {
@@ -94,6 +105,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
   }
 
   const now = new Date();
+  const printLabels = getDocumentPrintLabels(locale);
 
   return (
     <PosModalFrame
@@ -149,16 +161,16 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
         <section ref={ticketRef} className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
           <div className="space-y-4 font-mono text-sm">
             <div className="border-b border-gray-300 pb-3 text-center dark:border-gray-600">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Mi tienda</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400">RFC: ABC123456789</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Calle Principal #123</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Tel: (555) 123-4567</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">{issuerName}</h3>
+              {shift?.businessName && shift.businessName !== issuerName ? <p className="text-xs text-gray-600 dark:text-gray-400">{shift.businessName}</p> : null}
+              {shift?.businessUnitName ? <p className="text-xs text-gray-600 dark:text-gray-400">{shift.businessUnitName}</p> : null}
+              {shift?.cashRegisterName ? <p className="text-xs text-gray-600 dark:text-gray-400">Caja: {shift.cashRegisterName}</p> : null}
             </div>
 
             <div className="border-b border-gray-300 pb-3 text-xs text-gray-700 dark:border-gray-600 dark:text-gray-300">
               <TicketInfo label="Folio" value={saleNumber} strong />
-              <TicketInfo label="Fecha" value={now.toLocaleDateString('es-MX')} />
-              <TicketInfo label="Hora" value={now.toLocaleTimeString('es-MX')} />
+              <TicketInfo label="Fecha" value={now.toLocaleDateString(locale)} />
+              <TicketInfo label="Hora" value={now.toLocaleTimeString(locale)} />
               {shift ? <TicketInfo label="Cajero" value={shift.cashierName} /> : null}
             </div>
 
@@ -179,7 +191,7 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
 
             <div className="space-y-1 border-b border-gray-300 pb-3 text-xs dark:border-gray-600">
               <TicketInfo label="Subtotal" value={formatCurrency(totals.subtotal)} />
-              <TicketInfo label="IVA (16%)" value={formatCurrency(totals.tax)} />
+              <TicketInfo label="Impuestos" value={formatCurrency(totals.tax)} />
               <div className="flex justify-between gap-3 pt-2 text-base font-medium text-gray-900 dark:text-white">
                 <span>TOTAL:</span>
                 <span>{formatCurrency(totals.total)}</span>
@@ -221,6 +233,9 @@ export function TicketModal({ isOpen, onClose, items, payments, totals, shift, s
             <div className="pt-2 text-center text-xs text-gray-600 dark:text-gray-400">
               <p>GRACIAS POR SU COMPRA</p>
               <p className="mt-1">Conserve este ticket</p>
+              <p className="mt-3 border-t border-dashed border-gray-300 pt-2 text-[10px]">
+                {documentPrintAttribution} · {printLabels.updated}: {formatDocumentPrintDateTime(now, locale)}
+              </p>
             </div>
           </div>
         </section>

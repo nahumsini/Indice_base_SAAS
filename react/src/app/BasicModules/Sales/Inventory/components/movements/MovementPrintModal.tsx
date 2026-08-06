@@ -7,6 +7,11 @@ import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
 import { printDocumentHtml } from '../../../../shared/print/documentHtmlPrintEngine';
+import {
+  documentPrintAttribution,
+  formatDocumentPrintDateTime,
+  getDocumentPrintLabels,
+} from '../../../../shared/print/documentPrintContract';
 
 const printActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -29,6 +34,7 @@ export function MovementPrintModal({
   const lines = movementLines?.length ? movementLines : [movement];
   const movementValue = lines.reduce((total, line) => total + Math.abs(line.quantity) * (line.unitCost ?? 0), 0);
   const isControlAct = movement.movementType === 'adjustment' || movement.movementType === 'transfer';
+  const printLabels = getDocumentPrintLabels(locale);
   const documentTitle = isControlAct
     ? `${t.operational.movementTypes[movement.movementType]} · ${t.operational.modals.movementDocumentTitle}`
     : t.operational.modals.movementDocumentTitle;
@@ -151,6 +157,9 @@ export function MovementPrintModal({
                 <div><div className="border-t border-slate-400 pt-2">Entrega / origen</div></div>
                 <div><div className="border-t border-slate-400 pt-2">Recibe / autoriza</div></div>
               </div>
+              <p className="mt-8 border-t border-slate-200 pt-3 text-[10px] text-slate-500">
+                {documentPrintAttribution} · {printLabels.updated}: {formatDocumentPrintDateTime(new Date(), locale)}
+              </p>
             </footer>
           </article>
     </SalesModalFrame>

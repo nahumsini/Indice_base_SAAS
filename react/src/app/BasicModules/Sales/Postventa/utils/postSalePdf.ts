@@ -134,6 +134,7 @@ function buildSaleSummaryPdf(sale: SaleRecord, copy: PostSalesTranslations, loca
     folio: sale.saleNumber,
     confidentiality: 'internal',
     locale,
+    version: '1.0',
   });
 
   return doc;

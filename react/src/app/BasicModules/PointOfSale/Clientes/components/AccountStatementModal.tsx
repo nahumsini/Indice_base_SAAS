@@ -282,13 +282,14 @@ export function AccountStatementModal({ isOpen, onClose, customer }: AccountStat
       confidentiality: 'Confidencial',
       folio: customer.id,
       locale: 'es-MX',
+      version: '1.0',
     });
 
     return doc;
   };
 
   const handlePrint = () => {
-    openStandardPdfForPrint(generatePDF());
+    openStandardPdfForPrint(generatePDF(), { locale: 'es-MX' });
   };
 
   const handleDownload = () => {
