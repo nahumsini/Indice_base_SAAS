@@ -24,9 +24,6 @@ This file lists flows that are documented in Gherkin but are not fully implement
 - Normal users should not be able to open hidden Home Panel routes directly by URL.
   - Related scenario: `Normal user cannot open hidden Home Panel routes directly`
 
-- Personal Performance still needs strict current-user scoping.
-  - Related scenario: `User sees only their own Personal Performance`
-
 - Business Profile still needs normal-user blocking.
   - Related scenario: `Normal user cannot manage Business Profile`
 
@@ -80,11 +77,11 @@ This file lists flows that are documented in Gherkin but are not fully implement
 - Announcements still need targeted visibility for normal users.
   - Related scenario: `Normal user can read targeted announcements only`
 
-- Incentives are frontend-only right now and still need backend persistence.
-  - Incentive rules should be saved to the backend.
-  - Payroll should be able to consume approved incentive data.
-  - Normal users should not manage incentive rules.
-  - Related scenarios: `Incentives persist in the backend`, `Normal user cannot manage incentives`
+- Incentives backend persistence exists, but still needs direct persistence regression coverage for create/list/cancel and final KPI connector behavior.
+  - Manual incentive rules should be verified against the database.
+  - Payroll consumption should be covered end-to-end for approved incentive data.
+  - KPI-based incentives still wait for the final KPI connector.
+  - Related scenario: `Incentives persist in the backend`
 
 - HR KPIs are frontend-only/static right now and still need backend-calculated values.
   - KPI values should come from user, user profile, attendance, payroll, permission, asset, and record data.
@@ -118,6 +115,3 @@ This file lists flows that are documented in Gherkin but are not fully implement
   - Related scenario: `Normal user sees only allowed process data`
 
 ## API Documentation
-
-- OpenAPI documentation exists, but protected APIs still need explicit session/authentication requirements documented consistently.
-  - Related scenario: `Protected APIs document session requirements`

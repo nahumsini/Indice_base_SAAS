@@ -30,7 +30,7 @@ Feature: HR incentives
     Then the backend should persist the incentive rule
     And payroll should be able to consume approved incentive data
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: Normal user cannot manage incentives
     Given a normal user is authenticated
     When the user tries to open Incentives or call incentive management APIs

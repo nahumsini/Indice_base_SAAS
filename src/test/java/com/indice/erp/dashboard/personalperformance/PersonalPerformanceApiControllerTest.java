@@ -42,6 +42,31 @@ class PersonalPerformanceApiControllerTest {
     }
 
     @Test
+    void getPersonalPerformanceUsesOnlyTheAuthenticatedUserAndCompany() throws Exception {
+        var currentUser = new AuthSessionUser(4L, 7L, "Usuario Demo", "user");
+        var response = new LinkedHashMap<String, Object>();
+        var profile = new LinkedHashMap<String, Object>();
+        profile.put("id", 3L);
+        profile.put("user_id", 4L);
+        profile.put("company_id", 7L);
+        profile.put("version", 1);
+        profile.put("status", "draft");
+        response.put("profile", profile);
+        response.put("sections", Map.of());
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(personalPerformanceService.getPersonalPerformance(
+            org.mockito.ArgumentMatchers.eq(4L),
+            org.mockito.ArgumentMatchers.eq(7L)
+        )).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/dashboard/personal-performance/me"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.profile.user_id").value(4))
+            .andExpect(jsonPath("$.profile.company_id").value(7));
+    }
+
+    @Test
     void savePersonalPerformanceReturnsSavedSectionsForAuthenticatedSession() throws Exception {
         var currentUser = new AuthSessionUser(4L, 7L, "Usuario Demo", "admin");
         var sections = new LinkedHashMap<String, Object>();

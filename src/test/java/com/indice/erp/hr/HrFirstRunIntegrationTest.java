@@ -40,6 +40,8 @@ class HrFirstRunIntegrationTest {
 
     private static final LocalDate TEST_ATTENDANCE_DATE = LocalDate.now();
     private static final String TEST_ATTENDANCE_DAY = TEST_ATTENDANCE_DATE.toString();
+    private static final String TEST_ATTENDANCE_WEEK_END = TEST_ATTENDANCE_DATE.plusDays(6).toString();
+    private static final String TEST_ATTENDANCE_MONTH_END = YearMonth.from(TEST_ATTENDANCE_DATE).atEndOfMonth().toString();
     private static final String TEST_ATTENDANCE_MONTH = YearMonth.from(TEST_ATTENDANCE_DATE).toString();
 
     @Autowired
@@ -827,12 +829,13 @@ class HrFirstRunIntegrationTest {
         var payrollRunResponse = mockMvc.perform(
             post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "weekly",
                     "grouping_mode", "business",
                     "period_start_date", overnightDate,
-                    "period_end_date", overnightDate
+                    "period_end_date", overnightDate.plusDays(6)
                 )))
         )
             .andExpect(status().isCreated())
@@ -845,10 +848,7 @@ class HrFirstRunIntegrationTest {
             .filter(run -> !Boolean.TRUE.equals(run.get("reused")))
             .map(run -> ((Number) run.get("id")).longValue())
             .forEach(createdPayrollRunIds::add);
-        var payrollRun = payrollRuns.stream()
-            .filter(run -> ("business:" + business.businessId()).equals(run.get("grouping_key")))
-            .findFirst()
-            .orElseThrow();
+        var payrollRun = payrollRunFor(payrollRuns, business, "UNSPECIFIED", "UNSPECIFIED", "USD");
         var runId = ((Number) payrollRun.get("id")).longValue();
 
         var payrollDetailResponse = mockMvc.perform(
@@ -2027,10 +2027,11 @@ class HrFirstRunIntegrationTest {
     void payrollRunGenerationEditingLifecycleAndExportsWork() throws Exception {
         var session = authenticatedSession();
         var uniqueSuffix = System.currentTimeMillis();
-	        var dailyUserCompanyId = createHrUserForTests(session, uniqueSuffix);
-	        var hourlyUserCompanyId = createHourlyHrUserForTests(session, uniqueSuffix);
-	        var dailyLocationId = createBusinessLocationForHrUser(dailyUserCompanyId, uniqueSuffix, "Payroll Daily");
-	        var hourlyLocationId = createBusinessLocationForHrUser(hourlyUserCompanyId, uniqueSuffix + 1, "Payroll Hourly");
+        var dailyUserCompanyId = createHrUserForTests(session, uniqueSuffix);
+        var hourlyUserCompanyId = createHourlyHrUserForTests(session, uniqueSuffix);
+        seedSupportedMexicoPayrollCountry(dailyUserCompanyId, hourlyUserCompanyId);
+        var dailyLocationId = createBusinessLocationForHrUser(dailyUserCompanyId, uniqueSuffix, "Payroll Daily");
+        var hourlyLocationId = createBusinessLocationForHrUser(hourlyUserCompanyId, uniqueSuffix + 1, "Payroll Hourly");
 
         mockMvc.perform(
             post("/api/v1/hr/attendance/kiosk-events")
@@ -2083,12 +2084,13 @@ class HrFirstRunIntegrationTest {
         var createRunResponse = mockMvc.perform(
             post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "monthly",
                     "grouping_mode", "single",
                     "period_start_date", TEST_ATTENDANCE_DAY,
-                    "period_end_date", TEST_ATTENDANCE_DAY
+                    "period_end_date", TEST_ATTENDANCE_MONTH_END
                 )))
         )
             .andExpect(status().isCreated())
@@ -2123,6 +2125,7 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(
             put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, dailyLineId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "include_in_fiscal", false,
@@ -2135,15 +2138,21 @@ class HrFirstRunIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.lines[?(@.id==" + dailyLineId + ")].include_in_fiscal").value(false));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("processed"));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("approved"));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("paid"));
 
@@ -2181,6 +2190,7 @@ class HrFirstRunIntegrationTest {
         var createRunResponse = mockMvc.perform(
             post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "monthly",
@@ -2199,27 +2209,19 @@ class HrFirstRunIntegrationTest {
             .filter(run -> !Boolean.TRUE.equals(run.get("reused")))
             .map(run -> ((Number) run.get("id")).longValue())
             .forEach(createdPayrollRunIds::add);
-        var run = createdRuns.stream()
-            .filter(item -> ("business:" + business.businessId()).equals(item.get("grouping_key")))
-            .findFirst()
-            .orElseThrow();
+        var mxRun = payrollRunFor(createdRuns, business, "MX", "MX", "MXN");
+        var usRun = payrollRunFor(createdRuns, business, "US", "CA", "USD");
+        var caRun = payrollRunFor(createdRuns, business, "CA", "ON", "CAD");
+        var brRun = payrollRunFor(createdRuns, business, "BR", "BR", "BRL");
+        assertThat(createdRuns).contains(mxRun, usRun, caRun, brRun);
+        var run = mxRun;
         var runId = ((Number) run.get("id")).longValue();
 
-        var detailBeforeManual = readMap(mockMvc.perform(
-            get("/api/v1/hr/payroll/runs/{runId}", runId)
-                .session(session)
-        )
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString());
-        @SuppressWarnings("unchecked")
-        var linesBeforeManual = (List<Map<String, Object>>) detailBeforeManual.get("lines");
-
+        var linesBeforeManual = payrollLines(payrollRunDetail(session, runId));
         var mxLine = payrollLineFor(linesBeforeManual, mxUserCompanyId);
-        var usLine = payrollLineFor(linesBeforeManual, usUserCompanyId);
-        var caLine = payrollLineFor(linesBeforeManual, caUserCompanyId);
-        var brLine = payrollLineFor(linesBeforeManual, brUserCompanyId);
+        var usLine = payrollLineFor(payrollLines(payrollRunDetail(session, payrollRunId(usRun))), usUserCompanyId);
+        var caLine = payrollLineFor(payrollLines(payrollRunDetail(session, payrollRunId(caRun))), caUserCompanyId);
+        var brLine = payrollLineFor(payrollLines(payrollRunDetail(session, payrollRunId(brRun))), brUserCompanyId);
 
         assertPayrollLineUsesProvider(mxLine, "MX", "payroll_calculation_engine:mx", "IMSS_EMP");
         assertPayrollLineUsesProvider(usLine, "US", "payroll_calculation_engine:us", "US_SS_EMP");
@@ -2231,6 +2233,7 @@ class HrFirstRunIntegrationTest {
         var detailAfterManualResponse = mockMvc.perform(
             put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, mxLineId)
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "include_in_fiscal", true,
@@ -2250,7 +2253,9 @@ class HrFirstRunIntegrationTest {
         assertThat(payrollDecimal(mxLineAfterManual.get("employer_contributions_amount"))).isGreaterThan(mxEmployerCostBefore);
         assertManualEmployerCostVisibleForFrontend(mxLineAfterManual);
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("processed"));
 
@@ -2266,11 +2271,15 @@ class HrFirstRunIntegrationTest {
         var processedLines = (List<Map<String, Object>>) processedDetail.get("lines");
         assertManualEmployerCostVisibleForFrontend(payrollLineFor(processedLines, mxUserCompanyId));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("approved"));
 
-        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId).session(session))
+        mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.run.status").value("paid"));
 
@@ -2285,37 +2294,38 @@ class HrFirstRunIntegrationTest {
         assertThat(pdfExport.getResponse().getContentAsByteArray()).isNotEmpty();
     }
 
-        @Test
-        void payrollDailyAbsenceOnlyPeriodDoesNotProduceNegativeNet() throws Exception {
-            var session = authenticatedSession();
-            var uniqueSuffix = System.currentTimeMillis();
-            var userCompanyId = createHrUserForTests(session, uniqueSuffix);
-            var absenceTemplateId = createScheduleTemplate(
-                session,
-                "Absence Only Shift " + uniqueSuffix,
-                "strict",
-                null,
-                List.of(
-                    Map.of("day_of_week", 1, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
-                    Map.of("day_of_week", 2, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
-                    Map.of("day_of_week", 3, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
-                    Map.of("day_of_week", 4, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
-                    Map.of("day_of_week", 5, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
-                    Map.of("day_of_week", 6, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
-                    Map.of("day_of_week", 7, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false)
-                )
-            );
-            assignSchedule(session, userCompanyId, absenceTemplateId, "2099-01-01", "2099-01-01");
+    @Test
+    void payrollDailyAbsenceOnlyPeriodDoesNotProduceNegativeNet() throws Exception {
+        var session = authenticatedSession();
+        var uniqueSuffix = System.currentTimeMillis();
+        var userCompanyId = createHrUserForTests(session, uniqueSuffix);
+        var absenceTemplateId = createScheduleTemplate(
+            session,
+            "Absence Only Shift " + uniqueSuffix,
+            "strict",
+            null,
+            List.of(
+                Map.of("day_of_week", 1, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                Map.of("day_of_week", 2, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                Map.of("day_of_week", 3, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                Map.of("day_of_week", 4, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                Map.of("day_of_week", 5, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                Map.of("day_of_week", 6, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false),
+                Map.of("day_of_week", 7, "start_time", "08:00:00", "end_time", "16:00:00", "late_after_minutes", 10, "is_rest_day", false)
+            )
+        );
+        assignSchedule(session, userCompanyId, absenceTemplateId, "2099-01-01", "2099-01-01");
 
-            var createRunResponse = mockMvc.perform(
-                post("/api/v1/hr/payroll/runs")
+        var createRunResponse = mockMvc.perform(
+            post("/api/v1/hr/payroll/runs")
                 .session(session)
+                .header("X-CSRF-Token", csrf(session))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "pay_period", "monthly",
                     "grouping_mode", "single",
                     "period_start_date", "2099-01-01",
-                    "period_end_date", "2099-01-01"
+                    "period_end_date", "2099-01-31"
                 )))
         )
             .andExpect(status().isCreated())
@@ -2563,6 +2573,21 @@ class HrFirstRunIntegrationTest {
         return userCompanyId;
     }
 
+    private void seedSupportedMexicoPayrollCountry(long... userCompanyIds) {
+        for (var userCompanyId : userCompanyIds) {
+            jdbcTemplate.update(
+                """
+                    UPDATE user_work_profiles
+                    SET registration_country = 'MX',
+                        state_province = 'MX'
+                    WHERE company_id = 1
+                      AND user_company_id = ?
+                    """,
+                userCompanyId
+            );
+        }
+    }
+
     private void seedPayrollAttendanceForPeriod(List<Long> userCompanyIds, LocalDate startDate, LocalDate endDate) {
         for (var userCompanyId : userCompanyIds) {
             var userId = jdbcTemplate.queryForObject(
@@ -2662,6 +2687,45 @@ class HrFirstRunIntegrationTest {
             .filter(line -> userCompanyId == ((Number) line.get("user_company_id")).longValue())
             .findFirst()
             .orElseThrow();
+    }
+
+    private Map<String, Object> payrollRunFor(
+        List<Map<String, Object>> runs,
+        BusinessFixture business,
+        String country,
+        String jurisdiction,
+        String currency
+    ) {
+        var groupingKey = "business:%d|country:%s|jurisdiction:%s|currency:%s".formatted(
+            business.businessId(),
+            country,
+            jurisdiction,
+            currency
+        );
+        return runs.stream()
+            .filter(run -> groupingKey.equals(run.get("grouping_key")))
+            .findFirst()
+            .orElseThrow();
+    }
+
+    private long payrollRunId(Map<String, Object> run) {
+        return ((Number) run.get("id")).longValue();
+    }
+
+    private Map<String, Object> payrollRunDetail(MockHttpSession session, long runId) throws Exception {
+        return readMap(mockMvc.perform(
+            get("/api/v1/hr/payroll/runs/{runId}", runId)
+                .session(session)
+        )
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> payrollLines(Map<String, Object> detail) {
+        return (List<Map<String, Object>>) detail.get("lines");
     }
 
     @SuppressWarnings("unchecked")

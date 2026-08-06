@@ -15,7 +15,7 @@ Feature: Swagger and OpenAPI documentation
     Then the application should return the generated OpenAPI document
     And the document should describe the Indice ERP API
 
-  @planned
+  @implemented
   Scenario: Protected APIs document session requirements
     Given the OpenAPI document is generated
     When a developer reviews protected endpoints

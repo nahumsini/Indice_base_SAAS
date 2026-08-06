@@ -16,7 +16,7 @@ Feature: Personal Performance
     Then the backend should store the answers for the current user
     And the frontend should display the saved profile envelope
 
-  @planned @access-control
+  @implemented @access-control
   Scenario: User sees only their own Personal Performance
     Given a normal user is authenticated
     When the user opens Personal Performance

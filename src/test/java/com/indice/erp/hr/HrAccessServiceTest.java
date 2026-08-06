@@ -104,6 +104,15 @@ class HrAccessServiceTest {
     }
 
     @Test
+    void normalUserCannotReadIncentivesEvenWithConfiguredTab() {
+        var service = new HrAccessService(jdbcTemplate);
+        var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
+
+        assertFalse(service.canAccessReadableTab(currentUser, HrTab.INCENTIVES));
+        assertFalse(service.canAccessManagementTab(currentUser, HrTab.INCENTIVES));
+    }
+
+    @Test
     void normalUserNeedsConfiguredReadableTab() {
         var service = new HrAccessService(jdbcTemplate);
         var currentUser = new AuthSessionUser(1L, 7L, "User", "user");
