@@ -49,7 +49,7 @@ export function printExpenseVoucher({
     },
     fileName: { documentType: labels.expenseVoucher, identifier: expense.folio },
     folio: expense.folio,
-    issuer: expense.business || expense.businessUnit || 'Indice',
+    issuer: expense.business || expense.businessUnit,
     locale,
     metadata: [
       { label: t.expenses.columns.businessUnit?.label || labels.issuer, value: expense.businessUnit },

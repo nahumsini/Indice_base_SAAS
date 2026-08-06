@@ -1,4 +1,5 @@
 import type { DocumentPageOrientation, DocumentPageSize } from './documentPrintContract';
+import { notifyDocumentPrintFailure } from './documentPrintFeedback';
 
 export const escapeDocumentPrintHtml = (value: string | number | null | undefined) => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -23,6 +24,7 @@ export interface DocumentHtmlPrintParams {
   documentTitle: string;
   includeApplicationStyles?: boolean;
   locale: string;
+  notifyOnBlocked?: boolean;
   orientation?: DocumentPageOrientation;
   pageSize?: DocumentPageSize;
 }
@@ -33,6 +35,7 @@ export const printDocumentHtml = ({
   documentTitle,
   includeApplicationStyles = false,
   locale,
+  notifyOnBlocked = true,
   orientation = 'portrait',
   pageSize = 'a4',
 }: DocumentHtmlPrintParams) => {
@@ -67,6 +70,7 @@ export const printDocumentHtml = ({
   const printWindow = window.open(blobUrl, '_blank');
   if (!printWindow) {
     URL.revokeObjectURL(blobUrl);
+    if (notifyOnBlocked) notifyDocumentPrintFailure(locale, 'popup-blocked');
     return false;
   }
 

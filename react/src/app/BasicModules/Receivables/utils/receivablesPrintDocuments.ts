@@ -113,7 +113,7 @@ export function printReceivablePaymentReceipt({
     },
     fileName: { documentType: labels.paymentReceipt, identifier: payment.id },
     folio: payment.id,
-    issuer: account?.business || account?.unit || 'Indice',
+    issuer: account?.business || account?.unit,
     locale,
     metadata: [
       { label: labels.date, value: date(payment.paymentDate, locale) },
@@ -177,7 +177,7 @@ export function printCreditCustomerStatement({
     },
     fileName: { documentType: labels.customerStatement, identifier: policy.id },
     folio: policy.id,
-    issuer: policy.business || policy.unit || 'Indice',
+    issuer: policy.business || policy.unit,
     locale,
     metadata: [
       { label: labels.unit, value: policy.unit },
@@ -263,7 +263,6 @@ export function printReceivablesAgingReport({
       version: '1.0',
     },
     fileName: { documentType: labels.aging, period: new Date().toISOString().slice(0, 10) },
-    issuer: 'Indice',
     locale,
     metadata: [{ label: copy.filters.title, value: filterSummary }],
     metrics: [
