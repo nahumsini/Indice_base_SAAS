@@ -11,6 +11,7 @@ import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
 import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceJsonSupport;
 import com.indice.erp.finance.status.ExpenseStatus;
 import com.indice.erp.finance.status.PaymentStatus;
 import java.math.BigDecimal;
@@ -135,7 +136,9 @@ public class ExpenseService {
     @Transactional
     public DeleteExpenseResponse deleteDraft(FinanceContext context, long expenseId) {
         var existing = requireExpense(context, expenseId);
-        if (existing.status() != ExpenseStatus.DRAFT && !isUnpaidPayableKioskSubmission(existing)) {
+        if (existing.status() != ExpenseStatus.DRAFT
+                && !isOperationalExpense(existing)
+                && !isUnpaidPayableKioskSubmission(existing)) {
             validator.requireDraft(existing, "deleted");
         }
         if (!repository.softDelete(context, expenseId, existing.status())) {
@@ -150,6 +153,11 @@ public class ExpenseService {
             && record.metadataJson().contains("\"source\":\"payable-kiosk\"")
             && record.paidAmount().compareTo(BigDecimal.ZERO) == 0
             && record.paymentStatus() != PaymentStatus.PAID;
+    }
+
+    private boolean isOperationalExpense(ExpenseRecord record) {
+        var customFields = FinanceJsonSupport.toJsonNode(record.customFieldsJson());
+        return customFields != null && "real".equals(customFields.path("entryType").asText());
     }
 
     @Transactional

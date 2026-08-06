@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, CircleDollarSign, Clock3, Percent, ReceiptText, WalletCards } from 'lucide-react';
+import { AlertTriangle, CircleDollarSign, Clock3, Percent, ReceiptText } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseTotals } from '../../types/expenseView.types';
@@ -58,7 +58,6 @@ export function ExpensesSummary({
   const totalAmount = Math.max(totals.total, 0);
   const paidPercentage = totalAmount > 0 ? Math.min(100, Math.max(0, (totals.paid / totalAmount) * 100)) : 0;
   const totalAmountLabel = formatBusinessCurrencyAmount(totalAmount, normalizedPreferredCurrency);
-  const paidAmountLabel = formatBusinessCurrencyAmount(totals.paid, normalizedPreferredCurrency);
   const openAmountLabel = formatBusinessCurrencyAmount(totals.pending, normalizedPreferredCurrency);
   const nativeTotalAmountLabel = formatBusinessCurrencyBreakdown(expenses, (expense) => expense.total, (expense) => expense.currency);
   const nativeOpenAmountLabel = formatBusinessCurrencyBreakdown(
@@ -97,68 +96,37 @@ export function ExpensesSummary({
       : t.expenses.summary.insightAllSettled;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-5">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <Metric icon={<ReceiptText className="h-4 w-4" />} label={t.expenses.summary.metricTotalVisible(expenses.length)} value={totalAmountLabel} />
-            <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={t.expenses.summary.metricPaid} value={paidAmountLabel} valueClassName="text-[#147514]" />
-            <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.expenses.summary.metricOpenBalance} value={openAmountLabel} valueClassName="text-amber-600 dark:text-amber-400" />
-            <Metric icon={<Clock3 className="h-4 w-4" />} label={t.expenses.summary.metricOverdue} value={overdueAmountLabel} valueClassName="text-rose-600 dark:text-rose-400" />
-            <Metric icon={<Percent className="h-4 w-4" />} label={t.expenses.summary.metricCompliance} value={`${paidPercentage.toFixed(0)}%`} valueClassName="text-sky-600 dark:text-sky-400" />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {totals.overdueCount > 0 ? (
-              <AlertChip tone="danger" icon={<AlertTriangle className="h-3.5 w-3.5" />}>
-                {t.expenses.summary.overdue(totals.overdueCount)}
-              </AlertChip>
-            ) : null}
-            {openPaymentCount > 0 ? (
-              <AlertChip tone="warning" icon={<Clock3 className="h-3.5 w-3.5" />}>
-                {t.expenses.summary.openBalanceChip(openPaymentCount)}
-              </AlertChip>
-            ) : null}
-            {totalAmount > 0 ? (
-              <AlertChip tone={paidPercentage >= 80 ? 'success' : 'warning'} icon={<WalletCards className="h-3.5 w-3.5" />}>
-                {t.expenses.summary.paidPercentageChip(paidPercentage.toFixed(0))}
-              </AlertChip>
-            ) : null}
-            {showNativeBreakdown ? (
-              <AlertChip tone="success" icon={<WalletCards className="h-3.5 w-3.5" />}>
-                {t.expenses.summary.metricNative}: {nativeTotalAmountLabel}
-              </AlertChip>
-            ) : null}
-          </div>
+    <section className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        <div className="grid grid-cols-2 lg:grid-cols-4">
+          <Metric icon={<ReceiptText className="h-4 w-4" />} label={t.expenses.summary.metricTotalVisible(expenses.length)} value={totalAmountLabel} />
+          <Metric icon={<CircleDollarSign className="h-4 w-4" />} label={t.expenses.summary.metricOpenBalance} value={openAmountLabel} valueClassName="text-amber-600 dark:text-amber-400" />
+          <Metric icon={<Clock3 className="h-4 w-4" />} label={t.expenses.summary.metricOverdue} value={overdueAmountLabel} valueClassName="text-rose-600 dark:text-rose-400" />
+          <Metric icon={<Percent className="h-4 w-4" />} label={t.expenses.summary.metricCompliance} value={`${paidPercentage.toFixed(0)}%`} valueClassName="text-sky-600 dark:text-sky-400" />
         </div>
+        {(totals.overdueCount > 0 || openPaymentCount > 0 || showNativeBreakdown) ? (
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-2.5 dark:border-slate-700">
+            {totals.overdueCount > 0 ? <AlertChip tone="danger" icon={<AlertTriangle className="h-3.5 w-3.5" />}>{t.expenses.summary.overdue(totals.overdueCount)}</AlertChip> : null}
+            {openPaymentCount > 0 ? <AlertChip tone="warning" icon={<Clock3 className="h-3.5 w-3.5" />}>{t.expenses.summary.openBalanceChip(openPaymentCount)}</AlertChip> : null}
+            {showNativeBreakdown ? <span className="text-xs text-slate-500">{t.expenses.summary.metricNative}: {nativeTotalAmountLabel}</span> : null}
+          </div>
+        ) : null}
+      </div>
 
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
           <div className="flex h-full w-full">
-            {statusMetrics.map(metric => (
-              <div
-                key={metric.status}
-                className={`${metric.barClass} transition-all duration-300`}
-                style={{ width: `${metric.percentage}%` }}
-                title={`${metric.label}: ${metric.amountLabel} - ${metric.percentage.toFixed(1)}%`}
-              />
-            ))}
+            {statusMetrics.map(metric => <div key={metric.status} className={`${metric.barClass} transition-all duration-300`} style={{ width: `${metric.percentage}%` }} title={`${metric.label}: ${metric.amountLabel} - ${metric.percentage.toFixed(1)}%`} />)}
           </div>
         </div>
-
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-            {statusMetrics.map(metric => (
-              <span key={metric.status} className="flex items-center gap-1">
-                <span className={`h-2 w-2 rounded-full ${metric.dotClass}`} />
-                {metric.label}
-              </span>
-            ))}
-          </div>
-          <div className="rounded-xl border border-[#147514]/20 bg-[#147514]/10 px-3 py-2 text-xs font-medium text-slate-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-slate-200">
-            {showNativeBreakdown ? `${insight} ${t.expenses.summary.nativeBalance(nativeOpenAmountLabel)}` : insight}
-          </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
+          {statusMetrics.map(metric => <span key={metric.status} className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${metric.dotClass}`} />{metric.label}</span>)}
         </div>
       </div>
+
+      <p className="border-l-2 border-[#147514] px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+        {showNativeBreakdown ? `${insight} ${t.expenses.summary.nativeBalance(nativeOpenAmountLabel)}` : insight}
+      </p>
     </section>
   );
 }
@@ -175,10 +143,8 @@ function Metric({
   valueClassName?: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#147514] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
-        {icon}
-      </span>
+    <div className="flex min-w-0 items-center gap-3 border-b border-r border-slate-100 px-4 py-3.5 text-sm text-slate-600 last:border-r-0 dark:border-slate-700 lg:border-b-0">
+      <span className="shrink-0 text-[#147514]">{icon}</span>
       <div className="min-w-0">
         <p className={`truncate text-sm font-medium ${valueClassName}`}>{value}</p>
         <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>

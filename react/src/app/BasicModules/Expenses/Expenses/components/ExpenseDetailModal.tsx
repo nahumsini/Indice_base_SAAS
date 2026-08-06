@@ -1,0 +1,153 @@
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { CalendarDays, Clock3, Download, FileText, HandCoins, Landmark, Loader2, Pencil, ReceiptText, ShieldCheck } from 'lucide-react';
+import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
+import type { Expense } from '../../types/expenses.types';
+import type { PaymentAccount } from '../../PaymentAccounts/types';
+import { expenseAttachmentsService, type ExpenseAttachment } from '../../services/expense-attachments.service';
+import { isBackendId } from '../../adapters/adapter.utils';
+import { formatCurrency } from '../../utils/expenses.utils';
+import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
+import { getExpenseDetailCopy } from './expenseDetail.copy';
+
+type ExpenseDetailModalProps = {
+  expense: Expense;
+  paymentAccounts: PaymentAccount[];
+  onClose: () => void;
+  onEdit: () => void;
+  onOpenAttachments: () => void;
+  onRecordPayment: () => void;
+};
+
+export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments, onRecordPayment, paymentAccounts }: ExpenseDetailModalProps) {
+  const t = useExpensesTranslations();
+  const locale = useExpensesResolvedLocale();
+  const copy = getExpenseDetailCopy(locale);
+  const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const balance = getExpenseBalance(expense);
+  const paid = getExpensePaidAmount(expense);
+  const status = getEffectiveExpenseStatus(expense);
+
+  useEffect(() => {
+    if (!isBackendId(expense.id)) return;
+    let mounted = true;
+    setIsLoading(true);
+    setLoadError('');
+    expenseAttachmentsService.list(expense.id)
+      .then(files => mounted && setAttachments(files))
+      .catch(() => mounted && setLoadError(copy.loadFailed))
+      .finally(() => mounted && setIsLoading(false));
+    return () => { mounted = false; };
+  }, [copy.loadFailed, expense.id]);
+
+  const paymentGroups = useMemo(() => {
+    const grouped = new Map<string, { amount: number; date?: string; accountId?: string; files: ExpenseAttachment[] }>();
+    attachments.filter(file => file.paymentAmount && file.paymentDate).forEach(file => {
+      const key = `${file.paymentDate}:${file.paymentAmount}:${file.paymentAccountId ?? ''}`;
+      const current = grouped.get(key) ?? { amount: file.paymentAmount ?? 0, date: file.paymentDate, accountId: file.paymentAccountId, files: [] };
+      current.files.push(file);
+      grouped.set(key, current);
+    });
+    const groups = Array.from(grouped.values()).sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+    if (paid > 0 && groups.length === 0) {
+      groups.push({ amount: paid, date: expense.paymentDate?.toISOString().slice(0, 10), accountId: expense.paymentAccountId, files: [] });
+    }
+    return groups;
+  }, [attachments, expense.paymentAccountId, expense.paymentDate, paid]);
+  const generalFiles = attachments.filter(file => !file.paymentAmount || !file.paymentDate);
+  const statusLabel = t.expenses.table.statuses[status] ?? status;
+
+  return (
+    <IndiceModalFrame
+      contentClassName="h-[min(90dvh,860px)] sm:max-w-[1040px]"
+      description={`${expense.folio} · ${copy.subtitle}`}
+      footer={(
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-medium text-white hover:bg-white/20">{copy.close}</button>
+          {balance > 0 && expense.type !== 'budget' ? <button type="button" onClick={onRecordPayment} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#147514]"><HandCoins className="h-4 w-4" />{copy.recordPayment}</button> : null}
+        </div>
+      )}
+      footerSummary={formatCurrency(balance, expense.currency)}
+      icon={<ReceiptText className="h-5 w-5" />}
+      modalType="operational-workspace"
+      onOpenChange={(open) => !open && onClose()}
+      open
+      title={copy.title}
+      tone="green"
+    >
+      <IndiceModalValidation messages={loadError ? [loadError] : []} />
+      <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="space-y-5">
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+              <div className="min-w-0"><p className="text-xs text-slate-500">{expense.folio}</p><h3 className="mt-1 text-lg font-medium text-slate-950 dark:text-white">{expense.concept}</h3></div>
+              <span className="rounded-full border border-[#147514]/20 bg-[#147514]/8 px-3 py-1 text-xs font-medium text-[#147514]">{statusLabel}</span>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-700">
+              <Metric label={copy.total} value={formatCurrency(expense.total, expense.currency)} />
+              <Metric label={copy.paid} value={formatCurrency(paid, expense.currency)} />
+              <Metric label={copy.balance} value={formatCurrency(balance, expense.currency)} accent={balance > 0} />
+            </div>
+          </section>
+
+          <DetailSection icon={<Landmark className="h-4 w-4" />} title={copy.overview}>
+            <DetailRow label={copy.provider} value={expense.providerName || t.common.unassigned} />
+            <DetailRow label={t.expenses.columns.accountingAccount?.label ?? copy.classification} value={expense.accountingAccount || t.common.unassigned} />
+            <DetailRow label={t.expenses.modal.currency} value={expense.currency} />
+            <DetailRow label={t.expenses.columns.description?.label ?? copy.overview} value={expense.description || '—'} multiline />
+          </DetailSection>
+
+          <DetailSection icon={<CalendarDays className="h-4 w-4" />} title={copy.dates}>
+            <DetailRow label={copy.expenseDate} value={formatDisplayDate(expense.date, locale)} />
+            <DetailRow label={copy.dueDate} value={formatDisplayDate(expense.dueDate, locale)} />
+            <DetailRow label={copy.paymentDate} value={expense.paymentDate ? formatDisplayDate(expense.paymentDate, locale) : '—'} />
+          </DetailSection>
+
+          <button type="button" onClick={onEdit} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:border-[#147514]/30 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><Pencil className="h-4 w-4" />{copy.edit}</button>
+        </div>
+
+        <div className="space-y-5">
+          <DetailSection icon={<Clock3 className="h-4 w-4" />} title={copy.paymentHistory}>
+            {isLoading ? <Loading label={copy.loading} /> : paymentGroups.length ? paymentGroups.map((payment, index) => (
+              <div key={`${payment.date}-${payment.amount}-${index}`} className="border-b border-slate-100 py-3 last:border-0 dark:border-slate-700">
+                <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-900 dark:text-white">{copy.accumulatedPayment}</p><p className="mt-1 text-xs text-slate-500">{payment.date ? formatDisplayDate(new Date(`${payment.date}T00:00:00`), locale) : '—'} · {paymentAccountName(payment.accountId, paymentAccounts)}</p></div><p className="text-sm font-medium text-[#147514]">{formatCurrency(payment.amount, expense.currency)}</p></div>
+                {payment.files.length ? <div className="mt-3 space-y-2">{payment.files.map(file => <FileLink key={file.id} file={file} label={copy.paymentEvidence} />)}</div> : null}
+              </div>
+            )) : <Empty label={copy.noPayments} />}
+          </DetailSection>
+
+          <DetailSection icon={<FileText className="h-4 w-4" />} title={copy.files} action={<button type="button" onClick={onOpenAttachments} className="text-xs font-medium text-[#147514]">{t.expenses.attachments.open}</button>}>
+            {isLoading ? <Loading label={copy.loading} /> : generalFiles.length ? <div className="space-y-2">{generalFiles.map(file => <FileLink key={file.id} file={file} label={copy.supportingFile} />)}</div> : <Empty label={copy.noFiles} />}
+          </DetailSection>
+
+          <DetailSection icon={<ShieldCheck className="h-4 w-4" />} title={copy.audit}>
+            <DetailRow label={copy.created} value={formatAuditDate(expense.createdAt, locale)} />
+            <DetailRow label={copy.updated} value={formatAuditDate(expense.updatedAt, locale)} />
+            <DetailRow label={t.expenses.columns.authorizer?.label ?? t.common.unassigned} value={expense.approver || expense.approvedByUserId || t.common.unassigned} />
+          </DetailSection>
+        </div>
+      </div>
+    </IndiceModalFrame>
+  );
+}
+
+function DetailSection({ action, children, icon, title }: { action?: ReactNode; children: ReactNode; icon: ReactNode; title: string }) { return <section className="rounded-xl border border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white"><span className="text-[#147514]">{icon}</span>{title}</h3>{action}</div>{children}</section>; }
+function DetailRow({ label, multiline = false, value }: { label: string; multiline?: boolean; value: string }) { return <div className={`flex gap-4 border-b border-slate-100 py-2.5 last:border-0 dark:border-slate-700 ${multiline ? 'flex-col gap-1' : 'items-start justify-between'}`}><span className="text-xs text-slate-500">{label}</span><span className={`${multiline ? '' : 'text-right'} text-sm font-medium text-slate-800 dark:text-slate-100`}>{value}</span></div>; }
+function Metric({ accent = false, label, value }: { accent?: boolean; label: string; value: string }) { return <div className="min-w-0 px-3 py-4 text-center"><p className="text-xs text-slate-500">{label}</p><p className={`mt-1 truncate text-sm font-medium ${accent ? 'text-amber-700 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>{value}</p></div>; }
+function Empty({ label }: { label: string }) { return <p className="rounded-lg bg-slate-50 px-3 py-4 text-sm text-slate-500 dark:bg-slate-900/60">{label}</p>; }
+function Loading({ label }: { label: string }) { return <p className="flex items-center gap-2 py-3 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{label}</p>; }
+function FileLink({ file, label }: { file: ExpenseAttachment; label: string }) {
+  const isImage = file.mimeType.startsWith('image/') && Boolean(file.downloadUrl);
+  return (
+    <a href={file.downloadUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm hover:border-[#147514]/30 dark:border-slate-700 dark:bg-slate-900/60">
+      {isImage ? <img alt="" src={file.downloadUrl} className="h-10 w-10 shrink-0 rounded-lg object-cover" /> : <FileText className="h-4 w-4 shrink-0 text-[#147514]" />}
+      <span className="min-w-0 flex-1"><span className="block truncate font-medium text-slate-800 dark:text-slate-100">{file.originalFilename}</span><span className="text-xs text-slate-500">{label}</span></span>
+      <Download className="h-4 w-4 text-slate-400" />
+    </a>
+  );
+}
+function paymentAccountName(id: string | undefined, accounts: PaymentAccount[]) { return accounts.find(account => account.id === id)?.name ?? '—'; }
+function formatDisplayDate(value: Date, locale: string) { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(value); }
+function formatAuditDate(value: Date | undefined, locale: string) { return value ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(value) : '—'; }

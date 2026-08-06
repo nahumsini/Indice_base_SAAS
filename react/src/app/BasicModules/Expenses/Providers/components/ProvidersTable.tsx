@@ -142,7 +142,7 @@ export function ProvidersTable({
               {tableColumns.map(header => (
                 <SortableHeader key={header.key} columnKey={header.sortField} label={header.label} width={columnWidths[header.key]} resizingColumn={resizingColumn} onResizeStart={handleResizeStart} onSort={handleSort} sortIcon={getSortIcon(header.sortField)} />
               ))}
-              <th className="px-5 py-4 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400" style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>{t.common.actions}</th>
+              <th className="px-5 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400" style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>{t.common.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -207,7 +207,7 @@ function SortableHeader({ columnKey, label, onResizeStart, onSort, resizingColum
   return (
     <th className="group relative px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
       <div className="flex items-center">
-        <button type="button" onClick={() => onSort(columnKey)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
+        <button type="button" onClick={() => onSort(columnKey)} className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
         <div onMouseDown={(event) => onResizeStart(event, columnKey)} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#147514] opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: resizingColumn === columnKey ? '#147514' : '' }} />
       </div>
     </th>

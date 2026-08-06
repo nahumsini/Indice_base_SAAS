@@ -1,61 +1,49 @@
-**Add your own guidelines here**
-<!--
+# Reglas de interfaz de Índice
 
-System Guidelines
+Este archivo resume las restricciones que deben aplicarse al modificar el frontend. La fuente normativa completa es `docs/indice-frontend-operating-system-v2.md`; los estándares específicos de cada módulo en `docs/` complementan estas reglas.
 
-Use this file to provide the AI with rules and guidelines you want it to follow.
-This template outlines a few examples of things you can add. You can add your own sections and format it to suit your needs
+## Jerarquía
 
-TIP: More context isn't always better. It can confuse the LLM. Try and add the most important rules you need
+- Cada pantalla debe tener un título, una acción primaria inequívoca y como máximo dos acciones secundarias visibles.
+- Las acciones infrecuentes o destructivas deben agruparse en un menú contextual.
+- Una lista funciona como índice. La historia completa de una entidad debe vivir en una vista o expediente de detalle.
+- No repetir la misma información en encabezado, KPI, tarjeta y tabla sin una razón operativa.
+- Evitar tarjetas anidadas. Preferir divisores, bandas y espacio para separar contenido relacionado.
 
-# General guidelines
+## Tipografía y forma
 
-Any general rules you want the AI to follow.
-For example:
+- Usar `font-medium` como peso máximo rutinario. No usar `font-semibold`, `font-bold`, uppercase decorativo ni tracking amplio.
+- El texto operativo no debe bajar de 12 px (`text-xs`). Datos primarios y controles usan 14 px o más.
+- `rounded-xl` es el radio normal para contenedores y controles; `rounded-full` se reserva para estados, filtros y avatares.
+- No añadir sombras a todas las superficies. Borde y contraste deben resolver la estructura base.
 
-* Only use absolute positioning when necessary. Opt for responsive and well structured layouts that use flexbox and grid by default
-* Refactor code as you go to keep code clean
-* Keep file sizes small and put helper functions and components in their own files.
+## Color
 
---------------
+- El color del pilar identifica navegación, foco y acción primaria; no significa automáticamente “éxito”.
+- Éxito, advertencia, error e información conservan colores semánticos consistentes.
+- No asignar un color distinto a cada botón de una fila. Las acciones neutras comparten estilo y eliminar usa tratamiento destructivo.
 
-# Design system guidelines
-Rules for how the AI should make generations look like your company's design system
+## Responsive
 
-Additionally, if you select a design system to use in the prompt box, you can reference
-your design system's components, tokens, variables and components.
-For example:
+- Diseñar primero la información mínima necesaria en móvil.
+- Las tarjetas móviles muestran identidad, estado y hasta dos cifras primarias; el resto se abre en Detalles.
+- Los objetivos táctiles deben medir al menos 36 px y no depender solo de iconos ambiguos.
+- Las tablas extensas pueden desplazarse en escritorio, pero no deben trasladarse completas a tarjetas móviles.
 
-* Use a base font-size of 14px
-* Date formats should always be in the format “Jun 10”
-* The bottom toolbar should only ever have a maximum of 4 items
-* Never use the floating action button with the bottom toolbar
-* Chips should always come in sets of 3 or more
-* Don't use a dropdown if there are 2 or fewer options
+## Modales
 
-You can also create sub sections and add more specific details
-For example:
+- Usar `IndiceModalFrame` y elegir el tipo por intención: confirmación, formulario, wizard o workspace operativo.
+- Un modal debe tener una sola acción principal y conservar resumen/estado en el footer cuando sea relevante.
+- Formularios largos se agrupan por significado; no envolver cada campo en una tarjeta.
+- Los textos visibles y etiquetas accesibles deben salir del sistema de traducciones o de un contrato localizado del componente.
 
+## Finanzas
 
-## Button
-The Button component is a fundamental interactive element in our design system, designed to trigger actions or navigate
-users through the application. It provides visual feedback and clear affordances to enhance user experience.
+- El índice de Gastos prioriza folio, proveedor, concepto, total, saldo, vencimiento y estado.
+- El expediente de un gasto concentra resumen financiero, fechas, historial de abonos, comprobantes, archivos y auditoría.
+- Registrar un abono debe aceptar evidencia y conservar su relación con monto, fecha y cuenta.
+- Cuentas por pagar, saldos y vencimientos tienen prioridad visual sobre metadatos contables secundarios.
 
-### Usage
-Buttons should be used for important actions that users need to take, such as form submissions, confirming choices,
-or initiating processes. They communicate interactivity and should have clear, action-oriented labels.
+## Criterio de cierre
 
-### Variants
-* Primary Button
-  * Purpose : Used for the main action in a section or page
-  * Visual Style : Bold, filled with the primary brand color
-  * Usage : One primary button per section to guide users toward the most important action
-* Secondary Button
-  * Purpose : Used for alternative or supporting actions
-  * Visual Style : Outlined with the primary color, transparent background
-  * Usage : Can appear alongside a primary button for less important actions
-* Tertiary Button
-  * Purpose : Used for the least important actions
-  * Visual Style : Text-only with no border, using primary color
-  * Usage : For actions that should be available but not emphasized
--->
+Todo cambio de interfaz debe pasar TypeScript, build y las regresiones del módulo. Si cambia una jerarquía o interacción importante, agregar una prueba que la proteja; las pruebas de presencia de clases por sí solas no sustituyen una prueba de flujo.

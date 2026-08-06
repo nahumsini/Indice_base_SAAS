@@ -32,6 +32,7 @@ import {
 } from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
+  PettyCashEmptyState,
   PettyCashField,
   PettyCashFilterShell,
   PettyCashHeaderBanner,
@@ -750,6 +751,68 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
         ]}
       />
 
+      <div className="space-y-3 md:hidden">
+        {fundsPagination.paginatedRows.map((fund) => {
+          const pendingSettlement = statements
+            .filter(statement => statement.pettyCashFundId === fund.id)
+            .reduce((sum, statement) => sum + getStatementSettlementBalance(statement), 0);
+          const isFundActionBusy = statusFundId === fund.id || deletingFundId === fund.id;
+
+          return (
+            <article key={fund.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{fund.name}</p>
+                  <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{fund.responsibleName} · {fund.unitName}</p>
+                </div>
+                <PettyCashStatusPill kind="fund" status={fund.status} />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 dark:border-slate-800">
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{copy.funds.table.balance}</p>
+                  <p className={`mt-1 text-base font-medium tabular-nums ${fund.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514] dark:text-emerald-300'}`}>{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{copy.funds.table.pending}</p>
+                  <p className="mt-1 text-base font-medium tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <button type="button" disabled={isFundActionBusy} onClick={() => onViewReceipts(fund.id)} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#147514]/25 bg-white px-3 text-sm font-medium text-[#147514] transition hover:bg-[#147514]/5 disabled:opacity-50 dark:border-emerald-400/25 dark:bg-slate-900 dark:text-emerald-300">
+                  <Eye className="h-4 w-4" />
+                  {copy.funds.table.viewDetail}
+                </button>
+                <button type="button" disabled={isFundActionBusy} onClick={() => setEditingFund(fund)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#147514]/30 hover:text-[#147514] disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" title={copy.funds.table.edit} aria-label={copy.funds.table.edit}>
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <FundActionsMenu
+                  busy={isFundActionBusy}
+                  deleteLabel={copy.funds.table.delete}
+                  fund={fund}
+                  label={copy.common.actions}
+                  onDelete={() => setDeletingFund(fund)}
+                  onToggle={() => void handleToggleFundStatus(fund)}
+                />
+              </div>
+            </article>
+          );
+        })}
+        {fundsPagination.paginatedRows.length === 0 ? <PettyCashEmptyState label={copy.funds.filters.result(0)} /> : null}
+        <PettyCashPagination
+          currentPage={fundsPagination.currentPage}
+          itemLabel={copy.funds.table.itemLabel}
+          onPageChange={fundsPagination.onPageChange}
+          onPageSizeChange={fundsPagination.onPageSizeChange}
+          pageEnd={fundsPagination.pageEnd}
+          pageSize={fundsPagination.pageSize}
+          pageSizeOptions={fundsPagination.pageSizeOptions}
+          pageStart={fundsPagination.pageStart}
+          totalCount={fundsPagination.totalCount}
+          totalPages={fundsPagination.totalPages}
+        />
+      </div>
+
+      <div className="hidden md:block">
       <PettyCashTableShell
         footer={(
           <PettyCashPagination
@@ -856,32 +919,16 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void handleToggleFundStatus(fund);
-                        }}
-                        disabled={isFundActionBusy}
-                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition disabled:cursor-not-allowed disabled:opacity-50 ${fund.status === 'CLOSED' ? 'border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300' : 'border-orange-100 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-400/20 dark:bg-orange-400/10 dark:text-orange-300'}`}
-                        title={fund.status === 'CLOSED' ? `Reactivar fondo: ${fund.name}` : `Desactivar fondo: ${fund.name}`}
-                        aria-label={fund.status === 'CLOSED' ? `Reactivar fondo: ${fund.name}` : `Desactivar fondo: ${fund.name}`}
-                      >
-                        {statusFundId === fund.id ? <RotateCw className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isFundActionBusy}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setDeletingFund(fund);
-                        }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-300"
-                        title={copy.funds.table.delete}
-                        aria-label={`${copy.funds.table.delete}: ${fund.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <FundActionsMenu
+                        busy={isFundActionBusy}
+                        compact
+                        deleteLabel={copy.funds.table.delete}
+                        fund={fund}
+                        label={copy.common.actions}
+                        onDelete={() => setDeletingFund(fund)}
+                        onToggle={() => void handleToggleFundStatus(fund)}
+                        rotating={statusFundId === fund.id}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -890,6 +937,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
           </tbody>
         </table>
       </PettyCashTableShell>
+      </div>
 
       {isCreateFundOpen ? (
         <CreateFundModal
@@ -944,6 +992,52 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
         onConfirm={handleDeleteFund}
       />
     </div>
+  );
+}
+
+function FundActionsMenu({
+  busy,
+  compact = false,
+  deleteLabel,
+  fund,
+  label,
+  onDelete,
+  onToggle,
+  rotating = false,
+}: {
+  busy: boolean;
+  compact?: boolean;
+  deleteLabel: string;
+  fund: PettyCashFund;
+  label: string;
+  onDelete: () => void;
+  onToggle: () => void;
+  rotating?: boolean;
+}) {
+  const closeMenu = (target: HTMLElement) => target.closest('details')?.removeAttribute('open');
+
+  return (
+    <details className="group relative">
+      <summary
+        aria-disabled={busy}
+        aria-label={label}
+        className={`inline-flex cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#147514]/30 hover:text-[#147514] group-open:border-[#147514]/30 group-open:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 [&::-webkit-details-marker]:hidden ${compact ? 'h-9 w-9' : 'h-10 w-10'} ${busy ? 'pointer-events-none opacity-50' : ''}`}
+        title={label}
+      >
+        {rotating ? <RotateCw className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+      </summary>
+      <div className="absolute bottom-full right-0 z-30 mb-1 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+        <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800" onClick={(event) => { closeMenu(event.currentTarget); onToggle(); }}>
+          <Archive className="h-4 w-4" />
+          {fund.status === 'CLOSED' ? 'Reactivar fondo' : 'Desactivar fondo'}
+        </button>
+        <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
+        <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30" onClick={(event) => { closeMenu(event.currentTarget); onDelete(); }}>
+          <Trash2 className="h-4 w-4" />
+          {deleteLabel}
+        </button>
+      </div>
+    </details>
   );
 }
 
@@ -1574,7 +1668,7 @@ function KioskModal({
         ) : (
           <>
         <div>
-          <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-500">Accesos configurados</p>
@@ -1605,7 +1699,7 @@ function KioskModal({
 
           <div className="mt-4 space-y-3">
             {funds.length === 0 ? (
-              <div className="rounded-[22px] border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                 Crea un fondo para habilitar su kiosko móvil.
               </div>
             ) : null}
@@ -1619,7 +1713,7 @@ function KioskModal({
               const fundUnitLabel = getOptionLabel(unitOptions, fund.unitId, fund.unitName);
 
               return (
-                <article key={fund.id} className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <article key={fund.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                   <div className="p-5">
                     <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div className="flex min-w-0 items-start gap-3">

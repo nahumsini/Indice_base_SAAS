@@ -36,3 +36,30 @@ test('Petty Cash conserva el shell financiero y el Kiosk Engine compartido', () 
   assert.match(kioskSource, /<KioskIdentityGate/);
   assert.match(kioskSource, /<KioskWorkspaceTabs/);
 });
+
+test('Petty Cash conserva índices móviles y detalle operativo de cortes', () => {
+  const fundsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFundsWorkspace.tsx'), 'utf8');
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
+  const financialSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFinancialViewWorkspace.tsx'), 'utf8');
+  const detailSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
+
+  for (const source of [fundsSource, reconciliationSource, statementsSource, financialSource]) {
+    assert.match(source, /md:hidden/);
+    assert.match(source, /md:block/);
+  }
+  assert.match(fundsSource, /<FundActionsMenu/);
+  assert.doesNotMatch(fundsSource, /DropdownMenu/);
+  assert.match(reconciliationSource, /<DropdownMenu/);
+  assert.match(detailSource, /statement\.responsibleName/);
+  assert.match(detailSource, /copy\.status\.statement/);
+});
+
+test('Petty Cash no introduce texto operativo menor a 12 px', () => {
+  const violations = collectFiles(pettyCashRoot).flatMap((file) => {
+    const source = readFileSync(file, 'utf8');
+    return [...source.matchAll(/text-\[(?:[0-9]|1[01])px\]/g)].map(() => relative(root, file).replaceAll('\\', '/'));
+  });
+
+  assert.deepEqual(violations, []);
+});

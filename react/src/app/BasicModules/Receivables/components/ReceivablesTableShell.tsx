@@ -39,7 +39,7 @@ export function ReceivablesTableShell({
   totalPages,
 }: ReceivablesTableShellProps) {
   return (
-    <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
         <Table className="min-w-[1120px]">
           {children}

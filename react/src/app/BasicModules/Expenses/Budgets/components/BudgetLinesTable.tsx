@@ -20,7 +20,7 @@ type BudgetLinesTableProps = {
   onRetry?: () => void;
 };
 
-const columnClass = 'px-5 py-4 text-left align-middle text-[11px] font-medium text-slate-500 dark:text-slate-400';
+const columnClass = 'px-5 py-4 text-left align-middle text-xs font-medium text-slate-500 dark:text-slate-400';
 const cellClass = 'px-6 py-4 align-middle text-sm text-slate-700 dark:text-slate-200';
 type BudgetSortDirection = 'asc' | 'desc';
 
@@ -129,7 +129,7 @@ export function BudgetLinesTable({ budgetLines, columns, errorMessage, onDeleteB
                       <button
                         type="button"
                         onClick={() => handleSort(column.key)}
-                        className={`inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium transition-colors hover:text-slate-900 dark:hover:text-white ${isActive ? 'text-[#147514] dark:text-emerald-300' : ''}`}
+                        className={`inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium transition-colors hover:text-slate-900 dark:hover:text-white ${isActive ? 'text-[#147514] dark:text-emerald-300' : ''}`}
                       >
                         <span>{column.label}</span>
                         <SortIcon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-400'}`} />

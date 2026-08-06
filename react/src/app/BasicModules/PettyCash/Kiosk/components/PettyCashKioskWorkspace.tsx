@@ -61,7 +61,7 @@ export function PettyCashKioskIdentityCard({
           {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-medium text-[#147514] dark:text-emerald-300">{verifiedLabel}</p>
+          <p className="text-xs font-medium text-[#147514] dark:text-emerald-300">{verifiedLabel}</p>
           <h2 className="mt-1 line-clamp-2 text-lg font-medium leading-tight tracking-tight text-slate-950 dark:text-white">{name}</h2>
           <p className="mt-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">{detail}</p>
         </div>
@@ -84,11 +84,11 @@ export function PettyCashKioskIdentityCard({
         </div>
         <div className="mt-3 flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[9px] font-medium text-slate-400">{balanceLabel}</p>
+            <p className="text-xs font-medium text-slate-400">{balanceLabel}</p>
             <p className="mt-0.5 truncate text-sm font-medium text-slate-950 dark:text-white">{balanceValue}</p>
           </div>
           <div className="min-w-0 text-right">
-            <p className="text-[9px] font-medium text-slate-400">{fundLimitLabel}</p>
+            <p className="text-xs font-medium text-slate-400">{fundLimitLabel}</p>
             <p className="mt-0.5 truncate text-sm font-medium text-slate-600 dark:text-slate-300">{fundLimitValue}</p>
           </div>
         </div>
@@ -127,7 +127,7 @@ export function PettyCashKioskSummaryStrip({
         <div className="min-w-0 px-2 py-3 text-center" key={metric.label}>
           <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-[#147514] dark:bg-emerald-400/10 dark:text-emerald-300">{metric.icon}</div>
           <p title={metric.value} className={`mt-1 truncate text-sm font-medium leading-none min-[390px]:text-base ${metric.valueClass}`}>{metric.value}</p>
-          <p className="mt-1 truncate text-[8px] font-medium text-slate-500 dark:text-slate-400 min-[390px]:text-[9px]">{metric.label}</p>
+          <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{metric.label}</p>
         </div>
       ))}
     </section>
@@ -161,7 +161,7 @@ export function PettyCashKioskToolbar({
             <Filter aria-hidden="true" className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-medium text-[#147514] dark:text-emerald-300">{periodLabel}</span>
+            <span className="block text-xs font-medium text-[#147514] dark:text-emerald-300">{periodLabel}</span>
             <select
               aria-label={periodLabel}
               className="mt-0.5 block h-6 w-full min-w-0 appearance-none truncate bg-transparent pr-1 text-sm font-medium text-slate-950 outline-none dark:text-white"
@@ -259,7 +259,7 @@ export function PettyCashReceiptModal({
             <div className="flex min-w-0 items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#147514] text-white shadow-sm"><ReceiptText className="h-5 w-5" /></span>
               <div className="min-w-0">
-                <p className="text-[10px] font-medium text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
+                <p className="text-xs font-medium text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
                 <h2 id="petty-cash-receipt-title" className="mt-0.5 text-xl font-medium leading-tight text-slate-950 dark:text-white">{copy.publicKiosk.receipt.title}</h2>
                 <p className="mt-1 line-clamp-2 text-xs font-normal leading-4 text-slate-500 dark:text-slate-400 sm:text-sm sm:leading-5">{copy.publicKiosk.receipt.description}</p>
               </div>
@@ -292,7 +292,7 @@ export function PettyCashReceiptModal({
                   [copy.publicKiosk.workspace.subtotal, totals.subtotal],
                   [copy.publicKiosk.workspace.taxes, totals.taxes],
                   [copy.common.total, totals.total],
-                ].map(([label, value], index) => <div className="min-w-0 px-2 py-3 text-center" key={label}><p className="truncate text-[9px] font-medium text-slate-500">{label}</p><p className={`mt-1 truncate text-xs font-medium ${index === 2 ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p></div>)}
+                ].map(([label, value], index) => <div className="min-w-0 px-2 py-3 text-center" key={label}><p className="truncate text-xs font-medium text-slate-500">{label}</p><p className={`mt-1 truncate text-xs font-medium ${index === 2 ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-950 dark:text-white'}`}>{value}</p></div>)}
               </div>
             </section>
 
@@ -303,7 +303,7 @@ export function PettyCashReceiptModal({
                 <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"><FileUp className="h-5 w-5" />{copy.publicKiosk.workspace.chooseFile}<input type="file" className="sr-only" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={isSaving} onChange={onAttachmentChange} /></label>
               </div>
               <p className="mt-2 text-center text-xs text-slate-500">{copy.publicKiosk.workspace.evidenceHint}</p>
-              {attachments.length > 0 ? <div className="mt-3 grid gap-2">{attachments.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-950"><Paperclip className="h-4 w-4 shrink-0 text-[#147514]" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{file.name}</p><p className="text-[11px] text-slate-500">{formatFileSize(file.size)}</p></div><button type="button" disabled={isSaving} aria-label={copy.common.deleteAttachment} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30" onClick={() => onRemoveAttachment(index)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : null}
+              {attachments.length > 0 ? <div className="mt-3 grid gap-2">{attachments.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-950"><Paperclip className="h-4 w-4 shrink-0 text-[#147514]" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{file.name}</p><p className="text-xs text-slate-500">{formatFileSize(file.size)}</p></div><button type="button" disabled={isSaving} aria-label={copy.common.deleteAttachment} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30" onClick={() => onRemoveAttachment(index)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : null}
             </section>
           </div>
         </div>

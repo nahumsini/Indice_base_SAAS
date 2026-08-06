@@ -7,6 +7,7 @@ const root = resolve(import.meta.dirname, '..');
 const expensesRoot = resolve(root, 'src/app/BasicModules/Expenses');
 const sourceExtensions = /\.(?:js|jsx|ts|tsx)$/;
 const prohibitedTypography = /\bfont-(?:semibold|bold|extrabold|black)\b|\buppercase\b|\btracking-(?:wide|\[[^\]]+\])/g;
+const undersizedTypography = /\btext-\[(?:10|11)px\]/g;
 
 function collectFiles(path) {
   return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
@@ -25,6 +26,36 @@ test('Expenses respeta la escala tipográfica del Frontend Engine V2', () => {
   });
 
   assert.deepEqual(violations, [], `Tipografía fuera del estándar:\n${violations.map(({ file, token }) => `${file}: ${token}`).join('\n')}`);
+});
+
+test('Expenses mantiene texto operativo legible desde 12px', () => {
+  const violations = collectFiles(expensesRoot).flatMap((file) => {
+    const source = readFileSync(file, 'utf8');
+    return [...source.matchAll(undersizedTypography)].map((match) => ({
+      file: relative(root, file).replaceAll('\\', '/'),
+      token: match[0],
+    }));
+  });
+
+  assert.deepEqual(violations, [], `Texto menor a 12px:\n${violations.map(({ file, token }) => `${file}: ${token}`).join('\n')}`);
+});
+
+test('Expenses prioriza expediente, abono y menú contextual sobre acciones planas', () => {
+  const detailSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseDetailModal.tsx'), 'utf8');
+  const actionsSource = readFileSync(resolve(expensesRoot, 'components/table/ExpenseRowActions.tsx'), 'utf8');
+  const headerSource = readFileSync(resolve(expensesRoot, 'components/header/ExpensesHeader.tsx'), 'utf8');
+  const mobileSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseMobileCards.tsx'), 'utf8');
+  const columnsSource = readFileSync(resolve(expensesRoot, 'constants/expenseColumns.ts'), 'utf8');
+
+  assert.match(detailSource, /copy\.paymentHistory/);
+  assert.match(detailSource, /copy\.audit/);
+  assert.match(actionsSource, /<DropdownMenu>/);
+  assert.match(actionsSource, /<Eye/);
+  assert.match(actionsSource, /<HandCoins/);
+  assert.match(headerSource, /<DropdownMenu>/);
+  assert.doesNotMatch(mobileSource, /isExpanded/);
+  assert.match(columnsSource, /key: 'balance', label: 'Balance', visible: true/);
+  assert.match(columnsSource, /key: 'accountingAccount', label: 'Accounting account', visible: false/);
 });
 
 test('Expenses conserva el shell financiero y el Kiosk Engine compartido', () => {

@@ -1,4 +1,4 @@
-import { Ban, Banknote, Building2, CheckCircle2, Coins, Copy, Download, ExternalLink, FolderOpen, Info, Loader2, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
+import { Ban, Banknote, Building2, CheckCircle2, Coins, Copy, Download, ExternalLink, FolderOpen, Info, Loader2, MoreHorizontal, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { isAdminAccessRole } from '../../../access/accessRules';
 import { authApi } from '../../../api/auth';
@@ -24,6 +24,13 @@ import { BudgetTaxControls, type TaxControlDraft } from '../../Expenses/componen
 import { hasPettyCashBackendId, pettyCashService, type PettyCashStatementCloseAction } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../components/indice-modal';
 import type {
   PettyCashAttachment,
@@ -1093,7 +1100,7 @@ export function PettyCashReconciliationWorkspace({
         </div>
       ) : null}
 
-      <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
           <div>
             <h3 className="text-base font-medium text-slate-800 dark:text-white">{copy.common.filters}</h3>
@@ -1151,7 +1158,6 @@ export function PettyCashReconciliationWorkspace({
           )}
           insightIcon={<Info className="h-4 w-4" />}
           metrics={[
-            { id: 'opening', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.openingBalance, value: formatPettyCashCurrency(toPreferredCurrency(selectedStatement?.openingBalanceAmount ?? 0), preferredCurrency) },
             { id: 'deposited', icon: <Banknote className="h-4 w-4" />, label: copy.reconciliation.metrics.deposited, value: formatPettyCashCurrency(toPreferredCurrency(depositedAmount), preferredCurrency), valueClassName: 'text-sky-600' },
             { id: 'captured', icon: <ReceiptText className="h-4 w-4" />, label: copy.reconciliation.operation.captured, value: formatPettyCashCurrency(toPreferredCurrency(capturedAmount), preferredCurrency), valueClassName: 'text-amber-600' },
             { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.reconciliation.operation.authorized, value: formatPettyCashCurrency(toPreferredCurrency(authorizedAmount), preferredCurrency), valueClassName: 'text-[#147514]' },
@@ -1159,13 +1165,62 @@ export function PettyCashReconciliationWorkspace({
           ]}
         />
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
           <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
             <div><h3 className="text-xl font-medium text-slate-900 dark:text-white">{operationView === 'expenses' ? copy.reconciliation.receipts.title : copy.reconciliation.movements.title}</h3><p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{operationView === 'expenses' ? copy.reconciliation.receipts.subtitle : copy.reconciliation.movements.subtitle}</p></div>
           </div>
 
           {operationView === 'expenses' ? (filteredLines.length > 0 ? <>
-            <div className="overflow-x-auto"><table className="w-full min-w-[900px]"><thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"><tr>
+            <div className="space-y-3 p-3 md:hidden">
+              {linePagination.paginatedRows.map(line => {
+                const isCaptured = line.status === 'DRAFT';
+                const canAuthorizeExpense = canAuthorizeExpenseFromLine(line) && (!isCaptured || canAuthorizeWithoutSupport);
+                const canRejectLine = canRejectSettlementLine(line);
+                const isLineActionBusy = copyingLineId === line.id || deletingLineId === line.id || expenseCreationLineId === line.id || rejectingLineId === line.id;
+                const authorizeLabel = isCaptured ? copy.reconciliation.receipts.authorizeWithoutSupport : copy.reconciliation.receipts.authorize;
+
+                return (
+                  <article key={line.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{line.description}</p>
+                        <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{line.providerName ?? copy.common.notAvailable} · {formatPettyCashIsoDate(line.expenseDate)}</p>
+                      </div>
+                      <PettyCashStatusPill kind="line" status={line.status} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-y border-slate-100 py-3 dark:border-slate-800">
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">{line.receiptReference ?? copy.reconciliation.receipts.noReference}</p>
+                      <p className="shrink-0 text-base font-medium tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(line.totalAmount, line.currencyCode)}</p>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button type="button" onClick={() => setAttachmentLine(line)} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#147514]/25 bg-white px-3 text-sm font-medium text-[#147514] transition hover:bg-[#147514]/5 dark:border-emerald-400/25 dark:bg-slate-900 dark:text-emerald-300">
+                        <Paperclip className="h-4 w-4" />
+                        {copy.common.fileCount(line.attachmentCount)}
+                      </button>
+                      {canAuthorizeExpense ? (
+                        <button type="button" disabled={isLineActionBusy} onClick={() => void handleCreateExpenseFromLine(line)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#147514] text-white transition hover:bg-[#105010] disabled:opacity-50" title={authorizeLabel} aria-label={authorizeLabel}>
+                          {expenseCreationLineId === line.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                        </button>
+                      ) : null}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" disabled={isLineActionBusy} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#147514]/30 hover:text-[#147514] disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" title={copy.common.actions} aria-label={copy.common.actions}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+                          <DropdownMenuItem className="rounded-lg py-2.5" onClick={() => void handleCopySettlementLine(line)}><Copy />{copy.reconciliation.receipts.copy}</DropdownMenuItem>
+                          {canRejectLine ? <DropdownMenuItem className="rounded-lg py-2.5" onClick={() => void handleRejectSettlementLine(line)}><Ban />{copy.reconciliation.receipts.reject}</DropdownMenuItem> : null}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="rounded-lg py-2.5" variant="destructive" onClick={() => setDeletingLine(line)}><Trash2 />{copy.reconciliation.receipts.delete}</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[900px]"><thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"><tr>
               <PettyCashSortableHeader columnKey="receipt" label={copy.reconciliation.receipts.columns.receipt} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
               <PettyCashSortableHeader columnKey="provider" label={copy.reconciliation.receipts.columns.provider} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
               <PettyCashSortableHeader columnKey="date" label={copy.reconciliation.receipts.columns.date} onSort={lineSort.onSort} sortDirection={lineSort.sortDirection} sortKey={lineSort.sortKey} />
@@ -1261,7 +1316,22 @@ export function PettyCashReconciliationWorkspace({
               </tbody></table></div>
             <PettyCashPagination currentPage={linePagination.currentPage} itemLabel={copy.reconciliation.receipts.itemLabel} onPageChange={linePagination.onPageChange} onPageSizeChange={linePagination.onPageSizeChange} pageEnd={linePagination.pageEnd} pageSize={linePagination.pageSize} pageSizeOptions={linePagination.pageSizeOptions} pageStart={linePagination.pageStart} totalCount={linePagination.totalCount} totalPages={linePagination.totalPages} />
           </> : <div className="p-5"><PettyCashEmptyState label={copy.reconciliation.receipts.empty} /></div>) : (filteredIncomeMovements.length > 0 ? <>
-            <div className="overflow-x-auto"><table className="w-full min-w-[760px]"><thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"><tr>
+            <div className="space-y-3 p-3 md:hidden">
+              {movementPagination.paginatedRows.map(movement => (
+                <article key={movement.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{copy.status.movement[movement.type]}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatPettyCashIsoDate(movement.movementDate)}</p></div>
+                    <p className="shrink-0 text-base font-medium tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</p>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 text-xs dark:border-slate-800">
+                    <div><dt className="text-slate-500 dark:text-slate-400">{copy.reconciliation.movements.columns.source}</dt><dd className="mt-1 truncate font-medium text-slate-800 dark:text-slate-100">{movement.fromPaymentAccountName ?? copy.common.notAvailable}</dd></div>
+                    <div className="text-right"><dt className="text-slate-500 dark:text-slate-400">{copy.reconciliation.movements.columns.destination}</dt><dd className="mt-1 truncate font-medium text-slate-800 dark:text-slate-100">{movement.toPaymentAccountName ?? selectedFund.name}</dd></div>
+                  </dl>
+                  <p className="mt-3 truncate text-xs text-slate-500 dark:text-slate-400">{movement.reference || copy.common.noReference}</p>
+                </article>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[760px]"><thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"><tr>
               <PettyCashSortableHeader columnKey="date" label={copy.reconciliation.movements.columns.date} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
               <PettyCashSortableHeader columnKey="type" label={copy.reconciliation.movements.columns.type} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />
               <PettyCashSortableHeader columnKey="source" label={copy.reconciliation.movements.columns.source} onSort={movementSort.onSort} sortDirection={movementSort.sortDirection} sortKey={movementSort.sortKey} />

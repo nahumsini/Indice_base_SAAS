@@ -99,7 +99,7 @@ function ReadonlyTextCell({
   return (
     <td className="px-6 py-4 align-middle" style={{ width: columnWidths[field], minWidth: columnWidths[field] }}>
       <ReadonlyValue>{provider[field] || '-'}</ReadonlyValue>
-      {field === 'name' && provider.registrationSource === 'payable-kiosk-registration' ? <span className="ml-3 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">Registro desde kiosko</span> : null}
+      {field === 'name' && provider.registrationSource === 'payable-kiosk-registration' ? <span className="ml-3 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">Registro desde kiosko</span> : null}
     </td>
   );
 }

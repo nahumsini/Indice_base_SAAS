@@ -143,21 +143,6 @@ export function CreditSalesKpiArea({
       value: monthlyFlowLabel,
       valueClassName: 'text-emerald-600',
     },
-    {
-      id: 'totalInterest',
-      icon: <Gauge className="h-4 w-4" />,
-      iconClassName: 'text-[#9A6B05]',
-      label: labels.labels.totalInterest,
-      value: totalInterestLabel,
-      valueClassName: 'text-[#9A6B05]',
-    },
-    {
-      id: 'completedSales',
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      iconClassName: 'text-slate-500',
-      label: labels.labels.completedSales,
-      value: formatCount(completedCount),
-    },
   ];
   const alertChips: OperationalAlertChip[] = [];
 

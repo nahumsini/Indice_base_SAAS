@@ -531,7 +531,7 @@ export default function PublicPettyCashKioskPage() {
         banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900">{copy.publicKiosk.session.offline}</div> : null}
         errorMessage={isReceiptModalOpen ? '' : errorMessage}
         header={(<header className="border-b border-slate-200 bg-white px-4 py-3.5 dark:border-slate-800 dark:bg-slate-950">
-          <p className="text-[10px] font-medium text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
+          <p className="text-xs font-medium text-[#147514] dark:text-emerald-300">{copy.publicKiosk.header.eyebrow}</p>
           <h1 className="mt-1 line-clamp-2 break-words text-xl font-medium leading-tight tracking-tight text-slate-950 dark:text-white">
             {fund?.name ?? copy.publicKiosk.header.defaultFund}
           </h1>

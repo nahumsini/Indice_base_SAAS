@@ -66,7 +66,7 @@ export function PaymentAccountsTable({
               {tableColumns.map(header => (
                 <SortableHeader key={header.key} field={header.sortField} label={header.label} width={defaultPaymentColumnWidths[header.key]} sortIcon={getSortIcon(header.sortField)} onSort={onSort} />
               ))}
-              <th className="px-5 py-4 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>{t.common.actions}</th>
+              <th className="px-5 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>{t.common.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -223,7 +223,7 @@ function getReferenceLabel(options: FinanceReferenceOption[], value?: string) {
 function SortableHeader({ field, label, onSort, sortIcon, width }: { field: PaymentSortField; label: string; onSort: (field: PaymentSortField) => void; sortIcon: ReactNode; width: number }) {
   return (
     <th className="px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
-      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
     </th>
   );
 }

@@ -65,7 +65,7 @@ export function ReceivableFilesModal({
             return (
               <article
                 key={`${payment.id}-${fileName}`}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
               >
                 <div className="grid gap-0 md:grid-cols-[180px_1fr]">
                   <div className="flex min-h-36 items-center justify-center border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950 md:border-b-0 md:border-r">
@@ -73,11 +73,11 @@ export function ReceivableFilesModal({
                       <img
                         src={dataUrl}
                         alt={fileName}
-                        className="h-28 w-full rounded-xl object-cover shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
+                        className="h-28 w-full rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                       />
                     ) : (
                       <span className={cn(
-                        'flex h-16 w-16 items-center justify-center rounded-2xl shadow-sm ring-1',
+                        'flex h-16 w-16 items-center justify-center rounded-xl ring-1',
                         isPdf
                           ? 'bg-red-50 text-red-600 ring-red-100 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-900/60'
                           : 'bg-[#147514]/10 text-[#147514] ring-[#147514]/15 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20',
@@ -152,7 +152,7 @@ export function ReceivableFilesModal({
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
           <FileText className="mx-auto h-10 w-10 text-slate-400" />
           <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-300">{copy.modals.files.empty}</p>
         </div>

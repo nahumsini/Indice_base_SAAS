@@ -49,6 +49,9 @@ class ExpenseAttachmentRepository {
                        attachment.size_bytes,
                        attachment.object_key,
                        attachment.uploaded_by_user_id,
+                       attachment.payment_amount,
+                       attachment.payment_date,
+                       attachment.payment_account_id,
                        COALESCE(NULLIF(TRIM(uploaded_user.full_name), ''), NULLIF(TRIM(uploaded_user.email), '')) AS uploaded_by_name,
                        attachment.created_at
                 FROM finance_expense_attachments attachment
@@ -72,6 +75,9 @@ class ExpenseAttachmentRepository {
                        attachment.size_bytes,
                        attachment.object_key,
                        attachment.uploaded_by_user_id,
+                       attachment.payment_amount,
+                       attachment.payment_date,
+                       attachment.payment_account_id,
                        COALESCE(NULLIF(TRIM(uploaded_user.full_name), ''), NULLIF(TRIM(uploaded_user.email), '')) AS uploaded_by_name,
                        attachment.created_at
                 FROM finance_expense_attachments attachment
@@ -94,14 +100,18 @@ class ExpenseAttachmentRepository {
             String originalFilename,
             String mimeType,
             long sizeBytes,
-            String objectKey) {
+            String objectKey,
+            java.math.BigDecimal paymentAmount,
+            java.time.LocalDate paymentDate,
+            Long paymentAccountId) {
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                     """
                     INSERT INTO finance_expense_attachments
-                    (company_id, expense_id, original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (company_id, expense_id, original_filename, mime_type, size_bytes, object_key, uploaded_by_user_id,
+                     payment_amount, payment_date, payment_account_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     new String[] { "id" });
             statement.setLong(1, context.companyId());
@@ -115,6 +125,10 @@ class ExpenseAttachmentRepository {
             } else {
                 statement.setLong(7, context.userId());
             }
+            statement.setBigDecimal(8, paymentAmount);
+            statement.setObject(9, paymentDate);
+            if (paymentAccountId == null) statement.setNull(10, java.sql.Types.BIGINT);
+            else statement.setLong(10, paymentAccountId);
             return statement;
         }, keyHolder);
 
@@ -191,6 +205,9 @@ class ExpenseAttachmentRepository {
                 rs.getString("object_key"),
                 rs.getObject("uploaded_by_user_id", Long.class),
                 rs.getString("uploaded_by_name"),
+                rs.getBigDecimal("payment_amount"),
+                rs.getObject("payment_date", java.time.LocalDate.class),
+                rs.getObject("payment_account_id", Long.class),
                 rs.getTimestamp("created_at") == null ? null : rs.getTimestamp("created_at").toInstant().toString());
     }
 

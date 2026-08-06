@@ -89,7 +89,7 @@ function ProviderMobileCard({
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{provider.folio}</p>
           <h3 className="mt-1 truncate text-base font-medium text-slate-950 dark:text-white">{provider.name}</h3>
-          {provider.registrationSource === 'payable-kiosk-registration' ? <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">Registro desde kiosko</span> : null}
+          {provider.registrationSource === 'payable-kiosk-registration' ? <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">Registro desde kiosko</span> : null}
           <p className="mt-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">{provider.company || '-'}</p>
         </div>
         <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getProviderStatusClass(provider.status)}`}>{statusLabel}</span>
@@ -134,7 +134,7 @@ function ProviderMobileCard({
 function ProviderMobileValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
-      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
       <p className="mt-1 truncate text-sm font-medium text-slate-900 dark:text-white">{value || '-'}</p>
     </div>
   );
