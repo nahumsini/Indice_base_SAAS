@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Banknote, FileText, Image as ImageIcon, Upload, X } from 'lucide-react';
+import { ArrowRight, Banknote, FileText, Image as ImageIcon, Upload, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
@@ -14,6 +14,7 @@ import type { ReceivablesTranslations } from '../../translations';
 import type { PaymentMethod, ReceivableAccount, ReceivablePayment } from '../../types';
 import { formatMoney, todayIso } from '../../utils';
 import { ReceivablesModalFrame } from './ReceivablesModalFrame';
+import { ReceivablesSearchSelect } from './ReceivablesSearchSelect';
 
 interface PaymentModalProps {
   accounts: ReceivableAccount[];
@@ -50,6 +51,7 @@ export function PaymentModal({
     && amount > 0
     && amount <= selectedAccount.balance,
   );
+  const remainingBalance = selectedAccount ? Math.max(0, selectedAccount.balance - Math.max(0, amount || 0)) : 0;
 
   useEffect(() => {
     if (initialReceivableId && accounts.some((account) => account.id === initialReceivableId)) {
@@ -146,20 +148,32 @@ export function PaymentModal({
       {selectedAccount ? (
         <div className="space-y-4">
           <IndiceModalValidation messages={submitError ? [submitError] : []} />
-          <FilterSelect
+          <ReceivablesSearchSelect
             label={copy.modals.payment.account}
             value={selectedAccount.id}
             onChange={setReceivableId}
             options={accounts.map((account) => ({
-              value: account.id,
+              id: account.id,
               label: `${account.saleNumber} - ${account.customerName}`,
+              searchText: `${account.saleNumber} ${account.customerName} ${account.unit} ${account.business}`,
             }))}
+            emptyLabel={copy.modals.payment.noAccounts}
+            searchLabel={copy.filters.search}
+            searchPlaceholder={copy.filters.searchPlaceholder}
           />
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-sm font-medium text-slate-500">{copy.modals.payment.pendingBalance}</p>
-            <p className={cn('mt-1 text-2xl font-medium', financeTextClass)}>
-              {formatMoney(selectedAccount.balance, selectedAccount.currency)}
-            </p>
+          <div className="rounded-2xl border border-[#147514]/15 bg-gradient-to-br from-[#147514]/10 via-white to-white p-4 shadow-sm dark:border-emerald-400/20 dark:from-emerald-400/10 dark:via-slate-900 dark:to-slate-900">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-950 dark:text-white">{selectedAccount.customerName}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{selectedAccount.saleNumber} · {selectedAccount.currency}</p>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#147514] shadow-sm dark:bg-slate-800 dark:text-emerald-300">{selectedAccount.unit}</span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+              <PaymentMetric label={copy.modals.payment.pendingBalance} value={formatMoney(selectedAccount.balance, selectedAccount.currency)} />
+              <ArrowRight className="mx-auto h-5 w-5 text-[#147514] dark:text-emerald-300" aria-hidden="true" />
+              <PaymentMetric label={copy.modals.creditSale.balance} value={formatMoney(remainingBalance, selectedAccount.currency)} emphasis />
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
@@ -172,6 +186,19 @@ export function PaymentModal({
                 onChange={(event) => setAmount(Number(event.target.value))}
                 className="h-11 rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950"
               />
+              <div className="flex flex-wrap gap-2 pt-1">
+                {[selectedAccount.installmentAmount, selectedAccount.balance / 2, selectedAccount.balance].map((suggestedAmount) => (
+                  <Button
+                    key={suggestedAmount}
+                    type="button"
+                    variant="outline"
+                    className="h-8 rounded-full border-[#147514]/20 bg-[#147514]/5 px-3 text-xs font-medium text-[#147514] hover:bg-[#147514]/10 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300"
+                    onClick={() => setAmount(Math.min(suggestedAmount, selectedAccount.balance))}
+                  >
+                    {formatMoney(Math.min(suggestedAmount, selectedAccount.balance), selectedAccount.currency)}
+                  </Button>
+                ))}
+              </div>
             </label>
             <FilterSelect
               label={copy.modals.payment.method}
@@ -264,5 +291,14 @@ export function PaymentModal({
         </p>
       )}
     </ReceivablesModalFrame>
+  );
+}
+
+function PaymentMetric({ emphasis = false, label, value }: { emphasis?: boolean; label: string; value: string }) {
+  return (
+    <div className={cn('rounded-xl border border-white/80 bg-white/75 p-3 dark:border-slate-700 dark:bg-slate-950/60', emphasis && 'ring-1 ring-[#147514]/20 dark:ring-emerald-400/30')}>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={cn('mt-1 text-lg font-medium tabular-nums', financeTextClass)}>{value}</p>
+    </div>
   );
 }

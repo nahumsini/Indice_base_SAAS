@@ -23,13 +23,8 @@ import {
   StandardSortIcon,
   type StandardSortDirection,
 } from '../shared/StandardTableControls';
-import {
-  convertBusinessCurrencyAmount,
-  formatBusinessCurrencyAmount,
-  formatBusinessCurrencyBreakdown,
-  normalizeBusinessCurrencyCode,
-} from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { normalizeBusinessCurrencyCode } from '../../shared/businessCurrency';
 import type { AddNewAssetDraft, AddNewAssetOption } from './AddNewAssests';
 import type { AssetColumnConfig } from './AssetColumnsModal';
 import { assetTypeOptionByValue } from './constants/assetCatalog';
@@ -84,7 +79,7 @@ export default function Assets() {
     'indice.hr.assets.visibleColumns.v2',
     allAssetColumnIds,
   );
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | AssetType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | HrAssetStatus>('all');
@@ -147,33 +142,6 @@ export default function Assets() {
       }),
     [assetRows, searchQuery, statusFilter, typeFilter, unitFilter],
   );
-
-  const assetValueSummary = useMemo(() => {
-    const assetsWithValue = filteredAssets.filter((asset) => asset.valueAmount !== null && asset.valueAmount !== undefined);
-    const preferredTotal = assetsWithValue.reduce(
-      (total, asset) =>
-        total
-        + convertBusinessCurrencyAmount(
-          asset.valueAmount ?? 0,
-          asset.valueCurrency,
-          preferredCurrency,
-          exchangeRatesPerUsd,
-        ),
-      0,
-    );
-
-    return {
-      currencyCount: new Set(assetsWithValue.map((asset) => asset.valueCurrency)).size,
-      nativeBreakdownLabel: formatBusinessCurrencyBreakdown(
-        assetsWithValue,
-        (asset) => asset.valueAmount ?? 0,
-        (asset) => asset.valueCurrency,
-      ),
-      preferredTotalLabel: formatBusinessCurrencyAmount(preferredTotal, preferredCurrency, {
-        maximumFractionDigits: 0,
-      }),
-    };
-  }, [exchangeRatesPerUsd, filteredAssets, preferredCurrency]);
 
   const handleSort = (field: AssetSortField) => {
     if (sortField === field) {
@@ -587,11 +555,10 @@ export default function Assets() {
       <AssetKpiStrip
         copy={t}
         assignedCount={summary.assigned_count}
-        assetValueLabel={assetValueSummary.preferredTotalLabel}
+        assetIds={filteredAssets.map((asset) => asset.backendId)}
         availableCount={summary.available_count}
-        currencyCount={assetValueSummary.currencyCount}
         maintenanceCount={summary.maintenance_count}
-        nativeBreakdownLabel={assetValueSummary.nativeBreakdownLabel}
+        preferredCurrency={preferredCurrency}
         totalCount={summary.total_count}
         visibleCount={filteredAssets.length}
       />

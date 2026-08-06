@@ -16,13 +16,13 @@ import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../componen
 import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
 import { useKioskQrCode } from '../../../components/kiosk-engine/useKioskQrCode';
 import {
-  formatPettyCashNativeBreakdown,
   formatPettyCashCurrency,
-  getOperationalPettyCashSummary,
   getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
-import { OperationalKpiArea } from '../../shared/operational';
+import { OperationalKpiArea, getOperationalKpiCurrencyCopy } from '../../shared/operational';
+import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
+import { useLanguage } from '../../../shared/context';
 import {
   getPettyCashMethodLabel,
   normalizePettyCashMethods,
@@ -270,7 +270,9 @@ const getUsableKioskPath = (fund?: PettyCashFund) => {
 
 export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, statements }: PettyCashFundsWorkspaceProps) {
   const copy = usePettyCashTranslations();
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const { currentLanguage } = useLanguage();
+  const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
   const [searchTerm, setSearchTerm] = useState('');
   const [unitFilter, setUnitFilter] = useState('all');
   const [businessFilter, setBusinessFilter] = useState('all');
@@ -326,21 +328,20 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
     });
   }, [businessFilter, funds, searchTerm, statusFilter, unitFilter]);
   const filteredFundIds = useMemo(() => new Set(filteredFunds.map(fund => fund.id)), [filteredFunds]);
-  const summary = useMemo(() => getOperationalPettyCashSummary(
-    statements.filter(statement => filteredFundIds.has(statement.pettyCashFundId)),
-    filteredFunds,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-  ), [exchangeRatesPerUsd, filteredFundIds, filteredFunds, preferredCurrency, statements]);
+  const aggregateIds = filteredFunds.map((fund) => fund.id);
+  const balanceAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_BALANCE', preferredCurrency, ids: aggregateIds });
+  const limitAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_LIMIT', preferredCurrency, ids: aggregateIds });
+  const balanceLabel = balanceAggregate.data && !balanceAggregate.loading
+    ? formatPettyCashCurrency(balanceAggregate.data.preferredTotal, preferredCurrency) : '—';
+  const limitLabel = limitAggregate.data && !limitAggregate.loading
+    ? formatPettyCashCurrency(limitAggregate.data.preferredTotal, preferredCurrency) : '—';
+  const riskCount = filteredFunds.filter((fund) => fund.status === 'LOW_BALANCE' || fund.status === 'NEEDS_RECONCILIATION').length;
   const currencyCount = useMemo(
     () => new Set(filteredFunds.map(fund => fund.currencyCode)).size,
     [filteredFunds],
   );
-  const nativeBalance = useMemo(() => formatPettyCashNativeBreakdown(
-    filteredFunds,
-    fund => fund.currentBalanceAmount,
-    fund => fund.currencyCode,
-  ), [filteredFunds]);
+  const nativeBalance = balanceAggregate.data?.nativeTotals
+    .map(({ amount, currency }) => formatPettyCashCurrency(amount, currency as PettyCashCurrency)).join(' / ') || preferredCurrency;
   const fundSortAccessors = useMemo(() => ({
     balance: (fund: PettyCashFund) => fund.currentBalanceAmount,
     budget: (fund: PettyCashFund) => fund.limitAmount,
@@ -736,19 +737,29 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
           { id: 'native-balance', icon: <WalletCards className="h-3.5 w-3.5" />, label: copy.common.nativeBreakdown(nativeBalance), tone: 'neutral' },
         ]}
         distributionSegments={[
-          { id: 'verified', label: copy.financial.progress.verified, count: summary.verifiedExpenseAmount, className: 'bg-[#147514]' },
-          { id: 'pending', label: copy.financial.progress.pending, count: summary.pendingReconciliationAmount, className: 'bg-amber-400' },
-          { id: 'shortage', label: copy.financial.progress.shortage, count: summary.shortageAmount, className: 'bg-rose-500' },
-          { id: 'available', label: copy.financial.progress.available, count: Math.max(0, summary.assignedAmount - summary.estimatedUsageAmount), className: 'bg-sky-400' },
+          { id: 'open', label: copy.status.fund.OPEN, count: filteredFunds.filter((fund) => fund.status === 'OPEN').length, className: 'bg-[#147514]' },
+          { id: 'low', label: copy.status.fund.LOW_BALANCE, count: filteredFunds.filter((fund) => fund.status === 'LOW_BALANCE').length, className: 'bg-amber-400' },
+          { id: 'reconciliation', label: copy.status.fund.NEEDS_RECONCILIATION, count: filteredFunds.filter((fund) => fund.status === 'NEEDS_RECONCILIATION').length, className: 'bg-rose-500' },
+          { id: 'closed', label: copy.status.fund.CLOSED, count: filteredFunds.filter((fund) => fund.status === 'CLOSED').length, className: 'bg-slate-400' },
         ]}
-        insight={copy.funds.insight(filteredFunds.length, summary.riskCount, formatPettyCashCurrency(summary.currentBalanceAmount, preferredCurrency))}
+        insight={copy.funds.insight(filteredFunds.length, riskCount, balanceLabel)}
         insightIcon={<Info className="h-4 w-4" />}
         metrics={[
-          { id: 'assigned', icon: <WalletCards className="h-4 w-4" />, label: copy.funds.metrics.assignedAmount, value: formatPettyCashCurrency(summary.assignedAmount, preferredCurrency) },
-          { id: 'balance', icon: <Landmark className="h-4 w-4" />, label: copy.funds.metrics.currentBalance, value: formatPettyCashCurrency(summary.currentBalanceAmount, preferredCurrency), valueClassName: summary.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
+          { id: 'assigned', icon: <WalletCards className="h-4 w-4" />, label: copy.funds.metrics.assignedAmount, value: limitLabel },
+          { id: 'balance', icon: <Landmark className="h-4 w-4" />, label: copy.funds.metrics.currentBalance, value: balanceLabel, valueClassName: (balanceAggregate.data?.preferredTotal ?? 0) < 0 ? 'text-rose-600' : 'text-[#147514]' },
           { id: 'kiosks', icon: <ShieldCheck className="h-4 w-4" />, label: copy.funds.metrics.activeKiosks, value: filteredFunds.filter(fund => fund.kioskEnabled).length, valueClassName: 'text-sky-600' },
-          { id: 'risk', icon: <UserRound className="h-4 w-4" />, label: copy.funds.metrics.riskFunds, value: summary.riskCount, valueClassName: summary.riskCount > 0 ? 'text-rose-600' : 'text-[#147514]' },
+          { id: 'risk', icon: <UserRound className="h-4 w-4" />, label: copy.funds.metrics.riskFunds, value: riskCount, valueClassName: riskCount > 0 ? 'text-rose-600' : 'text-[#147514]' },
         ]}
+        currencyContext={{
+          preferredCurrency,
+          nativeBreakdown: nativeBalance,
+          rateLabel: balanceAggregate.data?.exchangeRate.mode === 'daily' ? currencyCopy.dailyRate : currencyCopy.unavailable,
+          effectiveDate: balanceAggregate.data?.exchangeRate.effectiveDate,
+          source: balanceAggregate.data?.exchangeRate.source,
+          isPartial: Boolean(balanceAggregate.error || balanceAggregate.data?.partial),
+          excludedCount: balanceAggregate.data?.excludedRecords ?? (balanceAggregate.error ? filteredFunds.length : 0),
+          labels: currencyCopy,
+        }}
       />
 
       <div className="space-y-3 md:hidden">

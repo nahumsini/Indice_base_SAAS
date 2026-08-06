@@ -1333,6 +1333,47 @@ Do not mix:
 - submit behavior
 - rendering
 
+### 24.1 Selection and scale rules
+
+Modal selectors must scale from a small company to a large multi-unit company.
+
+- Sort selectable records alphabetically by their visible name unless an operational order is explicitly required.
+- Do not show inactive employees, customers, providers, products, or materials for new operations.
+- Historical records may display inactive linked entities as read-only references; an explicit `Include inactive` control is required for historical search.
+- Use a simple selector only for small, bounded lists. Use debounced search, server pagination, and contextual filters for large catalogs.
+- Search by the meaningful identifier for the entity: name, code, email, SKU, folio, or equivalent.
+- Preserve the active query, filters, and selection while the modal remains open.
+- When a user cannot find a permitted entity, provide a quick-create action when the workflow allows it. Return to the original modal and select the newly created entity automatically.
+- Apply dependent scope in this order: company, unit, business, then the available catalog.
+
+### 24.2 Capture-minimum and currency rules
+
+- Do not ask users to type data the system can derive from a selected entity.
+- Selected entities load their relevant read-only context automatically, such as unit, availability, price reference, location, responsible user, or tax context.
+- Use a selector, wizard, or operational workspace when a free-text field would duplicate known data.
+- Every money-entry modal preloads the global preferred currency as the proposed transaction currency.
+- The user may change the transaction currency. The selected currency becomes the transaction's native currency and is never overwritten by later global-preference changes.
+- Converted values are analytical aids only. Show their rate and effective date when displayed.
+
+### 24.3 Shared action toolbar
+
+Business actions inside a modal must use the same action language as table actions. Footer actions remain reserved for workflow progression.
+
+- Reuse one shared `ModalActionToolbar` presentation primitive for view, edit, duplicate, attach, download, delete, export, and print actions.
+- Keep action order, icon, label, tooltip, disabled state, and destructive treatment consistent across modules.
+- Use one canonical action for Excel export, one for PDF export, and one for printing; modules must not substitute unrelated icons.
+- Use icon plus label when space permits; icon-only controls require an accessible tooltip and label.
+- Destructive actions remain visually separated and require an `IndiceConfirmationDialog`.
+
+### 24.4 State, evidence, and accessibility rules
+
+- Use one pattern for saving, success, failure, retry, loading, empty, and permission-restricted states.
+- Warn before closing a modal with unsaved changes.
+- Reuse one attachment pattern for upload, preview, download, replace, and delete.
+- Hide or disable unauthorized actions with an understandable explanation; do not expose unusable controls.
+- Use consistent localized date, time, and timezone controls.
+- Support keyboard navigation, focus restoration, Escape behavior, visible focus, and controls of at least 44 CSS pixels.
+
 ---
 
 ## 25. View Type System

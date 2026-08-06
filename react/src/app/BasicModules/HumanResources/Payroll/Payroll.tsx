@@ -75,13 +75,12 @@ import {
 } from '../../../api/humanResources';
 import { useLanguage } from '../../../shared/context';
 import {
-  convertBusinessCurrencyAmount,
   defaultBusinessCurrency,
   formatBusinessCurrencyAmount,
   normalizeBusinessCurrencyCode,
-  type BusinessExchangeRatesPerUsd,
 } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { usePayrollTranslations } from './hooks/usePayrollTranslations';
 import type { PayrollTranslations } from './translations';
@@ -475,21 +474,6 @@ const getRunNativeTotals = (
   return [[fallbackCurrency, Number(run.net_amount) || 0] as const];
 };
 
-const getRunPreferredNetAmount = (
-  run: PayrollRunSummary,
-  preferredCurrency: string,
-  exchangeRatesPerUsd: BusinessExchangeRatesPerUsd,
-  fallbackJurisdictionLabel = '',
-) => getRunNativeTotals(run, fallbackJurisdictionLabel).reduce(
-  (total, [currencyCode, amount]) => total + convertBusinessCurrencyAmount(
-    amount,
-    currencyCode,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-  ),
-  0,
-);
-
 const formatRunNativeBreakdown = (
   run: PayrollRunSummary,
   fallbackJurisdictionLabel = '',
@@ -668,7 +652,7 @@ const downloadFile = async (path: string, filename: string) => {
 export default function Payroll() {
   const { currentLanguage } = useLanguage();
   const copy = usePayrollTranslations();
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
 
   const [overview, setOverview] = useState<PayrollOverviewResponse | null>(null);
@@ -1484,12 +1468,6 @@ export default function Payroll() {
 
     return runs.filter((run) => {
       const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
-      const runPreferredNetAmount = getRunPreferredNetAmount(
-        run,
-        preferredCurrency,
-        exchangeRatesPerUsd,
-        runJurisdictionLabel,
-      );
       const searchableText = [
         run.id,
         run.grouping_label,
@@ -1501,12 +1479,6 @@ export default function Payroll() {
         copy.groupingModes[run.grouping_mode],
         copy.statuses[run.status],
         run.users_count,
-        preferredCurrency,
-        runPreferredNetAmount,
-        formatBusinessCurrencyAmount(runPreferredNetAmount, preferredCurrency, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
         runJurisdictionLabel,
         resolveRunUnitLabel(run),
         resolveRunBusinessLabel(run),
@@ -1521,7 +1493,6 @@ export default function Payroll() {
   }, [
     copy,
     currentLanguage.code,
-    exchangeRatesPerUsd,
     normalizedSearchQuery,
     preferredCurrency,
     runs,
@@ -1560,8 +1531,8 @@ export default function Payroll() {
         case 'totalAmount': {
           const aJurisdiction = resolveRunJurisdictionLabel(a);
           const bJurisdiction = resolveRunJurisdictionLabel(b);
-          aValue = getRunPreferredNetAmount(a, preferredCurrency, exchangeRatesPerUsd, aJurisdiction);
-          bValue = getRunPreferredNetAmount(b, preferredCurrency, exchangeRatesPerUsd, bJurisdiction);
+          aValue = formatRunNativeBreakdown(a, aJurisdiction);
+          bValue = formatRunNativeBreakdown(b, bJurisdiction);
           break;
         }
         case 'jurisdiction':
@@ -1601,7 +1572,6 @@ export default function Payroll() {
   }, [
     copy,
     currentLanguage.code,
-    exchangeRatesPerUsd,
     filteredRuns,
     preferredCurrency,
     sortConfig,
@@ -1633,14 +1603,11 @@ export default function Payroll() {
     jurisdictionLabel: resolveRunJurisdictionLabel(run),
     unitLabel: resolveRunUnitLabel(run),
     businessLabel: resolveRunBusinessLabel(run),
-    preferredNetAmount: getRunPreferredNetAmount(
-      run,
-      preferredCurrency,
-      exchangeRatesPerUsd,
-      resolveRunJurisdictionLabel(run),
-    ),
     nativeBreakdownLabel: formatRunNativeBreakdown(run, resolveRunJurisdictionLabel(run)),
   }));
+  const payrollAggregate = useKpiMonetaryAggregate({ metric: 'PAYROLL_NET_AMOUNT', preferredCurrency, ids: filteredRuns.filter((run) => run.status !== 'cancelled').map((run) => run.id) });
+  const payrollPayoutLabel = payrollAggregate.data && !payrollAggregate.loading
+    ? formatBusinessCurrencyAmount(payrollAggregate.data.preferredTotal, preferredCurrency, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
   const shouldShowSetupGuide = !overview?.preferences && runs.length === 0;
   const resolveOperationalStatus = (run: PayrollRunSummary) => {
     if (run.users_count === 0 && run.status !== 'paid' && run.status !== 'cancelled') {
@@ -1819,10 +1786,7 @@ export default function Payroll() {
             <PayrollOperationsPanel
               copy={copy}
               runs={operationalRuns}
-              formatMoney={(value) => formatBusinessCurrencyAmount(value, preferredCurrency, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              payoutLabel={payrollPayoutLabel}
             />
           )}
 
@@ -1856,10 +1820,7 @@ export default function Payroll() {
               ) : paginatedRuns.map((run) => {
                 const operationalStatus = resolveOperationalStatus(run);
                 const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
-                const runNativeTotals = getRunNativeTotals(run, runJurisdictionLabel);
-                const runPreferredNetAmount = getRunPreferredNetAmount(run, preferredCurrency, exchangeRatesPerUsd, runJurisdictionLabel);
                 const nativeBreakdownLabel = formatRunNativeBreakdown(run, runJurisdictionLabel);
-                const shouldShowNativeBreakdown = runNativeTotals.length > 1 || runNativeTotals.some(([currencyCode]) => currencyCode !== preferredCurrency);
                 return (
                   <HrMobileDataCard
                     key={run.id}
@@ -1870,7 +1831,7 @@ export default function Payroll() {
                     details={[
                       { label: copy.labels.frequency, value: copy.frequencies[run.pay_period] },
                       { label: copy.labels.employees, value: run.users_count },
-                      { label: copy.labels.totalAmount, value: `${formatBusinessCurrencyAmount(runPreferredNetAmount, preferredCurrency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${shouldShowNativeBreakdown ? ` · ${nativeBreakdownLabel}` : ''}` },
+                      { label: copy.labels.totalAmount, value: nativeBreakdownLabel },
                       { label: copy.labels.jurisdiction, value: runJurisdictionLabel },
                       { label: copy.labels.unit, value: resolveRunUnitLabel(run) },
                       { label: copy.labels.business, value: resolveRunBusinessLabel(run) },
@@ -2019,16 +1980,7 @@ export default function Payroll() {
                   paginatedRuns.map((run) => {
                     const operationalStatus = resolveOperationalStatus(run);
                     const runJurisdictionLabel = resolveRunJurisdictionLabel(run);
-                    const runNativeTotals = getRunNativeTotals(run, runJurisdictionLabel);
-                    const runPreferredNetAmount = getRunPreferredNetAmount(
-                      run,
-                      preferredCurrency,
-                      exchangeRatesPerUsd,
-                      runJurisdictionLabel,
-                    );
                     const nativeBreakdownLabel = formatRunNativeBreakdown(run, runJurisdictionLabel);
-                    const shouldShowNativeBreakdown = runNativeTotals.length > 1
-                      || runNativeTotals.some(([currencyCode]) => currencyCode !== preferredCurrency);
 
                     return (
                       <TableRow key={run.id} className="border-slate-200 transition-colors hover:bg-slate-50/70 dark:border-slate-700 dark:hover:bg-slate-900/40">
@@ -2071,14 +2023,10 @@ export default function Payroll() {
                         {visibleColumnSet.has('totalAmount') ? (
                           <TableCell className="px-5 py-5 align-middle">
                             <p className="text-sm font-medium text-slate-950 dark:text-white">
-                              {formatBusinessCurrencyAmount(runPreferredNetAmount, preferredCurrency, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
+                              {nativeBreakdownLabel}
                             </p>
                             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              {copy.runLedger.netPayout} · {preferredCurrency}
-                              {shouldShowNativeBreakdown ? ` · ${nativeBreakdownLabel}` : ''}
+                              {copy.runLedger.netPayout}
                             </p>
                           </TableCell>
                         ) : null}

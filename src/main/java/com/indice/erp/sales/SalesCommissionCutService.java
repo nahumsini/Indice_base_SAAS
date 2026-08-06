@@ -1,7 +1,12 @@
 package com.indice.erp.sales;
 
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.exchange.BusinessExchangeRateService;
 import com.indice.erp.hr.incentives.HrIncentiveService;
+import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
+import com.indice.erp.kpis.currency.KpiMoneyAmount;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.time.LocalDate;
@@ -19,10 +24,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class SalesCommissionCutService {
     private final JdbcTemplate jdbcTemplate;
     private final HrIncentiveService incentiveService;
+    private final BusinessExchangeRateService exchangeRateService;
+    private final KpiCurrencyAggregationService currencyAggregationService;
+    private final ObjectMapper objectMapper;
 
-    public SalesCommissionCutService(JdbcTemplate jdbcTemplate, HrIncentiveService incentiveService) {
+    public SalesCommissionCutService(
+        JdbcTemplate jdbcTemplate,
+        HrIncentiveService incentiveService,
+        BusinessExchangeRateService exchangeRateService,
+        KpiCurrencyAggregationService currencyAggregationService,
+        ObjectMapper objectMapper
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.incentiveService = incentiveService;
+        this.exchangeRateService = exchangeRateService;
+        this.currencyAggregationService = currencyAggregationService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -60,8 +77,28 @@ public class SalesCommissionCutService {
             }
             total = total.add(amount);
         }
-        jdbcTemplate.update("UPDATE sales_commission_cuts SET total_amount = ?, commission_count = ?, employee_count = ? WHERE id = ?",
-                total, rows.size(), groups.size(), cutId);
+        var preferredCurrency = normalizeCurrency(payload.get("preferredCurrency"));
+        var rates = exchangeRateService.loadDailyRates();
+        var rateMetadata = rates.metadata();
+        var rateDate = rateMetadata == null || rateMetadata.sourceDate() == null || rateMetadata.sourceDate().isBlank()
+            ? LocalDate.now() : LocalDate.parse(rateMetadata.sourceDate());
+        var currencySnapshot = currencyAggregationService.aggregate(
+            rows.stream().map(row -> new KpiMoneyAmount(row.amount(), row.currency())).toList(),
+            preferredCurrency, rates.ratesPerUsd(), "snapshot", rateDate,
+            rateMetadata == null ? "" : rateMetadata.sourceName()
+        );
+        jdbcTemplate.update("""
+            UPDATE sales_commission_cuts
+            SET total_amount = ?, preferred_currency = ?, preferred_total_amount = ?, exchange_rate_mode = ?,
+                exchange_rate_effective_date = ?, exchange_rate_source = ?, exchange_rates_snapshot_json = ?,
+                native_totals_snapshot_json = ?, currency_snapshot_partial = ?, currency_snapshot_excluded_records = ?,
+                commission_count = ?, employee_count = ?
+            WHERE id = ?
+            """,
+            currencySnapshot.preferredTotal(), currencySnapshot.preferredCurrency(), currencySnapshot.preferredTotal(),
+            currencySnapshot.exchangeRate().mode(), Date.valueOf(currencySnapshot.exchangeRate().effectiveDate()),
+            currencySnapshot.exchangeRate().source(), json(rates.ratesPerUsd()), json(currencySnapshot.nativeTotals()),
+            currencySnapshot.partial(), currencySnapshot.excludedRecords(), rows.size(), groups.size(), cutId);
         return get(user.companyId(), cutId);
     }
 
@@ -72,6 +109,13 @@ public class SalesCommissionCutService {
             row.put("periodStart", rs.getObject("period_start", LocalDate.class).toString()); row.put("periodEnd", rs.getObject("period_end", LocalDate.class).toString());
             var applied = rs.getInt("applied_count");
             row.put("status", applied >= rs.getInt("employee_count") && rs.getInt("employee_count") > 0 ? "consumed" : rs.getString("status")); row.put("totalAmount", rs.getBigDecimal("total_amount"));
+            row.put("preferredCurrency", rs.getString("preferred_currency"));
+            row.put("preferredTotalAmount", rs.getBigDecimal("preferred_total_amount"));
+            row.put("exchangeRateMode", rs.getString("exchange_rate_mode"));
+            row.put("exchangeRateEffectiveDate", rs.getObject("exchange_rate_effective_date", LocalDate.class));
+            row.put("exchangeRateSource", rs.getString("exchange_rate_source"));
+            row.put("currencySnapshotPartial", rs.getBoolean("currency_snapshot_partial"));
+            row.put("currencySnapshotExcludedRecords", rs.getInt("currency_snapshot_excluded_records"));
             row.put("commissionCount", rs.getInt("commission_count")); row.put("employeeCount", rs.getInt("employee_count"));
             row.put("currencyTotals", currencyTotals(rs.getLong("id")));
             row.put("appliedCount", applied); return row;
@@ -79,10 +123,11 @@ public class SalesCommissionCutService {
     }
 
     public List<Map<String, Object>> schedules(long companyId) {
-        return jdbcTemplate.query("SELECT id, schedule_name, cadence, timezone, status, next_run_date, last_run_at FROM sales_commission_cut_schedules WHERE company_id = ? ORDER BY status = 'active' DESC, schedule_name", (rs, n) -> {
+        return jdbcTemplate.query("SELECT id, schedule_name, cadence, preferred_currency, timezone, status, next_run_date, last_run_at FROM sales_commission_cut_schedules WHERE company_id = ? ORDER BY status = 'active' DESC, schedule_name", (rs, n) -> {
             var row = new LinkedHashMap<String, Object>();
             row.put("id", rs.getLong("id")); row.put("name", rs.getString("schedule_name"));
             row.put("cadence", rs.getString("cadence")); row.put("timezone", rs.getString("timezone"));
+            row.put("preferredCurrency", rs.getString("preferred_currency"));
             row.put("status", rs.getString("status")); row.put("nextRunDate", rs.getObject("next_run_date", LocalDate.class).toString());
             row.put("lastRunAt", rs.getTimestamp("last_run_at") == null ? null : rs.getTimestamp("last_run_at").toInstant().toString());
             return row;
@@ -97,16 +142,17 @@ public class SalesCommissionCutService {
         var cadence = String.valueOf(payload.getOrDefault("cadence", "monthly")).toLowerCase();
         if (!List.of("weekly", "semimonthly", "monthly").contains(cadence)) throw new IllegalArgumentException("La frecuencia automática no es válida.");
         var status = String.valueOf(payload.getOrDefault("status", "active")).toLowerCase();
+        var preferredCurrency = normalizeCurrency(payload.get("preferredCurrency"));
         if (!List.of("active", "paused").contains(status)) throw new IllegalArgumentException("El estado de automatización no es válido.");
         var next = nextRun(cadence, LocalDate.now());
         if (id == null) {
             if (jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_commission_cut_schedules WHERE company_id = ? AND schedule_name = ?", Integer.class, user.companyId(), name) > 0) throw new IllegalArgumentException("Ya existe una automatización con ese nombre.");
-            jdbcTemplate.update("INSERT INTO sales_commission_cut_schedules (company_id, schedule_name, cadence, status, next_run_date, created_by_user_id, created_by_user_company_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    user.companyId(), name, cadence, status, Date.valueOf(next), user.userId(), user.userCompanyId());
+            jdbcTemplate.update("INSERT INTO sales_commission_cut_schedules (company_id, schedule_name, cadence, preferred_currency, status, next_run_date, created_by_user_id, created_by_user_company_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    user.companyId(), name, cadence, preferredCurrency, status, Date.valueOf(next), user.userId(), user.userCompanyId());
             id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         } else {
-            var updated = jdbcTemplate.update("UPDATE sales_commission_cut_schedules SET schedule_name = ?, cadence = ?, status = ?, next_run_date = ?, created_by_user_id = ?, created_by_user_company_id = ? WHERE id = ? AND company_id = ?",
-                    name, cadence, status, Date.valueOf(next), user.userId(), user.userCompanyId(), id, user.companyId());
+            var updated = jdbcTemplate.update("UPDATE sales_commission_cut_schedules SET schedule_name = ?, cadence = ?, preferred_currency = ?, status = ?, next_run_date = ?, created_by_user_id = ?, created_by_user_company_id = ? WHERE id = ? AND company_id = ?",
+                    name, cadence, preferredCurrency, status, Date.valueOf(next), user.userId(), user.userCompanyId(), id, user.companyId());
             if (updated == 0) throw new IllegalArgumentException("La automatización ya no está disponible.");
         }
         var savedId = id;
@@ -119,13 +165,13 @@ public class SalesCommissionCutService {
     }
 
     @Transactional
-    public void executeAutomatic(long scheduleId, AuthSessionUser user, String cadence, LocalDate runDate) {
+    public void executeAutomatic(long scheduleId, AuthSessionUser user, String cadence, String preferredCurrency, LocalDate runDate) {
         var claimed = jdbcTemplate.update("UPDATE sales_commission_cut_schedules SET next_run_date = ? WHERE id = ? AND company_id = ? AND status = 'active' AND next_run_date = ?",
                 Date.valueOf(nextRun(cadence, runDate)), scheduleId, user.companyId(), Date.valueOf(runDate));
         if (claimed == 0) return;
         var period = automaticPeriod(cadence, runDate);
         try {
-            create(user, Map.of("periodStart", period[0].toString(), "periodEnd", period[1].toString()));
+            create(user, Map.of("periodStart", period[0].toString(), "periodEnd", period[1].toString(), "preferredCurrency", preferredCurrency));
         } catch (IllegalArgumentException ex) {
             if (!ex.getMessage().contains("No hay comisiones disponibles")) throw ex;
         }
@@ -160,6 +206,15 @@ public class SalesCommissionCutService {
     }
 
     private Map<String, Object> get(long companyId, long id) { return list(companyId).stream().filter(row -> ((Number) row.get("id")).longValue() == id).findFirst().orElseThrow(); }
+    private String normalizeCurrency(Object value) {
+        var currency = value == null ? "MXN" : String.valueOf(value).trim().toUpperCase();
+        if (!currency.matches("[A-Z]{3}")) throw new IllegalArgumentException("La divisa preferida no es válida.");
+        return currency;
+    }
+    private String json(Object value) {
+        try { return objectMapper.writeValueAsString(value); }
+        catch (JsonProcessingException ex) { throw new IllegalStateException("No se pudo congelar el contexto monetario del corte.", ex); }
+    }
     private long insertCut(AuthSessionUser user, LocalDate start, LocalDate end) {
         jdbcTemplate.update("INSERT INTO sales_commission_cuts (company_id, cut_code, period_start, period_end, created_by_user_id) VALUES (?, ?, ?, ?, ?)", user.companyId(), "PENDING-" + System.nanoTime(), Date.valueOf(start), Date.valueOf(end), user.userId());
         return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);

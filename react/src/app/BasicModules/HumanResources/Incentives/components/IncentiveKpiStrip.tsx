@@ -1,5 +1,5 @@
 import { Bot, CheckCircle2, Eye, Gift, HandCoins, Users } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { OperationalKpiArea } from '../../../shared/operational';
 import type { IncentivesTranslations } from '../translations';
 
 interface IncentiveKpiStripProps {
@@ -15,82 +15,27 @@ interface IncentiveKpiStripProps {
   visibleCount: number;
 }
 
-function Metric({ icon, label, value, valueClassName = 'text-[#59C3A5]' }: {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-  valueClassName?: string;
-}) {
-  return (
-    <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-[#59C3A5] shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        {icon}
-      </span>
-      <span className={`text-base font-medium ${valueClassName}`}>{value}</span>
-      <span>{label}</span>
-    </span>
-  );
-}
-
-export function IncentiveKpiStrip({
-  activeCount,
-  automatedCount,
-  copy,
-  eligibleCount,
-  manualCount,
-  pausedCount,
-  scheduledCount,
-  selectedCount,
-  totalCount,
-  visibleCount,
-}: IncentiveKpiStripProps) {
-  const activePercent = totalCount > 0 ? (activeCount / totalCount) * 100 : 0;
-  const scheduledPercent = totalCount > 0 ? (scheduledCount / totalCount) * 100 : 0;
-  const pausedPercent = totalCount > 0 ? (pausedCount / totalCount) * 100 : 0;
+export function IncentiveKpiStrip(props: IncentiveKpiStripProps) {
+  const { activeCount, automatedCount, copy, eligibleCount, manualCount, pausedCount, scheduledCount, selectedCount, totalCount, visibleCount } = props;
 
   return (
-    <div className="mb-5 space-y-4">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Metric icon={<Gift className="h-4 w-4" />} label={copy.kpis.total} value={totalCount} />
-        <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={copy.kpis.active} value={activeCount} valueClassName="text-emerald-600" />
-        <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Bot className="h-4 w-4" />} label={copy.kpis.automated} value={automatedCount} valueClassName="text-blue-600" />
-        <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<HandCoins className="h-4 w-4" />} label={copy.kpis.manual} value={manualCount} valueClassName="text-amber-600" />
-        <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Eye className="h-4 w-4" />} label={copy.kpis.visibleAfterFilters} value={visibleCount} />
-        <span className="text-slate-300 dark:text-slate-600">•</span>
-        <Metric icon={<Users className="h-4 w-4" />} label={copy.kpis.eligibleEmployees} value={eligibleCount} />
-      </div>
-
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-          <div className="flex h-full">
-            <div className="bg-emerald-500" style={{ width: `${activePercent}%` }} />
-            <div className="bg-blue-500" style={{ width: `${scheduledPercent}%` }} />
-            <div className="bg-slate-400" style={{ width: `${pausedPercent}%` }} />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <LegendItem color="bg-emerald-500" label={copy.statuses.Activo} />
-          <LegendItem color="bg-blue-500" label={copy.statuses.Programado} />
-          <LegendItem color="bg-slate-400" label={copy.statuses.Pausado} />
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[#59C3A5]/15 bg-[#59C3A5]/5 px-4 py-3 text-sm font-medium text-[#177d66] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/15 dark:text-[#8DE1CB]">
-        {copy.kpis.summary(activeCount, scheduledCount, pausedCount, selectedCount, visibleCount, totalCount)}
-      </div>
-    </div>
-  );
-}
-
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1">
-      <span className={`h-2 w-2 rounded-full ${color}`} />
-      {label}
-    </span>
+    <OperationalKpiArea
+      className="mb-5"
+      metrics={[
+        { id: 'total', icon: <Gift className="h-4 w-4" />, label: copy.kpis.total, value: totalCount },
+        { id: 'active', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.kpis.active, value: activeCount, valueClassName: 'text-emerald-600' },
+        { id: 'automated', icon: <Bot className="h-4 w-4" />, label: copy.kpis.automated, value: automatedCount, valueClassName: 'text-blue-600' },
+        { id: 'manual', icon: <HandCoins className="h-4 w-4" />, label: copy.kpis.manual, value: manualCount, valueClassName: 'text-amber-600' },
+        { id: 'visible', icon: <Eye className="h-4 w-4" />, label: copy.kpis.visibleAfterFilters, value: visibleCount },
+        { id: 'eligible', icon: <Users className="h-4 w-4" />, label: copy.kpis.eligibleEmployees, value: eligibleCount },
+      ]}
+      distributionSegments={[
+        { id: 'active', label: copy.statuses.Activo, count: activeCount, className: 'bg-emerald-500' },
+        { id: 'scheduled', label: copy.statuses.Programado, count: scheduledCount, className: 'bg-blue-500' },
+        { id: 'paused', label: copy.statuses.Pausado, count: pausedCount, className: 'bg-slate-400' },
+      ]}
+      insight={copy.kpis.summary(activeCount, scheduledCount, pausedCount, selectedCount, visibleCount, totalCount)}
+      insightIcon={<Gift className="h-4 w-4" />}
+    />
   );
 }

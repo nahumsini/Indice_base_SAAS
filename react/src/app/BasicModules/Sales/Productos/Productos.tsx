@@ -12,10 +12,24 @@ import { PublicCatalogConfigModal } from './publicCatalog/PublicCatalogConfigMod
 import { ProductsCatalogTable } from './table/ProductsCatalogTable';
 import { ProductsColumnsModal } from './table/ProductsColumnsModal';
 import { useProductsTranslations } from './translations';
+import { useMemo } from 'react';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
+import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 
 export default function Productos() {
   const t = useProductsTranslations();
   const catalog = useProductsCatalog(t);
+  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const productIds = useMemo(() => catalog.filteredProducts
+    .map((product) => product.backendId)
+    .filter((id): id is number => Boolean(id)), [catalog.filteredProducts]);
+  const { data: monetary } = useKpiMonetaryAggregates(useMemo(() => [
+    { key: 'inventory', metric: 'PRODUCT_INVENTORY_VALUE' as const, preferredCurrency, ids: productIds },
+    { key: 'profit', metric: 'PRODUCT_ESTIMATED_PROFIT' as const, preferredCurrency, ids: productIds },
+  ], [preferredCurrency, productIds]));
+  const inventoryValueLabel = formatBusinessCurrencyAmount(monetary.inventory?.preferredTotal ?? 0, preferredCurrency);
+  const estimatedProfitLabel = formatBusinessCurrencyAmount(monetary.profit?.preferredTotal ?? 0, preferredCurrency);
 
   return (
     <section className="space-y-5">
@@ -51,8 +65,8 @@ export default function Productos() {
       <ProductsKpiStrip
         totalCount={catalog.filteredProducts.length}
         activeCount={catalog.activeCount}
-        inventoryValue={catalog.inventoryValue}
-        estimatedProfit={catalog.estimatedProfit}
+        inventoryValueLabel={inventoryValueLabel}
+        estimatedProfitLabel={estimatedProfitLabel}
         readyForSalesCount={catalog.readyForSalesCount}
         posReadyCount={catalog.posReadyCount}
         publicCatalogCount={catalog.publicCatalogCount}
@@ -63,8 +77,8 @@ export default function Productos() {
 
       <ProductsInsightBar
         activeItems={catalog.activeCount}
-        inventoryValue={catalog.inventoryValue}
-        estimatedProfit={catalog.estimatedProfit}
+        inventoryValueLabel={inventoryValueLabel}
+        estimatedProfitLabel={estimatedProfitLabel}
         readyForSales={catalog.readyForSalesCount}
         t={t}
       />

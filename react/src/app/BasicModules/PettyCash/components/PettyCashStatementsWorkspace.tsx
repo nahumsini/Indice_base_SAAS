@@ -3,8 +3,8 @@ import { useMemo, useState } from 'react';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import type { PettyCashFund, PettyCashMovement, PettyCashSettlementLine, PettyCashStatement } from '../types/pettyCash.types';
 import { formatPettyCashCurrency, formatPettyCashIsoDate, formatPettyCashNativeBreakdown } from '../utils/pettyCash.utils';
-import { convertBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import { OperationalKpiArea } from '../../shared/operational';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
@@ -32,7 +32,7 @@ const normalize = (value: string) => value.trim().toLocaleLowerCase();
 
 export function PettyCashStatementsWorkspace({ funds, movements, settlementLines, statements }: Props) {
   const copy = usePettyCashTranslations();
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [search, setSearch] = useState('');
   const [fundId, setFundId] = useState('all');
   const [period, setPeriod] = useState('all');
@@ -89,21 +89,19 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
     rows: statementSort.sortedRows,
   });
 
-  const totals = useMemo(() => filteredStatements.reduce((result, statement) => {
-    const convert = (amount: number) => convertBusinessCurrencyAmount(
-      amount,
-      statement.currencyCode,
-      preferredCurrency,
-      exchangeRatesPerUsd,
-    );
-    return {
-      approved: result.approved + convert(statement.verifiedExpenseAmount),
-      captured: result.captured + convert(statement.estimatedUsageAmount),
-      closing: result.closing + convert(statement.declaredClosingBalanceAmount),
-      funded: result.funded + convert(statement.assignedAmount + statement.additionalDepositAmount),
-      opening: result.opening + convert(statement.openingBalanceAmount),
-    };
-  }, { approved: 0, captured: 0, closing: 0, funded: 0, opening: 0 }), [exchangeRatesPerUsd, filteredStatements, preferredCurrency]);
+  const statementIds = filteredStatements.map((statement) => statement.id);
+  const openingAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_OPENING', preferredCurrency, ids: statementIds });
+  const fundedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_FUNDED', preferredCurrency, ids: statementIds });
+  const capturedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_ESTIMATED', preferredCurrency, ids: statementIds });
+  const approvedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statementIds });
+  const closingAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_CLOSING', preferredCurrency, ids: statementIds });
+  const totals = {
+    approved: approvedAggregate.data?.preferredTotal ?? 0,
+    captured: capturedAggregate.data?.preferredTotal ?? 0,
+    closing: closingAggregate.data?.preferredTotal ?? 0,
+    funded: fundedAggregate.data?.preferredTotal ?? 0,
+    opening: openingAggregate.data?.preferredTotal ?? 0,
+  };
   const currencyCount = new Set(filteredStatements.map(statement => statement.currencyCode)).size;
   const nativeClosing = formatPettyCashNativeBreakdown(
     filteredStatements,

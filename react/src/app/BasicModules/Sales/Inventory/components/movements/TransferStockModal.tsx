@@ -13,6 +13,7 @@ import {
   InventoryModalField,
   InventoryModalSection,
   inventoryModalControlClassName,
+  sortInventoryOptions,
 } from '../InventoryModalPrimitives';
 import { MovementProductLines, createMovementProductLine, type MovementProductLineDraft } from './MovementProductLines';
 
@@ -87,8 +88,8 @@ export function TransferStockModal({
   onSubmit: (draft: TransferStockDraft) => void;
   onSaveEdit?: (movementId: string, draft: TransferStockDraft) => void;
 }) {
-  const activeWarehouses = useMemo(() => warehouses.filter((warehouse) => warehouse.status === 'active'), [warehouses]);
-  const supplierOptions = useMemo(() => suppliers.filter((supplier) => supplier.name.trim()), [suppliers]);
+  const activeWarehouses = useMemo(() => [...warehouses].filter((warehouse) => warehouse.status === 'active').sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })), [warehouses]);
+  const supplierOptions = useMemo(() => [...suppliers].filter((supplier) => supplier.name.trim()).sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })), [suppliers]);
   const isEditing = Boolean(editingMovement);
   const [draft, setDraft] = useState<TransferStockDraft>({
     movementType: 'transfer',
@@ -107,7 +108,7 @@ export function TransferStockModal({
   const needsAvailabilityCheck = rules.needsAvailability && !sourceIsSupplier;
   const fromLocationOptions = useMemo(() => [
     { value: SUPPLIER_SOURCE_ID, label: t.operational.modals.supplier },
-    ...activeWarehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name })),
+    ...sortInventoryOptions(activeWarehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))),
   ], [activeWarehouses, t]);
 
   useEffect(() => {
@@ -241,7 +242,7 @@ export function TransferStockModal({
             <InputField label={t.operational.modals.date} type="date" value={draft.date} onChange={(date) => setDraft({ ...draft, date })} />
             {draft.movementType === 'supplierReceipt' ? (
               supplierOptions.length > 0 ? (
-                <SelectField label={t.operational.modals.supplier} value={draft.supplierName ?? ''} options={supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name }))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
+              <SelectField label={t.operational.modals.supplier} value={draft.supplierName ?? ''} options={sortInventoryOptions(supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name })))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
               ) : (
                 <ReadOnlyField label={t.operational.modals.supplier} value={t.common.notAvailable} />
               )

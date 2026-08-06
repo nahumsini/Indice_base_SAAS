@@ -120,11 +120,12 @@ public class ReceivablesService {
         var defaultTermMonths = positiveMonths(request.defaultTermMonths());
         var annualInterestRate = nonNegative(request.annualInterestRate(), "annualInterestRate");
         var status = normalizePolicyStatus(request.status());
+        var currencyCode = com.indice.erp.finance.shared.FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
 
         validateReferences(context, assignment.unitId(), assignment.businessId(), request.contactId());
         repository.insertCreditPolicy(context, request.contactId(), assignment.unitId(), assignment.businessId(),
-            customerName, creditLine, monthlyPurchaseLimit, defaultTermMonths, annualInterestRate,
+            customerName, currencyCode, creditLine, monthlyPurchaseLimit, defaultTermMonths, annualInterestRate,
             status, blankToNull(request.notes()));
         return workspaceResponse(context);
     }

@@ -50,8 +50,8 @@ import {
 import { downloadPettyCashStatementPdf } from '../utils/pettyCashStatementPdf';
 import { getPettyCashMethodLabel, PETTY_CASH_METHOD_KEYS } from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
-import { convertBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import { OperationalKpiArea } from '../../shared/operational';
 import {
   PettyCashEmptyState,
@@ -380,7 +380,7 @@ export function PettyCashReconciliationWorkspace({
   statements,
 }: PettyCashReconciliationWorkspaceProps) {
   const copy = usePettyCashTranslations();
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [selectedFundId, setSelectedFundId] = useState(initialFundId || funds[0]?.id || '');
   const [selectedStatementId, setSelectedStatementId] = useState('');
   const [operationView, setOperationView] = useState<OperationView>('expenses');
@@ -420,18 +420,14 @@ export function PettyCashReconciliationWorkspace({
     || movement.type === 'ADDITIONAL_DEPOSIT'
     || movement.type === 'CARRY_FORWARD'
   ));
-  const depositedAmount = incomeMovements.reduce((sum, movement) => sum + movement.amount, 0);
-  const capturedAmount = selectedLines.reduce((sum, line) => sum + line.totalAmount, 0);
-  const authorizedAmount = selectedLines
-    .filter(line => line.status === 'EXPENSE_CREATED')
-    .reduce((sum, line) => sum + line.totalAmount, 0);
-  const sourceCurrency = selectedFund?.currencyCode ?? 'MXN';
-  const toPreferredCurrency = (amount: number) => convertBusinessCurrencyAmount(
-    amount,
-    sourceCurrency,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-  );
+  const depositedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_MOVEMENT_AMOUNT', preferredCurrency, ids: incomeMovements.map((movement) => movement.id) });
+  const capturedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_SETTLEMENT_AMOUNT', preferredCurrency, ids: selectedLines.map((line) => line.id) });
+  const authorizedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_SETTLEMENT_AMOUNT', preferredCurrency, ids: selectedLines.filter((line) => line.status === 'EXPENSE_CREATED').map((line) => line.id) });
+  const selectedFundAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_BALANCE', preferredCurrency, ids: selectedFund ? [selectedFund.id] : [] });
+  const depositedPreferred = depositedAggregate.data?.preferredTotal ?? 0;
+  const capturedPreferred = capturedAggregate.data?.preferredTotal ?? 0;
+  const authorizedPreferred = authorizedAggregate.data?.preferredTotal ?? 0;
+  const balancePreferred = selectedFundAggregate.data?.preferredTotal ?? 0;
 
   const filteredLines = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -1147,21 +1143,21 @@ export function PettyCashReconciliationWorkspace({
             { id: 'native-balance', icon: <WalletCards className="h-3.5 w-3.5" />, label: copy.common.nativeBreakdown(formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode)), tone: 'neutral' },
           ]}
           distributionSegments={[
-            { id: 'authorized', label: copy.reconciliation.operation.authorized, count: authorizedAmount, className: 'bg-[#147514]' },
-            { id: 'pending', label: copy.financial.progress.pending, count: Math.max(0, capturedAmount - authorizedAmount), className: 'bg-amber-400' },
-            { id: 'available', label: copy.financial.progress.available, count: Math.max(0, selectedFund.currentBalanceAmount), className: 'bg-sky-400' },
+            { id: 'authorized', label: copy.reconciliation.operation.authorized, count: authorizedPreferred, className: 'bg-[#147514]' },
+            { id: 'pending', label: copy.financial.progress.pending, count: Math.max(0, capturedPreferred - authorizedPreferred), className: 'bg-amber-400' },
+            { id: 'available', label: copy.financial.progress.available, count: Math.max(0, balancePreferred), className: 'bg-sky-400' },
           ]}
           insight={copy.reconciliation.operation.signal(
             selectedLines.filter(line => line.status !== 'EXPENSE_CREATED' && line.status !== 'REJECTED').length,
             selectedLines.filter(line => line.status === 'VALIDATED' || line.status === 'RECEIPT_ATTACHED').length,
-            formatPettyCashCurrency(toPreferredCurrency(Math.max(0, capturedAmount - authorizedAmount)), preferredCurrency),
+            formatPettyCashCurrency(Math.max(0, capturedPreferred - authorizedPreferred), preferredCurrency),
           )}
           insightIcon={<Info className="h-4 w-4" />}
           metrics={[
-            { id: 'deposited', icon: <Banknote className="h-4 w-4" />, label: copy.reconciliation.metrics.deposited, value: formatPettyCashCurrency(toPreferredCurrency(depositedAmount), preferredCurrency), valueClassName: 'text-sky-600' },
-            { id: 'captured', icon: <ReceiptText className="h-4 w-4" />, label: copy.reconciliation.operation.captured, value: formatPettyCashCurrency(toPreferredCurrency(capturedAmount), preferredCurrency), valueClassName: 'text-amber-600' },
-            { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.reconciliation.operation.authorized, value: formatPettyCashCurrency(toPreferredCurrency(authorizedAmount), preferredCurrency), valueClassName: 'text-[#147514]' },
-            { id: 'balance', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.currentBalance, value: formatPettyCashCurrency(toPreferredCurrency(selectedFund.currentBalanceAmount), preferredCurrency), valueClassName: selectedFund.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
+            { id: 'deposited', icon: <Banknote className="h-4 w-4" />, label: copy.reconciliation.metrics.deposited, value: formatPettyCashCurrency(depositedPreferred, preferredCurrency), valueClassName: 'text-sky-600' },
+            { id: 'captured', icon: <ReceiptText className="h-4 w-4" />, label: copy.reconciliation.operation.captured, value: formatPettyCashCurrency(capturedPreferred, preferredCurrency), valueClassName: 'text-amber-600' },
+            { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.reconciliation.operation.authorized, value: formatPettyCashCurrency(authorizedPreferred, preferredCurrency), valueClassName: 'text-[#147514]' },
+            { id: 'balance', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.currentBalance, value: formatPettyCashCurrency(balancePreferred, preferredCurrency), valueClassName: selectedFund.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
           ]}
         />
 

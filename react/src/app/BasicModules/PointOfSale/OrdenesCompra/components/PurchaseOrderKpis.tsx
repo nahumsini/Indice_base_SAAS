@@ -14,7 +14,8 @@ import type {
 import { OperationalKpiArea } from '../../../shared/operational';
 import type { PurchaseOrder, SupplierInvoice } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
-import { useCurrencyAwareMoney } from '../../../shared/useCurrencyAwareMoney';
+import { useKpiMonetaryAggregate } from '../../../shared/kpiMonetaryApi';
+import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
 
 export function PurchaseOrderKpis({
   currency,
@@ -25,7 +26,7 @@ export function PurchaseOrderKpis({
   invoices: SupplierInvoice[];
   orders: PurchaseOrder[];
 }) {
-  const { formatPreferred, preferredCurrency, rateContext } = useCurrencyAwareMoney();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const draftOrders = orders.filter((order) => order.status === 'DRAFT').length;
   const inApproval = orders.filter((order) => ['REQUESTED', 'IN_REVIEW', 'NEEDS_CLARIFICATION', 'APPROVED'].includes(order.status)).length;
   const inTransit = orders.filter((order) => ['ISSUED', 'SENT', 'CONFIRMED'].includes(order.status)).length;
@@ -37,7 +38,10 @@ export function PurchaseOrderKpis({
   const pendingReceive = openOrders.reduce((sum, order) => (
     sum + order.items.reduce((itemSum, item) => itemSum + numberFrom(item.pendingQuantity), 0)
   ), 0);
-  const expectedValue = openOrders.reduce((sum, order) => sum + numberFrom(order.totalAmount), 0);
+  const expectedAggregate = useKpiMonetaryAggregate({ metric: 'PURCHASE_ORDER_TOTAL', preferredCurrency, ids: openOrders.map((order) => order.id) });
+  const expectedValueLabel = expectedAggregate.data && !expectedAggregate.loading
+    ? formatMoney(expectedAggregate.data.preferredTotal, preferredCurrency) : '—';
+  const nativeValueLabel = expectedAggregate.data?.nativeTotals.map(({ amount, currency: nativeCurrency }) => formatMoney(amount, nativeCurrency)).join(' / ') || currency;
   const pendingInvoices = invoices.filter((invoice) => invoice.status === 'SUBMITTED' || invoice.status === 'MATCHED').length;
   const delayed = openOrders.filter((order) => {
     if (!order.expectedDate) return false;
@@ -66,7 +70,7 @@ export function PurchaseOrderKpis({
       id: 'expected-value',
       icon: <ClipboardList className="h-4 w-4" />,
       label: 'valor comprometido',
-      value: formatPreferred(expectedValue, currency),
+      value: expectedValueLabel,
       iconClassName: 'text-[#9A6B05]',
       valueClassName: 'text-[#9A6B05]',
     },
@@ -117,11 +121,11 @@ export function PurchaseOrderKpis({
     });
   }
 
-  if (expectedValue > 0 && currency !== preferredCurrency) {
+  if (openOrders.length > 0 && expectedAggregate.data?.nativeTotals.some(({ currency: nativeCurrency }) => nativeCurrency !== preferredCurrency)) {
     alertChips.push({
       id: 'native-value',
       icon: <ClipboardList className="h-3.5 w-3.5" />,
-      label: `Nativo: ${formatMoney(expectedValue, currency)}`,
+      label: `Nativo: ${nativeValueLabel}`,
       tone: 'info',
     });
   }
@@ -139,7 +143,7 @@ export function PurchaseOrderKpis({
   const insight = delayed > 0
     ? `${delayed} compras requieren seguimiento con proveedor antes de que afecten disponibilidad en caja.`
     : pendingReceive > 0
-      ? `Recibe ${pendingReceive} unidades pendientes para convertir compras abiertas en inventario vendible. Total mostrado en ${preferredCurrency} con ${rateContext.label.toLowerCase()}.`
+      ? `Recibe ${pendingReceive} unidades pendientes para convertir compras abiertas en inventario vendible. Total consolidado por backend en ${preferredCurrency}.`
       : pendingInvoices > 0
         ? `Concilia ${pendingInvoices} facturas para cerrar el ciclo de compra y pago.`
         : 'No hay alertas operativas en compras POS con los filtros actuales.';

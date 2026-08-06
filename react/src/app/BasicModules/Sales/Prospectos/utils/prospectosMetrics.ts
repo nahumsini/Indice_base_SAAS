@@ -4,14 +4,12 @@ import {
   type SalesQuote,
   type SalesOpportunity,
 } from '../../salesCrmContext';
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import {
   defaultSalesCurrency,
   formatSalesCurrencyAmount,
   formatSalesCurrencyBreakdown,
   normalizeSalesCurrencyCode,
 } from '../../utils/salesCurrency';
-import { convertSalesCurrencyAmount } from '../../utils/salesCurrencyConversion';
 import type {
   OpportunityColumnId,
   OpportunityHistoryEntry,
@@ -29,7 +27,7 @@ import {
   parseMoney,
   parsePercentage,
 } from './prospectosFormatters';
-import { getOpportunityPipelineTotals, getProspectosPipelineSummary } from './prospectosPipeline';
+import { getOpportunityNativePipelineTotals, getProspectosPipelineSummary } from './prospectosPipeline';
 import { getLinkedQuotesForOpportunity, getOpportunityQuoteSignal } from './prospectosQuoteSignals';
 import { opportunitySortCollator, stageLabels } from './prospectosStatus';
 
@@ -125,10 +123,6 @@ export function filterOpportunitiesForPeriodView(
   ));
 }
 
-function roundCurrencyTotal(value: number) {
-  return Number(value.toFixed(2));
-}
-
 function getClosedOpportunityValueLines(
   opportunity: SalesOpportunity,
   quotes: SalesQuote[],
@@ -155,26 +149,15 @@ function summarizeClosedOpportunityValue(
   opportunities: SalesOpportunity[],
   quotes: SalesQuote[],
   preferredCurrency = defaultSalesCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
   const lines = opportunities.flatMap((opportunity) => getClosedOpportunityValueLines(opportunity, quotes));
-  const convertedTotal = lines.reduce((total, line) => (
-    total + convertSalesCurrencyAmount(
-      line.amount,
-      line.currency,
-      currency,
-      line.exchangeDate,
-      exchangeRatesPerUsd,
-    ).amount
-  ), 0);
-
   return {
-    total: roundCurrencyTotal(convertedTotal),
+    total: 0,
     totalLabel: lines.length > 0
       ? formatSalesCurrencyBreakdown(lines, (line) => line.amount, (line) => line.currency)
       : formatSalesCurrencyAmount(0, currency),
-    convertedLabel: formatSalesCurrencyAmount(convertedTotal, currency),
+    convertedLabel: formatSalesCurrencyAmount(0, currency),
   };
 }
 
@@ -182,8 +165,6 @@ export function getOpportunitySortValue(
   opportunity: SalesOpportunity,
   columnId: OpportunityColumnId,
   quotes: SalesQuote[] = [],
-  preferredCurrency = defaultSalesCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ): OpportunitySortValue {
   switch (columnId) {
     case 'opportunity':
@@ -209,7 +190,7 @@ export function getOpportunitySortValue(
     case 'quoteSignal':
       return getOpportunityQuoteSignal(opportunity, quotes).totalQuotedValue;
     case 'pipeline':
-      return getOpportunityPipelineTotals(opportunity, quotes, preferredCurrency, exchangeRatesPerUsd).convertedTotal;
+      return getOpportunityNativePipelineTotals(opportunity, quotes).totalLabel;
     case 'expectedCloseDate':
       return opportunity.expectedCloseDate || null;
     case 'nextAction':
@@ -233,12 +214,10 @@ export function sortOpportunities(
   opportunities: SalesOpportunity[],
   sortState: OpportunitySortState,
   quotes: SalesQuote[] = [],
-  preferredCurrency = defaultSalesCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   return [...opportunities].sort((left, right) => {
-    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes, preferredCurrency, exchangeRatesPerUsd);
-    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes, preferredCurrency, exchangeRatesPerUsd);
+    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes);
+    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes);
 
     if (leftValue === null && rightValue === null) {
       return 0;
@@ -305,7 +284,6 @@ export function calculateProspectosMetrics(
   quotes: SalesQuote[] = [],
   preferredCurrency = defaultSalesCurrency,
   periodFilter: OpportunityPeriodFilter = 'all',
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const periodRange = getOpportunityPeriodRange(periodFilter);
   const periodOpportunities = filterOpportunitiesForPeriodView(opportunities, periodFilter);
@@ -327,9 +305,9 @@ export function calculateProspectosMetrics(
     const schedule = getOpportunitySchedule(opportunity);
     return opportunity.status === 'Overdue' || Boolean(schedule.date && schedule.date < todayInputValue);
   }).length;
-  const pipelineSummary = getProspectosPipelineSummary(openOpportunities, quotes, preferredCurrency, exchangeRatesPerUsd);
-  const wonSummary = summarizeClosedOpportunityValue(periodWonOpportunities, quotes, preferredCurrency, exchangeRatesPerUsd);
-  const lostSummary = summarizeClosedOpportunityValue(periodLostOpportunities, quotes, preferredCurrency, exchangeRatesPerUsd);
+  const pipelineSummary = getProspectosPipelineSummary(openOpportunities, quotes, preferredCurrency);
+  const wonSummary = summarizeClosedOpportunityValue(periodWonOpportunities, quotes, preferredCurrency);
+  const lostSummary = summarizeClosedOpportunityValue(periodLostOpportunities, quotes, preferredCurrency);
   const periodClosedCount = periodClosedOpportunities.length;
   const periodConversionRate = periodClosedCount > 0
     ? Math.round((periodWonOpportunities.length / periodClosedCount) * 100)

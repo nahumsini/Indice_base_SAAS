@@ -3,12 +3,12 @@ import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
 import {
   moduleModalOutlineButtonClassName,
-  moduleModalPrimaryButtonClassName,
 } from '../../constants/receivables.constants';
 import type { ReceivablesTranslations } from '../../translations';
 import type { ReceivablePayment } from '../../types';
 import { formatMoney } from '../../utils';
 import { ReceivablesModalFrame } from './ReceivablesModalFrame';
+import { ReceivablesModalActionToolbar } from './ReceivablesModalActionToolbar';
 
 function getPaymentReceiptDataUrl(payment: ReceivablePayment) {
   return payment.receiptDataUrl ?? payment.receiptImageDataUrl ?? '';
@@ -96,31 +96,12 @@ export function ReceivableFilesModal({
                           {payment.saleNumber} · {payment.customerName}
                         </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="shrink-0">
                         {dataUrl ? (
-                          <>
-                            <Button
-                              asChild
-                              type="button"
-                              variant="outline"
-                              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                            >
-                              <a href={dataUrl} target="_blank" rel="noreferrer">
-                                <ExternalLink className="h-4 w-4" />
-                                {copy.modals.files.open}
-                              </a>
-                            </Button>
-                            <Button
-                              asChild
-                              type="button"
-                              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-medium', moduleModalPrimaryButtonClassName)}
-                            >
-                              <a href={dataUrl} download={fileName}>
-                                <Download className="h-4 w-4" />
-                                {copy.modals.files.download}
-                              </a>
-                            </Button>
-                          </>
+                          <ReceivablesModalActionToolbar actions={[
+                            { href: dataUrl, icon: <ExternalLink className="h-4 w-4" />, label: copy.modals.files.open },
+                            { download: true, href: dataUrl, icon: <Download className="h-4 w-4" />, label: copy.modals.files.download, tone: 'primary' },
+                          ]} />
                         ) : null}
                       </div>
                     </div>

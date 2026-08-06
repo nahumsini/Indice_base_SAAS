@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { DashboardKpiCardData } from '../dashboardData';
 import type { MainDashboardTranslations } from '../translations';
 import { usePreferredBusinessCurrency } from '../../BasicModules/shared/BusinessCurrencyContext';
-import { convertBusinessCurrencyAmount } from '../../BasicModules/shared/businessCurrency';
+import { getKpiMonetaryAggregate } from '../../BasicModules/shared/kpiMonetaryApi';
 
 type DashboardLiveKpiMap = Partial<Record<string, DashboardKpiCardData>>;
 
@@ -46,7 +46,7 @@ const formatPercent = (value: number, locale: string) =>
     style: 'percent',
   }).format(value / 100);
 
-const numericKpiValue = (source: Record<string, number | string | null>, key: string) => {
+const numericKpiValue = (source: Record<string, unknown>, key: string) => {
   const value = source[key];
 
   if (typeof value === 'number') {
@@ -81,7 +81,7 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
         import('../../BasicModules/Expenses/KPIs/financeDashboardOverview'),
         import('../../BasicModules/Sales/salesApi'),
       ]);
-      const [hrUsersResult, attendanceResult, processTasksResult, financeOverviewResult, salesKpisResult] = await Promise.allSettled([
+      const [hrUsersResult, attendanceResult, processTasksResult, financeOverviewResult, salesKpisResult, monthlyExpensesResult, pendingExpensesResult, overdueExpensesResult, budgetAvailableResult, cashDueResult] = await Promise.allSettled([
         humanResourcesApi.listHrUsers(),
         humanResourcesApi.getAttendanceControlOverview(today),
         listProcessTaskKpis({
@@ -94,7 +94,12 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
           locale,
           periodFilter: 'this_month',
         }),
-        salesApi.kpis(),
+        salesApi.kpis(preferredCurrency),
+        getKpiMonetaryAggregate({ metric: 'EXPENSE_TOTAL', preferredCurrency, from: monthRange.from, to: monthRange.to }),
+        getKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency }),
+        getKpiMonetaryAggregate({ metric: 'EXPENSE_OVERDUE_BALANCE', preferredCurrency }),
+        getKpiMonetaryAggregate({ metric: 'BUDGET_AVAILABLE', preferredCurrency }),
+        getKpiMonetaryAggregate({ metric: 'EXPENSE_DUE_SOON_BALANCE', preferredCurrency }),
       ]);
 
       if (!isMounted) {
@@ -193,13 +198,7 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
       }
 
       if (financeOverviewResult.status === 'fulfilled') {
-        const { currency, metrics } = financeOverviewResult.value;
-        const preferredMoney = (amount: number) => convertBusinessCurrencyAmount(
-          amount,
-          currency,
-          preferredCurrency,
-          exchangeRatesPerUsd,
-        );
+        const { metrics } = financeOverviewResult.value;
         const consumed = metrics.planned - metrics.available;
         const budgetUtilization = metrics.planned > 0
           ? Math.max(0, (consumed / metrics.planned) * 100)
@@ -207,25 +206,25 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
 
         nextKpis.monthlyExpenses = {
           title: copy.kpis.monthlyExpenses.title,
-          value: formatCurrency(preferredMoney(metrics.actual), locale, preferredCurrency),
+          value: monthlyExpensesResult.status === 'fulfilled' ? formatCurrency(monthlyExpensesResult.value.preferredTotal, locale, preferredCurrency) : '—',
           change: copy.kpis.monthlyExpenses.change,
           isPositive: metrics.planned <= 0 || metrics.actual <= metrics.planned,
         };
         nextKpis.pendingExpenses = {
           title: copy.kpis.pendingExpenses.title,
-          value: formatCurrency(preferredMoney(metrics.pendingPayments), locale, preferredCurrency),
+          value: pendingExpensesResult.status === 'fulfilled' ? formatCurrency(pendingExpensesResult.value.preferredTotal, locale, preferredCurrency) : '—',
           change: copy.kpis.pendingExpenses.change,
           isPositive: metrics.pendingPayments <= 0,
         };
         nextKpis.overdueExpenses = {
           title: copy.kpis.overdueExpenses.title,
-          value: formatCurrency(preferredMoney(metrics.overdueAmount), locale, preferredCurrency),
+          value: overdueExpensesResult.status === 'fulfilled' ? formatCurrency(overdueExpensesResult.value.preferredTotal, locale, preferredCurrency) : '—',
           change: copy.kpis.overdueExpenses.change,
           isPositive: metrics.overdueAmount <= 0,
         };
         nextKpis.budgetAvailable = {
           title: copy.kpis.budgetAvailable.title,
-          value: formatCurrency(preferredMoney(metrics.available), locale, preferredCurrency),
+          value: budgetAvailableResult.status === 'fulfilled' ? formatCurrency(budgetAvailableResult.value.preferredTotal, locale, preferredCurrency) : '—',
           change: copy.kpis.budgetAvailable.change,
           isPositive: metrics.available >= 0,
         };
@@ -237,7 +236,7 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
         };
         nextKpis.cashDue7Days = {
           title: copy.kpis.cashDue7Days.title,
-          value: formatCurrency(preferredMoney(metrics.dueIn7Days), locale, preferredCurrency),
+          value: cashDueResult.status === 'fulfilled' ? formatCurrency(cashDueResult.value.preferredTotal, locale, preferredCurrency) : '—',
           change: copy.kpis.cashDue7Days.change,
           isPositive: metrics.dueIn7Days <= 0,
         };
@@ -262,19 +261,19 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
         };
         nextKpis.monthlyRevenue = {
           title: copy.kpis.monthlyRevenue.title,
-          value: formatCurrency(monthlySalesValue, locale),
+          value: formatCurrency(monthlySalesValue, locale, preferredCurrency),
           change: copy.kpis.monthlyRevenue.change,
           isPositive: monthlySalesValue > 0,
         };
         nextKpis.weeklyRevenue = {
           title: copy.kpis.weeklyRevenue.title,
-          value: formatCurrency(weeklySalesValue, locale),
+          value: formatCurrency(weeklySalesValue, locale, preferredCurrency),
           change: copy.kpis.weeklyRevenue.change,
           isPositive: weeklySalesValue > 0,
         };
         nextKpis.averageTicket = {
           title: copy.kpis.averageTicket.title,
-          value: formatCurrency(averageTicket, locale),
+          value: formatCurrency(averageTicket, locale, preferredCurrency),
           change: copy.kpis.averageTicket.change,
           isPositive: averageTicket > 0,
         };

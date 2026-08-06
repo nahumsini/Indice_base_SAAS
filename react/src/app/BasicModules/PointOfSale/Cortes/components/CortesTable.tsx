@@ -1,6 +1,5 @@
 import { ArrowDownUp, Download, Eye, Loader2, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import { cortesColumnLabels, type CortesColumnId } from '../utils/cortesColumns';
 import {
@@ -14,14 +13,12 @@ import {
 
 interface CortesTableProps {
   loading: boolean;
-  preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
   selectedRowIds: number[];
   sortDirection: CortesSortDirection;
   sortKey: CortesSortKey;
   visibleColumns: CortesColumnId[];
   allVisibleSelected: boolean;
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   onDownload: (row: PosCashClosingSummaryRow) => void;
   onPrint: (row: PosCashClosingSummaryRow) => void;
   onSelect: (row: PosCashClosingSummaryRow) => void;
@@ -46,14 +43,12 @@ const sortableColumns: Partial<Record<CortesColumnId, CortesSortKey>> = {
 
 export function CortesTable({
   loading,
-  preferredCurrency,
   rows,
   selectedRowIds,
   sortDirection,
   sortKey,
   visibleColumns,
   allVisibleSelected,
-  exchangeRatesPerUsd,
   onDownload,
   onPrint,
   onSelect,
@@ -137,8 +132,6 @@ export function CortesTable({
                   <td key={`${row.id}-${column}`} className="px-5 py-4 align-middle text-slate-700 dark:text-slate-200">
                     <CortesTableCell
                       column={column}
-                      exchangeRatesPerUsd={exchangeRatesPerUsd}
-                      preferredCurrency={preferredCurrency}
                       row={row}
                     />
                   </td>
@@ -176,13 +169,9 @@ export function CortesTable({
 
 function CortesTableCell({
   column,
-  exchangeRatesPerUsd,
-  preferredCurrency,
   row,
 }: {
   column: CortesColumnId;
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
-  preferredCurrency: string;
   row: PosCashClosingSummaryRow;
 }) {
   const status = getClosingStatus(row);
@@ -217,8 +206,6 @@ function CortesTableCell({
     return (
       <MoneyCell
         amount={toNumber(row.totalSalesAmount)}
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
-        preferredCurrency={preferredCurrency}
         row={row}
         strong
       />
@@ -228,8 +215,6 @@ function CortesTableCell({
     return (
       <MoneyCell
         amount={toNumber(row.expectedCashAmount)}
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
-        preferredCurrency={preferredCurrency}
         row={row}
       />
     );
@@ -238,8 +223,6 @@ function CortesTableCell({
     return (
       <MoneyCell
         amount={toNumber(row.countedCashAmount)}
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
-        preferredCurrency={preferredCurrency}
         row={row}
       />
     );
@@ -248,8 +231,6 @@ function CortesTableCell({
     return (
       <MoneyCell
         amount={toNumber(row.overShortAmount)}
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
-        preferredCurrency={preferredCurrency}
         row={row}
         strong
         tone={status === 'short' ? 'danger' : status === 'over' ? 'warning' : 'success'}
@@ -262,26 +243,16 @@ function CortesTableCell({
 
 function MoneyCell({
   amount,
-  exchangeRatesPerUsd,
-  preferredCurrency,
   row,
   strong = false,
   tone = 'neutral',
 }: {
   amount: number;
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
-  preferredCurrency: string;
   row: PosCashClosingSummaryRow;
   strong?: boolean;
   tone?: 'danger' | 'neutral' | 'success' | 'warning';
 }) {
-  const { convertedLabel, nativeCurrency, nativeLabel } = formatClosingAmount(
-    amount,
-    row,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-  );
-  const isConverted = nativeCurrency !== preferredCurrency;
+  const { nativeLabel } = formatClosingAmount(amount, row);
   const className = tone === 'danger'
     ? 'text-rose-600'
     : tone === 'warning'
@@ -296,11 +267,6 @@ function MoneyCell({
       <MainTag className={`block font-medium ${className}`}>
         {amount > 0 && tone === 'warning' ? '+' : ''}{nativeLabel}
       </MainTag>
-      {isConverted ? (
-        <span className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400">
-          equiv. {convertedLabel}
-        </span>
-      ) : null}
     </span>
   );
 }

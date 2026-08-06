@@ -7,10 +7,11 @@ import type {
 import { OperationalKpiArea } from '../../../shared/operational';
 import type { SupplierSubmission } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
-import { useCurrencyAwareMoney } from '../../../shared/useCurrencyAwareMoney';
+import { useKpiMonetaryAggregate } from '../../../shared/kpiMonetaryApi';
+import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
 
 export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierSubmission[] }) {
-  const { preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const submitted = submissions.filter((submission) => submission.status === 'SUBMITTED').length;
   const inReview = submissions.filter((submission) => submission.status === 'IN_REVIEW').length;
   const needsClarification = submissions.filter((submission) => submission.status === 'NEEDS_CLARIFICATION').length;
@@ -27,15 +28,14 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
   const unresolvedItems = submissions.reduce((sum, submission) => (
     sum + submission.items.filter((item) => !item.productId).length
   ), 0);
-  const valueByCurrency = Array.from(
-    submissions.reduce((map, submission) => {
-      const currency = submission.currencyCode || 'MXN';
-      map.set(currency, (map.get(currency) ?? 0) + numberFrom(submission.totalAmount));
-      return map;
-    }, new Map<string, number>()),
-  );
-  const valueSummary = summarize(valueByCurrency.map(([currency, amount]) => ({ amount, currency })));
-  const valueLabel = valueByCurrency.length === 0 ? formatMoney(0, preferredCurrency) : valueSummary.preferredTotalLabel;
+  const valueAggregate = useKpiMonetaryAggregate({
+    metric: 'SUPPLIER_SUBMISSION_TOTAL',
+    preferredCurrency,
+    ids: submissions.map((submission) => submission.id),
+  });
+  const valueLabel = valueAggregate.data && !valueAggregate.loading
+    ? formatMoney(valueAggregate.data.preferredTotal, preferredCurrency)
+    : '—';
 
   const metrics: OperationalKpiMetric[] = [
     {
@@ -109,11 +109,11 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     });
   }
 
-  if (valueByCurrency.length > 1) {
+  if ((valueAggregate.data?.nativeTotals.length ?? 0) > 1) {
     alertChips.push({
       id: 'native-value-breakdown',
       icon: <Inbox className="h-3.5 w-3.5" />,
-      label: `Nativo: ${valueSummary.nativeBreakdown}`,
+      label: `Nativo: ${valueAggregate.data?.nativeTotals.map(({ amount, currency }) => formatMoney(amount, currency)).join(' / ')}`,
       tone: 'info',
     });
   }
@@ -132,7 +132,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     : convertible > 0
       ? `Convierte ${convertible} propuestas aprobadas para iniciar reabastecimiento de tienda.`
       : pendingReview > 0
-      ? `Revisa ${pendingReview} propuestas de proveedor para decidir si se convierten en compra POS. Valor total en ${preferredCurrency} con ${rateContext.label.toLowerCase()}.`
+      ? `Revisa ${pendingReview} propuestas de proveedor para decidir si se convierten en compra POS. Valor consolidado por backend en ${preferredCurrency}.`
         : 'No hay propuestas de proveedor que requieran accion con los filtros actuales.';
 
   return (

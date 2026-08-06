@@ -44,7 +44,8 @@ import { useKpisResolvedLocale, useKpisTranslations } from './hooks/useKpisTrans
 import { downloadFinancialOverviewPdf } from './financialOverviewPdf';
 import { useFinancialOverview } from './useFinancialOverview';
 import { LearningModeTitleBarBridge } from '../../../learningMode';
-import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate, useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 
 interface GastosKPIPageProps {
@@ -165,7 +166,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   const t = useKpisTranslations();
   const locale = useKpisResolvedLocale();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
-  const { convertToPreferred, formatPreferred, preferredCurrency, rateContext } = useCurrencyAwareMoney();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('this_month');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -189,21 +190,36 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     periodFilter,
     providerId,
     refreshKey,
-    targetCurrency: preferredCurrency,
     unitId,
-    convertAmount: convertToPreferred,
   });
   const { metrics, sources } = overview;
-  const displayMoney = (amount: number) => formatPreferred(amount, preferredCurrency);
-  const expenseMoney = (expense: FinanceExpense, amount: number) => convertToPreferred(amount, expense.currency);
-
-  const totalManaged = useMemo(() => overview.filteredExpenses.reduce((sum, expense) => sum + expenseMoney(expense, expense.total), 0), [overview.filteredExpenses, convertToPreferred]);
-  const totalPaid = useMemo(() => overview.filteredExpenses.reduce((sum, expense) => sum + expenseMoney(expense, expense.paidAmount), 0), [overview.filteredExpenses, convertToPreferred]);
-  const previousManaged = useMemo(() => overview.comparisonExpenses.reduce((sum, expense) => sum + expenseMoney(expense, expense.total), 0), [overview.comparisonExpenses, convertToPreferred]);
-  const previousPaid = useMemo(() => overview.comparisonExpenses.reduce((sum, expense) => sum + expenseMoney(expense, expense.paidAmount), 0), [overview.comparisonExpenses, convertToPreferred]);
+  const displayMoney = (amount: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: preferredCurrency }).format(amount);
+  const filteredIds = overview.filteredExpenses.map((expense) => expense.id);
+  const comparisonIds = overview.comparisonExpenses.map((expense) => expense.id);
+  const totalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_TOTAL', preferredCurrency, ids: filteredIds });
+  const paidAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_PAID', preferredCurrency, ids: filteredIds });
+  const balanceAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency, ids: filteredIds });
+  const overdueAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_OVERDUE_BALANCE', preferredCurrency, ids: filteredIds });
+  const previousTotalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_TOTAL', preferredCurrency, ids: comparisonIds });
+  const previousPaidAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_PAID', preferredCurrency, ids: comparisonIds });
+  const previousBalanceAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency, ids: comparisonIds });
+  const previousOverdueAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_OVERDUE_BALANCE', preferredCurrency, ids: comparisonIds });
+  const subtotalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_SUBTOTAL', preferredCurrency, ids: filteredIds });
+  const taxAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_TAX', preferredCurrency, ids: filteredIds });
+  const visibleBudgetLineIds = overview.budgetHealthRows.slice(0, 7).map((row) => row.id);
+  const plannedBudgetAggregate = useKpiMonetaryAggregate({ metric: 'BUDGET_PLANNED', preferredCurrency, ids: visibleBudgetLineIds });
+  const actualBudgetAggregate = useKpiMonetaryAggregate({ metric: 'BUDGET_ACTUAL', preferredCurrency, ids: visibleBudgetLineIds });
+  const totalManaged = totalAggregate.data?.preferredTotal ?? 0;
+  const totalPaid = paidAggregate.data?.preferredTotal ?? 0;
+  const pendingPayments = balanceAggregate.data?.preferredTotal ?? 0;
+  const overdueAmount = overdueAggregate.data?.preferredTotal ?? 0;
+  const previousManaged = previousTotalAggregate.data?.preferredTotal ?? 0;
+  const previousPaid = previousPaidAggregate.data?.preferredTotal ?? 0;
+  const plannedBudget = plannedBudgetAggregate.data?.preferredTotal ?? 0;
+  const actualBudget = actualBudgetAggregate.data?.preferredTotal ?? 0;
   const paymentCompliance = totalManaged > 0 ? (totalPaid / totalManaged) * 100 : 0;
-  const budgetConsumption = metrics.planned > 0 ? ((metrics.planned - metrics.available) / metrics.planned) * 100 : 0;
-  const overdueRisk = totalManaged > 0 ? (metrics.overdueAmount / totalManaged) * 100 : 0;
+  const budgetConsumption = plannedBudget > 0 ? (actualBudget / plannedBudget) * 100 : 0;
+  const overdueRisk = totalManaged > 0 ? (overdueAmount / totalManaged) * 100 : 0;
   const evidenceCount = overview.filteredExpenses.filter(expense => (expense.attachmentCount ?? expense.attachments.length) > 0).length;
   const evidenceCoverage = metrics.expenseCount > 0 ? (evidenceCount / metrics.expenseCount) * 100 : 0;
   const healthScore = Math.round(clampPercent((paymentCompliance * 0.45) + ((100 - overdueRisk) * 0.35) + (evidenceCoverage * 0.2)));
@@ -224,6 +240,71 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   const allOption = { label: 'Todos', value: 'all' };
   const activeBusinesses = unitId === 'all' ? sources.referenceData.businesses : sources.referenceData.businesses.filter(item => item.unitId === unitId);
   const filtersKey = [periodFilter, customStartDate, customEndDate, unitId, businessId, providerId, accountingAccountId, paymentStatus].join('|');
+  const monetaryGroups = useMemo(() => {
+    const byStatus = new Map<string, FinanceExpense[]>();
+    const byDate = new Map<string, FinanceExpense[]>();
+    const byUnit = new Map<string, FinanceExpense[]>();
+    const byRankingUser = new Map<string, FinanceExpense[]>();
+    const byAging = new Map<string, FinanceExpense[]>();
+    const byForecast = new Map<string, FinanceExpense[]>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    overview.filteredExpenses.forEach((expense) => {
+      byStatus.set(expense.paymentStatus, [...(byStatus.get(expense.paymentStatus) ?? []), expense]);
+      const date = expense.expenseDate.slice(0, 10);
+      byDate.set(date, [...(byDate.get(date) ?? []), expense]);
+      const unit = expense.unitId ?? 'unassigned';
+      byUnit.set(unit, [...(byUnit.get(unit) ?? []), expense]);
+      const user = rankingRole === 'approved'
+        ? expense.approvedByUserId ?? expense.approvedBy ?? 'unassigned'
+        : rankingRole === 'performed'
+          ? expense.performedByUserId ?? expense.performedBy ?? 'unassigned'
+          : expense.requestedByUserId ?? expense.requestedBy ?? 'unassigned';
+      byRankingUser.set(user, [...(byRankingUser.get(user) ?? []), expense]);
+      if (expense.balance > 0) {
+        if (!expense.dueDate) {
+          byAging.set('none', [...(byAging.get('none') ?? []), expense]);
+        } else {
+          const due = new Date(`${expense.dueDate.slice(0, 10)}T00:00:00`);
+          const pastDays = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+          const agingKey = pastDays <= 0 ? 'future' : pastDays <= 30 ? '1-30' : pastDays <= 60 ? '31-60' : pastDays <= 90 ? '61-90' : '91+';
+          byAging.set(agingKey, [...(byAging.get(agingKey) ?? []), expense]);
+          const futureDays = Math.ceil((due.getTime() - today.getTime()) / 86_400_000);
+          if (futureDays >= 0) [7, 15, 30, 60].forEach((days) => {
+            if (futureDays <= days) byForecast.set(String(days), [...(byForecast.get(String(days)) ?? []), expense]);
+          });
+        }
+      }
+    });
+    const topDates = Array.from(byDate.keys()).sort().slice(-14);
+    const topUnits = Array.from(byUnit.entries()).sort((a, b) => b[1].length - a[1].length).slice(0, 8);
+    const topUsers = Array.from(byRankingUser.entries()).sort((a, b) => b[1].length - a[1].length).slice(0, 8);
+    return { byAging, byDate, byForecast, byRankingUser, byStatus, byUnit, topDates, topUnits, topUsers };
+  }, [overview.filteredExpenses, rankingRole]);
+  const groupQueries = useMemo<KpiMonetaryBatchQuery[]>(() => {
+    const queries: KpiMonetaryBatchQuery[] = [];
+    monetaryGroups.byStatus.forEach((rows, status) => queries.push({ key: `status-${status}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids: rows.map((row) => row.id) }));
+    monetaryGroups.topDates.forEach((date) => {
+      const ids = (monetaryGroups.byDate.get(date) ?? []).map((row) => row.id);
+      queries.push({ key: `date-total-${date}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids });
+      queries.push({ key: `date-paid-${date}`, metric: 'EXPENSE_PAID', preferredCurrency, ids });
+    });
+    monetaryGroups.topUnits.forEach(([unit, rows]) => queries.push({ key: `unit-${unit}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids: rows.map((row) => row.id) }));
+    monetaryGroups.topUsers.forEach(([user, rows]) => {
+      const ids = rows.map((row) => row.id);
+      queries.push({ key: `user-total-${user}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids });
+      queries.push({ key: `user-paid-${user}`, metric: 'EXPENSE_PAID', preferredCurrency, ids });
+      queries.push({ key: `user-overdue-${user}`, metric: 'EXPENSE_OVERDUE_BALANCE', preferredCurrency, ids });
+    });
+    monetaryGroups.byAging.forEach((rows, bucket) => queries.push({ key: `aging-${bucket}`, metric: 'EXPENSE_BALANCE', preferredCurrency, ids: rows.map((row) => row.id) }));
+    monetaryGroups.byForecast.forEach((rows, bucket) => queries.push({ key: `forecast-${bucket}`, metric: 'EXPENSE_BALANCE', preferredCurrency, ids: rows.map((row) => row.id) }));
+    overview.budgetHealthRows.slice(0, 7).forEach((row) => {
+      queries.push({ key: `budget-planned-${row.id}`, metric: 'BUDGET_PLANNED', preferredCurrency, ids: [row.id] });
+      queries.push({ key: `budget-actual-${row.id}`, metric: 'BUDGET_ACTUAL', preferredCurrency, ids: [row.id] });
+    });
+    return queries.slice(0, 100);
+  }, [monetaryGroups, overview.budgetHealthRows, preferredCurrency]);
+  const groupAggregates = useKpiMonetaryAggregates(groupQueries);
 
   const paymentMix = useMemo(() => {
     const rows = [
@@ -232,82 +313,46 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
       { color: '#f59e0b', key: 'UNPAID', name: 'Pendiente', value: 0 },
       { color: '#f43f5e', key: 'OVERDUE', name: 'Vencido', value: 0 },
     ];
-    overview.filteredExpenses.forEach((expense) => {
-      const row = rows.find(item => item.key === expense.paymentStatus);
-      if (row) row.value += expenseMoney(expense, expense.total);
-    });
+    rows.forEach((row) => { row.value = groupAggregates.data[`status-${row.key}`]?.preferredTotal ?? 0; });
     return rows.filter(row => row.value > 0);
-  }, [overview.filteredExpenses, convertToPreferred]);
+  }, [groupAggregates.data]);
 
   const trendData = useMemo(() => {
-    const grouped = new Map<string, { amount: number; paid: number }>();
-    overview.filteredExpenses.forEach((expense) => {
-      const key = expense.expenseDate.slice(0, 10);
-      const row = grouped.get(key) ?? { amount: 0, paid: 0 };
-      row.amount += expenseMoney(expense, expense.total);
-      row.paid += expenseMoney(expense, expense.paidAmount);
-      grouped.set(key, row);
-    });
-    return Array.from(grouped.entries()).sort(([left], [right]) => left.localeCompare(right)).slice(-14).map(([date, values]) => ({
-      ...values,
+    return monetaryGroups.topDates.map((date) => ({
+      amount: groupAggregates.data[`date-total-${date}`]?.preferredTotal ?? 0,
+      paid: groupAggregates.data[`date-paid-${date}`]?.preferredTotal ?? 0,
       date: new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' }).format(new Date(`${date}T12:00:00`)),
     }));
-  }, [locale, overview.filteredExpenses, convertToPreferred]);
+  }, [groupAggregates.data, locale, monetaryGroups.topDates]);
 
-  const unitData = overview.costDrivers.UNIT.slice(0, 8).map(driver => ({ name: driver.name, total: driver.total }));
+  const unitNames = new Map(sources.referenceData.units.map((unit) => [unit.id, unit.name]));
+  const unitData = monetaryGroups.topUnits.map(([unit]) => ({ name: unitNames.get(unit) ?? 'Sin unidad', total: groupAggregates.data[`unit-${unit}`]?.preferredTotal ?? 0 }));
   const budgetData = overview.budgetHealthRows.slice(0, 7).map(row => ({
-    Ejecutado: row.actual,
-    Planeado: row.planned,
+    Ejecutado: groupAggregates.data[`budget-actual-${row.id}`]?.preferredTotal ?? 0,
+    Planeado: groupAggregates.data[`budget-planned-${row.id}`]?.preferredTotal ?? 0,
     name: row.name.length > 18 ? `${row.name.slice(0, 16)}…` : row.name,
   }));
 
   const agingData = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const buckets = [
-      { color: 'bg-emerald-500', label: 'Por vencer', max: Number.POSITIVE_INFINITY, min: 0, total: 0 },
-      { color: 'bg-amber-400', label: '1–30 días', max: 30, min: 1, total: 0 },
-      { color: 'bg-orange-500', label: '31–60 días', max: 60, min: 31, total: 0 },
-      { color: 'bg-rose-500', label: '61–90 días', max: 90, min: 61, total: 0 },
-      { color: 'bg-rose-700', label: 'Más de 90', max: Number.POSITIVE_INFINITY, min: 91, total: 0 },
-      { color: 'bg-slate-400', label: 'Sin vencimiento', max: 0, min: 0, total: 0 },
-    ];
-    overview.filteredExpenses.filter(expense => expense.balance > 0).forEach((expense) => {
-      const due = expense.dueDate ? new Date(`${expense.dueDate.slice(0, 10)}T00:00:00`) : null;
-      if (!due) {
-        buckets[5].total += expenseMoney(expense, expense.balance);
-        return;
-      }
-      const days = due ? Math.floor((today.getTime() - due.getTime()) / 86_400_000) : 0;
-      const index = days <= 0 ? 0 : buckets.findIndex((bucket, bucketIndex) => bucketIndex > 0 && days >= bucket.min && days <= bucket.max);
-      buckets[index >= 0 ? index : 0].total += expenseMoney(expense, expense.balance);
-    });
-    return buckets;
-  }, [overview.filteredExpenses, convertToPreferred]);
+    return [
+      { color: 'bg-emerald-500', key: 'future', label: 'Por vencer' },
+      { color: 'bg-amber-400', key: '1-30', label: '1–30 días' },
+      { color: 'bg-orange-500', key: '31-60', label: '31–60 días' },
+      { color: 'bg-rose-500', key: '61-90', label: '61–90 días' },
+      { color: 'bg-rose-700', key: '91+', label: 'Más de 90' },
+      { color: 'bg-slate-400', key: 'none', label: 'Sin vencimiento' },
+    ].map((bucket) => ({ ...bucket, total: groupAggregates.data[`aging-${bucket.key}`]?.preferredTotal ?? 0 }));
+  }, [groupAggregates.data]);
 
   const cashForecast = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const buckets = [
-      { days: 7, name: '7 días', total: 0 },
-      { days: 15, name: '15 días', total: 0 },
-      { days: 30, name: '30 días', total: 0 },
-      { days: 60, name: '60 días', total: 0 },
-    ];
-    overview.filteredExpenses.filter(expense => expense.balance > 0 && expense.dueDate).forEach((expense) => {
-      const due = new Date(`${expense.dueDate!.slice(0, 10)}T00:00:00`);
-      const days = Math.ceil((due.getTime() - today.getTime()) / 86_400_000);
-      if (days < 0) return;
-      buckets.forEach(bucket => { if (days <= bucket.days) bucket.total += expenseMoney(expense, expense.balance); });
-    });
-    return buckets;
-  }, [overview.filteredExpenses, convertToPreferred]);
+    return [7, 15, 30, 60].map((days) => ({ days, name: `${days} días`, total: groupAggregates.data[`forecast-${days}`]?.preferredTotal ?? 0 }));
+  }, [groupAggregates.data]);
 
   const taxSummary = useMemo(() => {
-    const subtotal = overview.filteredExpenses.reduce((sum, expense) => sum + expenseMoney(expense, expense.subtotal), 0);
-    const taxes = overview.filteredExpenses.reduce((sum, expense) => sum + expenseMoney(expense, expense.tax), 0);
+    const subtotal = subtotalAggregate.data?.preferredTotal ?? 0;
+    const taxes = taxAggregate.data?.preferredTotal ?? 0;
     return { effectiveRate: subtotal > 0 ? (taxes / subtotal) * 100 : 0, subtotal, taxes };
-  }, [overview.filteredExpenses, convertToPreferred]);
+  }, [subtotalAggregate.data, taxAggregate.data]);
 
   const exceptions = useMemo(() => [
     { count: overview.filteredExpenses.filter(expense => (expense.attachmentCount ?? expense.attachments.length) === 0).length, label: 'Sin evidencia', tone: 'critical' as Tone },
@@ -344,27 +389,30 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
         paid: 0,
         total: 0,
       };
-      const total = expenseMoney(expense, expense.total);
       row.count += 1;
-      row.total += total;
-      row.paid += expenseMoney(expense, expense.paidAmount);
       row.evidence += (expense.attachmentCount ?? expense.attachments.length) > 0 ? 1 : 0;
-      row.overdue += expense.paymentStatus === 'OVERDUE' ? expenseMoney(expense, expense.balance) : 0;
       grouped.set(key, row);
     });
-    return Array.from(grouped.entries()).map(([id, row]) => {
-      const paidRatio = row.total > 0 ? row.paid / row.total : 0;
-      const overdueRatio = row.total > 0 ? row.overdue / row.total : 0;
+    const visibleUserIds = new Set(monetaryGroups.topUsers.map(([id]) => id));
+    return Array.from(grouped.entries()).filter(([id]) => visibleUserIds.has(id)).map(([id, row]) => {
+      const total = groupAggregates.data[`user-total-${id}`]?.preferredTotal ?? 0;
+      const paid = groupAggregates.data[`user-paid-${id}`]?.preferredTotal ?? 0;
+      const overdue = groupAggregates.data[`user-overdue-${id}`]?.preferredTotal ?? 0;
+      const paidRatio = total > 0 ? paid / total : 0;
+      const overdueRatio = total > 0 ? overdue / total : 0;
       const evidenceRatio = row.count > 0 ? row.evidence / row.count : 0;
       return {
         ...row,
+        overdue,
+        paid,
+        total,
         evidenceRatio: evidenceRatio * 100,
         id,
         paymentRatio: paidRatio * 100,
         score: Math.round(clampPercent((paidRatio * 55) + ((1 - overdueRatio) * 25) + (evidenceRatio * 20))),
       };
     }).sort((left, right) => right.score - left.score).map((row, index) => ({ ...row, position: index + 1 }));
-  }, [overview.filteredExpenses, rankingRole, sources.referenceData.users, convertToPreferred]);
+  }, [groupAggregates.data, monetaryGroups.topUsers, overview.filteredExpenses, rankingRole, sources.referenceData.users]);
 
   const pagination = useTablePagination({ rows: rankingRows, initialPageSize: 10, resetKey: filtersKey });
   const resetFilters = () => {
@@ -384,10 +432,10 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   const metricCards = [
     { description: 'Valor total de los gastos dentro del alcance seleccionado.', helper: `${metrics.expenseCount} movimientos · ${percentageChange(totalManaged, previousManaged)}`, icon: <CircleDollarSign className="h-5 w-5" />, progress: Math.min(100, metrics.expenseCount * 5), title: 'Gasto gestionado', tone: totalManaged > 0 ? 'healthy' : 'review', value: displayMoney(totalManaged) },
     { description: 'Importe liquidado respecto del total gestionado.', helper: percentageChange(totalPaid, previousPaid), icon: <CheckCircle2 className="h-5 w-5" />, progress: paymentCompliance, title: 'Pagado', tone: paymentCompliance >= 80 ? 'healthy' : paymentCompliance >= 50 ? 'review' : 'critical', value: displayMoney(totalPaid) },
-    { description: 'Saldo abierto que aún requiere programación o pago.', helper: `${metrics.unpaidExpenseCount} cuentas · ${percentageChange(metrics.pendingPayments, overview.comparisonOverview.metrics.pendingPayments)}`, icon: <WalletCards className="h-5 w-5" />, progress: totalManaged > 0 ? (metrics.pendingPayments / totalManaged) * 100 : 0, title: 'Pendiente por pagar', tone: metrics.pendingPayments <= totalManaged * 0.2 ? 'healthy' : metrics.pendingPayments <= totalManaged * 0.5 ? 'review' : 'critical', value: displayMoney(metrics.pendingPayments) },
-    { description: 'Cuentas fuera de fecha que requieren atención inmediata.', helper: `${metrics.overdueExpenseCount} cuentas · ${percentageChange(metrics.overdueAmount, overview.comparisonOverview.metrics.overdueAmount)}`, icon: <AlertTriangle className="h-5 w-5" />, progress: overdueRisk, title: 'Saldo vencido', tone: overdueRisk === 0 ? 'healthy' : overdueRisk <= 15 ? 'review' : 'critical', value: displayMoney(metrics.overdueAmount) },
+    { description: 'Saldo abierto que aún requiere programación o pago.', helper: `${metrics.unpaidExpenseCount} cuentas · ${percentageChange(pendingPayments, previousBalanceAggregate.data?.preferredTotal ?? 0)}`, icon: <WalletCards className="h-5 w-5" />, progress: totalManaged > 0 ? (pendingPayments / totalManaged) * 100 : 0, title: 'Pendiente por pagar', tone: pendingPayments <= totalManaged * 0.2 ? 'healthy' : pendingPayments <= totalManaged * 0.5 ? 'review' : 'critical', value: displayMoney(pendingPayments) },
+    { description: 'Cuentas fuera de fecha que requieren atención inmediata.', helper: `${metrics.overdueExpenseCount} cuentas · ${percentageChange(overdueAmount, previousOverdueAggregate.data?.preferredTotal ?? 0)}`, icon: <AlertTriangle className="h-5 w-5" />, progress: overdueRisk, title: 'Saldo vencido', tone: overdueRisk === 0 ? 'healthy' : overdueRisk <= 15 ? 'review' : 'critical', value: displayMoney(overdueAmount) },
     { description: 'Pagos completados antes o en su fecha de vencimiento.', helper: `${punctuality.onTime} de ${punctuality.count} pagos comparables`, icon: <ClipboardCheck className="h-5 w-5" />, progress: punctuality.percent, title: 'Puntualidad de pago', tone: punctuality.count === 0 ? 'review' : punctuality.percent >= 85 ? 'healthy' : punctuality.percent >= 60 ? 'review' : 'critical', value: `${Math.round(punctuality.percent)}%` },
-    { description: 'Diferencia entre presupuesto planeado y ejecución registrada.', helper: `${metrics.budgetLineCount} líneas · Planeado ${displayMoney(metrics.planned)}`, icon: <Banknote className="h-5 w-5" />, progress: budgetConsumption, title: 'Variación presupuestal', tone: budgetConsumption > 100 ? 'critical' : budgetConsumption >= 80 ? 'review' : 'healthy', value: displayMoney(metrics.actual - metrics.planned) },
+    { description: 'Diferencia entre presupuesto planeado y ejecución registrada.', helper: `${metrics.budgetLineCount} líneas · Planeado ${displayMoney(plannedBudget)}`, icon: <Banknote className="h-5 w-5" />, progress: budgetConsumption, title: 'Variación presupuestal', tone: budgetConsumption > 100 ? 'critical' : budgetConsumption >= 80 ? 'review' : 'healthy', value: displayMoney(actualBudget - plannedBudget) },
     { description: 'Saldo acumulado que vence dentro de los próximos 30 días.', helper: `7 días: ${displayMoney(cashForecast[0]?.total ?? 0)}`, icon: <CalendarClock className="h-5 w-5" />, progress: totalManaged > 0 ? ((cashForecast[2]?.total ?? 0) / totalManaged) * 100 : 0, title: 'Caja requerida a 30 días', tone: (cashForecast[2]?.total ?? 0) === 0 ? 'healthy' : (cashForecast[2]?.total ?? 0) <= totalManaged * 0.25 ? 'review' : 'critical', value: displayMoney(cashForecast[2]?.total ?? 0) },
     { description: 'Puntaje combinado de pagos, vencimientos y evidencias.', helper: `${Math.round(evidenceCoverage)}% con evidencia adjunta`, icon: <ShieldCheck className="h-5 w-5" />, progress: healthScore, title: 'Salud financiera', tone: rankTone(healthScore), value: `${healthScore}/100` },
   ] as const;
@@ -450,7 +498,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
 
       <div className="flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/30 bg-[#E7F3F2] px-5 py-4 text-sm text-[#257B68] dark:border-[#59C3A5]/20 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA] md:flex-row md:items-center md:justify-between">
         <p className="font-medium">Consolidado en {preferredCurrency} · {overview.currencies.length} {overview.currencies.length === 1 ? 'divisa de origen' : 'divisas de origen'}: {overview.currencies.join(' / ') || preferredCurrency}</p>
-        <p className="text-xs font-medium">Tipo de cambio {rateContext.mode === 'manual' ? 'manual' : 'diario'} · Fecha efectiva {rateContext.effectiveDate} · Actualizado {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(overview.generatedAt))}{rateContext.hasWarnings ? ' · Con respaldo interno' : ''}</p>
+        <p className="text-xs font-medium">Tipo de cambio {totalAggregate.data?.exchangeRate.mode === 'configured' ? 'configurado' : 'diario'} · Fecha efectiva {totalAggregate.data?.exchangeRate.effectiveDate ?? '—'} · Actualizado {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(overview.generatedAt))}{totalAggregate.data?.partial ? ' · Consolidado parcial' : ''}</p>
       </div>
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">

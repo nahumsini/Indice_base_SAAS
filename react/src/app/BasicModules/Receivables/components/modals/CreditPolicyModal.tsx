@@ -11,6 +11,7 @@ import {
 import type { ReceivablesTranslations } from '../../translations';
 import type { CandidateCreditCustomer, CreditPolicy } from '../../types';
 import { ReceivablesModalFrame } from './ReceivablesModalFrame';
+import { ReceivablesSearchSelect } from './ReceivablesSearchSelect';
 
 interface CreditPolicyModalProps {
   candidateCustomers: CandidateCreditCustomer[];
@@ -128,11 +129,14 @@ export function CreditPolicyModal({
               </div>
             </div>
           ) : (
-            <FilterSelect
+            <ReceivablesSearchSelect
               label={copy.modals.creditPolicy.customer}
               value={selectedCustomer.id}
               onChange={setCustomerId}
-              options={customers.map((customer) => ({ value: customer.id, label: customer.name }))}
+              emptyLabel={copy.modals.creditPolicy.noCustomers}
+              options={customers.map((customer) => ({ id: customer.id, label: customer.name, searchText: `${customer.unit} ${customer.business}` }))}
+              searchLabel={copy.filters.search}
+              searchPlaceholder={copy.filters.searchPlaceholder}
             />
           )}
           <div className="grid gap-4 sm:grid-cols-2">

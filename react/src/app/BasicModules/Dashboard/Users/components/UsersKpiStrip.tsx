@@ -1,4 +1,5 @@
-import { Clock3, UserCheck, Users, UserX } from 'lucide-react';
+import { Clock3, Info, UserCheck, Users, UserX } from 'lucide-react';
+import { OperationalKpiArea } from '../../../shared/operational';
 
 interface UsersKpiStripProps {
   items: Array<{
@@ -8,38 +9,33 @@ interface UsersKpiStripProps {
   }>;
 }
 
-const toneClasses: Record<UsersKpiStripProps['items'][number]['tone'], string> = {
+const toneClasses = {
   blue: 'text-[var(--indice-blue)] dark:text-blue-300',
   green: 'text-emerald-600 dark:text-emerald-300',
   yellow: 'text-amber-600 dark:text-amber-300',
   slate: 'text-slate-600 dark:text-slate-300',
-};
-
-const iconByTone = {
-  blue: Users,
-  green: UserCheck,
-  yellow: Clock3,
-  slate: UserX,
 } as const;
 
-export function UsersKpiStrip({ items }: UsersKpiStripProps) {
-  return (
-    <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-700 sm:grid-cols-4">
-      {items.map((item) => {
-        const Icon = iconByTone[item.tone];
+const segmentClasses = { blue: 'bg-blue-500', green: 'bg-emerald-500', yellow: 'bg-amber-500', slate: 'bg-slate-400' } as const;
+const iconByTone = { blue: Users, green: UserCheck, yellow: Clock3, slate: UserX } as const;
 
-        return (
-          <div key={item.label} className="flex min-w-0 items-center gap-2.5 bg-white px-3 py-3 dark:bg-slate-800 sm:px-4">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-300">
-              <Icon aria-hidden="true" className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <div className={`text-xl font-medium tabular-nums leading-none ${toneClasses[item.tone]}`}>{item.value}</div>
-              <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{item.label}</div>
-            </div>
-          </div>
-        );
+export function UsersKpiStrip({ items }: UsersKpiStripProps) {
+  const total = items[0]?.value ?? items.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <OperationalKpiArea
+      metrics={items.map((item, index) => {
+        const Icon = iconByTone[item.tone];
+        return { id: `${item.tone}-${index}`, icon: <Icon className="h-4 w-4" />, label: item.label, value: item.value, valueClassName: toneClasses[item.tone] };
       })}
-    </div>
+      distributionSegments={items.slice(1).map((item, index) => ({
+        id: `${item.tone}-${index}`,
+        label: item.label,
+        count: item.value,
+        className: segmentClasses[item.tone],
+      }))}
+      insight={`${total} ${items[0]?.label?.toLocaleLowerCase() ?? 'registros'} en el alcance actual.`}
+      insightIcon={<Info className="h-4 w-4" />}
+    />
   );
 }

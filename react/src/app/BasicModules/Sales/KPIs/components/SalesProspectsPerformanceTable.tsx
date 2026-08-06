@@ -20,21 +20,17 @@ export function SalesProspectsPerformanceTable({
   items,
   page,
   pageSize,
-  preferredCurrency,
   totalItems,
   onPageChange,
   onPageSizeChange,
-  formatPreferred,
 }: {
   copy: SalesKpisTranslations;
   items: SalesOpportunity[];
   page: number;
   pageSize: number;
-  preferredCurrency: string;
   totalItems: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
-  formatPreferred: (value: number, currency?: string) => string;
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
@@ -83,10 +79,7 @@ export function SalesProspectsPerformanceTable({
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.stage}</td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.owner}</td>
                 <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">
-                  <p>{formatPreferred(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
-                  {item.currency !== preferredCurrency ? (
-                    <p className="text-xs font-medium text-slate-400">{copy.context.native}: {formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
-                  ) : null}
+                  <p>{formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
                 </td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.nextAction} - {item.nextActionDate}</td>
                 <td className="px-5 py-4">
