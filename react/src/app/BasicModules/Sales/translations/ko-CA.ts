@@ -13,11 +13,17 @@ export const koCA = {
     contactos: '연락처',
     cotizacion: '견적',
     sales: '매출',
+    commissions: '수수료',
+    paymentAccounts: '결제 계정',
     productos: '제품',
     proveedores: '공급업체',
     inventario: '재고',
     contrato: '계약',
     postventa: '애프터서비스',
     kpis: 'KPI',
+  },
+  paymentAccountsWorkspace: {
+    title: '영업 결제 계정',
+    subtitle: '영업 결제가 수신, 식별 및 조정되는 계정을 정의합니다.',
   },
 } as const;

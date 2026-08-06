@@ -1,6 +1,6 @@
 import type { SalesTabId } from '../salesIdentity';
 
-export type SalesGuidanceTabId = SalesTabId;
+export type SalesGuidanceTabId = Exclude<SalesTabId, 'payment-accounts' | 'commissions'>;
 
 export type SalesGuidanceIcon =
   | 'leads'

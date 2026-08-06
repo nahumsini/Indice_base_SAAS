@@ -229,19 +229,23 @@ export default function Incentives() {
 }
 
 function mapIncentive(incentive: BackendHrIncentive): IncentiveViewModel {
+  const isCommissionCut = incentive.source_reference_type === 'sales_commission_cut';
+  const appliedCount = Number(incentive.applied_count ?? 0);
   return {
     id: incentive.incentive_code,
     backendId: incentive.id,
     nombre: incentive.name,
-    tipo: incentive.incentive_type === 'kpi' ? 'Automatizado' : 'Manual',
-    alcance: incentive.scope_summary || `${incentive.eligible_count} colaboradores`,
+    tipo: incentive.incentive_type === 'kpi' || isCommissionCut ? 'Automatizado' : 'Manual',
+    alcance: `${incentive.scope_summary || `${incentive.eligible_count} colaboradores`}${isCommissionCut ? ` · Corte ${incentive.source_reference_id ?? ''}` : ''}`,
     monto: formatMoney(incentive.amount, incentive.currency_code),
-    aplicacion: incentive.application_mode === 'specific_date'
+    aplicacion: appliedCount > 0
+      ? 'Consumido en nómina'
+      : incentive.application_mode === 'specific_date'
       ? formatDate(incentive.effective_start_date)
       : 'Siguiente nómina',
     estado: mapStatus(incentive.status),
     eligibleCount: Number(incentive.eligible_count ?? 0),
-    appliedCount: Number(incentive.applied_count ?? 0),
+    appliedCount,
   };
 }
 

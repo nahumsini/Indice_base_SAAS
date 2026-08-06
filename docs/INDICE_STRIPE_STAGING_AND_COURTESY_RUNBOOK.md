@@ -450,7 +450,35 @@ Versión frontend desplegada en staging: `3b3c6329`.
   respondió HTTP 200 y frontend/backend permanecieron saludables. Los
   identificadores de ambos contenedores de producción no cambiaron.
 
-## 12. Rollback de staging
+## 12. Certificación incremental del 5 de agosto de 2026
+
+Versión desplegada en staging: `be7bd13c`, rama
+`feature/sales-work-2026-08-05`.
+
+- Se actualizaron backend y frontend a las imágenes
+  `indice-erp-backend:apptest-be7bd13c` e
+  `indice-erp-web:apptest-be7bd13c`.
+- El JAR ejecutado dentro del backend tiene SHA-256
+  `c4c2d0bfb752f945daea097500ce264adae766784bd5b471489b062c57fbd060`.
+- Pasaron 977 pruebas del backend, 64 regresiones del frontend, typecheck y el
+  build de producción. Las pruebas de nómina quedaron alineadas con CSRF,
+  calendario de periodos, corridas por jurisdicción y validación fiscal.
+- El bundle público de APPTEST coincidió con el artefacto probado:
+  `/assets/index-CeaWPz1k.js`.
+- Web, backend, MySQL y MinIO de staging quedaron saludables, sin reinicios ni
+  errores severos recientes. Ventas y Nómina rechazaron acceso sin sesión con
+  HTTP 401.
+- Los puertos `8180`, `8182`, `8336`, `8900` y `8901` permanecieron ligados
+  únicamente a `127.0.0.1`.
+- El respaldo previo verificado está en
+  `/root/indice-apptest/backups/20260805T135337Z-pre-be7bd13c` e incluye base de
+  datos, entorno, Compose, fuente e inventarios de staging y producción.
+- Las imágenes anteriores permanecen etiquetadas como
+  `apptest-rollback-pre-be7bd13c`.
+- `app.indiceapp.com/api/v1/health` permaneció en HTTP 200 y los IDs, imágenes
+  y fechas de inicio de los contenedores de producción no cambiaron.
+
+## 13. Rollback de staging
 
 1. Guardar copia del archivo secreto, Compose y configuración Apache antes de cada cambio.
 2. Reapuntar `apptest.indiceapp.com` al puerto anterior si el smoke test falla.

@@ -59,6 +59,8 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       contacts: 'contacts',
       quotes: 'quotes',
       sales: 'sales',
+      commissions: 'sales',
+      'payment-accounts': 'sales',
       contracts: 'contracts',
       kpis: 'kpis',
     },

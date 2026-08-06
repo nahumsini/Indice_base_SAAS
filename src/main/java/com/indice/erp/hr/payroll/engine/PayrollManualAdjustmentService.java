@@ -38,6 +38,8 @@ public class PayrollManualAdjustmentService {
         var items = new ArrayList<PayrollCalculatedLineItem>();
         for (var index = 0; index < adjustments.size(); index++) {
             var adjustment = adjustments.get(index);
+            var fiscalTaxable = context.includeInFiscal() && adjustment.taxable();
+            var affectsSocialSecurity = context.includeInFiscal() && adjustment.affectsSocialSecurity();
             var formula = "incentive".equalsIgnoreCase(adjustment.sourceType())
                 ? "approved incentive amount"
                 : "manual adjustment amount";
@@ -50,10 +52,10 @@ public class PayrollManualAdjustmentService {
                 1000 + index,
                 context.country(),
                 context.jurisdiction(),
-                adjustment.taxTreatment(),
-                adjustment.taxable(),
+                context.includeInFiscal() ? adjustment.taxTreatment() : "operational_adjustment",
+                fiscalTaxable,
                 false,
-                adjustment.affectsSocialSecurity(),
+                affectsSocialSecurity,
                 adjustment.affectsEmployerCost(),
                 adjustment.legalClassification(),
                 "",

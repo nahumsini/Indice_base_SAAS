@@ -165,6 +165,7 @@ public class HrIncentivePayrollSupplyService {
         if (updated == 0) {
             throw new IllegalArgumentException("The incentive was already applied or is no longer available.");
         }
+        markSalesCommissionsPaid(companyId, application.incentiveId());
         return resolved;
     }
 
@@ -207,6 +208,22 @@ public class HrIncentivePayrollSupplyService {
             periodStartDate,
             payrollCurrency
         );
+        jdbcTemplate.update("""
+            UPDATE sales_records s
+            JOIN sales_commission_cut_items ci ON ci.sale_id = s.id AND ci.company_id = s.company_id
+            JOIN hr_incentive_applications a ON a.incentive_id = ci.hr_incentive_id AND a.company_id = ci.company_id
+            SET s.commission_status = 'paid'
+            WHERE a.payroll_run_line_id = ? AND a.company_id = ? AND a.status = 'applied'
+            """, payrollRunLineId, companyId);
+    }
+
+    private void markSalesCommissionsPaid(long companyId, long incentiveId) {
+        jdbcTemplate.update("""
+            UPDATE sales_records s
+            JOIN sales_commission_cut_items ci ON ci.sale_id = s.id AND ci.company_id = s.company_id
+            SET s.commission_status = 'paid'
+            WHERE ci.company_id = ? AND ci.hr_incentive_id = ?
+            """, companyId, incentiveId);
     }
 
     private List<IncentiveApplicationRow> loadApplications(

@@ -4,7 +4,7 @@ import { usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTrans
 import type { PaymentAccount } from '../types';
 import { useLearningModeHeaderActions } from '../../../../learningMode';
 
-export function PaymentAccountsSummary({ accounts }: { accounts: PaymentAccount[] }) {
+export function PaymentAccountsSummary({ accounts, tone = 'green' }: { accounts: PaymentAccount[]; tone?: 'green' | 'coral' }) {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const t = usePaymentAccountsTranslations();
   const totalCount = accounts.length;
@@ -22,13 +22,13 @@ export function PaymentAccountsSummary({ accounts }: { accounts: PaymentAccount[
     <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <Metric icon={<CreditCard className="h-4 w-4" />} label={t.expenses.modal.summaryTotal} value={totalCount} />
+          <Metric icon={<CreditCard className="h-4 w-4" />} label={t.expenses.modal.summaryTotal} value={totalCount} tone={tone} />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={t.common.active} value={activeCount} valueClassName="text-[#147514]" />
+          <Metric icon={<CheckCircle2 className="h-4 w-4" />} label={t.common.active} value={activeCount} valueClassName="text-[#147514]" tone={tone} />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <Metric icon={<CircleSlash className="h-4 w-4" />} label={t.common.inactive} value={inactiveCount} valueClassName="text-rose-600 dark:text-rose-400" />
+          <Metric icon={<CircleSlash className="h-4 w-4" />} label={t.common.inactive} value={inactiveCount} valueClassName="text-rose-600 dark:text-rose-400" tone={tone} />
           <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
-          <Metric icon={<Banknote className="h-4 w-4" />} label={t.paymentAccounts.table.pettyCash} value={internalCashCount} valueClassName="text-amber-600 dark:text-amber-400" />
+          <Metric icon={<Banknote className="h-4 w-4" />} label={t.paymentAccounts.table.pettyCash} value={internalCashCount} valueClassName="text-amber-600 dark:text-amber-400" tone={tone} />
         </div>
         <div className="flex min-w-[220px] flex-col gap-2">
           <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
@@ -47,10 +47,10 @@ export function PaymentAccountsSummary({ accounts }: { accounts: PaymentAccount[
   );
 }
 
-function Metric({ icon, label, value, valueClassName = 'text-slate-900 dark:text-white' }: { icon: ReactNode; label: string; value: number; valueClassName?: string }) {
+function Metric({ icon, label, tone, value, valueClassName = 'text-slate-900 dark:text-white' }: { icon: ReactNode; label: string; tone: 'green' | 'coral'; value: number; valueClassName?: string }) {
   return (
     <div className="flex min-w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#147514] shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">{icon}</span>
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700 ${tone === 'coral' ? 'text-[#E8564B]' : 'text-[#147514]'}`}>{icon}</span>
       <span className={`font-medium ${valueClassName}`}>{value}</span>
       <span>{label}</span>
     </div>

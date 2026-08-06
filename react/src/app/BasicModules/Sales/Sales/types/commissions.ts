@@ -8,16 +8,21 @@ export type CommissionType =
 
 export type CommissionStatus = 'pending' | 'approved' | 'paid' | 'cancelled';
 export type CommissionRuleStatus = 'active' | 'inactive';
-export type CommissionViewMode = 'sales' | 'commissions' | 'payment-accounts';
+export type CommissionViewMode = 'sales' | 'commissions';
 export type CommissionPeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
 
 export type CommissionRule = {
   id: string;
+  backendId?: number;
   name: string;
   userId: string;
   userName: string;
+  userIds: string[];
+  userNames: string[];
   productId: string;
   productName: string;
+  productIds: string[];
+  productNames: string[];
   categoryId?: string;
   categoryName?: string;
   type: CommissionType;

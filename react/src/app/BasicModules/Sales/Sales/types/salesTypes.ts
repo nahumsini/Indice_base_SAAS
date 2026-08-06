@@ -13,7 +13,7 @@ export type CommercialStatus = 'pending_validation' | 'approved' | 'rejected' | 
 export type FinanceStatus = 'pending' | 'approved' | 'rejected';
 export type InventoryStatus = 'pending' | 'reserved' | 'approved' | 'unavailable';
 export type DeliveryStatus = 'pending' | 'in_progress' | 'delivered';
-export type CommissionStatus = 'pending' | 'calculated' | 'paid';
+export type CommissionStatus = 'pending' | 'calculated' | 'cut' | 'paid';
 export type InventoryMovementStatus = 'not_generated' | 'pending' | 'approved' | 'completed';
 export type PaymentEvidenceStatus = 'missing' | 'uploaded' | 'under_review' | 'approved' | 'rejected';
 export type SalesPeriodFilter = 'all' | 'today' | 'this_week' | 'this_month' | 'last_month' | 'custom';
@@ -72,6 +72,21 @@ export type SaleRecord = {
   commissionRate: number;
   commissionAmount: number;
   commissionNotes: string;
+  commissionRuleId?: number;
+  commissionRuleCode?: string;
+  commissionRuleName?: string;
+  commissionType?: string;
+  commissionValue?: number;
+  commissionBreakdown?: Array<{
+    ruleId?: number;
+    ruleCode?: string;
+    ruleName: string;
+    commissionType: string;
+    commissionValue: number;
+    commissionAmount: number;
+    productId?: string;
+    productName?: string;
+  }>;
   saleLines: SaleLine[];
   notes: string;
   filesCount?: number;

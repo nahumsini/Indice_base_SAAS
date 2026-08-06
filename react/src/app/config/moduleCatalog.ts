@@ -34,6 +34,8 @@ export const BASIC_MODULE_OPERATIONAL_ORDER: readonly PageId[] = [
   'sales',
   'point-of-sale',
   'inventory',
+  'material-warehouse',
+  'production',
   'expenses',
   'petty-cash',
   'receivables',
@@ -152,6 +154,14 @@ const moduleMetaBySlug: Record<
     category: 'basic',
     title: (t) => t.modules.inventarios,
   },
+  material_warehouse: {
+    route: 'material-warehouse',
+    emoji: '🧱',
+    color: 'coral',
+    category: 'basic',
+    title: () => 'Almacén de materiales',
+  },
+  production: { route: 'production', emoji: '🏭', color: 'coral', category: 'basic', title: () => 'Producción' },
   control_minutas: {
     route: 'minutes-control',
     emoji: '📝',

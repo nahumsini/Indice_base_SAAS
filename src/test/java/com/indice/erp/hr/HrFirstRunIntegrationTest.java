@@ -2119,8 +2119,13 @@ class HrFirstRunIntegrationTest {
             .filter(line -> dailyUserCompanyId == ((Number) line.get("user_company_id")).longValue())
             .findFirst()
             .orElseThrow();
+        var hourlyLine = lines.stream()
+            .filter(line -> hourlyUserCompanyId == ((Number) line.get("user_company_id")).longValue())
+            .findFirst()
+            .orElseThrow();
 
         var dailyLineId = ((Number) dailyLine.get("id")).longValue();
+        var hourlyLineId = ((Number) hourlyLine.get("id")).longValue();
 
         mockMvc.perform(
             put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, dailyLineId)
@@ -2137,6 +2142,16 @@ class HrFirstRunIntegrationTest {
         )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.lines[?(@.id==" + dailyLineId + ")].include_in_fiscal").value(false));
+
+        mockMvc.perform(
+            put("/api/v1/hr/payroll/runs/{runId}/lines/{lineId}", runId, hourlyLineId)
+                .session(session)
+                .header("X-CSRF-Token", csrf(session))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("include_in_fiscal", false)))
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.lines[?(@.id==" + hourlyLineId + ")].include_in_fiscal").value(false));
 
         mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/process", runId)
                 .session(session)

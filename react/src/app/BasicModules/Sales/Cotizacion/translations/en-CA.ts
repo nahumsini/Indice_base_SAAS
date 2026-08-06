@@ -9,6 +9,9 @@ export const enCA = {
     actions: 'Actions',
     unassigned: 'Unassigned',
     optional: 'Optional',
+    back: 'Back',
+    continue: 'Continue',
+    stepLabel: (current: number, total: number) => `Step ${current} of ${total}`,
   },
   header: {
     title: 'Quotes',

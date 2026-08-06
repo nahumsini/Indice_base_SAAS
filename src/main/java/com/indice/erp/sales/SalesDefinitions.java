@@ -16,6 +16,7 @@ final class SalesDefinitions {
         add(definitions, products());
         add(definitions, quotes());
         add(definitions, sales());
+        add(definitions, commissionRules());
         add(definitions, inventoryWarehouses());
         add(definitions, inventoryBalances());
         add(definitions, inventoryMovements());
@@ -220,6 +221,12 @@ final class SalesDefinitions {
                         f("commissionRate", "commission_rate", SalesFieldType.DECIMAL),
                         f("commissionAmount", "commission_amount", SalesFieldType.DECIMAL),
                         f("commissionNotes", "commission_notes", SalesFieldType.STRING),
+                        f("commissionRuleId", "commission_rule_id", SalesFieldType.LONG),
+                        f("commissionRuleCode", "commission_rule_code", SalesFieldType.STRING),
+                        f("commissionRuleName", "commission_rule_name", SalesFieldType.STRING),
+                        f("commissionType", "commission_type", SalesFieldType.STRING),
+                        f("commissionValue", "commission_value", SalesFieldType.DECIMAL),
+                        f("commissionBreakdown", "commission_breakdown_json", SalesFieldType.JSON),
                         f("saleLines", "sale_lines_json", SalesFieldType.JSON),
                         f("notes", "notes", SalesFieldType.STRING),
                         f("customFields", "custom_fields_json", SalesFieldType.JSON),
@@ -256,6 +263,40 @@ final class SalesDefinitions {
                 List.of("name"),
                 List.of("warehouseCode", "name", "type", "businessUnitName", "businessName", "jurisdiction", "responsibleName", "status"),
                 "updated_at DESC, id DESC");
+    }
+
+    private static SalesEntityDefinition commissionRules() {
+        return new SalesEntityDefinition(
+                "commission-rules",
+                "commission_rule",
+                "sales_commission_rules",
+                "id",
+                "ruleCode",
+                "rule_code",
+                "CR",
+                List.of(
+                        f("ruleCode", "rule_code", SalesFieldType.STRING),
+                        f("name", "name", SalesFieldType.STRING),
+                        f("userId", "user_id", SalesFieldType.STRING),
+                        f("userName", "user_name", SalesFieldType.STRING),
+                        f("userIds", "user_ids_json", SalesFieldType.JSON),
+                        f("userNames", "user_names_json", SalesFieldType.JSON),
+                        f("productId", "product_id", SalesFieldType.STRING),
+                        f("productName", "product_name", SalesFieldType.STRING),
+                        f("productIds", "product_ids_json", SalesFieldType.JSON),
+                        f("productNames", "product_names_json", SalesFieldType.JSON),
+                        f("categoryId", "category_id", SalesFieldType.STRING),
+                        f("categoryName", "category_name", SalesFieldType.STRING),
+                        f("type", "commission_type", SalesFieldType.STRING),
+                        f("value", "commission_value", SalesFieldType.DECIMAL),
+                        f("validFrom", "valid_from", SalesFieldType.DATE),
+                        f("validUntil", "valid_until", SalesFieldType.DATE),
+                        f("status", "status", SalesFieldType.STRING),
+                        f("priority", "priority", SalesFieldType.INTEGER),
+                        f("notes", "notes", SalesFieldType.STRING)),
+                List.of("name", "type"),
+                List.of("ruleCode", "name", "userName", "productName", "categoryName", "status"),
+                "priority DESC, updated_at DESC, id DESC");
     }
 
     private static SalesEntityDefinition inventoryBalances() {

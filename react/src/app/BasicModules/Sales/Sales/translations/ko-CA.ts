@@ -211,6 +211,7 @@ export const koCA = {
     commission: {
       pending: '대기',
       calculated: '계산됨',
+      cut: 'HR로 전송됨',
       paid: '지급됨',
     },
     movement: {

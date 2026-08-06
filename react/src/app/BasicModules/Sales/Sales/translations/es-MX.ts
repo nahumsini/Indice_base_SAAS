@@ -17,7 +17,7 @@ export const esMX = {
     title: 'Ventas',
     subtitle: 'Controla ventas ganadas, evidencia de pago, validaciones, preparación de inventario y comisiones.',
     columnsAction: 'Columnas',
-    commissionRulesAction: 'Commission Rules',
+    commissionRulesAction: 'Políticas de comisión',
     preferredCurrencyAction: 'Divisa preferida',
     primaryAction: 'Nueva venta',
   },
@@ -462,6 +462,7 @@ export const esMX = {
     commission: {
       pending: 'Pendiente',
       calculated: 'Calculada',
+      cut: 'Enviada a RH',
       paid: 'Pagada',
     },
     movement: {
@@ -493,6 +494,43 @@ export const esMX = {
   },
   commissions: {
     ...enCA.commissions,
+    rules: {
+      ...enCA.commissions.rules,
+      title: 'Políticas de comisión',
+      description: 'Define quién participa, qué ventas generan comisión y cómo se reconoce su resultado.',
+      defaultRuleName: 'Nueva política de comisión',
+      noRules: 'Aún no hay políticas configuradas.',
+      estimatedCommission: 'Comisión estimada',
+      saveRule: 'Guardar política',
+      resetDraft: 'Limpiar borrador',
+      sections: {
+        rules: 'Políticas guardadas',
+        usersProducts: 'Participantes y productos',
+        preview: 'Simulación del cálculo',
+      },
+      fields: {
+        ruleName: 'Nombre de la política',
+        user: 'Colaboradores participantes',
+        product: 'Productos aplicables',
+        category: 'Categoría aplicable',
+        type: 'Forma de calcular',
+        value: 'Valor de la comisión',
+        validFrom: 'Vigente desde',
+        validUntil: 'Vigente hasta',
+        status: 'Estado',
+        priority: 'Prioridad',
+        notes: 'Notas internas',
+        exampleSaleAmount: 'Monto de ejemplo',
+        exampleQuantity: 'Cantidad de ejemplo',
+      },
+    },
+    types: {
+      fixed_per_sale: 'Monto fijo por venta',
+      fixed_per_product: 'Monto fijo por unidad',
+      percentage_of_sale: 'Porcentaje de la venta',
+      percentage_of_product: 'Porcentaje del producto',
+    },
+    ruleStatuses: { active: 'Activa', inactive: 'Inactiva' },
     kpiEngine: {
       labels: {
         visible: 'visibles',

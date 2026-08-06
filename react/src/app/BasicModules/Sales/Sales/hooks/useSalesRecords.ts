@@ -6,7 +6,6 @@ import { validateSaleDraftForBackendReadiness } from '../../services/salesWorkfl
 import { useSalesCrm } from '../../salesCrmContext';
 import { defaultSalesCurrency } from '../../utils/salesCurrency';
 import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
-import { calculateCommissionAmount } from '../utils/salesFormatters';
 import { calculateSalesMetrics } from '../utils/salesMetrics';
 import { defaultVisibleSalesColumns } from '../utils/salesStatuses';
 import { salesApi } from '../../salesApi';
@@ -228,7 +227,7 @@ export function useSalesRecords(
       taxTotal: Number(draft.taxTotal) || 0,
       marginTotal: Number(draft.marginTotal) || saleLines.reduce((sum, line) => sum + line.marginAmount, 0),
       commissionRate,
-      commissionAmount: draft.commissionAmount ?? calculateCommissionAmount(totalAmount, commissionRate),
+      commissionAmount: draft.commissionAmount ?? 0,
       inventoryMovementReference: draft.inventoryMovementReference || saleLines[0]?.inventoryMovementDraftId || '',
       saleLines,
     };

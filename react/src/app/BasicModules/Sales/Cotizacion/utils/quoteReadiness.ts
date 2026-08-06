@@ -2,10 +2,8 @@ import type { SalesCatalogItem, SalesContact, SalesQuoteItem } from '../../types
 import type { QuoteFormState, QuoteHealthState, QuoteTotals } from '../types/quoteBuilderTypes';
 import { isProductReadyForQuote } from './quoteCatalogAdapters';
 
-function hasCustomer(form: QuoteFormState, selectedContact?: SalesContact | null) {
-  return form.clientMode === 'contact'
-    ? Boolean(selectedContact)
-    : Boolean(form.temporaryClient.trim());
+function hasCustomer(_form: QuoteFormState, selectedContact?: SalesContact | null) {
+  return Boolean(selectedContact);
 }
 
 export function getQuoteHealthState({

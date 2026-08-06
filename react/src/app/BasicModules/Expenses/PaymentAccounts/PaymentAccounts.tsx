@@ -21,11 +21,14 @@ import { PaymentAccountsSummary } from './components/PaymentAccountsSummary';
 import { PaymentAccountsTable } from './components/PaymentAccountsTable';
 
 interface PaymentAccountsProps {
+  headerSubtitle?: string;
+  headerTitle?: string;
+  headerTone?: 'green' | 'coral';
   onNavigate?: (page?: string) => void;
   refreshKey?: number;
 }
 
-export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentAccountsProps = {}) {
+export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTone = 'green', onNavigate, refreshKey = 0 }: PaymentAccountsProps = {}) {
   const t = usePaymentAccountsTranslations();
   const { pettyCashFunds } = usePettyCash();
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
@@ -199,6 +202,9 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
         description={t.module.loadingFinanceDescription}
       />
       <PaymentAccountsHeaderBanner
+        subtitle={headerSubtitle}
+        title={headerTitle}
+        tone={headerTone}
         onAddAccount={() => setIsAddModalOpen(true)}
         onConfigureColumns={() => setIsColumnsModalOpen(true)}
       />
@@ -208,21 +214,22 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
         searchTerm={searchTerm}
         statusFilter={statusFilter}
         typeFilter={typeFilter}
+        tone={headerTone}
         onSearchChange={setSearchTerm}
         onStatusChange={setStatusFilter}
         onTypeChange={setTypeFilter}
       />
 
-      <div className="rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3 dark:border-[#147514]/30 dark:bg-[#147514]/10">
+      <div className={`rounded-2xl border px-4 py-3 ${headerTone === 'coral' ? 'border-[#FF6B5E]/25 bg-[#FF6B5E]/5 dark:border-[#FF6B5E]/30 dark:bg-[#FF6B5E]/10' : 'border-[#147514]/20 bg-[#147514]/5 dark:border-[#147514]/30 dark:bg-[#147514]/10'}`}>
         <div className="flex gap-3">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#147514]" />
+          <ShieldCheck className={`mt-0.5 h-4 w-4 shrink-0 ${headerTone === 'coral' ? 'text-[#E8564B]' : 'text-[#147514]'}`} />
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
             {t.paymentAccounts.pettyCashNotice}
           </p>
         </div>
       </div>
 
-      <PaymentAccountsSummary accounts={filteredAccounts} />
+      <PaymentAccountsSummary accounts={filteredAccounts} tone={headerTone} />
       <PaymentAccountsTable
         accounts={filteredAccounts}
         businessOptions={businessOptions}
@@ -235,6 +242,7 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
         sortField={sortField}
         unitOptions={unitOptions}
         columns={visibleColumns}
+        tone={headerTone}
         onNavigate={onNavigate}
         onSort={handleSort}
         onToggleActive={handleToggleActive}
@@ -258,6 +266,9 @@ export default function PaymentAccounts({ onNavigate, refreshKey = 0 }: PaymentA
           unitOptions={unitOptions}
           onClose={closeModal}
           onSubmit={handleSaveAccount}
+          subtitle={headerSubtitle}
+          title={headerTitle}
+          tone={headerTone}
         />
       )}
       <ConfirmDeleteDialog
