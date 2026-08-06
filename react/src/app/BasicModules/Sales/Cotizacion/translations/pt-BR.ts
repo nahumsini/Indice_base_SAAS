@@ -12,6 +12,9 @@ export const ptBR = {
     actions: 'Acoes',
     unassigned: 'Sem responsavel',
     optional: 'Opcional',
+    back: 'Voltar',
+    continue: 'Continuar',
+    stepLabel: (current: number, total: number) => `Etapa ${current} de ${total}`,
   },
   header: {
     ...enCA.header,

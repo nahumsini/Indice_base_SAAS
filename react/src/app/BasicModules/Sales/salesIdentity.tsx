@@ -5,6 +5,8 @@ import {
   Building2,
   CheckCircle2,
   CircleDollarSign,
+  BadgePercent,
+  CreditCard,
   ClipboardCheck,
   FileSignature,
   Handshake,
@@ -25,6 +27,8 @@ export const salesTabIds = [
   'contacts',
   'quotes',
   'sales',
+  'commissions',
+  'payment-accounts',
   'products',
   'providers',
   'inventory',
@@ -39,7 +43,7 @@ export const routedSalesTabIds = salesTabIds.filter(
   (tabId): tabId is SalesTabId => !['products', 'providers', 'inventory', 'after-sales'].includes(tabId),
 );
 
-type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'productos' | 'proveedores' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
+type SalesTranslationKey = 'prospectos' | 'contactos' | 'cotizacion' | 'sales' | 'commissions' | 'paymentAccounts' | 'productos' | 'proveedores' | 'inventario' | 'postventa' | 'contrato' | 'kpis';
 
 type SalesTone = 'blue' | 'aqua' | 'yellow' | 'coral' | 'graphite';
 
@@ -94,6 +98,8 @@ export const salesModuleTabs: Array<{
   { id: 'contacts', translationKey: 'contactos', emoji: '👥', icon: UsersRound, tone: 'aqua' },
   { id: 'quotes', translationKey: 'cotizacion', emoji: '💬', icon: Quote, tone: 'yellow' },
   { id: 'sales', translationKey: 'sales', emoji: '💰', icon: CircleDollarSign, tone: 'coral' },
+  { id: 'commissions', translationKey: 'commissions', emoji: '🧮', icon: BadgePercent, tone: 'coral' },
+  { id: 'payment-accounts', translationKey: 'paymentAccounts', emoji: '💳', icon: CreditCard, tone: 'coral' },
   { id: 'products', translationKey: 'productos', emoji: '📦', icon: PackageCheck, tone: 'aqua' },
   { id: 'providers', translationKey: 'proveedores', emoji: '🏢', icon: Building2, tone: 'coral' },
   { id: 'inventory', translationKey: 'inventario', emoji: '🏬', icon: Warehouse, tone: 'coral' },
@@ -103,7 +109,7 @@ export const salesModuleTabs: Array<{
 ];
 
 export const visibleSalesModuleTabs = salesModuleTabs.filter(
-  (tab) => !['products', 'providers', 'inventory', 'after-sales'].includes(tab.id),
+  (tab) => !['products', 'providers', 'inventory', 'contracts', 'after-sales'].includes(tab.id),
 );
 
 const toneClasses: Record<SalesTone, {
@@ -250,6 +256,46 @@ const salesCopyEs: SalesWorkspaceCopy = {
       ],
       signalTitle: 'Puente operativo',
       signals: ['Crear venta desde cotización aceptada', 'Separar cierre comercial de inventario', 'Pasar validación a finanzas y postventa'],
+    },
+    commissions: {
+      eyebrow: 'Reconocimiento comercial',
+      title: 'Comisiones',
+      description: 'Controla políticas, resultados generados y cortes enviados a Incentivos y Nómina.',
+      primaryAction: 'Generar corte',
+      secondaryAction: 'Administrar políticas',
+      metrics: [
+        { label: 'Generadas', value: '$18K', detail: 'pendientes de corte' },
+        { label: 'En RH', value: '2', detail: 'cortes en proceso' },
+        { label: 'Consumidas', value: '1', detail: 'aplicadas en nómina' },
+      ],
+      lanes: [
+        { label: 'Política', value: 'Reglas', detail: 'Participantes y productos' },
+        { label: 'Generación', value: 'Venta', detail: 'Resultado calculado' },
+        { label: 'Corte', value: 'RH', detail: 'Envío a incentivos' },
+        { label: 'Consumo', value: 'Nómina', detail: 'Pago aplicado una vez' },
+      ],
+      signalTitle: 'Ciclo de comisión',
+      signals: ['Definir políticas vigentes', 'Revisar resultados antes del corte', 'Dar seguimiento hasta nómina'],
+    },
+    'payment-accounts': {
+      eyebrow: 'Infraestructura de cobro',
+      title: 'Cuentas de pago de ventas',
+      description: 'Define los destinos donde se reciben e identifican los pagos originados por cierres comerciales.',
+      primaryAction: 'Agregar cuenta',
+      secondaryAction: 'Revisar conciliación',
+      metrics: [
+        { label: 'Cuentas activas', value: '2', detail: 'disponibles para cobrar' },
+        { label: 'Métodos cubiertos', value: '3', detail: 'banco, efectivo y tarjeta' },
+        { label: 'Pendiente', value: '0', detail: 'cuentas por configurar' },
+      ],
+      lanes: [
+        { label: 'Cobro', value: 'Venta', detail: 'Destino seleccionado al cerrar' },
+        { label: 'Identificación', value: 'Referencia', detail: 'Rastreo del pago recibido' },
+        { label: 'Conciliación', value: 'Finanzas', detail: 'Validación posterior del ingreso' },
+        { label: 'Caja chica', value: 'Visible', detail: 'Gestión operativa en Finanzas' },
+      ],
+      signalTitle: 'Control del cobro',
+      signals: ['Mantener solo cuentas vigentes', 'Asignar cuenta al registrar el pago', 'Conciliar el ingreso con Finanzas'],
     },
     products: {
       eyebrow: 'Catálogo comercial',

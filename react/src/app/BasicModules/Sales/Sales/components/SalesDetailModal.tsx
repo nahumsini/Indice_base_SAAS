@@ -18,7 +18,7 @@ import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord } from '../types/commissions';
 import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft, SalesBusinessOption, SalesCurrentSeller } from '../types/salesTypes';
 import { formatCommissionType } from '../utils/commissionRules';
-import { calculateCommissionAmount, formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
+import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
 import {
   SalesCreateForm,
@@ -56,11 +56,13 @@ function getDefaultBusinessScope() {
 function getWarehouseBusinessScope(warehouse?: InventoryWarehouse) {
   if (!warehouse) return getDefaultBusinessScope();
 
+  const fallback = getDefaultBusinessScope();
+
   return {
-    businessUnitId: warehouse.businessUnitId ?? '',
-    businessUnitName: warehouse.businessUnitName ?? '',
-    businessId: warehouse.businessId ?? '',
-    businessName: warehouse.businessName ?? '',
+    businessUnitId: warehouse.businessUnitId || fallback.businessUnitId,
+    businessUnitName: warehouse.businessUnitName || fallback.businessUnitName,
+    businessId: warehouse.businessId || fallback.businessId,
+    businessName: warehouse.businessName || fallback.businessName,
   };
 }
 
@@ -240,10 +242,6 @@ export function SalesDetailModal({
     }
   }, [currentSeller, open, record, warehouses]);
 
-  const calculatedCommissionAmount = useMemo(
-    () => calculateCommissionAmount(Number(form.totalAmount) || 0, Number(form.commissionRate) || 0),
-    [form.commissionRate, form.totalAmount],
-  );
   const createValidation = useMemo(
     () => validateSaleDraftForBackendReadiness(form),
     [form],
@@ -462,6 +460,13 @@ export function SalesDetailModal({
         return;
       }
 
+      setActiveCreateStep('payment');
+      setStepError('');
+      setValidationErrors([]);
+      return;
+    }
+
+    if (activeCreateStep === 'payment') {
       setActiveCreateStep('review');
       setStepError('');
       setValidationErrors(createValidation.errors);
@@ -522,7 +527,6 @@ export function SalesDetailModal({
       inventoryMovementReference: form.inventoryMovementReference.trim(),
       commissionNotes: form.commissionNotes.trim(),
       notes: form.notes.trim(),
-      commissionAmount: calculatedCommissionAmount,
     };
 
     setIsSaving(true);
@@ -576,17 +580,6 @@ export function SalesDetailModal({
               <Button variant="outline" className={actionClassNames.secondary} onClick={handleCreateStepBack} disabled={isSaving}>
                 <ChevronLeft className="h-4 w-4" />
                 {t.modal.wizard.back}
-              </Button>
-            ) : null}
-            {activeCreateStep === 'review' ? (
-              <Button
-                variant="outline"
-                className={actionClassNames.secondary}
-                onClick={() => setIsSummaryPreviewOpen(true)}
-                disabled={isSaving || !form.customerName.trim()}
-              >
-                <FileSearch className="h-4 w-4" />
-                {t.modal.wizard.preview}
               </Button>
             ) : null}
             {activeCreateStep !== 'review' ? (
@@ -725,7 +718,7 @@ export function SalesDetailModal({
       </SalesModalFrame>
       <SaleSummaryPreviewModal
         open={open && isSummaryPreviewOpen}
-        sale={{ ...form, commissionAmount: form.commissionAmount ?? calculatedCommissionAmount }}
+        sale={form}
         quote={selectedQuote}
         t={t}
         onOpenChange={setIsSummaryPreviewOpen}

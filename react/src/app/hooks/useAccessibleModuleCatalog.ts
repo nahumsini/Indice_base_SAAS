@@ -27,11 +27,21 @@ export function useAccessibleModuleCatalog(t: Translator) {
           .map((module) => mapBackendModuleToCard(module, t))
           .filter((module): module is DashboardModuleCard => module !== null);
 
-        setAvailableModules(mergeDashboardModules(mappedModules, defaultModules, {
+        const resolvedModules = mergeDashboardModules(mappedModules, defaultModules, {
           // The backend registry is authoritative. Missing modules may be
           // globally disabled, unassigned, unreleased, or not entitled.
           includeMissingFallbacks: false,
-        }));
+        });
+
+        // Keep the in-progress Material Warehouse visible in the local React
+        // launcher without weakening production entitlement enforcement.
+        const localDevelopmentModules = import.meta.env.DEV
+          ? defaultModules.filter((module) => module.route === 'material-warehouse' || module.route === 'production')
+          : [];
+
+        setAvailableModules(
+          [...resolvedModules, ...localDevelopmentModules.filter((candidate) => !resolvedModules.some((module) => module.route === candidate.route))],
+        );
       } catch {
         if (active) {
           // Fail closed: a stale local catalog must never resurrect a module

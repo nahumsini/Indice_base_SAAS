@@ -13,7 +13,7 @@ export const commercialStatuses: CommercialStatus[] = ['pending_validation', 'ap
 export const financeStatuses: FinanceStatus[] = ['pending', 'approved', 'rejected'];
 export const inventoryStatuses: InventoryStatus[] = ['pending', 'reserved', 'approved', 'unavailable'];
 export const deliveryStatuses: DeliveryStatus[] = ['pending', 'in_progress', 'delivered'];
-export const commissionStatuses: CommissionStatus[] = ['pending', 'calculated', 'paid'];
+export const commissionStatuses: CommissionStatus[] = ['pending', 'calculated', 'cut', 'paid'];
 export const inventoryMovementStatuses: InventoryMovementStatus[] = ['not_generated', 'pending', 'approved', 'completed'];
 export const paymentEvidenceStatuses: PaymentEvidenceStatus[] = ['missing', 'uploaded', 'under_review', 'approved', 'rejected'];
 
@@ -61,6 +61,7 @@ export const validationStatusClasses = {
   in_progress: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
   delivered: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   calculated: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]',
+  cut: 'border-blue-200 bg-blue-50 text-blue-700',
   paid: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   missing: 'border-slate-300 bg-slate-100 text-slate-500',
   uploaded: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',

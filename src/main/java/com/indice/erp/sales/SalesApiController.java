@@ -27,10 +27,12 @@ public class SalesApiController {
 
     private final SessionAuthService sessionAuthService;
     private final SalesService salesService;
+    private final SalesCommissionCutService commissionCutService;
 
-    public SalesApiController(SessionAuthService sessionAuthService, SalesService salesService) {
+    public SalesApiController(SessionAuthService sessionAuthService, SalesService salesService, SalesCommissionCutService commissionCutService) {
         this.sessionAuthService = sessionAuthService;
         this.salesService = salesService;
+        this.commissionCutService = commissionCutService;
     }
 
     @GetMapping("/context")
@@ -273,6 +275,70 @@ public class SalesApiController {
                     payload == null ? Map.<String, Object>of() : payload));
         } catch (NoSuchElementException ex) {
             return notFound(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
+    @PostMapping("/commission-rules/preview")
+    public ResponseEntity<?> previewCommissionRule(
+            HttpSession session,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) return unauthorized();
+        try {
+            return ResponseEntity.ok(salesService.previewCommissionRule(
+                    payload == null ? Map.<String, Object>of() : payload));
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
+    @GetMapping("/commission-cuts")
+    public ResponseEntity<?> listCommissionCuts(HttpSession session) {
+        var user = currentUser(session);
+        if (user.isEmpty()) return unauthorized();
+        var items = commissionCutService.list(user.get().companyId());
+        return ResponseEntity.ok(Map.of("items", items, "count", items.size()));
+    }
+
+    @PostMapping("/commission-cuts")
+    public ResponseEntity<?> createCommissionCut(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) return unauthorized();
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(commissionCutService.create(user.get(), payload));
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
+    @GetMapping("/commission-cut-schedule")
+    public ResponseEntity<?> getCommissionCutSchedule(HttpSession session) {
+        var user = currentUser(session);
+        if (user.isEmpty()) return unauthorized();
+        var items = commissionCutService.schedules(user.get().companyId());
+        return ResponseEntity.ok(Map.of("items", items, "count", items.size()));
+    }
+
+    @PutMapping("/commission-cut-schedule")
+    public ResponseEntity<?> saveCommissionCutSchedule(HttpSession session, @RequestBody Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) return unauthorized();
+        try {
+            return ResponseEntity.ok(commissionCutService.saveSchedule(user.get(), payload));
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
+    @DeleteMapping("/commission-cut-schedule/{scheduleId}")
+    public ResponseEntity<?> deleteCommissionCutSchedule(HttpSession session, @PathVariable long scheduleId) {
+        var user = currentUser(session);
+        if (user.isEmpty()) return unauthorized();
+        try {
+            commissionCutService.deleteSchedule(user.get().companyId(), scheduleId);
+            return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException ex) {
             return badRequest(ex);
         }

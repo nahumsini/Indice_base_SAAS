@@ -28,9 +28,7 @@ export function QuoteFinalReviewSection({
   t: QuotesTranslations;
   formatCurrency: (value: number, currency?: string | null) => string;
 }) {
-  const customer = form.clientMode === 'contact'
-    ? selectedContact?.company ?? t.common.unassigned
-    : form.temporaryClient || t.common.unassigned;
+  const customer = selectedContact?.company ?? t.common.unassigned;
   const taxJurisdiction = form.taxJurisdiction === 'custom' && form.customJurisdictionName.trim()
     ? form.customJurisdictionName.trim()
     : t.taxJurisdictions[form.taxJurisdiction];

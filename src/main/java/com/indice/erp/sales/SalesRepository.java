@@ -401,6 +401,36 @@ class SalesRepository {
         var sellerName = firstNonBlank(SalesPayloadSupport.stringValue(payload, "sellerName"), "Indice user");
         var movementCount = 0;
 
+        // Validate the complete movement before changing balances. This keeps a sale
+        // with several lines from producing a partial inventory discount when a later
+        // line still needs stock or warehouse configuration.
+        for (var item : lines) {
+            if (!(item instanceof Map<?, ?> rawLine)) {
+                continue;
+            }
+            var line = toStringMap(rawLine);
+            var productId = safeLong(SalesPayloadSupport.value(line, "productId"));
+            if (productId == null) {
+                throw new IllegalArgumentException("Each sale item must reference a saved product.");
+            }
+            var product = requireSaleProduct(companyId, productId);
+            if (!Boolean.TRUE.equals(product.get("inventoryReady"))) {
+                continue;
+            }
+            var quantity = SalesPayloadSupport.decimalValue(line, "quantity");
+            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Sale item quantity must be greater than zero.");
+            }
+            var balance = requireInventoryBalanceForUpdate(companyId, productId, warehouseId);
+            if (!Boolean.TRUE.equals(balance.get("usesInventory"))) {
+                throw new IllegalArgumentException("The selected product is not enabled for inventory in this warehouse.");
+            }
+            var available = (BigDecimal) balance.get("availableQuantity");
+            if (available.compareTo(quantity) < 0) {
+                throw new IllegalArgumentException("Insufficient inventory for " + product.get("name") + " in " + warehouse.get("name") + ".");
+            }
+        }
+
         for (var index = 0; index < lines.size(); index++) {
             if (!(lines.get(index) instanceof Map<?, ?> rawLine)) {
                 continue;

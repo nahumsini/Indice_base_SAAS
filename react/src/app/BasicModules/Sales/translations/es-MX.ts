@@ -13,11 +13,17 @@ export const esMX = {
     contactos: 'Contactos',
     cotizacion: 'Cotizaciones',
     sales: 'Ventas',
+    commissions: 'Comisiones',
+    paymentAccounts: 'Cuentas de pago',
     productos: 'Productos',
     proveedores: 'Proveedores',
     inventario: 'Inventario',
     contrato: 'Contratos',
     postventa: 'Postventa',
     kpis: 'KPIs',
+  },
+  paymentAccountsWorkspace: {
+    title: 'Cuentas de pago de ventas',
+    subtitle: 'Define dónde se reciben, identifican y concilian los cobros generados por ventas.',
   },
 } as const;

@@ -12,6 +12,9 @@ export const zhCA = {
     actions: '操作',
     unassigned: '未分配',
     optional: '可选',
+    back: '返回',
+    continue: '继续',
+    stepLabel: (current: number, total: number) => `第 ${current} 步，共 ${total} 步`,
   },
   header: {
     ...enCA.header,

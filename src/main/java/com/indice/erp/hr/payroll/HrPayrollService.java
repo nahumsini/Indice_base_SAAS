@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -1072,7 +1073,14 @@ public class HrPayrollService {
         HrOperationalScope scope
     ) {
         var normalizedPeriodEndDate = normalizeRunPeriodEndDate(payPeriod, periodStartDate, preferences);
-        var hrUsers = loadEligibleHrUsers(companyId, payPeriod, true, scope);
+        var hrUsers = loadEligibleHrUsers(
+            companyId,
+            payPeriod,
+            true,
+            normalizedPeriodEndDate,
+            periodStartDate,
+            scope
+        );
         if (hrUsers.isEmpty()) {
             throw new IllegalArgumentException("No hay colaboradores activos configurados para la frecuencia de pago seleccionada.");
         }
@@ -2085,20 +2093,23 @@ public class HrPayrollService {
         return null;
     }
 
-    private List<PayrollHrUserRow> loadEligibleHrUsers(long companyId, String payPeriod, boolean matchRequestedPayPeriod) {
-        return loadEligibleHrUsers(companyId, payPeriod, matchRequestedPayPeriod, HrOperationalScope.corporateOffice());
-    }
-
     private List<PayrollHrUserRow> loadEligibleHrUsers(
         long companyId,
         String payPeriod,
         boolean matchRequestedPayPeriod,
+        LocalDate periodEndDate,
+        LocalDate periodStartDate,
         HrOperationalScope scope
     ) {
         var params = new ArrayList<Object>();
         params.add(companyId);
         params.add(matchRequestedPayPeriod ? 1 : 0);
         params.add(payPeriod);
+        params.add(Date.valueOf(periodEndDate));
+        params.add(Date.valueOf(periodEndDate));
+        params.add(Date.valueOf(periodStartDate));
+        params.add(Date.valueOf(periodStartDate));
+        params.add(Date.valueOf(periodStartDate));
         params.addAll(scope.hrUserParameters());
 
         return jdbcTemplate.query(
@@ -2127,9 +2138,15 @@ public class HrPayrollService {
                 LEFT JOIN units u ON u.id = e.unit_id
                 LEFT JOIN businesses b ON b.id = e.business_id
                 WHERE e.company_id = ?
+                  AND e.work_profile_id IS NOT NULL
                   AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
                   AND COALESCE(LOWER(e.payroll_treatment), 'fiscal_payroll') <> 'no_payroll'
                   AND (? = 0 OR COALESCE(LOWER(e.pay_period), 'weekly') = ?)
+                  AND (e.hire_date IS NULL OR e.hire_date <= ?)
+                  AND (e.contract_start_date IS NULL OR e.contract_start_date <= ?)
+                  AND (e.contract_end_date IS NULL OR e.contract_end_date >= ?)
+                  AND (e.termination_date IS NULL OR e.termination_date >= ?)
+                  AND (e.last_working_day IS NULL OR e.last_working_day >= ?)
                 """
                 + scope.hrUserPredicate("e")
                 + """

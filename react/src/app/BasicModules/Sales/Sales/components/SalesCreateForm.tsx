@@ -2,7 +2,6 @@ import { AlertTriangle, CheckCircle2, FileUp, PackageCheck, X } from 'lucide-rea
 import {
   IndiceModalSummary,
   IndiceModalValidation,
-  IndiceModalWizardStepper,
 } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import {
@@ -21,14 +20,15 @@ import type { SalesRecordsTranslations } from '../translations';
 import type { SaleRecordDraft, SalesBusinessOption } from '../types/salesTypes';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, normalizeSalesPaymentMethod, salesPaymentMethodIds } from '../utils/salesPaymentMethods';
+import { SalesDocumentWizard } from '../../components/SalesDocumentWizard';
 import { FormField, salesFieldClassName, SectionCard } from './SalesModalPrimitives';
 import { SalesCustomerSelector } from './SalesCustomerSelector';
 import { SalesLineItemsEditor } from './SalesLineItemsEditor';
 import { SalesPaymentAccountField } from './SalesPaymentAccountField';
 
-export type SalesCreateStepId = 'origin' | 'operation' | 'review';
+export type SalesCreateStepId = 'origin' | 'operation' | 'payment' | 'review';
 
-export const salesCreateStepIds: SalesCreateStepId[] = ['origin', 'operation', 'review'];
+export const salesCreateStepIds: SalesCreateStepId[] = ['origin', 'operation', 'payment', 'review'];
 
 type SalesCreateFormProps = {
   activeStep: SalesCreateStepId;
@@ -198,6 +198,7 @@ function OriginStep({
 }
 
 function OperationStep({
+  mode,
   form,
   businessOptions,
   products,
@@ -212,7 +213,7 @@ function OperationStep({
   | 'warehouses'
   | 't'
   | 'onFormChange'
->) {
+> & { mode: 'operation' | 'payment' }) {
   const operationalContext = getSalesOperationalContext(form.businessId);
   const selectedPaymentMethod = normalizeSalesPaymentMethod(form.paymentMethod);
   const availableWarehouses = warehouses.filter((warehouse) => warehouse.status === 'active');
@@ -227,6 +228,7 @@ function OperationStep({
 
   return (
     <div className="space-y-4">
+      {mode === 'operation' ? <>
       <SectionCard title={t.modal.wizard.operationTitle} description={t.modal.wizard.operationDescription}>
         <section className="grid gap-4 md:grid-cols-2">
           <FormField label={`${t.modal.fields.warehouse} *`}>
@@ -234,20 +236,25 @@ function OperationStep({
               value={form.warehouseId || 'none'}
               onValueChange={(warehouseId) => {
                 const warehouse = warehouses.find((item) => item.id === warehouseId);
+                const fallbackBusiness = businessOptions[0];
+                const businessUnitId = warehouse?.businessUnitId || fallbackBusiness?.businessUnitId || '';
+                const businessUnitName = warehouse?.businessUnitName || fallbackBusiness?.businessUnitName || '';
+                const businessId = warehouse?.businessId || fallbackBusiness?.id || '';
+                const businessName = warehouse?.businessName || fallbackBusiness?.name || '';
                 onFormChange({
                   warehouseId,
                   warehouseName: warehouse?.name ?? '',
-                  businessUnitId: warehouse?.businessUnitId ?? '',
-                  businessUnitName: warehouse?.businessUnitName ?? '',
-                  businessId: warehouse?.businessId ?? '',
-                  businessName: warehouse?.businessName ?? '',
+                  businessUnitId,
+                  businessUnitName,
+                  businessId,
+                  businessName,
                   paymentAccountId: undefined,
                   paymentAccountName: undefined,
                   saleLines: form.saleLines.map((line) => ({
                     ...line,
                     warehouseId,
-                    businessUnitId: warehouse?.businessUnitId ?? '',
-                    businessId: warehouse?.businessId ?? '',
+                    businessUnitId,
+                    businessId,
                   })),
                 });
               }}
@@ -282,7 +289,8 @@ function OperationStep({
       <SectionCard title={t.modal.sections.items} description={t.modal.itemsHelper}>
         <SalesLineItemsEditor form={form} products={products} t={t} onFormChange={onFormChange} />
       </SectionCard>
-
+      </> : null}
+      {mode === 'payment' ? (
       <SectionCard title={t.modal.sections.payment} description={t.modal.wizard.paymentDescription}>
         <section className="grid gap-4 md:grid-cols-2">
           <FormField label={t.modal.fields.paymentMethod}>
@@ -346,6 +354,7 @@ function OperationStep({
           </FormField>
         </section>
       </SectionCard>
+      ) : null}
     </div>
   );
 }
@@ -436,15 +445,15 @@ export function SalesCreateForm({
   onQuoteSelection,
 }: SalesCreateFormProps) {
   return (
-    <div className="space-y-4">
-      <IndiceModalWizardStepper
-        accent="coral"
+    <SalesDocumentWizard
         activeStepId={activeStep}
         progressLabel={t.modal.wizard.progressLabel}
-        steps={salesCreateStepIds.map((stepId) => ({ id: stepId, label: t.modal.wizard.steps[stepId] }))}
-      />
-
-      <IndiceModalValidation messages={stepError ? [stepError] : []} />
+        steps={salesCreateStepIds.map((stepId) => ({
+          id: stepId,
+          label: stepId === 'payment' ? t.modal.sections.payment : t.modal.wizard.steps[stepId],
+        }))}
+        validation={<IndiceModalValidation messages={stepError ? [stepError] : []} />}
+    >
 
       {activeStep === 'origin' ? (
         <OriginStep
@@ -463,6 +472,19 @@ export function SalesCreateForm({
 
       {activeStep === 'operation' ? (
         <OperationStep
+          mode="operation"
+          form={form}
+          businessOptions={businessOptions}
+          products={products}
+          warehouses={warehouses}
+          t={t}
+          onFormChange={onFormChange}
+        />
+      ) : null}
+
+      {activeStep === 'payment' ? (
+        <OperationStep
+          mode="payment"
           form={form}
           businessOptions={businessOptions}
           products={products}
@@ -473,6 +495,6 @@ export function SalesCreateForm({
       ) : null}
 
       {activeStep === 'review' ? <ReviewStep form={form} isReady={isReady} selectedQuote={selectedQuote} t={t} /> : null}
-    </div>
+    </SalesDocumentWizard>
   );
 }

@@ -19,6 +19,9 @@ type PaymentAccountModalProps = {
   unitOptions: FinanceReferenceOption[];
   onClose: () => void;
   onSubmit: (account: PaymentAccount) => void | Promise<void>;
+  subtitle?: string;
+  title?: string;
+  tone?: 'green' | 'coral';
 };
 
 type PaymentFormValues = {
@@ -35,7 +38,7 @@ type PaymentFormValues = {
 
 const paymentAccountTypeValues: PaymentAccountType[] = ['bank', 'cash', 'credit_card', 'debit_card', 'digital_wallet'];
 
-export function PaymentAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit }: PaymentAccountModalProps) {
+export function PaymentAccountModal({ account, businessOptions, unitOptions, onClose, onSubmit, subtitle, title, tone = 'green' }: PaymentAccountModalProps) {
   const t = usePaymentAccountsTranslations();
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +62,12 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
   })), [t]);
   const numericBalance = Number(values.balance);
   const canSave = values.name.trim().length > 0 && Number.isFinite(numericBalance) && !isSaving;
+  const inputClassName = tone === 'coral'
+    ? `${financeModalInputClass} focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20`
+    : financeModalInputClass;
+  const primaryButtonClassName = tone === 'coral'
+    ? 'inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#D94E43] shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-white/50 disabled:text-[#D94E43]/60'
+    : financeModalPrimaryButtonClass;
 
   useEffect(() => {
     if (!values.businessId) return;
@@ -103,11 +112,11 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
     <IndiceModalFrame
       busy={isSaving}
       closeLabel={t.columnModal.close}
-      description={account ? account.name : t.paymentAccounts.headerSubtitle}
+      description={account ? account.name : subtitle ?? t.paymentAccounts.headerSubtitle}
       footer={(
         <>
           <button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving} onClick={onClose}>{t.common.cancel}</button>
-          <button type="submit" form={formId} className={financeModalPrimaryButtonClass} disabled={!canSave}>
+          <button type="submit" form={formId} className={primaryButtonClassName} disabled={!canSave}>
             <Check className="h-4 w-4" />
             {isSaving ? 'Guardando…' : account ? t.common.saveChanges : t.paymentAccounts.add}
           </button>
@@ -117,29 +126,29 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
       icon={<Banknote className="h-5 w-5" />}
       onOpenChange={(open) => !open && onClose()}
       open
-      title={account ? `${t.common.edit} ${t.paymentAccounts.headerTitle}` : t.paymentAccounts.add}
-      tone="green"
+      title={account ? `${t.common.edit} ${title ?? t.paymentAccounts.headerTitle}` : t.paymentAccounts.add}
+      tone={tone}
     >
       <form id={formId} className="space-y-4" onSubmit={handleSubmit}>
         <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
-        <FinanceModalSection title={t.paymentAccounts.columns.name.label} description={t.paymentAccounts.headerSubtitle}>
-          <TextField label={t.paymentAccounts.columns.name.label} required value={values.name} onChange={(value) => update('name', value)} placeholder={t.paymentAccounts.columns.name.label} />
-          <SelectField label={t.paymentAccounts.filters.type} value={values.type} options={typeOptions} onChange={(value) => update('type', value as PaymentAccountType)} />
-          <SelectField label={t.paymentAccounts.columns.currency.label} value={values.currency} options={financeCurrencySelectOptions} onChange={(value) => update('currency', value)} />
-          <SelectField label={t.paymentAccounts.columns.isActive.label} value={values.isActive} options={[{ value: 'true', label: t.common.active }, { value: 'false', label: t.common.inactive }]} onChange={(value) => update('isActive', value)} />
+        <FinanceModalSection title={t.paymentAccounts.columns.name.label} description={subtitle ?? t.paymentAccounts.headerSubtitle}>
+          <TextField inputClassName={inputClassName} label={t.paymentAccounts.columns.name.label} required value={values.name} onChange={(value) => update('name', value)} placeholder={t.paymentAccounts.columns.name.label} />
+          <SelectField inputClassName={inputClassName} label={t.paymentAccounts.filters.type} value={values.type} options={typeOptions} onChange={(value) => update('type', value as PaymentAccountType)} />
+          <SelectField inputClassName={inputClassName} label={t.paymentAccounts.columns.currency.label} value={values.currency} options={financeCurrencySelectOptions} onChange={(value) => update('currency', value)} />
+          <SelectField inputClassName={inputClassName} label={t.paymentAccounts.columns.isActive.label} value={values.isActive} options={[{ value: 'true', label: t.common.active }, { value: 'false', label: t.common.inactive }]} onChange={(value) => update('isActive', value)} />
         </FinanceModalSection>
         <FinanceModalSection title={`${t.filters.unit} / ${t.filters.business}`}>
-          <SelectField label={t.filters.unit} value={values.unitId} options={unitOptions} onChange={(value) => update('unitId', value)} includeEmpty />
-          <SelectField label={t.filters.business} value={values.businessId} options={availableBusinessOptions} onChange={(value) => update('businessId', value)} includeEmpty />
+          <SelectField inputClassName={inputClassName} label={t.filters.unit} value={values.unitId} options={unitOptions} onChange={(value) => update('unitId', value)} includeEmpty />
+          <SelectField inputClassName={inputClassName} label={t.filters.business} value={values.businessId} options={availableBusinessOptions} onChange={(value) => update('businessId', value)} includeEmpty />
         </FinanceModalSection>
         <FinanceModalSection title={t.paymentAccounts.columns.balance.label}>
-          <TextField label={t.paymentAccounts.columns.bank.label} value={values.bank} onChange={(value) => update('bank', value)} placeholder={t.paymentAccounts.columns.bank.label} />
-          <TextField label={t.paymentAccounts.columns.accountNumber.label} value={values.accountNumber} onChange={(value) => update('accountNumber', value)} placeholder="****1234" />
+          <TextField inputClassName={inputClassName} label={t.paymentAccounts.columns.bank.label} value={values.bank} onChange={(value) => update('bank', value)} placeholder={t.paymentAccounts.columns.bank.label} />
+          <TextField inputClassName={inputClassName} label={t.paymentAccounts.columns.accountNumber.label} value={values.accountNumber} onChange={(value) => update('accountNumber', value)} placeholder="****1234" />
           <label>
             <FinanceFieldLabel label={t.paymentAccounts.columns.balance.label} />
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-              <input type="number" value={values.balance} onChange={(event) => update('balance', event.target.value)} placeholder="0.00" step="0.01" className={`${financeModalInputClass} pl-8`} />
+              <input type="number" value={values.balance} onChange={(event) => update('balance', event.target.value)} placeholder="0.00" step="0.01" className={`${inputClassName} pl-8`} />
             </div>
           </label>
         </FinanceModalSection>
@@ -148,21 +157,21 @@ export function PaymentAccountModal({ account, businessOptions, unitOptions, onC
   );
 }
 
-function TextField({ label, onChange, placeholder, required, value }: { label: string; onChange: (value: string) => void; placeholder: string; required?: boolean; value: string }) {
+function TextField({ inputClassName, label, onChange, placeholder, required, value }: { inputClassName: string; label: string; onChange: (value: string) => void; placeholder: string; required?: boolean; value: string }) {
   return (
     <label>
       <FinanceFieldLabel label={label} required={required} />
-      <input type="text" required={required} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={financeModalInputClass} />
+      <input type="text" required={required} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={inputClassName} />
     </label>
   );
 }
 
-function SelectField({ includeEmpty = false, label, onChange, options, value }: { includeEmpty?: boolean; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
+function SelectField({ includeEmpty = false, inputClassName, label, onChange, options, value }: { includeEmpty?: boolean; inputClassName: string; label: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; value: string }) {
   const t = usePaymentAccountsTranslations();
   return (
     <label>
       <FinanceFieldLabel label={label} />
-      <select value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass}>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClassName}>
         {includeEmpty ? <option value="">{t.common.unassigned}</option> : null}
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
