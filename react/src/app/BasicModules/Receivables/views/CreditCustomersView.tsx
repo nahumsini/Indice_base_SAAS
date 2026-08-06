@@ -16,6 +16,7 @@ import {
   type ColumnConfig,
 } from '../../../components/rh/ColumnasConfigModal';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { CreditCustomersKpiArea } from '../components/ReceivablesKpiAreas';
 import { ReceivablesFilters } from '../components/ReceivablesFilters';
 import {
@@ -58,7 +59,7 @@ type CreditCustomersColumnId =
   | 'term'
   | 'annualInterest';
 
-const creditCustomersColumnsStorageKey = 'indice.receivables.creditCustomers.columns.v1';
+const creditCustomersColumnsStorageKey = 'indice.receivables.creditCustomers.columns.v2';
 
 function getCreditCustomerSortValue(policy: CreditPolicy, columnId: CreditCustomersColumnId) {
   if (columnId === 'customer') {
@@ -117,13 +118,13 @@ export function CreditCustomersView({
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'customer', label: viewCopy.table.customer, visible: true, locked: true },
     { id: 'status', label: viewCopy.table.status, visible: true },
-    { id: 'unit', label: viewCopy.table.unit, visible: true },
-    { id: 'business', label: viewCopy.table.business, visible: true },
+    { id: 'unit', label: viewCopy.table.unit, visible: false },
+    { id: 'business', label: viewCopy.table.business, visible: false },
     { id: 'line', label: viewCopy.table.line, visible: true },
     { id: 'available', label: viewCopy.table.available, visible: true },
-    { id: 'monthlyLimit', label: viewCopy.table.monthlyLimit, visible: true },
-    { id: 'term', label: viewCopy.table.term, visible: true },
-    { id: 'annualInterest', label: viewCopy.table.annualInterest, visible: true },
+    { id: 'monthlyLimit', label: viewCopy.table.monthlyLimit, visible: false },
+    { id: 'term', label: viewCopy.table.term, visible: false },
+    { id: 'annualInterest', label: viewCopy.table.annualInterest, visible: false },
   ], [viewCopy.table]);
   const fixedColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'actions', label: viewCopy.table.actions, visible: true, locked: true },
@@ -264,6 +265,28 @@ export function CreditCustomersView({
         copy={copy}
         creditPolicies={filteredPolicies}
       />
+      <div className="space-y-3 md:hidden">
+        {pagination.paginatedRows.map((policy) => (
+          <article key={policy.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{policy.customerName}</p><p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{policy.unit} · {policy.business}</p></div>
+              {renderCell(policy, 'status')}
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 dark:border-slate-800">
+              <div><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.line}</p><p className="mt-1 text-base font-medium tabular-nums text-slate-950 dark:text-white">{formatMoney(policy.creditLine)}</p></div>
+              <div className="text-right"><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.available}</p><p className={cn('mt-1 text-base font-medium tabular-nums', financeTextClass)}>{formatMoney(policy.availableCredit)}</p></div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setEditingPolicy(policy)} className="h-10 flex-1 gap-2 rounded-lg border-[#147514]/25 text-sm font-medium text-[#147514] shadow-none hover:bg-[#147514]/5 dark:text-emerald-300"><Pencil className="h-4 w-4" />{viewCopy.rowActions.edit}</Button>
+              <Button type="button" size="icon" variant="outline" onClick={() => printCreditCustomerStatement({ accounts, copy, installments, locale, payments, policy })} className="h-10 w-10 rounded-lg border-slate-200 shadow-none dark:border-slate-700" title="Imprimir estado de cuenta / Print statement" aria-label="Imprimir estado de cuenta / Print statement"><Printer className="h-4 w-4" /></Button>
+              <Button type="button" size="icon" variant="outline" onClick={() => deletePolicy(policy)} className="h-10 w-10 rounded-lg border-rose-200 text-rose-600 shadow-none dark:border-rose-900/60 dark:text-rose-300" title={viewCopy.rowActions.delete} aria-label={viewCopy.rowActions.delete}><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          </article>
+        ))}
+        {pagination.totalCount === 0 ? <p className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 dark:border-slate-700">{viewCopy.empty}</p> : null}
+        <DataTablePagination currentPage={pagination.currentPage} itemLabel={viewCopy.itemLabel} onPageChange={pagination.onPageChange} onPageSizeChange={pagination.onPageSizeChange} pageEnd={pagination.pageEnd} pageSize={pagination.pageSize} pageSizeOptions={pagination.pageSizeOptions} pageStart={pagination.pageStart} totalCount={pagination.totalCount} totalPages={pagination.totalPages} />
+      </div>
+      <div className="hidden md:block">
       <ReceivablesTableShell
         currentPage={pagination.currentPage}
         emptyColSpan={visibleColumns.length + 1}
@@ -288,7 +311,7 @@ export function CreditCustomersView({
                 onSort={handleSort}
               />
             ))}
-            <TableHead className="px-5 py-4 text-right text-[11px] font-medium text-slate-500">
+            <TableHead className="px-5 py-4 text-right text-xs font-medium text-slate-500">
               {viewCopy.table.actions}
             </TableHead>
           </TableRow>
@@ -316,7 +339,7 @@ export function CreditCustomersView({
                   );
                 })}
                 <TableCell className="px-5 py-4">
-                  <div className="ml-auto inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-1 dark:border-slate-700 dark:bg-slate-900/70">
                     <Button
                       type="button"
                       variant="ghost"
@@ -324,7 +347,7 @@ export function CreditCustomersView({
                       title="Imprimir estado de cuenta / Print statement"
                       aria-label="Imprimir estado de cuenta / Print statement"
                       onClick={() => printCreditCustomerStatement({ accounts, copy, installments, locale, payments, policy })}
-                      className="h-10 w-10 rounded-xl border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                      className="h-9 w-9 rounded-lg border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
                     >
                       <Printer className="h-4 w-4" />
                     </Button>
@@ -335,7 +358,7 @@ export function CreditCustomersView({
                       title={viewCopy.rowActions.edit}
                       aria-label={viewCopy.rowActions.edit}
                       onClick={() => setEditingPolicy(policy)}
-                      className="h-10 w-10 rounded-xl border border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
+                      className="h-9 w-9 rounded-lg border border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -346,7 +369,7 @@ export function CreditCustomersView({
                       title={viewCopy.rowActions.delete}
                       aria-label={viewCopy.rowActions.delete}
                       onClick={() => deletePolicy(policy)}
-                      className="h-10 w-10 rounded-xl border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60"
+                      className="h-9 w-9 rounded-lg border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300 dark:hover:bg-red-900/60"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -357,6 +380,7 @@ export function CreditCustomersView({
           </TableBody>
         ) : null}
       </ReceivablesTableShell>
+      </div>
 
       <ColumnasConfigModal
         isOpen={showColumnsModal}

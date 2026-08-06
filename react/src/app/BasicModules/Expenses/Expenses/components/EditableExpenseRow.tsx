@@ -64,6 +64,7 @@ type EditableExpenseRowProps = {
   onMarkPaid: (expenseId: string) => void;
   onRecordPayment: (expenseId: string) => void;
   onAudit: (expenseId: string) => void;
+  onView: () => void;
 };
 
 export type ExpenseRowActionVisibility = {
@@ -95,6 +96,7 @@ export function EditableExpenseRow({
   onMarkPaid,
   onRecordPayment,
   onAudit,
+  onView,
 }: EditableExpenseRowProps) {
   const t = useExpensesTranslations();
   const locale = useExpensesResolvedLocale();
@@ -307,7 +309,7 @@ export function EditableExpenseRow({
                 {t.expenses.table.statuses[effectiveStatus] ?? effectiveStatus}
               </button>
               {hasOverduePartialBalance ? (
-                <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
+                <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300">
                   {t.expenses.table.statuses.overdue}
                 </span>
               ) : null}
@@ -378,6 +380,7 @@ export function EditableExpenseRow({
           onPrint={() => printExpenseVoucher({ expense, locale, t })}
           onRecordPayment={onRecordPayment}
           onStartEdit={startActionEdit}
+          onView={onView}
           isDeletePending={isDeletePending}
           showAudit={actionVisibility?.showAudit}
           showDelete={canDeleteExpense(expense)}

@@ -8,8 +8,9 @@ import {
   type AttachmentService,
   type ExpenseAttachment,
 } from '../../services/expense-attachments.service';
-import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { financeModalPrimaryButtonClass } from '../../components/modals/FinanceModalPrimitives';
+import { getExpenseDetailCopy } from './expenseDetail.copy';
 
 interface LocalAttachment {
   id: string;
@@ -28,6 +29,7 @@ interface AttachmentsModalProps {
   expenseConcept: string;
   attachments: string[];
   expenseId?: string;
+  expenseCurrency?: string;
   moduleVariant?: 'finance' | 'sales';
   onSave?: (attachments: string[]) => void;
   onChanged?: (attachmentNames: string[]) => void;
@@ -40,11 +42,13 @@ export function AttachmentsModal({
   expenseConcept,
   attachments,
   expenseId,
+  expenseCurrency = 'MXN',
   moduleVariant = 'finance',
   onSave,
   onChanged,
 }: AttachmentsModalProps) {
   const t = useExpensesTranslations();
+  const detailCopy = getExpenseDetailCopy(useExpensesResolvedLocale());
   const accent = moduleVariant === 'sales' ? '#FF6B5E' : '#147514';
   const accentText = moduleVariant === 'sales' ? '#B63B32' : '#147514';
   const objectUrlsRef = useRef<Set<string>>(new Set());
@@ -164,7 +168,7 @@ export function AttachmentsModal({
             {t.columnModal.close}
           </button>
         )}
-        footerSummary={`${filesCount} ${filesCount === 1 ? 'archivo' : 'archivos'} · ${formatFileSize(totalSize)} · Guardado automático`}
+        footerSummary={`${t.expenses.attachments.attachedFiles(filesCount)} · ${formatFileSize(totalSize)}`}
         icon={<Paperclip className="h-5 w-5" />}
         onOpenChange={(open) => !open && onClose()}
         open={isOpen}
@@ -198,7 +202,7 @@ export function AttachmentsModal({
             {isLoading ? (
               <EmptyState label={t.expenses.attachments.loading} />
             ) : usesBackend ? (
-              <BackendFiles emptyLabel={t.expenses.attachments.empty} files={storedFiles} onRemove={(file) => setPendingDelete({ kind: 'backend', file })} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
+              <BackendFiles currency={expenseCurrency} evidenceLabel={detailCopy.paymentEvidence} emptyLabel={t.expenses.attachments.empty} files={storedFiles} onRemove={(file) => setPendingDelete({ kind: 'backend', file })} openLabel={t.expenses.attachments.open} removeLabel={t.expenses.attachments.remove} downloadLabel={t.expenses.attachments.download} />
             ) : (
               <LocalFiles emptyLabel={t.expenses.attachments.empty} files={localFiles} onRemove={(id) => {
                 const file = localFiles.find(item => item.id === id);
@@ -297,7 +301,7 @@ function UploadDropzone({
 
 type FileActionsCopy = { downloadLabel: string; emptyLabel: string; openLabel: string; removeLabel: string };
 
-function BackendFiles({ downloadLabel, emptyLabel, files, onRemove, openLabel, removeLabel }: FileActionsCopy & { files: ExpenseAttachment[]; onRemove: (file: ExpenseAttachment) => void }) {
+function BackendFiles({ currency, downloadLabel, emptyLabel, evidenceLabel, files, onRemove, openLabel, removeLabel }: FileActionsCopy & { currency: string; evidenceLabel: string; files: ExpenseAttachment[]; onRemove: (file: ExpenseAttachment) => void }) {
   if (files.length === 0) return <EmptyState label={emptyLabel} />;
   return (
     <div className="space-y-2">
@@ -309,6 +313,10 @@ function BackendFiles({ downloadLabel, emptyLabel, files, onRemove, openLabel, r
           type={file.mimeType}
           url={file.downloadUrl}
           uploadedAt={file.createdAt}
+          paymentAmount={file.paymentAmount}
+          paymentDate={file.paymentDate}
+          currency={currency}
+          evidenceLabel={evidenceLabel}
           onRemove={() => void onRemove(file)}
           downloadLabel={downloadLabel}
           openLabel={openLabel}
@@ -341,13 +349,18 @@ function LocalFiles({ downloadLabel, emptyLabel, files, onRemove, openLabel, rem
   );
 }
 
-function FileRow({ downloadLabel, name, onRemove, openLabel, removeLabel, size, type, uploadedAt, url }: { downloadLabel: string; name: string; onRemove: () => void; openLabel: string; removeLabel: string; size: number; type: string; uploadedAt?: string; url?: string }) {
+function FileRow({ currency = 'MXN', downloadLabel, evidenceLabel = '', name, onRemove, openLabel, paymentAmount, paymentDate, removeLabel, size, type, uploadedAt, url }: { currency?: string; downloadLabel: string; evidenceLabel?: string; name: string; onRemove: () => void; openLabel: string; paymentAmount?: number; paymentDate?: string; removeLabel: string; size: number; type: string; uploadedAt?: string; url?: string }) {
   return (
     <div className="group flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 transition-colors dark:border-gray-600 dark:bg-gray-700/50">
-      <div className="flex-shrink-0">{type.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-blue-500" /> : <File className="h-5 w-5 text-gray-500" />}</div>
+      <div className="flex-shrink-0">{type.startsWith('image/') && url ? <img alt="" src={url} className="h-11 w-11 rounded-lg object-cover" /> : type.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-blue-500" /> : <File className="h-5 w-5 text-gray-500" />}</div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{name}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(size)}{uploadedAt ? ` - ${new Date(uploadedAt).toLocaleDateString()}` : ''}</p>
+        {paymentAmount && paymentDate ? (
+          <p className="mt-1 text-xs font-medium text-[#147514]">
+            {evidenceLabel} · {new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(paymentAmount)} · {new Date(`${paymentDate}T00:00:00`).toLocaleDateString()}
+          </p>
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
         <button onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')} type="button" disabled={!url} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">

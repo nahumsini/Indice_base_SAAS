@@ -235,11 +235,11 @@ Los candados comprueban:
 | Verificación | Resultado |
 | --- | --- |
 | Auditoría exacta de fuentes contra snapshot | Aprobada |
-| `test:expenses-ui` | 2/2 |
-| `test:petty-cash-ui` | 2/2 |
-| `test:receivables-ui` | 2/2 |
-| `test:expenses` | 4/4 |
-| `test:kiosks` | 8/8 |
+| `test:expenses-ui` | 4/4 |
+| `test:petty-cash-ui` | 4/4 |
+| `test:receivables-ui` | 4/4 |
+| `test:expenses` | 5/5 |
+| `test:kiosks` | 10/10 |
 | `test:auth` | 2/2 |
 | `test:inventory-ui` | 1/1 |
 | `test:sales-ui` | 1/1 |
@@ -267,3 +267,42 @@ Un retorno debe hacerse por módulo y archivo desde el snapshot inmediatamente a
 ## Criterio de cierre
 
 La fase queda cerrada porque los tres módulos usan la jerarquía tipográfica del Frontend Engine V2, conservan sus primitivas y contratos funcionales, pasan las regresiones existentes y nuevas, y generan correctamente el build de producción.
+
+## Addendum de jerarquía UX para Expenses — 2026-08-05
+
+La estandarización tipográfica anterior no resolvía por sí sola la densidad operativa de Gastos. Se adopta la siguiente jerarquía adicional:
+
+- La lista de gastos es un índice resumido; el contexto completo vive en un expediente financiero.
+- El expediente reúne resumen de total/abonado/saldo, datos generales, fechas, historial de abonos, evidencia, archivos y trazabilidad.
+- Las acciones visibles por fila se limitan a consultar el expediente y registrar abono; las demás se agrupan en un menú contextual.
+- El encabezado conserva altas como acciones visibles y agrupa Kiosko CxP y Columnas.
+- Las columnas iniciales se reducen a la información de decisión. Impuestos, subtotal, cuenta contable y archivos permanecen disponibles mediante configuración.
+- La tarjeta móvil muestra identidad, estado, total y saldo, con acceso directo al expediente; no replica la tabla de escritorio.
+- Ningún texto operativo del módulo debe bajar de 12 px.
+- Los comprobantes de abono conservan monto, fecha y cuenta de pago, y se presentan como evidencia del abono en el expediente y el modal de archivos.
+
+Estos criterios complementan las reglas de modal y tipografía existentes y deben protegerse con regresiones de flujo y jerarquía.
+
+## Addendum de jerarquía UX para Cartera y Caja Chica — 2026-08-05
+
+La jerarquía aplicada a Gastos se extiende a los otros espacios operativos de Finanzas sin modificar sus contratos de dominio.
+
+### Cartera
+
+- Las cuatro vistas usan un índice móvil compacto en lugar de trasladar la tabla completa al teléfono.
+- Las cuentas por cobrar abren un expediente que concentra resumen financiero, datos de la cuenta, calendario de parcialidades e historial de abonos con sus comprobantes.
+- Registrar abono permanece como acción directa desde la cuenta y desde el expediente.
+- Los comprobantes de abonos se conservan en el historial y continúan disponibles en el modal de archivos.
+- Las columnas iniciales priorizan identidad, estado, importes y vencimiento; alcance, configuración financiera y metadatos permanecen disponibles desde Columnas.
+- Los KPI visibles se limitan a cuatro decisiones principales; la distribución y las alertas conservan el detalle operativo.
+
+### Caja Chica
+
+- Fondos, operación de saldos, historial de cortes e indicadores financieros presentan tarjetas resumidas en móvil y conservan tablas en escritorio.
+- Cada tarjeta muestra identidad, estado y los dos importes prioritarios del contexto; el detalle y la operación siguen accesibles mediante botones de 40 px.
+- En Fondos se priorizan Ver detalle y Editar; activar/desactivar y eliminar se agrupan en el menú contextual.
+- En Saldos se priorizan evidencia y autorización; copiar, rechazar y eliminar se agrupan como acciones secundarias.
+- Los encabezados conservan hasta dos acciones visibles y agrupan proveedor/columnas cuando corresponde.
+- El detalle de corte funciona como expediente de solo lectura con resumen, periodo, responsable, estado, movimientos y comprobantes.
+
+En ambos módulos el radio rutinario es `rounded-xl`, las sombras se reservan para capas flotantes y ningún texto operativo baja de `text-xs` (12 px).

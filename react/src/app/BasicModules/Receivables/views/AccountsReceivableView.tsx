@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Banknote, Columns3, FolderOpen, Printer } from 'lucide-react';
+import { Banknote, Columns3, Eye, FolderOpen, Printer } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import {
   TableBody,
@@ -14,6 +14,7 @@ import {
   type ColumnConfig,
 } from '../../../components/rh/ColumnasConfigModal';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { AccountsReceivableKpiArea } from '../components/ReceivablesKpiAreas';
 import { ReceivablesFilters } from '../components/ReceivablesFilters';
 import {
@@ -29,6 +30,8 @@ import { ReceivablesTableShell } from '../components/ReceivablesTableShell';
 import { ReceivablesTitleBar } from '../components/ReceivablesTitleBar';
 import { PaymentModal } from '../components/modals/PaymentModal';
 import { ReceivableFilesModal } from '../components/modals/ReceivableFilesModal';
+import { ReceivableDetailModal } from '../components/modals/ReceivableDetailModal';
+import { getReceivableDetailCopy } from '../components/receivableDetail.copy';
 import {
   financeTextClass,
   initialFilters,
@@ -56,7 +59,7 @@ type AccountsReceivableColumnId =
   | 'balance'
   | 'dueDate';
 
-const accountsReceivableColumnsStorageKey = 'indice.receivables.accountsReceivable.columns.v1';
+const accountsReceivableColumnsStorageKey = 'indice.receivables.accountsReceivable.columns.v2';
 
 function getAccountsReceivableSortValue(
   installment: ReceivableInstallment,
@@ -109,16 +112,17 @@ export function AccountsReceivableView({
   payments,
 }: AccountsReceivableViewProps) {
   const locale = useReceivablesResolvedLocale();
+  const detailCopy = getReceivableDetailCopy(locale);
   const viewCopy = copy.views.accountsReceivable;
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'sale', label: viewCopy.table.sale, visible: true, locked: true },
     { id: 'customer', label: viewCopy.table.customer, visible: true },
     { id: 'installment', label: viewCopy.table.installment, visible: true },
     { id: 'status', label: viewCopy.table.status, visible: true },
-    { id: 'unit', label: viewCopy.table.unit, visible: true },
-    { id: 'business', label: viewCopy.table.business, visible: true },
-    { id: 'amount', label: viewCopy.table.amount, visible: true },
-    { id: 'paid', label: viewCopy.table.paid, visible: true },
+    { id: 'unit', label: viewCopy.table.unit, visible: false },
+    { id: 'business', label: viewCopy.table.business, visible: false },
+    { id: 'amount', label: viewCopy.table.amount, visible: false },
+    { id: 'paid', label: viewCopy.table.paid, visible: false },
     { id: 'balance', label: viewCopy.table.balance, visible: true },
     { id: 'dueDate', label: viewCopy.table.dueDate, visible: true },
   ], [viewCopy.table]);
@@ -131,6 +135,7 @@ export function AccountsReceivableView({
   const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [paymentInstallment, setPaymentInstallment] = useState<ReceivableInstallment | null>(null);
   const [filesInstallment, setFilesInstallment] = useState<ReceivableInstallment | null>(null);
+  const [detailInstallment, setDetailInstallment] = useState<ReceivableInstallment | null>(null);
   const [sortState, setSortState] = useState<ReceivablesSortState<AccountsReceivableColumnId>>({
     columnId: 'dueDate',
     direction: 'asc',
@@ -166,6 +171,9 @@ export function AccountsReceivableView({
   const filesPayments = filesInstallment
     ? payments.filter((payment) => payment.receivableId === filesInstallment.receivableId)
     : [];
+  const detailAccount = detailInstallment
+    ? accounts.find((account) => account.id === detailInstallment.receivableId) ?? null
+    : null;
   const handleSort = (columnId: AccountsReceivableColumnId) => {
     setSortState((current) => (
       current.columnId === columnId
@@ -265,6 +273,55 @@ export function AccountsReceivableView({
         installments={filteredInstallments}
         totalInstallments={installments.length}
       />
+      <div className="space-y-3 md:hidden">
+        {pagination.paginatedRows.map((installment) => (
+          <article key={installment.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{installment.customerName}</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{installment.saleNumber} · #{installment.installmentNumber}</p>
+              </div>
+              <ReceivablesStatusBadge copy={copy} status={installment.status} />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 dark:border-slate-800">
+              <div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.balance}</p>
+                <p className={cn('mt-1 text-base font-medium tabular-nums', financeTextClass)}>{formatMoney(installment.balance, installment.currency)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.dueDate}</p>
+                <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">{installment.dueDate}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setDetailInstallment(installment)} className="h-10 flex-1 gap-2 rounded-lg border-[#147514]/25 text-sm font-medium text-[#147514] shadow-none hover:bg-[#147514]/5 dark:text-emerald-300">
+                <Eye className="h-4 w-4" />
+                {detailCopy.detail}
+              </Button>
+              <Button type="button" size="icon" disabled={installment.balance <= 0} onClick={() => setPaymentInstallment(installment)} className="h-10 w-10 rounded-lg bg-[#147514] text-white shadow-none hover:bg-[#105010] disabled:opacity-45" title={detailCopy.registerPayment} aria-label={detailCopy.registerPayment}>
+                <Banknote className="h-4 w-4" />
+              </Button>
+              <Button type="button" size="icon" variant="outline" onClick={() => setFilesInstallment(installment)} className="h-10 w-10 rounded-lg border-slate-200 shadow-none dark:border-slate-700" title={viewCopy.rowActions.files} aria-label={viewCopy.rowActions.files}>
+                <FolderOpen className="h-4 w-4" />
+              </Button>
+            </div>
+          </article>
+        ))}
+        {pagination.totalCount === 0 ? <p className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 dark:border-slate-700">{viewCopy.empty}</p> : null}
+        <DataTablePagination
+          currentPage={pagination.currentPage}
+          itemLabel={viewCopy.itemLabel}
+          onPageChange={pagination.onPageChange}
+          onPageSizeChange={pagination.onPageSizeChange}
+          pageEnd={pagination.pageEnd}
+          pageSize={pagination.pageSize}
+          pageSizeOptions={pagination.pageSizeOptions}
+          pageStart={pagination.pageStart}
+          totalCount={pagination.totalCount}
+          totalPages={pagination.totalPages}
+        />
+      </div>
+      <div className="hidden md:block">
       <ReceivablesTableShell
         currentPage={pagination.currentPage}
         emptyColSpan={visibleColumns.length + 1}
@@ -289,7 +346,7 @@ export function AccountsReceivableView({
                 onSort={handleSort}
               />
             ))}
-            <TableHead className="px-5 py-4 text-right text-[11px] font-medium text-slate-500">
+            <TableHead className="px-5 py-4 text-right text-xs font-medium text-slate-500">
               {viewCopy.table.actions}
             </TableHead>
           </TableRow>
@@ -319,7 +376,18 @@ export function AccountsReceivableView({
                   );
                 })}
                 <TableCell className="px-5 py-4">
-                  <div className="ml-auto inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-1 dark:border-slate-700 dark:bg-slate-900/70">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title={detailCopy.detail}
+                      aria-label={detailCopy.detail}
+                      onClick={() => setDetailInstallment(installment)}
+                      className="h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
@@ -328,7 +396,7 @@ export function AccountsReceivableView({
                       aria-label={viewCopy.rowActions.payment}
                       disabled={installment.balance <= 0}
                       onClick={() => setPaymentInstallment(installment)}
-                      className="h-10 w-10 rounded-xl border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] disabled:opacity-45 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                      className="h-9 w-9 rounded-lg border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] disabled:opacity-45 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
                     >
                       <Banknote className="h-4 w-4" />
                     </Button>
@@ -339,7 +407,7 @@ export function AccountsReceivableView({
                       title={viewCopy.rowActions.files}
                       aria-label={viewCopy.rowActions.files}
                       onClick={() => setFilesInstallment(installment)}
-                      className="h-10 w-10 rounded-xl border border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
+                      className="h-9 w-9 rounded-lg border border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
                     >
                       <FolderOpen className="h-4 w-4" />
                     </Button>
@@ -350,6 +418,7 @@ export function AccountsReceivableView({
           </TableBody>
         ) : null}
       </ReceivablesTableShell>
+      </div>
 
       <ColumnasConfigModal
         isOpen={showColumnsModal}
@@ -376,6 +445,20 @@ export function AccountsReceivableView({
           copy={copy}
           payments={filesPayments}
           onClose={() => setFilesInstallment(null)}
+        />
+      ) : null}
+      {detailAccount ? (
+        <ReceivableDetailModal
+          account={detailAccount}
+          copy={copy}
+          detailCopy={detailCopy}
+          installments={installments}
+          onClose={() => setDetailInstallment(null)}
+          onRegisterPayment={() => {
+            setPaymentInstallment(detailInstallment);
+            setDetailInstallment(null);
+          }}
+          payments={payments}
         />
       ) : null}
     </>

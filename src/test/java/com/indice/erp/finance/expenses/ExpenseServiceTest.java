@@ -291,6 +291,23 @@ class ExpenseServiceTest {
     }
 
     @Test
+    void deleteDraftAlsoAllowsPaidOperationalExpenses() {
+        var service = service();
+        var context = context();
+        var operationalExpense = recordWithPaymentStatusAndFields(
+            15L, ExpenseStatus.PAID, PaymentStatus.PAID, "Paid expense",
+            new BigDecimal("116.00"), BigDecimal.ZERO,
+            "{ \"entryType\" : \"real\" }", null);
+        when(repository.findById(context, 15L)).thenReturn(Optional.of(operationalExpense));
+        when(repository.softDelete(context, 15L, ExpenseStatus.PAID)).thenReturn(true);
+
+        var response = service.deleteDraft(context, 15L);
+
+        assertTrue(response.success());
+        verify(repository).softDelete(context, 15L, ExpenseStatus.PAID);
+    }
+
+    @Test
     void approveMovesPendingExpenseToApprovedWithApprover() {
         var service = service();
         var context = context();
@@ -552,6 +569,19 @@ class ExpenseServiceTest {
             BigDecimal paidAmount,
             BigDecimal balanceAmount,
             String metadataJson) {
+        return recordWithPaymentStatusAndFields(
+            id, status, paymentStatus, concept, paidAmount, balanceAmount, null, metadataJson);
+    }
+
+    private ExpenseRecord recordWithPaymentStatusAndFields(
+            long id,
+            ExpenseStatus status,
+            PaymentStatus paymentStatus,
+            String concept,
+            BigDecimal paidAmount,
+            BigDecimal balanceAmount,
+            String customFieldsJson,
+            String metadataJson) {
         return new ExpenseRecord(
             id,
             7L,
@@ -589,7 +619,7 @@ class ExpenseServiceTest {
             null,
             null,
             0L,
-            null,
+            customFieldsJson,
             metadataJson
         );
     }

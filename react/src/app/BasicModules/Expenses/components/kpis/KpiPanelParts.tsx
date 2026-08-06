@@ -48,7 +48,7 @@ export function OverviewMetric({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <p className={cn('truncate text-sm font-medium', valueClassName)}>{value}</p>
-          {helper ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{helper}</span> : null}
+          {helper ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{helper}</span> : null}
         </div>
         <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
       </div>
@@ -170,7 +170,7 @@ export function BudgetHealthTable({
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
             <th className="px-5 py-4">{labels.line}</th>
             <th className="px-5 py-4 text-right">{labels.planned}</th>
             <th className="px-5 py-4 text-right">{labels.committed}</th>

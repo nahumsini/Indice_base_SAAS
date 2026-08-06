@@ -22,6 +22,7 @@ export const getExpenseBalance = (expense: Expense) => Math.max(expense.total - 
 
 export const canDeleteExpense = (expense: Expense) => (
   expense.type === 'budget'
+  || expense.type === 'real'
   || !expense.backendStatus
   || expense.backendStatus.toUpperCase() === 'DRAFT'
 );

@@ -8,6 +8,9 @@ export type ExpenseAttachment = {
   objectKey: string;
   uploadedByUserId?: string;
   uploadedByName?: string;
+  paymentAmount?: number;
+  paymentDate?: string;
+  paymentAccountId?: string;
   downloadUrl?: string;
   createdAt?: string;
 };
@@ -26,6 +29,12 @@ type ExpenseAttachmentApiDto = {
   uploaded_by_user_id?: number | string;
   uploadedByName?: string;
   uploaded_by_name?: string;
+  paymentAmount?: number;
+  payment_amount?: number;
+  paymentDate?: string;
+  payment_date?: string;
+  paymentAccountId?: number | string;
+  payment_account_id?: number | string;
   downloadUrl?: string;
   download_url?: string;
   createdAt?: string;
@@ -48,8 +57,14 @@ type PresignUploadResponse = {
 
 export type AttachmentService = {
   list(ownerId: string): Promise<ExpenseAttachment[]>;
-  upload(ownerId: string, file: File): Promise<ExpenseAttachment>;
+  upload(ownerId: string, file: File, context?: ExpenseAttachmentContext): Promise<ExpenseAttachment>;
   remove(ownerId: string, attachmentId: string): Promise<void>;
+};
+
+export type ExpenseAttachmentContext = {
+  paymentAmount: number;
+  paymentDate: string;
+  paymentAccountId: string;
 };
 
 function createAttachmentService(basePath: (ownerId: string) => string): AttachmentService {
@@ -59,7 +74,7 @@ function createAttachmentService(basePath: (ownerId: string) => string): Attachm
       return response.items.map(toExpenseAttachment);
     },
 
-    async upload(ownerId: string, file: File): Promise<ExpenseAttachment> {
+    async upload(ownerId: string, file: File, context?: ExpenseAttachmentContext): Promise<ExpenseAttachment> {
       const presign = await apiClient<PresignUploadResponse>(`${basePath(ownerId)}/presign-upload`, {
         method: 'POST',
         body: JSON.stringify({
@@ -90,6 +105,9 @@ function createAttachmentService(basePath: (ownerId: string) => string): Attachm
           originalFilename: file.name,
           mimeType: normalizeContentType(file),
           sizeBytes: file.size,
+          paymentAmount: context?.paymentAmount,
+          paymentDate: context?.paymentDate,
+          paymentAccountId: context ? Number(context.paymentAccountId) : undefined,
         }),
       });
       return toExpenseAttachment(registered);
@@ -120,6 +138,11 @@ function toExpenseAttachment(dto: ExpenseAttachmentApiDto): ExpenseAttachment {
       ? String(dto.uploadedByUserId ?? dto.uploaded_by_user_id)
       : undefined,
     uploadedByName: dto.uploadedByName ?? dto.uploaded_by_name,
+    paymentAmount: dto.paymentAmount ?? dto.payment_amount,
+    paymentDate: dto.paymentDate ?? dto.payment_date,
+    paymentAccountId: dto.paymentAccountId || dto.payment_account_id
+      ? String(dto.paymentAccountId ?? dto.payment_account_id)
+      : undefined,
     downloadUrl: resolveOptionalExpenseStorageUrl(dto.downloadUrl ?? dto.download_url),
     createdAt: dto.createdAt ?? dto.created_at,
   };

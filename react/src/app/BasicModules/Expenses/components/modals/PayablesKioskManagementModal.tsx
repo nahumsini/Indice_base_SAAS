@@ -324,7 +324,7 @@ export function PayablesKioskManagementModal({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate text-base font-medium text-slate-950 dark:text-white">{kiosk.name}</p>
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${kiosk.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${kiosk.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                               {kiosk.status === 'ACTIVE' ? t.common.active : t.common.inactive}
                             </span>
@@ -504,7 +504,7 @@ export function PayablesKioskManagementModal({
 
 function KioskMeta({ icon, label }: { icon?: React.ReactNode; label: string }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
       {icon}
       <span className="truncate">{label}</span>
     </span>

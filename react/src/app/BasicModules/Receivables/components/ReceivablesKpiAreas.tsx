@@ -140,22 +140,6 @@ export function AccountsReceivableKpiArea({
       value: formatCount(dueSoonCount),
       valueClassName: 'text-[#9A6B05]',
     },
-    {
-      id: 'paid',
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      iconClassName: 'text-emerald-600',
-      label: labels.labels.paid,
-      value: formatCount(paidCount),
-      valueClassName: 'text-emerald-600',
-    },
-    {
-      id: 'partial',
-      icon: <Banknote className="h-4 w-4" />,
-      iconClassName: 'text-blue-600',
-      label: labels.labels.partial,
-      value: formatCount(partialCount),
-      valueClassName: 'text-blue-600',
-    },
   ];
   const alertChips: OperationalAlertChip[] = [];
 
@@ -287,21 +271,6 @@ export function PaymentsKpiArea({
       value: formatCount(transferCount),
       valueClassName: 'text-blue-600',
     },
-    {
-      id: 'cash',
-      icon: <Banknote className="h-4 w-4" />,
-      iconClassName: 'text-[#9A6B05]',
-      label: labels.labels.cash,
-      value: formatCount(cashCount),
-      valueClassName: 'text-[#9A6B05]',
-    },
-    {
-      id: 'card',
-      icon: <CreditCard className="h-4 w-4" />,
-      iconClassName: 'text-slate-500',
-      label: labels.labels.card,
-      value: formatCount(cardCount),
-    },
   ];
   const alertChips: OperationalAlertChip[] = [];
 
@@ -397,22 +366,6 @@ export function CreditCustomersKpiArea({
       icon: <UsersRound className="h-4 w-4" />,
       label: labels.labels.visibleCustomers,
       value: formatCount(creditPolicies.length),
-    },
-    {
-      id: 'active',
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      iconClassName: 'text-blue-600',
-      label: labels.labels.active,
-      value: formatCount(activeCount),
-      valueClassName: 'text-blue-600',
-    },
-    {
-      id: 'review',
-      icon: <Timer className="h-4 w-4" />,
-      iconClassName: 'text-[#9A6B05]',
-      label: labels.labels.review,
-      value: formatCount(reviewCount),
-      valueClassName: 'text-[#9A6B05]',
     },
     {
       id: 'blocked',

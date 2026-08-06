@@ -40,7 +40,7 @@ export function PettyCashKioskBalanceStrip({
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${toneClasses[metric.tone]}`}>{metric.icon}</span>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{metric.value}</p>
-            <p className="truncate text-[9px] font-medium text-slate-500 dark:text-slate-400">{metric.label}</p>
+            <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{metric.label}</p>
           </div>
         </div>
       ))}

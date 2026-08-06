@@ -76,6 +76,7 @@ public class ExpenseAttachmentService {
             long expenseId,
             RegisterExpenseAttachmentRequest request) {
         requireExpense(context, expenseId);
+        validatePaymentContext(request);
         requireStorageEnabled();
         ExpenseAttachmentRules.validateAttachmentSize(request.sizeBytes());
 
@@ -87,9 +88,23 @@ public class ExpenseAttachmentService {
         }
         storageMeter.commit(context.companyId(), documentsBucket(), objectKey, request.sizeBytes());
 
-        var row = repository.insert(context, expenseId, fileName, mimeType, request.sizeBytes(), objectKey);
+        var row = repository.insert(context, expenseId, fileName, mimeType, request.sizeBytes(), objectKey,
+                request.paymentAmount(), request.paymentDate(), request.paymentAccountId());
         repository.refreshExpenseAttachmentCount(context, expenseId);
         return row.toResponse(signedUrl(row.objectKey()));
+    }
+
+    private void validatePaymentContext(RegisterExpenseAttachmentRequest request) {
+        var hasAnyPaymentContext = request.paymentAmount() != null
+                || request.paymentDate() != null
+                || request.paymentAccountId() != null;
+        var hasCompletePaymentContext = request.paymentAmount() != null
+                && request.paymentDate() != null
+                && request.paymentAccountId() != null;
+        if (hasAnyPaymentContext && !hasCompletePaymentContext) {
+            throw FinanceApiException.badRequest(
+                    "Payment evidence requires paymentAmount, paymentDate and paymentAccountId.");
+        }
     }
 
     @Transactional
