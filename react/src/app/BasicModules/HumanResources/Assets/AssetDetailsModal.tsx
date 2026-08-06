@@ -316,6 +316,7 @@ const downloadAssetAssignmentActPdf = async (
     confidentiality: 'Internal',
     folio: asset.asset_code,
     locale,
+    version: '1.0',
   });
   doc.save(buildDocumentFileName({
     documentType: 'asset-assignment',

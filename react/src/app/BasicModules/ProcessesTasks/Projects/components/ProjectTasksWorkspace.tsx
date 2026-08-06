@@ -1844,7 +1844,7 @@ export function ProjectTasksWorkspace({
       },
     });
 
-    addStandardPdfFooters(doc, { confidentiality: 'Internal', folio: task.folio, locale });
+    addStandardPdfFooters(doc, { confidentiality: 'Internal', folio: task.folio, locale, version: '1.0' });
     doc.save(buildDocumentFileName({
       documentType: copy.report.filePrefix,
       identifier: task.folio,

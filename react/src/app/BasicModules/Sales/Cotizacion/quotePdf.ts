@@ -5,7 +5,7 @@ import { formatSalesCurrencyAmount } from '../utils/salesCurrency';
 import type { QuotesTranslations } from './translations';
 import { getQuoteLineExchangeRateLabel } from './utils/quoteCurrencyConversion';
 import { buildDocumentFileName } from '../../shared/print/documentFileName';
-import { addStandardPdfFooters, openStandardPdfForPrint } from '../../shared/print/documentPdfEngine';
+import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from '../../shared/print/documentPdfEngine';
 
 const brand = {
   coral: [255, 107, 94] as const,
@@ -196,10 +196,9 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
     doc.text(body, x + 5, y + 16, { maxWidth: width - 10, lineHeightFactor: 1.35 });
   };
 
-  doc.setProperties({
+  applyStandardPdfMetadata(doc, {
     title: `${copy.previewModal.documentTitle} ${quote.quoteNumber}`,
     subject: copy.header.title,
-    creator: copy.header.title,
   });
 
   let y = 16;
@@ -421,6 +420,7 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
     folio: quote.quoteNumber,
     locale,
     updatedAt: generatedAt,
+    version: '1.0',
   });
   return doc;
 }
@@ -444,5 +444,5 @@ export function downloadQuotePdf(context: QuotePdfContext) {
 }
 
 export function printQuotePdf(context: QuotePdfContext) {
-  return openStandardPdfForPrint(buildQuotePdf(context));
+  return openStandardPdfForPrint(buildQuotePdf(context), { locale: context.locale });
 }

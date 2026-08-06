@@ -209,6 +209,7 @@ export async function downloadRecordPdf(
     confidentiality: 'Confidential',
     folio: recordNumber,
     locale,
+    version: '1.0',
   });
   doc.save(buildDocumentFileName({
     documentType: 'hr-record',
